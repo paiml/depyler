@@ -21,7 +21,10 @@ fn main() -> anyhow::Result<()> {
     println!("Model path: {}", model_path.display());
 
     match predictor.load(&model_path) {
-        Ok(()) => println!("Loaded existing model ({} patterns)", predictor.pattern_count()),
+        Ok(()) => println!(
+            "Loaded existing model ({} patterns)",
+            predictor.pattern_count()
+        ),
         Err(e) => println!("No existing model: {}", e),
     }
 
@@ -75,7 +78,11 @@ fn main() -> anyhow::Result<()> {
 
     for (error_msg, fix_template, category) in &training_pairs {
         predictor.learn_pattern(error_msg, fix_template, *category);
-        println!("  Learned: {:?} → {}", category, &fix_template[..40.min(fix_template.len())]);
+        println!(
+            "  Learned: {:?} → {}",
+            category,
+            &fix_template[..40.min(fix_template.len())]
+        );
     }
 
     // Step 3: Fit the vectorizer for similarity matching

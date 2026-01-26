@@ -1,0 +1,13 @@
+[package]
+name = "test_async"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "test_async.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+quickcheck = "1"

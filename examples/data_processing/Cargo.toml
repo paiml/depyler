@@ -1,0 +1,9 @@
+[package]
+name = "list_operations"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "list_operations"
+path = "list_operations.rs"
+

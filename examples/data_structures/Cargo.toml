@@ -1,0 +1,9 @@
+[package]
+name = "stack"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "stack"
+path = "stack.rs"
+

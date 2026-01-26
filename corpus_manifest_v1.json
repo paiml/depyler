@@ -1,0 +1,1077 @@
+{
+  "version": "1.0",
+  "frozen_at": "2026-01-25T17:24:25.223202+00:00",
+  "corpus_root": "/Users/noahgift/src/depyler/examples",
+  "total_files": 178,
+  "manifest_hash": "6e82bb409a3af8cb242201bf855e0f25a9629035a1b6005768d26332b70239c3",
+  "files": [
+    {
+      "path": "/Users/noahgift/src/depyler/examples/algorithms/binary_search_simple.py",
+      "sha256": "4d24e81d8032768394c33e3b55f848c6504cb64fef618fad0bc9620950a35641",
+      "size_bytes": 938,
+      "relative_path": "algorithms/binary_search_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/algorithms/fibonacci.py",
+      "sha256": "e39badd31efd4367e4e6c14226ffc5b0226963959ab2f2dd0c9127fa0158d0a4",
+      "size_bytes": 937,
+      "relative_path": "algorithms/fibonacci.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/algorithms/quicksort.py",
+      "sha256": "300eaecded237c7a45d4b51a29ef4a3f54e1c7722a9cb80975384251e6784d01",
+      "size_bytes": 1072,
+      "relative_path": "algorithms/quicksort.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/argparse_cli/python/wordcount.py",
+      "sha256": "6d31c15d843579205ff73e06861935d8ae7fe1ef5a68242d48cb8356c5f45f83",
+      "size_bytes": 2494,
+      "relative_path": "argparse_cli/python/wordcount.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/argparse_cli/simple_cli.py",
+      "sha256": "52c7c61d90887bf36a4745bd6b7266079131617e11d1a5c7d4ef4d2b6981971c",
+      "size_bytes": 514,
+      "relative_path": "argparse_cli/simple_cli.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/argparse_cli/test_kwargs.py",
+      "sha256": "1017fb3fe39c2f614d0656f63c84ed444baf10ef3bb64cd18052c626c765eec0",
+      "size_bytes": 451,
+      "relative_path": "argparse_cli/test_kwargs.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/argparse_cli/test_type_inference.py",
+      "sha256": "3b1a0964b3ec09c0b35617edf9ac683858f9ee44bfeb8395d0427609cf9d00d7",
+      "size_bytes": 869,
+      "relative_path": "argparse_cli/test_type_inference.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/argparse_cli/tests/test_wordcount.py",
+      "sha256": "d9c0c5f16ca522fe291f8cef98c7ad22ae816acd7231be360ed6fa560db3513d",
+      "size_bytes": 14847,
+      "relative_path": "argparse_cli/tests/test_wordcount.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/array_functions_test.py",
+      "sha256": "29f6331eca11081784ef8dcefcc7994fe5345d30c81a2bdb0a377b19af50aa9e",
+      "size_bytes": 382,
+      "relative_path": "array_functions_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/array_test.py",
+      "sha256": "5e75bbacfb4ee6e4fcbc4905a2ea24a0ab413169cb542f1c8a24f0eb1fa01497",
+      "size_bytes": 1160,
+      "relative_path": "array_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/ast_converters_demo.py",
+      "sha256": "d219f026fd6e85644a1746079fceabfd7841f4a759fc822e702fafe6631f4ae3",
+      "size_bytes": 5746,
+      "relative_path": "ast_converters_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/basic_class_test.py",
+      "sha256": "f6417db762d1e6ba33fc8b2a02c76fb10e7c674e8b83c550968974e1dbe5f32a",
+      "size_bytes": 2246,
+      "relative_path": "basic_class_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/basic_lambda.py",
+      "sha256": "564504723cf0c4ca2985d66fd01101464e3096934142c09d1dffd8101e53a8d5",
+      "size_bytes": 201,
+      "relative_path": "basic_lambda.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/comprehensive_cli/comprehensive_cli.py",
+      "sha256": "a1da1b68428c3f9f21a1aa22ea8b3a64430a1397f8638baf32dce8b74592d840",
+      "size_bytes": 3542,
+      "relative_path": "comprehensive_cli/comprehensive_cli.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/custom_attributes_demo.py",
+      "sha256": "a13bba9cfdfbc629e3950ce17e9c196590f7e0fe6583b0efcdd421bd6b94e4d4",
+      "size_bytes": 1530,
+      "relative_path": "custom_attributes_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/data_analysis_combined.py",
+      "sha256": "7cf3fdba59755b2c8aed549b87e120057eb0b29e4b132340e7efae2e2187a34e",
+      "size_bytes": 9626,
+      "relative_path": "data_analysis_combined.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/data_processing/list_operations.py",
+      "sha256": "e28f58fb176ef697fb5bfa0c559a501ebf4219a0511f4c4e65955a6fa8f0a681",
+      "size_bytes": 2196,
+      "relative_path": "data_processing/list_operations.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/data_structures/queue.py",
+      "sha256": "cef94aab37ddc19c1c6fc4f274eb91097973594e70b78e8b5ab9058dc7d3a585",
+      "size_bytes": 2168,
+      "relative_path": "data_structures/queue.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/data_structures/stack.py",
+      "sha256": "7301de26113459659f10d84715e958d2c00b7fbfc5bbb2c16ff70187c3a96187",
+      "size_bytes": 1613,
+      "relative_path": "data_structures/stack.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/debugging_workflow.py",
+      "sha256": "5dc422aff68e6f721d7bc6759f8eead8eb81799cd80ebcc405d8763779897771",
+      "size_bytes": 2145,
+      "relative_path": "debugging_workflow.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/deep_nested_dict.py",
+      "sha256": "0a0972559a90c563ad5976498d4c7d6a44143ed539cc16240c5b97ad581bdbdb",
+      "size_bytes": 349,
+      "relative_path": "deep_nested_dict.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/demo.py",
+      "sha256": "6e9244446ca5aee2f898131facc1c783568518ddae30f9eb05ee40192542df9b",
+      "size_bytes": 704,
+      "relative_path": "demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/dict_assign.py",
+      "sha256": "982e458e2e2dbb0ebd88d928aa8756d460808870d95e1549be718be9dbd891cf",
+      "size_bytes": 356,
+      "relative_path": "dict_assign.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/dict_assign_typed.py",
+      "sha256": "8afa71ed4500d8ead49dbab50f6df78b60bdb67f12598104d129cc672b9f64fc",
+      "size_bytes": 668,
+      "relative_path": "dict_assign_typed.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/falsification_suite.py",
+      "sha256": "70dfab2bf6a15e2702e04c7f889c736779ee4aa3e4c03e5cf1ee3fde3e21d08d",
+      "size_bytes": 1940,
+      "relative_path": "falsification_suite.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/file_processing/csv_parser.py",
+      "sha256": "318c179a4002becd29b1fdb2eccfdccf318813d050bb91356244cf6eeb2f5550",
+      "size_bytes": 4963,
+      "relative_path": "file_processing/csv_parser.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/file_processing/log_analyzer.py",
+      "sha256": "32116d1aeaf5e2af4d446b803499d3a3ea56c945de69a1044bb2390f21bc9db1",
+      "size_bytes": 5769,
+      "relative_path": "file_processing/log_analyzer.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/floor_division_test.py",
+      "sha256": "13a1707b94da4d4a7496e857966bab8a151134f6e598734869c40326ea8cc758",
+      "size_bytes": 1053,
+      "relative_path": "floor_division_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/functional_programming_combined.py",
+      "sha256": "e3280aab2b9ef6338cbeb324722f381cbab14f5e8155c4f577c6b3cbc70775a7",
+      "size_bytes": 10970,
+      "relative_path": "functional_programming_combined.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/game_development/tic_tac_toe.py",
+      "sha256": "40fde5b9c6f95e3b4a6f23b9a4c298f31dbe200633db1ebc8c6276876e92ac2d",
+      "size_bytes": 6314,
+      "relative_path": "game_development/tic_tac_toe.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/golden_annotated_example.py",
+      "sha256": "7510ec35cd8b8135fca798cad4b6e7c89d94cac4ed3508255a531e4b53a6bd49",
+      "size_bytes": 6613,
+      "relative_path": "golden_annotated_example.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/golden_async_concurrency.py",
+      "sha256": "b2a1e3ba92f8f654672bf4a291b0c833aa53d05976306e95417ff07a075efde8",
+      "size_bytes": 13232,
+      "relative_path": "golden_async_concurrency.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/golden_exception_handling.py",
+      "sha256": "e8018a450a1d5868936337bdd6706b77ef369ba8e3c49cd010b2ca37efd966b1",
+      "size_bytes": 12295,
+      "relative_path": "golden_exception_handling.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/interactive_annotation.py",
+      "sha256": "82002016723b548c9f04199f42a94a0cdeac1ab32741c99d61fb6d57c3ca5018",
+      "size_bytes": 7671,
+      "relative_path": "interactive_annotation.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/lambda_advanced_test.py",
+      "sha256": "fbd3293bf4456af873431598eb62933523144c3cf9a3067aeaabc5fc7011e02e",
+      "size_bytes": 893,
+      "relative_path": "lambda_advanced_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/lambda_demo.py",
+      "sha256": "1cfb85c419486d20c56b318dc4cfdd4d629fa9b1da31b668945a70ae3b6fed4e",
+      "size_bytes": 1967,
+      "relative_path": "lambda_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/lambda_passing_test.py",
+      "sha256": "e8b1110227c60b4e8112ec2391edf2853bb823c6bbf7c86b3fd0daeed42a617e",
+      "size_bytes": 385,
+      "relative_path": "lambda_passing_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/lambda_test.py",
+      "sha256": "48b4fd1a49bec44c8edc33f576e46eafe2ffd4c5248fa3859ea866dba7fb8224",
+      "size_bytes": 1171,
+      "relative_path": "lambda_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/lifetime_demo.py",
+      "sha256": "68f7546a5857a74e1874ff32d46191840b12bc3a0251db55c5721343db2d074a",
+      "size_bytes": 670,
+      "relative_path": "lifetime_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/lsp_demo.py",
+      "sha256": "261d3713c24a7059eb22b2a45eeb251577b69c8497beeb7a655f3fb5adf3ea7b",
+      "size_bytes": 7522,
+      "relative_path": "lsp_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/marco_polo_cli/marco_polo.py",
+      "sha256": "5d1d698d824b19109dadce3f4c86036af3b75e705faf769e1d511c0f2fe6074a",
+      "size_bytes": 6025,
+      "relative_path": "marco_polo_cli/marco_polo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/marco_polo_cli/marco_polo_annotated.py",
+      "sha256": "9f47de2f5099c545826a3411d8b2314abda4f9a4719798f597df39f98c175a6f",
+      "size_bytes": 6521,
+      "relative_path": "marco_polo_cli/marco_polo_annotated.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/marco_polo_cli/marco_polo_simple.py",
+      "sha256": "3a5cb8a93edbf04e802c21e507b694155f4e85b453ca60db989d3a8e2f020ec3",
+      "size_bytes": 2875,
+      "relative_path": "marco_polo_cli/marco_polo_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/mathematical/basic_math.py",
+      "sha256": "2379ed1a6f3d358e09ce2fd56e21c6aa0d23bdc33044d466095578404d30bce4",
+      "size_bytes": 1360,
+      "relative_path": "mathematical/basic_math.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/mathematical/geometry.py",
+      "sha256": "97e70c665cfd003da0f87b1ede93569aade60441514304f6382a2141cffc5849",
+      "size_bytes": 3402,
+      "relative_path": "mathematical/geometry.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/mathematical/statistics.py",
+      "sha256": "7414ddad54b537940be4d3379ae5531ac2759f5043b480ded04a68aeb8e5cfd5",
+      "size_bytes": 2771,
+      "relative_path": "mathematical/statistics.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/mcp_usage.py",
+      "sha256": "f2e8e4ef11838569fc4bc59a9643066251e2f847cb37cb7b0365eadaeefd1774",
+      "size_bytes": 15419,
+      "relative_path": "mcp_usage.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/module_mapping_demo.py",
+      "sha256": "1faccdd72a8843729cf65b1b6e6b63cc413d5222dfe33ee664e5bdafc54283c9",
+      "size_bytes": 6925,
+      "relative_path": "module_mapping_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/nested_dict_assign.py",
+      "sha256": "3d0a6d0b6331d4b3b611dfbca270fc88e60c2f9b1404da807319ad1fd23a0329",
+      "size_bytes": 356,
+      "relative_path": "nested_dict_assign.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/networking/http_client.py",
+      "sha256": "e3a58b03dfed49955108bf88120ade767fd27ccc6c5865d01de7765f81c9219f",
+      "size_bytes": 5879,
+      "relative_path": "networking/http_client.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/power_and_floor_division.py",
+      "sha256": "2abfdcb9dc287ccdcd872fcd208ca39f0ef133a4d9cee360bc56a1af4178c71f",
+      "size_bytes": 1726,
+      "relative_path": "power_and_floor_division.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/power_test.py",
+      "sha256": "4fcc05ccf47f0b51fe08f8eee055b65f087bb5b71c80514e0434317768c63fa7",
+      "size_bytes": 1185,
+      "relative_path": "power_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/ruchy_showcase.py",
+      "sha256": "8c8778ede5f688d3b4f7db6682443fca3b3534a51b099f40d443b53c2fa4a433",
+      "size_bytes": 3327,
+      "relative_path": "ruchy_showcase.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/set_operations.py",
+      "sha256": "f9bb69ab8633df96289f51eeefa9166cbad91f6d2d10dde29683542dec719f60",
+      "size_bytes": 1144,
+      "relative_path": "set_operations.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase/annotated_example.py",
+      "sha256": "20c8598f27eb33b9e4cf74cd92474160d33381d5362e80a09363c22994683176",
+      "size_bytes": 1447,
+      "relative_path": "showcase/annotated_example.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase/binary_search.py",
+      "sha256": "0b0e2408961dadfc4a2c02d2e233da5bb8596eec623bde70b610f193b25c529d",
+      "size_bytes": 433,
+      "relative_path": "showcase/binary_search.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase/calculate_sum.py",
+      "sha256": "1273ab358c4d2b3c02ecf9a24c8b0d7b177cb91a1f619adfe14edac6ce5dbbd8",
+      "size_bytes": 198,
+      "relative_path": "showcase/calculate_sum.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase/classify_number.py",
+      "sha256": "18dc41aaec40ab9feea4d16a37b96463c7e57bd35b9637c26401a442b15308d7",
+      "size_bytes": 210,
+      "relative_path": "showcase/classify_number.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase/contracts_example.py",
+      "sha256": "865ce50a401e5a06fa693e0298210c3acb5144a73fe76c2c30134309d2bb842f",
+      "size_bytes": 1105,
+      "relative_path": "showcase/contracts_example.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase/process_config.py",
+      "sha256": "46a74537694c09e53abcdbbbb2503dafe4394560ab6a5fae18b603c1760606d0",
+      "size_bytes": 246,
+      "relative_path": "showcase/process_config.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/showcase_type_inference.py",
+      "sha256": "e9c1e97354c36f6806b2a897df78fff7a1c37de033f3d3b3dcdf279c72eb1e94",
+      "size_bytes": 3075,
+      "relative_path": "showcase_type_inference.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_array_test.py",
+      "sha256": "b63667198b1458529685cc0b3dd234ee1b93fbee409ec7902a8c7cee9e1bc2f3",
+      "size_bytes": 286,
+      "relative_path": "simple_array_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_class_test.py",
+      "sha256": "ce7af942665d2ba19d9930bb2580188e218fd4990974bf7f958136706da36376",
+      "size_bytes": 588,
+      "relative_path": "simple_class_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_lambda_test.py",
+      "sha256": "9bd6d0e44fe1445fb41423abcab2743981897fb0407517f9aac3efce22f58368",
+      "size_bytes": 357,
+      "relative_path": "simple_lambda_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_lifetime.py",
+      "sha256": "6a05f2fee53af614a5a197250f8b2af7192f1358be2d35f2e0b921df779e0fd7",
+      "size_bytes": 192,
+      "relative_path": "simple_lifetime.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_migration_demo.py",
+      "sha256": "a0446f4e028b4f6cd504d68fc91fa9cebae2e37bdcbd580910bcb951a89cb290",
+      "size_bytes": 701,
+      "relative_path": "simple_migration_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_power_floor.py",
+      "sha256": "a536b3c741e09f4f1c529d4b26d02cea4bd7a099668cc89bd5c009dd9d3cbaf6",
+      "size_bytes": 110,
+      "relative_path": "simple_power_floor.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_s3_lambda.py",
+      "sha256": "017cb917d5898bea706c8947982a4b276dc947577c121dd9643a94f5a805b919",
+      "size_bytes": 296,
+      "relative_path": "simple_s3_lambda.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_set.py",
+      "sha256": "03f7242b4c6d6d33df5729ffc181593995b30777fa5b91b55ee48fc29772c802",
+      "size_bytes": 85,
+      "relative_path": "simple_set.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simple_v02.py",
+      "sha256": "e09a4c6410080e44faa35aca02b339588c19da321cdf1afa7393d34ed1fb5704",
+      "size_bytes": 186,
+      "relative_path": "simple_v02.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/simulation_combined.py",
+      "sha256": "5614f997e17399b5080f8e1a2c308396a4d5285c3f27523f6220309eec6a1774",
+      "size_bytes": 9910,
+      "relative_path": "simulation_combined.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/stdlib_comprehensive_test.py",
+      "sha256": "9a4da69fc7c7d99008067151a6693086847228d2303312d08a1610014daca081",
+      "size_bytes": 6015,
+      "relative_path": "stdlib_comprehensive_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/stdlib_string_methods_test.py",
+      "sha256": "5efe4c78628665a4bafd2f2f05b7e7a030e941c3c93cc272e9ce8dc036da95f4",
+      "size_bytes": 5778,
+      "relative_path": "stdlib_string_methods_test.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/string_processing/string_utils.py",
+      "sha256": "052a766d8e8551bb5117cc3b5c3a5cee92ef7d3e67ebff494e945c97872d7746",
+      "size_bytes": 1332,
+      "relative_path": "string_processing/string_utils.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/string_processing/text_analyzer.py",
+      "sha256": "96723ab85aeb0c88818af98dd1a3d2b05317fe673a7545593cf60f8feaac5e78",
+      "size_bytes": 2538,
+      "relative_path": "string_processing/text_analyzer.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_array_queue_modules.py",
+      "sha256": "f8399fdac63358d1e823636b1a495208fcb09e91531ffe36dbdb871bfb695182",
+      "size_bytes": 8546,
+      "relative_path": "test_array_queue_modules.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_async_function.py",
+      "sha256": "8c66e0f1b21f4fb728520a41d3611b7a80194bde770f1d2d1c3e8c87b70b88f4",
+      "size_bytes": 603,
+      "relative_path": "test_async_function.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_async_methods.py",
+      "sha256": "4ab672c15b52883275a81aa2d94e29d0cf6d67a948a9aa11e118710325035ced",
+      "size_bytes": 647,
+      "relative_path": "test_async_methods.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_augmented_assign.py",
+      "sha256": "14babce9eb5c64f8e570ecd24e5a0ad0b3f6b9a3f61570b3bf71c955b8abc344",
+      "size_bytes": 354,
+      "relative_path": "test_augmented_assign.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_base64.py",
+      "sha256": "60bb463fff1c2da1fafef747cf9e667f759dc74e1ce824e1d7ff28d51d85a126",
+      "size_bytes": 562,
+      "relative_path": "test_base64.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_base64_module.py",
+      "sha256": "7d894e7fd71455a62cc673ec29d607061b2d3f0869d59fe7cacd9e3a74021527",
+      "size_bytes": 3779,
+      "relative_path": "test_base64_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_basic_class.py",
+      "sha256": "0a975ea9b66f3df557bb16e4ec1c979485df66197ac6ac0bd513f9678a8a961b",
+      "size_bytes": 758,
+      "relative_path": "test_basic_class.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_basic_imports.py",
+      "sha256": "1c0cf3a59f98c30f369e96b09bd09df13b2a6c597421aeba2cb3ad74fce8d77a",
+      "size_bytes": 312,
+      "relative_path": "test_basic_imports.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_bisect_module.py",
+      "sha256": "3bb78c27d4a442a9366d4e9299ce483772e207b1e36b4371cf60d9e1f7ad505d",
+      "size_bytes": 9265,
+      "relative_path": "test_bisect_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_break_continue.py",
+      "sha256": "154f1feaa4a956deca4a598a6ae318ef63d3c5360712eedb58d12e1e74221f55",
+      "size_bytes": 811,
+      "relative_path": "test_break_continue.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_class_methods.py",
+      "sha256": "68d5b044db2d9c4332a8a967654ea508d5e3a7cefbe1309e9ab09cb59c110787",
+      "size_bytes": 1573,
+      "relative_path": "test_class_methods.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_collections_comprehensive.py",
+      "sha256": "2db114197e2843d5c62ea674b08506a265ec9eccb5d90e1f6f8b5e56b30272f3",
+      "size_bytes": 9415,
+      "relative_path": "test_collections_comprehensive.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_collections_import.py",
+      "sha256": "94be761761ace253ef0cf956450ba6df6461daa9c2abed6fcee097c43f6528f4",
+      "size_bytes": 1211,
+      "relative_path": "test_collections_import.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_configparser_module.py",
+      "sha256": "69dc553514f1d7c4769010d0d153e289c2e94e5df61f907eb9cbb4fa7e27c0c6",
+      "size_bytes": 5550,
+      "relative_path": "test_configparser_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_copy_module.py",
+      "sha256": "513e43715164d45ea6709a5260a94c669c822f942f0e8f7938c72be459cc5ebe",
+      "size_bytes": 7460,
+      "relative_path": "test_copy_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_cse.py",
+      "sha256": "5cb52fd29f0239d26d930f63a47732d0ecac370529776ce807db0c5730b9b5f1",
+      "size_bytes": 1645,
+      "relative_path": "test_cse.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_csv.py",
+      "sha256": "4430bf7b92a6bb1f45cc15085a29827ec4e70df48f139805bcd5b36358a89f0b",
+      "size_bytes": 799,
+      "relative_path": "test_csv.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_dataclass.py",
+      "sha256": "548a8c2ad0602de2333a8ff9e903b127b5d6992ce8a0fe91f9fbbae5c3ef592f",
+      "size_bytes": 1258,
+      "relative_path": "test_dataclass.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_datetime_module.py",
+      "sha256": "1f9743f1a7c316ade743731221225dac036337eb2a38c7f60ba49fede665a65f",
+      "size_bytes": 9414,
+      "relative_path": "test_datetime_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_debugging.py",
+      "sha256": "8913a7a8426e8fff5b7b8b3ca35074c6f4425ef5f6e6ddb523da8b41c96758c5",
+      "size_bytes": 1392,
+      "relative_path": "test_debugging.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_debugging_simple.py",
+      "sha256": "38e7f1fee56efadac6bf42c29e226e181bd467347ed1d606446abcc3f14acd57",
+      "size_bytes": 682,
+      "relative_path": "test_debugging_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_docs.py",
+      "sha256": "fb0ced13ef8c6275f7dd69cc2b244bbdaed0f8be477d49b4c07cf9e25e571911",
+      "size_bytes": 4628,
+      "relative_path": "test_docs.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_docs_minimal.py",
+      "sha256": "a69844096f244d54d50caf9b13622f6d68ce3cabf56848b1366c9188b2b79f20",
+      "size_bytes": 934,
+      "relative_path": "test_docs_minimal.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_docs_simple.py",
+      "sha256": "69fbfd2c6a687c0d0bfd3b94a8944f1f7667225d82cb7cec8d47c5059ea1268b",
+      "size_bytes": 2015,
+      "relative_path": "test_docs_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_enum_module.py",
+      "sha256": "dcc089bb2be41958bb00408cac192cea585727a33c6d7e7d36ed39ec2d9197c1",
+      "size_bytes": 7081,
+      "relative_path": "test_enum_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_final_constant.py",
+      "sha256": "8c31958299feae20300917536bb9fbf80bc8544e3dade77d56d74d496f487575",
+      "size_bytes": 110,
+      "relative_path": "test_final_constant.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_frozenset.py",
+      "sha256": "f0d5f60c3bc80120c530264125bbabf0189bd2f7d85c513d1d754e242bb600d1",
+      "size_bytes": 259,
+      "relative_path": "test_frozenset.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_function_decorators.py",
+      "sha256": "4d1377d531f7f8140033608f46c0485f9876fff243a5c33fe30a1931373b1600",
+      "size_bytes": 1471,
+      "relative_path": "test_function_decorators.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_functools_module.py",
+      "sha256": "e6b23610793941227da5c6f7e61b3e72b99fa94423dbf46127657a86165c6d76",
+      "size_bytes": 8445,
+      "relative_path": "test_functools_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_generator.py",
+      "sha256": "45809d7b8256864f90f72634e22d8e4611c8ccdae19ac291c62cf2b891d7122c",
+      "size_bytes": 533,
+      "relative_path": "test_generator.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_gzip_module.py",
+      "sha256": "8160369742e323a925fcf88d9b45b1b0efaf86eba87c66ff52ca4b7c3c10d740",
+      "size_bytes": 4054,
+      "relative_path": "test_gzip_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_hashlib.py",
+      "sha256": "b7d2c8d72d685cb7b9a1bbd56d4d53a64f3bd0a4b1d1faa731691e00e3eda183",
+      "size_bytes": 656,
+      "relative_path": "test_hashlib.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_hashlib_module.py",
+      "sha256": "ff20ab4d4522ed375891db2d0e98d39be0da27657b41554aa57759bd039df46d",
+      "size_bytes": 4086,
+      "relative_path": "test_hashlib_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_heapq_module.py",
+      "sha256": "10fc7d2764039f4075b5b39656c2d538b197fd80636370d507ac33c44c4a1d74",
+      "size_bytes": 8511,
+      "relative_path": "test_heapq_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_heterogeneous_dict.py",
+      "sha256": "f797d92fbb4e2236240f7463dfd856a81db97651e0896534e3f75a637ab23b42",
+      "size_bytes": 341,
+      "relative_path": "test_heterogeneous_dict.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_ide_integration.py",
+      "sha256": "b9538444afebe9d49b87d88cfa3a701970e9d9963666e7d17b202c0ef4dd1cb6",
+      "size_bytes": 1380,
+      "relative_path": "test_ide_integration.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_imports.py",
+      "sha256": "8c257e3ed43a883b5290e4c425f57d5d599f3d26b049ef81f0220ca74ace6857",
+      "size_bytes": 526,
+      "relative_path": "test_imports.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_inlining.py",
+      "sha256": "899147718e63e0b5d09e2efbc3acd5c27aab337a7c0cabc77cf875201d566e4d",
+      "size_bytes": 1692,
+      "relative_path": "test_inlining.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_interactive.py",
+      "sha256": "655047e86591ae0fe7e4f02aee5d87b68a0ade98deeeaa164d0173b232164eeb",
+      "size_bytes": 1115,
+      "relative_path": "test_interactive.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_interactive_simple.py",
+      "sha256": "97473c3971c577f09bb98760b3668e1566b9f358579a587eaec5a95e799be7c9",
+      "size_bytes": 249,
+      "relative_path": "test_interactive_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_iterator.py",
+      "sha256": "92ef765eb5909da3fbc5219c493f82658f699910c6830be56618363c6eb57f48",
+      "size_bytes": 1083,
+      "relative_path": "test_iterator.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_itertools.py",
+      "sha256": "d9d74351dfabc9ae2975a88ed11d075aa8e3284a11feb8faea69ad7d6e70f934",
+      "size_bytes": 815,
+      "relative_path": "test_itertools.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_itertools_comprehensive.py",
+      "sha256": "f6e04695e57c3fadf8991a2bedf9cc3efa7f099aa2bfc902a9eb86267fc015b5",
+      "size_bytes": 11820,
+      "relative_path": "test_itertools_comprehensive.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_json_parsing.py",
+      "sha256": "ed0404315c4cc2a563b17ffff6a869574463dbf4d2f7a3588626f0331443de77",
+      "size_bytes": 710,
+      "relative_path": "test_json_parsing.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_kwargs_support.py",
+      "sha256": "8eaa741be22a6b1589d870b421730a0707d703e4b406cc0906aa8a48d9a1aacf",
+      "size_bytes": 2209,
+      "relative_path": "test_kwargs_support.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_list_append.py",
+      "sha256": "3d9e0735f0b456d6320ac6ce7b4df589280ca90f9c199dc072b60cbc18ed5573",
+      "size_bytes": 334,
+      "relative_path": "test_list_append.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_math_module.py",
+      "sha256": "ed7e4ba74994b643a998895f8464517e01c0c66a1418b4033ec34d4444c8357b",
+      "size_bytes": 7400,
+      "relative_path": "test_math_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_migration_suggestions.py",
+      "sha256": "212ed87f8210660f7d33e22975b8e6b22e08078df018d619de0f93f519726a7b",
+      "size_bytes": 2156,
+      "relative_path": "test_migration_suggestions.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_nested_access.py",
+      "sha256": "8830e6af231834cadfaa9d778d27c62a2d8f96ca45eceb599491e596bc8c5e06",
+      "size_bytes": 180,
+      "relative_path": "test_nested_access.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_numpy_simple.py",
+      "sha256": "b8e9fcf70423ca892f633d44c091973c138d52da6101d3b0f396e24c3982f3b8",
+      "size_bytes": 632,
+      "relative_path": "test_numpy_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_operator_module.py",
+      "sha256": "aa548db970c3d21eedae7c869d8b0312367b62ac13a422fce605842a84b5db37",
+      "size_bytes": 8331,
+      "relative_path": "test_operator_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_optimization.py",
+      "sha256": "f55bff9ecca7d70a628a411590fc3a154b603205b47cdd091ca6c597996bd9e1",
+      "size_bytes": 641,
+      "relative_path": "test_optimization.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_os_sys_module.py",
+      "sha256": "ee0f52e5464bb4ac19f7be29149948c8820283306cd3bef9268664a66d50ecdd",
+      "size_bytes": 8639,
+      "relative_path": "test_os_sys_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_path_import.py",
+      "sha256": "1ed51a82cbf7d135a9f62191aa74efe3fd741ba9f2886e337d275409375e0bc3",
+      "size_bytes": 1167,
+      "relative_path": "test_path_import.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_pathlib.py",
+      "sha256": "e9211b37536724636dc1515b8ee38e9ce24e194bc024ad44c2a715da07b43aee",
+      "size_bytes": 711,
+      "relative_path": "test_pathlib.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_performance_warnings.py",
+      "sha256": "0944aeb8b5f6211974ceac7b278911e5f1ffb0886ec31775ad705eac998c6ba3",
+      "size_bytes": 2479,
+      "relative_path": "test_performance_warnings.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_pickle_module.py",
+      "sha256": "8bead0e450adcb6f959c6328539d48cfe216188e063a1972648036c383c47a74",
+      "size_bytes": 4216,
+      "relative_path": "test_pickle_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_profiling.py",
+      "sha256": "e2a38bf5a90c97896f83de9196b8890ddc0327523c276a5e79e55d5bf6e8e75c",
+      "size_bytes": 3318,
+      "relative_path": "test_profiling.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_profiling_simple.py",
+      "sha256": "e8902eefc8d184943acd9e7a6ea125fbddd4bfbdf15e4d0bfbf70ec033e5bcb5",
+      "size_bytes": 1483,
+      "relative_path": "test_profiling_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_project/data_processor.py",
+      "sha256": "8c38baa03d6b1d7c4b8e99e35f312b94caded2f1bca391b660710428462efe91",
+      "size_bytes": 7366,
+      "relative_path": "test_project/data_processor.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_project/fibonacci.py",
+      "sha256": "f39a9bb013f0f37b816d058bd888f2115220c842688179439b2e04c54207f8f7",
+      "size_bytes": 3309,
+      "relative_path": "test_project/fibonacci.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_property.py",
+      "sha256": "935fdc180e748d478c3917da4eb425fa40f22d9165cc35d9ae541b6fd246469c",
+      "size_bytes": 349,
+      "relative_path": "test_property.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_random_module.py",
+      "sha256": "7e23507674b3e3dfba8fc1da79f346b183fb292211b7fccfb428ffe74bc24817",
+      "size_bytes": 8202,
+      "relative_path": "test_random_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_re_module.py",
+      "sha256": "2e1f4813b3a16050420ff3ab39ffa35a97b2cd99f118eac7e796c0e6f8dcba61",
+      "size_bytes": 9817,
+      "relative_path": "test_re_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_set_basic.py",
+      "sha256": "86a92b3b90d063437a85d508750d6a5c6fcb6ec16eb5262452262cb1bbb8d4da",
+      "size_bytes": 367,
+      "relative_path": "test_set_basic.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_set_comprehensions.py",
+      "sha256": "7c202c0d32a5147901bb075c610756e26f8b8e7684ad586c163dd4050c511828",
+      "size_bytes": 788,
+      "relative_path": "test_set_comprehensions.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_set_methods.py",
+      "sha256": "54282759597fdbbf1e0223895f1fd2c50fffa297a37bf16587b29c3a3596e668",
+      "size_bytes": 707,
+      "relative_path": "test_set_methods.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_set_operations.py",
+      "sha256": "ef79d9ae5bdb8d3f95121fb496539c23e24b964c85e19c6b0e2b1e337c64b6a2",
+      "size_bytes": 803,
+      "relative_path": "test_set_operations.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_set_summary.py",
+      "sha256": "fb1bf74a7ff6596d5fecedac4ede0b8af4704f81acf7ce80263175fa22dbebec",
+      "size_bytes": 528,
+      "relative_path": "test_set_summary.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_async.py",
+      "sha256": "4d6c356e59a412faebb6ed74e0578f8a63b8bbf7cd6813c9a8b8ec8dc2e96ac7",
+      "size_bytes": 151,
+      "relative_path": "test_simple_async.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_break.py",
+      "sha256": "cf02769f6c79c8b40240d47eb4821f554a937f72a1c8007cee6ea213205bcb21",
+      "size_bytes": 121,
+      "relative_path": "test_simple_break.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_class.py",
+      "sha256": "724786bfa774287ca952c8a7228a83e012c4444810812b67f90cb501b77a5687",
+      "size_bytes": 690,
+      "relative_path": "test_simple_class.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_continue.py",
+      "sha256": "ddeb7fc9fa9aabb3d7a7a541783bc52364c584e3608d3abbb9efd33d7f2fffe6",
+      "size_bytes": 147,
+      "relative_path": "test_simple_continue.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_decorator.py",
+      "sha256": "398288b146fef8219cae9d79f4774bf0e174fc2d6c3e34bcb0b58841db440da3",
+      "size_bytes": 212,
+      "relative_path": "test_simple_decorator.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_imports.py",
+      "sha256": "3ec6225b5c2ee6b76e6d04c857d54eb28441cf8411d910240ee056968e31465c",
+      "size_bytes": 704,
+      "relative_path": "test_simple_imports.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_method.py",
+      "sha256": "73c3c2b1b9ee1509f925ecd64444aad7e26e9189c660dc03cb0a9735673f342b",
+      "size_bytes": 231,
+      "relative_path": "test_simple_method.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_simple_set_typed.py",
+      "sha256": "01e943e928f61a5490587145e6ec3aec6bbd6a48c2a4d4b5df43ddc08ddf4f3c",
+      "size_bytes": 280,
+      "relative_path": "test_simple_set_typed.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_statistics_module.py",
+      "sha256": "c93e62ed7c75efa059891d93206788d7a5f67e0cf38bffc71e9898a834fd41a8",
+      "size_bytes": 10763,
+      "relative_path": "test_statistics_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_string_module.py",
+      "sha256": "1b52c2ffed9a3975db83b5650ffb8510e2783ec9f619812ac64c9678d2768940",
+      "size_bytes": 9302,
+      "relative_path": "test_string_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_sys_import.py",
+      "sha256": "dc8cda832c0be4b7a551103755acd4bd92ad426665fd9c13dcd5958e132677b8",
+      "size_bytes": 680,
+      "relative_path": "test_sys_import.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_type_hints.py",
+      "sha256": "76f95af94e008a67458d0076187d43ff14ea42cafb94c178aefcd50e7307c042",
+      "size_bytes": 2301,
+      "relative_path": "test_type_hints.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_type_hints_simple.py",
+      "sha256": "c16895b868ad1b7bfa797b166b7cb609c2b1332c17619866614e958abfe222a5",
+      "size_bytes": 787,
+      "relative_path": "test_type_hints_simple.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_typing_module.py",
+      "sha256": "753d121cae623abd6ad2c6ed8d6ed40f073fb200664d1b0e8b4bb5ce07a68072",
+      "size_bytes": 9292,
+      "relative_path": "test_typing_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_urllib_parse_module.py",
+      "sha256": "6181a0060e2f2d699faa8293a16ce5c1f68bfc267dc0c1da6acc0d237411ef13",
+      "size_bytes": 5382,
+      "relative_path": "test_urllib_parse_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_v02.py",
+      "sha256": "98c201489857a06a8fc3bb45ca6e952841fe54ba1e25176785da39c5797bea66",
+      "size_bytes": 619,
+      "relative_path": "test_v02.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_with_statement.py",
+      "sha256": "702b24f7178a09c74833e8db0ff1910b98ac00bb36700ff37c0672d24876665b",
+      "size_bytes": 988,
+      "relative_path": "test_with_statement.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_xml_etree_module.py",
+      "sha256": "faafd9730d5ff505dab8a85dacec0be21256ce9a2851af03f7021174a7885383",
+      "size_bytes": 6434,
+      "relative_path": "test_xml_etree_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/test_zipfile_module.py",
+      "sha256": "c0f2a53ca5c238d98cd904c5e619a285801e5a83d85ae02097989ccbef93a855",
+      "size_bytes": 4570,
+      "relative_path": "test_zipfile_module.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/text_processing_combined.py",
+      "sha256": "49f6968a1188de6bf1c780e5236962456ae1bed43c9db17d57f41add53727435",
+      "size_bytes": 10133,
+      "relative_path": "text_processing_combined.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/tuple_key_dict.py",
+      "sha256": "c29fdec74ac59b66c8c029050d08d0685aa830a7bb9fbf96eeb750215e2471b8",
+      "size_bytes": 403,
+      "relative_path": "tuple_key_dict.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/type_extraction_demo.py",
+      "sha256": "2a61666e95b5dc2f17c70e7473c371e12a6ef0f84fde8b9c7e6fde6737efb9d8",
+      "size_bytes": 4204,
+      "relative_path": "type_extraction_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/type_inference_demo.py",
+      "sha256": "f93b3b356027eaececc98e2820ffd119df73f49541bb494e4adf8166a7613aa8",
+      "size_bytes": 638,
+      "relative_path": "type_inference_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/v1_1_0_features.py",
+      "sha256": "e56e6c29075fe6898f87f412e7fab91f0438ca10bb26608d412b5df3fc676a31",
+      "size_bytes": 1041,
+      "relative_path": "v1_1_0_features.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/v1_1_0_showcase.py",
+      "sha256": "7b916aa201d9f413ef180bcc6c81be27d9e97103f0f3b50719d252cb5e735fc8",
+      "size_bytes": 3417,
+      "relative_path": "v1_1_0_showcase.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/v1_2_0_basic_oop.py",
+      "sha256": "dcb7e3979405784da35a7270fe6352257e336b7195d046f94cc91333acc1f972",
+      "size_bytes": 1916,
+      "relative_path": "v1_2_0_basic_oop.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/v1_2_0_showcase.py",
+      "sha256": "0afee08a307df428c704fc915f4a486c08037c2858cec4d47de94b8d9b6300b6",
+      "size_bytes": 3774,
+      "relative_path": "v1_2_0_showcase.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/v1_3_0_features_demo.py",
+      "sha256": "e9398780990ae33d5556e105033484e420231e09641eec331922f2842808eef8",
+      "size_bytes": 1842,
+      "relative_path": "v1_3_0_features_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/v1_4_0_features_demo.py",
+      "sha256": "10c980f12338b196a1e42be944543834ca69c8b0b42e400cd025cae8491662f9",
+      "size_bytes": 1610,
+      "relative_path": "v1_4_0_features_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/validation/test_all.py",
+      "sha256": "310f5d3bb5541a5c4dd41d1ae62171a8531084394916284fdc952e900f86fc80",
+      "size_bytes": 2050,
+      "relative_path": "validation/test_all.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/validation/test_async.py",
+      "sha256": "a97fcfac876b97c70bf6cb6a2ff7791fbe4e471fa4195c42df4326fc29a7964f",
+      "size_bytes": 380,
+      "relative_path": "validation/test_async.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/validation/test_with.py",
+      "sha256": "000c6e1e2ed12ef94026d1603bbdcbc517c099f9d16d7e8a6905d00e7dbdb32f",
+      "size_bytes": 593,
+      "relative_path": "validation/test_with.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/verification_demo.py",
+      "sha256": "14089fdcdebe299650ad1387b7b3974566c561b9a1c75f8b268ab576150c9820",
+      "size_bytes": 4939,
+      "relative_path": "verification_demo.py"
+    },
+    {
+      "path": "/Users/noahgift/src/depyler/examples/web_scraping/url_parser.py",
+      "sha256": "3634f396df8575113c015e5e320f0583594ac053bace34626142a72a32ffccf1",
+      "size_bytes": 4285,
+      "relative_path": "web_scraping/url_parser.py"
+    }
+  ]
+}

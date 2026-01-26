@@ -363,10 +363,8 @@ pub fn has_chained_pyops(expr: &HirExpr) -> bool {
                 return false;
             }
             // Check if either operand is also a Binary arithmetic expression (chain)
-            let left_is_binary =
-                matches!(left.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
-            let right_is_binary =
-                matches!(right.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
+            let left_is_binary = matches!(left.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
+            let right_is_binary = matches!(right.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
             left_is_binary || right_is_binary
         }
         _ => false,

@@ -1,0 +1,9 @@
+[package]
+name = "http_client"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "http_client"
+path = "http_client.rs"
+

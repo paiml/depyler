@@ -1,0 +1,9 @@
+[package]
+name = "tic_tac_toe"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tic_tac_toe"
+path = "tic_tac_toe.rs"
+

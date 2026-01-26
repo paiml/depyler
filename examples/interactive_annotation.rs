@@ -5,8 +5,8 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_C: &'static str = "C";
     const STR_A: &'static str = "A";
+    const STR_C: &'static str = "C";
     const STR_D: &'static str = "D";
     const STR_B: &'static str = "B";
     use std::collections::HashMap;
@@ -144,6 +144,22 @@ else {
 } #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"] #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"] pub fn as_string(&self) -> String {
     match self {
     DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
+}
+} #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"] pub fn as_str(&self) -> Option<& str>{
+    match self {
+    DepylerValue::Str(_dv_str) =>Some(_dv_str.as_str()), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as i64(for integer values)"] pub fn as_i64(&self) -> Option<i64>{
+    match self {
+    DepylerValue::Int(_dv_int) =>Some(* _dv_int), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as f64(for float values)"] pub fn as_f64(&self) -> Option<f64>{
+    match self {
+    DepylerValue::Float(_dv_float) =>Some(* _dv_float), DepylerValue::Int(_dv_int) =>Some(* _dv_int as f64), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"] pub fn as_bool(&self) -> Option<bool>{
+    match self {
+    DepylerValue::Bool(_dv_bool) =>Some(* _dv_bool), _ =>None ,
 }
 } #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
     match self {
@@ -1106,6 +1122,170 @@ impl<T: Clone>PyMul<usize>for Vec<T>{
     fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
     rhs.py_mul(self)
 }
+} impl PySub<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_sub(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_sub(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_sub(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PyMul<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_mul(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_mul(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_mul(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyDiv<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_div(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f32::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<i64>>for Vec<i64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyDiv<Vec<i32>>for Vec<i32>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i32>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyMul<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a * rhs).collect()
+}
+} impl PyMul<Vec<f64>>for f64 {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    rhs.iter().map(| a | a * self).collect()
+}
+} impl PyDiv<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: f64) -> Vec<f64>{
+    if rhs == 0.0 {
+    self.iter().map(| _ | f64::NAN).collect()
+}
+else {
+    self.iter().map(| a | a / rhs).collect()
+}
+}
+}
+impl PySub<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a - rhs).collect()
+}
+} impl PyAdd<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_add(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a + rhs).collect()
+}
 } impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
@@ -1793,7 +1973,78 @@ else {
 }
 }
 }
-#[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
+#[doc = r" DEPYLER-1202: Python integer operations for Rust integer types."] pub trait PythonIntOps {
+    fn bit_length(&self) -> u32;
+    fn bit_count(&self) -> u32;
+   
+}
+impl PythonIntOps for i32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for i64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for u32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for u64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for usize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for isize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
     impl DepylerDate {
     #[doc = r" Create a new date from year, month, day"] pub fn new(year: u32, month: u32, day: u32) -> Self {
     DepylerDate(year, month, day)
@@ -2218,7 +2469,7 @@ else {
 Ok(result)
 }
 #[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'a, 'b>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
-    let mut keyword_counts: std::collections::HashMap<String, DepylerValue>= keywords.iter().cloned().map(| kw | {
+    let mut keyword_counts: std::collections::HashMap<DepylerValue, i32>= keywords.iter().cloned().map(| kw | {
     let _v = 0;
    (kw, _v) }).collect::<std::collections::HashMap<_, _>>();
     for text in texts.iter().cloned() {
@@ -2277,7 +2528,7 @@ else {
     x>pivot }).map(| x | x).collect::<Vec<_>>();
     Ok(((quicksort(left) ?).py_add(middle)).py_add(quicksort(right) ?))
 }
-#[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'b, 'a>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'a, 'b>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
     let mut results: Vec<DepylerValue>= vec! [];
     for i in 0..(depyler_min ((numbers.len() as i32).clone() ,(divisors.len() as i32).clone())) {
     if divisors.get(i as usize).cloned().expect("IndexError: list index out of range")!= 0 {
@@ -2291,7 +2542,7 @@ else {
 } Ok(results)
 }
 #[doc = "\n    Function that could benefit from parallelization.\n    \n    Interactive mode will suggest:\n    - Thread safety requirements\n    - Parallelization strategy\n    - Send/Sync trait bounds\n    "] pub fn parallel_map(func: impl Fn(i32) -> i32, data: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut results: Vec<DepylerValue>= vec! [];
+    let mut results: Vec<i32>= vec! [];
     for item in data.iter().cloned() {
     let mut result = func(item);
     for __sanitized in 0..(1000) {
@@ -2305,7 +2556,7 @@ Ok(results)
 }
 #[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'b, 'c, 'a>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
-    let mut visited = std::collections::HashSet::<i32>::new();
+    let mut visited: std::collections::HashSet<i32>= std::collections::HashSet::<i32>::new();
     let mut distances_from_start: std::collections::HashMap<String, DepylerValue>= {
     let mut map: HashMap<DepylerValue, DepylerValue>= HashMap::new();
     map.insert(DepylerValue::from(start), DepylerValue::Int(0 as i64));
@@ -2317,9 +2568,9 @@ Ok(results)
     let mut current_distance = "inf".parse::<f64>().unwrap();
     for node in distances.keys().cloned() {
     if(! visited.contains(& node)) &&(distances_from_start.get(& node).is_some()) {
-    if distances_from_start.get(& node).cloned().unwrap_or_default()<current_distance {
-    current = node;
-    current_distance = distances_from_start.get(& node).cloned().unwrap_or_default();
+    if distances_from_start.get(& node).cloned().unwrap_or_default().into()<current_distance {
+    current = node.clone();
+    current_distance = distances_from_start.get(& node).cloned().unwrap_or_default().into();
    
 }
 }
@@ -2331,10 +2582,10 @@ if current.is_none() {
 visited.insert(current);
     for neighbor in distances.get(& current).cloned().unwrap_or_default().keys().cloned() {
     if! visited.contains(& neighbor) {
-    let new_distance  = (distances_from_start.get(& current).cloned().unwrap_or_default()).py_add(distances.get(& current).cloned().unwrap_or_default().get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default());
+    let new_distance  = (distances_from_start.get(& current).cloned().unwrap_or_default().into()).py_add(distances.get(& current).cloned().unwrap_or_default().get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default());
     if(distances_from_start.get(& neighbor).is_none()) ||(new_distance <(distances_from_start.get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default() as f64)) {
-    distances_from_start.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", new_distance)));
-    previous.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", current)));
+    distances_from_start.insert(neighbor.to_string().clone(), DepylerValue::from(new_distance));
+    previous.insert(neighbor.to_string().clone(), DepylerValue::from(current.clone()));
    
 }
 }
@@ -2345,10 +2596,10 @@ visited.insert(current);
    
 }
 let mut path: Vec<DepylerValue>= vec! [];
-    current = end.to_string();
+    current = end.clone();
     while current! = (* start) {
     path.push(current);
-    current = previous.get(& DepylerValue::Str(format!("{:?}", current))).cloned().unwrap_or_default();
+    current = previous.get(& current).cloned().unwrap_or_default().into();
    
 }
 path.push(start);
@@ -2358,23 +2609,23 @@ path.push(start);
 #[doc = "\n    Demonstration of functions that benefit from interactive annotation.\n    \n    When run with --interactive --annotate, Depyler will:\n    1. Analyze each function's characteristics\n    2. Suggest appropriate annotations\n    3. Guide you through the annotation process\n    4. Show before/after transpilation results\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "Interactive Annotation Examples");
     println!("{}" ,("=").py_mul(40));
-    let a = vec! [vec! [1, 2], vec! [3, 4]];
-    let b = vec! [vec! [5, 6], vec! [7, 8]];
+    let a: Vec<Vec<i32>>= vec! [vec! [1, 2], vec! [3, 4]];
+    let b: Vec<Vec<i32>>= vec! [vec! [5, 6], vec! [7, 8]];
     let result = matrix_multiply(& a, & b) ?;
     println!("{}", format!("Matrix multiplication result: {:?}", result));
-    let texts = vec! ["Hello world".to_string(), "Hello Python".to_string(), "Rust is fast".to_string()];
-    let keywords = vec! ["hello".to_string(), "rust".to_string(), "python".to_string()];
+    let texts: Vec<String>= vec! ["Hello world".to_string(), "Hello Python".to_string(), "Rust is fast".to_string()];
+    let keywords: Vec<String>= vec! ["hello".to_string(), "rust".to_string(), "python".to_string()];
     let counts = process_text_data(& texts, & keywords) ?;
     println!("{}", format!("Keyword counts: {:?}", counts));
-    let numbers = vec! [64, 34, 25, 12, 22, 11, 90];
+    let numbers: Vec<i32>= vec! [64, 34, 25, 12, 22, 11, 90];
     let sorted_nums = quicksort(numbers) ?;
     println!("{}", format!("Sorted: {:?}", sorted_nums));
-    let nums = vec! [10.0, 20.0, 30.0];
-    let divs = vec! [2.0, 0.0, 5.0];
+    let nums: Vec<f64>= vec! [10.0, 20.0, 30.0];
+    let divs: Vec<f64>= vec! [2.0, 0.0, 5.0];
     let results = safe_divide(& nums, & divs) ?;
     println!("{}", format!("Division results: {:?}", results));
-    let data  = (0..(10)).collect::<Vec<_>>();
-    let mapped = parallel_map(move | x: i64 |(x).py_mul(x), & data) ?;
+    let data: Vec<i32>= (0..(10)).collect::<Vec<_>>();
+    let mapped = parallel_map(move | x: i32 |(x).py_mul(x), & data) ?;
     println!("{}", format!("Mapped data: {:?}", mapped));
     let mut buffer = DataBuffer::new(100);
     buffer.write_all(vec! [1, 2, 3, 4, 5].as_bytes()).unwrap();

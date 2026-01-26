@@ -1,14 +1,9 @@
 [package]
-name = "test_bisect_module"
+name = "semantic_test_nested_loop"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-path = "test_bisect_module.rs"
+[[bin]]
+name = "semantic_test_nested_loop"
+path = "semantic_test_nested_loop.rs"
 
-[dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-
-[dev-dependencies]
-quickcheck = "1"

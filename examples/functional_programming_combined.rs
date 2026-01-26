@@ -221,6 +221,35 @@ impl DepylerValue {
             DepylerValue::Tuple(_dv_tuple) => format!("{:?}", _dv_tuple),
         }
     }
+    #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"]
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            DepylerValue::Str(_dv_str) => Some(_dv_str.as_str()),
+            _ => None,
+        }
+    }
+    #[doc = r" DEPYLER-1215: Get as i64(for integer values)"]
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            DepylerValue::Int(_dv_int) => Some(*_dv_int),
+            _ => None,
+        }
+    }
+    #[doc = r" DEPYLER-1215: Get as f64(for float values)"]
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            DepylerValue::Float(_dv_float) => Some(*_dv_float),
+            DepylerValue::Int(_dv_int) => Some(*_dv_int as f64),
+            _ => None,
+        }
+    }
+    #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"]
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            DepylerValue::Bool(_dv_bool) => Some(*_dv_bool),
+            _ => None,
+        }
+    }
     #[doc = r" Convert to i64"]
     pub fn to_i64(&self) -> i64 {
         match self {
@@ -1583,6 +1612,199 @@ impl<T: Clone> PyMul<Vec<T>> for i64 {
         rhs.py_mul(self)
     }
 }
+impl PySub<Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<&Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<&Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<f32>> for Vec<f32> {
+    type Output = Vec<f32>;
+    fn py_sub(self, rhs: Vec<f32>) -> Vec<f32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<i64>> for Vec<i64> {
+    type Output = Vec<i64>;
+    fn py_sub(self, rhs: Vec<i64>) -> Vec<i64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<i32>> for Vec<i32> {
+    type Output = Vec<i32>;
+    fn py_sub(self, rhs: Vec<i32>) -> Vec<i32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PyMul<Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<&Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<&Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<f32>> for Vec<f32> {
+    type Output = Vec<f32>;
+    fn py_mul(self, rhs: Vec<f32>) -> Vec<f32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<i64>> for Vec<i64> {
+    type Output = Vec<i64>;
+    fn py_mul(self, rhs: Vec<i64>) -> Vec<i64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<i32>> for Vec<i32> {
+    type Output = Vec<i32>;
+    fn py_mul(self, rhs: Vec<i32>) -> Vec<i32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyDiv<Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<&Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<&Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<Vec<f32>> for Vec<f32> {
+    type Output = Vec<f32>;
+    fn py_div(self, rhs: Vec<f32>) -> Vec<f32> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f32::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<Vec<i64>> for Vec<i64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| {
+                if *b == 0 {
+                    f64::NAN
+                } else {
+                    *a as f64 / *b as f64
+                }
+            })
+            .collect()
+    }
+}
+impl PyDiv<Vec<i32>> for Vec<i32> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i32>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| {
+                if *b == 0 {
+                    f64::NAN
+                } else {
+                    *a as f64 / *b as f64
+                }
+            })
+            .collect()
+    }
+}
+impl PyMul<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: f64) -> Vec<f64> {
+        self.iter().map(|a| a * rhs).collect()
+    }
+}
+impl PyMul<Vec<f64>> for f64 {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+        rhs.iter().map(|a| a * self).collect()
+    }
+}
+impl PyDiv<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: f64) -> Vec<f64> {
+        if rhs == 0.0 {
+            self.iter().map(|_| f64::NAN).collect()
+        } else {
+            self.iter().map(|a| a / rhs).collect()
+        }
+    }
+}
+impl PySub<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: f64) -> Vec<f64> {
+        self.iter().map(|a| a - rhs).collect()
+    }
+}
+impl PyAdd<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_add(self, rhs: f64) -> Vec<f64> {
+        self.iter().map(|a| a + rhs).collect()
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2378,6 +2600,83 @@ impl DepylerValue {
         }
     }
 }
+#[doc = r" DEPYLER-1202: Python integer operations for Rust integer types."]
+pub trait PythonIntOps {
+    fn bit_length(&self) -> u32;
+    fn bit_count(&self) -> u32;
+}
+impl PythonIntOps for i32 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.unsigned_abs().count_ones()
+    }
+}
+impl PythonIntOps for i64 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.unsigned_abs().count_ones()
+    }
+}
+impl PythonIntOps for u32 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.count_ones()
+    }
+}
+impl PythonIntOps for u64 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.count_ones()
+    }
+}
+impl PythonIntOps for usize {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.count_ones()
+    }
+}
+impl PythonIntOps for isize {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.unsigned_abs().count_ones()
+    }
+}
 #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"]
 #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
@@ -2880,7 +3179,7 @@ pub fn chain_operations(data: &Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -2974,7 +3273,7 @@ pub fn flatten_nested_list(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Compute Cartesian product of two lists"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
+pub fn cartesian_product<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
     for item1 in list1.iter().cloned() {
         for item2 in list2.iter().cloned() {
@@ -3075,7 +3374,7 @@ pub fn compose_two_functions(data: &Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'a, 'b>(
+pub fn apply_multiple_operations<'b, 'a>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {
@@ -3099,11 +3398,11 @@ pub fn apply_multiple_operations<'a, 'b>(
                         new_result.push((item).py_mul(item));
                     }
                 } else {
-                    new_result = result;
+                    new_result = result.clone();
                 }
             }
         }
-        result = new_result;
+        result = new_result.clone();
     }
     result
 }

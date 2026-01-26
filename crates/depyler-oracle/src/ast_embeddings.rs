@@ -1359,10 +1359,7 @@ class ComplexProcessor:
         let similarity = emb1.cosine_similarity(&emb2);
 
         // Mismatched dimensions should return 0
-        assert_eq!(
-            similarity, 0.0,
-            "Mismatched dimensions should return 0"
-        );
+        assert_eq!(similarity, 0.0, "Mismatched dimensions should return 0");
     }
 
     #[test]
@@ -1376,10 +1373,7 @@ class ComplexProcessor:
             "x = 1 + 2",
         ];
 
-        let embeddings: Vec<_> = sources
-            .iter()
-            .map(|s| embedder.embed_python(s))
-            .collect();
+        let embeddings: Vec<_> = sources.iter().map(|s| embedder.embed_python(s)).collect();
 
         // All similarities should be in valid range [-1, 1] (with epsilon for float precision)
         for (i, emb1) in embeddings.iter().enumerate() {
@@ -1388,7 +1382,9 @@ class ComplexProcessor:
                 assert!(
                     (-1.001..=1.001).contains(&sim),
                     "Similarity at ({}, {}) out of range: {}",
-                    i, j, sim
+                    i,
+                    j,
+                    sim
                 );
             }
         }
@@ -1443,7 +1439,8 @@ class Complex:
         assert!(
             (sim_1_2 - sim_2_1).abs() < 0.0001,
             "Cosine similarity should be symmetric: {} vs {}",
-            sim_1_2, sim_2_1
+            sim_1_2,
+            sim_2_1
         );
     }
 

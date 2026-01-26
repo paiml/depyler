@@ -120,6 +120,22 @@ else {
     match self {
     DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
 }
+} #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"] pub fn as_str(&self) -> Option<& str>{
+    match self {
+    DepylerValue::Str(_dv_str) =>Some(_dv_str.as_str()), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as i64(for integer values)"] pub fn as_i64(&self) -> Option<i64>{
+    match self {
+    DepylerValue::Int(_dv_int) =>Some(* _dv_int), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as f64(for float values)"] pub fn as_f64(&self) -> Option<f64>{
+    match self {
+    DepylerValue::Float(_dv_float) =>Some(* _dv_float), DepylerValue::Int(_dv_int) =>Some(* _dv_int as f64), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"] pub fn as_bool(&self) -> Option<bool>{
+    match self {
+    DepylerValue::Bool(_dv_bool) =>Some(* _dv_bool), _ =>None ,
+}
 } #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
     match self {
     DepylerValue::Int(_dv_int) =>* _dv_int, DepylerValue::Float(_dv_float) =>* _dv_float as i64, DepylerValue::Bool(_dv_bool) =>if * _dv_bool {
@@ -304,6 +320,38 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
+}
+} impl From<std::collections::HashSet<DepylerValue>>for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+    DepylerValue::List(v.into_iter().collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+    DepylerValue::List(v.iter().cloned().collect())
+}
+} impl From<std::collections::HashSet<i32>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<std::collections::HashSet<i64>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<std::collections::HashSet<String>>for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i32>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x as i64)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i64>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<String>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+    DepylerValue::List(v.iter().map(| s | DepylerValue::Str(s.clone())).collect())
 }
 } impl From<DepylerValue>for i64 {
     fn from(v: DepylerValue) -> Self {
@@ -801,7 +849,22 @@ impl PyAdd for i32 {
 }
 }
 }
-impl PySub for i32 {
+impl PyAdd<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self as i64 + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> f64 {
+    self + rhs.to_f64()
+}
+} impl PySub for i32 {
     type Output = i32;
     #[inline] fn py_sub(self, rhs: i32) -> i32 {
     self - rhs
@@ -844,7 +907,22 @@ impl PySub for i32 {
 }
 }
 }
-impl PyMul for i32 {
+impl PySub<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self as i64 - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
+    self - rhs.to_f64()
+}
+} impl PyMul for i32 {
     type Output = i32;
     #[inline] fn py_mul(self, rhs: i32) -> i32 {
     self * rhs
@@ -853,6 +931,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i64>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i64) -> i64 {
+    self as i64 * rhs
 }
 } impl PyMul for i64 {
     type Output = i64;
@@ -863,6 +946,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i32>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i32) -> i64 {
+    self * rhs as i64
 }
 } impl PyMul for f64 {
     type Output = f64;
@@ -938,7 +1026,22 @@ else {
 }
 }
 }
-impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+impl PyMul<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self as i64 * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> f64 {
+    self * rhs.to_f64()
+}
+} impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
     type Output = Vec<T>;
     fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
     self.extend(rhs);
@@ -993,6 +1096,170 @@ impl<T: Clone>PyMul<usize>for Vec<T>{
     type Output = Vec<T>;
     fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
     rhs.py_mul(self)
+}
+} impl PySub<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_sub(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_sub(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_sub(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PyMul<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_mul(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_mul(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_mul(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyDiv<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_div(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f32::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<i64>>for Vec<i64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyDiv<Vec<i32>>for Vec<i32>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i32>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyMul<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a * rhs).collect()
+}
+} impl PyMul<Vec<f64>>for f64 {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    rhs.iter().map(| a | a * self).collect()
+}
+} impl PyDiv<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: f64) -> Vec<f64>{
+    if rhs == 0.0 {
+    self.iter().map(| _ | f64::NAN).collect()
+}
+else {
+    self.iter().map(| a | a / rhs).collect()
+}
+}
+}
+impl PySub<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a - rhs).collect()
+}
+} impl PyAdd<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_add(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a + rhs).collect()
 }
 } impl PyDiv for i32 {
     type Output = f64;
@@ -1076,6 +1343,42 @@ impl PyDiv for DepylerValue {
     fn py_div(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
    (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+}
+}
+}
+impl PyDiv<DepylerValue>for i32 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for i64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self / divisor
 }
 }
 }
@@ -1645,7 +1948,78 @@ else {
 }
 }
 }
-#[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
+#[doc = r" DEPYLER-1202: Python integer operations for Rust integer types."] pub trait PythonIntOps {
+    fn bit_length(&self) -> u32;
+    fn bit_count(&self) -> u32;
+   
+}
+impl PythonIntOps for i32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for i64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for u32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for u64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for usize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for isize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
     impl DepylerDate {
     #[doc = r" Create a new date from year, month, day"] pub fn new(year: u32, month: u32, day: u32) -> Self {
     DepylerDate(year, month, day)
@@ -2600,10 +2974,10 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut row;
     let mut col;
+    let mut row;
     if game.current_player == "X" {
-    let empty_positions = game.get_empty_positions();
+    let empty_positions: bool = game.get_empty_positions();
     if empty_positions {
    (row, col) = empty_positions.get(0usize).cloned().expect("IndexError: list index out of range");
     game.make_move(row, col);
@@ -2616,9 +2990,9 @@ else {
     moves_log.push(format!("AI plays at({:?}, {:?})", row, col));
    
 }
-} let winner = game.check_winner();
+} let winner: bool = game.check_winner();
     if winner {
-    moves_log.push(format!("Winner: {:?}", winner));
+    moves_log.push(format!("Winner: {}", winner));
    
 }
 else {
@@ -2627,12 +3001,12 @@ else {
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
-    let winning_positions = vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
+    let winning_positions: Vec<Vec <(i32, i32)>>= vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;
     for positions in winning_positions.iter().cloned() {
-    let mut can_win = true;
+    let mut can_win: bool = true;
     for(row, col) in positions.iter().cloned() {
     let cell = board_state.get(row as usize).cloned().expect("IndexError: list index out of range").get(col as usize).cloned().expect("IndexError: list index out of range");
     if(cell!= " ") &&(cell! = (* player)) {
@@ -2644,4 +3018,7 @@ Ok(moves_log.join ("\n"))
     count  = (count).py_add(1);
    
 }
-} Ok(count) }
+} Ok(count)
+}
+#[doc = r" DEPYLER-1216: Auto-generated entry point for standalone compilation"] #[doc = r" This file was transpiled from a Python module without an explicit main."] #[doc = r#" Add a main () function or `if __name__ == "__main__":` block to customize."#] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
+    Ok(()) }

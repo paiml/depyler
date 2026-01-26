@@ -297,7 +297,8 @@ fn generate_default_return(py_type: &str) -> TokenStream {
         // Primitives
         "int" => quote! { 0i64 },
         "float" => quote! { 0.0f64 },
-        "str" => quote! { "" },
+        // DEPYLER-E0308-FIX: Use String::new() for owned string default
+        "str" => quote! { String::new() },
         "bool" => quote! { false },
         "bytes" => quote! { Vec::new() },
         "None" | "()" | "" => quote! { () },
@@ -319,9 +320,10 @@ fn generate_default_return(py_type: &str) -> TokenStream {
         s if s.starts_with("Optional[") => quote! { None },
         s if s.starts_with("Tuple[") || s.starts_with("tuple[") => quote! { Vec::new() },
 
-        // Any and unknown - return empty string (most common case)
-        "Any" | "object" => quote! { "" },
-        _ => quote! { "" },
+        // Any and unknown - return empty String (owned type for Result compatibility)
+        // DEPYLER-E0308-FIX: Use String::new() not "" to avoid &str vs String mismatch
+        "Any" | "object" => quote! { String::new() },
+        _ => quote! { String::new() },
     }
 }
 

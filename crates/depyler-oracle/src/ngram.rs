@@ -346,7 +346,10 @@ impl NgramFixPredictor {
         for (category, patterns) in loaded {
             let existing = self.patterns.entry(category).or_default();
             for pattern in patterns {
-                if !existing.iter().any(|p| p.error_pattern == pattern.error_pattern) {
+                if !existing
+                    .iter()
+                    .any(|p| p.error_pattern == pattern.error_pattern)
+                {
                     existing.push(pattern);
                 }
             }

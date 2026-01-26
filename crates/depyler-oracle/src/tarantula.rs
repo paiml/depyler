@@ -629,7 +629,9 @@ mod tests {
         assert_eq!(result.total_failure, 10);
         assert_eq!(result.total_success, 10);
 
-        let ownership_score = result.score(TranspilerDecision::OwnershipInference).unwrap();
+        let ownership_score = result
+            .score(TranspilerDecision::OwnershipInference)
+            .unwrap();
         let lifetime_score = result.score(TranspilerDecision::LifetimeInference).unwrap();
 
         // OwnershipInference (80% fail) should be MORE suspicious than
@@ -832,8 +834,12 @@ mod tests {
         assert!(type_decision.is_some());
         let type_decision = type_decision.unwrap();
         assert!(
-            type_decision.associated_errors.contains(&"E0308".to_string())
-                || type_decision.associated_errors.contains(&"E0433".to_string()),
+            type_decision
+                .associated_errors
+                .contains(&"E0308".to_string())
+                || type_decision
+                    .associated_errors
+                    .contains(&"E0433".to_string()),
             "TypeInference should have associated error codes"
         );
     }
@@ -988,9 +994,10 @@ mod tests {
     #[test]
     fn test_transpiler_decision_record_builder() {
         // Test the builder pattern for TranspilerDecisionRecord
-        let record = TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "Inferred i32")
-            .with_python_line(42)
-            .with_rust_snippet("let x: i32 = 0;");
+        let record =
+            TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "Inferred i32")
+                .with_python_line(42)
+                .with_rust_snippet("let x: i32 = 0;");
 
         assert_eq!(record.decision_type, TranspilerDecision::TypeInference);
         assert_eq!(record.description, "Inferred i32");

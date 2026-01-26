@@ -3547,3 +3547,83 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-1360
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1360'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-25T17:23:52.547111+00:00
+  updated: 2026-01-25T17:23:52.547111+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1327
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1327'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-25T17:26:40.722294+00:00
+  updated: 2026-01-25T17:26:40.722294+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1324
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1324'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-25T17:29:37.977089+00:00
+  updated: 2026-01-25T17:29:37.977089+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1361
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1361'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-25T17:38:40.389802+00:00
+  updated: 2026-01-25T17:38:40.389802+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-DAY2-GREEN-50
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-DAY2-GREEN-50'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-25T21:31:38.293868+00:00
+  updated: 2026-01-25T21:31:38.293868+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

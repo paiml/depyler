@@ -123,6 +123,22 @@ else {
     match self {
     DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
 }
+} #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"] pub fn as_str(&self) -> Option<& str>{
+    match self {
+    DepylerValue::Str(_dv_str) =>Some(_dv_str.as_str()), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as i64(for integer values)"] pub fn as_i64(&self) -> Option<i64>{
+    match self {
+    DepylerValue::Int(_dv_int) =>Some(* _dv_int), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as f64(for float values)"] pub fn as_f64(&self) -> Option<f64>{
+    match self {
+    DepylerValue::Float(_dv_float) =>Some(* _dv_float), DepylerValue::Int(_dv_int) =>Some(* _dv_int as f64), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"] pub fn as_bool(&self) -> Option<bool>{
+    match self {
+    DepylerValue::Bool(_dv_bool) =>Some(* _dv_bool), _ =>None ,
+}
 } #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
     match self {
     DepylerValue::Int(_dv_int) =>* _dv_int, DepylerValue::Float(_dv_float) =>* _dv_float as i64, DepylerValue::Bool(_dv_bool) =>if * _dv_bool {
@@ -1084,6 +1100,170 @@ impl<T: Clone>PyMul<usize>for Vec<T>{
     fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
     rhs.py_mul(self)
 }
+} impl PySub<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_sub(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_sub(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_sub(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PyMul<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_mul(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_mul(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_mul(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyDiv<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_div(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f32::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<i64>>for Vec<i64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyDiv<Vec<i32>>for Vec<i32>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i32>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyMul<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a * rhs).collect()
+}
+} impl PyMul<Vec<f64>>for f64 {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    rhs.iter().map(| a | a * self).collect()
+}
+} impl PyDiv<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: f64) -> Vec<f64>{
+    if rhs == 0.0 {
+    self.iter().map(| _ | f64::NAN).collect()
+}
+else {
+    self.iter().map(| a | a / rhs).collect()
+}
+}
+}
+impl PySub<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a - rhs).collect()
+}
+} impl PyAdd<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_add(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a + rhs).collect()
+}
 } impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
@@ -1771,7 +1951,78 @@ else {
 }
 }
 }
-#[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
+#[doc = r" DEPYLER-1202: Python integer operations for Rust integer types."] pub trait PythonIntOps {
+    fn bit_length(&self) -> u32;
+    fn bit_count(&self) -> u32;
+   
+}
+impl PythonIntOps for i32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for i64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for u32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for u64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for usize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for isize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
     impl DepylerDate {
     #[doc = r" Create a new date from year, month, day"] pub fn new(year: u32, month: u32, day: u32) -> Self {
     DepylerDate(year, month, day)
@@ -2176,7 +2427,7 @@ exit_code
     let filename: String = "file.txt".to_string();
     let _cse_temp_0  = ((base).py_add(STR__)).py_add(relative);
     let _cse_temp_1  = ((_cse_temp_0).py_add(STR__)).py_add(filename);
-    let full_path: String = _cse_temp_1.to_string();
+    let full_path: String = _cse_temp_1.clone().to_string();
     full_path.to_string()
 }
 #[doc = "Test extracting basename from path"] #[doc = " Depyler: proven to terminate"] pub fn test_path_basename() -> Result<String, Box<dyn std::error::Error>>{
@@ -2211,7 +2462,7 @@ else {
 } let _cse_temp_0 = last_slash>= 0;
     if _cse_temp_0 {
     basename = {
-    let base = path;
+    let base  = (path).clone();
     let start_idx: i32  = (last_slash).py_add(1);
     let len = base.chars().count() as i32;
     let actual_start = if start_idx<0 {
@@ -2223,7 +2474,7 @@ else {
    
 }
 else {
-    basename = path.to_string();
+    basename = path.clone().to_string();
    
 }
 Ok(basename.to_string())
@@ -2260,7 +2511,7 @@ else {
 } let _cse_temp_0 = last_slash>0;
     if _cse_temp_0 {
     dirname = {
-    let base = path;
+    let base  = (path).clone();
     let stop_idx: i32 = last_slash;
     let len = base.chars().count() as i32;
     let actual_stop = if stop_idx<0 {
@@ -2279,8 +2530,8 @@ Ok(dirname.to_string())
 }
 #[doc = "Test splitting path into directory and basename"] #[doc = " Depyler: proven to terminate"] pub fn test_path_split() -> Result <(String, String), Box<dyn std::error::Error>>{
     let mut last_slash: i32 = Default::default();
-    let mut basename: String = Default::default();
     let mut dirname: String = Default::default();
+    let mut basename: String = Default::default();
     let path: String = "/home/user/documents/file.txt".to_string();
     last_slash = - 1;
     for i in {
@@ -2310,7 +2561,7 @@ else {
 } let _cse_temp_0 = last_slash>= 0;
     if _cse_temp_0 {
     dirname = {
-    let base = path;
+    let base  = (path).clone();
     let stop_idx: i32 = last_slash;
     let len = base.chars().count() as i32;
     let actual_stop = if stop_idx<0 {
@@ -2320,7 +2571,7 @@ else {
     stop_idx.min (len) as usize };
     base.chars().take(actual_stop).collect::<String>() };
     basename = {
-    let base = path;
+    let base  = (path).clone();
     let start_idx: i32  = (last_slash).py_add(1);
     let len = base.chars().count() as i32;
     let actual_start = if start_idx<0 {
@@ -2333,7 +2584,7 @@ else {
 }
 else {
     dirname = STR_EMPTY.to_string().to_string();
-    basename = path.to_string();
+    basename = path.clone().to_string();
    
 }
 Ok((dirname, basename))
@@ -2371,7 +2622,7 @@ else {
 } let _cse_temp_0 = last_dot>0;
     if _cse_temp_0 {
     name = {
-    let base = path;
+    let base  = (path).clone();
     let stop_idx: i32 = last_dot;
     let len = base.chars().count() as i32;
     let actual_stop = if stop_idx<0 {
@@ -2381,7 +2632,7 @@ else {
     stop_idx.min (len) as usize };
     base.chars().take(actual_stop).collect::<String>() };
     ext = {
-    let base = path;
+    let base  = (path).clone();
     let start_idx: i32 = last_dot;
     let len = base.chars().count() as i32;
     let actual_start = if start_idx<0 {
@@ -2393,7 +2644,7 @@ else {
    
 }
 else {
-    name = path.to_string();
+    name = path.clone().to_string();
     ext = STR_EMPTY.to_string().to_string();
    
 }
@@ -2454,7 +2705,7 @@ else {
 } let _cse_temp_0 = last_dot>= 0;
     if _cse_temp_0 {
     extension = {
-    let base = filename;
+    let base  = (filename).clone();
     let start_idx: i32  = (last_dot).py_add(1);
     let len = base.chars().count() as i32;
     let actual_start = if start_idx<0 {
@@ -2597,6 +2848,10 @@ if counts.get(& ext).is_some() {
     let depth: i32 = test_path_traversal(& "/home/user/docs", 5);
     let safe_name: String = sanitize_filename(& "file<>name.txt");
     println!("{}", "All os/sys module tests completed successfully");
+    Ok(())
+}
+#[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"] #[doc = r" This file was transpiled from a Python script with executable top-level code."] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
+    let _ = "\nComprehensive test of Python os/sys module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's os and sys module\noperations to their Rust equivalents.\n\nExpected Rust mappings:\n- os.path.join () -> std::path::Path::join ()\n- os.path.exists() -> std::path::Path::exists()\n- os.getcwd() -> std::env::current_dir()\n- os.environ -> std::env::var()\n- sys.argv -> std::env::args()\n- sys.exit() -> std::process::exit()\n\nNote: File I/O operations may have limited support.\n".to_string();
     Ok(())
 }
 #[cfg(test)] mod tests {

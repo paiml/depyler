@@ -1,0 +1,2926 @@
+{
+  "work_item_id": "DEPYLER-GREEN-LIST-20",
+  "created_at": "2026-01-25T17:46:55.354118Z",
+  "baseline_commit": "642ef094cdef47e7affc88129826cd0fe167b4ac",
+  "baseline_tdg": 0.0,
+  "baseline_coverage": 0.0,
+  "baseline_rust_score": 0.0,
+  "baseline_file_manifest": {
+    "files": {
+      "test_debugging_simple.py": {
+        "content_hash": "38e7f1fee56efadac6bf42c29e226e181bd467347ed1d606446abcc3f14acd57",
+        "lines": 33,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_set_typed.py": {
+        "content_hash": "01e943e928f61a5490587145e6ec3aec6bbd6a48c2a4d4b5df43ddc08ddf4f3c",
+        "lines": 15,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_profiling.py": {
+        "content_hash": "e2a38bf5a90c97896f83de9196b8890ddc0327523c276a5e79e55d5bf6e8e75c",
+        "lines": 129,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_imports.rs": {
+        "content_hash": "cbc04f67347d260655e358166e02dd37bc2abb3d5cd80898167ba19074b2c10e",
+        "lines": 2824,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_dataclass.py": {
+        "content_hash": "548a8c2ad0602de2333a8ff9e903b127b5d6992ce8a0fe91f9fbbae5c3ef592f",
+        "lines": 57,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_imports.py": {
+        "content_hash": "3ec6225b5c2ee6b76e6d04c857d54eb28441cf8411d910240ee056968e31465c",
+        "lines": 29,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_break.py": {
+        "content_hash": "cf02769f6c79c8b40240d47eb4821f554a937f72a1c8007cee6ea213205bcb21",
+        "lines": 5,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_docs.rs": {
+        "content_hash": "dbe6a8127b63978153c512e92557be4f7134662183c17bb3dea1e9602d7c27b1",
+        "lines": 2953,
+        "functions": 362,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "falsification_suite.rs": {
+        "content_hash": "2d79dc6d50f8fcdca271a1b6c42d10697c35aed4c93a966469032cca3f2e56e0",
+        "lines": 2902,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "v1_4_0_features_demo.py": {
+        "content_hash": "10c980f12338b196a1e42be944543834ca69c8b0b42e400cd025cae8491662f9",
+        "lines": 56,
+        "functions": 8,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_typing_module.rs": {
+        "content_hash": "d63b157d61733f818437ff5e9dec750979ef51718133fc0b431e5ab12f5eaf47",
+        "lines": 3300,
+        "functions": 389,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_csv.py": {
+        "content_hash": "4430bf7b92a6bb1f45cc15085a29827ec4e70df48f139805bcd5b36358a89f0b",
+        "lines": 27,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "floor_division_test.py": {
+        "content_hash": "13a1707b94da4d4a7496e857966bab8a151134f6e598734869c40326ea8cc758",
+        "lines": 46,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_method.py": {
+        "content_hash": "73c3c2b1b9ee1509f925ecd64444aad7e26e9189c660dc03cb0a9735673f342b",
+        "lines": 13,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_generator.py": {
+        "content_hash": "45809d7b8256864f90f72634e22d8e4611c8ccdae19ac291c62cf2b891d7122c",
+        "lines": 23,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_function_decorators.rs": {
+        "content_hash": "5cb5fc474562dc808e3474d088b7dd70697c8b6c0b698597a36b4e10cf6d4b57",
+        "lines": 2878,
+        "functions": 361,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "v1_1_0_showcase.rs": {
+        "content_hash": "179c3ca16f2a5b6c8e2bfd3362d5587ff4b4e18c57d8d88fbf18525ef260a1e0",
+        "lines": 3070,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "array_functions_test.rs": {
+        "content_hash": "4d5539d03e80b77f64219f2615e6f42e349e982b29c1b0a5a39c8df6cec97b38",
+        "lines": 2827,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "mcp_usage.py": {
+        "content_hash": "f2e8e4ef11838569fc4bc59a9643066251e2f847cb37cb7b0365eadaeefd1774",
+        "lines": 463,
+        "functions": 14,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "array_functions_test.py": {
+        "content_hash": "29f6331eca11081784ef8dcefcc7994fe5345d30c81a2bdb0a377b19af50aa9e",
+        "lines": 12,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "interactive_annotation.rs": {
+        "content_hash": "1b283740960ff221126e9dd5e898d6ec99dadc6e27f8cb6b661ac5f3ac26e819",
+        "lines": 2457,
+        "functions": 368,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_set_summary.rs": {
+        "content_hash": "70e10d292501ca5611e05edff8eabdf73efc752cc68cfbf36eddbe086993987c",
+        "lines": 2876,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_pickle_module.rs": {
+        "content_hash": "d0344c444f240deed8a0c7298f1abd2d04919872ac52765ac51a45bed767681e",
+        "lines": 3071,
+        "functions": 362,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "networking/http_client.rs": {
+        "content_hash": "e2f384f401642e9fb0a63a7f3b380cd291306b1089fb0f2a9750ca98975cd0e5",
+        "lines": 3008,
+        "functions": 345,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_lifetime.rs": {
+        "content_hash": "c25a873bc5d99d15a5ba0d537664ec9079ae3e16a7c8d0213684075f213d8b34",
+        "lines": 2823,
+        "functions": 356,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "argparse_cli/tests/test_wordcount.rs": {
+        "content_hash": "b0167b83e98587c09b1c15ed315846a5f585cafe2c1bc002013e9b684e314feb",
+        "lines": 3149,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "argparse_cli/test_type_inference.rs": {
+        "content_hash": "dcf1e84ed7fffd11ef856496e97fcf28fda85527406584b87359640534898edf",
+        "lines": 2721,
+        "functions": 334,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase_type_inference.rs": {
+        "content_hash": "f44e684edd26cafb5210a9c75180abf3f150c1d15765351ac0cee4a71d8efcc5",
+        "lines": 2954,
+        "functions": 364,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_v02.py": {
+        "content_hash": "e09a4c6410080e44faa35aca02b339588c19da321cdf1afa7393d34ed1fb5704",
+        "lines": 5,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "stdlib_comprehensive_test.rs": {
+        "content_hash": "ca9d4470820ca23671a0a5192168a4964c86f086a3639fb49e4065df5126a862",
+        "lines": 3370,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "semantic_test_add.py": {
+        "content_hash": "4171ab535ebf9cd78537d926cbbfb5cbc75c648a25763ae335d54f0bbdebe08a",
+        "lines": 21,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "type_extraction_demo.rs": {
+        "content_hash": "cb1d43c6ae861d7f0f6752bdf851eede0881ba1dfe504704dd53aa80c5ad039d",
+        "lines": 3148,
+        "functions": 394,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "golden_async_concurrency.py": {
+        "content_hash": "b2a1e3ba92f8f654672bf4a291b0c833aa53d05976306e95417ff07a075efde8",
+        "lines": 464,
+        "functions": 41,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_migration_suggestions.py": {
+        "content_hash": "212ed87f8210660f7d33e22975b8e6b22e08078df018d619de0f93f519726a7b",
+        "lines": 95,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_structures/queue.rs": {
+        "content_hash": "52b8da8237cba6401d5c221bdf24639b1a641e4df911558e3c90d543c62466db",
+        "lines": 2783,
+        "functions": 339,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_simple_decorator.py": {
+        "content_hash": "398288b146fef8219cae9d79f4774bf0e174fc2d6c3e34bcb0b58841db440da3",
+        "lines": 9,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_basic_imports.py": {
+        "content_hash": "1c0cf3a59f98c30f369e96b09bd09df13b2a6c597421aeba2cb3ad74fce8d77a",
+        "lines": 15,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "argparse_cli/simple_cli.rs": {
+        "content_hash": "fb6b2476450b02934830cd3c44125027a6d58c7ec9af18bafa90b027e1d45a87",
+        "lines": 2649,
+        "functions": 330,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "ruchy_showcase.py": {
+        "content_hash": "8c8778ede5f688d3b4f7db6682443fca3b3534a51b099f40d443b53c2fa4a433",
+        "lines": 122,
+        "functions": 12,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "text_processing_combined.rs": {
+        "content_hash": "2886bfd76cf39a2828afd4d03832bdf583a7afb6b2006a435a26b61c0401f662",
+        "lines": 3333,
+        "functions": 370,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "mathematical/basic_math.rs": {
+        "content_hash": "28257b093a024cf95e901901463c7c0aeb8875968cf70f90ae947674d40f6fd1",
+        "lines": 2780,
+        "functions": 341,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "lambda_advanced_test.rs": {
+        "content_hash": "8a5fbdccf4b9fa104b7d30597c96eb6b0baf3c7da0be7082843e292726b77b0c",
+        "lines": 2819,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "lambda_passing_test.py": {
+        "content_hash": "e8b1110227c60b4e8112ec2391edf2853bb823c6bbf7c86b3fd0daeed42a617e",
+        "lines": 15,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_continue.rs": {
+        "content_hash": "c776de9a05b933faedce5d6080424551f8a5717b96fdc686ad0757aa7dc1eb04",
+        "lines": 2800,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_itertools.py": {
+        "content_hash": "d9d74351dfabc9ae2975a88ed11d075aa8e3284a11feb8faea69ad7d6e70f934",
+        "lines": 22,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "power_test.rs": {
+        "content_hash": "86d6b2af46f37175af5cda40ea909ff328aacaf35c580507d142d41274f989f7",
+        "lines": 2924,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "set_operations.rs": {
+        "content_hash": "c36196394cce3ba141dc91611ad96cfa78e447168204f31d2cd6f83d547f06de",
+        "lines": 2861,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "deep_nested_dict.py": {
+        "content_hash": "0a0972559a90c563ad5976498d4c7d6a44143ed539cc16240c5b97ad581bdbdb",
+        "lines": 12,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_migration_demo.py": {
+        "content_hash": "a0446f4e028b4f6cd504d68fc91fa9cebae2e37bdcbd580910bcb951a89cb290",
+        "lines": 34,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "custom_attributes_demo.py": {
+        "content_hash": "a13bba9cfdfbc629e3950ce17e9c196590f7e0fe6583b0efcdd421bd6b94e4d4",
+        "lines": 51,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_decorator.rs": {
+        "content_hash": "ba741725132fc0f8f42da92dc4280fac70b57f417c9d65f8781c929023f956e3",
+        "lines": 2816,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_interactive_simple.rs": {
+        "content_hash": "0f3edeb6006bbd6b5e67a41c9db21f997a83d7341737b249e05f7df060f90c4c",
+        "lines": 2835,
+        "functions": 357,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_profiling.rs": {
+        "content_hash": "befe70f7f06614f536a570cada42afd9892cc4e7da3e82dfbad948961547dbb8",
+        "lines": 3050,
+        "functions": 369,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_interactive.rs": {
+        "content_hash": "eef09f1e197e9f59b0b037fd96b3945dd38026dda46b2631c5045f8e8f7429dc",
+        "lines": 2915,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_math_module.rs": {
+        "content_hash": "2d92d5561a2c062155aa5ce57c98ccf361c862b4712568c69d200cf84b8116ab",
+        "lines": 3130,
+        "functions": 373,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_csv.rs": {
+        "content_hash": "130ff78efd1265dddc3bf6cacbae3a4d32ab218bf71424601d4148f15815d099",
+        "lines": 2830,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "marco_polo_cli/marco_polo.py": {
+        "content_hash": "5d1d698d824b19109dadce3f4c86036af3b75e705faf769e1d511c0f2fe6074a",
+        "lines": 204,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "file_processing/log_analyzer.rs": {
+        "content_hash": "7f31005c866acb2f83239a4f803de31741f66fe9b86e2e9e6f2addce608f49e2",
+        "lines": 3034,
+        "functions": 343,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_migration_suggestions.rs": {
+        "content_hash": "4231bc1a915ddc4b765e28cf558763cee213162d7fa4ea065f0c5e04fa1c12bf",
+        "lines": 2968,
+        "functions": 373,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "verification_demo.py": {
+        "content_hash": "14089fdcdebe299650ad1387b7b3974566c561b9a1c75f8b268ab576150c9820",
+        "lines": 200,
+        "functions": 14,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lsp_demo.rs": {
+        "content_hash": "434e5eae51affd5fe9306360049dec55c05b217295549700a1fa2977b8c9615f",
+        "lines": 3088,
+        "functions": 374,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_bisect_module.rs": {
+        "content_hash": "aa3436c2f04703e72d6019f10b8f6f55a98437b68907853debaa890d08f61fc6",
+        "lines": 3410,
+        "functions": 392,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "golden_annotated_example.rs": {
+        "content_hash": "d313d048515ce1750bd69747a3e270529b6aea3ff4ebe3ea57a151a786224846",
+        "lines": 3102,
+        "functions": 376,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_docs.py": {
+        "content_hash": "fb0ced13ef8c6275f7dd69cc2b244bbdaed0f8be477d49b4c07cf9e25e571911",
+        "lines": 174,
+        "functions": 10,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_heterogeneous_dict.rs": {
+        "content_hash": "64b2006b15e55b77e44cad6a648d57e5b5bc091e5951ca08701045b6444cdac9",
+        "lines": 2811,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "type_inference_demo.py": {
+        "content_hash": "f93b3b356027eaececc98e2820ffd119df73f49541bb494e4adf8166a7613aa8",
+        "lines": 32,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_itertools_comprehensive.rs": {
+        "content_hash": "806c90fcf6e39598b7736d5b462b77d49931dbf1af6bb31291bf390e024ed1b7",
+        "lines": 3403,
+        "functions": 388,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_imports.py": {
+        "content_hash": "8c257e3ed43a883b5290e4c425f57d5d599f3d26b049ef81f0220ca74ace6857",
+        "lines": 24,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_continue.py": {
+        "content_hash": "ddeb7fc9fa9aabb3d7a7a541783bc52364c584e3608d3abbb9efd33d7f2fffe6",
+        "lines": 6,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_frozenset.rs": {
+        "content_hash": "1c530d04475162ee635f4c8c1d554392985ebd00bc4d87e505c3c87f3c625089",
+        "lines": 2811,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_debugging.py": {
+        "content_hash": "8913a7a8426e8fff5b7b8b3ca35074c6f4425ef5f6e6ddb523da8b41c96758c5",
+        "lines": 66,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_urllib_parse_module.py": {
+        "content_hash": "6181a0060e2f2d699faa8293a16ce5c1f68bfc267dc0c1da6acc0d237411ef13",
+        "lines": 200,
+        "functions": 15,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_iterator.py": {
+        "content_hash": "92ef765eb5909da3fbc5219c493f82658f699910c6830be56618363c6eb57f48",
+        "lines": 47,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_set.py": {
+        "content_hash": "03f7242b4c6d6d33df5729ffc181593995b30777fa5b91b55ee48fc29772c802",
+        "lines": 4,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_power_floor.py": {
+        "content_hash": "a536b3c741e09f4f1c529d4b26d02cea4bd7a099668cc89bd5c009dd9d3cbaf6",
+        "lines": 5,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "validation/test_with.rs": {
+        "content_hash": "a2002bdaa9620927c9409dd489c81c5576297712fe6ec699cfba0ef8a59c8c8c",
+        "lines": 2675,
+        "functions": 332,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase/process_config.py": {
+        "content_hash": "46a74537694c09e53abcdbbbb2503dafe4394560ab6a5fae18b603c1760606d0",
+        "lines": 7,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "file_processing/csv_parser.py": {
+        "content_hash": "318c179a4002becd29b1fdb2eccfdccf318813d050bb91356244cf6eeb2f5550",
+        "lines": 154,
+        "functions": 7,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_urllib_parse_module.rs": {
+        "content_hash": "16a264f977a253846cf05f9fa0efb78ab09a633df5534eb7db3cf6f7dbd990ad",
+        "lines": 3002,
+        "functions": 366,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "power_and_floor_division.py": {
+        "content_hash": "2abfdcb9dc287ccdcd872fcd208ca39f0ef133a4d9cee360bc56a1af4178c71f",
+        "lines": 65,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "ast_converters_demo.rs": {
+        "content_hash": "03052a0124a399bf21e162bdfdf2264363e3f246f37cb6779e561578053a04da",
+        "lines": 3222,
+        "functions": 365,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_function_decorators.py": {
+        "content_hash": "4d1377d531f7f8140033608f46c0485f9876fff243a5c33fe30a1931373b1600",
+        "lines": 56,
+        "functions": 11,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "validation/test_async.py": {
+        "content_hash": "a97fcfac876b97c70bf6cb6a2ff7791fbe4e471fa4195c42df4326fc29a7964f",
+        "lines": 13,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "text_processing_combined.py": {
+        "content_hash": "49f6968a1188de6bf1c780e5236962456ae1bed43c9db17d57f41add53727435",
+        "lines": 351,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "showcase/contracts_example.py": {
+        "content_hash": "865ce50a401e5a06fa693e0298210c3acb5144a73fe76c2c30134309d2bb842f",
+        "lines": 46,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "nested_dict_assign.py": {
+        "content_hash": "3d0a6d0b6331d4b3b611dfbca270fc88e60c2f9b1404da807319ad1fd23a0329",
+        "lines": 14,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "string_processing/text_analyzer.py": {
+        "content_hash": "96723ab85aeb0c88818af98dd1a3d2b05317fe673a7545593cf60f8feaac5e78",
+        "lines": 93,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lambda_demo.rs": {
+        "content_hash": "54b3febde50651573b60ac43970b634265b7ebd6008d2525ad19da6cbde56b51",
+        "lines": 2962,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase/classify_number.rs": {
+        "content_hash": "5a73bcfce27e5ee269f5da62bba48916dc62c7d913f5e725a95a8559e4d254da",
+        "lines": 2652,
+        "functions": 330,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_property.rs": {
+        "content_hash": "3b65b73d85de6f087b6eef64dd5b6fa0f2873bfa6b60e0d4cd9c2299df1cdadf",
+        "lines": 2809,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_collections_import.py": {
+        "content_hash": "94be761761ace253ef0cf956450ba6df6461daa9c2abed6fcee097c43f6528f4",
+        "lines": 42,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_s3_lambda.rs": {
+        "content_hash": "823a9b0b1a35eb16fba61aea817359444d342ad172ad37b1719b242ec676709e",
+        "lines": 2849,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_copy_module.py": {
+        "content_hash": "513e43715164d45ea6709a5260a94c669c822f942f0e8f7938c72be459cc5ebe",
+        "lines": 278,
+        "functions": 18,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_structures/stack.py": {
+        "content_hash": "7301de26113459659f10d84715e958d2c00b7fbfc5bbb2c16ff70187c3a96187",
+        "lines": 57,
+        "functions": 7,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_frozenset.py": {
+        "content_hash": "f0d5f60c3bc80120c530264125bbabf0189bd2f7d85c513d1d754e242bb600d1",
+        "lines": 12,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "algorithms/fibonacci.rs": {
+        "content_hash": "8422eb9dfd05b824974ecb2a01e476a8f92ad62ab383f20966c5badaf28b3ed7",
+        "lines": 2724,
+        "functions": 336,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_statistics_module.py": {
+        "content_hash": "c93e62ed7c75efa059891d93206788d7a5f67e0cf38bffc71e9898a834fd41a8",
+        "lines": 412,
+        "functions": 18,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_typing_module.py": {
+        "content_hash": "753d121cae623abd6ad2c6ed8d6ed40f073fb200664d1b0e8b4bb5ce07a68072",
+        "lines": 344,
+        "functions": 25,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_numpy_simple.py": {
+        "content_hash": "b8e9fcf70423ca892f633d44c091973c138d52da6101d3b0f396e24c3982f3b8",
+        "lines": 22,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "dict_assign_typed.py": {
+        "content_hash": "8afa71ed4500d8ead49dbab50f6df78b60bdb67f12598104d129cc672b9f64fc",
+        "lines": 22,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_functools_module.py": {
+        "content_hash": "e6b23610793941227da5c6f7e61b3e72b99fa94423dbf46127657a86165c6d76",
+        "lines": 347,
+        "functions": 24,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "showcase/process_config.rs": {
+        "content_hash": "4cd514f8e12f10cf678feb7b695dc35bb23a842ef53d6f270a66e12072e21ad1",
+        "lines": 2665,
+        "functions": 332,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "marco_polo_cli/marco_polo.rs": {
+        "content_hash": "31da74f06f25c591bb5146d2dcb10edd53b8178b6264b89b636f59b895f103c8",
+        "lines": 2902,
+        "functions": 338,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_set.rs": {
+        "content_hash": "2303546388e8d109e2362daf7e96981abd7fcd5a3e30410d1f4042c140d56ba3",
+        "lines": 2803,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_configparser_module.py": {
+        "content_hash": "69dc553514f1d7c4769010d0d153e289c2e94e5df61f907eb9cbb4fa7e27c0c6",
+        "lines": 234,
+        "functions": 10,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "marco_polo_cli/tests/cli_test.rs": {
+        "content_hash": "684c729bc37433a5eeb56ff95a8d0227c9f5a1525f6eda12aa665f13dee13ce5",
+        "lines": 31,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "stdlib_comprehensive_test.py": {
+        "content_hash": "9a4da69fc7c7d99008067151a6693086847228d2303312d08a1610014daca081",
+        "lines": 244,
+        "functions": 31,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "mathematical/geometry.py": {
+        "content_hash": "97e70c665cfd003da0f87b1ede93569aade60441514304f6382a2141cffc5849",
+        "lines": 111,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "showcase/binary_search.rs": {
+        "content_hash": "d388eb13323f5d97b164f23d4283aa0f47e91a6e315b2cdbeba6a243f3540f8e",
+        "lines": 2714,
+        "functions": 334,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "v1_1_0_features.rs": {
+        "content_hash": "bcdcb1c7603fcfc6da2e120f11822f32934e6e2a45b187ebe8a975acbbb190a5",
+        "lines": 2915,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_docs_minimal.py": {
+        "content_hash": "a69844096f244d54d50caf9b13622f6d68ce3cabf56848b1366c9188b2b79f20",
+        "lines": 49,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_set_methods.rs": {
+        "content_hash": "7781048808bbef74749450ae3fccbb9c8ba786a75278d5c3f0996e9412d903f6",
+        "lines": 2880,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_functools_module.rs": {
+        "content_hash": "a57de363a220470779d7485b8e3f019fa511e41bebb3bb4a5b3d5b2d5720010e",
+        "lines": 3272,
+        "functions": 398,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "lifetime_demo.rs": {
+        "content_hash": "47cbe0070ab2ffbedc0c3c69b6733634eb8fcd445591a439f55a22a03dc5b9ca",
+        "lines": 2865,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "marco_polo_cli/marco_polo_simple.py": {
+        "content_hash": "3a5cb8a93edbf04e802c21e507b694155f4e85b453ca60db989d3a8e2f020ec3",
+        "lines": 103,
+        "functions": 8,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_processing/list_operations.rs": {
+        "content_hash": "3408a5546212c7d8384187dd3a82a77b905318d8e33ee8497e9f6f80ef1aaffe",
+        "lines": 2841,
+        "functions": 343,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "argparse_cli/python/wordcount.rs": {
+        "content_hash": "fac7034700f55cf792ea1ac4b0770dcf89f32b398d85766b15706d6176f572a4",
+        "lines": 2752,
+        "functions": 332,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "golden_exception_handling.rs": {
+        "content_hash": "c61f2202c124177252850cd2dc1c457c019e87d04a39a5694c41e45ecd9ce766",
+        "lines": 3403,
+        "functions": 390,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase/annotated_example.py": {
+        "content_hash": "20c8598f27eb33b9e4cf74cd92474160d33381d5362e80a09363c22994683176",
+        "lines": 47,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_basic_class.rs": {
+        "content_hash": "f1253ca0fc79f3a5a1cff8c9ce8017d2f19eec714a589d52a0664f183f81a604",
+        "lines": 2824,
+        "functions": 357,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "data_structures/queue.py": {
+        "content_hash": "cef94aab37ddc19c1c6fc4f274eb91097973594e70b78e8b5ab9058dc7d3a585",
+        "lines": 74,
+        "functions": 7,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_lifetime.py": {
+        "content_hash": "6a05f2fee53af614a5a197250f8b2af7192f1358be2d35f2e0b921df779e0fd7",
+        "lines": 9,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_optimization.rs": {
+        "content_hash": "9b24d21c252a9c126227722a46682cadcd0d0f59a30870e652f920229e500479",
+        "lines": 2853,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_array_test.rs": {
+        "content_hash": "2affdec28671c7df671fe3d54176cc41200de4e951945a0a7b5859130a165461",
+        "lines": 2821,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "argparse_cli/python/wordcount.py": {
+        "content_hash": "6d31c15d843579205ff73e06861935d8ae7fe1ef5a68242d48cb8356c5f45f83",
+        "lines": 93,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_method.rs": {
+        "content_hash": "096eff8a16d893058e70339f4cc7b321a6ab220689b3e7bdc80b87b3a905b894",
+        "lines": 2808,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_lambda_test.py": {
+        "content_hash": "9bd6d0e44fe1445fb41423abcab2743981897fb0407517f9aac3efce22f58368",
+        "lines": 16,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_itertools_comprehensive.py": {
+        "content_hash": "f6e04695e57c3fadf8991a2bedf9cc3efa7f099aa2bfc902a9eb86267fc015b5",
+        "lines": 445,
+        "functions": 26,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "v1_2_0_basic_oop.rs": {
+        "content_hash": "9bd442152d2524f534284934edcbc048e91c34bb368dfb59aa93a71838e3b800",
+        "lines": 2865,
+        "functions": 363,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_os_sys_module.rs": {
+        "content_hash": "2fcd5d8ff1f4cab2d31227c3f0b74286bd8e06f1dfb976612c461510c57eb870",
+        "lines": 2626,
+        "functions": 380,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "argparse_cli/test_kwargs.rs": {
+        "content_hash": "5ab80d0da430153d285d4d46c64777d4ad2391fb6a6f7b4a50ce768b69539c7e",
+        "lines": 2649,
+        "functions": 330,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_base64_module.py": {
+        "content_hash": "7d894e7fd71455a62cc673ec29d607061b2d3f0869d59fe7cacd9e3a74021527",
+        "lines": 142,
+        "functions": 11,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "argparse_cli/test_kwargs.py": {
+        "content_hash": "1017fb3fe39c2f614d0656f63c84ed444baf10ef3bb64cd18052c626c765eec0",
+        "lines": 14,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "marco_polo_cli/marco_polo_annotated.rs": {
+        "content_hash": "31da74f06f25c591bb5146d2dcb10edd53b8178b6264b89b636f59b895f103c8",
+        "lines": 2902,
+        "functions": 338,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_kwargs_support.rs": {
+        "content_hash": "7de012fec97144087faffccf5a1009ee9fbc3dfb3e0f984d6b518b1a5650fbca",
+        "lines": 2936,
+        "functions": 367,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "golden_annotated_example.py": {
+        "content_hash": "7510ec35cd8b8135fca798cad4b6e7c89d94cac4ed3508255a531e4b53a6bd49",
+        "lines": 235,
+        "functions": 18,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_class_methods.rs": {
+        "content_hash": "7bf7f8df0c2e7c686efeddcbf30c83708241288dcd58e1953bdf97ed72e13b27",
+        "lines": 2851,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "type_inference_demo.rs": {
+        "content_hash": "0770d57eda2789851d4af5be95b7f582aeb16eda02ff247cfd16e7c4a7ff6887",
+        "lines": 2843,
+        "functions": 357,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_v02.rs": {
+        "content_hash": "d50dd9d8bb2dcc656f51d314e2ad26c809292acd03e7814350b17249de48492b",
+        "lines": 2826,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_configparser_module.rs": {
+        "content_hash": "1cbb0e0e80185d51a4601d1fe7bf29688d84c2b09f3f08b15ed1b2290a9749e1",
+        "lines": 3020,
+        "functions": 361,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "ruchy_showcase.rs": {
+        "content_hash": "de861f35b01fd7d550c9548aa08e7b875cb7804ecb860d2757ef8f520345006a",
+        "lines": 3027,
+        "functions": 370,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "validation/test_with.py": {
+        "content_hash": "000c6e1e2ed12ef94026d1603bbdcbc517c099f9d16d7e8a6905d00e7dbdb32f",
+        "lines": 19,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_collections_import.rs": {
+        "content_hash": "d57b17e25afe7f328fec4aec2a5d40e5e952b86563d36b7e34fed760f624eff9",
+        "lines": 2910,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "networking/http_client.py": {
+        "content_hash": "e3a58b03dfed49955108bf88120ade767fd27ccc6c5865d01de7765f81c9219f",
+        "lines": 187,
+        "functions": 16,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_processing/list_operations.py": {
+        "content_hash": "e28f58fb176ef697fb5bfa0c559a501ebf4219a0511f4c4e65955a6fa8f0a681",
+        "lines": 86,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_set_typed.rs": {
+        "content_hash": "97c99b04ced9d296aa77194380c63617a6100128b54fee7216a3851a15edcca3",
+        "lines": 2826,
+        "functions": 353,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "semantic_test_list.py": {
+        "content_hash": "1381947e134c87363804cbd525ce8c0bc0f81bbcfb02358bc4013b4409a29eaa",
+        "lines": 18,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_break.rs": {
+        "content_hash": "368fa1de9f585a1757bad63776f3e5bb6c08e9e684b27a545d2e5bd79b1145ab",
+        "lines": 2799,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "validation/test_all.py": {
+        "content_hash": "310f5d3bb5541a5c4dd41d1ae62171a8531084394916284fdc952e900f86fc80",
+        "lines": 83,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "showcase/calculate_sum.py": {
+        "content_hash": "1273ab358c4d2b3c02ecf9a24c8b0d7b177cb91a1f619adfe14edac6ce5dbbd8",
+        "lines": 8,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "floor_division_test.rs": {
+        "content_hash": "043c897f54b0443fa4cdf36e028f5f01dbefa21a775282e2a11142561b6e7987",
+        "lines": 2979,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "functional_programming_combined.py": {
+        "content_hash": "e3280aab2b9ef6338cbeb324722f381cbab14f5e8155c4f577c6b3cbc70775a7",
+        "lines": 421,
+        "functions": 24,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_s3_lambda.py": {
+        "content_hash": "017cb917d5898bea706c8947982a4b276dc947577c121dd9643a94f5a805b919",
+        "lines": 8,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_project/fibonacci.rs": {
+        "content_hash": "8d7f2258941c3e82f24c442cdc079afee559f27a34dfca0835abfeaf949a8b3e",
+        "lines": 2894,
+        "functions": 343,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_project/fibonacci.py": {
+        "content_hash": "f39a9bb013f0f37b816d058bd888f2115220c842688179439b2e04c54207f8f7",
+        "lines": 132,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_statistics_module.rs": {
+        "content_hash": "59a4d9908dbde9406fa4fedeab6751ea4f9d0b38903a1f4d2bb7dbcd3ef9fc6b",
+        "lines": 3443,
+        "functions": 379,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_lambda_test.rs": {
+        "content_hash": "148f77f88064cdc3464899859468cc9be5fffa9d0814a10642931c9347a7c9a6",
+        "lines": 2800,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "simple_v02.rs": {
+        "content_hash": "d325b2d270ab81f857cbaf3fe2097a700039a6c0b30d7e9ab96004a41e554c0d",
+        "lines": 2821,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_final_constant.rs": {
+        "content_hash": "d5d9ccc3db84a7ef6a0a821d3cf7e3a7ea038ce43521f8a9881978e7d48cc3f6",
+        "lines": 2804,
+        "functions": 353,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_type_hints.rs": {
+        "content_hash": "9c96a2ae57fc70365e229fe240489d7dcc0bdcbe288d94f396be3563d75112df",
+        "lines": 2946,
+        "functions": 366,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_collections_comprehensive.py": {
+        "content_hash": "2db114197e2843d5c62ea674b08506a265ec9eccb5d90e1f6f8b5e56b30272f3",
+        "lines": 374,
+        "functions": 18,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_random_module.rs": {
+        "content_hash": "c1006d6b2cdbecbfabdae4d2ccfa65d5944cf68c0d0d9194a73047a5eb52efb2",
+        "lines": 416,
+        "functions": 25,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_hashlib_module.rs": {
+        "content_hash": "1433363cf01148e02843c87644e9c4eb20432f207e2ce02e724aa2c50000e956",
+        "lines": 3015,
+        "functions": 362,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "functional_programming_combined.rs": {
+        "content_hash": "f43e0b75a66231b6479d050ad7004d958dd721d01d8ec719937e98f1d86eb085",
+        "lines": 3406,
+        "functions": 393,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_operator_module.rs": {
+        "content_hash": "1921c7d44565b5662abbd61332ad93537bd3dad0aa9193ceab0239fb6a8ce3c3",
+        "lines": 3254,
+        "functions": 389,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase/binary_search.py": {
+        "content_hash": "0b0e2408961dadfc4a2c02d2e233da5bb8596eec623bde70b610f193b25c529d",
+        "lines": 17,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_project/data_processor.py": {
+        "content_hash": "8c38baa03d6b1d7c4b8e99e35f312b94caded2f1bca391b660710428462efe91",
+        "lines": 236,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "module_mapping_demo.py": {
+        "content_hash": "1faccdd72a8843729cf65b1b6e6b63cc413d5222dfe33ee664e5bdafc54283c9",
+        "lines": 242,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "demo.rs": {
+        "content_hash": "6568f4b851537d4c6a1f1e81927887bacfbb0f157955f060bd8a86cbf7d08475",
+        "lines": 2878,
+        "functions": 361,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_base64.rs": {
+        "content_hash": "fd9f056d48b35ee343de22c618fb9a1b55dd2c3f77d5e8239e6c8d4c6f558a43",
+        "lines": 2812,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "v1_1_0_showcase.py": {
+        "content_hash": "7b916aa201d9f413ef180bcc6c81be27d9e97103f0f3b50719d252cb5e735fc8",
+        "lines": 129,
+        "functions": 7,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simulation_combined.py": {
+        "content_hash": "5614f997e17399b5080f8e1a2c308396a4d5285c3f27523f6220309eec6a1774",
+        "lines": 333,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "falsification_suite.py": {
+        "content_hash": "70dfab2bf6a15e2702e04c7f889c736779ee4aa3e4c03e5cf1ee3fde3e21d08d",
+        "lines": 62,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_list_append.rs": {
+        "content_hash": "6c7baef5ec3b1fa204448f7e0ea5b63ee6e3414cd34951166e49669f200fb8b0",
+        "lines": 2811,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_project/data_processor.rs": {
+        "content_hash": "24572984537c4ddd9c1cce164d7fdb008b48b1339a4546a2fbfbb81d693318c6",
+        "lines": 3248,
+        "functions": 345,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_re_module.rs": {
+        "content_hash": "7afcaec74540f8aea4c534e9ce30afb744c511454950f2042bc5fd0d0d93e953",
+        "lines": 2536,
+        "functions": 385,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_simple_class.py": {
+        "content_hash": "724786bfa774287ca952c8a7228a83e012c4444810812b67f90cb501b77a5687",
+        "lines": 32,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "showcase/classify_number.py": {
+        "content_hash": "18dc41aaec40ab9feea4d16a37b96463c7e57bd35b9637c26401a442b15308d7",
+        "lines": 8,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "comprehensive_cli/tests/integration_test.rs": {
+        "content_hash": "6b744835995d5d482bf83eea44afcf38fea36f720bbc3f59aff834322a9f2dd7",
+        "lines": 189,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "simple_migration_demo.rs": {
+        "content_hash": "a98a7c038b0ba86ca2bd964adfd04128f90f410f175cee37a7443da3308305cb",
+        "lines": 2866,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "basic_lambda.rs": {
+        "content_hash": "dc965aa39565192a6b85a69bac177a9c74fb35e649737be46b735f466f91a666",
+        "lines": 2809,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_array_queue_modules.py": {
+        "content_hash": "f8399fdac63358d1e823636b1a495208fcb09e91531ffe36dbdb871bfb695182",
+        "lines": 371,
+        "functions": 33,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_set_comprehensions.py": {
+        "content_hash": "7c202c0d32a5147901bb075c610756e26f8b8e7684ad586c163dd4050c511828",
+        "lines": 24,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_docs_simple.rs": {
+        "content_hash": "ef0a57fb769d4b3ae0b7391c7837bb432863762cdac12b9c98a654662a967972",
+        "lines": 2855,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_array_test.py": {
+        "content_hash": "b63667198b1458529685cc0b3dd234ee1b93fbee409ec7902a8c7cee9e1bc2f3",
+        "lines": 15,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "semantic_test_add.rs": {
+        "content_hash": "c96d808c0fe25ca780ef4c62d011f9f88befb464a9c8e158c22f8bf656ea7998",
+        "lines": 3127,
+        "functions": 400,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_cse.py": {
+        "content_hash": "5cb52fd29f0239d26d930f63a47732d0ecac370529776ce807db0c5730b9b5f1",
+        "lines": 65,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "semantic_test_list.rs": {
+        "content_hash": "50c873de21d2096dd87dd50526519ee20c73db3bae8b8488dc724f7a6c44051a",
+        "lines": 3115,
+        "functions": 398,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_json_parsing.rs": {
+        "content_hash": "ae3f92b2bb7b02313926b70bdef2b7650f6f50429ebc44752b82536035731061",
+        "lines": 2144,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "stdlib_string_methods_test.rs": {
+        "content_hash": "75b1580a61ca22abc147a6940b190f3dc9f2642746ddbaa3f4efa3f344004978",
+        "lines": 3041,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "tuple_key_dict.rs": {
+        "content_hash": "8b702e27a95b13e0a12372dcd72b364675974346fef0e0bc83c49b072840cf59",
+        "lines": 2807,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "marco_polo_cli/marco_polo_simple.rs": {
+        "content_hash": "c9cd3b02b5ccfceb7376b22e6b5f58d354920259a1be66d1464b91985fe437be",
+        "lines": 2816,
+        "functions": 342,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_property.py": {
+        "content_hash": "935fdc180e748d478c3917da4eb425fa40f22d9165cc35d9ae541b6fd246469c",
+        "lines": 16,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "basic_lambda.py": {
+        "content_hash": "564504723cf0c4ca2985d66fd01101464e3096934142c09d1dffd8101e53a8d5",
+        "lines": 6,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_datetime_module.py": {
+        "content_hash": "1f9743f1a7c316ade743731221225dac036337eb2a38c7f60ba49fede665a65f",
+        "lines": 365,
+        "functions": 22,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_analysis_combined.py": {
+        "content_hash": "7cf3fdba59755b2c8aed549b87e120057eb0b29e4b132340e7efae2e2187a34e",
+        "lines": 333,
+        "functions": 10,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_nested_access.rs": {
+        "content_hash": "ea5298f992bf0c0d2737ce431f5f77c88961945e1dbff4ee19d86d3dfa975d3b",
+        "lines": 2828,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "comprehensive_cli/comprehensive_cli.py": {
+        "content_hash": "a1da1b68428c3f9f21a1aa22ea8b3a64430a1397f8638baf32dce8b74592d840",
+        "lines": 86,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_enum_module.rs": {
+        "content_hash": "62b386e1878eea614af7c28adee199800fcdc64c047edb5c6b44c54b1403c639",
+        "lines": 3185,
+        "functions": 387,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_json_parsing.py": {
+        "content_hash": "ed0404315c4cc2a563b17ffff6a869574463dbf4d2f7a3588626f0331443de77",
+        "lines": 25,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_hashlib.py": {
+        "content_hash": "b7d2c8d72d685cb7b9a1bbd56d4d53a64f3bd0a4b1d1faa731691e00e3eda183",
+        "lines": 21,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "v1_2_0_showcase.rs": {
+        "content_hash": "6514508d8c77397e2f5de824f023d9bbbdb1c36c96195e2ac8331823f7be344e",
+        "lines": 2910,
+        "functions": 366,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_zipfile_module.rs": {
+        "content_hash": "da2d54d1b47ec51e24ca891226df5efb16285cd871d3f40275203dc7ee0cc70d",
+        "lines": 2973,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_path_import.rs": {
+        "content_hash": "7bbeea0f2925a57b1d94644c72d5bc1fa36ef02e8642a6ede6407aa76ccefaed",
+        "lines": 2933,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "type_extraction_demo.py": {
+        "content_hash": "2a61666e95b5dc2f17c70e7473c371e12a6ef0f84fde8b9c7e6fde6737efb9d8",
+        "lines": 159,
+        "functions": 16,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lambda_test.rs": {
+        "content_hash": "db9392ee9448551432b917b60fadd8affc72c09621ceca8f93b64a4914687d8c",
+        "lines": 2858,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "v1_4_0_features_demo.rs": {
+        "content_hash": "302e461cd7d01c125db9a57cc24b872b7127c43ca0cfc789bd8a6eb5ddc895db",
+        "lines": 2182,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "dict_assign.py": {
+        "content_hash": "982e458e2e2dbb0ebd88d928aa8756d460808870d95e1549be718be9dbd891cf",
+        "lines": 13,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "argparse_cli/tests/test_wordcount.py": {
+        "content_hash": "d9c0c5f16ca522fe291f8cef98c7ad22ae816acd7231be360ed6fa560db3513d",
+        "lines": 446,
+        "functions": 26,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "dict_assign_typed.rs": {
+        "content_hash": "f265913b369aaf3516d3b5cd04d93a0629463499d06d43faa899cd61cd987b02",
+        "lines": 2828,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "set_operations.py": {
+        "content_hash": "f9bb69ab8633df96289f51eeefa9166cbad91f6d2d10dde29683542dec719f60",
+        "lines": 56,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "file_processing/log_analyzer.py": {
+        "content_hash": "32116d1aeaf5e2af4d446b803499d3a3ea56c945de69a1044bb2390f21bc9db1",
+        "lines": 161,
+        "functions": 12,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_gzip_module.rs": {
+        "content_hash": "fa25ffebf41ec85b560c57335479b7e4af27cefd658c1fe65ca3a353b373bef7",
+        "lines": 2904,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_math_module.py": {
+        "content_hash": "ed7e4ba74994b643a998895f8464517e01c0c66a1418b4033ec34d4444c8357b",
+        "lines": 282,
+        "functions": 17,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "deep_nested_dict.rs": {
+        "content_hash": "937a7e0519ef756ef7de06b9101439804c4509ee891ff85aab91c381339e5fd8",
+        "lines": 2821,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "golden_async_concurrency.rs": {
+        "content_hash": "10a400861bff77ea574253b3940a75b90e4460c7fc9d30f1864658685bde7a02",
+        "lines": 2548,
+        "functions": 404,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "file_processing/csv_parser.rs": {
+        "content_hash": "66f4db854128b5c6fdb3447bde5036d98e91b55ba583f5e8abfb6e6a2af8ade8",
+        "lines": 2274,
+        "functions": 340,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "semantic_test_multiply.rs": {
+        "content_hash": "daf24e65933114261f99f8fbc77104a55df34a3471de21c386471f6bb4f75b66",
+        "lines": 3126,
+        "functions": 400,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_inlining.py": {
+        "content_hash": "899147718e63e0b5d09e2efbc3acd5c27aab337a7c0cabc77cf875201d566e4d",
+        "lines": 77,
+        "functions": 8,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lsp_demo.py": {
+        "content_hash": "261d3713c24a7059eb22b2a45eeb251577b69c8497beeb7a655f3fb5adf3ea7b",
+        "lines": 275,
+        "functions": 19,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_analysis_combined.rs": {
+        "content_hash": "b012dd27594d9b3c725f833f3bae9d0fda0142b094f0b010ded226a52ba92b58",
+        "lines": 3415,
+        "functions": 370,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_set_basic.rs": {
+        "content_hash": "10c65042cd4addb0a67c70b395f4631dfd66f8536827bf3f9bcb0bf65297c911",
+        "lines": 2824,
+        "functions": 353,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_optimization.py": {
+        "content_hash": "f55bff9ecca7d70a628a411590fc3a154b603205b47cdd091ca6c597996bd9e1",
+        "lines": 22,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_gzip_module.py": {
+        "content_hash": "8160369742e323a925fcf88d9b45b1b0efaf86eba87c66ff52ca4b7c3c10d740",
+        "lines": 149,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_kwargs_support.py": {
+        "content_hash": "8eaa741be22a6b1589d870b421730a0707d703e4b406cc0906aa8a48d9a1aacf",
+        "lines": 79,
+        "functions": 12,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_profiling_simple.py": {
+        "content_hash": "e8902eefc8d184943acd9e7a6ea125fbddd4bfbdf15e4d0bfbf70ec033e5bcb5",
+        "lines": 57,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_interactive_simple.py": {
+        "content_hash": "97473c3971c577f09bb98760b3668e1566b9f358579a587eaec5a95e799be7c9",
+        "lines": 10,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lifetime_demo.py": {
+        "content_hash": "68f7546a5857a74e1874ff32d46191840b12bc3a0251db55c5721343db2d074a",
+        "lines": 29,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "algorithms/fibonacci.py": {
+        "content_hash": "e39badd31efd4367e4e6c14226ffc5b0226963959ab2f2dd0c9127fa0158d0a4",
+        "lines": 36,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_imports.rs": {
+        "content_hash": "b4064ae2810782ad187832212366cc572dbeb1045cc5aedc71eab3b933d9bf21",
+        "lines": 2829,
+        "functions": 357,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_augmented_assign.py": {
+        "content_hash": "14babce9eb5c64f8e570ecd24e5a0ad0b3f6b9a3f61570b3bf71c955b8abc344",
+        "lines": 15,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_basic_class.py": {
+        "content_hash": "0a975ea9b66f3df557bb16e4ec1c979485df66197ac6ac0bd513f9678a8a961b",
+        "lines": 37,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "algorithms/binary_search_simple.py": {
+        "content_hash": "4d24e81d8032768394c33e3b55f848c6504cb64fef618fad0bc9620950a35641",
+        "lines": 39,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_heterogeneous_dict.py": {
+        "content_hash": "f797d92fbb4e2236240f7463dfd856a81db97651e0896534e3f75a637ab23b42",
+        "lines": 18,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "argparse_cli/test_type_inference.py": {
+        "content_hash": "3b1a0964b3ec09c0b35617edf9ac683858f9ee44bfeb8395d0427609cf9d00d7",
+        "lines": 33,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "semantic_test_string.rs": {
+        "content_hash": "16bd86316f319747af21e21d42d3b079da5aa029b17276c9fe8698e4797411e0",
+        "lines": 3100,
+        "functions": 397,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "web_scraping/url_parser.rs": {
+        "content_hash": "1f8da9a183e7bb492b3db772ce651bbcd67430f845147ae991d23ef4f08b2849",
+        "lines": 2979,
+        "functions": 341,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_ide_integration.rs": {
+        "content_hash": "1cf3d957d099d051f1a4755faabe2c508db3f7e8a25e11cf447b3390e81e6d1d",
+        "lines": 2883,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "wasm_node_example.js": {
+        "content_hash": "b8a3376e10a0778ee558b62e2a080fe635a9c4f9545faa5682ff8b55a630a68c",
+        "lines": 276,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "TypeScriptSource"
+      },
+      "test_v02.py": {
+        "content_hash": "98c201489857a06a8fc3bb45ca6e952841fe54ba1e25176785da39c5797bea66",
+        "lines": 19,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_heapq_module.rs": {
+        "content_hash": "4d338f7e5a3f970dc55794795ee9b36e150318fc565ddbbe5d06f6984e5ef0d8",
+        "lines": 3466,
+        "functions": 373,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "demo.py": {
+        "content_hash": "6e9244446ca5aee2f898131facc1c783568518ddae30f9eb05ee40192542df9b",
+        "lines": 30,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_basic_imports.rs": {
+        "content_hash": "f1ca49cbfcdef2e004aaf6bcce493a3428e3758f563554ad0387dad8f1494d29",
+        "lines": 2810,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_base64.py": {
+        "content_hash": "60bb463fff1c2da1fafef747cf9e667f759dc74e1ce824e1d7ff28d51d85a126",
+        "lines": 17,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "debugging_workflow.rs": {
+        "content_hash": "5cb32af148762b3dfddb9fb9ad8ef57a0ca48aaaf8c60a67691e9f4456f7ff56",
+        "lines": 2879,
+        "functions": 360,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "mathematical/basic_math.py": {
+        "content_hash": "2379ed1a6f3d358e09ce2fd56e21c6aa0d23bdc33044d466095578404d30bce4",
+        "lines": 66,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "marco_polo_cli/marco_polo_annotated.py": {
+        "content_hash": "9f47de2f5099c545826a3411d8b2314abda4f9a4719798f597df39f98c175a6f",
+        "lines": 214,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "power_and_floor_division.rs": {
+        "content_hash": "7d2ab50d381e5fa79799fb8580ce80477dd720d0116c1f7446568c1c98e564b2",
+        "lines": 3053,
+        "functions": 361,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "golden_exception_handling.py": {
+        "content_hash": "e8018a450a1d5868936337bdd6706b77ef369ba8e3c49cd010b2ca37efd966b1",
+        "lines": 435,
+        "functions": 22,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "v1_3_0_features_demo.rs": {
+        "content_hash": "7199c50b00e7482f198d2d110116b3b46a304636fb2e115d5456454ecf7bcda8",
+        "lines": 2886,
+        "functions": 364,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_set_basic.py": {
+        "content_hash": "86a92b3b90d063437a85d508750d6a5c6fcb6ec16eb5262452262cb1bbb8d4da",
+        "lines": 19,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_xml_etree_module.py": {
+        "content_hash": "faafd9730d5ff505dab8a85dacec0be21256ce9a2851af03f7021174a7885383",
+        "lines": 237,
+        "functions": 14,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "algorithms/quicksort.rs": {
+        "content_hash": "ea3dd98fc37b4bf39402c9b7df6b75585372a5ae8e802aaa19e92c0d843de87f",
+        "lines": 2821,
+        "functions": 337,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_async_methods.rs": {
+        "content_hash": "865ed451b60a29fd34f02205f62d6c801f67cb6197b82de147cdc642d6f168f8",
+        "lines": 2156,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "marco_polo_cli/src/main.rs": {
+        "content_hash": "3f1139146387983833f47f1aee0fd65c41232f2435b67a48d7c3e75b9520b85f",
+        "lines": 295,
+        "functions": 12,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "mathematical/geometry.rs": {
+        "content_hash": "128c80c478fa7c1cbf46ffe6f64111b68a043f78eaebd4eafcdbeeb51ec31c30",
+        "lines": 2783,
+        "functions": 344,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase/calculate_sum.rs": {
+        "content_hash": "8becc4a0fc8411190a01e4cd2ee1caa96747570db45861bf8715b6772bc99f60",
+        "lines": 2657,
+        "functions": 331,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_bisect_module.py": {
+        "content_hash": "3bb78c27d4a442a9366d4e9299ce483772e207b1e36b4371cf60d9e1f7ad505d",
+        "lines": 356,
+        "functions": 22,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_set_operations.py": {
+        "content_hash": "ef79d9ae5bdb8d3f95121fb496539c23e24b964c85e19c6b0e2b1e337c64b6a2",
+        "lines": 35,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_xml_etree_module.rs": {
+        "content_hash": "7f8cfea68031e6098cc2d630be602ad759a811e53fe59a176cb9aec61fe4a282",
+        "lines": 3103,
+        "functions": 374,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_docs_simple.py": {
+        "content_hash": "69fbfd2c6a687c0d0bfd3b94a8944f1f7667225d82cb7cec8d47c5059ea1268b",
+        "lines": 88,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "game_development/tic_tac_toe.py": {
+        "content_hash": "40fde5b9c6f95e3b4a6f23b9a4c298f31dbe200633db1ebc8c6276876e92ac2d",
+        "lines": 191,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_itertools.rs": {
+        "content_hash": "ed5550791d43a727fb4819f83d3b655a1f038ce517b6d90e4030e4c637fe1e50",
+        "lines": 2876,
+        "functions": 357,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_docs_minimal.rs": {
+        "content_hash": "d8d28d6f758e473e2795b20192bedc00280be2a629e29f4ad1f6b74845edb229",
+        "lines": 2861,
+        "functions": 361,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_dataclass.rs": {
+        "content_hash": "df4a6af3101ecf774a62669ef907e77ae54906dbe067c35a8a253ed643feacec",
+        "lines": 2837,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "custom_attributes_demo.rs": {
+        "content_hash": "c6d94be27a3b929e8c7d0fc85becf1494c6591a9dfa6bbbb2c6f81fd0ecfbd6c",
+        "lines": 2933,
+        "functions": 367,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_debugging.rs": {
+        "content_hash": "110930eefaaeca65ce3b5b467eb90ecbec9f863ece2bc9dc82976ad0bed78e98",
+        "lines": 2936,
+        "functions": 361,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_class_methods.py": {
+        "content_hash": "68d5b044db2d9c4332a8a967654ea508d5e3a7cefbe1309e9ab09cb59c110787",
+        "lines": 60,
+        "functions": 8,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "debugging_workflow.py": {
+        "content_hash": "5dc422aff68e6f721d7bc6759f8eead8eb81799cd80ebcc405d8763779897771",
+        "lines": 89,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_break_continue.py": {
+        "content_hash": "154f1feaa4a956deca4a598a6ae318ef63d3c5360712eedb58d12e1e74221f55",
+        "lines": 39,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "string_processing/string_utils.rs": {
+        "content_hash": "80999386a48a1f30e2c7ded060585014d65ef6eb734b05fc4880f41cfdf16faa",
+        "lines": 2848,
+        "functions": 341,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_async_methods.py": {
+        "content_hash": "4ab672c15b52883275a81aa2d94e29d0cf6d67a948a9aa11e118710325035ced",
+        "lines": 26,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "tuple_key_dict.py": {
+        "content_hash": "c29fdec74ac59b66c8c029050d08d0685aa830a7bb9fbf96eeb750215e2471b8",
+        "lines": 18,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_class_test.rs": {
+        "content_hash": "afdae2358e413636c8bc1973555e024e34437916799ab956750a81170680153c",
+        "lines": 2815,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "test_set_methods.py": {
+        "content_hash": "54282759597fdbbf1e0223895f1fd2c50fffa297a37bf16587b29c3a3596e668",
+        "lines": 30,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_break_continue.rs": {
+        "content_hash": "17d006d22b49432dcd29852dc5d087e745e1c7fdd682cb78181f940335bf2a22",
+        "lines": 2865,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_performance_warnings.rs": {
+        "content_hash": "6554c2a90a4dea4b1f927d6ec6bf33eebbcbde0b021fc774ff1bac761cfdceb3",
+        "lines": 2987,
+        "functions": 367,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_set_summary.py": {
+        "content_hash": "fb1bf74a7ff6596d5fecedac4ede0b8af4704f81acf7ce80263175fa22dbebec",
+        "lines": 22,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_async_function.rs": {
+        "content_hash": "2147fb47863669d221b1634d067d6a23ac2c848700220d727f4d7ff33e28c8b8",
+        "lines": 2828,
+        "functions": 356,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_hashlib_module.py": {
+        "content_hash": "ff20ab4d4522ed375891db2d0e98d39be0da27657b41554aa57759bd039df46d",
+        "lines": 156,
+        "functions": 11,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_simple_async.py": {
+        "content_hash": "4d6c356e59a412faebb6ed74e0578f8a63b8bbf7cd6813c9a8b8ec8dc2e96ac7",
+        "lines": 8,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_nested_access.py": {
+        "content_hash": "8830e6af231834cadfaa9d778d27c62a2d8f96ca45eceb599491e596bc8c5e06",
+        "lines": 6,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_pathlib.py": {
+        "content_hash": "e9211b37536724636dc1515b8ee38e9ce24e194bc024ad44c2a715da07b43aee",
+        "lines": 24,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_cse.rs": {
+        "content_hash": "1b16a9d0857bfa6d81eee2343348a6dcdc05dd61e834c46424a3513e23752ca2",
+        "lines": 2879,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_pathlib.rs": {
+        "content_hash": "0366cab79559e6f672370b03f0967311ed8ccf6ebf7819b2e821be645b0c2bc4",
+        "lines": 2872,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "semantic_test_string.py": {
+        "content_hash": "5606ffd40378f9497d0f34d3a669a9b59756ffd1f4c70cc26422bdbaca610364",
+        "lines": 15,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "nested_dict_assign.rs": {
+        "content_hash": "55ad1f7391ea1768bdb5e048dd4207b8fba62f222d80ccdd464755d81597a010",
+        "lines": 2810,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_with_statement.rs": {
+        "content_hash": "3679864cd4051460ac3568ff88b88aaa6a8027e5eae8041bfc887c3475ad8403",
+        "lines": 2843,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "algorithms/quicksort.py": {
+        "content_hash": "300eaecded237c7a45d4b51a29ef4a3f54e1c7722a9cb80975384251e6784d01",
+        "lines": 35,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "algorithms/binary_search_simple.rs": {
+        "content_hash": "90b56261a0c0f1ddc80508318a1e15bcd26719fa5b66e65873e498d89df22a46",
+        "lines": 2757,
+        "functions": 337,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_numpy_simple.rs": {
+        "content_hash": "8f2d5e151f0d2085a2875ca762cf2e54e8151a3e595250431c88db7cad40c7fc",
+        "lines": 2874,
+        "functions": 364,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_string_module.py": {
+        "content_hash": "1b52c2ffed9a3975db83b5650ffb8510e2783ec9f619812ac64c9678d2768940",
+        "lines": 392,
+        "functions": 30,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_performance_warnings.py": {
+        "content_hash": "0944aeb8b5f6211974ceac7b278911e5f1ffb0886ec31775ad705eac998c6ba3",
+        "lines": 96,
+        "functions": 11,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_re_module.py": {
+        "content_hash": "2e1f4813b3a16050420ff3ab39ffa35a97b2cd99f118eac7e796c0e6f8dcba61",
+        "lines": 401,
+        "functions": 26,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_random_module.py": {
+        "content_hash": "7e23507674b3e3dfba8fc1da79f346b183fb292211b7fccfb428ffe74bc24817",
+        "lines": 301,
+        "functions": 17,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_datetime_module.rs": {
+        "content_hash": "8eec24577b17fbfcd40d1968a6772e8e7c490868fa19d184975d48a20b83a68c",
+        "lines": 3241,
+        "functions": 381,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_type_hints_simple.py": {
+        "content_hash": "c16895b868ad1b7bfa797b166b7cb609c2b1332c17619866614e958abfe222a5",
+        "lines": 39,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_with_statement.py": {
+        "content_hash": "702b24f7178a09c74833e8db0ff1910b98ac00bb36700ff37c0672d24876665b",
+        "lines": 37,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lambda_demo.py": {
+        "content_hash": "1cfb85c419486d20c56b318dc4cfdd4d629fa9b1da31b668945a70ae3b6fed4e",
+        "lines": 68,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "showcase/contracts_example.rs": {
+        "content_hash": "9b53b7939a6012eba19c5569d6fff4720496387b57d25d9d2e07b79813b599b5",
+        "lines": 2714,
+        "functions": 336,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "game_development/tic_tac_toe.rs": {
+        "content_hash": "dbb1fc1b7a259c4d273dd570c4e2772795802d55970d82d872be67a774a4f184",
+        "lines": 2647,
+        "functions": 344,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_heapq_module.py": {
+        "content_hash": "10fc7d2764039f4075b5b39656c2d538b197fd80636370d507ac33c44c4a1d74",
+        "lines": 301,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_zipfile_module.py": {
+        "content_hash": "c0f2a53ca5c238d98cd904c5e619a285801e5a83d85ae02097989ccbef93a855",
+        "lines": 178,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "mathematical/statistics.rs": {
+        "content_hash": "84d288567a88b27b5434d1f676c46412493fefbab41e4ec773804e3adfb25439",
+        "lines": 2903,
+        "functions": 339,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_type_hints.py": {
+        "content_hash": "76f95af94e008a67458d0076187d43ff14ea42cafb94c178aefcd50e7307c042",
+        "lines": 93,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "argparse_cli/simple_cli.py": {
+        "content_hash": "52c7c61d90887bf36a4745bd6b7266079131617e11d1a5c7d4ef4d2b6981971c",
+        "lines": 26,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_ide_integration.py": {
+        "content_hash": "b9538444afebe9d49b87d88cfa3a701970e9d9963666e7d17b202c0ef4dd1cb6",
+        "lines": 56,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_path_import.py": {
+        "content_hash": "1ed51a82cbf7d135a9f62191aa74efe3fd741ba9f2886e337d275409375e0bc3",
+        "lines": 36,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_async_function.py": {
+        "content_hash": "8c66e0f1b21f4fb728520a41d3611b7a80194bde770f1d2d1c3e8c87b70b88f4",
+        "lines": 23,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "basic_class_test.py": {
+        "content_hash": "f6417db762d1e6ba33fc8b2a02c76fb10e7c674e8b83c550968974e1dbe5f32a",
+        "lines": 91,
+        "functions": 12,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "power_test.py": {
+        "content_hash": "4fcc05ccf47f0b51fe08f8eee055b65f087bb5b71c80514e0434317768c63fa7",
+        "lines": 54,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "v1_3_0_features_demo.py": {
+        "content_hash": "e9398780990ae33d5556e105033484e420231e09641eec331922f2842808eef8",
+        "lines": 74,
+        "functions": 10,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "web_scraping/url_parser.py": {
+        "content_hash": "3634f396df8575113c015e5e320f0583594ac053bace34626142a72a32ffccf1",
+        "lines": 141,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "v1_2_0_showcase.py": {
+        "content_hash": "0afee08a307df428c704fc915f4a486c08037c2858cec4d47de94b8d9b6300b6",
+        "lines": 128,
+        "functions": 13,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_os_sys_module.py": {
+        "content_hash": "ee0f52e5464bb4ac19f7be29149948c8820283306cd3bef9268664a66d50ecdd",
+        "lines": 353,
+        "functions": 23,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_copy_module.rs": {
+        "content_hash": "0a793d850f6a6713a644d51d39f853a5258249ee1abdeca9f942376cc0b9908a",
+        "lines": 3120,
+        "functions": 373,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_list_append.py": {
+        "content_hash": "3d9e0735f0b456d6320ac6ce7b4df589280ca90f9c199dc072b60cbc18ed5573",
+        "lines": 15,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "string_processing/string_utils.py": {
+        "content_hash": "052a766d8e8551bb5117cc3b5c3a5cee92ef7d3e67ebff494e945c97872d7746",
+        "lines": 58,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_sys_import.rs": {
+        "content_hash": "5d93d5f842d2c1502f343066aa875a404f65ce61d73853482f25700c388a423b",
+        "lines": 2848,
+        "functions": 356,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_iterator.rs": {
+        "content_hash": "58297621375c4afcc0cf421823e4f857b423b67596c0c78b8ded16b46da1117d",
+        "lines": 2853,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "ast_converters_demo.py": {
+        "content_hash": "d219f026fd6e85644a1746079fceabfd7841f4a759fc822e702fafe6631f4ae3",
+        "lines": 260,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_final_constant.py": {
+        "content_hash": "8c31958299feae20300917536bb9fbf80bc8544e3dade77d56d74d496f487575",
+        "lines": 5,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "comprehensive_cli/comprehensive_cli.rs": {
+        "content_hash": "5492287373bcf3f64f2ec6e7e42687c1d9ad252dfc3636c17a63bb2f5502c12d",
+        "lines": 2836,
+        "functions": 330,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "lambda_advanced_test.py": {
+        "content_hash": "fbd3293bf4456af873431598eb62933523144c3cf9a3067aeaabc5fc7011e02e",
+        "lines": 33,
+        "functions": 3,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "lambda_passing_test.rs": {
+        "content_hash": "d999c0d76a692d185157efc406f387dc4d9398e061d03abb23efbca61bb15398",
+        "lines": 2812,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "test_operator_module.py": {
+        "content_hash": "aa548db970c3d21eedae7c869d8b0312367b62ac13a422fce605842a84b5db37",
+        "lines": 393,
+        "functions": 23,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_set_operations.rs": {
+        "content_hash": "c54d4dbd624cd5414aee83a5595432ee91cbaa52c5a428ce888098e9c26ac340",
+        "lines": 2916,
+        "functions": 356,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "interactive_annotation.py": {
+        "content_hash": "82002016723b548c9f04199f42a94a0cdeac1ab32741c99d61fb6d57c3ca5018",
+        "lines": 270,
+        "functions": 10,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_pickle_module.py": {
+        "content_hash": "8bead0e450adcb6f959c6328539d48cfe216188e063a1972648036c383c47a74",
+        "lines": 164,
+        "functions": 11,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "dict_assign.rs": {
+        "content_hash": "65b80d94a593fe85bcec600899a51a35e9e5e4eadef8b88ab409dabb7218d5f6",
+        "lines": 2816,
+        "functions": 352,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_generator.rs": {
+        "content_hash": "68aeaa1d1dd4c655bb8cd8d2ad568ef703e3f74af178f97fde78bc70b7401c92",
+        "lines": 2906,
+        "functions": 359,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_inlining.rs": {
+        "content_hash": "50c194b263393b93cf43d6326f8b86d1a3b00db6ad7fa4810b30640b8140ad42",
+        "lines": 2918,
+        "functions": 365,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simple_power_floor.rs": {
+        "content_hash": "edc35260369bdd33a8d958764b6891066fe5b02fa11d5206e64e2b7861e55e2a",
+        "lines": 2855,
+        "functions": 357,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase_type_inference.py": {
+        "content_hash": "e9c1e97354c36f6806b2a897df78fff7a1c37de033f3d3b3dcdf279c72eb1e94",
+        "lines": 114,
+        "functions": 9,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_hashlib.rs": {
+        "content_hash": "056965c2c852419e55a96533171dd0e83547221d769732f027ca1cb84f67cf44",
+        "lines": 2144,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "v1_1_0_features.py": {
+        "content_hash": "e56e6c29075fe6898f87f412e7fab91f0438ca10bb26608d412b5df3fc676a31",
+        "lines": 50,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_debugging_simple.rs": {
+        "content_hash": "9b749799f4737bc7074c94a1626fd8c918161bf4e38c668db1b88aa48c056f31",
+        "lines": 2864,
+        "functions": 358,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_heterogeneous_dict/main.rs": {
+        "content_hash": "1c4616de25759c5da7def2528f929a3e09f0a1f6288af5e7d28bd894542ed758",
+        "lines": 7,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "showcase/annotated_example.rs": {
+        "content_hash": "85951c4931e0d9fecf7ad783d34fd9ed35f1632e368a60162139fa83da7889fe",
+        "lines": 2755,
+        "functions": 339,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "simulation_combined.rs": {
+        "content_hash": "5c0884a1baa516ba99294f6d3368e24e1b63423fa75c570ee471c12aa70bc1f7",
+        "lines": 3300,
+        "functions": 370,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "validation/test_all.rs": {
+        "content_hash": "24e2e5f122d9af0b25efea4dd0e67eb0f5de95eec90e6969102808a66027b7f9",
+        "lines": 2737,
+        "functions": 333,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_type_hints_simple.rs": {
+        "content_hash": "5584759fb998d3570e7d61d307049736ada55038081bc4e573b1540b6f4c0b16",
+        "lines": 2878,
+        "functions": 362,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_enum_module.py": {
+        "content_hash": "dcc089bb2be41958bb00408cac192cea585727a33c6d7e7d36ed39ec2d9197c1",
+        "lines": 288,
+        "functions": 20,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "simple_class_test.py": {
+        "content_hash": "ce7af942665d2ba19d9930bb2580188e218fd4990974bf7f958136706da36376",
+        "lines": 27,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "stdlib_string_methods_test.py": {
+        "content_hash": "5efe4c78628665a4bafd2f2f05b7e7a030e941c3c93cc272e9ce8dc036da95f4",
+        "lines": 205,
+        "functions": 25,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "data_structures/stack.rs": {
+        "content_hash": "a5570d7e57390267843ef5b744e7ec14eacd7681991ed33f20b81264eb133a1a",
+        "lines": 2741,
+        "functions": 339,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_set_comprehensions.rs": {
+        "content_hash": "b1376d9dc3b5b8cf4293eafb34dc119ea14ce9522d76ddb4b59eb3a86f417509",
+        "lines": 2857,
+        "functions": 356,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "array_test.py": {
+        "content_hash": "5e75bbacfb4ee6e4fcbc4905a2ea24a0ab413169cb542f1c8a24f0eb1fa01497",
+        "lines": 50,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "mcp_usage.rs": {
+        "content_hash": "5a5bdb046639cb8080207fb78a585cb6549ebd88a85242e67b2920225183fde7",
+        "lines": 2569,
+        "functions": 367,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_augmented_assign.rs": {
+        "content_hash": "907cbde650962eeea611739bcfbf987624d169d549316a6d9de17ee33e1d887d",
+        "lines": 2809,
+        "functions": 354,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "semantic_test_multiply.py": {
+        "content_hash": "816741f98cf907bb473b3b0ed909782d4370f499fd4970cabf4c8b70f634e062",
+        "lines": 15,
+        "functions": 2,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_collections_comprehensive.rs": {
+        "content_hash": "d626d978b96067c70919cfeca377d7bec15e9dcd5a94802c40f82ae1de0a6540",
+        "lines": 3251,
+        "functions": 371,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_sys_import.py": {
+        "content_hash": "dc8cda832c0be4b7a551103755acd4bd92ad426665fd9c13dcd5958e132677b8",
+        "lines": 25,
+        "functions": 5,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "array_test.rs": {
+        "content_hash": "6c800519a5f9a5b7ce35e30ce52b28bb6304a83a15ed462433fe5f3fc37317b9",
+        "lines": 2840,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "verification_demo.rs": {
+        "content_hash": "3dfc5eaf5557e5317b8201b673e48a639ffd1f5f39f8c6afdb07b2d6047b83b3",
+        "lines": 3039,
+        "functions": 377,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_simple_async.rs": {
+        "content_hash": "f830d14b9b6a1f382b6c8d2c25ac8478d3f9b021e68d7cf5e64373cb8554d465",
+        "lines": 2813,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "comprehensive_cli/main.rs": {
+        "content_hash": "562fef3d120a677f986d95369385ca113745a5773acf04c9c13bcf8fc8e9b53c",
+        "lines": 106,
+        "functions": 1,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "v1_2_0_basic_oop.py": {
+        "content_hash": "dcb7e3979405784da35a7270fe6352257e336b7195d046f94cc91333acc1f972",
+        "lines": 78,
+        "functions": 12,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_base64_module.rs": {
+        "content_hash": "abdded2719bbea95bcc9a63f0fe65d668dbbf55e8488d1c92ac5f64c3f730a9f",
+        "lines": 2932,
+        "functions": 362,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "basic_class_test.rs": {
+        "content_hash": "b67ade1de639e3dc2d5bda7ad281e5c3b64c85529cf34be1791e56ea78458073",
+        "lines": 2884,
+        "functions": 0,
+        "max_complexity": 0,
+        "category": "TestCode"
+      },
+      "test_profiling_simple.rs": {
+        "content_hash": "2ed49468022f1533b581982f3e00345aae6e5523f88f577d68d0b7dadb151d2e",
+        "lines": 2908,
+        "functions": 364,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_interactive.py": {
+        "content_hash": "655047e86591ae0fe7e4f02aee5d87b68a0ade98deeeaa164d0173b232164eeb",
+        "lines": 43,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_string_module.rs": {
+        "content_hash": "0b450f45f1a7ced13d268cf1186c92774c11e4044d3d67b82c5fccd0e2f9e146",
+        "lines": 3363,
+        "functions": 396,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "validation/test_async.rs": {
+        "content_hash": "ff03ffe1ab48bb1280696768e862eae7fdcaba36db924a550bc860b9a5fef9ec",
+        "lines": 2663,
+        "functions": 332,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "test_simple_class.rs": {
+        "content_hash": "9caad886e239988dc056221f9c838ca7b97a910362e1b7a458e92705dae8a784",
+        "lines": 2817,
+        "functions": 355,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "string_processing/text_analyzer.rs": {
+        "content_hash": "4762da7030ef22956fc5b2b0f66cba590cf5d3e497baf2ecb85132725462977b",
+        "lines": 2896,
+        "functions": 339,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "lambda_test.py": {
+        "content_hash": "48b4fd1a49bec44c8edc33f576e46eafe2ffd4c5248fa3859ea866dba7fb8224",
+        "lines": 47,
+        "functions": 4,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      },
+      "test_array_queue_modules.rs": {
+        "content_hash": "3424f673f90ee4093c6a6e02984e71c85be2a6b7007f1533f9d1f41f401a4ecd",
+        "lines": 3231,
+        "functions": 388,
+        "max_complexity": 0,
+        "category": "RustSource"
+      },
+      "mathematical/statistics.py": {
+        "content_hash": "7414ddad54b537940be4d3379ae5531ac2759f5043b480ded04a68aeb8e5cfd5",
+        "lines": 106,
+        "functions": 6,
+        "max_complexity": 0,
+        "category": "PythonSource"
+      }
+    },
+    "coverage_required": [
+      "test_set_basic.rs",
+      "comprehensive_cli/main.rs",
+      "comprehensive_cli/comprehensive_cli.rs",
+      "test_interactive_simple.rs",
+      "test_bisect_module.rs",
+      "power_and_floor_division.rs",
+      "test_hashlib_module.rs",
+      "test_docs_simple.rs",
+      "test_hashlib.rs",
+      "dict_assign.rs",
+      "test_async_function.rs",
+      "test_augmented_assign.rs",
+      "test_string_module.rs",
+      "data_structures/queue.rs",
+      "data_structures/stack.rs",
+      "debugging_workflow.rs",
+      "test_gzip_module.rs",
+      "test_math_module.rs",
+      "test_datetime_module.rs",
+      "test_property.rs",
+      "v1_2_0_showcase.rs",
+      "test_path_import.rs",
+      "test_itertools.rs",
+      "test_set_operations.rs",
+      "simulation_combined.rs",
+      "test_basic_imports.rs",
+      "test_xml_etree_module.rs",
+      "test_profiling.rs",
+      "nested_dict_assign.rs",
+      "v1_1_0_showcase.rs",
+      "tuple_key_dict.rs",
+      "golden_async_concurrency.rs",
+      "v1_2_0_basic_oop.rs",
+      "game_development/tic_tac_toe.rs",
+      "interactive_annotation.rs",
+      "test_imports.rs",
+      "test_simple_imports.rs",
+      "mcp_usage.rs",
+      "test_docs.rs",
+      "simple_migration_demo.rs",
+      "test_pickle_module.rs",
+      "web_scraping/url_parser.rs",
+      "argparse_cli/test_kwargs.rs",
+      "argparse_cli/python/wordcount.rs",
+      "argparse_cli/test_type_inference.rs",
+      "argparse_cli/simple_cli.rs",
+      "test_simple_continue.rs",
+      "simple_s3_lambda.rs",
+      "test_itertools_comprehensive.rs",
+      "test_with_statement.rs",
+      "test_frozenset.rs",
+      "test_generator.rs",
+      "ruchy_showcase.rs",
+      "test_simple_method.rs",
+      "test_list_append.rs",
+      "networking/http_client.rs",
+      "file_processing/csv_parser.rs",
+      "file_processing/log_analyzer.rs",
+      "falsification_suite.rs",
+      "test_collections_import.rs",
+      "test_set_summary.rs",
+      "lsp_demo.rs",
+      "golden_exception_handling.rs",
+      "algorithms/quicksort.rs",
+      "algorithms/fibonacci.rs",
+      "algorithms/binary_search_simple.rs",
+      "v1_3_0_features_demo.rs",
+      "test_inlining.rs",
+      "data_processing/list_operations.rs",
+      "test_numpy_simple.rs",
+      "data_analysis_combined.rs",
+      "simple_lifetime.rs",
+      "functional_programming_combined.rs",
+      "dict_assign_typed.rs",
+      "test_copy_module.rs",
+      "test_type_hints_simple.rs",
+      "text_processing_combined.rs",
+      "semantic_test_string.rs",
+      "semantic_test_add.rs",
+      "test_json_parsing.rs",
+      "test_basic_class.rs",
+      "test_function_decorators.rs",
+      "test_interactive.rs",
+      "test_csv.rs",
+      "test_nested_access.rs",
+      "test_async_methods.rs",
+      "test_kwargs_support.rs",
+      "test_docs_minimal.rs",
+      "test_type_hints.rs",
+      "test_break_continue.rs",
+      "test_simple_decorator.rs",
+      "test_array_queue_modules.rs",
+      "test_set_comprehensions.rs",
+      "test_dataclass.rs",
+      "deep_nested_dict.rs",
+      "test_pathlib.rs",
+      "test_enum_module.rs",
+      "basic_lambda.rs",
+      "test_simple_set_typed.rs",
+      "type_inference_demo.rs",
+      "test_typing_module.rs",
+      "simple_set.rs",
+      "test_migration_suggestions.rs",
+      "showcase_type_inference.rs",
+      "test_random_module.rs",
+      "custom_attributes_demo.rs",
+      "test_operator_module.rs",
+      "test_debugging.rs",
+      "string_processing/text_analyzer.rs",
+      "string_processing/string_utils.rs",
+      "test_urllib_parse_module.rs",
+      "simple_power_floor.rs",
+      "simple_v02.rs",
+      "test_project/data_processor.rs",
+      "test_project/fibonacci.rs",
+      "test_debugging_simple.rs",
+      "test_sys_import.rs",
+      "demo.rs",
+      "test_heterogeneous_dict.rs",
+      "ast_converters_demo.rs",
+      "test_iterator.rs",
+      "test_class_methods.rs",
+      "marco_polo_cli/marco_polo.rs",
+      "marco_polo_cli/marco_polo_simple.rs",
+      "marco_polo_cli/marco_polo_annotated.rs",
+      "marco_polo_cli/src/main.rs",
+      "test_simple_class.rs",
+      "test_collections_comprehensive.rs",
+      "test_re_module.rs",
+      "lambda_demo.rs",
+      "semantic_test_list.rs",
+      "test_base64.rs",
+      "mathematical/basic_math.rs",
+      "mathematical/statistics.rs",
+      "mathematical/geometry.rs",
+      "test_final_constant.rs",
+      "test_heterogeneous_dict/main.rs",
+      "test_optimization.rs",
+      "lifetime_demo.rs",
+      "showcase/process_config.rs",
+      "showcase/calculate_sum.rs",
+      "showcase/binary_search.rs",
+      "showcase/classify_number.rs",
+      "showcase/contracts_example.rs",
+      "showcase/annotated_example.rs",
+      "v1_1_0_features.rs",
+      "verification_demo.rs",
+      "test_simple_async.rs",
+      "test_zipfile_module.rs",
+      "test_base64_module.rs",
+      "test_v02.rs",
+      "test_configparser_module.rs",
+      "test_statistics_module.rs",
+      "test_simple_break.rs",
+      "test_profiling_simple.rs",
+      "type_extraction_demo.rs",
+      "test_performance_warnings.rs",
+      "test_set_methods.rs",
+      "test_ide_integration.rs",
+      "test_os_sys_module.rs",
+      "validation/test_async.rs",
+      "validation/test_with.rs",
+      "validation/test_all.rs",
+      "golden_annotated_example.rs",
+      "set_operations.rs",
+      "test_cse.rs",
+      "test_heapq_module.rs",
+      "semantic_test_multiply.rs",
+      "test_functools_module.rs",
+      "v1_4_0_features_demo.rs"
+    ],
+    "manifest_hash": "3321b2f30617a0719db26783b90a291fa05517f23924f2ce7dae907e3b96716c"
+  },
+  "thresholds": {
+    "min_coverage_pct": 95.0,
+    "max_tdg_regression": 0.0,
+    "max_function_complexity": 20,
+    "max_file_lines": 500,
+    "min_spec_score": 95,
+    "require_github_sync": true,
+    "require_spec_update": true,
+    "require_roadmap_update": true
+  },
+  "claims": [
+    {
+      "hypothesis": "All baseline files still exist",
+      "falsification_method": "ManifestIntegrity",
+      "evidence_required": {
+        "FileList": []
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "The falsifier is active and detecting (Meta-Check)",
+      "falsification_method": "MetaFalsification",
+      "evidence_required": {
+        "CounterExample": {
+          "details": ""
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "No coverage exclusion gaming",
+      "falsification_method": "CoverageGaming",
+      "evidence_required": {
+        "FileList": []
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "All changed lines are covered",
+      "falsification_method": "DifferentialCoverage",
+      "evidence_required": {
+        "NumericComparison": {
+          "actual": 0.0,
+          "threshold": 100.0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "Total coverage >= 95%",
+      "falsification_method": "AbsoluteCoverage",
+      "evidence_required": {
+        "NumericComparison": {
+          "actual": 0.0,
+          "threshold": 95.0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "TDG score >= baseline",
+      "falsification_method": "TdgRegression",
+      "evidence_required": {
+        "NumericComparison": {
+          "actual": 0.0,
+          "threshold": 0.0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "No function exceeds complexity 20",
+      "falsification_method": "ComplexityRegression",
+      "evidence_required": {
+        "NumericComparison": {
+          "actual": 0.0,
+          "threshold": 20.0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "No vulnerable dependencies added",
+      "falsification_method": "SupplyChainIntegrity",
+      "evidence_required": {
+        "CounterExample": {
+          "details": ""
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "No file exceeds 500 lines",
+      "falsification_method": "FileSizeRegression",
+      "evidence_required": {
+        "NumericComparison": {
+          "actual": 0.0,
+          "threshold": 500.0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "Spec & Roadmap Quality",
+      "falsification_method": "SpecQuality",
+      "evidence_required": {
+        "NumericComparison": {
+          "actual": 0.0,
+          "threshold": 95.0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "All changes pushed",
+      "falsification_method": "GitHubSync",
+      "evidence_required": {
+        "GitState": {
+          "unpushed_commits": 0,
+          "dirty_files": 0
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "All examples compile and run",
+      "falsification_method": "ExamplesCompile",
+      "evidence_required": {
+        "CounterExample": {
+          "details": ""
+        }
+      },
+      "result": null,
+      "override_info": null
+    },
+    {
+      "hypothesis": "pmat-book validation passes",
+      "falsification_method": "BookValidation",
+      "evidence_required": {
+        "CounterExample": {
+          "details": ""
+        }
+      },
+      "result": null,
+      "override_info": null
+    }
+  ]
+}
