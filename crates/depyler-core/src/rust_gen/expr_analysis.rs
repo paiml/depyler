@@ -351,6 +351,7 @@ pub fn extract_kwarg_bool(kwargs: &[(String, HirExpr)], key: &str) -> Option<boo
 /// DEPYLER-E0282-FIX: Check if expression contains chained PyOps (binary operations)
 /// When we have chains like ((a).py_add(b)).py_add(c), Rust can't infer intermediate types.
 /// This detects expressions with 2+ nested Binary operations using arithmetic operators.
+/// Also looks through Call wrappers like Ok(...) and Some(...) to find nested chains.
 pub fn has_chained_pyops(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Binary { left, op, right } => {
@@ -363,6 +364,58 @@ pub fn has_chained_pyops(expr: &HirExpr) -> bool {
                 return false;
             }
             // Check if either operand is also a Binary arithmetic expression (chain)
+            let left_is_binary = matches!(left.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
+            let right_is_binary = matches!(right.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
+            left_is_binary || right_is_binary
+        }
+        // Look through Call wrappers like Ok(...), Some(...), Result::Ok(...)
+        HirExpr::Call { args, .. } => {
+            args.iter().any(has_chained_pyops)
+        }
+        // Look through tuples
+        HirExpr::Tuple(elements) => elements.iter().any(has_chained_pyops),
+        _ => false,
+    }
+}
+
+/// DEPYLER-E0282-FIX: Extract inner type from Optional<T>
+/// For returns with chained PyOps wrapped in Some, we need to know the inner type T.
+/// Note: HIR Type enum doesn't have a Result variant (yet), only Optional.
+#[allow(dead_code)]
+pub fn get_inner_optional_type(ty: &Type) -> Option<&Type> {
+    match ty {
+        Type::Optional(inner) => Some(inner.as_ref()),
+        _ => None,
+    }
+}
+
+/// DEPYLER-E0282-FIX: Check if expression is Ok(expr) or Some(expr) with chained PyOps inside
+/// Returns the inner binary expression if it's wrapped and has chained ops
+pub fn get_wrapped_chained_pyops(expr: &HirExpr) -> Option<&HirExpr> {
+    match expr {
+        HirExpr::Call { func, args, .. } if (func == "Ok" || func == "Some") && args.len() == 1 => {
+            let inner = &args[0];
+            if is_direct_chained_pyops(inner) {
+                Some(inner)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Check if this is directly a chained binary arithmetic expression (not through Call)
+fn is_direct_chained_pyops(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Binary { left, op, right } => {
+            let is_arithmetic = matches!(
+                op,
+                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
+            );
+            if !is_arithmetic {
+                return false;
+            }
             let left_is_binary = matches!(left.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
             let right_is_binary = matches!(right.as_ref(), HirExpr::Binary { op, .. } if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
             left_is_binary || right_is_binary
