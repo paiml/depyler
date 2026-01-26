@@ -7,6 +7,3 @@ edition = "2021"
 name = "fibonacci"
 path = "fibonacci.rs"
 
-[dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }

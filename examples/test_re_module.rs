@@ -4,9 +4,9 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_HELLO: &'static str = "Hello";
+const STR_EMPTY: &'static str = "";
+    const STR_HELLO: &'static str = "Hello";
     const STR_HELLO_WORLD: &'static str = "Hello World";
-    const STR_EMPTY: &'static str = "";
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
@@ -122,6 +122,22 @@ else {
 } #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"] #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"] pub fn as_string(&self) -> String {
     match self {
     DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
+}
+} #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"] pub fn as_str(&self) -> Option<& str>{
+    match self {
+    DepylerValue::Str(_dv_str) =>Some(_dv_str.as_str()), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as i64(for integer values)"] pub fn as_i64(&self) -> Option<i64>{
+    match self {
+    DepylerValue::Int(_dv_int) =>Some(* _dv_int), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as f64(for float values)"] pub fn as_f64(&self) -> Option<f64>{
+    match self {
+    DepylerValue::Float(_dv_float) =>Some(* _dv_float), DepylerValue::Int(_dv_int) =>Some(* _dv_int as f64), _ =>None ,
+}
+} #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"] pub fn as_bool(&self) -> Option<bool>{
+    match self {
+    DepylerValue::Bool(_dv_bool) =>Some(* _dv_bool), _ =>None ,
 }
 } #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
     match self {
@@ -1084,6 +1100,170 @@ impl<T: Clone>PyMul<usize>for Vec<T>{
     fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
     rhs.py_mul(self)
 }
+} impl PySub<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_sub(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_sub(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PySub<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_sub(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a - b).collect()
+}
+} impl PyMul<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_mul(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i64>>for Vec<i64>{
+    type Output = Vec<i64>;
+    fn py_mul(self, rhs: Vec<i64>) -> Vec<i64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyMul<Vec<i32>>for Vec<i32>{
+    type Output = Vec<i32>;
+    fn py_mul(self, rhs: Vec<i32>) -> Vec<i32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | a * b).collect()
+}
+} impl PyDiv<Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<& Vec<f64>>for & Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: & Vec<f64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f64::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<f32>>for Vec<f32>{
+    type Output = Vec<f32>;
+    fn py_div(self, rhs: Vec<f32>) -> Vec<f32>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0.0 {
+    f32::NAN
+}
+else {
+    a / b }).collect()
+}
+} impl PyDiv<Vec<i64>>for Vec<i64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i64>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyDiv<Vec<i32>>for Vec<i32>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i32>) -> Vec<f64>{
+    self.iter().zip(rhs.iter()).map(|(a, b) | if * b == 0 {
+    f64::NAN
+}
+else {
+    * a as f64 / * b as f64 }).collect()
+}
+} impl PyMul<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a * rhs).collect()
+}
+} impl PyMul<Vec<f64>>for f64 {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64>{
+    rhs.iter().map(| a | a * self).collect()
+}
+} impl PyDiv<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: f64) -> Vec<f64>{
+    if rhs == 0.0 {
+    self.iter().map(| _ | f64::NAN).collect()
+}
+else {
+    self.iter().map(| a | a / rhs).collect()
+}
+}
+}
+impl PySub<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a - rhs).collect()
+}
+} impl PyAdd<f64>for Vec<f64>{
+    type Output = Vec<f64>;
+    fn py_add(self, rhs: f64) -> Vec<f64>{
+    self.iter().map(| a | a + rhs).collect()
+}
 } impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
@@ -1771,7 +1951,78 @@ else {
 }
 }
 }
-#[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
+#[doc = r" DEPYLER-1202: Python integer operations for Rust integer types."] pub trait PythonIntOps {
+    fn bit_length(&self) -> u32;
+    fn bit_count(&self) -> u32;
+   
+}
+impl PythonIntOps for i32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for i64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} impl PythonIntOps for u32 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for u64 {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for usize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.count_ones()
+}
+} impl PythonIntOps for isize {
+    fn bit_length(&self) -> u32 {
+    if * self == 0 {
+    0
+}
+else {
+   (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+}
+} fn bit_count(&self) -> u32 {
+    self.unsigned_abs().count_ones()
+}
+} #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"] #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDate(pub u32, pub u32, pub u32);
     impl DepylerDate {
     #[doc = r" Create a new date from year, month, day"] pub fn new(year: u32, month: u32, day: u32) -> Self {
     DepylerDate(year, month, day)
@@ -2220,7 +2471,7 @@ results
 }
 let at_pos: i32 = email.find("@").map(| i | i as i32).unwrap_or(- 1);
     let after_at: String = {
-    let base = email;
+    let base  = (email).clone();
     let start_idx: i32  = (at_pos).py_add(1);
     let len = base.chars().count() as i32;
     let actual_start = if start_idx<0 {
@@ -2295,7 +2546,7 @@ else {
    
 }
 else {
-    domain = url.to_string();
+    domain = url.clone().to_string();
    
 }
 domain.to_string()
@@ -2326,17 +2577,17 @@ domain.to_string()
 #[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
     text.starts_with(pattern)
 }
-#[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
     text.ends_with(pattern)
 }
-#[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(& * pattern_lower);
     let matches: bool = _cse_temp_0;
     matches
 }
-#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'a, 'c, 'b>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
+#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'a, 'b, 'c>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
     let mut start_pos: i32 = text.find(start_marker).map(| i | i as i32).unwrap_or(- 1);
     let _cse_temp_0 = start_pos.unwrap_or_default()<0;
     if _cse_temp_0 {
@@ -2352,7 +2603,7 @@ let _cse_temp_1 = start_marker.len() as i32;
    
 }
 let result: String = {
-    let base = text;
+    let base  = (text).clone();
     let start_idx: i32 = start_pos;
     let stop_idx: i32 = end_pos;
     let len = base.chars().count() as i32;
@@ -2377,7 +2628,7 @@ else {
 }
 #[doc = "Replace multiple patterns"] pub fn replace_multiple<'b, 'a>(text: & 'a str, replacements: & 'b Vec <()>) -> Result<String, Box<dyn std::error::Error>>{
     let mut result: String = Default::default();
-    result = text.to_string();
+    result = text.clone().to_string();
     for replacement in replacements.iter().cloned() {
     let old: String = replacement.0;
     let new: String = replacement.1;
@@ -2386,7 +2637,7 @@ else {
 }
 Ok(result.to_string())
 }
-#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'b, 'a>(text: & 'a str, word: & 'b str) -> i32 {
+#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'a, 'b>(text: & 'a str, word: & 'b str) -> i32 {
     let mut count: i32 = Default::default();
     let words: Vec<String>= text.split_whitespace().map(| s | s.to_string()).collect::<Vec<String>>();
     count = 0;
@@ -2398,8 +2649,8 @@ Ok(result.to_string())
 } count
 }
 #[doc = "Extract numbers from text"] #[doc = " Depyler: verified panic-free"] pub fn extract_numbers_from_text(text: & str) -> Vec<i32>{
-    let mut num: i32 = Default::default();
     let mut current_num: String = Default::default();
+    let mut num: i32 = Default::default();
     let mut numbers: Vec<i32>= vec! [];
     current_num = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
@@ -2426,9 +2677,9 @@ let _cse_temp_0 = current_num.len() as i32;
 }
 numbers
 }
-#[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'a, 'b>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
-    let mut has_prefix: bool = Default::default();
+#[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'b, 'a>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut has_suffix: bool = Default::default();
+    let mut has_prefix: bool = Default::default();
     let _cse_temp_0 =! pattern.contains("*");
     if _cse_temp_0 {
     return Ok(text == pattern);
@@ -2498,6 +2749,10 @@ Ok((has_prefix) &&(has_suffix))
     let wildcard1: bool = wildcard_match_simple(& "hello.txt", & "*.txt") ?;
     let wildcard2: bool = wildcard_match_simple(& "test_file.py", & "test_*") ?;
     println!("{}", "All regex module tests completed successfully");
+    Ok(())
+}
+#[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"] #[doc = r" This file was transpiled from a Python script with executable top-level code."] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
+    let _ = "\nComprehensive test of Python re(regex) module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's re module\n(regular expressions) to Rust equivalents.\n\nExpected Rust mappings:\n- re.match() -> regex::Regex::is_match()\n- re.search() -> regex::Regex::find()\n- re.findall() -> regex::Regex::find_iter()\n- re.sub() -> regex::Regex::replace()\n- re.split() -> regex::Regex::split()\n\nNote: Regex functionality may be simulated with string operations.\n".to_string();
     Ok(())
 }
 #[cfg(test)] mod tests {

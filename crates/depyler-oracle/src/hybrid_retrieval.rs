@@ -860,7 +860,10 @@ mod tests {
 
         let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
 
-        assert!(result.is_empty(), "Empty rankings should produce empty result");
+        assert!(
+            result.is_empty(),
+            "Empty rankings should produce empty result"
+        );
     }
 
     #[test]
@@ -951,7 +954,11 @@ mod tests {
 
         let result = reciprocal_rank_fusion(&bm25, &tfidf, 100);
 
-        assert_eq!(result.len(), 2, "Should return all docs when top_k > corpus");
+        assert_eq!(
+            result.len(),
+            2,
+            "Should return all docs when top_k > corpus"
+        );
     }
 
     #[test]
@@ -965,8 +972,7 @@ mod tests {
         // Should have 5 unique docs
         assert_eq!(result.len(), 5);
 
-        let doc_ids: std::collections::HashSet<_> =
-            result.iter().map(|r| r.doc_idx).collect();
+        let doc_ids: std::collections::HashSet<_> = result.iter().map(|r| r.doc_idx).collect();
         assert!(doc_ids.contains(&0));
         assert!(doc_ids.contains(&1));
         assert!(doc_ids.contains(&2));
@@ -987,7 +993,10 @@ mod tests {
         // Doc 1: rank 2 in TF-IDF only -> 1/62
         // Doc 2 should be first due to appearing in both
 
-        assert_eq!(result[0].doc_idx, 2, "Doc in both rankings should rank first");
+        assert_eq!(
+            result[0].doc_idx, 2,
+            "Doc in both rankings should rank first"
+        );
         assert!(result[0].score > result[1].score);
     }
 
@@ -1043,9 +1052,7 @@ mod tests {
     #[test]
     fn test_rrf_large_rank_values() {
         // Test with documents at high ranks to verify formula handles large k+rank
-        let bm25: Vec<(usize, f64)> = (0..100)
-            .map(|i| (i, 1.0 / (i as f64 + 1.0)))
-            .collect();
+        let bm25: Vec<(usize, f64)> = (0..100).map(|i| (i, 1.0 / (i as f64 + 1.0))).collect();
         let tfidf: Vec<(usize, f64)> = vec![];
 
         let result = reciprocal_rank_fusion(&bm25, &tfidf, 100);
@@ -1228,7 +1235,10 @@ mod tests {
         assert!(!results.is_empty());
         // Scores should be very low (near zero)
         for (_, rrf) in &results {
-            assert!(rrf.score < 0.05, "Non-matching query should have low scores");
+            assert!(
+                rrf.score < 0.05,
+                "Non-matching query should have low scores"
+            );
         }
     }
 

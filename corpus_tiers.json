@@ -1,0 +1,1617 @@
+{
+  "corpus_root": "/Users/noahgift/src/depyler/examples",
+  "total_files": 178,
+  "tier1_count": 143,
+  "tier2_count": 35,
+  "parse_errors": 0,
+  "tier1_percentage": 80.3,
+  "tier2_percentage": 19.7,
+  "expected_ceiling": {
+    "tier1": "90%+",
+    "tier2": "40-60%"
+  },
+  "files": [
+    {
+      "path": "algorithms/binary_search_simple.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 3,
+      "annotation_ratio": 1.33,
+      "complexity": 11,
+      "reason": "Typed: 8 annotations, 133% coverage"
+    },
+    {
+      "path": "algorithms/fibonacci.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 3,
+      "annotation_ratio": 1.17,
+      "complexity": 9,
+      "reason": "Typed: 7 annotations, 117% coverage"
+    },
+    {
+      "path": "algorithms/quicksort.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 3,
+      "annotation_ratio": 1.67,
+      "complexity": 10,
+      "reason": "Typed: 10 annotations, 167% coverage"
+    },
+    {
+      "path": "argparse_cli/python/wordcount.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 3,
+      "annotation_ratio": 1.67,
+      "complexity": 12,
+      "reason": "Typed: 10 annotations, 167% coverage"
+    },
+    {
+      "path": "argparse_cli/simple_cli.py",
+      "tier": 1,
+      "annotation_count": 1,
+      "function_count": 1,
+      "annotation_ratio": 0.5,
+      "complexity": 2,
+      "reason": "Typed: 1 annotations, 50% coverage"
+    },
+    {
+      "path": "argparse_cli/test_kwargs.py",
+      "tier": 1,
+      "annotation_count": 1,
+      "function_count": 1,
+      "annotation_ratio": 0.5,
+      "complexity": 2,
+      "reason": "Typed: 1 annotations, 50% coverage"
+    },
+    {
+      "path": "argparse_cli/test_type_inference.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 3,
+      "annotation_ratio": 0.0,
+      "complexity": 4,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "argparse_cli/tests/test_wordcount.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 26,
+      "annotation_ratio": 0.0,
+      "complexity": 33,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "array_functions_test.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "array_test.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 5,
+      "annotation_ratio": 0.0,
+      "complexity": 5,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "ast_converters_demo.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 6,
+      "annotation_ratio": 0.17,
+      "complexity": 37,
+      "reason": "Partially typed: 2 annotations"
+    },
+    {
+      "path": "basic_class_test.py",
+      "tier": 1,
+      "annotation_count": 14,
+      "function_count": 12,
+      "annotation_ratio": 0.58,
+      "complexity": 15,
+      "reason": "Typed: 14 annotations, 58% coverage"
+    },
+    {
+      "path": "basic_lambda.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 1,
+      "annotation_ratio": 1.5,
+      "complexity": 1,
+      "reason": "Typed: 3 annotations, 150% coverage"
+    },
+    {
+      "path": "comprehensive_cli/comprehensive_cli.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 2,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "custom_attributes_demo.py",
+      "tier": 1,
+      "annotation_count": 12,
+      "function_count": 5,
+      "annotation_ratio": 1.2,
+      "complexity": 8,
+      "reason": "Typed: 12 annotations, 120% coverage"
+    },
+    {
+      "path": "data_analysis_combined.py",
+      "tier": 1,
+      "annotation_count": 96,
+      "function_count": 10,
+      "annotation_ratio": 4.8,
+      "complexity": 50,
+      "reason": "Typed: 96 annotations, 480% coverage"
+    },
+    {
+      "path": "data_processing/list_operations.py",
+      "tier": 1,
+      "annotation_count": 18,
+      "function_count": 5,
+      "annotation_ratio": 1.8,
+      "complexity": 19,
+      "reason": "Typed: 18 annotations, 180% coverage"
+    },
+    {
+      "path": "data_structures/queue.py",
+      "tier": 1,
+      "annotation_count": 12,
+      "function_count": 7,
+      "annotation_ratio": 0.86,
+      "complexity": 17,
+      "reason": "Typed: 12 annotations, 86% coverage"
+    },
+    {
+      "path": "data_structures/stack.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 7,
+      "annotation_ratio": 0.71,
+      "complexity": 16,
+      "reason": "Typed: 10 annotations, 71% coverage"
+    },
+    {
+      "path": "debugging_workflow.py",
+      "tier": 1,
+      "annotation_count": 6,
+      "function_count": 4,
+      "annotation_ratio": 0.75,
+      "complexity": 10,
+      "reason": "Typed: 6 annotations, 75% coverage"
+    },
+    {
+      "path": "deep_nested_dict.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 1,
+      "annotation_ratio": 1.0,
+      "complexity": 1,
+      "reason": "Typed: 2 annotations, 100% coverage"
+    },
+    {
+      "path": "demo.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 4,
+      "annotation_ratio": 1.0,
+      "complexity": 10,
+      "reason": "Typed: 8 annotations, 100% coverage"
+    },
+    {
+      "path": "dict_assign.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "dict_assign_typed.py",
+      "tier": 1,
+      "annotation_count": 6,
+      "function_count": 3,
+      "annotation_ratio": 1.0,
+      "complexity": 3,
+      "reason": "Typed: 6 annotations, 100% coverage"
+    },
+    {
+      "path": "falsification_suite.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 3,
+      "annotation_ratio": 1.67,
+      "complexity": 6,
+      "reason": "Typed: 10 annotations, 167% coverage"
+    },
+    {
+      "path": "file_processing/csv_parser.py",
+      "tier": 1,
+      "annotation_count": 26,
+      "function_count": 7,
+      "annotation_ratio": 1.86,
+      "complexity": 30,
+      "reason": "Typed: 26 annotations, 186% coverage"
+    },
+    {
+      "path": "file_processing/log_analyzer.py",
+      "tier": 1,
+      "annotation_count": 27,
+      "function_count": 12,
+      "annotation_ratio": 1.12,
+      "complexity": 41,
+      "reason": "Typed: 27 annotations, 112% coverage"
+    },
+    {
+      "path": "floor_division_test.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 6,
+      "annotation_ratio": 0.0,
+      "complexity": 6,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "functional_programming_combined.py",
+      "tier": 1,
+      "annotation_count": 124,
+      "function_count": 24,
+      "annotation_ratio": 2.58,
+      "complexity": 65,
+      "reason": "Typed: 124 annotations, 258% coverage"
+    },
+    {
+      "path": "game_development/tic_tac_toe.py",
+      "tier": 1,
+      "annotation_count": 28,
+      "function_count": 13,
+      "annotation_ratio": 1.08,
+      "complexity": 47,
+      "reason": "Typed: 28 annotations, 108% coverage"
+    },
+    {
+      "path": "golden_annotated_example.py",
+      "tier": 1,
+      "annotation_count": 89,
+      "function_count": 18,
+      "annotation_ratio": 2.47,
+      "complexity": 30,
+      "reason": "Typed: 89 annotations, 247% coverage"
+    },
+    {
+      "path": "golden_async_concurrency.py",
+      "tier": 1,
+      "annotation_count": 93,
+      "function_count": 35,
+      "annotation_ratio": 1.33,
+      "complexity": 49,
+      "reason": "Typed: 93 annotations, 133% coverage"
+    },
+    {
+      "path": "golden_exception_handling.py",
+      "tier": 1,
+      "annotation_count": 74,
+      "function_count": 22,
+      "annotation_ratio": 1.68,
+      "complexity": 55,
+      "reason": "Typed: 74 annotations, 168% coverage"
+    },
+    {
+      "path": "interactive_annotation.py",
+      "tier": 1,
+      "annotation_count": 22,
+      "function_count": 10,
+      "annotation_ratio": 1.1,
+      "complexity": 41,
+      "reason": "Typed: 22 annotations, 110% coverage"
+    },
+    {
+      "path": "lambda_advanced_test.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 3,
+      "annotation_ratio": 0.33,
+      "complexity": 4,
+      "reason": "Typed: 2 annotations, 33% coverage"
+    },
+    {
+      "path": "lambda_demo.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 1,
+      "annotation_ratio": 1.5,
+      "complexity": 8,
+      "reason": "Typed: 3 annotations, 150% coverage"
+    },
+    {
+      "path": "lambda_passing_test.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 2,
+      "annotation_ratio": 0.5,
+      "complexity": 2,
+      "reason": "Typed: 2 annotations, 50% coverage"
+    },
+    {
+      "path": "lambda_test.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 4,
+      "annotation_ratio": 0.0,
+      "complexity": 5,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "lifetime_demo.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 5,
+      "annotation_ratio": 1.0,
+      "complexity": 7,
+      "reason": "Typed: 10 annotations, 100% coverage"
+    },
+    {
+      "path": "lsp_demo.py",
+      "tier": 1,
+      "annotation_count": 27,
+      "function_count": 19,
+      "annotation_ratio": 0.71,
+      "complexity": 39,
+      "reason": "Typed: 27 annotations, 71% coverage"
+    },
+    {
+      "path": "marco_polo_cli/marco_polo.py",
+      "tier": 1,
+      "annotation_count": 14,
+      "function_count": 9,
+      "annotation_ratio": 0.78,
+      "complexity": 29,
+      "reason": "Typed: 14 annotations, 78% coverage"
+    },
+    {
+      "path": "marco_polo_cli/marco_polo_annotated.py",
+      "tier": 1,
+      "annotation_count": 14,
+      "function_count": 9,
+      "annotation_ratio": 0.78,
+      "complexity": 29,
+      "reason": "Typed: 14 annotations, 78% coverage"
+    },
+    {
+      "path": "marco_polo_cli/marco_polo_simple.py",
+      "tier": 1,
+      "annotation_count": 25,
+      "function_count": 8,
+      "annotation_ratio": 1.56,
+      "complexity": 21,
+      "reason": "Typed: 25 annotations, 156% coverage"
+    },
+    {
+      "path": "mathematical/basic_math.py",
+      "tier": 1,
+      "annotation_count": 12,
+      "function_count": 5,
+      "annotation_ratio": 1.2,
+      "complexity": 18,
+      "reason": "Typed: 12 annotations, 120% coverage"
+    },
+    {
+      "path": "mathematical/geometry.py",
+      "tier": 1,
+      "annotation_count": 29,
+      "function_count": 13,
+      "annotation_ratio": 1.12,
+      "complexity": 22,
+      "reason": "Typed: 29 annotations, 112% coverage"
+    },
+    {
+      "path": "mathematical/statistics.py",
+      "tier": 1,
+      "annotation_count": 14,
+      "function_count": 6,
+      "annotation_ratio": 1.17,
+      "complexity": 22,
+      "reason": "Typed: 14 annotations, 117% coverage"
+    },
+    {
+      "path": "mcp_usage.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 9,
+      "annotation_ratio": 0.39,
+      "complexity": 24,
+      "reason": "Typed: 7 annotations, 39% coverage"
+    },
+    {
+      "path": "module_mapping_demo.py",
+      "tier": 1,
+      "annotation_count": 16,
+      "function_count": 13,
+      "annotation_ratio": 0.62,
+      "complexity": 23,
+      "reason": "Typed: 16 annotations, 62% coverage"
+    },
+    {
+      "path": "nested_dict_assign.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 1,
+      "annotation_ratio": 1.0,
+      "complexity": 1,
+      "reason": "Typed: 2 annotations, 100% coverage"
+    },
+    {
+      "path": "networking/http_client.py",
+      "tier": 1,
+      "annotation_count": 38,
+      "function_count": 16,
+      "annotation_ratio": 1.19,
+      "complexity": 33,
+      "reason": "Typed: 38 annotations, 119% coverage"
+    },
+    {
+      "path": "power_and_floor_division.py",
+      "tier": 1,
+      "annotation_count": 11,
+      "function_count": 4,
+      "annotation_ratio": 1.38,
+      "complexity": 5,
+      "reason": "Typed: 11 annotations, 138% coverage"
+    },
+    {
+      "path": "power_test.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 6,
+      "annotation_ratio": 0.25,
+      "complexity": 6,
+      "reason": "Typed: 3 annotations, 25% coverage"
+    },
+    {
+      "path": "ruchy_showcase.py",
+      "tier": 1,
+      "annotation_count": 20,
+      "function_count": 12,
+      "annotation_ratio": 0.83,
+      "complexity": 25,
+      "reason": "Typed: 20 annotations, 83% coverage"
+    },
+    {
+      "path": "set_operations.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 4,
+      "annotation_ratio": 0.38,
+      "complexity": 6,
+      "reason": "Partially typed: 3 annotations"
+    },
+    {
+      "path": "showcase/annotated_example.py",
+      "tier": 1,
+      "annotation_count": 12,
+      "function_count": 5,
+      "annotation_ratio": 1.2,
+      "complexity": 10,
+      "reason": "Typed: 12 annotations, 120% coverage"
+    },
+    {
+      "path": "showcase/binary_search.py",
+      "tier": 1,
+      "annotation_count": 6,
+      "function_count": 1,
+      "annotation_ratio": 3.0,
+      "complexity": 4,
+      "reason": "Typed: 6 annotations, 300% coverage"
+    },
+    {
+      "path": "showcase/calculate_sum.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 1,
+      "annotation_ratio": 1.5,
+      "complexity": 2,
+      "reason": "Typed: 3 annotations, 150% coverage"
+    },
+    {
+      "path": "showcase/classify_number.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 1,
+      "annotation_ratio": 1.0,
+      "complexity": 3,
+      "reason": "Typed: 2 annotations, 100% coverage"
+    },
+    {
+      "path": "showcase/contracts_example.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 3,
+      "annotation_ratio": 1.33,
+      "complexity": 7,
+      "reason": "Typed: 8 annotations, 133% coverage"
+    },
+    {
+      "path": "showcase/process_config.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 1,
+      "annotation_ratio": 1.0,
+      "complexity": 2,
+      "reason": "Typed: 2 annotations, 100% coverage"
+    },
+    {
+      "path": "showcase_type_inference.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 9,
+      "annotation_ratio": 0.0,
+      "complexity": 17,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "simple_array_test.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "simple_class_test.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 4,
+      "annotation_ratio": 1.25,
+      "complexity": 6,
+      "reason": "Typed: 10 annotations, 125% coverage"
+    },
+    {
+      "path": "simple_lambda_test.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "simple_lifetime.py",
+      "tier": 1,
+      "annotation_count": 4,
+      "function_count": 2,
+      "annotation_ratio": 1.0,
+      "complexity": 2,
+      "reason": "Typed: 4 annotations, 100% coverage"
+    },
+    {
+      "path": "simple_migration_demo.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 4,
+      "annotation_ratio": 0.0,
+      "complexity": 9,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "simple_power_floor.py",
+      "tier": 1,
+      "annotation_count": 5,
+      "function_count": 2,
+      "annotation_ratio": 1.25,
+      "complexity": 2,
+      "reason": "Typed: 5 annotations, 125% coverage"
+    },
+    {
+      "path": "simple_s3_lambda.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 2,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "simple_set.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "simple_v02.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 1,
+      "annotation_ratio": 1.5,
+      "complexity": 1,
+      "reason": "Typed: 3 annotations, 150% coverage"
+    },
+    {
+      "path": "simulation_combined.py",
+      "tier": 1,
+      "annotation_count": 92,
+      "function_count": 13,
+      "annotation_ratio": 3.54,
+      "complexity": 48,
+      "reason": "Typed: 92 annotations, 354% coverage"
+    },
+    {
+      "path": "stdlib_comprehensive_test.py",
+      "tier": 1,
+      "annotation_count": 31,
+      "function_count": 31,
+      "annotation_ratio": 0.5,
+      "complexity": 32,
+      "reason": "Typed: 31 annotations, 50% coverage"
+    },
+    {
+      "path": "stdlib_string_methods_test.py",
+      "tier": 1,
+      "annotation_count": 25,
+      "function_count": 25,
+      "annotation_ratio": 0.5,
+      "complexity": 25,
+      "reason": "Typed: 25 annotations, 50% coverage"
+    },
+    {
+      "path": "string_processing/string_utils.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 5,
+      "annotation_ratio": 1.0,
+      "complexity": 16,
+      "reason": "Typed: 10 annotations, 100% coverage"
+    },
+    {
+      "path": "string_processing/text_analyzer.py",
+      "tier": 1,
+      "annotation_count": 11,
+      "function_count": 4,
+      "annotation_ratio": 1.38,
+      "complexity": 25,
+      "reason": "Typed: 11 annotations, 138% coverage"
+    },
+    {
+      "path": "test_array_queue_modules.py",
+      "tier": 1,
+      "annotation_count": 96,
+      "function_count": 33,
+      "annotation_ratio": 1.45,
+      "complexity": 53,
+      "reason": "Typed: 96 annotations, 145% coverage"
+    },
+    {
+      "path": "test_async_function.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 4,
+      "annotation_ratio": 0.88,
+      "complexity": 6,
+      "reason": "Typed: 7 annotations, 88% coverage"
+    },
+    {
+      "path": "test_async_methods.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 6,
+      "annotation_ratio": 0.58,
+      "complexity": 8,
+      "reason": "Typed: 7 annotations, 58% coverage"
+    },
+    {
+      "path": "test_augmented_assign.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 3,
+      "annotation_ratio": 0.33,
+      "complexity": 4,
+      "reason": "Partially typed: 2 annotations"
+    },
+    {
+      "path": "test_base64.py",
+      "tier": 1,
+      "annotation_count": 6,
+      "function_count": 3,
+      "annotation_ratio": 1.0,
+      "complexity": 3,
+      "reason": "Typed: 6 annotations, 100% coverage"
+    },
+    {
+      "path": "test_base64_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 11,
+      "annotation_ratio": 0.0,
+      "complexity": 12,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_basic_class.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 4,
+      "annotation_ratio": 0.38,
+      "complexity": 5,
+      "reason": "Typed: 3 annotations, 38% coverage"
+    },
+    {
+      "path": "test_basic_imports.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 3,
+      "annotation_ratio": 0.5,
+      "complexity": 3,
+      "reason": "Typed: 3 annotations, 50% coverage"
+    },
+    {
+      "path": "test_bisect_module.py",
+      "tier": 1,
+      "annotation_count": 128,
+      "function_count": 22,
+      "annotation_ratio": 2.91,
+      "complexity": 46,
+      "reason": "Typed: 128 annotations, 291% coverage"
+    },
+    {
+      "path": "test_break_continue.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 5,
+      "annotation_ratio": 0.0,
+      "complexity": 16,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_class_methods.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 8,
+      "annotation_ratio": 0.62,
+      "complexity": 9,
+      "reason": "Typed: 10 annotations, 62% coverage"
+    },
+    {
+      "path": "test_collections_comprehensive.py",
+      "tier": 1,
+      "annotation_count": 97,
+      "function_count": 18,
+      "annotation_ratio": 2.69,
+      "complexity": 48,
+      "reason": "Typed: 97 annotations, 269% coverage"
+    },
+    {
+      "path": "test_collections_import.py",
+      "tier": 1,
+      "annotation_count": 9,
+      "function_count": 4,
+      "annotation_ratio": 1.12,
+      "complexity": 9,
+      "reason": "Typed: 9 annotations, 112% coverage"
+    },
+    {
+      "path": "test_configparser_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 10,
+      "annotation_ratio": 0.0,
+      "complexity": 11,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_copy_module.py",
+      "tier": 1,
+      "annotation_count": 86,
+      "function_count": 18,
+      "annotation_ratio": 2.39,
+      "complexity": 28,
+      "reason": "Typed: 86 annotations, 239% coverage"
+    },
+    {
+      "path": "test_cse.py",
+      "tier": 1,
+      "annotation_count": 15,
+      "function_count": 5,
+      "annotation_ratio": 1.5,
+      "complexity": 8,
+      "reason": "Typed: 15 annotations, 150% coverage"
+    },
+    {
+      "path": "test_csv.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 3,
+      "annotation_ratio": 1.17,
+      "complexity": 8,
+      "reason": "Typed: 7 annotations, 117% coverage"
+    },
+    {
+      "path": "test_dataclass.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 6,
+      "annotation_ratio": 0.58,
+      "complexity": 7,
+      "reason": "Typed: 7 annotations, 58% coverage"
+    },
+    {
+      "path": "test_datetime_module.py",
+      "tier": 1,
+      "annotation_count": 129,
+      "function_count": 22,
+      "annotation_ratio": 2.93,
+      "complexity": 33,
+      "reason": "Typed: 129 annotations, 293% coverage"
+    },
+    {
+      "path": "test_debugging.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 4,
+      "annotation_ratio": 0.88,
+      "complexity": 12,
+      "reason": "Typed: 7 annotations, 88% coverage"
+    },
+    {
+      "path": "test_debugging_simple.py",
+      "tier": 1,
+      "annotation_count": 6,
+      "function_count": 3,
+      "annotation_ratio": 1.0,
+      "complexity": 7,
+      "reason": "Typed: 6 annotations, 100% coverage"
+    },
+    {
+      "path": "test_docs.py",
+      "tier": 1,
+      "annotation_count": 16,
+      "function_count": 10,
+      "annotation_ratio": 0.8,
+      "complexity": 19,
+      "reason": "Typed: 16 annotations, 80% coverage"
+    },
+    {
+      "path": "test_docs_minimal.py",
+      "tier": 1,
+      "annotation_count": 9,
+      "function_count": 4,
+      "annotation_ratio": 1.12,
+      "complexity": 5,
+      "reason": "Typed: 9 annotations, 112% coverage"
+    },
+    {
+      "path": "test_docs_simple.py",
+      "tier": 1,
+      "annotation_count": 9,
+      "function_count": 6,
+      "annotation_ratio": 0.75,
+      "complexity": 9,
+      "reason": "Typed: 9 annotations, 75% coverage"
+    },
+    {
+      "path": "test_enum_module.py",
+      "tier": 1,
+      "annotation_count": 76,
+      "function_count": 20,
+      "annotation_ratio": 1.9,
+      "complexity": 51,
+      "reason": "Typed: 76 annotations, 190% coverage"
+    },
+    {
+      "path": "test_final_constant.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 1,
+      "annotation_ratio": 1.0,
+      "complexity": 1,
+      "reason": "Typed: 2 annotations, 100% coverage"
+    },
+    {
+      "path": "test_frozenset.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_function_decorators.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 11,
+      "annotation_ratio": 0.36,
+      "complexity": 13,
+      "reason": "Typed: 8 annotations, 36% coverage"
+    },
+    {
+      "path": "test_functools_module.py",
+      "tier": 1,
+      "annotation_count": 113,
+      "function_count": 24,
+      "annotation_ratio": 2.35,
+      "complexity": 59,
+      "reason": "Typed: 113 annotations, 235% coverage"
+    },
+    {
+      "path": "test_generator.py",
+      "tier": 1,
+      "annotation_count": 5,
+      "function_count": 3,
+      "annotation_ratio": 0.83,
+      "complexity": 5,
+      "reason": "Typed: 5 annotations, 83% coverage"
+    },
+    {
+      "path": "test_gzip_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 9,
+      "annotation_ratio": 0.0,
+      "complexity": 10,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_hashlib.py",
+      "tier": 1,
+      "annotation_count": 7,
+      "function_count": 3,
+      "annotation_ratio": 1.17,
+      "complexity": 3,
+      "reason": "Typed: 7 annotations, 117% coverage"
+    },
+    {
+      "path": "test_hashlib_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 11,
+      "annotation_ratio": 0.0,
+      "complexity": 15,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_heapq_module.py",
+      "tier": 1,
+      "annotation_count": 84,
+      "function_count": 13,
+      "annotation_ratio": 3.23,
+      "complexity": 57,
+      "reason": "Typed: 84 annotations, 323% coverage"
+    },
+    {
+      "path": "test_heterogeneous_dict.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 2,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_ide_integration.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 5,
+      "annotation_ratio": 0.8,
+      "complexity": 12,
+      "reason": "Typed: 8 annotations, 80% coverage"
+    },
+    {
+      "path": "test_imports.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 4,
+      "annotation_ratio": 1.0,
+      "complexity": 5,
+      "reason": "Typed: 8 annotations, 100% coverage"
+    },
+    {
+      "path": "test_inlining.py",
+      "tier": 1,
+      "annotation_count": 22,
+      "function_count": 8,
+      "annotation_ratio": 1.38,
+      "complexity": 10,
+      "reason": "Typed: 22 annotations, 138% coverage"
+    },
+    {
+      "path": "test_interactive.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 4,
+      "annotation_ratio": 1.25,
+      "complexity": 11,
+      "reason": "Typed: 10 annotations, 125% coverage"
+    },
+    {
+      "path": "test_interactive_simple.py",
+      "tier": 1,
+      "annotation_count": 6,
+      "function_count": 2,
+      "annotation_ratio": 1.5,
+      "complexity": 2,
+      "reason": "Typed: 6 annotations, 150% coverage"
+    },
+    {
+      "path": "test_iterator.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 5,
+      "annotation_ratio": 0.3,
+      "complexity": 9,
+      "reason": "Typed: 3 annotations, 30% coverage"
+    },
+    {
+      "path": "test_itertools.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 4,
+      "annotation_ratio": 1.25,
+      "complexity": 6,
+      "reason": "Typed: 10 annotations, 125% coverage"
+    },
+    {
+      "path": "test_itertools_comprehensive.py",
+      "tier": 1,
+      "annotation_count": 153,
+      "function_count": 26,
+      "annotation_ratio": 2.94,
+      "complexity": 65,
+      "reason": "Typed: 153 annotations, 294% coverage"
+    },
+    {
+      "path": "test_json_parsing.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 4,
+      "annotation_ratio": 1.25,
+      "complexity": 5,
+      "reason": "Typed: 10 annotations, 125% coverage"
+    },
+    {
+      "path": "test_kwargs_support.py",
+      "tier": 1,
+      "annotation_count": 20,
+      "function_count": 12,
+      "annotation_ratio": 0.83,
+      "complexity": 15,
+      "reason": "Typed: 20 annotations, 83% coverage"
+    },
+    {
+      "path": "test_list_append.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 3,
+      "annotation_ratio": 0.33,
+      "complexity": 4,
+      "reason": "Typed: 2 annotations, 33% coverage"
+    },
+    {
+      "path": "test_math_module.py",
+      "tier": 1,
+      "annotation_count": 100,
+      "function_count": 17,
+      "annotation_ratio": 2.94,
+      "complexity": 24,
+      "reason": "Typed: 100 annotations, 294% coverage"
+    },
+    {
+      "path": "test_migration_suggestions.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 13,
+      "annotation_ratio": 0.0,
+      "complexity": 26,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_nested_access.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 1,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_numpy_simple.py",
+      "tier": 1,
+      "annotation_count": 5,
+      "function_count": 3,
+      "annotation_ratio": 0.83,
+      "complexity": 3,
+      "reason": "Typed: 5 annotations, 83% coverage"
+    },
+    {
+      "path": "test_operator_module.py",
+      "tier": 1,
+      "annotation_count": 130,
+      "function_count": 23,
+      "annotation_ratio": 2.83,
+      "complexity": 43,
+      "reason": "Typed: 130 annotations, 283% coverage"
+    },
+    {
+      "path": "test_optimization.py",
+      "tier": 1,
+      "annotation_count": 4,
+      "function_count": 3,
+      "annotation_ratio": 0.67,
+      "complexity": 4,
+      "reason": "Typed: 4 annotations, 67% coverage"
+    },
+    {
+      "path": "test_os_sys_module.py",
+      "tier": 1,
+      "annotation_count": 107,
+      "function_count": 23,
+      "annotation_ratio": 2.33,
+      "complexity": 53,
+      "reason": "Typed: 107 annotations, 233% coverage"
+    },
+    {
+      "path": "test_path_import.py",
+      "tier": 1,
+      "annotation_count": 13,
+      "function_count": 6,
+      "annotation_ratio": 1.08,
+      "complexity": 9,
+      "reason": "Typed: 13 annotations, 108% coverage"
+    },
+    {
+      "path": "test_pathlib.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 4,
+      "annotation_ratio": 1.0,
+      "complexity": 6,
+      "reason": "Typed: 8 annotations, 100% coverage"
+    },
+    {
+      "path": "test_performance_warnings.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 11,
+      "annotation_ratio": 0.14,
+      "complexity": 25,
+      "reason": "Typed: 3 annotations, 14% coverage"
+    },
+    {
+      "path": "test_pickle_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 11,
+      "annotation_ratio": 0.0,
+      "complexity": 12,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_profiling.py",
+      "tier": 1,
+      "annotation_count": 18,
+      "function_count": 9,
+      "annotation_ratio": 1.0,
+      "complexity": 29,
+      "reason": "Typed: 18 annotations, 100% coverage"
+    },
+    {
+      "path": "test_profiling_simple.py",
+      "tier": 1,
+      "annotation_count": 11,
+      "function_count": 6,
+      "annotation_ratio": 0.92,
+      "complexity": 16,
+      "reason": "Typed: 11 annotations, 92% coverage"
+    },
+    {
+      "path": "test_project/data_processor.py",
+      "tier": 1,
+      "annotation_count": 30,
+      "function_count": 13,
+      "annotation_ratio": 1.15,
+      "complexity": 43,
+      "reason": "Typed: 30 annotations, 115% coverage"
+    },
+    {
+      "path": "test_project/fibonacci.py",
+      "tier": 1,
+      "annotation_count": 19,
+      "function_count": 9,
+      "annotation_ratio": 1.06,
+      "complexity": 28,
+      "reason": "Typed: 19 annotations, 106% coverage"
+    },
+    {
+      "path": "test_property.py",
+      "tier": 1,
+      "annotation_count": 3,
+      "function_count": 3,
+      "annotation_ratio": 0.5,
+      "complexity": 4,
+      "reason": "Typed: 3 annotations, 50% coverage"
+    },
+    {
+      "path": "test_random_module.py",
+      "tier": 1,
+      "annotation_count": 85,
+      "function_count": 17,
+      "annotation_ratio": 2.5,
+      "complexity": 32,
+      "reason": "Typed: 85 annotations, 250% coverage"
+    },
+    {
+      "path": "test_re_module.py",
+      "tier": 1,
+      "annotation_count": 149,
+      "function_count": 26,
+      "annotation_ratio": 2.87,
+      "complexity": 51,
+      "reason": "Typed: 149 annotations, 287% coverage"
+    },
+    {
+      "path": "test_set_basic.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 2,
+      "annotation_ratio": 0.0,
+      "complexity": 2,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_set_comprehensions.py",
+      "tier": 1,
+      "annotation_count": 5,
+      "function_count": 5,
+      "annotation_ratio": 0.5,
+      "complexity": 10,
+      "reason": "Typed: 5 annotations, 50% coverage"
+    },
+    {
+      "path": "test_set_methods.py",
+      "tier": 1,
+      "annotation_count": 4,
+      "function_count": 5,
+      "annotation_ratio": 0.4,
+      "complexity": 5,
+      "reason": "Partially typed: 4 annotations"
+    },
+    {
+      "path": "test_set_operations.py",
+      "tier": 1,
+      "annotation_count": 5,
+      "function_count": 5,
+      "annotation_ratio": 0.5,
+      "complexity": 5,
+      "reason": "Typed: 5 annotations, 50% coverage"
+    },
+    {
+      "path": "test_set_summary.py",
+      "tier": 1,
+      "annotation_count": 1,
+      "function_count": 1,
+      "annotation_ratio": 0.5,
+      "complexity": 1,
+      "reason": "Typed: 1 annotations, 50% coverage"
+    },
+    {
+      "path": "test_simple_async.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 2,
+      "annotation_ratio": 0.5,
+      "complexity": 2,
+      "reason": "Typed: 2 annotations, 50% coverage"
+    },
+    {
+      "path": "test_simple_break.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 3,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_simple_class.py",
+      "tier": 1,
+      "annotation_count": 5,
+      "function_count": 4,
+      "annotation_ratio": 0.62,
+      "complexity": 5,
+      "reason": "Typed: 5 annotations, 62% coverage"
+    },
+    {
+      "path": "test_simple_continue.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 1,
+      "annotation_ratio": 0.0,
+      "complexity": 3,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_simple_decorator.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 2,
+      "annotation_ratio": 0.5,
+      "complexity": 2,
+      "reason": "Typed: 2 annotations, 50% coverage"
+    },
+    {
+      "path": "test_simple_imports.py",
+      "tier": 1,
+      "annotation_count": 10,
+      "function_count": 6,
+      "annotation_ratio": 0.83,
+      "complexity": 6,
+      "reason": "Typed: 10 annotations, 83% coverage"
+    },
+    {
+      "path": "test_simple_method.py",
+      "tier": 1,
+      "annotation_count": 1,
+      "function_count": 3,
+      "annotation_ratio": 0.17,
+      "complexity": 4,
+      "reason": "Partially typed: 1 annotations"
+    },
+    {
+      "path": "test_simple_set_typed.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 2,
+      "annotation_ratio": 0.5,
+      "complexity": 2,
+      "reason": "Typed: 2 annotations, 50% coverage"
+    },
+    {
+      "path": "test_statistics_module.py",
+      "tier": 1,
+      "annotation_count": 141,
+      "function_count": 18,
+      "annotation_ratio": 3.92,
+      "complexity": 67,
+      "reason": "Typed: 141 annotations, 392% coverage"
+    },
+    {
+      "path": "test_string_module.py",
+      "tier": 1,
+      "annotation_count": 134,
+      "function_count": 30,
+      "annotation_ratio": 2.23,
+      "complexity": 71,
+      "reason": "Typed: 134 annotations, 223% coverage"
+    },
+    {
+      "path": "test_sys_import.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 5,
+      "annotation_ratio": 0.8,
+      "complexity": 5,
+      "reason": "Typed: 8 annotations, 80% coverage"
+    },
+    {
+      "path": "test_type_hints.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 9,
+      "annotation_ratio": 0.11,
+      "complexity": 16,
+      "reason": "Typed: 2 annotations, 11% coverage"
+    },
+    {
+      "path": "test_type_hints_simple.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 5,
+      "annotation_ratio": 0.0,
+      "complexity": 8,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_typing_module.py",
+      "tier": 1,
+      "annotation_count": 104,
+      "function_count": 25,
+      "annotation_ratio": 2.08,
+      "complexity": 46,
+      "reason": "Typed: 104 annotations, 208% coverage"
+    },
+    {
+      "path": "test_urllib_parse_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 15,
+      "annotation_ratio": 0.0,
+      "complexity": 16,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_v02.py",
+      "tier": 1,
+      "annotation_count": 4,
+      "function_count": 2,
+      "annotation_ratio": 1.0,
+      "complexity": 5,
+      "reason": "Typed: 4 annotations, 100% coverage"
+    },
+    {
+      "path": "test_with_statement.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 6,
+      "annotation_ratio": 0.17,
+      "complexity": 9,
+      "reason": "Partially typed: 2 annotations"
+    },
+    {
+      "path": "test_xml_etree_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 14,
+      "annotation_ratio": 0.0,
+      "complexity": 16,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "test_zipfile_module.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 9,
+      "annotation_ratio": 0.0,
+      "complexity": 26,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "text_processing_combined.py",
+      "tier": 1,
+      "annotation_count": 74,
+      "function_count": 13,
+      "annotation_ratio": 2.85,
+      "complexity": 58,
+      "reason": "Typed: 74 annotations, 285% coverage"
+    },
+    {
+      "path": "tuple_key_dict.py",
+      "tier": 1,
+      "annotation_count": 2,
+      "function_count": 1,
+      "annotation_ratio": 1.0,
+      "complexity": 1,
+      "reason": "Typed: 2 annotations, 100% coverage"
+    },
+    {
+      "path": "type_extraction_demo.py",
+      "tier": 1,
+      "annotation_count": 45,
+      "function_count": 16,
+      "annotation_ratio": 1.41,
+      "complexity": 21,
+      "reason": "Typed: 45 annotations, 141% coverage"
+    },
+    {
+      "path": "type_inference_demo.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 4,
+      "annotation_ratio": 0.0,
+      "complexity": 6,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "v1_1_0_features.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 4,
+      "annotation_ratio": 0.0,
+      "complexity": 8,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "v1_1_0_showcase.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 7,
+      "annotation_ratio": 0.0,
+      "complexity": 18,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "v1_2_0_basic_oop.py",
+      "tier": 1,
+      "annotation_count": 11,
+      "function_count": 12,
+      "annotation_ratio": 0.46,
+      "complexity": 14,
+      "reason": "Typed: 11 annotations, 46% coverage"
+    },
+    {
+      "path": "v1_2_0_showcase.py",
+      "tier": 1,
+      "annotation_count": 18,
+      "function_count": 13,
+      "annotation_ratio": 0.69,
+      "complexity": 18,
+      "reason": "Typed: 18 annotations, 69% coverage"
+    },
+    {
+      "path": "v1_3_0_features_demo.py",
+      "tier": 1,
+      "annotation_count": 4,
+      "function_count": 10,
+      "annotation_ratio": 0.2,
+      "complexity": 16,
+      "reason": "Typed: 4 annotations, 20% coverage"
+    },
+    {
+      "path": "v1_4_0_features_demo.py",
+      "tier": 1,
+      "annotation_count": 13,
+      "function_count": 8,
+      "annotation_ratio": 0.81,
+      "complexity": 11,
+      "reason": "Typed: 13 annotations, 81% coverage"
+    },
+    {
+      "path": "validation/test_all.py",
+      "tier": 2,
+      "annotation_count": 0,
+      "function_count": 4,
+      "annotation_ratio": 0.0,
+      "complexity": 9,
+      "reason": "Untyped: No type annotations found"
+    },
+    {
+      "path": "validation/test_async.py",
+      "tier": 1,
+      "annotation_count": 4,
+      "function_count": 2,
+      "annotation_ratio": 1.0,
+      "complexity": 3,
+      "reason": "Typed: 4 annotations, 100% coverage"
+    },
+    {
+      "path": "validation/test_with.py",
+      "tier": 1,
+      "annotation_count": 8,
+      "function_count": 3,
+      "annotation_ratio": 1.33,
+      "complexity": 7,
+      "reason": "Typed: 8 annotations, 133% coverage"
+    },
+    {
+      "path": "verification_demo.py",
+      "tier": 1,
+      "annotation_count": 26,
+      "function_count": 14,
+      "annotation_ratio": 0.93,
+      "complexity": 26,
+      "reason": "Typed: 26 annotations, 93% coverage"
+    },
+    {
+      "path": "web_scraping/url_parser.py",
+      "tier": 1,
+      "annotation_count": 18,
+      "function_count": 9,
+      "annotation_ratio": 1.0,
+      "complexity": 29,
+      "reason": "Typed: 18 annotations, 100% coverage"
+    }
+  ]
+}

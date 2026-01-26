@@ -83,7 +83,10 @@ async fn handle_train_command(
 
     let model_path = output.unwrap_or_else(NgramFixPredictor::default_user_model_path);
 
-    println!("DEPYLER-ORACLE-TRAIN: Training on corpus {}", corpus.display());
+    println!(
+        "DEPYLER-ORACLE-TRAIN: Training on corpus {}",
+        corpus.display()
+    );
     println!("Model will be saved to: {}", model_path.display());
 
     // Run converge with auto_fix to learn patterns
@@ -335,9 +338,7 @@ async fn handle_command(command: Commands) -> Result<()> {
             output,
             target_rate,
             max_iterations,
-        } => {
-            handle_train_command(corpus, output, target_rate, max_iterations).await
-        }
+        } => handle_train_command(corpus, output, target_rate, max_iterations).await,
         Commands::Report {
             input_dir,
             format,

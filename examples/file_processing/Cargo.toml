@@ -1,0 +1,9 @@
+[package]
+name = "csv_parser"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "csv_parser"
+path = "csv_parser.rs"
+

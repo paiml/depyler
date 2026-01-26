@@ -221,10 +221,7 @@ impl DepylerGnnEncoder {
     /// each pattern when adding many patterns at once.
     ///
     /// Returns the number of patterns successfully indexed.
-    pub fn batch_index_patterns(
-        &mut self,
-        patterns: &[(&ErrorPattern, &str)],
-    ) -> usize {
+    pub fn batch_index_patterns(&mut self, patterns: &[(&ErrorPattern, &str)]) -> usize {
         if patterns.is_empty() {
             return 0;
         }
@@ -240,10 +237,7 @@ impl DepylerGnnEncoder {
     }
 
     /// Index patterns into HashMap without updating HNSW (helper for batch)
-    fn index_patterns_without_hnsw(
-        &mut self,
-        patterns: &[(&ErrorPattern, &str)],
-    ) -> usize {
+    fn index_patterns_without_hnsw(&mut self, patterns: &[(&ErrorPattern, &str)]) -> usize {
         let mut count = 0;
 
         for (pattern, source_context) in patterns {
@@ -1248,7 +1242,10 @@ fn add(a: i32, b: i32) -> i32 {
         individual_encoder.index_pattern(&p2, "source2");
 
         // Both should have same pattern count
-        assert_eq!(batch_encoder.pattern_count(), individual_encoder.pattern_count());
+        assert_eq!(
+            batch_encoder.pattern_count(),
+            individual_encoder.pattern_count()
+        );
         assert_eq!(
             batch_encoder.stats().patterns_indexed,
             individual_encoder.stats().patterns_indexed

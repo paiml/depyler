@@ -1,0 +1,9 @@
+[package]
+name = "contracts_example"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "contracts_example"
+path = "contracts_example.rs"
+

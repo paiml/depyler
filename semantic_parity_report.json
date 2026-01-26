@@ -1,0 +1,228 @@
+{
+  "timestamp": "2026-01-25T17:32:26.475985+00:00",
+  "corpus_root": "/Users/noahgift/src/depyler/examples",
+  "total_pairs": 85,
+  "checked": 30,
+  "compiling": 3,
+  "semantic_match": 0,
+  "semantic_mismatch": 3,
+  "compile_errors": 27,
+  "semantic_parity_rate": 0.0,
+  "true_success_rate": 0.0,
+  "files": [
+    {
+      "python": "lambda_test.py",
+      "rust": "lambda_test.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `lambda_test`\n    --> /Users/noahgift/src/depyler/examples/lambda_test.rs:2858:2\n     |\n2858 | }\n     |  ^ consider adding a `main` function to `/Users"
+    },
+    {
+      "python": "functional_programming_combined.py",
+      "rust": "functional_programming_combined.rs",
+      "compiles": true,
+      "outputs_match": false,
+      "python_output_preview": "=== Functional Programming Patterns Demo ===\n\n1. Map Pattern\n   Doubled: 10 elements\n\n2. Filter Patt",
+      "rust_output_preview": "=== Functional Programming Patterns Demo ===\n\n1. Map Pattern\n   Doubled: 10 elements\n\n2. Filter Patt"
+    },
+    {
+      "python": "simple_lifetime.py",
+      "rust": "simple_lifetime.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `simple_lifetime`\n    --> /Users/noahgift/src/depyler/examples/simple_lifetime.rs:2823:2\n     |\n2823 | }\n     |  ^ consider adding a `main` function to"
+    },
+    {
+      "python": "data_analysis_combined.py",
+      "rust": "data_analysis_combined.rs",
+      "compiles": true,
+      "outputs_match": false,
+      "python_output_preview": "=== Comprehensive Data Analysis Demo ===\nMean: 54.79569243126417, StdDev: 2.9352520879849138\nQ1: 52.",
+      "rust_output_preview": "=== Comprehensive Data Analysis Demo ===\nMean: 55, StdDev: 0\nQ1: 55, Median: 55, Q3: 55\nOutliers fou"
+    },
+    {
+      "python": "lambda_passing_test.py",
+      "rust": "lambda_passing_test.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `lambda_passing_test`\n    --> /Users/noahgift/src/depyler/examples/lambda_passing_test.rs:2812:2\n     |\n2812 | }\n     |  ^ consider adding a `main` fun"
+    },
+    {
+      "python": "v1_3_0_features_demo.py",
+      "rust": "v1_3_0_features_demo.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0599]: no method named `__next__` found for struct `Counter` in the current scope\n    --> /Users/noahgift/src/depyler/examples/v1_3_0_features_demo.rs:2855:32\n     |\n2818 | pub struct Counter {"
+    },
+    {
+      "python": "simple_array_test.py",
+      "rust": "simple_array_test.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `simple_array_test`\n    --> /Users/noahgift/src/depyler/examples/simple_array_test.rs:2821:2\n     |\n2821 | }\n     |  ^ consider adding a `main` functio"
+    },
+    {
+      "python": "text_processing_combined.py",
+      "rust": "text_processing_combined.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0308]: mismatched types\n    --> /Users/noahgift/src/depyler/examples/text_processing_combined.rs:3048:18\n     |\n3048 |             .get(&DepylerValue::Int(length as i64))\n     |              --"
+    },
+    {
+      "python": "dict_assign_typed.py",
+      "rust": "dict_assign_typed.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `dict_assign_typed`\n    --> /Users/noahgift/src/depyler/examples/dict_assign_typed.rs:2828:2\n     |\n2828 | }\n     |  ^ consider adding a `main` functio"
+    },
+    {
+      "python": "lambda_advanced_test.py",
+      "rust": "lambda_advanced_test.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `lambda_advanced_test`\n    --> /Users/noahgift/src/depyler/examples/lambda_advanced_test.rs:2819:2\n     |\n2819 | }\n     |  ^ consider adding a `main` f"
+    },
+    {
+      "python": "ruchy_showcase.py",
+      "rust": "ruchy_showcase.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0308]: mismatched types\n    --> /Users/noahgift/src/depyler/examples/ruchy_showcase.rs:2971:45\n     |\n2971 |     println!(\"{}\", greet(\"Bob\".to_string(), &\"Dr.\"));\n     |                    ----"
+    },
+    {
+      "python": "simple_s3_lambda.py",
+      "rust": "simple_s3_lambda.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `simple_s3_lambda`\n    --> /Users/noahgift/src/depyler/examples/simple_s3_lambda.rs:2849:2\n     |\n2849 | }\n     |  ^ consider adding a `main` function "
+    },
+    {
+      "python": "golden_exception_handling.py",
+      "rust": "golden_exception_handling.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: warning: unreachable expression\n    --> /Users/noahgift/src/depyler/examples/golden_exception_handling.rs:2980:9\n     |\n2966 | /         match (|| -> Result<i32, Box<dyn std::error::Error>> {\n2967 | |"
+    },
+    {
+      "python": "lsp_demo.py",
+      "rust": "lsp_demo.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0308]: mismatched types\n  --> /Users/noahgift/src/depyler/examples/lsp_demo.rs:18:50\n   |\n15 |       map.insert(\"double\".to_string().to_string(), move |x: i64| {\n   |       ---                 "
+    },
+    {
+      "python": "falsification_suite.py",
+      "rust": "falsification_suite.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `falsification_suite`\n    --> /Users/noahgift/src/depyler/examples/falsification_suite.rs:2902:2\n     |\n2902 | }\n     |  ^ consider adding a `main` fun"
+    },
+    {
+      "python": "v1_1_0_showcase.py",
+      "rust": "v1_1_0_showcase.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0277]: the trait bound `String: Borrow<&str>` is not satisfied\n    --> /Users/noahgift/src/depyler/examples/v1_1_0_showcase.rs:2853:18\n     |\n2853 |         .get_mut(&\"level1\")\n     |          "
+    },
+    {
+      "python": "nested_dict_assign.py",
+      "rust": "nested_dict_assign.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `nested_dict_assign`\n    --> /Users/noahgift/src/depyler/examples/nested_dict_assign.rs:2810:2\n     |\n2810 | }\n     |  ^ consider adding a `main` funct"
+    },
+    {
+      "python": "simulation_combined.py",
+      "rust": "simulation_combined.rs",
+      "compiles": true,
+      "outputs_match": false,
+      "python_output_preview": "=== Comprehensive Simulation Demo ===\n\n1. Dice Rolling Simulation\n   Simulated 1000 rolls of 2d6\n   ",
+      "rust_output_preview": "=== Comprehensive Simulation Demo ===\n\n1. Dice Rolling Simulation\n   Simulated 1000 rolls of 2d6\n   "
+    },
+    {
+      "python": "simple_migration_demo.py",
+      "rust": "simple_migration_demo.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `simple_migration_demo`\n    --> /Users/noahgift/src/depyler/examples/simple_migration_demo.rs:2866:2\n     |\n2866 | }\n     |  ^ consider adding a `main`"
+    },
+    {
+      "python": "mcp_usage.py",
+      "rust": "mcp_usage.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0061]: this function takes 1 argument but 0 arguments were supplied\n    --> /Users/noahgift/src/depyler/examples/mcp_usage.rs:2284:18\n     |\n2284 |     let client = DepylerMCPClient::new();\n   "
+    },
+    {
+      "python": "interactive_annotation.py",
+      "rust": "interactive_annotation.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error: expected one of `(`, `[`, or `{`, found `=`\n    --> /Users/noahgift/src/depyler/examples/interactive_annotation.rs:2349:20\n     |\n2349 |     while current! = (* start) {\n     |     -----       "
+    },
+    {
+      "python": "tuple_key_dict.py",
+      "rust": "tuple_key_dict.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `tuple_key_dict`\n    --> /Users/noahgift/src/depyler/examples/tuple_key_dict.rs:2807:2\n     |\n2807 | }\n     |  ^ consider adding a `main` function to `"
+    },
+    {
+      "python": "v1_2_0_basic_oop.py",
+      "rust": "v1_2_0_basic_oop.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0277]: `main` has invalid return type `i32`\n    --> /Users/noahgift/src/depyler/examples/v1_2_0_basic_oop.rs:2860:18\n     |\n2860 | pub fn main() -> i32 {\n     |                  ^^^ `main` can "
+    },
+    {
+      "python": "golden_async_concurrency.py",
+      "rust": "golden_async_concurrency.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0412]: cannot find type `r#type` in this scope\n    --> /Users/noahgift/src/depyler/examples/golden_async_concurrency.rs:2167:52\n     |\n2167 | pub async fn __aexit__(&mut self, exc_type: Option<"
+    },
+    {
+      "python": "power_and_floor_division.py",
+      "rust": "power_and_floor_division.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `power_and_floor_division`\n    --> /Users/noahgift/src/depyler/examples/power_and_floor_division.rs:3053:2\n     |\n3053 | }\n     |  ^ consider adding a "
+    },
+    {
+      "python": "v1_2_0_showcase.py",
+      "rust": "v1_2_0_showcase.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0609]: no field `balance` on type `&mut SavingsAccount`\n    --> /Users/noahgift/src/depyler/examples/v1_2_0_showcase.rs:2852:29\n     |\n2852 |         let interest = self.balance.clone() * self."
+    },
+    {
+      "python": "debugging_workflow.py",
+      "rust": "debugging_workflow.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0308]: mismatched types\n    --> /Users/noahgift/src/depyler/examples/debugging_workflow.rs:2834:15\n     |\n2830 |       let mut max_val: i32 = Default::default();\n     |                        -"
+    },
+    {
+      "python": "dict_assign.py",
+      "rust": "dict_assign.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `dict_assign`\n    --> /Users/noahgift/src/depyler/examples/dict_assign.rs:2816:2\n     |\n2816 | }\n     |  ^ consider adding a `main` function to `/Users"
+    },
+    {
+      "python": "type_extraction_demo.py",
+      "rust": "type_extraction_demo.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0412]: cannot find type `String1` in this scope\n    --> /Users/noahgift/src/depyler/examples/type_extraction_demo.rs:2996:21\n     |\n2996 |     _complex_union: String1,\n     |                   "
+    },
+    {
+      "python": "basic_class_test.py",
+      "rust": "basic_class_test.rs",
+      "compiles": false,
+      "outputs_match": false,
+      "error": "Rust compile error: error[E0601]: `main` function not found in crate `basic_class_test`\n    --> /Users/noahgift/src/depyler/examples/basic_class_test.rs:2884:2\n     |\n2884 | }\n     |  ^ consider adding a `main` function "
+    }
+  ],
+  "compile_rate": 10.0
+}

@@ -223,6 +223,35 @@ impl DepylerValue {
             DepylerValue::Tuple(_dv_tuple) => format!("{:?}", _dv_tuple),
         }
     }
+    #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"]
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            DepylerValue::Str(_dv_str) => Some(_dv_str.as_str()),
+            _ => None,
+        }
+    }
+    #[doc = r" DEPYLER-1215: Get as i64(for integer values)"]
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            DepylerValue::Int(_dv_int) => Some(*_dv_int),
+            _ => None,
+        }
+    }
+    #[doc = r" DEPYLER-1215: Get as f64(for float values)"]
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            DepylerValue::Float(_dv_float) => Some(*_dv_float),
+            DepylerValue::Int(_dv_int) => Some(*_dv_int as f64),
+            _ => None,
+        }
+    }
+    #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"]
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            DepylerValue::Bool(_dv_bool) => Some(*_dv_bool),
+            _ => None,
+        }
+    }
     #[doc = r" Convert to i64"]
     pub fn to_i64(&self) -> i64 {
         match self {
@@ -1585,6 +1614,199 @@ impl<T: Clone> PyMul<Vec<T>> for i64 {
         rhs.py_mul(self)
     }
 }
+impl PySub<Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<&Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<&Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<f32>> for Vec<f32> {
+    type Output = Vec<f32>;
+    fn py_sub(self, rhs: Vec<f32>) -> Vec<f32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<i64>> for Vec<i64> {
+    type Output = Vec<i64>;
+    fn py_sub(self, rhs: Vec<i64>) -> Vec<i64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PySub<Vec<i32>> for Vec<i32> {
+    type Output = Vec<i32>;
+    fn py_sub(self, rhs: Vec<i32>) -> Vec<i32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+    }
+}
+impl PyMul<Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<&Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<&Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<f32>> for Vec<f32> {
+    type Output = Vec<f32>;
+    fn py_mul(self, rhs: Vec<f32>) -> Vec<f32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<i64>> for Vec<i64> {
+    type Output = Vec<i64>;
+    fn py_mul(self, rhs: Vec<i64>) -> Vec<i64> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyMul<Vec<i32>> for Vec<i32> {
+    type Output = Vec<i32>;
+    fn py_mul(self, rhs: Vec<i32>) -> Vec<i32> {
+        self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+    }
+}
+impl PyDiv<Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<&Vec<f64>> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<&Vec<f64>> for &Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: &Vec<f64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<Vec<f32>> for Vec<f32> {
+    type Output = Vec<f32>;
+    fn py_div(self, rhs: Vec<f32>) -> Vec<f32> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| if *b == 0.0 { f32::NAN } else { a / b })
+            .collect()
+    }
+}
+impl PyDiv<Vec<i64>> for Vec<i64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i64>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| {
+                if *b == 0 {
+                    f64::NAN
+                } else {
+                    *a as f64 / *b as f64
+                }
+            })
+            .collect()
+    }
+}
+impl PyDiv<Vec<i32>> for Vec<i32> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: Vec<i32>) -> Vec<f64> {
+        self.iter()
+            .zip(rhs.iter())
+            .map(|(a, b)| {
+                if *b == 0 {
+                    f64::NAN
+                } else {
+                    *a as f64 / *b as f64
+                }
+            })
+            .collect()
+    }
+}
+impl PyMul<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: f64) -> Vec<f64> {
+        self.iter().map(|a| a * rhs).collect()
+    }
+}
+impl PyMul<Vec<f64>> for f64 {
+    type Output = Vec<f64>;
+    fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+        rhs.iter().map(|a| a * self).collect()
+    }
+}
+impl PyDiv<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_div(self, rhs: f64) -> Vec<f64> {
+        if rhs == 0.0 {
+            self.iter().map(|_| f64::NAN).collect()
+        } else {
+            self.iter().map(|a| a / rhs).collect()
+        }
+    }
+}
+impl PySub<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_sub(self, rhs: f64) -> Vec<f64> {
+        self.iter().map(|a| a - rhs).collect()
+    }
+}
+impl PyAdd<f64> for Vec<f64> {
+    type Output = Vec<f64>;
+    fn py_add(self, rhs: f64) -> Vec<f64> {
+        self.iter().map(|a| a + rhs).collect()
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2380,6 +2602,83 @@ impl DepylerValue {
         }
     }
 }
+#[doc = r" DEPYLER-1202: Python integer operations for Rust integer types."]
+pub trait PythonIntOps {
+    fn bit_length(&self) -> u32;
+    fn bit_count(&self) -> u32;
+}
+impl PythonIntOps for i32 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.unsigned_abs().count_ones()
+    }
+}
+impl PythonIntOps for i64 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.unsigned_abs().count_ones()
+    }
+}
+impl PythonIntOps for u32 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.count_ones()
+    }
+}
+impl PythonIntOps for u64 {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.count_ones()
+    }
+}
+impl PythonIntOps for usize {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.count_ones()
+    }
+}
+impl PythonIntOps for isize {
+    fn bit_length(&self) -> u32 {
+        if *self == 0 {
+            0
+        } else {
+            (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros()
+        }
+    }
+    fn bit_count(&self) -> u32 {
+        self.unsigned_abs().count_ones()
+    }
+}
 #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"]
 #[doc = r" Provides .day(), .month(), .year() methods matching Python's API"]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
@@ -2981,7 +3280,7 @@ pub fn capitalize_words(text: &str) -> String {
             }
             .to_uppercase();
             let rest: String = {
-                let base = word;
+                let base = (word).clone();
                 let start_idx: i32 = 1;
                 let len = base.chars().count() as i32;
                 let actual_start = if start_idx < 0 {
@@ -3028,7 +3327,7 @@ pub fn count_letters(text: &str) -> i32 {
     let mut count: i32 = Default::default();
     count = 0;
     for char in text.chars() {
-        if is_ascii_letter(&char.to_string()) {
+        if is_ascii_letter(char.as_str().unwrap_or_default().to_string()) {
             count = (count).py_add(1);
         }
     }
@@ -3040,7 +3339,7 @@ pub fn count_digits(text: &str) -> i32 {
     let mut count: i32 = Default::default();
     count = 0;
     for char in text.chars() {
-        if is_digit(&char.to_string()) {
+        if is_digit(char.as_str().unwrap_or_default().to_string()) {
             count = (count).py_add(1);
         }
     }
@@ -3052,7 +3351,7 @@ pub fn count_whitespace(text: &str) -> i32 {
     let mut count: i32 = Default::default();
     count = 0;
     for char in text.chars() {
-        if is_whitespace(&char.to_string()) {
+        if is_whitespace(char.as_str().unwrap_or_default().to_string()) {
             count = (count).py_add(1);
         }
     }
@@ -3064,7 +3363,7 @@ pub fn remove_whitespace(text: &str) -> String {
     let mut result: String = Default::default();
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
-        if !is_whitespace(&char.to_string()) {
+        if !is_whitespace(char.as_str().unwrap_or_default().to_string()) {
             result = (result).py_add(char);
         }
     }
@@ -3076,7 +3375,7 @@ pub fn keep_only_letters(text: &str) -> String {
     let mut result: String = Default::default();
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
-        if is_ascii_letter(&char.to_string()) {
+        if is_ascii_letter(char.as_str().unwrap_or_default().to_string()) {
             result = (result).py_add(char);
         }
     }
@@ -3088,7 +3387,7 @@ pub fn keep_only_digits(text: &str) -> String {
     let mut result: String = Default::default();
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
-        if is_digit(&char.to_string()) {
+        if is_digit(char.as_str().unwrap_or_default().to_string()) {
             result = (result).py_add(char);
         }
     }
@@ -3100,7 +3399,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
     let mut result: String = Default::default();
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
-        if is_alphanumeric(&char.to_string()) {
+        if is_alphanumeric(char.as_str().unwrap_or_default().to_string()) {
             result = (result).py_add(char);
         }
     }
@@ -3109,17 +3408,13 @@ pub fn keep_alphanumeric(text: &str) -> String {
 #[doc = "Simple template substitution"]
 pub fn template_substitute<'b, 'a>(
     template: &'a str,
-    values: &'b std::collections::HashMap<DepylerValue, DepylerValue>,
+    values: &'b std::collections::HashMap<String, DepylerValue>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut result: String = Default::default();
-    result = template.to_string();
+    result = template.clone().to_string();
     for key in values.keys().cloned().collect::<Vec<_>>() {
         let placeholder: String = (("${").py_add(key)).py_add("}");
-        let value: String = (values
-            .get(&DepylerValue::Str(format!("{:?}", key)))
-            .cloned()
-            .unwrap_or_default())
-        .to_string();
+        let value: String = (values.get(&key).cloned().unwrap_or_default().into()).to_string();
         result = result.replace(&placeholder, &value);
     }
     Ok(result.to_string())
@@ -3130,8 +3425,8 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
         if char.is_alphabetic() {
-            let mut new_char: String;
             let mut shifted: i32;
+            let mut new_char: String;
             let mut base: i32;
             if !char.is_alphabetic() || char.is_uppercase() {
                 base = "A".chars().next().unwrap() as i32;
@@ -3249,7 +3544,9 @@ pub fn count_consonants(text: &str) -> i32 {
     let vowels: String = "aeiouAEIOU".to_string();
     count = 0;
     for char in text.chars() {
-        if (is_ascii_letter(&char.to_string())) && (!vowels.contains(char)) {
+        if (is_ascii_letter(char.as_str().unwrap_or_default().to_string()))
+            && (!vowels.contains(char))
+        {
             count = (count).py_add(1);
         }
     }
@@ -3285,7 +3582,7 @@ pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
     let only_digits: String = keep_only_digits(&sample);
     let only_alnum: String = keep_alphanumeric(&sample);
     let template: String = "Hello ${name}, you are ${age} years old".to_string();
-    let values: std::collections::HashMap<DepylerValue, DepylerValue> = {
+    let values: std::collections::HashMap<String, DepylerValue> = {
         let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
         map.insert("age".to_string(), DepylerValue::Str("30".to_string()));
@@ -3300,6 +3597,12 @@ pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
     let vowel_count: i32 = count_vowels(&"hello world");
     let consonant_count: i32 = count_consonants(&"hello world");
     println!("{}", "All string module tests completed successfully");
+    Ok(())
+}
+#[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
+#[doc = r" This file was transpiled from a Python script with executable top-level code."]
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = "\nComprehensive test of Python string module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's string module\nconstants and utilities to Rust equivalents.\n\nExpected Rust mappings:\n- string.ascii_letters -> static constants\n- string.digits -> static constants\n- string.Template -> string interpolation\n\nNote: Most functionality implemented as manual string operations.\n".to_string();
     Ok(())
 }
 #[cfg(test)]
