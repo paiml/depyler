@@ -11,7 +11,7 @@ use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
     expr_infers_float, expr_produces_depyler_value, extract_kwarg_bool, extract_kwarg_string,
     extract_string_literal, get_depyler_extraction_for_type, handler_ends_with_exit,
-    is_dict_augassign_pattern, is_dict_index_access, is_dict_with_value_type,
+    has_chained_pyops, is_dict_augassign_pattern, is_dict_index_access, is_dict_with_value_type,
     is_iterator_producing_expr, is_native_depyler_tuple, is_numpy_value_expr, is_pure_expression,
     looks_like_option_expr, needs_type_conversion, to_pascal_case,
 };
@@ -864,6 +864,21 @@ pub(crate) fn codegen_return_stmt(
             // DEPYLER-0455 Bug 7: Also pass ctx to check validator function context
             if needs_type_conversion(target_type, e) {
                 expr_tokens = apply_type_conversion(expr_tokens, target_type);
+            }
+
+            // DEPYLER-E0282-FIX: Add type hint for chained PyOps expressions in return statements
+            // When returning expressions like ((a).py_add(b)).py_add(c), Rust can't infer the
+            // intermediate types because PyOps traits have multiple impls (i32+i32, i32+f64, etc.)
+            // Fix: Wrap in type assertion block { let _r: <type> = expr; _r }
+            if ctx.type_mapper.nasa_mode && has_chained_pyops(e) {
+                let type_tokens: Option<syn::Type> = match target_type {
+                    Type::Int => Some(parse_quote! { i32 }),
+                    Type::Float => Some(parse_quote! { f64 }),
+                    _ => None,
+                };
+                if let Some(ty) = type_tokens {
+                    expr_tokens = parse_quote! { { let _r: #ty = #expr_tokens; _r } };
+                }
             }
         }
 
