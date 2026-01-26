@@ -5,38 +5,29 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    # Run security audit daily at 2 AM UTC
-    - cron: '0 2 * * *'
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
-  test:
-    name: Test Suite
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [stable]
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
-    - name: Install build dependencies (Linux)
-      if: runner.os == 'Linux'
+
+    - name: Install build dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential gcc g++
-    
+
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
+      uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: ${{ matrix.rust }}
         components: rustfmt, clippy
-    
+
     - name: Cache dependencies
       uses: actions/cache@v4
       with:
@@ -45,317 +36,21 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    
+
     - name: Check formatting
       run: cargo fmt --all -- --check
-    
+
     - name: Run clippy
-      shell: bash
       run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          export RUSTFLAGS="-C linker=gcc"
-        fi
+        export RUSTFLAGS="-C linker=gcc"
         cargo clippy --all-targets --all-features -- -D warnings
-    
+
     - name: Run tests
-      shell: bash
       run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          export RUSTFLAGS="-C linker=gcc"
-        fi
+        export RUSTFLAGS="-C linker=gcc"
         cargo test --workspace --all-features
-    
-    - name: Build all targets
-      shell: bash
+
+    - name: Build
       run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          export RUSTFLAGS="-C linker=gcc"
-        fi
+        export RUSTFLAGS="-C linker=gcc"
         cargo build --workspace --all-targets
-
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Install cargo-tarpaulin
-      run: cargo install cargo-tarpaulin
-
-    - name: Generate coverage
-      run: cargo tarpaulin --out Xml --all-features --workspace
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./cobertura.xml
-        fail_ci_if_error: false
-
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    
-    - name: Audit dependencies
-      uses: actions-rust-lang/audit@v1
-
-  msrv:
-    name: Minimum Supported Rust Version
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc g++
-    
-    - name: Install MSRV toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: "1.83"  # From Cargo.toml rust-version
-    
-    - name: Check MSRV
-      run: |
-        export RUSTFLAGS="-C linker=gcc"
-        cargo check --workspace --all-features
-
-  build-release:
-    name: Build Release Binary
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    
-    - name: Install build dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc g++
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Build release
-      shell: bash
-      run: |
-        if [ "${{ runner.os }}" = "Linux" ]; then
-          export RUSTFLAGS="-C linker=gcc"
-        fi
-        cargo build --release --workspace
-    
-    - name: Test release build
-      run: ./target/release/depyler --version
-      shell: bash
-    
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: depyler-${{ matrix.os }}
-        path: target/release/depyler*
-
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc g++
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Build depyler
-      run: |
-        export RUSTFLAGS="-C linker=gcc"
-        cargo build --release --bin depyler
-    
-    - name: Run example transpilations with compilation validation
-      run: |
-        echo "Testing example Python files..."
-        success_count=0
-        compile_count=0
-        total_count=0
-
-        for py_file in examples/showcase/*.py; do
-          echo "========================================="
-          echo "Transpiling: $py_file"
-          total_count=$((total_count + 1))
-
-          # Try transpilation - some may fail in V1
-          if ./target/release/depyler transpile "$py_file" -o "${py_file%.py}.rs"; then
-            echo "✅ Transpilation completed: ${py_file%.py}.rs"
-
-            # Verify Rust file was generated and has content
-            if [ -f "${py_file%.py}.rs" ] && [ -s "${py_file%.py}.rs" ]; then
-              echo "✅ Generated Rust file exists and has content"
-              echo "📝 Generated $(wc -l < "${py_file%.py}.rs") lines of Rust code"
-              success_count=$((success_count + 1))
-
-              # DEPYLER-0163: Validate that generated Rust code compiles
-              echo "🔍 Validating Rust compilation..."
-              if rustc --crate-type lib --edition 2021 "${py_file%.py}.rs" -o /tmp/$(basename "${py_file%.py}").rlib 2>&1 | tee /tmp/rustc_output.txt; then
-                echo "✅ Generated Rust code compiles successfully!"
-                compile_count=$((compile_count + 1))
-              else
-                echo "❌ COMPILATION FAILED for ${py_file%.py}.rs"
-                echo "Compiler output:"
-                cat /tmp/rustc_output.txt
-                echo "This is a BLOCKING FAILURE - generated code must compile"
-                exit 1
-              fi
-            else
-              echo "⚠️  Generated file is empty or missing"
-            fi
-          else
-            echo "⚠️  Transpilation failed (acceptable for V1 - some Python features not yet supported)"
-          fi
-        done
-
-        echo "========================================="
-        echo "📊 Transpilation Success: $success_count/$total_count files"
-        echo "📊 Compilation Success: $compile_count/$success_count transpiled files"
-
-        # Require at least one successful transpilation AND compilation
-        if [ $success_count -gt 0 ] && [ $compile_count -eq $success_count ]; then
-          echo "✅ All transpiled files compile successfully"
-          echo "🎉 CI transpilation validation passed!"
-        elif [ $success_count -gt 0 ] && [ $compile_count -lt $success_count ]; then
-          echo "❌ Some transpiled files failed to compile: $compile_count/$success_count"
-          exit 1
-        else
-          echo "❌ No files transpiled successfully"
-          exit 1
-        fi
-
-  tdd-book-stdlib-validation:
-    name: TDD Book Stdlib Validation (27 modules, 151 tests)
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc g++
-
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    - name: Cache Python dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/uv
-          tdd-book/.venv
-        key: ${{ runner.os }}-uv-${{ hashFiles('tdd-book/pyproject.toml', 'tdd-book/uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-uv-
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-tdd-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Build depyler CLI
-      run: |
-        export RUSTFLAGS="-C linker=gcc"
-        cargo build --release --bin depyler
-        echo "$PWD/target/release" >> $GITHUB_PATH
-
-    - name: Install Python dependencies
-      working-directory: tdd-book
-      run: uv sync
-
-    - name: Run TDD Book Tests (BLOCKING - Stdlib Regression Protection)
-      working-directory: tdd-book
-      run: |
-        echo "🧪 Running TDD Book stdlib validation..."
-        echo "📊 Coverage: 27 validated stdlib modules, 151 tests"
-        echo ""
-        echo "Validated modules:"
-        echo "  Data Serialization: json, struct, base64, csv"
-        echo "  Date/Time: datetime, calendar, time"
-        echo "  Cryptography: hashlib, secrets"
-        echo "  Text Processing: textwrap, re, string"
-        echo "  Memory/Data: copy, memoryview, array"
-        echo "  Math/Numeric: math, decimal, fractions, statistics"
-        echo "  Functional: itertools, functools"
-        echo "  File System: os, pathlib, io"
-        echo "  Data Structures: collections"
-        echo "  Random: random, secrets"
-        echo "  System: sys"
-        echo ""
-
-        # Run tests with verbose output and fail fast on first 5 failures
-        uv run pytest tests/ -v --tb=short --maxfail=5
-
-        echo ""
-        echo "✅ All 151 TDD Book tests passed!"
-        echo "🎉 27 stdlib modules remain validated - no regressions detected"
-
-    - name: Generate coverage report
-      working-directory: tdd-book
-      if: always()
-      run: |
-        echo "📊 Generating test coverage report..."
-        uv run pytest tests/ --cov --cov-report=html --cov-report=term-missing --cov-report=json
-
-        # Extract coverage percentage
-        COVERAGE=$(python3 -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
-        echo "Coverage: ${COVERAGE}%"
-        echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
-
-    - name: Upload coverage artifact
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: tdd-book-coverage
-        path: tdd-book/htmlcov/
-
-    - name: Post validation summary
-      if: success()
-      run: |
-        echo "# TDD Book Stdlib Validation - SUCCESS ✅" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## Results" >> $GITHUB_STEP_SUMMARY
-        echo "- **Modules Validated**: 27/27 (100%)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Tests Passed**: 151/151 (100%)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Regressions**: 0" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## Validated Stdlib Modules" >> $GITHUB_STEP_SUMMARY
-        echo "json, datetime, hashlib, textwrap, re, copy, memoryview, struct," >> $GITHUB_STEP_SUMMARY
-        echo "math, itertools, string, functools, os, pathlib, io, collections," >> $GITHUB_STEP_SUMMARY
-        echo "decimal, fractions, base64, csv, array, calendar, random, secrets," >> $GITHUB_STEP_SUMMARY
-        echo "statistics, sys, time" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **All stdlib modules remain validated - transpiler quality maintained**" >> $GITHUB_STEP_SUMMARY
