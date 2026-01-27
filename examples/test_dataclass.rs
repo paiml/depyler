@@ -3125,8 +3125,8 @@ pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_point() -> (f64, DepylerValue) {
-    let mut p1 = Point::new(0, 0);
-    let p2 = Point::new(3, 4);
+    let mut p1: Point = Point::new(0, 0);
+    let p2: Point = Point::new(3, 4);
     p1.move_by(1, 1);
     let origin = Point::origin();
     let p3 = Point::from_tuple((5, 5));
@@ -3137,6 +3137,6 @@ pub fn test_point() -> (f64, DepylerValue) {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Dataclass example for v1.2.0".to_string();
+    let _ = "Dataclass example for v1.2.0";
     Ok(())
 }

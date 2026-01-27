@@ -3107,8 +3107,8 @@ impl DepylerRegexMatch {
 #[doc = "Infers numeric types from arithmetic operations."]
 #[doc = " Depyler: proven to terminate"]
 pub fn numeric_operations(x: i32, y: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let sum_val: i32 = (x).py_add(y);
-    let _cse_temp_0 = (x).py_mul(y);
+    let sum_val: i32 = ((x).py_add(y)) as i32;
+    let _cse_temp_0 = ((x).py_mul(y)) as i32;
     let product: i32 = _cse_temp_0;
     let _cse_temp_1 = x > y;
     if _cse_temp_1 {
@@ -3131,14 +3131,11 @@ pub fn string_manipulation(text: &str) -> String {
 #[doc = "Infers list type from list operations."]
 #[doc = " Depyler: verified panic-free"]
 pub fn list_processing(items: &mut Vec<String>) -> Vec<String> {
-    items.push("new item".to_string().to_string());
+    items.push("new item".to_string());
     items.extend(
-        vec![
-            "more".to_string().to_string(),
-            "items".to_string().to_string(),
-        ]
-        .iter()
-        .cloned(),
+        vec!["more".to_string(), "items".to_string()]
+            .iter()
+            .cloned(),
     );
     let mut result: Vec<String> = vec![];
     for item in items.iter().cloned() {
@@ -3154,7 +3151,7 @@ pub fn mixed_inference(
     let mut total: i32 = Default::default();
     total = 0;
     for value in data.iter().cloned() {
-        total = (total).py_add((value).py_mul(multiplier));
+        total = ((total).py_add((value).py_mul(multiplier))) as i32;
     }
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = {
@@ -3234,7 +3231,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'b, 'a>(
+pub fn confidence_levels_demo<'a, 'b>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<i32>,
@@ -3244,7 +3241,7 @@ pub fn confidence_levels_demo<'b, 'a>(
         .trim()
         .to_string()
         .replace(" ", "_");
-    let _cse_temp_0 = (probable_num).py_mul(2);
+    let _cse_temp_0 = ((probable_num).py_mul(2i32)) as i32;
     let doubled: i32 = _cse_temp_0;
     let _cse_temp_1 = possible_container.len() as i32;
     let size: i32 = _cse_temp_1;
@@ -3254,7 +3251,7 @@ pub fn confidence_levels_demo<'b, 'a>(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simple_arithmetic(a: i32, b: i32) -> i32 {
-    let result: i32 = (a).py_add(b);
+    let result: i32 = ((a).py_add(b)) as i32;
     result
 }
 #[doc = "Simple string concatenation."]
@@ -3270,7 +3267,7 @@ pub fn simple_list_sum(numbers: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for n in numbers.iter().cloned() {
-        total = (total).py_add(n);
+        total = ((total).py_add(n)) as i32;
     }
     total
 }
@@ -3309,7 +3306,7 @@ pub fn list_comprehension_typed(numbers: &Vec<i32>) -> Vec<i32> {
         .as_slice()
         .iter()
         .cloned()
-        .map(|n| (n).py_mul(2))
+        .map(|n| (n).py_mul(2i32))
         .collect::<Vec<_>>();
     doubled
 }

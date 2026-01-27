@@ -3133,7 +3133,7 @@ pub fn test_dictionary_assignment() -> HashMap<String, DepylerValue> {
             .collect(),
         ),
     );
-    nested.get_mut(&"level1".to_string()).unwrap().insert(
+    nested.get_mut("level1").unwrap().insert(
         "level2".to_string(),
         DepylerValue::Str("deep".to_string().to_string()),
     );
@@ -3197,17 +3197,17 @@ pub fn test_break_continue() -> Result<i32, Box<dyn std::error::Error>> {
     }
     count = 0;
     for i in 0..(10) {
-        if (i).py_mod(2) == 0 {
+        if (i).py_mod(2i32) == 0 {
             continue;
         }
-        count = (count).py_add(1);
+        count = ((count).py_add(1i32)) as i32;
     }
     Ok(count)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Depyler v1.1.0 Core Features Demo".to_string();
+    let _ = "Depyler v1.1.0 Core Features Demo";
     Ok(())
 }
 #[cfg(test)]

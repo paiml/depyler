@@ -27,10 +27,33 @@ pub fn format_rust_code(code: String) -> String {
     let code = apply_string_replacements(code);
 
     // Then run rustfmt to ensure idiomatic formatting
-    match run_rustfmt(&code) {
+    let formatted = match run_rustfmt(&code) {
         Ok(formatted) => formatted,
         Err(_) => code, // Fall back to unformatted if rustfmt fails
-    }
+    };
+
+    // DEPYLER-SYNTAX-FIX: Apply operator fixes AFTER rustfmt
+    // TokenStream.to_string() can produce "! =" instead of "!="
+    // and rustfmt doesn't always fix this
+    apply_operator_fixes(formatted)
+}
+
+/// Fix operator spacing issues that may remain after rustfmt
+fn apply_operator_fixes(code: String) -> String {
+    code.replace(" ! = (", " != (")
+        .replace(" ! = ", " != ")
+        .replace(" ! =", " !=")
+        .replace("! = (", " != (")
+        .replace("! = ", "!= ")
+        // DEPYLER-SYNTAX-FIX: Fix `= =` -> `==` (equality comparison)
+        .replace(" = = (", " == (")
+        .replace(" = = ", " == ")
+        .replace(" = =", " ==")
+        .replace("= = (", " == (")
+        .replace("= = ", "== ")
+        // Fix dereference spacing
+        .replace("(* ", "(*")
+        .replace(" *)", "*)")
 }
 
 /// Run rustfmt on code string and return formatted result
@@ -96,9 +119,13 @@ fn apply_string_replacements(code: String) -> String {
         .replace(" = =", " ==")
         .replace("= = ", "== ")
         // DEPYLER-1002: Fix inequality operator spacing (! = -> !=)
-        .replace(" ! = ", " != ")
-        .replace(" ! =", " !=")
-        .replace("! = ", "!= ")
+        // Must handle ALL combinations of spaces around ! = pattern
+        // Order matters: most specific patterns first, then general patterns
+        .replace(" ! = (", " != (") // space before !, space after =, followed by (
+        .replace(" ! = ", " != ") // space before !, space after =
+        .replace(" ! =", " !=") // space before !, no space after =
+        .replace("! = (", " != (") // no space before !, space after =, followed by (
+        .replace("! = ", "!= ") // no space before !
         // Fix assignment operator spacing issues
         .replace("=(", " = (")
         .replace("= (", " = (")
@@ -119,8 +146,16 @@ fn apply_string_replacements(code: String) -> String {
         // Fix reference spacing
         .replace("& self", "&self")
         .replace("& mut", "&mut")
+        // Fix dereference spacing
+        .replace("(* ", "(*")
+        .replace(" *)", "*)")
         // Fix macro spacing (space before !)
-        .replace(" !", "!")
+        // CAREFUL: Don't break != operator - only fix common macros
+        .replace("vec! [", "vec![")
+        .replace("vec! {", "vec!{")
+        .replace("println! (", "println!(")
+        .replace("format! (", "format!(")
+        .replace("panic! (", "panic!(")
         // Fix comparison operator spacing
         .replace("value<", "value < ")
         .replace("<self", "< self")

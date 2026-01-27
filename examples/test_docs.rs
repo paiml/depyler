@@ -3181,7 +3181,7 @@ pub fn fibonacci(n: i32) -> i32 {
         return n;
     }
     let (mut a, mut b) = (0, 1);
-    for __sanitized in (2)..((n).py_add(1)) {
+    for __sanitized in (2)..((n).py_add(1i32)) {
         (a, b) = (b, (a).py_add(b));
     }
     b
@@ -3232,7 +3232,7 @@ pub fn process_data<'a, 'b>(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    let mut processor = DataProcessor::new("example".to_string());
+    let mut processor: DataProcessor = DataProcessor::new("example".to_string());
     processor.add_batch(vec![1, 2, 3, 4, 5]);
     let summary = processor.get_summary();
     println!("{}", format!("Summary: {:?}", summary));

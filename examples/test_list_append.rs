@@ -3104,13 +3104,13 @@ impl Logger {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_logger() -> i32 {
-    let mut logger = Logger::new();
-    let count = logger.log("Hello".to_string());
+    let mut logger: Logger = Logger::new();
+    let count = logger.log("Hello");
     count
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test list append method".to_string();
+    let _ = "Test list append method";
     Ok(())
 }

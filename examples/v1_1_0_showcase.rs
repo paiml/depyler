@@ -3152,9 +3152,9 @@ pub fn showcase_dictionary_assignment() -> (
         map
     };
     nested
-        .get_mut(&"level1")
+        .get_mut("level1")
         .unwrap()
-        .get_mut(&"level2")
+        .get_mut("level2")
         .unwrap()
         .insert("level3".to_string(), "deep value".to_string());
     let mut coords: std::collections::HashMap<String, DepylerValue> = {
@@ -3245,12 +3245,11 @@ pub fn showcase_set_comprehensions() -> (
         .into_iter()
         .filter(|x| {
             let x = x.clone();
-            (x).py_mod(2) == 0
+            (x).py_mod(2i32) == 0
         })
         .map(|x| (x).py_mul(x))
         .collect::<std::collections::HashSet<_>>();
     let unique_chars: std::collections::HashSet<DepylerValue> = "hello world"
-        .to_string()
         .into_iter()
         .filter(|c| {
             let c = c.clone();
@@ -3300,7 +3299,7 @@ pub fn showcase_control_flow(
     }
     let mut result2: Vec<DepylerValue> = vec![];
     for i in 0..(10) {
-        if (i).py_mod(2) == 0 {
+        if (i).py_mod(2i32) == 0 {
             continue;
         }
         result2.push(DepylerValue::Int(i as i64));
@@ -3363,7 +3362,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         showcase_set_comprehensions()
     );
     println!("{} {}", "Frozen Sets:", showcase_frozen_sets());
-    println!("{} {:?}", "Control Flow:", showcase_control_flow());
+    println!("{} {}", "Control Flow:", showcase_control_flow().unwrap());
     println!("{} {}", "Power Operator:", showcase_power_operator());
     Ok(())
 }

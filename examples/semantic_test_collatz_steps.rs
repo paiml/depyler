@@ -3107,7 +3107,7 @@ pub fn collatz_steps(mut n: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut steps: i32 = Default::default();
     steps = 0;
     while n != 1 {
-        if (n).py_mod(2) == 0 {
+        if (n).py_mod(2i32) == 0 {
             n = {
                 let a = n;
                 let b = 2;
@@ -3125,17 +3125,17 @@ pub fn collatz_steps(mut n: i32) -> Result<i32, Box<dyn std::error::Error>> {
                 }
             };
         } else {
-            let triple: i32 = ((n).py_add(n)).py_add(n);
-            n = (triple).py_add(1);
+            let triple: i32 = (((n).py_add(n) as i32).py_add(n)) as i32;
+            n = ((triple).py_add(1i32)) as i32;
         }
-        steps = (steps).py_add(1);
+        steps = ((steps).py_add(1i32)) as i32;
     }
     Ok(steps)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", collatz_steps(27));
+    println!("{}", collatz_steps(27).unwrap());
     Ok(())
 }
 #[cfg(test)]

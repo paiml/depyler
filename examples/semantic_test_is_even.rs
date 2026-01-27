@@ -3105,7 +3105,7 @@ impl DepylerRegexMatch {
 }
 #[doc = " Depyler: proven to terminate"]
 pub fn is_even(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
-    Ok((n).py_mod(2) == 0)
+    Ok((n).py_mod(2i32) == 0)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

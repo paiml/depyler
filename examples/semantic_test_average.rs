@@ -3107,7 +3107,7 @@ pub fn average(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total: i32 = Default::default();
     total = 0;
     for n in nums.iter().cloned() {
-        total = (total).py_add(n);
+        total = ((total).py_add(n)) as i32;
     }
     Ok({
         let a = total;
@@ -3129,7 +3129,7 @@ pub fn average(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", average(&vec![10, 20, 30, 40, 50]));
+    println!("{}", average(&vec![10, 20, 30, 40, 50]).unwrap());
     Ok(())
 }
 #[cfg(test)]

@@ -3363,7 +3363,7 @@ pub fn higher_order(func: impl Fn(i32, i32) -> i32, a: i32, b: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_all_types() {
     println!("{}", "Type Extraction Examples");
-    println!("{}", ("=").py_mul(40));
+    println!("{}", ("=").py_mul(40i32));
     let result1 = simple_types(1, 2.0, "hello".to_string(), true, None);
     println!("{}", format!("Simple types result: {:?}", result1));
     let result2 = container_types(
@@ -3375,8 +3375,8 @@ pub fn demo_all_types() {
         },
         {
             let mut set = std::collections::HashSet::new();
-            set.insert("x".to_string());
-            set.insert("y".to_string());
+            set.insert("x");
+            set.insert("y");
             set
         },
         (1, 2, 3),
@@ -3384,8 +3384,8 @@ pub fn demo_all_types() {
     println!("{}", format!("Container types result: {:?}", result2));
     let result3 = optional_types(&Some(42), "either".to_string(), 3.14);
     println!("{}", format!("Optional types result: {:?}", result3));
-    let int_container = Container::new(42);
-    let str_container = Container::new("hello".to_string());
+    let int_container: Container = Container::new(42);
+    let str_container: Container = Container::new("hello".to_string());
     println!(
         "{}",
         format!(
@@ -3397,7 +3397,7 @@ pub fn demo_all_types() {
     let mapping = (Mapping.clone().py_index(DepylerValue::Int(
         (|x: &_| x.to_string(), |x| x as i32) as i64,
     )))();
-    mapping.put("answer".to_string(), 42);
+    mapping.put("answer", 42);
     println!(
         "{}",
         format!("Generic mapping: {}", mapping.get("answer").cloned())

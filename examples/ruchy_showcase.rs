@@ -9,7 +9,7 @@
 }
 impl std::fmt::Display for IndexError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "index out of range: {}", self.message)
+    write !(f, "index out of range: {}", self.message)
 }
 } impl std::error::Error for IndexError {
    
@@ -89,7 +89,7 @@ else {
 }.into_iter().filter(| x | {
     let x = x.clone();
     x>= pivot }).map(| x | x).collect::<Vec<_>>();
-    Ok(quicksort(less) ?.iter().chain (vec! [pivot].iter()).cloned().collect::<Vec<_>>().iter().chain (quicksort(greater) ?.iter()).cloned().collect::<Vec<_>>())
+    Ok(quicksort(less) ?.iter().chain (vec ! [pivot].iter()).cloned().collect::<Vec<_>>().iter().chain (quicksort(greater) ?.iter()).cloned().collect::<Vec<_>>())
 }
 #[doc = "Process data using functional pipeline style."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_data(numbers: & Vec<i32>) -> Vec<i32>{
     let result = numbers.as_slice().iter().cloned().filter(| x | {
@@ -99,10 +99,10 @@ else {
 }
 #[doc = "Create a greeting with optional title."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn greet(name: String, title: & Option<String>) -> String {
     if let Some(ref title_val) = title {
-    format!("Hello, {:?} {}!", title_val, name)
+    format !("Hello, {:?} {}!", title_val, name)
 }
 else {
-    format!("Hello, {}!", name)
+    format !("Hello, {}!", name)
 }
 } #[doc = "Async function that will map to Ruchy's async support."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_and_process(url: & str) -> String {
     let data = fetch_data(url.to_string()).await;
@@ -110,50 +110,50 @@ else {
     processed.to_string()
 }
 #[doc = "Simulate fetching data."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_data(url: String) -> String {
-    format!("Data from {}", url)
+    format !("Data from {}", url)
 }
 #[doc = "Process text data."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_text(text: & str) -> String {
     text.to_uppercase()
 }
 #[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & str) -> String {
     if true {
-    return format!("Integer: {}", value);
+    return format !("Integer: {}", value);
    
 }
 else {
     if true {
-    return format!("String: {}", value);
+    return format !("String: {}", value);
    
 }
 else {
     if true {
-    return format!("List with {} items", value.len() as i32);
+    return format !("List with {} items", value.len() as i32);
    
 }
 else {
-    return "Unknown type".to_string();
+    return "Unknown type".to_string().to_string();
    
 }
 }
 }
 } #[doc = "Main entry point."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", format!("Fibonacci(10) = {}", fibonacci(10)));
-    let arr = vec! [64, 34, 25, 12, 22, 11, 90];
+    println !("{}", format !("Fibonacci(10) = {}", fibonacci(10)));
+    let arr = vec ! [64, 34, 25, 12, 22, 11, 90];
     let sorted_arr = quicksort(arr) ?;
-    println!("{}", format!("Sorted array: {:?}", sorted_arr));
-    let numbers = vec! [1, - 2, 3, - 4, 5];
+    println !("{}", format !("Sorted array: {:?}", sorted_arr));
+    let numbers = vec ! [1, - 2, 3, - 4, 5];
     let processed = process_data(& numbers);
-    println!("{}", format!("Processed: {:?}", processed));
-    println!("{}", greet("Alice".to_string(), & None));
-    println!("{}", greet("Bob".to_string(), & "Dr."));
+    println !("{}", format !("Processed: {:?}", processed));
+    println !("{}", greet("Alice".to_string(), & None));
+    println !("{}", greet("Bob".to_string(), & "Dr."));
     let processor = DataProcessor::new(10);
-    let data = vec! [5, 10, 15, 20, 25];
+    let data = vec ! [5, 10, 15, 20, 25];
     let filtered = processor.filter_data(data);
     let transformed = processor.transform_data(filtered);
-    println!("{}", format!("Filtered and transformed: {:?}", transformed));
-    println!("{}", pattern_matching_example(42));
-    println!("{}", pattern_matching_example(& "hello"));
-    println!("{}", pattern_matching_example(& vec! [1, 2, 3]));
+    println !("{}", format !("Filtered and transformed: {:?}", transformed));
+    println !("{}", pattern_matching_example(42));
+    println !("{}", pattern_matching_example(& "hello"));
+    println !("{}", pattern_matching_example(& vec ! [1, 2, 3]));
     Ok(())
 }
 #[cfg(test)] mod tests {
@@ -161,16 +161,16 @@ else {
     use quickcheck::{
     quickcheck, TestResult };
     #[test] fn test_fibonacci_examples() {
-    assert_eq!(fibonacci(0), 0);
-    assert_eq!(fibonacci(1), 1);
-    assert_eq!(fibonacci(- 1), - 1);
+    assert_eq !(fibonacci(0), 0);
+    assert_eq !(fibonacci(1), 1);
+    assert_eq !(fibonacci(- 1), - 1);
    
 }
 #[test] fn quickcheck_quicksort() {
     fn prop(arr: Vec<i32>) -> TestResult {
     let input_len = arr.len();
     let result = quicksort(& arr);
-    if result.len()!= input_len {
+    if result.len() != input_len {
     return TestResult::failed();
    
 }
@@ -184,7 +184,7 @@ let result = quicksort(& arr);
     input_sorted.sort();
     let mut result = quicksort(& arr);
     result.sort();
-    if input_sorted!= result {
+    if input_sorted != result {
     return TestResult::failed();
    
 }
@@ -194,13 +194,13 @@ quickcheck(prop as fn(Vec<i32>) -> TestResult);
    
 }
 #[test] fn test_quicksort_examples() {
-    assert_eq!(quicksort(vec! []), vec! []);
-    assert_eq!(quicksort(vec! [1]), vec! [1]);
+    assert_eq !(quicksort(vec ! []), vec ! []);
+    assert_eq !(quicksort(vec ! [1]), vec ! [1]);
    
 }
 #[test] fn test_process_data_examples() {
-    assert_eq!(process_data(vec! []), vec! []);
-    assert_eq!(process_data(vec! [1]), vec! [1]);
+    assert_eq !(process_data(vec ! []), vec ! []);
+    assert_eq !(process_data(vec ! [1]), vec ! [1]);
    
 }
 }

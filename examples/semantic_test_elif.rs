@@ -3091,17 +3091,17 @@ impl DepylerRegexMatch {
 pub fn classify_number(n: i32) -> String {
     let _cse_temp_0 = n < 0;
     if _cse_temp_0 {
-        return "negative".to_string();
+        return "negative".to_string().to_string();
     } else {
         let _cse_temp_1 = n == 0;
         if _cse_temp_1 {
-            return "zero".to_string();
+            return "zero".to_string().to_string();
         } else {
             let _cse_temp_2 = n < 10;
             if _cse_temp_2 {
-                return "small".to_string();
+                return "small".to_string().to_string();
             } else {
-                return "large".to_string();
+                return "large".to_string().to_string();
             }
         }
     }

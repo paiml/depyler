@@ -3093,7 +3093,7 @@ pub fn fib(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fib((n).py_sub(1))).py_add(fib((n).py_sub(2)))
+    (fib((n).py_sub(1i32))).py_add(fib((n).py_sub(2i32)))
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

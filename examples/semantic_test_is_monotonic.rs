@@ -3121,7 +3121,7 @@ pub fn is_monotonic(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>>
             .expect("IndexError: list index out of range")
             > {
                 let base = &nums;
-                let idx: i32 = (i).py_sub(1);
+                let idx: i32 = (i).py_sub(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3140,7 +3140,7 @@ pub fn is_monotonic(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>>
             .expect("IndexError: list index out of range")
             < {
                 let base = &nums;
-                let idx: i32 = (i).py_sub(1);
+                let idx: i32 = (i).py_sub(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3153,7 +3153,7 @@ pub fn is_monotonic(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>>
         {
             increasing = false;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok((increasing) || (decreasing))
 }

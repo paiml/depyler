@@ -3092,7 +3092,7 @@ pub fn sum_range(n: i32) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for i in 0..(n) {
-        total = (total).py_add(i);
+        total = ((total).py_add(i)) as i32;
     }
     total
 }

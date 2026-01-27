@@ -3095,11 +3095,11 @@ pub fn test_basic_lambdas() {
     let result2 = add(3, 4);
     let get_value = move || 42;
     let result3 = get_value();
-    let _ = ((result1).py_add(result2)).py_add(result3);
+    let _ = ((result1).py_add(result2) as i32).py_add(result3);
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Simple lambda function tests".to_string();
+    let _ = "Simple lambda function tests";
     Ok(())
 }

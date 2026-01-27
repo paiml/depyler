@@ -3112,14 +3112,14 @@ pub fn count_peaks(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     }
     count = 0;
     let mut i: i32 = 1;
-    while i < (nums.len() as i32).py_sub(1) {
+    while i < (nums.len() as i32).py_sub(1i32) {
         if (nums
             .get(i as usize)
             .cloned()
             .expect("IndexError: list index out of range")
             > {
                 let base = &nums;
-                let idx: i32 = (i).py_sub(1);
+                let idx: i32 = (i).py_sub(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3135,7 +3135,7 @@ pub fn count_peaks(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
                 .expect("IndexError: list index out of range")
                 > {
                     let base = &nums;
-                    let idx: i32 = (i).py_add(1);
+                    let idx: i32 = (i).py_add(1i32);
                     let actual_idx = if idx < 0 {
                         base.len().saturating_sub(idx.abs() as usize)
                     } else {
@@ -3146,16 +3146,16 @@ pub fn count_peaks(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
                         .expect("IndexError: list index out of range")
                 })
         {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(count)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", count_peaks(&vec![1, 3, 2, 4, 1, 5, 2]));
+    println!("{}", count_peaks(&vec![1, 3, 2, 4, 1, 5, 2]).unwrap());
     Ok(())
 }
 #[cfg(test)]

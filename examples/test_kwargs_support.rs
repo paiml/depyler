@@ -3114,16 +3114,16 @@ impl MyObject {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_function_kwargs() -> (String, i32, std::collections::HashMap<String, DepylerValue>) {
-    let result1 = greet("Alice".to_string(), "Hello".to_string());
-    let result2 = calculate(10, 20, "add".to_string(), true);
-    let result3 = configure(800, 600, "My App".to_string());
+    let result1 = greet("Alice", "Hello");
+    let result2 = calculate(10, 20, "add", true);
+    let result3 = configure(800, 600, "My App");
     (result1, result2, result3)
 }
 #[doc = "Test method calls with keyword arguments"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_method_kwargs() -> String {
-    let mut obj = MyObject::new();
+    let mut obj: MyObject = MyObject::new();
     obj.setup();
     let text = "hello world";
     let formatted = text.replace("world", "Python");
@@ -3149,10 +3149,10 @@ pub fn demo_nested_kwargs() -> f64 {
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_complex_kwargs() -> HashMap<String, DepylerValue> {
     let settings = configure(
-        (100).py_add(200),
+        (100i32).py_add(200i32),
         get_height(),
         (true) && (!false),
-        ("App ".to_string()).py_add((42).to_string()),
+        ("App ").py_add((42).to_string()),
     );
     settings
 }
@@ -3167,9 +3167,9 @@ pub fn calculate(a: i32, b: i32, operation: &str, verbose: bool) -> i32 {
     let mut result: DepylerValue = Default::default();
     let _cse_temp_0 = (*operation) == "add";
     if _cse_temp_0 {
-        result = (a).py_add(b);
+        result = ((a).py_add(b)) as i32;
     } else {
-        result = (a).py_sub(b);
+        result = ((a).py_sub(b)) as i32;
     }
     if verbose {
         println!("{}", format!("Result: {}", result));
@@ -3193,7 +3193,10 @@ pub fn configure(width: i32, height: i32, title: &str) -> HashMap<String, Depyle
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn outer(inner_result: f64, scale: f64, offset: &Option<DepylerValue>) -> f64 {
-    ((inner_result).py_mul(scale)).py_add(offset)
+    {
+        let _r: f64 = ((inner_result).py_mul(scale) as f64).py_add(offset);
+        _r
+    }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

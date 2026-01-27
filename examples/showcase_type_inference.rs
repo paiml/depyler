@@ -3106,8 +3106,8 @@ impl DepylerRegexMatch {
 #[doc = "Infers numeric types from arithmetic operations."]
 #[doc = " Depyler: proven to terminate"]
 pub fn numeric_operations(x: i32, y: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let sum_val = (x).py_add(y);
-    let _cse_temp_0 = (x).py_mul(y);
+    let sum_val = ((x).py_add(y)) as i32;
+    let _cse_temp_0 = ((x).py_mul(y)) as i32;
     let product = _cse_temp_0;
     let _cse_temp_1 = x > y;
     if _cse_temp_1 {
@@ -3130,11 +3130,11 @@ pub fn string_manipulation(text: &str) -> String {
 #[doc = "Infers list type from list operations."]
 #[doc = " Depyler: verified panic-free"]
 pub fn list_processing(items: &mut Vec<DepylerValue>) -> Vec<DepylerValue> {
-    items.push(DepylerValue::Str("new item".to_string()));
+    items.push(DepylerValue::Str("new item"));
     items.extend(
         vec![
-            DepylerValue::Str("more".to_string().to_string()),
-            DepylerValue::Str("items".to_string().to_string()),
+            DepylerValue::Str("more".to_string()),
+            DepylerValue::Str("items".to_string()),
         ]
         .iter()
         .cloned(),
@@ -3153,10 +3153,10 @@ pub fn mixed_inference(
     let mut total: i32 = Default::default();
     total = 0;
     for value in data.iter().cloned() {
-        total = (total).py_add((value).py_mul(multiplier));
+        total = ((total).py_add((value).py_mul(multiplier))) as i32;
     }
     let _cse_temp_0 = data.len() as i32;
-    let _cse_temp_1 = ((total).py_div(_cse_temp_0) as i32);
+    let _cse_temp_1 = ((total).py_div(_cse_temp_0) as i32) as i32;
     let average = _cse_temp_1;
     Ok(average)
 }
@@ -3196,7 +3196,7 @@ pub fn dictionary_operations(mapping: &str) -> Option<DepylerValue> {
     let values = mapping.values().cloned().collect::<Vec<_>>();
     let _cse_temp_0 = mapping.contains("key");
     if _cse_temp_0 {
-        return Some(mapping.get("key").cloned().unwrap_or("default"));
+        return Some(mapping.get("key").cloned().unwrap_or("default".to_string()));
     }
     None
 }
@@ -3226,7 +3226,7 @@ pub fn confidence_levels_demo<'a, 'b>(
         .trim()
         .to_string()
         .replace(" ", "_");
-    let _cse_temp_0 = (probable_num).py_mul(2);
+    let _cse_temp_0 = ((probable_num).py_mul(2i32)) as i32;
     let doubled = _cse_temp_0;
     let _cse_temp_1 = possible_container.len() as i32;
     let size = _cse_temp_1;
@@ -3235,7 +3235,7 @@ pub fn confidence_levels_demo<'a, 'b>(
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive showcase of Depyler's type inference capabilities.\nThis example demonstrates how Depyler can infer types from usage patterns.\n".to_string();
+    let _ = "\nComprehensive showcase of Depyler's type inference capabilities.\nThis example demonstrates how Depyler can infer types from usage patterns.\n";
     Ok(())
 }
 #[cfg(test)]

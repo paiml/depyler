@@ -3092,7 +3092,7 @@ pub fn bounded_sum(nums: &Vec<i32>, lo: i32, hi: i32) -> i32 {
     total = 0;
     for n in nums.iter().cloned() {
         if (n >= lo) && (n <= hi) {
-            total = (total).py_add(n);
+            total = ((total).py_add(n)) as i32;
         }
     }
     total

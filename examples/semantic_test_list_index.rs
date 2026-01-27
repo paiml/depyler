@@ -3114,6 +3114,6 @@ pub fn get_item(items: &Vec<i32>, idx: i32) -> Result<i32, Box<dyn std::error::E
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let nums: Vec<i32> = vec![10, 20, 30, 40, 50];
-    println!("{:?}", get_item(&nums, 2));
+    println!("{}", get_item(&nums, 2).unwrap());
     Ok(())
 }

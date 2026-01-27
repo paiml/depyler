@@ -3093,7 +3093,7 @@ pub fn factorial(n: i32) -> i32 {
     if _cse_temp_0 {
         return 1;
     }
-    (n).py_mul(factorial((n).py_sub(1)))
+    (n).py_mul(factorial((n).py_sub(1i32)))
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

@@ -3106,7 +3106,7 @@ impl DepylerRegexMatch {
 pub fn has_duplicate(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>> {
     let mut i: i32 = 0;
     while i < nums.len() as i32 {
-        let mut j: i32 = (i).py_add(1);
+        let mut j: i32 = ((i).py_add(1i32)) as i32;
         while j < nums.len() as i32 {
             if nums
                 .get(i as usize)
@@ -3119,9 +3119,9 @@ pub fn has_duplicate(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>
             {
                 return Ok(true);
             }
-            j = (j).py_add(1);
+            j = ((j).py_add(1i32)) as i32;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(false)
 }

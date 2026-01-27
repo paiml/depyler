@@ -6,9 +6,9 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 use std::collections::VecDeque;
-const STR_A: &'static str = "a";
-const STR_APPLE: &'static str = "apple";
 const STR_B: &'static str = "b";
+const STR_APPLE: &'static str = "apple";
+const STR_A: &'static str = "a";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -3204,7 +3204,7 @@ pub fn test_counter_most_common(
         count_list.push(pair);
     }
     for i in 0..(count_list.len() as i32) {
-        for j in ((i).py_add(1))..(count_list.len() as i32) {
+        for j in ((i).py_add(1i32))..(count_list.len() as i32) {
             if count_list
                 .get(j as usize)
                 .cloned()
@@ -3301,7 +3301,7 @@ pub fn test_defaultdict_int() -> HashMap<String, i32> {
     ];
     for word in words.iter().cloned() {
         let current: i32 = counts.get(&word).cloned().unwrap_or(0);
-        counts.insert(word.to_string().clone(), (current).py_add(1));
+        counts.insert(word.to_string().clone(), (current).py_add(1i32));
     }
     counts
 }
@@ -3444,7 +3444,7 @@ pub fn group_by_first_letter(
 #[doc = "Use deque as a stack(LIFO)"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_deque_as_stack() -> Vec<i32> {
-    let mut stack: std::collections::VecDeque<i32> = VecDeque::new();
+    let mut stack: std::collections::VecDeque<i32> = VecDeque::<i32>::new();
     stack.push_back(1);
     stack.push_back(2);
     stack.push_back(3);
@@ -3458,7 +3458,7 @@ pub fn test_deque_as_stack() -> Vec<i32> {
 #[doc = "Use deque as a queue(FIFO)"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_deque_as_queue() -> Vec<i32> {
-    let mut queue: std::collections::VecDeque<i32> = VecDeque::new();
+    let mut queue: std::collections::VecDeque<i32> = VecDeque::<i32>::new();
     queue.push_back(1);
     queue.push_back(2);
     queue.push_back(3);
@@ -3472,7 +3472,7 @@ pub fn test_deque_as_queue() -> Vec<i32> {
 #[doc = "Manual implementation of LRU cache concept using deque"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_lru_cache_manual(cache_size: i32) -> Vec<i32> {
-    let mut cache: std::collections::VecDeque<i32> = VecDeque::new();
+    let mut cache: std::collections::VecDeque<i32> = VecDeque::<i32>::new();
     let max_size: i32 = cache_size;
     let items: Vec<i32> = vec![1, 2, 3, 1, 4, 2, 5, 1, 6];
     let mut result: Vec<i32> = vec![];
@@ -3551,6 +3551,6 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python collections module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's collections module\ntypes to their Rust equivalents.\n\nExpected Rust mappings:\n- deque -> VecDeque\n- Counter -> HashMap<T, usize>\n- defaultdict -> HashMap with default values\n- OrderedDict -> LinkedHashMap or IndexMap\n- namedtuple -> struct\n\nNote: Some collection types may have limited support.\n".to_string();
+    let _ = "\nComprehensive test of Python collections module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's collections module\ntypes to their Rust equivalents.\n\nExpected Rust mappings:\n- deque -> VecDeque\n- Counter -> HashMap<T, usize>\n- defaultdict -> HashMap with default values\n- OrderedDict -> LinkedHashMap or IndexMap\n- namedtuple -> struct\n\nNote: Some collection types may have limited support.\n";
     Ok(())
 }

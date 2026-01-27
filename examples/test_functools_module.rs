@@ -3128,7 +3128,7 @@ pub fn test_reduce_sum(numbers: &Vec<i32>) -> i32 {
     let mut result: i32 = Default::default();
     result = 0;
     for num in numbers.iter().cloned() {
-        result = (result).py_add(num);
+        result = ((result).py_add(num)) as i32;
     }
     result
 }
@@ -3143,7 +3143,7 @@ pub fn test_reduce_product(numbers: &Vec<i32>) -> i32 {
     }
     result = 1;
     for num in numbers.iter().cloned() {
-        result = (result).py_mul(num);
+        result = ((result).py_mul(num)) as i32;
     }
     result
 }
@@ -3199,7 +3199,7 @@ pub fn test_reduce_concatenate(strings: &Vec<String>) -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn multiply_by_two(x: i32) -> i32 {
-    (x).py_mul(2)
+    (x).py_mul(2i32)
 }
 #[doc = "Function for partial application"]
 #[doc = " Depyler: verified panic-free"]
@@ -3223,7 +3223,10 @@ pub fn test_partial_application() -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn add_three_numbers(a: i32, b: i32, c: i32) -> i32 {
-    ((a).py_add(b)).py_add(c)
+    {
+        let _r: i32 = ((a).py_add(b) as i32).py_add(c);
+        _r
+    }
 }
 #[doc = "Test partial application with multiple arguments"]
 #[doc = " Depyler: verified panic-free"]
@@ -3239,10 +3242,10 @@ pub fn test_partial_multiple_args() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_compose_functions(x: i32) -> i32 {
-    let step1: i32 = (x).py_add(1);
-    let _cse_temp_0 = (step1).py_mul(2);
+    let step1: i32 = ((x).py_add(1i32)) as i32;
+    let _cse_temp_0 = ((step1).py_mul(2i32)) as i32;
     let step2: i32 = _cse_temp_0;
-    let _cse_temp_1 = (step2).py_mul(step2);
+    let _cse_temp_1 = ((step2).py_mul(step2)) as i32;
     let step3: i32 = _cse_temp_1;
     step3
 }
@@ -3256,7 +3259,7 @@ pub fn test_map_reduce_pattern(numbers: &Vec<i32>) -> i32 {
     }
     total = 0;
     for sq in squared.iter().cloned() {
-        total = (total).py_add(sq);
+        total = ((total).py_add(sq)) as i32;
     }
     total
 }
@@ -3265,7 +3268,7 @@ pub fn test_filter_reduce_pattern(numbers: &Vec<i32>) -> Result<i32, Box<dyn std
     let mut product: i32 = Default::default();
     let mut evens: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        if (num).py_mod(2) == 0 {
+        if (num).py_mod(2i32) == 0 {
             evens.push(num);
         }
     }
@@ -3276,7 +3279,7 @@ pub fn test_filter_reduce_pattern(numbers: &Vec<i32>) -> Result<i32, Box<dyn std
     }
     product = 1;
     for even in evens.iter().cloned() {
-        product = (product).py_mul(even);
+        product = ((product).py_mul(even)) as i32;
     }
     Ok(product)
 }
@@ -3290,8 +3293,8 @@ pub fn memoize_factorial(n: i32) -> i32 {
         return 1;
     }
     result = 1;
-    for i in (2)..((n).py_add(1)) {
-        result = (result).py_mul(i);
+    for i in (2)..((n).py_add(1i32)) {
+        result = ((result).py_mul(i)) as i32;
     }
     result
 }
@@ -3299,7 +3302,10 @@ pub fn memoize_factorial(n: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_currying(a: i32, b: i32, c: i32) -> i32 {
-    (a).py_add((b).py_mul(c))
+    {
+        let _r: i32 = (a).py_add((b).py_mul(c));
+        _r
+    }
 }
 #[doc = "Test accumulate pattern with custom function"]
 #[doc = " Depyler: verified panic-free"]
@@ -3307,7 +3313,7 @@ pub fn accumulate_with_function(numbers: &Vec<i32>) -> Vec<i32> {
     let mut results: Vec<i32> = vec![];
     let mut acc: i32 = 0;
     for num in numbers.iter().cloned() {
-        acc = (acc).py_add(num);
+        acc = ((acc).py_add(num)) as i32;
         results.push(acc);
     }
     results
@@ -3318,7 +3324,7 @@ pub fn test_reduce_with_initial(numbers: &Vec<i32>, initial: i32) -> i32 {
     let mut result: i32 = Default::default();
     result = initial;
     for num in numbers.iter().cloned() {
-        result = (result).py_add(num);
+        result = ((result).py_add(num)) as i32;
     }
     result
 }
@@ -3364,7 +3370,7 @@ pub fn test_reduce_group_by(items: &Vec<i32>) -> Result<Vec<Vec<i32>>, Box<dyn s
     let mut evens: Vec<i32> = vec![];
     let mut odds: Vec<i32> = vec![];
     for item in items.iter().cloned() {
-        if (item).py_mod(2) == 0 {
+        if (item).py_mod(2i32) == 0 {
             evens.push(item);
         } else {
             odds.push(item);
@@ -3380,13 +3386,13 @@ pub fn pipeline(value: i32, operations: &Vec<String>) -> i32 {
     result = value;
     for op in operations.iter().cloned() {
         if op == "double" {
-            result = (result).py_mul(2);
+            result = ((result).py_mul(2i32)) as i32;
         } else {
             if op == "increment" {
-                result = (result).py_add(1);
+                result = ((result).py_add(1i32)) as i32;
             } else {
                 if op == "square" {
-                    result = (result).py_mul(result);
+                    result = ((result).py_mul(result)) as i32;
                 }
             }
         }
@@ -3404,8 +3410,8 @@ pub fn test_memoization_fibonacci(n: i32) -> i32 {
     }
     let mut prev: i32 = 0;
     curr = 1;
-    for _i in (2)..((n).py_add(1)) {
-        let next_val: i32 = (prev).py_add(curr);
+    for _i in (2)..((n).py_add(1i32)) {
+        let next_val: i32 = ((prev).py_add(curr)) as i32;
         prev = curr;
         curr = next_val;
     }
@@ -3457,7 +3463,7 @@ pub fn test_all_functools_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python functools module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's functools module\noperations to their Rust equivalents.\n\nExpected Rust mappings:\n- functools.reduce() -> Iterator::fold()\n- functools.partial() -> closure or struct wrapper\n- functools.lru_cache() -> memoization pattern\n- functools.wraps() -> decorator pattern\n\nNote: Advanced decorator functionality may have limited support.\n".to_string();
+    let _ = "\nComprehensive test of Python functools module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's functools module\noperations to their Rust equivalents.\n\nExpected Rust mappings:\n- functools.reduce() -> Iterator::fold()\n- functools.partial() -> closure or struct wrapper\n- functools.lru_cache() -> memoization pattern\n- functools.wraps() -> decorator pattern\n\nNote: Advanced decorator functionality may have limited support.\n";
     Ok(())
 }
 #[cfg(test)]

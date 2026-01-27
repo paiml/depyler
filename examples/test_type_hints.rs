@@ -3125,7 +3125,7 @@ pub fn process_numbers(data: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error
     let mut total: i32 = Default::default();
     total = 0;
     for num in data.iter().cloned() {
-        total = (total).py_add(num);
+        total = ((total).py_add(num)) as i32;
     }
     Ok(((total).py_div(data.len() as i32) as i32) as i32)
 }
@@ -3184,7 +3184,7 @@ pub fn inferred_return_types() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn string_formatting(name: &str, age: i32) -> String {
     let formatted_name = name.to_uppercase();
-    let next_age = (age).py_add(1);
+    let next_age = ((age).py_add(1i32)) as i32;
     format!("{} will be {} next year", formatted_name, next_age)
 }
 #[doc = "Using variables as iterators."]
@@ -3231,6 +3231,6 @@ pub fn partial_annotations<'a, 'b>(
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nExample demonstrating type inference hints in Depyler.\nFunctions without type annotations will receive inference suggestions.\n".to_string();
+    let _ = "\nExample demonstrating type inference hints in Depyler.\nFunctions without type annotations will receive inference suggestions.\n";
     Ok(())
 }

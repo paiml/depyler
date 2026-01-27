@@ -3123,7 +3123,7 @@ impl DepylerRegexMatch {
 pub fn binary_search(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut left: i32 = 0;
     let _cse_temp_0 = nums.len() as i32;
-    let mut right: i32 = (_cse_temp_0).py_sub(1);
+    let mut right: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while left <= right {
         let mid: i32 = {
             let a = (left).py_add(right);
@@ -3155,9 +3155,9 @@ pub fn binary_search(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::e
             .expect("IndexError: list index out of range")
             < target
         {
-            left = (mid).py_add(1);
+            left = ((mid).py_add(1i32)) as i32;
         } else {
-            right = (mid).py_sub(1);
+            right = ((mid).py_sub(1i32)) as i32;
         }
     }
     Ok(-1)
@@ -3166,6 +3166,6 @@ pub fn binary_search(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::e
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 5, 7, 9, 11, 13];
-    println!("{:?}", binary_search(&data, 7));
+    println!("{}", binary_search(&data, 7).unwrap());
     Ok(())
 }

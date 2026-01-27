@@ -3132,7 +3132,7 @@ pub fn power_examples(base: i32, exponent: i32) -> i32 {
     };
     let result3 = _cse_temp_2;
     {
-        let _r: i32 = ((result1).py_add(result2)).py_add(result3);
+        let _r: i32 = ((result1).py_add(result2) as i32).py_add(result3);
         _r
     }
 }
@@ -3228,8 +3228,9 @@ pub fn floor_division_examples(
     };
     let result5 = _cse_temp_4;
     Ok({
-        let _r: i32 =
-            ((((result1).py_add(result2)).py_add(result3)).py_add(result4)).py_add(result5);
+        let _r: i32 = ((((result1).py_add(result2) as i32).py_add(result3) as i32).py_add(result4)
+            as i32)
+            .py_add(result5);
         _r
     })
 }
@@ -3323,8 +3324,8 @@ pub fn mathematical_sequence(n: i32) -> Result<i32, Box<dyn std::error::Error>> 
                 q
             }
         };
-        total = (total).py_add(contribution);
-        i = (i).py_add(1i32);
+        total = ((total).py_add(contribution)) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(total)
 }

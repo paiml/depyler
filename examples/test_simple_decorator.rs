@@ -3090,7 +3090,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simple_function(x: i32) -> i32 {
-    (x).py_mul(2)
+    (x).py_mul(2i32)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -3101,7 +3101,7 @@ pub fn test_no_decorator() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test simple decorator support".to_string();
+    let _ = "Test simple decorator support";
     Ok(())
 }
 #[cfg(test)]

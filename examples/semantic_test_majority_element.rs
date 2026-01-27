@@ -3125,19 +3125,19 @@ pub fn majority_element(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Erro
                 .expect("IndexError: list index out of range")
                 == candidate
             {
-                count = (count).py_add(1);
+                count = ((count).py_add(1i32)) as i32;
             } else {
-                count = (count).py_sub(1);
+                count = ((count).py_sub(1i32)) as i32;
             }
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(candidate)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", majority_element(&vec![2, 2, 1, 1, 1, 2, 2]));
+    println!("{}", majority_element(&vec![2, 2, 1, 1, 1, 2, 2]).unwrap());
     Ok(())
 }
 #[cfg(test)]

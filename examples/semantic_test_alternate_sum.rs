@@ -3093,9 +3093,9 @@ pub fn alternate_sum(nums: &Vec<i32>) -> i32 {
     let mut add: bool = true;
     for n in nums.iter().cloned() {
         if add {
-            total = (total).py_add(n);
+            total = ((total).py_add(n)) as i32;
         } else {
-            total = (total).py_sub(n);
+            total = ((total).py_sub(n)) as i32;
         }
         add = !add;
     }

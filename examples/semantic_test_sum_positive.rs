@@ -3092,7 +3092,7 @@ pub fn sum_positive(nums: &Vec<i32>) -> i32 {
     total = 0;
     for n in nums.iter().cloned() {
         if n > 0 {
-            total = (total).py_add(n);
+            total = ((total).py_add(n)) as i32;
         }
     }
     total

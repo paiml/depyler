@@ -3125,7 +3125,7 @@ pub fn midpoint(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", midpoint(10, 20));
+    println!("{}", midpoint(10, 20).unwrap());
     Ok(())
 }
 #[cfg(test)]

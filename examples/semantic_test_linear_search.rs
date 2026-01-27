@@ -3114,7 +3114,7 @@ pub fn linear_search(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::e
         {
             return Ok(i);
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(-1)
 }
@@ -3122,6 +3122,6 @@ pub fn linear_search(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::e
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![4, 2, 7, 1, 9];
-    println!("{:?}", linear_search(&data, 7));
+    println!("{}", linear_search(&data, 7).unwrap());
     Ok(())
 }

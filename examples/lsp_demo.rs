@@ -12,10 +12,8 @@ pub static data_processors: std::sync::LazyLock<
     std::collections::HashMap<DepylerValue, DepylerValue>,
 > = std::sync::LazyLock::new(|| {
     let mut map = HashMap::new();
-    map.insert("double".to_string().to_string(), move |x: i32| {
-        (x).py_mul(2)
-    });
-    map.insert("square".to_string().to_string(), move |x: i32| {
+    map.insert("double".to_string(), move |x: i32| (x).py_mul(2i32));
+    map.insert("square".to_string(), move |x: i32| {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
             ({ x } as i32)
                 .checked_pow({ 2 } as u32)
@@ -24,9 +22,7 @@ pub static data_processors: std::sync::LazyLock<
             ({ x } as f64).powf({ 2 } as f64) as i32
         }
     });
-    map.insert("stringify".to_string().to_string(), move |x: i32| {
-        (x).to_string()
-    });
+    map.insert("stringify".to_string(), move |x: i32| (x).to_string());
     map
 });
 use std::collections::HashMap;
@@ -3197,16 +3193,14 @@ pub fn calculate_fibonacci(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut curr: i32 = Default::default();
     let _cse_temp_0 = n < 0;
     if _cse_temp_0 {
-        return Err(Box::new(ValueError::new(
-            "n must be non-negative".to_string(),
-        )));
+        return Err(Box::new(ValueError::new("n must be non-negative")));
     }
     let _cse_temp_1 = n <= 1;
     if _cse_temp_1 {
         return Ok(n);
     }
     let (mut prev, mut curr) = (0, 1);
-    for __sanitized in (2)..((n).py_add(1)) {
+    for __sanitized in (2)..((n).py_add(1i32)) {
         (prev, curr) = (curr, (prev).py_add(curr));
     }
     Ok(curr)
@@ -3351,10 +3345,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", format!("10th Fibonacci number: {:?}", fib_10));
     let info_handler = create_handler("INFO".to_string());
     let error_handler = create_handler("ERROR".to_string());
-    println!("{}", info_handler("Application started".to_string()));
-    println!("{}", error_handler("Something went wrong".to_string()));
+    println!("{}", info_handler("Application started"));
+    println!("{}", error_handler("Something went wrong"));
     match (|| -> Result<(), Box<dyn std::error::Error>> {
-        let mut _context = FileManager::new(CONFIG_FILE, "w".to_string().to_string());
+        let mut _context = FileManager::new(CONFIG_FILE, "w".to_string());
         let f = _context.__enter__();
         f.write_all(json_str.as_bytes()).unwrap();
         Ok(())

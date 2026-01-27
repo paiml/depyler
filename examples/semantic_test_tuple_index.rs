@@ -3111,6 +3111,6 @@ pub fn get_second(t: (i32, i32, i32)) -> Result<i32, Box<dyn std::error::Error>>
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data: (i32, i32, i32) = (10, 20, 30);
-    println!("{:?}", get_second(data));
+    println!("{}", get_second(data).unwrap());
     Ok(())
 }

@@ -3108,7 +3108,7 @@ impl DepylerRegexMatch {
 pub fn accumulator_example(items: &Vec<i32>) -> Vec<DepylerValue> {
     let mut result: Vec<DepylerValue> = vec![];
     for item in items.iter().cloned() {
-        result.push(DepylerValue::Str(format!("{:?}", (item).py_mul(2))));
+        result.push(DepylerValue::Str(format!("{:?}", (item).py_mul(2i32))));
     }
     result
 }
@@ -3142,7 +3142,7 @@ pub fn while_true_example() -> i32 {
     let mut count: i32 = Default::default();
     count = 0;
     loop {
-        count = (count).py_add(1);
+        count = ((count).py_add(1i32)) as i32;
         if count > 10 {
             break;
         }
@@ -3152,7 +3152,7 @@ pub fn while_true_example() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nSimple example to demonstrate migration suggestions.\n".to_string();
+    let _ = "\nSimple example to demonstrate migration suggestions.\n";
     Ok(())
 }
 #[cfg(test)]

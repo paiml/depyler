@@ -3109,7 +3109,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn get_python_files(directory: &str) -> Vec<String> {
     let path = std::path::PathBuf::from(&directory);
-    vec![std::path::PathBuf::from(&format!("{}/{}", path.display(), "*.py".to_string()))
+    vec![std::path::PathBuf::from(&format!("{}/{}", path.display(), "*.py"))
         .unwrap()
         .filter_map(|e| e.ok())
         .collect::<Vec<_>>()

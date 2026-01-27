@@ -3113,7 +3113,7 @@ pub fn is_prime(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
         if (n).py_mod(i) == 0 {
             return Ok(false);
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(true)
 }

@@ -3116,25 +3116,23 @@ impl FileManager {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_simple_with() {
-    let mut _context = FileManager::new("test.txt".to_string().to_string());
+    let mut _context = FileManager::new("test.txt".to_string());
     let fm = _context.__enter__();
-    let result = fm
-        .write_all("Hello, World!".to_string().as_bytes())
-        .unwrap();
+    let result = fm.write_all("Hello, World!".as_bytes()).unwrap();
     let _ = result;
 }
 #[doc = "Test with built-in open"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_with_builtin() -> Result<i32, std::io::Error> {
-    let mut f = std::fs::File::create("test.txt".to_string())?;
-    f.write_all("Hello, World!".to_string().as_bytes()).unwrap();
+    let mut f = std::fs::File::create("test.txt")?;
+    f.write_all("Hello, World!".as_bytes()).unwrap();
     Ok(1)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test with statement support for v1.3.0".to_string();
+    let _ = "Test with statement support for v1.3.0";
     Ok(())
 }
 #[cfg(test)]

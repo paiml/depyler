@@ -3341,15 +3341,15 @@ pub fn color_to_rgb(color: i32) -> (i32, i32, i32) {
 pub fn status_to_message(status: i32) -> String {
     let _cse_temp_0 = status == Status::PENDING;
     if _cse_temp_0 {
-        return "Waiting for approval".to_string();
+        return "Waiting for approval".to_string().to_string();
     } else {
         if _cse_temp_0 {
-            return "Request approved".to_string();
+            return "Request approved".to_string().to_string();
         } else {
             if _cse_temp_0 {
-                return "Request rejected".to_string();
+                return "Request rejected".to_string().to_string();
             } else {
-                return "Unknown status".to_string();
+                return "Unknown status".to_string().to_string();
             }
         }
     }
@@ -3360,7 +3360,7 @@ pub fn status_to_message(status: i32) -> String {
 pub fn process_by_status(status: i32, value: i32) -> i32 {
     let _cse_temp_0 = status == Status::APPROVED;
     if _cse_temp_0 {
-        return (value).py_mul(2);
+        return (value).py_mul(2i32);
     } else {
         if _cse_temp_0 {
             return 0;
@@ -3434,7 +3434,7 @@ pub fn test_all_enum_features() {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python enum module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's enum module\nto Rust enums.\n\nExpected Rust mappings:\n- Enum -> enum with variants\n- IntEnum -> enum with integer discriminants\n- auto() -> automatic discriminant assignment\n\nNote: Enum functionality may be simulated with integers for simplicity.\n".to_string();
+    let _ = "\nComprehensive test of Python enum module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's enum module\nto Rust enums.\n\nExpected Rust mappings:\n- Enum -> enum with variants\n- IntEnum -> enum with integer discriminants\n- auto() -> automatic discriminant assignment\n\nNote: Enum functionality may be simulated with integers for simplicity.\n";
     Ok(())
 }
 #[cfg(test)]

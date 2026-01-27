@@ -3147,11 +3147,11 @@ pub fn calculate_fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (calculate_fibonacci((n).py_sub(1))).py_add(calculate_fibonacci((n).py_sub(2)))
+    (calculate_fibonacci((n).py_sub(1i32))).py_add(calculate_fibonacci((n).py_sub(2i32)))
 }
 #[doc = "Process a list of integers and return statistics."]
 pub fn process_data(items: &Vec<i32>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let utils = MathUtils::new();
+    let utils: MathUtils = MathUtils::new();
     let mut stats: std::collections::HashMap<String, i32> = {
         let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("count".to_string(), items.len() as i32);
@@ -3163,7 +3163,7 @@ pub fn process_data(items: &Vec<i32>) -> Result<HashMap<String, i32>, Box<dyn st
         if utils.is_prime(item) {
             stats.insert(
                 "primes".to_string(),
-                (stats.get("primes").cloned().unwrap_or_default()).py_add(1),
+                (stats.get("primes").cloned().unwrap_or_default()).py_add(1i32),
             );
         }
     }
@@ -3172,7 +3172,7 @@ pub fn process_data(items: &Vec<i32>) -> Result<HashMap<String, i32>, Box<dyn st
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nExample demonstrating IDE integration features.\n".to_string();
+    let _ = "\nExample demonstrating IDE integration features.\n";
     Ok(())
 }
 #[cfg(test)]

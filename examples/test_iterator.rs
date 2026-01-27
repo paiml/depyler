@@ -3117,12 +3117,12 @@ impl PyRange {
 #[doc = " Depyler: verified panic-free"]
 pub fn test_custom_iterator() -> i32 {
     let mut total: i32 = Default::default();
-    let mut r = PyRange::new(0, 5);
+    let mut r: Range = PyRange::new(0, 5);
     total = 0;
-    let mut value: i32 = r.__next__();
+    let mut value: i32 = r.next();
     while value != -1 {
-        total = (total).py_add(value);
-        value = r.__next__();
+        total = ((total).py_add(value)) as i32;
+        value = r.next();
     }
     total
 }
@@ -3130,17 +3130,17 @@ pub fn test_custom_iterator() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn test_for_with_iterator() -> i32 {
     let mut total: i32 = Default::default();
-    let r = PyRange::new(0, 5);
+    let r: Range = PyRange::new(0, 5);
     total = 0;
     for i in r.iter().cloned() {
-        total = (total).py_add(i);
+        total = ((total).py_add(i)) as i32;
     }
     total
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test iterator protocol for v1.3.0".to_string();
+    let _ = "Test iterator protocol for v1.3.0";
     Ok(())
 }
 #[cfg(test)]

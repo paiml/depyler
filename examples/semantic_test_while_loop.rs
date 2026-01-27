@@ -3091,8 +3091,8 @@ pub fn countdown(mut n: i32) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     while n > 0 {
-        total = (total).py_add(n);
-        n = (n).py_sub(1);
+        total = ((total).py_add(n)) as i32;
+        n = ((n).py_sub(1i32)) as i32;
     }
     total
 }

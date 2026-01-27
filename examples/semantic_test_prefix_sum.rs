@@ -3108,18 +3108,18 @@ pub fn prefix_sum(nums: &Vec<i32>, n: i32) -> Result<i32, Box<dyn std::error::Er
     total = 0;
     let mut i: i32 = 0;
     while (i < n) && (i < nums.len() as i32) {
-        total = (total).py_add(
+        total = ((total).py_add(
             nums.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        );
-        i = (i).py_add(1);
+        )) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(total)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", prefix_sum(&vec![1, 2, 3, 4, 5], 3));
+    println!("{}", prefix_sum(&vec![1, 2, 3, 4, 5], 3).unwrap());
     Ok(())
 }

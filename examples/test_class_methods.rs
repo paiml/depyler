@@ -3134,7 +3134,7 @@ pub fn test_calculator() -> (
     DepylerValue,
     DepylerValue,
 ) {
-    let mut calc: std::collections::HashSet<DepylerValue> = Calculator::new(10);
+    let mut calc: Calculator = Calculator::new(10);
     let result1 = calc.add(5);
     let result2 = calc.multiply(2);
     let squared = Calculator::square(4);
@@ -3151,6 +3151,6 @@ pub fn test_calculator() -> (
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test class with various method types for v1.2.0".to_string();
+    let _ = "Test class with various method types for v1.2.0";
     Ok(())
 }

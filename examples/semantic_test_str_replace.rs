@@ -3088,7 +3088,7 @@ impl DepylerRegexMatch {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn replace_char<'c, 'b, 'a>(s: &'a str, old: &'b str, new: &'c str) -> String {
+pub fn replace_char<'a, 'b, 'c>(s: &'a str, old: &'b str, new: &'c str) -> String {
     s.replace(old, new)
 }
 #[doc = " Depyler: verified panic-free"]

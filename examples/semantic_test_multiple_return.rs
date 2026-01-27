@@ -3091,13 +3091,13 @@ impl DepylerRegexMatch {
 pub fn classify(n: i32) -> String {
     let _cse_temp_0 = n < 0;
     if _cse_temp_0 {
-        return "negative".to_string();
+        return "negative".to_string().to_string();
     }
     let _cse_temp_1 = n == 0;
     if _cse_temp_1 {
-        return "zero".to_string();
+        return "zero".to_string().to_string();
     }
-    "positive".to_string()
+    "positive".to_string().to_string()
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

@@ -3109,8 +3109,8 @@ impl DepylerRegexMatch {
 pub fn compute_constants() -> i32 {
     let x: i32 = 5;
     let y: i32 = 10;
-    let z: i32 = (x).py_add(y);
-    let _cse_temp_0 = (z).py_mul(2);
+    let z: i32 = ((x).py_add(y)) as i32;
+    let _cse_temp_0 = ((z).py_mul(2i32)) as i32;
     let result: i32 = _cse_temp_0;
     result
 }
@@ -3122,7 +3122,7 @@ pub fn fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fibonacci((n).py_sub(1))).py_add(fibonacci((n).py_sub(2)))
+    (fibonacci((n).py_sub(1i32))).py_add(fibonacci((n).py_sub(2i32)))
 }
 #[doc = "More constant folding examples"]
 #[doc = " Depyler: proven to terminate"]

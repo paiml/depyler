@@ -3123,14 +3123,14 @@ pub fn trailing_zeros(mut n: i32) -> Result<i32, Box<dyn std::error::Error>> {
                 q
             }
         };
-        count = (count).py_add(n);
+        count = ((count).py_add(n)) as i32;
     }
     Ok(count)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", trailing_zeros(25));
+    println!("{}", trailing_zeros(25).unwrap());
     Ok(())
 }
 #[cfg(test)]

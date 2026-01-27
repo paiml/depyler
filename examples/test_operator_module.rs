@@ -3126,11 +3126,14 @@ impl DepylerRegexMatch {
 pub fn test_arithmetic_operators() -> Result<i32, Box<dyn std::error::Error>> {
     let a: i32 = 10;
     let b: i32 = 5;
-    let add_result: i32 = (a).py_add(b);
-    let sub_result: i32 = (a).py_sub(b);
-    let _cse_temp_0 = (a).py_mul(b);
+    let add_result: i32 = ((a).py_add(b)) as i32;
+    let sub_result: i32 = ((a).py_sub(b)) as i32;
+    let _cse_temp_0 = ((a).py_mul(b)) as i32;
     let mul_result: i32 = _cse_temp_0;
-    Ok(((add_result).py_add(sub_result)).py_add(mul_result))
+    Ok({
+        let _r: i32 = ((add_result).py_add(sub_result) as i32).py_add(mul_result);
+        _r
+    })
 }
 #[doc = "Test comparison operator functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -3204,7 +3207,7 @@ pub fn test_itemgetter_multiple() -> Result<(i32, i32), Box<dyn std::error::Erro
 pub fn sort_by_second_element(data: &Vec<()>) -> Result<Vec<()>, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<()> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3484,7 +3487,7 @@ pub fn test_all_operator_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python operator module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's operator module\nto Rust equivalents.\n\nExpected Rust mappings:\n- operator.add(a, b) -> a + b\n- operator.mul(a, b) -> a * b\n- operator.itemgetter() -> closure or indexing\n- operator.attrgetter() -> field access\n- operator.methodcaller() -> method calls\n\nNote: Most operator functions map directly to Rust operators.\n".to_string();
+    let _ = "\nComprehensive test of Python operator module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's operator module\nto Rust equivalents.\n\nExpected Rust mappings:\n- operator.add(a, b) -> a + b\n- operator.mul(a, b) -> a * b\n- operator.itemgetter() -> closure or indexing\n- operator.attrgetter() -> field access\n- operator.methodcaller() -> method calls\n\nNote: Most operator functions map directly to Rust operators.\n";
     Ok(())
 }
 #[cfg(test)]

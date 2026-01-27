@@ -3110,7 +3110,7 @@ pub fn calculate_sum(numbers: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for num in numbers.iter().cloned() {
-        total = (total).py_add(num);
+        total = ((total).py_add(num)) as i32;
     }
     total
 }
@@ -3147,7 +3147,7 @@ pub fn process_data(data: &Vec<i32>) -> HashMap<String, i32> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nSimple example for debugging features.\n".to_string();
+    let _ = "\nSimple example for debugging features.\n";
     Ok(())
 }
 #[cfg(test)]

@@ -3113,7 +3113,7 @@ pub fn slow_function(n: i32) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for i in 0..(n) {
-        total = (total).py_add(i);
+        total = ((total).py_add(i)) as i32;
     }
     total
 }
@@ -3121,7 +3121,10 @@ pub fn slow_function(n: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn important_calculation(x: i32, y: i32) -> i32 {
-    (((x).py_mul(y)).py_add(x)).py_add(y)
+    {
+        let _r: i32 = (((x).py_mul(y) as i32).py_add(x) as i32).py_add(y);
+        _r
+    }
 }
 #[doc = "Decorator that repeats function call"]
 #[doc = " Depyler: verified panic-free"]
@@ -3156,7 +3159,7 @@ pub fn test_decorators() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test function decorators for v1.3.0".to_string();
+    let _ = "Test function decorators for v1.3.0";
     Ok(())
 }
 #[cfg(test)]

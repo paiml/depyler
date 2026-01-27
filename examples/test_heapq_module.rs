@@ -3129,7 +3129,7 @@ pub fn test_heap_push_pop() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
         heap.push(val);
     }
     for i in 0..(heap.len() as i32) {
-        for j in ((i).py_add(1))..(heap.len() as i32) {
+        for j in ((i).py_add(1i32))..(heap.len() as i32) {
             if heap
                 .get(j as usize)
                 .cloned()
@@ -3159,7 +3159,7 @@ pub fn test_heapify() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![5, 3, 7, 1, 9, 2, 4];
     let mut heap: Vec<i32> = data.clone();
     for i in 0..(heap.len() as i32) {
-        for j in ((i).py_add(1))..(heap.len() as i32) {
+        for j in ((i).py_add(1i32))..(heap.len() as i32) {
             if heap
                 .get(j as usize)
                 .cloned()
@@ -3227,7 +3227,7 @@ pub fn test_heap_peek() -> Result<i32, Box<dyn std::error::Error>> {
 pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3265,7 +3265,7 @@ pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::
 pub fn test_nlargest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3306,10 +3306,10 @@ pub fn manual_heap_insert(
     let mut new_heap: Vec<i32> = heap.clone();
     new_heap.push(value);
     let _cse_temp_0 = new_heap.len() as i32;
-    let mut index: i32 = (_cse_temp_0).py_sub(1);
+    let mut index: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while index > 0 {
         let parent: i32 = {
-            let a = (index).py_sub(1);
+            let a = (index).py_sub(1i32);
             let b = 2;
             let q = a / b;
             let r = a % b;
@@ -3381,7 +3381,7 @@ pub fn manual_heap_extract_min(
     }
     let mut new_heap: Vec<i32> = vec![{
         let base = &heap;
-        let idx: i32 = (heap.len() as i32).py_sub(1);
+        let idx: i32 = (heap.len() as i32).py_sub(1i32);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
@@ -3391,7 +3391,7 @@ pub fn manual_heap_extract_min(
             .cloned()
             .expect("IndexError: list index out of range")
     }];
-    for i in (1)..((heap.len() as i32).py_sub(1)) {
+    for i in (1)..((heap.len() as i32).py_sub(1i32)) {
         new_heap.push(
             heap.get(i as usize)
                 .cloned()
@@ -3400,8 +3400,8 @@ pub fn manual_heap_extract_min(
     }
     let mut index: i32 = 0;
     loop {
-        let left: i32 = ((2).py_mul(index)).py_add(1);
-        let right: i32 = ((2).py_mul(index)).py_add(2);
+        let left: i32 = (((2i32).py_mul(index) as i32).py_add(1i32)) as i32;
+        let right: i32 = (((2i32).py_mul(index) as i32).py_add(2i32)) as i32;
         smallest = index;
         if (left < new_heap.len() as i32)
             && (new_heap
@@ -3459,7 +3459,7 @@ pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error
     ];
     let mut sorted_tasks: Vec<()> = tasks.clone();
     for i in 0..(sorted_tasks.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_tasks.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_tasks.len() as i32) {
             if sorted_tasks
                 .get(j as usize)
                 .cloned()
@@ -3498,7 +3498,7 @@ pub fn merge_sorted_lists(lists: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std
         }
     }
     for i in 0..(result.len() as i32) {
-        for j in ((i).py_add(1))..(result.len() as i32) {
+        for j in ((i).py_add(1i32))..(result.len() as i32) {
             if result
                 .get(j as usize)
                 .cloned()
@@ -3527,7 +3527,7 @@ pub fn merge_sorted_lists(lists: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std
 pub fn find_kth_smallest(data: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3556,7 +3556,7 @@ pub fn find_kth_smallest(data: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::er
     if _cse_temp_3 {
         return Ok({
             let base = &sorted_data;
-            let idx: i32 = (k).py_sub(1);
+            let idx: i32 = (k).py_sub(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3576,7 +3576,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
     let mut median: f64 = Default::default();
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3600,7 +3600,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
     }
     let _cse_temp_0 = sorted_data.len() as i32;
     let n: i32 = _cse_temp_0;
-    let _cse_temp_1 = (n).py_mod(2);
+    let _cse_temp_1 = ((n).py_mod(2i32)) as i32;
     let _cse_temp_2 = _cse_temp_1 == 1;
     if _cse_temp_2 {
         let _cse_temp_3 = ({
@@ -3650,7 +3650,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
                     q
                 }
             })
-            .py_sub(1);
+            .py_sub(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3723,7 +3723,7 @@ pub fn test_all_heapq_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python heapq module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's heapq module\n(min-heap priority queue) to Rust equivalents.\n\nExpected Rust mappings:\n- heapq.heappush() -> BinaryHeap::push()\n- heapq.heappop() -> BinaryHeap::pop()\n- heapq.heapify() -> BinaryHeap::from()\n- heapq.nsmallest() -> manual implementation\n- heapq.nlargest() -> manual implementation\n\nNote: Python heapq is min-heap, Rust BinaryHeap is max-heap by default.\nManual implementations provided for learning.\n".to_string();
+    let _ = "\nComprehensive test of Python heapq module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's heapq module\n(min-heap priority queue) to Rust equivalents.\n\nExpected Rust mappings:\n- heapq.heappush() -> BinaryHeap::push()\n- heapq.heappop() -> BinaryHeap::pop()\n- heapq.heapify() -> BinaryHeap::from()\n- heapq.nsmallest() -> manual implementation\n- heapq.nlargest() -> manual implementation\n\nNote: Python heapq is min-heap, Rust BinaryHeap is max-heap by default.\nManual implementations provided for learning.\n";
     Ok(())
 }
 #[cfg(test)]

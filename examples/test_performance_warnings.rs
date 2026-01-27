@@ -3134,7 +3134,7 @@ pub fn nested_loops_cubic(matrix: &Vec<DepylerValue>) -> Result<i32, Box<dyn std
                 .py_index(DepylerValue::Int(j as i64))
                 .len() as i32)
             {
-                total = (total).py_add(
+                total = ((total).py_add(
                     matrix
                         .get(i as usize)
                         .cloned()
@@ -3144,7 +3144,7 @@ pub fn nested_loops_cubic(matrix: &Vec<DepylerValue>) -> Result<i32, Box<dyn std
                         .get(&k)
                         .cloned()
                         .unwrap_or_default(),
-                );
+                )) as i32;
             }
         }
     }
@@ -3245,7 +3245,7 @@ pub fn aggregate_in_nested_loop(matrix: &Vec<Vec<i32>>) -> i32 {
     for row in matrix.iter().cloned() {
         for col in row.iter().cloned() {
             let total = row.iter().sum::<i32>();
-            result = (result).py_add((col).py_mul(total));
+            result = ((result).py_add((col).py_mul(total))) as i32;
         }
     }
     result
@@ -3253,7 +3253,7 @@ pub fn aggregate_in_nested_loop(matrix: &Vec<Vec<i32>>) -> i32 {
 #[doc = "Large parameters passed by value."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn large_parameter_by_value<'a, 'b>(
+pub fn large_parameter_by_value<'b, 'a>(
     huge_list: &'a Vec<DepylerValue>,
     huge_dict: &'b std::collections::HashMap<String, DepylerValue>,
 ) -> i32 {
@@ -3265,7 +3265,7 @@ pub fn process_item(_idx: DepylerValue, _item: DepylerValue) {}
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nExample demonstrating patterns that trigger performance warnings.\n".to_string();
+    let _ = "\nExample demonstrating patterns that trigger performance warnings.\n";
     Ok(())
 }
 #[cfg(test)]

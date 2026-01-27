@@ -3094,7 +3094,7 @@ pub fn sum_positive(nums: &Vec<i32>) -> i32 {
         if n < 0 {
             continue;
         }
-        total = (total).py_add(n);
+        total = ((total).py_add(n)) as i32;
     }
     total
 }

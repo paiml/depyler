@@ -3121,7 +3121,7 @@ pub fn exit_with_error(message: String, code: i32) {
 pub fn print_to_stdout(message: &str) {
     {
         use std::io::Write;
-        write!(std::io::stdout(), "{}", (message).py_add("\n".to_string())).unwrap();
+        write!(std::io::stdout(), "{}", (message).py_add("\n")).unwrap();
     };
     {
         use std::io::Write;

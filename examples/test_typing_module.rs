@@ -3184,9 +3184,9 @@ pub fn test_dict_typing() -> HashMap<String, i32> {
 pub fn test_set_typing() -> std::collections::HashSet<String> {
     let colors: std::collections::HashSet<String> = {
         let mut set = std::collections::HashSet::new();
-        set.insert("red".to_string());
-        set.insert("green".to_string());
-        set.insert("blue".to_string());
+        set.insert("red");
+        set.insert("green");
+        set.insert("blue");
         set
     };
     colors
@@ -3346,9 +3346,9 @@ pub fn count_by_type(items: &Vec<String>) -> (i32, i32) {
     str_count = 0;
     for item in items.iter().cloned() {
         if true {
-            int_count = (int_count).py_add(1);
+            int_count = ((int_count).py_add(1i32)) as i32;
         } else {
-            str_count = (str_count).py_add(1);
+            str_count = ((str_count).py_add(1i32)) as i32;
         }
     }
     (int_count, str_count)
@@ -3377,7 +3377,7 @@ pub fn last_element(items: &Vec<i32>) -> Result<Option<i32>, Box<dyn std::error:
     if _cse_temp_1 {
         return Ok(Some({
             let base = &items;
-            let idx: i32 = (items.len() as i32).py_sub(1);
+            let idx: i32 = (items.len() as i32).py_sub(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3430,7 +3430,7 @@ pub fn distance_between_points(
     let _cse_temp_0 = (p2.0).py_sub(p1.0);
     let dx: f64 = _cse_temp_0;
     let dy: f64 = _cse_temp_0;
-    let distance: f64 = (((dx).py_mul(dx)).py_add((dy).py_mul(dy)) as f64).sqrt();
+    let distance: f64 = (((dx).py_mul(dx) as f64).py_add((dy).py_mul(dy)) as f64).sqrt();
     Ok(distance)
 }
 #[doc = "Test Any type usage"]
@@ -3581,7 +3581,7 @@ pub fn test_all_typing_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python typing module transpilation to Rust.\n\nThis example demonstrates how Depyler uses Python's typing module\nhints to generate strongly-typed Rust code.\n\nExpected Rust mappings:\n- List[int] -> Vec<i32>\n- Dict[str, int] -> HashMap<String, i32>\n- Optional[int] -> Option<i32>\n- Union[int, str] -> enum or generics\n- Tuple[int, str] -> (i32, String)\n\nNote: These tests verify type annotations are correctly interpreted.\n".to_string();
+    let _ = "\nComprehensive test of Python typing module transpilation to Rust.\n\nThis example demonstrates how Depyler uses Python's typing module\nhints to generate strongly-typed Rust code.\n\nExpected Rust mappings:\n- List[int] -> Vec<i32>\n- Dict[str, int] -> HashMap<String, i32>\n- Optional[int] -> Option<i32>\n- Union[int, str] -> enum or generics\n- Tuple[int, str] -> (i32, String)\n\nNote: These tests verify type annotations are correctly interpreted.\n";
     Ok(())
 }
 #[cfg(test)]

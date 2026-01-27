@@ -3089,7 +3089,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn distance(a: i32, b: i32) -> i32 {
-    let diff: i32 = (a).py_sub(b);
+    let diff: i32 = ((a).py_sub(b)) as i32;
     let _cse_temp_0 = diff < 0;
     if _cse_temp_0 {
         return -diff;

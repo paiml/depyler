@@ -3093,12 +3093,12 @@ pub fn classify(n: i32) -> String {
     if _cse_temp_0 {
         let _cse_temp_1 = n > 10;
         if _cse_temp_1 {
-            return "large".to_string();
+            return "large".to_string().to_string();
         } else {
-            return "small".to_string();
+            return "small".to_string().to_string();
         }
     } else {
-        return "zero_or_neg".to_string();
+        return "zero_or_neg".to_string().to_string();
     }
 }
 #[doc = " Depyler: verified panic-free"]

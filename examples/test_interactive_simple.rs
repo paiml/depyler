@@ -3096,7 +3096,7 @@ pub fn add_numbers(a: i32, b: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn multiply(x: i32, y: i32) -> i32 {
-    let _cse_temp_0 = (x).py_mul(y);
+    let _cse_temp_0 = ((x).py_mul(y)) as i32;
     let result: i32 = _cse_temp_0;
     result
 }

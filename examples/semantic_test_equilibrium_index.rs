@@ -3107,32 +3107,32 @@ pub fn equilibrium_index(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Err
     let mut total: i32 = Default::default();
     total = 0;
     for n in nums.iter().cloned() {
-        total = (total).py_add(n);
+        total = ((total).py_add(n)) as i32;
     }
     let mut left_sum: i32 = 0;
     let mut i: i32 = 0;
     while i < nums.len() as i32 {
-        let right_sum: i32 = ((total).py_sub(left_sum)).py_sub(
+        let right_sum: i32 = (((total).py_sub(left_sum) as i32).py_sub(
             nums.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        );
+        )) as i32;
         if left_sum == right_sum {
             return Ok(i);
         }
-        left_sum = (left_sum).py_add(
+        left_sum = ((left_sum).py_add(
             nums.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        );
-        i = (i).py_add(1);
+        )) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(-1)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", equilibrium_index(&vec![1, 3, 5, 2, 2]));
+    println!("{}", equilibrium_index(&vec![1, 3, 5, 2, 2]).unwrap());
     Ok(())
 }
 #[cfg(test)]

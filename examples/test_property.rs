@@ -3102,13 +3102,13 @@ impl Point {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_property() {
-    let p = Point::new(3, 4);
+    let p: Point = Point::new(3, 4);
     let m = p.magnitude();
     let _ = m;
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test property decorator support".to_string();
+    let _ = "Test property decorator support";
     Ok(())
 }

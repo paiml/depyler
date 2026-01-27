@@ -3098,35 +3098,35 @@ pub fn test_array_literals() -> (Vec<i32>, Vec<i32>, Vec<bool>, Vec<i32>) {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_array_multiplication() -> (Vec<i32>, Vec<i32>, Vec<i32>, Vec<i32>, Vec<i32>) {
-    let _cse_temp_0 = (vec![0]).py_mul(10);
+    let _cse_temp_0 = (vec![0]).py_mul(10i32);
     let zeros = _cse_temp_0.clone();
-    let _cse_temp_1 = (vec![1]).py_mul(5);
+    let _cse_temp_1 = (vec![1]).py_mul(5i32);
     let ones = _cse_temp_1.clone();
-    let _cse_temp_2 = (vec![42]).py_mul(8);
+    let _cse_temp_2 = (vec![42]).py_mul(8i32);
     let pattern = _cse_temp_2.clone();
-    let _cse_temp_3 = (10).py_mul(vec![0]);
+    let _cse_temp_3 = (10i32).py_mul(vec![0]);
     let reverse_zeros = _cse_temp_3.clone();
-    let _cse_temp_4 = (5).py_mul(vec![1]);
+    let _cse_temp_4 = (5i32).py_mul(vec![1]);
     let reverse_ones = _cse_temp_4.clone();
     (zeros, ones, pattern, reverse_zeros, reverse_ones)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_array_init_functions() -> (Vec<i32>, Vec<i32>, Vec<i32>) {
-    let z = vec![0; 10];
-    let o = vec![1; 5];
+    let z = vec![0i32; 10];
+    let o = vec![1i32; 5];
     let f = vec![42; 8];
     (z, o, f)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_large_arrays() -> (Vec<i32>, Vec<i32>, Vec<i32>) {
-    let _cse_temp_0 = (vec![0]).py_mul(50);
+    let _cse_temp_0 = (vec![0]).py_mul(50i32);
     let large = _cse_temp_0.clone();
-    let _cse_temp_1 = (vec![1]).py_mul(100);
+    let _cse_temp_1 = (vec![1]).py_mul(100i32);
     let very_large = _cse_temp_1.clone();
     let x = 5;
-    let _cse_temp_2 = (vec![x]).py_mul(10);
+    let _cse_temp_2 = (vec![x]).py_mul(10i32);
     let dynamic = _cse_temp_2.clone();
     (large, very_large, dynamic)
 }
@@ -3140,6 +3140,6 @@ pub fn test_nested_arrays() -> (Vec<Vec<i32>>, Vec<Vec<i32>>) {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test array generation from fixed-size lists".to_string();
+    let _ = "Test array generation from fixed-size lists";
     Ok(())
 }

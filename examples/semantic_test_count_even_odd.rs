@@ -3109,10 +3109,10 @@ pub fn count_even_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>
     even = 0;
     odd = 0;
     for n in nums.iter().cloned() {
-        if (n).py_mod(2) == 0 {
-            even = (even).py_add(1);
+        if (n).py_mod(2i32) == 0 {
+            even = ((even).py_add(1i32)) as i32;
         } else {
-            odd = (odd).py_add(1);
+            odd = ((odd).py_add(1i32)) as i32;
         }
     }
     Ok((even).py_sub(odd))
@@ -3120,7 +3120,7 @@ pub fn count_even_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", count_even_odd(&vec![1, 2, 3, 4, 5, 6]));
+    println!("{}", count_even_odd(&vec![1, 2, 3, 4, 5, 6]).unwrap());
     Ok(())
 }
 #[cfg(test)]

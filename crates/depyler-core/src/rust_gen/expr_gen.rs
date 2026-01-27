@@ -529,8 +529,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Pattern: ((a).py_add(b)).py_add(c) fails type inference
             // Fix: ((a).py_add(b) as i32).py_add(c) provides type anchor for intermediate result
             //
-            // DEPYLER-E0282-DEBUG: Always add type cast to verify code path is triggered
-            let _left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
+            // DEPYLER-STRING-CONCAT-FIX: Skip cast for string concatenation
+            // String + String = String, casting to i32 is wrong
+            let left_is_string = self.expr_is_string_type(left);
+            let right_is_string = self.expr_is_string_type(right);
+            let is_string_concat = left_is_string || right_is_string;
+
+            let left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
                 matches!(
                     inner_op,
                     BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
@@ -538,9 +543,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else {
                 false
             };
-
-            // Always add i32 cast for now to verify the path works
-            let left_typed: syn::Expr = parse_quote! { (#left_pyops as i32) };
+            // Add type cast when we detect a chain to help Rust infer intermediate types
+            // DEPYLER-STRING-CONCAT-FIX: Skip cast for string operations
+            let left_typed: syn::Expr = if left_is_chain && !is_string_concat {
+                let return_expects_float = self
+                    .ctx
+                    .current_return_type
+                    .as_ref()
+                    .map(crate::rust_gen::func_gen::return_type_expects_float)
+                    .unwrap_or(false);
+                if return_expects_float {
+                    parse_quote! { (#left_pyops as f64) }
+                } else {
+                    parse_quote! { (#left_pyops as i32) }
+                }
+            } else {
+                left_pyops
+            };
 
             match op {
                 BinOp::Add => return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) }),
@@ -3332,10 +3351,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return self.convert_list_with_float_coercion(elems);
                         }
                     }
-                    // DEPYLER-TYPE-001: Don't unconditionally add .to_string() to string literals
-                    // The expression generator already handles string type correctly based on
-                    // StringOptimizer analysis. Adding .to_string() here causes E0308 errors
-                    // when class fields expect &str instead of String.
+                    // DEPYLER-CLASS-STR-FIX: Add .to_string() for string literals in class constructors
+                    // Python dataclass fields with `name: str` are owned Strings in Rust.
+                    // String literals need .to_string() to convert &str to String.
+                    if let HirExpr::Literal(Literal::String(s)) = arg {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        return Ok(parse_quote! { #lit.to_string() });
+                    }
                     arg.to_rust_expr(self.ctx)
                 })
                 .collect::<Result<Vec<_>>>()?

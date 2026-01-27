@@ -3092,7 +3092,7 @@ pub fn accumulator_pattern(items: &Vec<i32>) -> Vec<DepylerValue> {
     let mut result: Vec<DepylerValue> = vec![];
     for item in items.iter().cloned() {
         if item > 0 {
-            result.push(DepylerValue::Str(format!("{:?}", (item).py_mul(2))));
+            result.push(DepylerValue::Str(format!("{:?}", (item).py_mul(2i32))));
         }
     }
     result
@@ -3126,7 +3126,7 @@ pub fn type_checking_pattern(value: &str) -> String {
         return value.to_uppercase();
     } else {
         if true {
-            return (value).py_mul(2);
+            return (value).py_mul(2i32);
         } else {
             return (value).to_string();
         }
@@ -3177,7 +3177,7 @@ pub fn while_true_pattern() -> i32 {
     let mut counter: i32 = Default::default();
     counter = 0;
     loop {
-        counter = (counter).py_add(1);
+        counter = ((counter).py_add(1i32)) as i32;
         if counter > 10 {
             break;
         }
@@ -3202,7 +3202,7 @@ pub fn validate(x: &str) -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_data(x: i32) -> i32 {
-    (x).py_mul(2)
+    (x).py_mul(2i32)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -3217,7 +3217,7 @@ pub fn default_value() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nExample demonstrating patterns that trigger migration suggestions.\n".to_string();
+    let _ = "\nExample demonstrating patterns that trigger migration suggestions.\n";
     Ok(())
 }
 #[cfg(test)]

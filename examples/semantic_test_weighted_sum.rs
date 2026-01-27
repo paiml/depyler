@@ -3108,21 +3108,21 @@ pub fn weighted_sum(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> 
     total = 0;
     let mut i: i32 = 0;
     while i < nums.len() as i32 {
-        total = (total).py_add(
+        total = ((total).py_add(
             (nums
                 .get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"))
-            .py_mul((i).py_add(1)),
-        );
-        i = (i).py_add(1);
+            .py_mul((i).py_add(1i32)),
+        )) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(total)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", weighted_sum(&vec![1, 2, 3, 4]));
+    println!("{}", weighted_sum(&vec![1, 2, 3, 4]).unwrap());
     Ok(())
 }
 #[cfg(test)]

@@ -3111,23 +3111,26 @@ pub fn element_wise_sum<'b, 'a>(
     total = 0;
     let mut i: i32 = 0;
     while i < a.len() as i32 {
-        total = ((total).py_add(
+        total = (((total).py_add(
             a.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        ))
-        .py_add(
-            b.get(i as usize)
-                .cloned()
-                .expect("IndexError: list index out of range"),
-        );
-        i = (i).py_add(1);
+        ) as i32)
+            .py_add(
+                b.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            )) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(total)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", element_wise_sum(&vec![1, 2, 3], &vec![4, 5, 6]));
+    println!(
+        "{}",
+        element_wise_sum(&vec![1, 2, 3], &vec![4, 5, 6]).unwrap()
+    );
     Ok(())
 }

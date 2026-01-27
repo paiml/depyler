@@ -3094,9 +3094,9 @@ impl DepylerRegexMatch {
 pub fn test_urlparse_basic() {
     let url = "https://example.com/path/page.html";
     let result = String::from(url);
-    assert_eq!(result.scheme, "https".to_string());
-    assert_eq!(result.netloc, "example.com".to_string());
-    assert_eq!(result.path, "/path/page.html".to_string());
+    assert_eq!(result.scheme, "https");
+    assert_eq!(result.netloc, "example.com");
+    assert_eq!(result.path, "/path/page.html");
     println!("{}", "PASS: test_urlparse_basic");
 }
 #[doc = "Test URL parsing with query string."]
@@ -3105,10 +3105,10 @@ pub fn test_urlparse_basic() {
 pub fn test_urlparse_with_query() {
     let url = "https://example.com/search?q=python&lang=en";
     let result = String::from(url);
-    assert_eq!(result.scheme, "https".to_string());
-    assert_eq!(result.netloc, "example.com".to_string());
-    assert_eq!(result.path, "/search".to_string());
-    assert_eq!(result.query, "q=python&lang=en".to_string());
+    assert_eq!(result.scheme, "https");
+    assert_eq!(result.netloc, "example.com");
+    assert_eq!(result.path, "/search");
+    assert_eq!(result.query, "q=python&lang=en");
     println!("{}", "PASS: test_urlparse_with_query");
 }
 #[doc = "Test URL parsing with fragment."]
@@ -3117,9 +3117,9 @@ pub fn test_urlparse_with_query() {
 pub fn test_urlparse_with_fragment() {
     let url = "https://example.com/page#section1";
     let result = String::from(url);
-    assert_eq!(result.scheme, "https".to_string());
-    assert_eq!(result.path, "/page".to_string());
-    assert_eq!(result.fragment, "section1".to_string());
+    assert_eq!(result.scheme, "https");
+    assert_eq!(result.path, "/page");
+    assert_eq!(result.fragment, "section1");
     println!("{}", "PASS: test_urlparse_with_fragment");
 }
 #[doc = "Test full URL parsing with all components."]
@@ -3128,11 +3128,11 @@ pub fn test_urlparse_with_fragment() {
 pub fn test_urlparse_full() {
     let url = "https://user:pass@example.com:8080/path?query=value#fragment";
     let result = String::from(url);
-    assert_eq!(result.scheme, "https".to_string());
-    assert_eq!(result.netloc, "user:pass@example.com:8080".to_string());
-    assert_eq!(result.path, "/path".to_string());
-    assert_eq!(result.query, "query=value".to_string());
-    assert_eq!(result.fragment, "fragment".to_string());
+    assert_eq!(result.scheme, "https");
+    assert_eq!(result.netloc, "user:pass@example.com:8080");
+    assert_eq!(result.path, "/path");
+    assert_eq!(result.query, "query=value");
+    assert_eq!(result.fragment, "fragment");
     println!("{}", "PASS: test_urlparse_full");
 }
 #[doc = "Test query string parsing."]
@@ -3143,7 +3143,7 @@ pub fn test_parse_qs_basic() {
     let result = parse_qs(&query);
     assert_eq!(
         result.get_str("name").cloned().unwrap_or_default().into(),
-        vec!["John".to_string().to_string()]
+        vec!["John".to_string()]
     );
     assert_eq!(
         result.get_str("age").cloned().unwrap_or_default().into(),
@@ -3151,7 +3151,7 @@ pub fn test_parse_qs_basic() {
     );
     assert_eq!(
         result.get_str("city").cloned().unwrap_or_default().into(),
-        vec!["NYC".to_string().to_string()]
+        vec!["NYC".to_string()]
     );
     println!("{}", "PASS: test_parse_qs_basic");
 }
@@ -3191,15 +3191,9 @@ pub fn test_parse_qsl_tuples() {
     let query = "a=1&b=2&c=3";
     let result = parse_qsl(&query);
     assert_eq!(result.len() as i32, 3);
-    assert!(result
-        .get(&("a".to_string().to_string(), "1".to_string().to_string()))
-        .is_some());
-    assert!(result
-        .get(&("b".to_string().to_string(), "2".to_string().to_string()))
-        .is_some());
-    assert!(result
-        .get(&("c".to_string().to_string(), "3".to_string().to_string()))
-        .is_some());
+    assert!(result.get(&("a".to_string(), "1".to_string())).is_some());
+    assert!(result.get(&("b".to_string(), "2".to_string())).is_some());
+    assert!(result.get(&("c".to_string(), "3".to_string())).is_some());
     println!("{}", "PASS: test_parse_qsl_tuples");
 }
 #[doc = "Test URL encoding from dict."]
@@ -3243,7 +3237,7 @@ pub fn test_unquote_string() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_quote_safe_chars() {
     let path = "/path/to/file";
-    let result = url::percent_encoding::percent_encode(path, "/".to_string());
+    let result = url::percent_encoding::percent_encode(path, "/");
     assert_eq!(result, "/path/to/file");
     println!("{}", "PASS: test_quote_safe_chars");
 }
@@ -3254,7 +3248,7 @@ pub fn test_urljoin_basic() {
     let base = "https://example.com/dir/";
     let relative = "page.html";
     let result = format!("{}{}", base, relative);
-    assert_eq!(result, "https://example.com/dir/page.html".to_string());
+    assert_eq!(result, "https://example.com/dir/page.html");
     println!("{}", "PASS: test_urljoin_basic");
 }
 #[doc = "Test joining with absolute URL."]
@@ -3273,20 +3267,20 @@ pub fn test_urljoin_absolute() {
 pub fn test_urlsplit_basic() {
     let url = "https://example.com/path?query=value#fragment";
     let result = urlsplit(&url);
-    assert_eq!(result.scheme, "https".to_string());
-    assert_eq!(result.netloc, "example.com".to_string());
-    assert_eq!(result.path, "/path".to_string());
-    assert_eq!(result.query, "query=value".to_string());
-    assert_eq!(result.fragment, "fragment".to_string());
+    assert_eq!(result.scheme, "https");
+    assert_eq!(result.netloc, "example.com");
+    assert_eq!(result.path, "/path");
+    assert_eq!(result.query, "query=value");
+    assert_eq!(result.fragment, "fragment");
     println!("{}", "PASS: test_urlsplit_basic");
 }
 #[doc = "Run all urllib.parse tests."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "URLLIB.PARSE MODULE TESTS");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     test_urlparse_basic();
     test_urlparse_with_query();
     test_urlparse_with_fragment();
@@ -3301,8 +3295,8 @@ pub fn main() {
     test_urljoin_basic();
     test_urljoin_absolute();
     test_urlsplit_basic();
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ALL URLLIB.PARSE TESTS PASSED!");
     println!("{}", "Total tests: 14");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
 }

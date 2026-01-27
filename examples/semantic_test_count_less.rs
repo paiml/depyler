@@ -3092,7 +3092,7 @@ pub fn count_less(nums: &Vec<i32>, threshold: i32) -> i32 {
     count = 0;
     for n in nums.iter().cloned() {
         if n < threshold {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count

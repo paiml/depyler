@@ -3108,25 +3108,25 @@ pub fn suffix_sum(nums: &Vec<i32>, n: i32) -> Result<i32, Box<dyn std::error::Er
     let mut start: i32 = Default::default();
     total = 0;
     let _cse_temp_0 = nums.len() as i32;
-    start = (_cse_temp_0).py_sub(n);
+    start = ((_cse_temp_0).py_sub(n)) as i32;
     let _cse_temp_1 = start < 0;
     if _cse_temp_1 {
         start = 0;
     }
     let mut i: i32 = start.clone();
     while i < nums.len() as i32 {
-        total = (total).py_add(
+        total = ((total).py_add(
             nums.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        );
-        i = (i).py_add(1);
+        )) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(total)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", suffix_sum(&vec![1, 2, 3, 4, 5], 3));
+    println!("{}", suffix_sum(&vec![1, 2, 3, 4, 5], 3).unwrap());
     Ok(())
 }

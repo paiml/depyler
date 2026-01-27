@@ -3152,7 +3152,7 @@ pub fn test_set_comprehension() -> std::collections::HashSet<i32> {
         .into_iter()
         .filter(|x| {
             let x = x.clone();
-            (x).py_mod(2) == 0
+            (x).py_mod(2i32) == 0
         })
         .map(|x| (x).py_mul(x))
         .collect::<std::collections::HashSet<_>>();

@@ -3151,8 +3151,8 @@ pub fn merge_sorted_lists<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;

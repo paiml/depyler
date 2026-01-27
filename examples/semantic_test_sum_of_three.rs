@@ -3089,7 +3089,10 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn sum_of_three(a: i32, b: i32, c: i32) -> i32 {
-    ((a).py_add(b)).py_add(c)
+    {
+        let _r: i32 = ((a).py_add(b) as i32).py_add(c);
+        _r
+    }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

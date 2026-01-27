@@ -10,11 +10,13 @@ pub const float_literal: f64 = 3.14;
 pub const string_literal: &str = "hello world";
 pub const bool_literal: bool = true;
 pub const none_literal: Option<()> = None;
-pub static addition: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (10).py_add(20));
-pub static subtraction: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (50).py_sub(15));
-pub static multiplication: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (7).py_mul(8));
-pub static division: std::sync::LazyLock<f64> = std::sync::LazyLock::new(|| (100).py_div(4));
-pub static modulo: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (17).py_mod(5));
+pub static addition: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (10i32).py_add(20i32));
+pub static subtraction: std::sync::LazyLock<i32> =
+    std::sync::LazyLock::new(|| (50i32).py_sub(15i32));
+pub static multiplication: std::sync::LazyLock<i32> =
+    std::sync::LazyLock::new(|| (7i32).py_mul(8i32));
+pub static division: std::sync::LazyLock<f64> = std::sync::LazyLock::new(|| (100i32).py_div(4i32));
+pub static modulo: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (17i32).py_mod(5i32));
 pub static power: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| {
     ({ 2 } as i32)
         .checked_pow({ 8 } as u32)
@@ -23,8 +25,7 @@ pub static power: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| {
 pub static greater_than: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 10 > 5);
 pub static less_than: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 3 < 7);
 pub static equal_to: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 42 == 42);
-pub static not_equal: std::sync::LazyLock<bool> =
-    std::sync::LazyLock::new(|| "a".to_string() != "b".to_string());
+pub static not_equal: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| "a" != "b");
 pub static greater_equal: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 100 >= 100);
 pub static less_equal: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 50 <= 60);
 pub static and_op: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| (true) && (false));
@@ -36,22 +37,22 @@ pub const bitwise_not: i32 = !255;
 pub static list_example: std::sync::LazyLock<Vec<i32>> =
     std::sync::LazyLock::new(|| vec![1, 2, 3, 4, 5]);
 pub static tuple_example: std::sync::LazyLock<(i32, String, f64, bool)> =
-    std::sync::LazyLock::new(|| (1, "hello".to_string().to_string(), 3.14, true));
+    std::sync::LazyLock::new(|| (1, "hello".to_string(), 3.14, true));
 pub static dict_example: std::sync::LazyLock<
     std::collections::HashMap<DepylerValue, DepylerValue>,
 > = std::sync::LazyLock::new(|| {
     let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
     map.insert(
-        DepylerValue::Str("name".to_string().to_string()),
-        DepylerValue::Str("John".to_string().to_string()),
+        DepylerValue::Str("name".to_string()),
+        DepylerValue::Str("John".to_string()),
     );
     map.insert(
-        DepylerValue::Str("age".to_string().to_string()),
+        DepylerValue::Str("age".to_string()),
         DepylerValue::Int(30 as i64),
     );
     map.insert(
-        DepylerValue::Str("city".to_string().to_string()),
-        DepylerValue::Str("NYC".to_string().to_string()),
+        DepylerValue::Str("city".to_string()),
+        DepylerValue::Str("NYC".to_string()),
     );
     map
 });
@@ -138,7 +139,7 @@ pub static slice_reverse: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::n
 pub static list_comp: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
     (0..(10))
         .into_iter()
-        .map(|x| (x).py_mul(2))
+        .map(|x| (x).py_mul(2i32))
         .collect::<Vec<_>>()
 });
 pub static list_comp_filtered: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
@@ -146,7 +147,7 @@ pub static list_comp_filtered: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLo
         .into_iter()
         .filter(|x| {
             let x = x.clone();
-            (x).py_mod(2) == 0
+            (x).py_mod(2i32) == 0
         })
         .map(|x| x)
         .collect::<Vec<_>>()
@@ -185,11 +186,11 @@ pub static dict_comp: std::sync::LazyLock<std::collections::HashMap<i32, i32>> =
             .collect::<std::collections::HashMap<_, _>>()
     });
 pub static simple_call: std::sync::LazyLock<String> =
-    std::sync::LazyLock::new(|| println!("{}", "Hello".to_string()).unwrap());
+    std::sync::LazyLock::new(|| println!("{}", "Hello").unwrap());
 pub static method_call: std::sync::LazyLock<String> =
-    std::sync::LazyLock::new(|| "hello".to_string().to_uppercase());
+    std::sync::LazyLock::new(|| "hello".to_uppercase());
 pub static chained_calls: std::sync::LazyLock<String> =
-    std::sync::LazyLock::new(|| "  hello  ".to_string().trim().to_string().to_uppercase());
+    std::sync::LazyLock::new(|| "  hello  ".trim().to_string().to_uppercase());
 pub const pi_value: f64 = std::f64::consts::PI;
 pub static module_function: std::sync::LazyLock<f64> =
     std::sync::LazyLock::new(|| (16 as f64).sqrt());
@@ -3355,11 +3356,11 @@ impl DemoClass {
     }
 }
 #[doc = "Show various statement types."]
-pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
+pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error>> {
     let mut x = 10;
     let mut y = 20;
-    x = (x).py_add(5);
-    let _cse_temp_0 = (y).py_mul(2);
+    x = ((x).py_add(5i32)) as i32;
+    let _cse_temp_0 = ((y).py_mul(2i32)) as i32;
     y = _cse_temp_0;
     let _cse_temp_1 = {
         let a = x;
@@ -3400,7 +3401,7 @@ pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
     let mut counter = 0;
     while counter < 5 {
         println!("{}", counter);
-        counter = (counter).py_add(1);
+        counter = ((counter).py_add(1i32)) as i32;
     }
     for i in 0..(10) {
         if i == 5 {
@@ -3421,11 +3422,11 @@ pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
     }
     let _cse_temp_5 = x > 100;
     if _cse_temp_5 {
-        return Ok(x);
+        return Ok(Some(x));
     } else {
         let _cse_temp_6 = x > 50;
         if _cse_temp_6 {
-            return Ok((x).py_mul(2));
+            return Ok(Some((x).py_mul(2i32)));
         } else {
             return Ok(None);
         }
@@ -3434,15 +3435,12 @@ pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Show advanced statement types."]
 #[doc = " Depyler: proven to terminate"]
 pub fn demonstrate_advanced() -> Result<String, Box<dyn std::error::Error>> {
-    let mut f = std::fs::File::create("file.txt".to_string())?;
-    f.write_all("Hello, World!".to_string().as_bytes()).unwrap();
+    let mut f = std::fs::File::create("file.txt")?;
+    f.write_all("Hello, World!".as_bytes()).unwrap();
     if false {
-        return Err(Box::new(ValueError::new(
-            "Something went wrong".to_string(),
-        )));
+        return Err(Box::new(ValueError::new("Something went wrong")));
     }
     let result = "  Hello World  "
-        .to_string()
         .trim()
         .to_string()
         .to_lowercase()
@@ -3483,7 +3481,7 @@ pub fn demonstrate_comprehensions() -> Vec<(i32, i32, i32)> {
 }
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "AST Converters Demo");
-    println!("{}", ("=").py_mul(40));
+    println!("{}", ("=").py_mul(40i32));
     println!(
         "{}",
         format!(
@@ -3510,7 +3508,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", format!("Advanced result: {:?}", advanced));
     let comps = demonstrate_comprehensions();
     println!("{}", format!("Comprehensions: {:?}", comps));
-    let obj = DemoClass::new(10);
+    let obj: DemoClass = DemoClass::new(10);
     println!("{}", format!("Object method: {}", obj.method()));
     println!("{}", format!("Chained: {}", obj.chain_example()));
     Ok(())

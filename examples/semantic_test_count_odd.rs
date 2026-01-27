@@ -3107,8 +3107,8 @@ pub fn count_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     let mut count: i32 = Default::default();
     count = 0;
     for n in nums.iter().cloned() {
-        if (n).py_mod(2) != 0 {
-            count = (count).py_add(1);
+        if (n).py_mod(2i32) != 0 {
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     Ok(count)
@@ -3116,7 +3116,7 @@ pub fn count_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", count_odd(&vec![1, 2, 3, 4, 5, 6, 7]));
+    println!("{}", count_odd(&vec![1, 2, 3, 4, 5, 6, 7]).unwrap());
     Ok(())
 }
 #[cfg(test)]

@@ -3114,7 +3114,7 @@ pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_counter() -> (i32, DepylerValue) {
-    let mut c = Counter::new();
+    let mut c: Counter = Counter::new();
     c.increment();
     c.increment();
     let val = c.get_value();
@@ -3124,6 +3124,6 @@ pub fn test_counter() -> (i32, DepylerValue) {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Basic class example for v1.2.0".to_string();
+    let _ = "Basic class example for v1.2.0";
     Ok(())
 }

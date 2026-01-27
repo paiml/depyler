@@ -13,7 +13,7 @@ use tokio as asyncio;
 }
 impl std::fmt::Display for ZeroDivisionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "division by zero: {}", self.message)
+    write !(f, "division by zero: {}", self.message)
 }
 } impl std::error::Error for ZeroDivisionError {
    
@@ -30,7 +30,7 @@ impl ZeroDivisionError {
 }
 impl std::fmt::Display for ValueError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "value error: {}", self.message)
+    write !(f, "value error: {}", self.message)
 }
 } impl std::error::Error for ValueError {
    
@@ -72,7 +72,7 @@ impl AsyncCounter {
 }
 } pub async fn __anext__(&mut self) -> i32 {
     if self.current.clone()>= self.limit.clone() {
-    panic!("Exception: {}", StopAsyncIteration);
+    panic !("Exception: {}", StopAsyncIteration);
     };
     tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
     let value = self.current.clone();
@@ -89,7 +89,7 @@ impl AsyncCounter {
 }
 #[doc = "Async function with sleep.\n\n    Python: await asyncio.sleep(seconds)\n    Rust: tokio::time::sleep(Duration::from_secs_f64(seconds)).await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_with_sleep(seconds: f64) -> String {
     tokio::time::sleep(std::time::Duration::from_secs_f64(seconds as f64)).await;
-    format!("Slept for {} seconds", seconds)
+    format !("Slept for {} seconds", seconds)
 }
 #[doc = "First step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn compute_step1(x: i32) -> i32 {
     tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
@@ -113,12 +113,12 @@ impl AsyncCounter {
     let mut result: String = "".to_string();
     let mut _context = AsyncResource::new(name);
     let resource = _context.__aenter__().await;
-    resource.data = format!("Data for {}", resource.name);
+    resource.data = format !("Data for {}", resource.name);
     result = resource.data;
     result.to_string()
 }
 #[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn nested_async_context_managers<'a, 'b>(name1: & 'a str, name2: & 'b str) -> String {
-    let mut results: Vec<String>= vec! [];
+    let mut results: Vec<String>= vec ! [];
     let mut _context = AsyncResource::new(name1);
     let r1 = _context.__aenter__().await;
     let mut _context = AsyncResource::new(name2);
@@ -151,23 +151,23 @@ total
 }
 #[doc = "First concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn task_a() -> String {
     tokio::time::sleep(std::time::Duration::from_secs_f64(0.01 as f64)).await;
-    "A".to_string()
+    "A".to_string().to_string()
 }
 #[doc = "Second concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn task_b() -> String {
     tokio::time::sleep(std::time::Duration::from_secs_f64(0.01 as f64)).await;
-    "B".to_string()
+    "B".to_string().to_string()
 }
 #[doc = "Third concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn task_c() -> String {
     tokio::time::sleep(std::time::Duration::from_secs_f64(0.01 as f64)).await;
-    "C".to_string()
+    "C".to_string().to_string()
 }
 #[doc = "Run tasks concurrently with gather.\n\n    Python: asyncio.gather(task_a(), task_b(), task_c())\n    Rust: tokio::join!(task_a(), task_b(), task_c())\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn concurrent_gather() -> Vec<String>{
-    let results: Vec<String>= asyncio::gather(task_a(), task_b(), task_c()).await;
+    let results: Vec<String>= join !(task_a(), task_b(), task_c()).await;
     results
 }
 #[doc = "Process multiple values concurrently.\n\n    Python: asyncio.gather(*[process(v) for v in values])\n    Rust: futures::future::join_all or tokio::join!\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn concurrent_with_results(values: & Vec<i32>) -> Vec<i32>{
     let tasks = values.as_slice().iter().cloned().map(| v | process(v)).collect::<Vec<_>>();
-    let results: Vec<i32>= asyncio::gather(tasks).await;
+    let results: Vec<i32>= join !(tasks).await;
     results
 }
 #[doc = "Concurrent execution with timeout.\n\n    Python: asyncio.wait_for with timeout\n    Rust: tokio::time::timeout\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn concurrent_with_timeout(timeout_secs: f64) -> Option<String>{
@@ -203,7 +203,7 @@ total
    
 }
 tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
-    let result: i32 = if! values.is_empty() {
+    let result: i32 = if ! values.is_empty() {
     {
     let a = total;
     let b = values.len() as i32;
@@ -211,8 +211,8 @@ tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
     let r = a % b;
     let r_negative = r<0;
     let b_negative = b<0;
-    let r_nonzero = r!= 0;
-    let signs_differ = r_negative!= b_negative;
+    let r_nonzero = r != 0;
+    let signs_differ = r_negative != b_negative;
     let needs_adjustment = r_nonzero && signs_differ;
     if needs_adjustment {
     q - 1
@@ -229,7 +229,7 @@ else {
 #[doc = "Async function with try/except.\n\n    Python: try/except in async function\n    Rust: Result handling in async fn\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_with_exception_handling(x: i32) -> Result<i32, Box<dyn std::error::Error>>{
     match(|| -> Result<i32, Box<dyn std::error::Error>>{
     if x<0 {
-    panic!("{}", ValueError::new("Negative value".to_string()));
+    panic !("{}", ValueError::new("Negative value"));
    
 }
 tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
@@ -248,7 +248,7 @@ tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
 #[doc = "Async function that re-raises exception.\n\n    Python: raise in async except block\n    Rust: return Err(e) in async fn\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_reraise_exception(x: i32) -> Result<i32, Box<dyn std::error::Error>>{
     match(|| -> Result<i32, Box<dyn std::error::Error>>{
     if x == 0 {
-    panic!("{}", ZeroDivisionError::new("Cannot be zero".to_string()));
+    panic !("{}", ZeroDivisionError::new("Cannot be zero"));
    
 }
 tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
@@ -258,8 +258,8 @@ tokio::time::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
     let r = a % b;
     let r_negative = r<0;
     let b_negative = b<0;
-    let r_nonzero = r!= 0;
-    let signs_differ = r_negative!= b_negative;
+    let r_nonzero = r != 0;
+    let signs_differ = r_negative != b_negative;
     let needs_adjustment = r_nonzero && signs_differ;
     if needs_adjustment {
     q - 1
@@ -305,40 +305,40 @@ Some(x)
 result
 }
 #[doc = "Async main function exercising all patterns."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_main () -> i32 {
-    assert_eq!(simple_async().await, 42);
-    assert_eq!(async_with_await().await, 84);
-    assert_eq!(async_computation_chain (5).await, 25);
-    let result: String = use_async_context_manager(& "test".to_string()).await;
-    assert_eq!(result, "Data for test".to_string());
-    let nested: String = nested_async_context_managers(& "a".to_string(), & "b".to_string()).await;
-    assert_eq!(nested, "a,b".to_string());
-    assert_eq!(async_for_loop(5).await, 10);
-    assert_eq!(async_for_with_break(10, 3).await, 3);
+    assert_eq !(simple_async().await, 42);
+    assert_eq !(async_with_await().await, 84);
+    assert_eq !(async_computation_chain (5).await, 25);
+    let result: String = use_async_context_manager(& "test").await;
+    assert_eq !(result, "Data for test");
+    let nested: String = nested_async_context_managers(& "a", & "b").await;
+    assert_eq !(nested, "a,b");
+    assert_eq !(async_for_loop(5).await, 10);
+    assert_eq !(async_for_with_break(10, 3).await, 3);
     let gather_results: Vec<String>= concurrent_gather().await;
-    assert_eq!(gather_results.into_iter().collect::<std::collections::HashSet<_>>(), {
+    assert_eq !(gather_results.into_iter().collect::<std::collections::HashSet<_>>(), {
     let mut set = std::collections::HashSet::new();
     set.insert("A".to_string());
     set.insert("B".to_string());
     set.insert("C".to_string());
     set });
-    let concurrent_results: Vec<i32>= concurrent_with_results(& vec! [1, 2, 3]).await;
-    assert_eq!(concurrent_results, vec! [2, 4, 6]);
+    let concurrent_results: Vec<i32>= concurrent_with_results(& vec ! [1, 2, 3]).await;
+    assert_eq !(concurrent_results, vec ! [2, 4, 6]);
     let timeout_result: Option<String>= concurrent_with_timeout(0.001).await;
-    assert!(timeout_result.is_none());
-    assert_eq!(async_calling_sync(10).await, 31);
-    assert_eq!(async_with_sync_computation(& vec! [2, 4, 6]).await, 8);
-    assert_eq!(async_with_exception_handling(5).await, 10);
-    assert_eq!(async_with_exception_handling(- 5).await, - 1);
-    assert_eq!(async_return_optional(5).await, 5);
-    assert!(async_return_optional(- 5).await.is_none());
+    assert !(timeout_result.is_none());
+    assert_eq !(async_calling_sync(10).await, 31);
+    assert_eq !(async_with_sync_computation(& vec ! [2, 4, 6]).await, 8);
+    assert_eq !(async_with_exception_handling(5).await, 10);
+    assert_eq !(async_with_exception_handling(- 5).await, - 1);
+    assert_eq !(async_return_optional(5).await, 5);
+    assert !(async_return_optional(- 5).await.is_none());
     let tuple_result :(i32, i32) = async_return_tuple(3, 4).await;
-    assert_eq!(tuple_result ,(7, 12));
-    let dict_result: std::collections::HashMap<String, i32>= async_return_dict(& vec! ["a".to_string().to_string(), "b".to_string().to_string(), "c".to_string().to_string()]).await;
-    assert_eq!(dict_result, {
+    assert_eq !(tuple_result ,(7, 12));
+    let dict_result: std::collections::HashMap<String, i32>= async_return_dict(& vec ! ["a".to_string(), "b".to_string(), "c".to_string()]).await;
+    assert_eq !(dict_result, {
     let mut map = HashMap::new();
-    map.insert("a".to_string().to_string(), 0);
-    map.insert("b".to_string().to_string(), 1);
-    map.insert("c".to_string().to_string(), 2);
+    map.insert("a".to_string(), 0);
+    map.insert("b".to_string(), 1);
+    map.insert("c".to_string(), 2);
     map });
     0
 }
@@ -360,74 +360,74 @@ result
    
 }
 #[test] fn test_compute_step1_examples() {
-    assert_eq!(compute_step1(0), 0);
-    assert_eq!(compute_step1(1), 1);
-    assert_eq!(compute_step1(- 1), - 1);
+    assert_eq !(compute_step1(0), 0);
+    assert_eq !(compute_step1(1), 1);
+    assert_eq !(compute_step1(- 1), - 1);
    
 }
 #[test] fn test_compute_step2_examples() {
-    assert_eq!(compute_step2(0), 0);
-    assert_eq!(compute_step2(1), 1);
-    assert_eq!(compute_step2(- 1), - 1);
+    assert_eq !(compute_step2(0), 0);
+    assert_eq !(compute_step2(1), 1);
+    assert_eq !(compute_step2(- 1), - 1);
    
 }
 #[test] fn test_compute_step3_examples() {
-    assert_eq!(compute_step3(0), 0);
-    assert_eq!(compute_step3(1), 1);
-    assert_eq!(compute_step3(- 1), - 1);
+    assert_eq !(compute_step3(0), 0);
+    assert_eq !(compute_step3(1), 1);
+    assert_eq !(compute_step3(- 1), - 1);
    
 }
 #[test] fn test_async_computation_chain_examples() {
-    assert_eq!(async_computation_chain (0), 0);
-    assert_eq!(async_computation_chain (1), 1);
-    assert_eq!(async_computation_chain (- 1), - 1);
+    assert_eq !(async_computation_chain (0), 0);
+    assert_eq !(async_computation_chain (1), 1);
+    assert_eq !(async_computation_chain (- 1), - 1);
    
 }
 #[test] fn test_async_for_loop_examples() {
-    assert_eq!(async_for_loop(0), 0);
-    assert_eq!(async_for_loop(1), 1);
-    assert_eq!(async_for_loop(- 1), - 1);
+    assert_eq !(async_for_loop(0), 0);
+    assert_eq !(async_for_loop(1), 1);
+    assert_eq !(async_for_loop(- 1), - 1);
    
 }
 #[test] fn test_async_for_with_break_examples() {
-    assert_eq!(async_for_with_break(0, 0), 0);
-    assert_eq!(async_for_with_break(1, 2), 3);
-    assert_eq!(async_for_with_break(- 1, 1), 0);
+    assert_eq !(async_for_with_break(0, 0), 0);
+    assert_eq !(async_for_with_break(1, 2), 3);
+    assert_eq !(async_for_with_break(- 1, 1), 0);
    
 }
 #[test] fn test_concurrent_with_results_examples() {
-    assert_eq!(concurrent_with_results(vec! []), vec! []);
-    assert_eq!(concurrent_with_results(vec! [1]), vec! [1]);
+    assert_eq !(concurrent_with_results(vec ! []), vec ! []);
+    assert_eq !(concurrent_with_results(vec ! [1]), vec ! [1]);
    
 }
 #[test] fn test_sync_helper_examples() {
-    assert_eq!(sync_helper(0), 0);
-    assert_eq!(sync_helper(1), 1);
-    assert_eq!(sync_helper(- 1), - 1);
+    assert_eq !(sync_helper(0), 0);
+    assert_eq !(sync_helper(1), 1);
+    assert_eq !(sync_helper(- 1), - 1);
    
 }
 #[test] fn test_async_calling_sync_examples() {
-    assert_eq!(async_calling_sync(0), 0);
-    assert_eq!(async_calling_sync(1), 1);
-    assert_eq!(async_calling_sync(- 1), - 1);
+    assert_eq !(async_calling_sync(0), 0);
+    assert_eq !(async_calling_sync(1), 1);
+    assert_eq !(async_calling_sync(- 1), - 1);
    
 }
 #[test] fn test_async_with_sync_computation_examples() {
-    assert_eq!(async_with_sync_computation(& vec! []), 0);
-    assert_eq!(async_with_sync_computation(& vec! [1]), 1);
-    assert_eq!(async_with_sync_computation(& vec! [1, 2, 3]), 3);
+    assert_eq !(async_with_sync_computation(& vec ! []), 0);
+    assert_eq !(async_with_sync_computation(& vec ! [1]), 1);
+    assert_eq !(async_with_sync_computation(& vec ! [1, 2, 3]), 3);
    
 }
 #[test] fn test_async_with_exception_handling_examples() {
-    assert_eq!(async_with_exception_handling(0), 0);
-    assert_eq!(async_with_exception_handling(1), 1);
-    assert_eq!(async_with_exception_handling(- 1), - 1);
+    assert_eq !(async_with_exception_handling(0), 0);
+    assert_eq !(async_with_exception_handling(1), 1);
+    assert_eq !(async_with_exception_handling(- 1), - 1);
    
 }
 #[test] fn test_async_reraise_exception_examples() {
-    assert_eq!(async_reraise_exception(0), 0);
-    assert_eq!(async_reraise_exception(1), 1);
-    assert_eq!(async_reraise_exception(- 1), - 1);
+    assert_eq !(async_reraise_exception(0), 0);
+    assert_eq !(async_reraise_exception(1), 1);
+    assert_eq !(async_reraise_exception(- 1), - 1);
    
 }
 #[test] fn test_async_main_examples() {
