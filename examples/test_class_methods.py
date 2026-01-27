@@ -6,7 +6,7 @@ class Calculator:
     def __init__(self, initial_value: int = 0):
         """Initialize calculator with a value"""
         self.value = initial_value
-        self.history = []
+        self.history: list[str] = []
     
     def add(self, x: int) -> int:
         """Add to current value (instance method)"""

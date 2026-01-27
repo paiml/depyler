@@ -1354,6 +1354,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3089,7 +3103,7 @@ impl DepylerRegexMatch {
 #[derive(Debug, Clone)]
 pub struct Calculator {
     pub value: i32,
-    pub history: Vec<DepylerValue>,
+    pub history: Vec<String>,
 }
 impl Calculator {
     pub fn new(_initial_value: i32) -> Self {
@@ -3100,16 +3114,12 @@ impl Calculator {
     }
     pub fn add(&mut self, x: i32) -> i32 {
         self.value = self.value.clone() + x;
-        self.history
-            .push(DepylerValue::Str(format!("{:?}", format!("add({})", x))));
+        self.history.push(format!("add({})", x));
         return self.value.clone();
     }
     pub fn multiply(&mut self, x: i32) -> i32 {
         self.value = self.value.clone() * x;
-        self.history.push(DepylerValue::Str(format!(
-            "{:?}",
-            format!("multiply({})", x)
-        )));
+        self.history.push(format!("multiply({})", x));
         return self.value.clone();
     }
     pub fn square(x: i32) -> i32 {

@@ -34,7 +34,7 @@ class Point:
         return (self.x * self.x + self.y * self.y) ** 0.5
 
 # Test function
-def test_point():
+def test_point() -> tuple[float, float]:
     # Create points
     p1 = Point(0, 0)
     p2 = Point(3, 4)

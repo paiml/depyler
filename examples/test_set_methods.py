@@ -19,7 +19,7 @@ def test_set_discard() -> Set[int]:
     s.discard(10)  # discard() doesn't raise error if element not found
     return s
 
-def test_set_clear():
+def test_set_clear() -> bool:
     s = {1, 2, 3}
     s.clear()
     return len(s) == 0

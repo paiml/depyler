@@ -52,7 +52,7 @@ def conditional_cse(flag: bool, a: int, b: int) -> int:
     return result + base
 
 
-def loop_invariant_expressions(items: list) -> int:
+def loop_invariant_expressions(items: list[int]) -> int:
     """Expressions that don't change in loops."""
     x = 10
     y = 20
