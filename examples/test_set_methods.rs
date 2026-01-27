@@ -1355,6 +1355,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3106,12 +3120,12 @@ pub fn test_set_add() -> std::collections::HashSet<i32> {
 pub fn test_set_remove() -> std::collections::HashSet<String> {
     let mut s: std::collections::HashSet<String> = {
         let mut set = std::collections::HashSet::new();
-        set.insert("apple");
-        set.insert("banana");
-        set.insert("cherry");
+        set.insert("apple".to_string());
+        set.insert("banana".to_string());
+        set.insert("cherry".to_string());
         set
     };
-    if !s.remove(&"banana") {
+    if !s.remove("banana") {
         panic!("KeyError: element not in set")
     };
     s
@@ -3134,7 +3148,7 @@ pub fn test_set_discard() -> std::collections::HashSet<i32> {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_clear() -> i32 {
+pub fn test_set_clear() -> bool {
     let mut s: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
@@ -3143,7 +3157,7 @@ pub fn test_set_clear() -> i32 {
         set
     };
     s.clear();
-    s.len() as i32 == 0 as i32
+    s.len() as i32 == 0
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -3174,10 +3188,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
-    #[test]
-    fn test_test_set_clear_examples() {
-        let _ = test_set_clear();
-    }
     #[test]
     fn test_test_set_pop_examples() {
         let _ = test_set_pop();

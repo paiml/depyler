@@ -1355,6 +1355,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3124,15 +3138,15 @@ pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_point() -> (f64, DepylerValue) {
+pub fn test_point() -> (f64, f64) {
     let mut p1: Point = Point::new(0, 0);
     let p2: Point = Point::new(3, 4);
     p1.move_by(1, 1);
     let origin = Point::origin();
     let p3 = Point::from_tuple((5, 5));
-    let mag = p2.magnitude();
-    let dist = p1.distance_to(&p2);
-    return (DepylerValue::from(dist), DepylerValue::from(mag));
+    let mag: f64 = p2.magnitude();
+    let dist: f64 = p1.distance_to(&p2);
+    (dist, mag)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
