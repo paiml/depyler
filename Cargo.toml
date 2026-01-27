@@ -111,6 +111,13 @@ codegen-units = 1
 strip = true
 panic = "abort"
 
+# CI profile - fast builds, still optimized but no LTO
+[profile.ci]
+inherits = "release"
+lto = "thin"              # Much faster than "fat"
+codegen-units = 16        # Parallel codegen
+strip = false             # Skip stripping
+
 # Size-optimized build for distribution
 [profile.min-size]
 inherits = "release"
