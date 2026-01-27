@@ -3092,7 +3092,7 @@ pub fn sum_list(nums: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for n in nums.iter().cloned() {
-        total = (total).py_add(n);
+        total = ((total).py_add(n)) as i32;
     }
     total
 }

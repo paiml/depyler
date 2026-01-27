@@ -3130,7 +3130,7 @@ pub fn roll_dice(num_dice: i32, num_sides: i32) -> i32 {
     total = 0;
     for _i in 0..(num_dice) {
         let roll: i32 = 1;
-        total = (total).py_add(roll);
+        total = ((total).py_add(roll)) as i32;
     }
     total
 }
@@ -3180,8 +3180,8 @@ pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut current_streak: i32 = Default::default();
-    let mut current_type: String = Default::default();
     let mut max_tails_streak: i32 = Default::default();
+    let mut current_type: String = Default::default();
     let mut max_heads_streak: i32 = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -3205,7 +3205,7 @@ pub fn count_streaks(
             .expect("IndexError: list index out of range")
             == current_type
         {
-            current_streak = (current_streak).py_add(1);
+            current_streak = ((current_streak).py_add(1i32)) as i32;
         } else {
             if (current_type == "H") && (current_streak > max_heads_streak) {
                 max_heads_streak = current_streak;
@@ -3252,9 +3252,9 @@ pub fn monte_carlo_pi_estimation(
     for _i in 0..(num_samples) {
         let x: f64 = 0.5_f64;
         let y: f64 = 0.5_f64;
-        let distance_squared: f64 = ((x).py_mul(x)).py_add((y).py_mul(y));
+        let distance_squared: f64 = ((x).py_mul(x) as f64).py_add((y).py_mul(y));
         if distance_squared <= 1.0 {
-            inside_circle = (inside_circle).py_add(1);
+            inside_circle = ((inside_circle).py_add(1i32)) as i32;
         }
     }
     let _cse_temp_0 = (inside_circle) as f64;
@@ -3278,15 +3278,15 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
     for _step in 0..(num_steps) {
         let direction: i32 = 0;
         if direction == 0 {
-            y = (y).py_add(1);
+            y = ((y).py_add(1i32)) as i32;
         } else {
             if direction == 1 {
-                x = (x).py_add(1);
+                x = ((x).py_add(1i32)) as i32;
             } else {
                 if direction == 2 {
-                    y = (y).py_sub(1);
+                    y = ((y).py_sub(1i32)) as i32;
                 } else {
-                    x = (x).py_sub(1);
+                    x = ((x).py_sub(1i32)) as i32;
                 }
             }
         }
@@ -3298,7 +3298,7 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
 pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, Box<dyn std::error::Error>> {
     let x: i32 = position.0;
     let y: i32 = position.1;
-    let distance: f64 = ((((x).py_mul(x)).py_add((y).py_mul(y))) as f64 as f64).sqrt();
+    let distance: f64 = ((((x).py_mul(x) as f64).py_add((y).py_mul(y))) as f64 as f64).sqrt();
     Ok(distance)
 }
 #[doc = "Simulate queue/service system"]
@@ -3317,15 +3317,15 @@ pub fn simulate_queue_system(
         let service_time: i32 = service_time_range.0;
         let wait_time: i32 = queue_length;
         wait_times.push(wait_time);
-        queue_length = (queue_length).py_add(service_time);
-        current_time = (arrival_time).py_add(service_time);
+        queue_length = ((queue_length).py_add(service_time)) as i32;
+        current_time = ((arrival_time).py_add(service_time)) as i32;
         if queue_length > 0 {
-            queue_length = depyler_max((0).clone(), ((queue_length).py_sub(1)).clone());
+            queue_length = depyler_max((0).clone(), ((queue_length).py_sub(1i32)).clone());
         }
     }
     total_wait = 0;
     for wait in wait_times.iter().cloned() {
-        total_wait = (total_wait).py_add(wait);
+        total_wait = ((total_wait).py_add(wait)) as i32;
     }
     let avg_wait: f64 = if wait_times.len() as i32 > 0 {
         ((total_wait) as f64).py_div((wait_times.len() as i32) as f64)
@@ -3365,18 +3365,18 @@ pub fn simulate_card_game(
         if player_card > dealer_card {
             results.insert(
                 "wins".to_string(),
-                (results.get("wins").cloned().unwrap_or_default()).py_add(1),
+                (results.get("wins").cloned().unwrap_or_default()).py_add(1i32),
             );
         } else {
             if player_card < dealer_card {
                 results.insert(
                     "losses".to_string(),
-                    (results.get("losses").cloned().unwrap_or_default()).py_add(1),
+                    (results.get("losses").cloned().unwrap_or_default()).py_add(1i32),
                 );
             } else {
                 results.insert(
                     "ties".to_string(),
-                    (results.get("ties").cloned().unwrap_or_default()).py_add(1),
+                    (results.get("ties").cloned().unwrap_or_default()).py_add(1i32),
                 );
             }
         }
@@ -3388,9 +3388,10 @@ pub fn simulate_card_game(
 pub fn calculate_win_rate(
     results: &std::collections::HashMap<String, i32>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = (results.get("wins").cloned().unwrap_or_default())
-        .py_add(results.get("losses").cloned().unwrap_or_default());
-    let _cse_temp_1 = (_cse_temp_0).py_add(results.get("ties").cloned().unwrap_or_default());
+    let _cse_temp_0 = ((results.get("wins").cloned().unwrap_or_default())
+        .py_add(results.get("losses").cloned().unwrap_or_default())) as i32;
+    let _cse_temp_1 =
+        ((_cse_temp_0).py_add(results.get("ties").cloned().unwrap_or_default())) as i32;
     let total_games: i32 = _cse_temp_1;
     let _cse_temp_2 = total_games == 0;
     if _cse_temp_2 {
@@ -3414,10 +3415,10 @@ pub fn simulate_population_growth(
     let mut populations: Vec<i32> = vec![initial_population];
     current_population = initial_population;
     for _generation in 0..(num_generations) {
-        let random_factor: f64 = ((0.5_f64).py_mul(0.2)).py_sub(0.1);
+        let random_factor: f64 = ((0.5_f64).py_mul(0.2) as i32).py_sub(0.1);
         let actual_growth: f64 = (growth_rate).py_add(random_factor);
         let growth: i32 = (((current_population) as f64).py_mul(actual_growth)) as i32;
-        current_population = (current_population).py_add(growth);
+        current_population = ((current_population).py_add(growth)) as i32;
         if current_population < 0 {
             current_population = 0;
         }
@@ -3429,8 +3430,8 @@ pub fn simulate_population_growth(
 pub fn analyze_population_trend(
     populations: &Vec<i32>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut total_growth: f64 = Default::default();
     let mut peak: i32 = Default::default();
+    let mut total_growth: f64 = Default::default();
     let _cse_temp_0 = populations.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {
@@ -3440,7 +3441,7 @@ pub fn analyze_population_trend(
         });
     }
     total_growth = 0.0;
-    let num_intervals: i32 = (_cse_temp_0).py_sub(1);
+    let num_intervals: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     for i in 0..(num_intervals) {
         if populations
             .get(i as usize)
@@ -3450,7 +3451,7 @@ pub fn analyze_population_trend(
         {
             let growth_rate: f64 = ((({
                 let base = &populations;
-                let idx: i32 = (i).py_add(1);
+                let idx: i32 = (i).py_add(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {

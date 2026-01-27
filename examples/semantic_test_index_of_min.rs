@@ -3119,14 +3119,14 @@ pub fn index_of_min(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> 
         {
             min_idx = i;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(min_idx)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", index_of_min(&vec![3, 1, 4, 1, 5, 9, 2, 6]));
+    println!("{}", index_of_min(&vec![3, 1, 4, 1, 5, 9, 2, 6]).unwrap());
     Ok(())
 }
 #[cfg(test)]

@@ -1,9 +1,9 @@
 [package]
-name = "power_and_floor_division"
+name = "text_processing_combined"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "power_and_floor_division"
-path = "power_and_floor_division.rs"
+name = "text_processing_combined"
+path = "text_processing_combined.rs"
 

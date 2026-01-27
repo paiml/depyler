@@ -3088,7 +3088,7 @@ impl DepylerRegexMatch {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn count_char<'b, 'a>(s: &'a str, c: &'b str) -> i32 {
+pub fn count_char<'a, 'b>(s: &'a str, c: &'b str) -> i32 {
     s.matches(&*c).count() as i32 as i32
 }
 #[doc = " Depyler: verified panic-free"]

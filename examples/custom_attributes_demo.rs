@@ -3142,11 +3142,11 @@ pub fn compute_hash(text: &str) -> Result<i32, Box<dyn std::error::Error>> {
     let mut hash_val: i32 = Default::default();
     hash_val = 0;
     for char in text.chars() {
-        hash_val = (((hash_val).py_mul(31i32)).py_add(char as u32 as i32)).py_mod(
+        hash_val = ((((hash_val).py_mul(31i32) as i32).py_add(char as u32 as i32) as i32).py_mod(
             ({ 2 } as i32)
                 .checked_pow({ 32 } as u32)
                 .expect("Power operation overflowed"),
-        );
+        )) as i32;
     }
     Ok(hash_val)
 }

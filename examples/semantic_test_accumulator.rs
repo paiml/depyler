@@ -3092,8 +3092,8 @@ pub fn sum_squares(n: i32) -> i32 {
     total = 0;
     let mut i: i32 = 1;
     while i <= n {
-        total = (total).py_add((i).py_mul(i));
-        i = (i).py_add(1);
+        total = ((total).py_add((i).py_mul(i))) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     total
 }

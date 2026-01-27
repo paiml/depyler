@@ -3195,8 +3195,8 @@ pub fn factorial(n: i32) -> i32 {
         return 1;
     }
     result = 1;
-    for i in (2)..((n).py_add(1)) {
-        result = (result).py_mul(i);
+    for i in (2)..((n).py_add(1i32)) {
+        result = ((result).py_mul(i)) as i32;
     }
     result
 }
@@ -3247,7 +3247,7 @@ pub fn fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return 1;
     }
-    (fibonacci((n).py_sub(1))).py_add(fibonacci((n).py_sub(2)))
+    (fibonacci((n).py_sub(1i32))).py_add(fibonacci((n).py_sub(2i32)))
 }
 #[doc = "Demonstrate verified functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -3269,7 +3269,7 @@ pub fn main() {
         "{}",
         format!("Safe divide by zero: {:?}", safe_divide(10, 0))
     );
-    let mut stack = VerifiedStack::new(3);
+    let mut stack: VerifiedStack = VerifiedStack::new(3);
     stack.push(1);
     stack.push(2);
     println!("{}", format!("Stack size: {}", stack.size()));

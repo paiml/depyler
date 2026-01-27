@@ -3110,7 +3110,7 @@ pub fn modulo(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", modulo(17, 5));
+    println!("{}", modulo(17, 5).unwrap());
     Ok(())
 }
 #[cfg(test)]

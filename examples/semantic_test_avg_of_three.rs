@@ -3106,7 +3106,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn avg_of_three(a: i32, b: i32, c: i32) -> Result<i32, Box<dyn std::error::Error>> {
     Ok({
-        let a = ((a).py_add(b)).py_add(c);
+        let a = ((a).py_add(b) as i32).py_add(c);
         let b = 3;
         let q = a / b;
         let r = a % b;
@@ -3125,6 +3125,6 @@ pub fn avg_of_three(a: i32, b: i32, c: i32) -> Result<i32, Box<dyn std::error::E
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", avg_of_three(10, 20, 30));
+    println!("{}", avg_of_three(10, 20, 30).unwrap());
     Ok(())
 }

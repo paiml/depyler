@@ -3105,7 +3105,7 @@ impl DepylerRegexMatch {
 }
 pub fn find_first_even(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     for n in nums.iter().cloned() {
-        if (n).py_mod(2) == 0 {
+        if (n).py_mod(2i32) == 0 {
             return Ok(n);
         }
     }
@@ -3114,7 +3114,7 @@ pub fn find_first_even(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", find_first_even(&vec![1, 3, 5, 6, 7, 8]));
+    println!("{}", find_first_even(&vec![1, 3, 5, 6, 7, 8]).unwrap());
     Ok(())
 }
 #[cfg(test)]

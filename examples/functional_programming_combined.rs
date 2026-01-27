@@ -3126,7 +3126,7 @@ impl DepylerRegexMatch {
 pub fn map_transform(data: &Vec<i32>, multiplier: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
-        let transformed: i32 = (item).py_mul(multiplier);
+        let transformed: i32 = ((item).py_mul(multiplier)) as i32;
         result.push(transformed);
     }
     result
@@ -3148,7 +3148,7 @@ pub fn reduce_sum(data: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for item in data.iter().cloned() {
-        total = (total).py_add(item);
+        total = ((total).py_add(item)) as i32;
     }
     total
 }
@@ -3163,7 +3163,7 @@ pub fn reduce_product(data: &Vec<i32>) -> i32 {
     }
     product = 1;
     for item in data.iter().cloned() {
-        product = (product).py_mul(item);
+        product = ((product).py_mul(item)) as i32;
     }
     product
 }
@@ -3179,7 +3179,7 @@ pub fn chain_operations(data: &Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -3227,7 +3227,7 @@ pub fn group_by_property(
         map
     };
     for item in items.iter().cloned() {
-        let key: i32 = (item).py_mod(modulo);
+        let key: i32 = ((item).py_mod(modulo)) as i32;
         if groups.get(&key).is_none() {
             groups.insert(key.clone(), vec![]);
         }
@@ -3255,7 +3255,7 @@ pub fn accumulate_running_sum(data: &Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     let mut total: i32 = 0;
     for item in data.iter().cloned() {
-        total = (total).py_add(item);
+        total = ((total).py_add(item)) as i32;
         result.push(total);
     }
     result
@@ -3273,7 +3273,7 @@ pub fn flatten_nested_list(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Compute Cartesian product of two lists"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
+pub fn cartesian_product<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
     for item1 in list1.iter().cloned() {
         for item2 in list2.iter().cloned() {
@@ -3315,14 +3315,14 @@ pub fn drop_while_condition(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn pairwise_iteration(data: &Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
-    for i in 0..((data.len() as i32).py_sub(1)) {
+    for i in 0..((data.len() as i32).py_sub(1i32)) {
         let pair: (i32, i32) = (
             data.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
             {
                 let base = &data;
-                let idx: i32 = (i).py_add(1);
+                let idx: i32 = (i).py_add(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3342,7 +3342,7 @@ pub fn pairwise_iteration(data: &Vec<i32>) -> Vec<(i32, i32)> {
 #[doc = " Depyler: proven to terminate"]
 pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
     let mut result: Vec<Vec<i32>> = vec![];
-    for i in 0..(((data.len() as i32).py_sub(window_size)).py_add(1)) {
+    for i in 0..(((data.len() as i32).py_sub(window_size) as i32).py_add(1i32)) {
         let mut window: Vec<i32> = vec![];
         for j in 0..(window_size) {
             window.push({
@@ -3368,7 +3368,7 @@ pub fn compose_two_functions(data: &Vec<i32>) -> Vec<i32> {
     let step1: Vec<i32> = map_transform(&data, 2);
     let mut step2: Vec<i32> = vec![];
     for item in step1.iter().cloned() {
-        step2.push((item).py_add(1));
+        step2.push((item).py_add(1i32));
     }
     step2
 }
@@ -3385,12 +3385,12 @@ pub fn apply_multiple_operations<'b, 'a>(
         new_result = vec![];
         if op == "double" {
             for item in result.iter().cloned() {
-                new_result.push((item).py_mul(2));
+                new_result.push((item).py_mul(2i32));
             }
         } else {
             if op == "increment" {
                 for item in result.iter().cloned() {
-                    new_result.push((item).py_add(1));
+                    new_result.push((item).py_add(1i32));
                 }
             } else {
                 if op == "square" {
@@ -3467,7 +3467,7 @@ pub fn sorted_by_key(
 ) -> Result<Vec<(String, i32)>, Box<dyn std::error::Error>> {
     let mut result: Vec<(String, i32)> = items.clone();
     for i in 0..(result.len() as i32) {
-        for j in ((i).py_add(1))..(result.len() as i32) {
+        for j in ((i).py_add(1i32))..(result.len() as i32) {
             if result
                 .get(j as usize)
                 .cloned()

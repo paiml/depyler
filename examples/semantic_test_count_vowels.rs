@@ -3122,16 +3122,16 @@ pub fn count_vowels(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
                 .unwrap_or_default()
         };
         if ((((c == "a") || (c == "e")) || (c == "i")) || (c == "o")) || (c == "u") {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(count)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", count_vowels(&"hello world"));
+    println!("{}", count_vowels(&"hello world").unwrap());
     Ok(())
 }
 #[cfg(test)]

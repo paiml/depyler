@@ -3186,7 +3186,7 @@ pub fn test_base64_padding() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_base64_multiline() {
-    let _cse_temp_0 = (b"The quick brown fox jumps over the lazy dog. ").py_mul(10);
+    let _cse_temp_0 = ((b"The quick brown fox jumps over the lazy dog. ").py_mul(10i32)) as i32;
     let data = _cse_temp_0;
     let encoded = format!("{:?}", data)
         .into_bytes();
@@ -3211,9 +3211,9 @@ pub fn test_base64_unicode() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "BASE64 MODULE TESTS");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     test_base64_encode_basic();
     test_base64_decode_basic();
     test_base64_roundtrip();
@@ -3224,8 +3224,8 @@ pub fn main() {
     test_base64_padding();
     test_base64_multiline();
     test_base64_unicode();
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ALL BASE64 TESTS PASSED!");
     println!("{}", "Total tests: 10");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
 }

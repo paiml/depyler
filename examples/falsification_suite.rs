@@ -3130,7 +3130,7 @@ pub fn rc1_string_matching_exploit(values: &Vec<String>) -> i32 {
     match (|| -> Result<i32, Box<dyn std::error::Error>> {
         for v in values.iter().cloned() {
             let num: i32 = v.parse::<i32>().unwrap_or_default();
-            total = (total).py_add(num);
+            total = ((total).py_add(num)) as i32;
         }
         return Ok((total).py_add(parse_parser.parse::<i32>().unwrap_or_default()));
     })() {

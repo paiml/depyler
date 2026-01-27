@@ -3094,16 +3094,19 @@ pub fn apply_func(x: i32, f: impl Fn(i32) -> i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_lambda_passing() -> i32 {
-    let result1: i32 = apply_func(10, move |x: i32| (x).py_mul(2));
-    let result2: i32 = apply_func(5, move |x: i32| (x).py_add(10));
-    let triple = move |x: i32| (x).py_mul(3);
+    let result1: i32 = apply_func(10, move |x: i32| (x).py_mul(2i32));
+    let result2: i32 = apply_func(5, move |x: i32| (x).py_add(10i32));
+    let triple = move |x: i32| (x).py_mul(3i32);
     let result3: i32 = apply_func(7, triple);
-    ((result1).py_add(result2)).py_add(result3)
+    {
+        let _r: i32 = ((result1).py_add(result2) as i32).py_add(result3);
+        _r
+    }
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test passing lambdas as arguments".to_string();
+    let _ = "Test passing lambdas as arguments";
     Ok(())
 }
 #[cfg(test)]

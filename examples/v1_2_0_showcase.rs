@@ -3163,7 +3163,7 @@ pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_instance_methods() {
-    let mut account = BankAccount::new("Alice".to_string(), 1000.0);
+    let mut account: BankAccount = BankAccount::new("Alice".to_string(), 1000.0);
     let new_balance = account.deposit(500.0);
     let success = account.withdraw(200.0);
     let balance = account.balance;
@@ -3180,7 +3180,7 @@ pub fn demo_static_methods() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_dataclass() -> bool {
-    let tx = Transaction::new("Alice".to_string(), "Bob".to_string(), 100.0);
+    let tx: Transaction = Transaction::new("Alice".to_string(), "Bob".to_string(), 100.0);
     let valid = tx.is_valid();
     valid
 }
@@ -3188,9 +3188,10 @@ pub fn demo_dataclass() -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_all_features() {
-    let mut checking = BankAccount::new("Charlie".to_string(), 5000.0);
+    let mut checking: BankAccount = BankAccount::new("Charlie".to_string(), 5000.0);
     checking.deposit(1000.0);
-    let transaction = Transaction::new("Charlie".to_string(), "Dana".to_string(), 500.0);
+    let transaction: Transaction =
+        Transaction::new("Charlie".to_string(), "Dana".to_string(), 500.0);
     if transaction.is_valid() {
         checking.withdraw(transaction.amount);
     }

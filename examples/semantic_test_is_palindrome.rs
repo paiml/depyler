@@ -3106,7 +3106,7 @@ impl DepylerRegexMatch {
 pub fn is_palindrome(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let mut left: i32 = 0;
     let _cse_temp_0 = s.len() as i32;
-    let mut right: i32 = (_cse_temp_0).py_sub(1);
+    let mut right: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while left < right {
         if {
             let base = &s;
@@ -3135,8 +3135,8 @@ pub fn is_palindrome(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
         } {
             return Ok(false);
         }
-        left = (left).py_add(1);
-        right = (right).py_sub(1);
+        left = ((left).py_add(1i32)) as i32;
+        right = ((right).py_sub(1i32)) as i32;
     }
     Ok(true)
 }

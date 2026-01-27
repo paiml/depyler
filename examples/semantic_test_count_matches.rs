@@ -3118,15 +3118,18 @@ pub fn count_matches<'a, 'b>(
                 .cloned()
                 .expect("IndexError: list index out of range")
         {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(count)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", count_matches(&vec![1, 2, 3, 4], &vec![1, 0, 3, 0]));
+    println!(
+        "{}",
+        count_matches(&vec![1, 2, 3, 4], &vec![1, 0, 3, 0]).unwrap()
+    );
     Ok(())
 }

@@ -16,7 +16,7 @@ use tokio as asyncio;
 }
 impl std::fmt::Display for ZeroDivisionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "division by zero: {}", self.message)
+    write !(f, "division by zero: {}", self.message)
 }
 } impl std::error::Error for ZeroDivisionError {
    
@@ -33,7 +33,7 @@ impl ZeroDivisionError {
 }
 impl std::fmt::Display for IndexError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "index out of range: {}", self.message)
+    write !(f, "index out of range: {}", self.message)
 }
 } impl std::error::Error for IndexError {
    
@@ -76,7 +76,7 @@ DepylerValue::Tuple(_dv_tuple) =>_dv_tuple.hash(state) ,
 impl std::fmt::Display for DepylerValue {
     fn fmt(&self, _dv_fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-    DepylerValue::Int(_dv_int) =>write!(_dv_fmt, "{}", _dv_int), DepylerValue::Float(_dv_float) =>write!(_dv_fmt, "{}", _dv_float), DepylerValue::Str(_dv_str) =>write!(_dv_fmt, "{}", _dv_str), DepylerValue::Bool(_dv_bool) =>write!(_dv_fmt, "{}", _dv_bool), DepylerValue::None =>write!(_dv_fmt, "None"), DepylerValue::List(_dv_list) =>write!(_dv_fmt, "{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>write!(_dv_fmt, "{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>write!(_dv_fmt, "{:?}", _dv_tuple) ,
+    DepylerValue::Int(_dv_int) =>write !(_dv_fmt, "{}", _dv_int), DepylerValue::Float(_dv_float) =>write !(_dv_fmt, "{}", _dv_float), DepylerValue::Str(_dv_str) =>write !(_dv_fmt, "{}", _dv_str), DepylerValue::Bool(_dv_bool) =>write !(_dv_fmt, "{}", _dv_bool), DepylerValue::None =>write !(_dv_fmt, "None"), DepylerValue::List(_dv_list) =>write !(_dv_fmt, "{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>write !(_dv_fmt, "{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>write !(_dv_fmt, "{:?}", _dv_tuple) ,
 }
 }
 }
@@ -142,7 +142,7 @@ else {
 }
 } #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"] #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"] pub fn as_string(&self) -> String {
     match self {
-    DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
+    DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format !("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format !("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format !("{:?}", _dv_tuple) ,
 }
 } #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"] pub fn as_str(&self) -> Option<& str>{
     match self {
@@ -150,15 +150,15 @@ else {
 }
 } #[doc = r" DEPYLER-1215: Get as i64(for integer values)"] pub fn as_i64(&self) -> Option<i64>{
     match self {
-    DepylerValue::Int(_dv_int) =>Some(* _dv_int), _ =>None ,
+    DepylerValue::Int(_dv_int) =>Some(*_dv_int), _ =>None ,
 }
 } #[doc = r" DEPYLER-1215: Get as f64(for float values)"] pub fn as_f64(&self) -> Option<f64>{
     match self {
-    DepylerValue::Float(_dv_float) =>Some(* _dv_float), DepylerValue::Int(_dv_int) =>Some(* _dv_int as f64), _ =>None ,
+    DepylerValue::Float(_dv_float) =>Some(*_dv_float), DepylerValue::Int(_dv_int) =>Some(*_dv_int as f64), _ =>None ,
 }
 } #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"] pub fn as_bool(&self) -> Option<bool>{
     match self {
-    DepylerValue::Bool(_dv_bool) =>Some(* _dv_bool), _ =>None ,
+    DepylerValue::Bool(_dv_bool) =>Some(*_dv_bool), _ =>None ,
 }
 } #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
     match self {
@@ -182,7 +182,7 @@ else {
 }
 } #[doc = r" Convert to bool"] pub fn to_bool(&self) -> bool {
     match self {
-    DepylerValue::Bool(_dv_bool) =>* _dv_bool, DepylerValue::Int(_dv_int) =>* _dv_int!= 0, DepylerValue::Float(_dv_float) =>* _dv_float!= 0.0, DepylerValue::Str(_dv_str) =>! _dv_str.is_empty(), DepylerValue::List(_dv_list) =>! _dv_list.is_empty(), DepylerValue::Dict(_dv_dict) =>! _dv_dict.is_empty(), DepylerValue::Tuple(_dv_tuple) =>! _dv_tuple.is_empty(), DepylerValue::None =>false ,
+    DepylerValue::Bool(_dv_bool) =>* _dv_bool, DepylerValue::Int(_dv_int) =>* _dv_int != 0, DepylerValue::Float(_dv_float) =>* _dv_float != 0.0, DepylerValue::Str(_dv_str) =>! _dv_str.is_empty(), DepylerValue::List(_dv_list) =>! _dv_list.is_empty(), DepylerValue::Dict(_dv_dict) =>! _dv_dict.is_empty(), DepylerValue::Tuple(_dv_tuple) =>! _dv_tuple.is_empty(), DepylerValue::None =>false ,
 }
 } #[doc = r" DEPYLER-1064: Get tuple element by index for tuple unpacking"] #[doc = r" Returns the element at the given index, or panics with a readable error"] #[doc = r" Works on both Tuple and List variants(Python treats them similarly for unpacking)"] pub fn get_tuple_elem(&self, _dv_idx: usize) -> DepylerValue {
     match self {
@@ -191,32 +191,32 @@ else {
     _dv_tuple [_dv_idx].clone()
 }
 else {
-    panic!("Tuple index {} out of bounds(length {})", _dv_idx, _dv_tuple.len())
+    panic !("Tuple index {} out of bounds(length {})", _dv_idx, _dv_tuple.len())
 }
 } DepylerValue::List(_dv_list) =>{
     if _dv_idx<_dv_list.len() {
     _dv_list [_dv_idx].clone()
 }
 else {
-    panic!("List index {} out of bounds(length {})", _dv_idx, _dv_list.len())
+    panic !("List index {} out of bounds(length {})", _dv_idx, _dv_list.len())
 }
-} _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+} _dv_other =>panic !("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
 }
 } #[doc = r" DEPYLER-1064: Extract tuple as Vec for multiple assignment"] #[doc = r" Validates that the value is a tuple/list with the expected number of elements"] pub fn extract_tuple(&self, _dv_expected_len: usize) -> Vec<DepylerValue>{
     match self {
     DepylerValue::Tuple(_dv_tuple) =>{
-    if _dv_tuple.len()!= _dv_expected_len {
-    panic!("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
+    if _dv_tuple.len() != _dv_expected_len {
+    panic !("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
 }
 _dv_tuple.clone()
 }
 DepylerValue::List(_dv_list) =>{
-    if _dv_list.len()!= _dv_expected_len {
-    panic!("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
+    if _dv_list.len() != _dv_expected_len {
+    panic !("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
 }
 _dv_list.clone()
 }
-_dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+_dv_other =>panic !("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
 }
 } #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
     match self {
@@ -251,7 +251,7 @@ impl std::ops::Index<usize>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_idx: usize) -> & Self::Output {
     match self {
-    DepylerValue::List(_dv_list) =>& _dv_list [_dv_idx], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_idx], _ =>panic!("Cannot index non-list/tuple DepylerValue") ,
+    DepylerValue::List(_dv_list) =>& _dv_list [_dv_idx], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_idx], _ =>panic !("Cannot index non-list/tuple DepylerValue") ,
 }
 }
 }
@@ -259,7 +259,7 @@ impl std::ops::Index<& str>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_key: & str) -> & Self::Output {
     match self {
-    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Str(_dv_key.to_string())).unwrap_or(& DepylerValue::None), _ =>panic!("Cannot index non-dict DepylerValue with string key") ,
+    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Str(_dv_key.to_string())).unwrap_or(& DepylerValue::None), _ =>panic !("Cannot index non-dict DepylerValue with string key") ,
 }
 }
 }
@@ -267,7 +267,7 @@ impl std::ops::Index<DepylerValue>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_key: DepylerValue) -> & Self::Output {
     match self {
-    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& _dv_key).unwrap_or(& DepylerValue::None), _ =>panic!("Cannot index non-dict DepylerValue") ,
+    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& _dv_key).unwrap_or(& DepylerValue::None), _ =>panic !("Cannot index non-dict DepylerValue") ,
 }
 }
 }
@@ -275,7 +275,7 @@ impl std::ops::Index<i64>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_key: i64) -> & Self::Output {
     match self {
-    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Int(_dv_key)).unwrap_or(& DepylerValue::None), DepylerValue::List(_dv_list) =>& _dv_list [_dv_key as usize], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_key as usize], _ =>panic!("Cannot index DepylerValue with integer") ,
+    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Int(_dv_key)).unwrap_or(& DepylerValue::None), DepylerValue::List(_dv_list) =>& _dv_list [_dv_key as usize], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_key as usize], _ =>panic !("Cannot index DepylerValue with integer") ,
 }
 }
 }
@@ -367,11 +367,11 @@ impl std::ops::Index<i32>for DepylerValue {
 }
 } impl From<std::sync::Arc<std::collections::HashSet<i32>>>for DepylerValue {
     fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
-    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x as i64)).collect())
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(*x as i64)).collect())
 }
 } impl From<std::sync::Arc<std::collections::HashSet<i64>>>for DepylerValue {
     fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
-    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x)).collect())
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(*x)).collect())
 }
 } impl From<std::sync::Arc<std::collections::HashSet<String>>>for DepylerValue {
     fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
@@ -429,7 +429,7 @@ impl std::ops::Div for DepylerValue {
     type Output = DepylerValue;
     fn div(self, rhs: Self) -> Self::Output {
     match(self, rhs) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Int(_dv_a / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Int(_dv_a / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
 }
 }
 }
@@ -617,7 +617,7 @@ impl std::ops::Neg for DepylerValue {
 impl std::ops::Not for DepylerValue {
     type Output = bool;
     fn not(self) -> Self::Output {
-   ! self.to_bool()
+    ! self.to_bool()
 }
 } impl std::ops::BitXor<i64>for DepylerValue {
     type Output = DepylerValue;
@@ -670,7 +670,7 @@ _ =>Vec::new().into_iter() ,
 impl std::cmp::PartialOrd for DepylerValue {
     fn partial_cmp(&self, other: & Self) -> Option<std::cmp::Ordering>{
     match(self, other) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) =>Some(_dv_a.total_cmp(_dv_b)) ,(DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) =>Some((* _dv_a as f64).total_cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.total_cmp(&(* _dv_b as f64))) ,(DepylerValue::None, DepylerValue::None) =>Some(std::cmp::Ordering::Equal) ,(DepylerValue::None, _) =>Some(std::cmp::Ordering::Less) ,(_, DepylerValue::None) =>Some(std::cmp::Ordering::Greater) ,(DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) =>_dv_a.partial_cmp(_dv_b) ,(DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) =>_dv_a.partial_cmp(_dv_b), _ =>Option::None ,
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) =>Some(_dv_a.total_cmp(_dv_b)) ,(DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) =>Some((*_dv_a as f64).total_cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.total_cmp(&(*_dv_b as f64))) ,(DepylerValue::None, DepylerValue::None) =>Some(std::cmp::Ordering::Equal) ,(DepylerValue::None, _) =>Some(std::cmp::Ordering::Less) ,(_, DepylerValue::None) =>Some(std::cmp::Ordering::Greater) ,(DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) =>_dv_a.partial_cmp(_dv_b) ,(DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) =>_dv_a.partial_cmp(_dv_b), _ =>Option::None ,
 }
 }
 }
@@ -702,31 +702,31 @@ impl PyTruthy for bool {
 }
 } impl PyTruthy for i32 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0
+    * self != 0
 }
 } impl PyTruthy for i64 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0
+    * self != 0
 }
 } impl PyTruthy for f32 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0.0
+    * self != 0.0
 }
 } impl PyTruthy for f64 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0.0
+    * self != 0.0
 }
 } impl PyTruthy for String {
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl PyTruthy for & str {
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for Vec<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for Option<T>{
     #[inline] fn is_true(&self) -> bool {
@@ -734,28 +734,28 @@ impl PyTruthy for bool {
 }
 } impl<K, V>PyTruthy for std::collections::HashMap<K, V>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<K, V>PyTruthy for std::collections::BTreeMap<K, V>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for std::collections::HashSet<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for std::collections::BTreeSet<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for std::collections::VecDeque<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl PyTruthy for DepylerValue {
     #[doc = r" Python truthiness for DepylerValue:"] #[doc = r#" - Int(0), Float(0.0), Str(""), Bool(false), None -> false"#] #[doc = r" - List([]), Dict({}), Tuple([]) -> false"] #[doc = r" - Everything else -> true"] #[inline] fn is_true(&self) -> bool {
     match self {
-    DepylerValue::Bool(_dv_b) =>* _dv_b, DepylerValue::Int(_dv_i) =>* _dv_i!= 0, DepylerValue::Float(_dv_f) =>* _dv_f!= 0.0, DepylerValue::Str(_dv_s) =>! _dv_s.is_empty(), DepylerValue::List(_dv_l) =>! _dv_l.is_empty(), DepylerValue::Dict(_dv_d) =>! _dv_d.is_empty(), DepylerValue::Tuple(_dv_t) =>! _dv_t.is_empty(), DepylerValue::None =>false ,
+    DepylerValue::Bool(_dv_b) =>* _dv_b, DepylerValue::Int(_dv_i) =>* _dv_i != 0, DepylerValue::Float(_dv_f) =>* _dv_f != 0.0, DepylerValue::Str(_dv_s) =>! _dv_s.is_empty(), DepylerValue::List(_dv_l) =>! _dv_l.is_empty(), DepylerValue::Dict(_dv_d) =>! _dv_d.is_empty(), DepylerValue::Tuple(_dv_t) =>! _dv_t.is_empty(), DepylerValue::None =>false ,
 }
 }
 }
@@ -847,12 +847,12 @@ impl PyAdd for i32 {
 } impl PyAdd<& str>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: & str) -> String {
-    format!("{}{}", self, rhs)
+    format !("{}{}", self, rhs)
 }
 } impl PyAdd<String>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: String) -> String {
-    format!("{}{}", self, rhs)
+    format !("{}{}", self, rhs)
 }
 } impl PyAdd<char>for String {
     type Output = String;
@@ -863,7 +863,7 @@ impl PyAdd for i32 {
 } impl PyAdd<char>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: char) -> String {
-    format!("{}{}", self, rhs)
+    format !("{}{}", self, rhs)
 }
 } impl PyAdd for DepylerValue {
     type Output = DepylerValue;
@@ -1366,7 +1366,7 @@ impl PyDiv for DepylerValue {
     type Output = DepylerValue;
     fn py_div(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
 }
 }
 }
@@ -1487,17 +1487,17 @@ impl PyMod for DepylerValue {
     type Output = DepylerValue;
     fn py_mod(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>{
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>{
     DepylerValue::Int(((_dv_a % _dv_b) + _dv_b) % _dv_b)
 }
-(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>{
+(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>{
     DepylerValue::Float(((_dv_a % _dv_b) + _dv_b) % _dv_b)
 }
-(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>{
+(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>{
     let a = _dv_a as f64;
     DepylerValue::Float(((a % _dv_b) + _dv_b) % _dv_b)
 }
-(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>{
+(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>{
     let b = _dv_b as f64;
     DepylerValue::Float(((_dv_a % b) + b) % b)
 }
@@ -1735,22 +1735,22 @@ else {
 }).collect()
 }
 #[inline] fn isalpha(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_alphabetic())
+    ! self.is_empty() &&self.chars().all(| c | c.is_alphabetic())
 }
 #[inline] fn isdigit(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_ascii_digit())
+    ! self.is_empty() &&self.chars().all(| c | c.is_ascii_digit())
 }
 #[inline] fn isalnum(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_alphanumeric())
+    ! self.is_empty() &&self.chars().all(| c | c.is_alphanumeric())
 }
 #[inline] fn isspace(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_whitespace())
+    ! self.is_empty() &&self.chars().all(| c | c.is_whitespace())
 }
 #[inline] fn islower(&self) -> bool {
-    self.chars().any(| c | c.is_lowercase()) &&! self.chars().any(| c | c.is_uppercase())
+    self.chars().any(| c | c.is_lowercase()) && ! self.chars().any(| c | c.is_uppercase())
 }
 #[inline] fn isupper(&self) -> bool {
-    self.chars().any(| c | c.is_uppercase()) &&! self.chars().any(| c | c.is_lowercase())
+    self.chars().any(| c | c.is_uppercase()) && ! self.chars().any(| c | c.is_lowercase())
 }
 #[inline] fn center(&self, width: usize) -> String {
     if self.len()>= width {
@@ -1760,28 +1760,28 @@ else {
 let padding = width - self.len();
     let left = padding / 2;
     let right = padding - left;
-    format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+    format !("{}{}{}", " ".repeat(left), self, " ".repeat(right))
 }
 #[inline] fn ljust(&self, width: usize) -> String {
     if self.len()>= width {
     return self.to_string();
    
 }
-format!("{}{}", self, " ".repeat(width - self.len()))
+format !("{}{}", self, " ".repeat(width - self.len()))
 }
 #[inline] fn rjust(&self, width: usize) -> String {
     if self.len()>= width {
     return self.to_string();
    
 }
-format!("{}{}", " ".repeat(width - self.len()), self)
+format !("{}{}", " ".repeat(width - self.len()), self)
 }
 #[inline] fn zfill(&self, width: usize) -> String {
     if self.len()>= width {
     return self.to_string();
    
 }
-format!("{}{}", "0".repeat(width - self.len()), self)
+format !("{}{}", "0".repeat(width - self.len()), self)
 }
 #[inline] fn count(&self, sub: & str) -> usize {
     self.matches(sub).count()
@@ -1984,16 +1984,16 @@ impl DepylerMCPClient {
     self.request_id = self.request_id.clone() + 1;
     let request = {
     let mut map = std::collections::HashMap::new();
-    map.insert("id".to_string(), DepylerValue::Str(format!("{:?}", self.request_id.clone().to_string())));
+    map.insert("id".to_string(), DepylerValue::Str(format !("{:?}", self.request_id.clone().to_string())));
     map.insert("method".to_string(), DepylerValue::Str("tools/call".to_string()));
     map.insert("params".to_string(), DepylerValue::Dict({ let mut map = std::collections::HashMap::new();
-    map.insert("name".to_string(), DepylerValue::Str(format!("{:?}", tool_name)));
-    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", arguments)));
+    map.insert("name".to_string(), DepylerValue::Str(format !("{:?}", tool_name)));
+    map.insert("arguments".to_string(), DepylerValue::Str(format !("{:?}", arguments)));
     map }));
     map };
-    println!("{}", format!("📤 MCP Request({}):", tool_name));
-    println!("{}", serde_json::to_string(& request).unwrap());
-    println!();
+    println !("{}", format !("📤 MCP Request({}):", tool_name));
+    println !("{}", serde_json::to_string(& request).unwrap());
+    println !();
     return self._mock_response(tool_name, arguments).await;
    
 }
@@ -2012,8 +2012,8 @@ pub async fn _mock_response(&self, tool_name: String, arguments: std::collection
     map }));
     map.insert("verification_status".to_string(), DepylerValue::Dict({ let mut map = std::collections::HashMap::new();
     map.insert("passed".to_string(), DepylerValue::Bool(true));
-    map.insert("warnings".to_string(), DepylerValue::List(vec! []));
-    map.insert("guarantees".to_string(), DepylerValue::List(vec! [DepylerValue::Str("memory_safe".to_string()), DepylerValue::Str("panic_free".to_string()), DepylerValue::Str("terminates".to_string())]));
+    map.insert("warnings".to_string(), DepylerValue::List(vec ! []));
+    map.insert("guarantees".to_string(), DepylerValue::List(vec ! [DepylerValue::Str("memory_safe".to_string()), DepylerValue::Str("panic_free".to_string()), DepylerValue::Str("terminates".to_string())]));
     map }));
     map };
    
@@ -2028,7 +2028,7 @@ else {
     map.insert("estimated_effort_hours".to_string(), DepylerValue::Int(45 as i64));
     map.insert("risk_assessment".to_string(), DepylerValue::Dict({ let mut map = std::collections::HashMap::new();
     map.insert("overall_risk".to_string(), DepylerValue::Str("Medium".to_string()));
-    map.insert("risk_factors".to_string(), DepylerValue::List(vec! [DepylerValue::Str(format!("{:?}", {
+    map.insert("risk_factors".to_string(), DepylerValue::List(vec ! [DepylerValue::Str(format !("{:?}", {
     let mut map = std::collections::HashMap::new();
     map.insert("factor".to_string(), DepylerValue::Str("Dynamic typing usage".to_string()));
     map.insert("severity".to_string(), DepylerValue::Str("Medium".to_string()));
@@ -2038,23 +2038,23 @@ else {
     map }));
     map.insert("migration_strategy".to_string(), DepylerValue::Dict({ let mut map = std::collections::HashMap::new();
     map.insert("recommended_approach".to_string(), DepylerValue::Str("incremental".to_string()));
-    map.insert("phases".to_string(), DepylerValue::List(vec! [DepylerValue::Str(format!("{:?}", {
+    map.insert("phases".to_string(), DepylerValue::List(vec ! [DepylerValue::Str(format !("{:?}", {
     let mut map = std::collections::HashMap::new();
     map.insert("phase".to_string(), DepylerValue::Int(1 as i64));
     map.insert("description".to_string(), DepylerValue::Str("Transpile utility functions".to_string()));
     map.insert("estimated_hours".to_string(), DepylerValue::Int(12 as i64));
-    map.insert("files".to_string(), DepylerValue::List(vec! [DepylerValue::Str("utils.py".to_string()), DepylerValue::Str("helpers.py".to_string())]));
-    map })), DepylerValue::Str(format!("{:?}", {
+    map.insert("files".to_string(), DepylerValue::List(vec ! [DepylerValue::Str("utils.py".to_string()), DepylerValue::Str("helpers.py".to_string())]));
+    map })), DepylerValue::Str(format !("{:?}", {
     let mut map = std::collections::HashMap::new();
     map.insert("phase".to_string(), DepylerValue::Int(2 as i64));
     map.insert("description".to_string(), DepylerValue::Str("Transpile core business logic".to_string()));
     map.insert("estimated_hours".to_string(), DepylerValue::Int(25 as i64));
-    map.insert("files".to_string(), DepylerValue::List(vec! [DepylerValue::Str("core.py".to_string()), DepylerValue::Str("processor.py".to_string())]));
+    map.insert("files".to_string(), DepylerValue::List(vec ! [DepylerValue::Str("core.py".to_string()), DepylerValue::Str("processor.py".to_string())]));
     map }))]));
     map }));
     map.insert("compatibility_report".to_string(), DepylerValue::Dict({ let mut map = std::collections::HashMap::new();
     map.insert("supported_features".to_string(), DepylerValue::Float(0.87 as f64));
-    map.insert("unsupported_constructs".to_string(), DepylerValue::List(vec! [DepylerValue::Str("eval statements".to_string()), DepylerValue::Str("dynamic imports".to_string())]));
+    map.insert("unsupported_constructs".to_string(), DepylerValue::List(vec ! [DepylerValue::Str("eval statements".to_string()), DepylerValue::Str("dynamic imports".to_string())]));
     map }));
     map };
    
@@ -2065,18 +2065,18 @@ else {
     let mut map = std::collections::HashMap::new();
     map.insert("verification_passed".to_string(), DepylerValue::Bool(true));
     map.insert("semantic_equivalence_score".to_string(), DepylerValue::Float(0.95 as f64));
-    map.insert("safety_guarantees".to_string(), DepylerValue::List(vec! [DepylerValue::Str("memory_safe".to_string()), DepylerValue::Str("panic_free".to_string()), DepylerValue::Str("no_undefined_behavior".to_string()), DepylerValue::Str("terminates".to_string())]));
+    map.insert("safety_guarantees".to_string(), DepylerValue::List(vec ! [DepylerValue::Str("memory_safe".to_string()), DepylerValue::Str("panic_free".to_string()), DepylerValue::Str("no_undefined_behavior".to_string()), DepylerValue::Str("terminates".to_string())]));
     map.insert("performance_comparison".to_string(), DepylerValue::Dict({ let mut map = std::collections::HashMap::new();
     map.insert("rust_faster_by".to_string(), DepylerValue::Str("280%".to_string()));
     map.insert("memory_usage_reduction".to_string(), DepylerValue::Str("42%".to_string()));
     map.insert("energy_efficiency_improvement".to_string(), DepylerValue::Str("65%".to_string()));
     map }));
-    map.insert("property_verification_results".to_string(), DepylerValue::List(vec! [DepylerValue::Str(format!("{:?}", {
+    map.insert("property_verification_results".to_string(), DepylerValue::List(vec ! [DepylerValue::Str(format !("{:?}", {
     let mut map = std::collections::HashMap::new();
     map.insert("property".to_string(), "termination".to_string());
     map.insert("status".to_string(), "proven".to_string());
     map.insert("method".to_string(), "structural_analysis".to_string());
-    map })), DepylerValue::Str(format!("{:?}", {
+    map })), DepylerValue::Str(format !("{:?}", {
     let mut map = std::collections::HashMap::new();
     map.insert("property".to_string(), "memory_safety".to_string());
     map.insert("status".to_string(), "proven".to_string());
@@ -2099,101 +2099,101 @@ else {
    
 }
 } #[doc = "Example 1: Simple function transpilation with MCP."] pub async fn example_1_simple_transpilation() -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", "🔬 Example 1: Simple Function Transpilation");
-    println!("{}", STR___2.repeat(50 as usize));
+    println !("{}", "🔬 Example 1: Simple Function Transpilation");
+    println !("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_code = "\ndef add_numbers(a: int, b: int) -> int:\n    \"\"\"Add two numbers together.\"\"\"\n    return a + b\n\nif __name__ == \"__main__\":\n    result = add_numbers(5, 3)\n    print(f\"Result: {result}\")\n";
-    println!("{}", "🐍 Python Source:");
-    println!("{}", python_code);
-    println!();
+    println !("{}", "🐍 Python Source:");
+    println !("{}", python_code);
+    println !();
     let result = client.call_tool("transpile_python", {
     let mut map = std::collections::HashMap::new();
-    map.insert("source".to_string(), serde_json::json!(python_code.trim().to_string()));
-    map.insert("mode".to_string(), serde_json::json!("inline".to_string()));
-    map.insert("options".to_string(), serde_json::json!(serde_json::json!({ "optimization_level": "energy", "type_inference": "conservative".to_string(), "verification_level": "comprehensive" })));
+    map.insert("source".to_string(), serde_json::json !(python_code.trim().to_string()));
+    map.insert("mode".to_string(), serde_json::json !("inline"));
+    map.insert("options".to_string(), serde_json::json !(serde_json::json !({ "optimization_level": "energy", "type_inference": "conservative", "verification_level": "comprehensive" })));
     map }).await;
-    println!("{}", "📤 MCP Response:");
-    println!("{}", serde_json::to_string(& result).unwrap());
-    println!();
-    println!("{}", "🦀 Generated Rust Code:");
-    println!("{}", result.get("rust_code").cloned().unwrap_or_default());
-    println!();
-    println!("{}", "📊 Transpilation Metrics:");
-    for(key, value) in result.get("metrics").cloned().unwrap_or_default().iter().map(|(k, v) |(k.clone(), v.clone())).collect::<Vec<_>>().as_array().unwrap_or(& vec! []).iter().cloned() {
-    println!("{}", format!("  • {:?}: {:?}", key, value));
+    println !("{}", "📤 MCP Response:");
+    println !("{}", serde_json::to_string(& result).unwrap());
+    println !();
+    println !("{}", "🦀 Generated Rust Code:");
+    println !("{}", result.get("rust_code").cloned().unwrap_or_default());
+    println !();
+    println !("{}", "📊 Transpilation Metrics:");
+    for(key, value) in result.get("metrics").cloned().unwrap_or_default().iter().map(|(k, v) |(k.clone(), v.clone())).collect::<Vec<_>>().as_array().unwrap_or(& vec ! []).iter().cloned() {
+    println !("{}", format !("  • {:?}: {:?}", key, value));
    
 }
-println!();
+println !();
     Ok(())
 }
 #[doc = "Example 2: Analyze migration complexity for a project."] pub async fn example_2_project_analysis() -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", "🔬 Example 2: Project Migration Analysis");
-    println!("{}", STR___2.repeat(50 as usize));
+    println !("{}", "🔬 Example 2: Project Migration Analysis");
+    println !("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let result = client.call_tool("analyze_migration_complexity", {
     let mut map = std::collections::HashMap::new();
-    map.insert("project_path".to_string(), serde_json::json!("./examples/showcase".to_string()));
-    map.insert("analysis_depth".to_string(), serde_json::json!("standard".to_string()));
-    map.insert("options".to_string(), serde_json::json!(serde_json::json!({ "include_patterns": vec! ["*.py".to_string().to_string()], "exclude_patterns": vec! ["*_test.py".to_string().to_string()], "consider_dependencies": serde_json::json!(true) })));
+    map.insert("project_path".to_string(), serde_json::json !("./examples/showcase"));
+    map.insert("analysis_depth".to_string(), serde_json::json !("standard"));
+    map.insert("options".to_string(), serde_json::json !(serde_json::json !({ "include_patterns": vec ! ["*.py".to_string()], "exclude_patterns": vec ! ["*_test.py".to_string()], "consider_dependencies": serde_json::json !(true) })));
     map }).await;
-    println!("{}", "📊 Project Analysis Results:");
-    println!("{}", format!("  • Complexity Score: {}/10", result.get("complexity_score").cloned().unwrap_or_default()));
-    println!("{}", format!("  • Python LOC: {}", result.get("total_python_loc").cloned().unwrap_or_default()));
-    println!("{}", format!("  • Estimated Rust LOC: {}", result.get("estimated_rust_loc").cloned().unwrap_or_default()));
-    println!("{}", format!("  • Migration Effort: {} hours", result.get("estimated_effort_hours").cloned().unwrap_or_default()));
-    println!();
-    println!("{}", "⚠\u{fe0f}  Risk Assessment:");
+    println !("{}", "📊 Project Analysis Results:");
+    println !("{}", format !("  • Complexity Score: {}/10", result.get("complexity_score").cloned().unwrap_or_default()));
+    println !("{}", format !("  • Python LOC: {}", result.get("total_python_loc").cloned().unwrap_or_default()));
+    println !("{}", format !("  • Estimated Rust LOC: {}", result.get("estimated_rust_loc").cloned().unwrap_or_default()));
+    println !("{}", format !("  • Migration Effort: {} hours", result.get("estimated_effort_hours").cloned().unwrap_or_default()));
+    println !();
+    println !("{}", "⚠\u{fe0f}  Risk Assessment:");
     let risk = result.get("risk_assessment").cloned().unwrap_or_default();
-    println!("{}", format!("  • Overall Risk: {}", risk.get("overall_risk").cloned().unwrap_or_default()));
-    for factor in risk.get("risk_factors").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
-    println!("{}", format!("  • {}: {}({} files)", factor.get("factor").cloned().unwrap_or_default(), factor.get("severity").cloned().unwrap_or_default(), factor.get("affected_files").cloned().unwrap_or_default()));
-    println!("{}", format!("    Mitigation: {}", factor.get("mitigation").cloned().unwrap_or_default()));
+    println !("{}", format !("  • Overall Risk: {}", risk.get("overall_risk").cloned().unwrap_or_default()));
+    for factor in risk.get("risk_factors").cloned().unwrap_or_default().as_array().unwrap_or(& vec ! []).iter().cloned() {
+    println !("{}", format !("  • {}: {}({} files)", factor.get("factor").cloned().unwrap_or_default(), factor.get("severity").cloned().unwrap_or_default(), factor.get("affected_files").cloned().unwrap_or_default()));
+    println !("{}", format !("    Mitigation: {}", factor.get("mitigation").cloned().unwrap_or_default()));
    
 }
-println!();
-    println!("{}", "🗓\u{fe0f}  Migration Strategy:");
+println !();
+    println !("{}", "🗓\u{fe0f}  Migration Strategy:");
     let strategy = result.get("migration_strategy").cloned().unwrap_or_default();
-    println!("{}", format!("  • Approach: {}", strategy.get("recommended_approach").cloned().unwrap_or_default()));
-    for phase in strategy.get("phases").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
-    println!("{}", format!("  • Phase {}: {}", phase.get("phase").cloned().unwrap_or_default(), phase.get("description").cloned().unwrap_or_default()));
-    println!("{}", format!("    Effort: {} hours", phase.get("estimated_hours").cloned().unwrap_or_default()));
-    println!("{}", format!("    Files: {}", phase.get("files").cloned().unwrap_or_default().join (", ").display()));
+    println !("{}", format !("  • Approach: {}", strategy.get("recommended_approach").cloned().unwrap_or_default()));
+    for phase in strategy.get("phases").cloned().unwrap_or_default().as_array().unwrap_or(& vec ! []).iter().cloned() {
+    println !("{}", format !("  • Phase {}: {}", phase.get("phase").cloned().unwrap_or_default(), phase.get("description").cloned().unwrap_or_default()));
+    println !("{}", format !("    Effort: {} hours", phase.get("estimated_hours").cloned().unwrap_or_default()));
+    println !("{}", format !("    Files: {}", phase.get("files").cloned().unwrap_or_default().join (", ").display()));
    
 }
-println!();
+println !();
     Ok(())
 }
 #[doc = "Example 3: Verify transpilation correctness."] pub async fn example_3_verification() -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", "🔬 Example 3: Transpilation Verification");
-    println!("{}", STR___2.repeat(50 as usize));
+    println !("{}", "🔬 Example 3: Transpilation Verification");
+    println !("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_source = "\ndef factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n";
     let rust_source = "\nfn factorial(n: i32) -> i32 {\n    if n <= 1 {\n        1\n   
 }
 else {\n        n * factorial(n - 1)\n    }\n}\n";
-    println!("{}", "🔍 Verifying semantic equivalence...");
-    println!();
+    println !("{}", "🔍 Verifying semantic equivalence...");
+    println !();
     let result = client.call_tool("verify_transpilation", {
     let mut map = std::collections::HashMap::new();
-    map.insert("python_source".to_string(), serde_json::json!(python_source.trim().to_string()));
-    map.insert("rust_source".to_string(), serde_json::json!(rust_source.trim().to_string()));
-    map.insert("verification_level".to_string(), serde_json::json!("comprehensive"));
-    map.insert("options".to_string(), serde_json::json!(serde_json::json!({ "property_checks": vec! ["termination".to_string().to_string(), "memory_safety".to_string().to_string(), "overflow".to_string().to_string()], "test_cases": vec! [serde_json::json!({ "input": vec! [serde_json::json!(5)], "expected_output": serde_json::json!(120) }), serde_json::json!({ "input": vec! [serde_json::json!(0)], "expected_output": serde_json::json!(1) }), serde_json::json!({ "input": vec! [serde_json::json!(1)], "expected_output": serde_json::json!(1) })] })));
+    map.insert("python_source".to_string(), serde_json::json !(python_source.trim().to_string()));
+    map.insert("rust_source".to_string(), serde_json::json !(rust_source.trim().to_string()));
+    map.insert("verification_level".to_string(), serde_json::json !("comprehensive"));
+    map.insert("options".to_string(), serde_json::json !(serde_json::json !({ "property_checks": vec ! ["termination".to_string(), "memory_safety".to_string(), "overflow".to_string()], "test_cases": vec ! [serde_json::json !({ "input": vec ! [serde_json::json !(5)], "expected_output": serde_json::json !(120) }), serde_json::json !({ "input": vec ! [serde_json::json !(0)], "expected_output": serde_json::json !(1) }), serde_json::json !({ "input": vec ! [serde_json::json !(1)], "expected_output": serde_json::json !(1) })] })));
     map }).await;
-    println!("{}", "✅ Verification Results:");
-    println!("{}", format!("  • Passed: {}", result.get("verification_passed").cloned().unwrap_or_default()));
-    println!("{}", format!("  • Semantic Equivalence: {}", result.get("semantic_equivalence_score").cloned().unwrap_or_default()));
-    println!();
-    println!("{}", "🛡\u{fe0f}  Safety Guarantees:");
-    for guarantee in result.get("safety_guarantees").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
-    println!("{}", format!("  • {:?}", guarantee));
+    println !("{}", "✅ Verification Results:");
+    println !("{}", format !("  • Passed: {}", result.get("verification_passed").cloned().unwrap_or_default()));
+    println !("{}", format !("  • Semantic Equivalence: {}", result.get("semantic_equivalence_score").cloned().unwrap_or_default()));
+    println !();
+    println !("{}", "🛡\u{fe0f}  Safety Guarantees:");
+    for guarantee in result.get("safety_guarantees").cloned().unwrap_or_default().as_array().unwrap_or(& vec ! []).iter().cloned() {
+    println !("{}", format !("  • {:?}", guarantee));
    
 }
-println!();
-    println!("{}", "⚡ Performance Comparison:");
+println !();
+    println !("{}", "⚡ Performance Comparison:");
     let perf = result.get("performance_comparison").cloned().unwrap_or_default();
     for(metric, improvement) in perf.iter().map(|(k, v) |(k.clone(), v.clone())).collect::<Vec<_>>() {
-    println!("{}", format!("  • {}: {:?}", metric.replace("_", " ").split_whitespace().map(| word | {
+    println !("{}", format !("  • {}: {:?}", metric.replace("_", " ").split_whitespace().map(| word | {
     let mut chars = word.chars();
     match chars.next() {
     None =>String::new(), Some(first) =>first.to_uppercase().chain (chars).collect::<String>() ,
@@ -2201,51 +2201,51 @@ println!();
 }).collect::<Vec<_>>().join (" "), improvement));
    
 }
-println!();
-    println!("{}", "🧪 Property Verification:");
-    for prop in result.get("property_verification_results").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
-    println!("{}", format!("  • {}: {}({})", prop.get("property").cloned().unwrap_or_default(), prop.get("status").cloned().unwrap_or_default(), prop.get("method").cloned().unwrap_or_default()));
+println !();
+    println !("{}", "🧪 Property Verification:");
+    for prop in result.get("property_verification_results").cloned().unwrap_or_default().as_array().unwrap_or(& vec ! []).iter().cloned() {
+    println !("{}", format !("  • {}: {}({})", prop.get("property").cloned().unwrap_or_default(), prop.get("status").cloned().unwrap_or_default(), prop.get("method").cloned().unwrap_or_default()));
    
 }
-println!();
+println !();
     Ok(())
 }
 #[doc = "Example 4: Batch processing multiple files."] pub async fn example_4_batch_processing() -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", "🔬 Example 4: Batch Processing Workflow");
-    println!("{}", STR___2.repeat(50 as usize));
+    println !("{}", "🔬 Example 4: Batch Processing Workflow");
+    println !("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
-    let python_files = vec! [("binary_search.py".to_string(), "def binary_search(arr, target):...".to_string()) ,("calculate_sum.py".to_string(), "def calculate_sum(numbers):...".to_string()) ,("classify_number.py".to_string(), "def classify_number(n):...".to_string())];
-    println!("{}", "🔄 Processing multiple files with MCP...");
-    println!();
-    let mut results = vec! [];
+    let python_files = vec ! [("binary_search.py".to_string(), "def binary_search(arr, target):...".to_string()) ,("calculate_sum.py".to_string(), "def calculate_sum(numbers):...".to_string()) ,("classify_number.py".to_string(), "def classify_number(n):...".to_string())];
+    println !("{}", "🔄 Processing multiple files with MCP...");
+    println !();
+    let mut results = vec ! [];
     for(filename, code_snippet) in python_files.iter().cloned() {
-    println!("{}", format!("📄 Processing {}...", filename));
+    println !("{}", format !("📄 Processing {}...", filename));
     let transpile_result = client.call_tool("transpile_python", {
     let mut map = std::collections::HashMap::new();
-    map.insert("source".to_string(), serde_json::json!(code_snippet));
-    map.insert("mode".to_string(), serde_json::json!("file"));
-    map.insert("options".to_string(), serde_json::json!(serde_json::json!({ "optimization_level": "balanced".to_string(), "verification_level": "basic".to_string() })));
+    map.insert("source".to_string(), serde_json::json !(code_snippet));
+    map.insert("mode".to_string(), serde_json::json !("file"));
+    map.insert("options".to_string(), serde_json::json !(serde_json::json !({ "optimization_level": "balanced", "verification_level": "basic" })));
     map }).await;
     let verify_result = client.call_tool("verify_transpilation", {
     let mut map = HashMap::new();
     map.insert("python_source".to_string(), code_snippet);
     map.insert("rust_source".to_string(), transpile_result.get("rust_code").cloned().unwrap_or_default());
-    map.insert("verification_level".to_string(), "standard".to_string().to_string());
+    map.insert("verification_level".to_string(), "standard".to_string());
     map }).await;
-    results.push(DepylerValue::Str(format!("{:?}", {
+    results.push(DepylerValue::Str(format !("{:?}", {
     let mut map = HashMap::new();
-    map.insert("filename".to_string().to_string(), filename);
-    map.insert("transpile_metrics".to_string().to_string(), transpile_result.get("metrics").cloned().unwrap_or_default());
-    map.insert("verification_passed".to_string().to_string(), verify_result.get("verification_passed").cloned().unwrap_or_default());
-    map.insert("performance_gain".to_string().to_string(), verify_result.get("performance_comparison").cloned().unwrap_or_default().get("rust_faster_by").cloned().unwrap_or_default());
+    map.insert("filename".to_string(), filename);
+    map.insert("transpile_metrics".to_string(), transpile_result.get("metrics").cloned().unwrap_or_default());
+    map.insert("verification_passed".to_string(), verify_result.get("verification_passed").cloned().unwrap_or_default());
+    map.insert("performance_gain".to_string(), verify_result.get("performance_comparison").cloned().unwrap_or_default().get("rust_faster_by").cloned().unwrap_or_default());
     map })));
-    println!("{}", format!("  ✅ {} processed successfully", filename));
+    println !("{}", format !("  ✅ {} processed successfully", filename));
    
 }
-println!();
-    println!("{}", "📊 Batch Processing Summary:");
-    println!("{}", format!("  • Files processed: {}", results.len() as i32));
-    println!("{}", format!("  • Success rate: {}", results.iter().cloned().filter(| r | {
+println !();
+    println !("{}", "📊 Batch Processing Summary:");
+    println !("{}", format !("  • Files processed: {}", results.len() as i32));
+    println !("{}", format !("  • Success rate: {}", results.iter().cloned().filter(| r | {
     let r = r.clone();
     r.get("verification_passed").cloned().unwrap_or_default() }).map(| r | r).collect::<Vec<_>>().len() as i32 / results.len() as i32));
     let _cse_temp_0 = results.iter().cloned().map(| r | r.get("transpile_metrics").cloned().unwrap_or_default().get("lines_of_code").cloned().unwrap_or_default()).sum::<i32>();
@@ -2253,78 +2253,78 @@ println!();
     let _cse_temp_1 = results.len() as i32;
     let _cse_temp_2 = _cse_temp_0 / _cse_temp_1;
     let avg_performance = _cse_temp_2;
-    println!("{}", format!("  • Total lines of Rust: {}", total_loc));
-    println!("{}", format!("  • Average performance gain: {}%", avg_performance));
-    println!();
+    println !("{}", format !("  • Total lines of Rust: {}", total_loc));
+    println !("{}", format !("  • Average performance gain: {}%", avg_performance));
+    println !();
     Ok(())
 }
 #[doc = "Example 5: Integration pattern for AI assistants."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn example_5_ai_assistant_integration() {
-    println!("{}", "🔬 Example 5: AI Assistant Integration Pattern");
-    println!("{}", STR___2.repeat(50 as usize));
-    println!("{}", "🤖 AI Assistant Workflow:");
-    println!();
-    println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
+    println !("{}", "🔬 Example 5: AI Assistant Integration Pattern");
+    println !("{}", STR___2.repeat(50 as usize));
+    println !("{}", "🤖 AI Assistant Workflow:");
+    println !();
+    println !("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
     let analysis_request = {
     let mut map = std::collections::HashMap::new();
-    map.insert("tool".to_string(), serde_json::json!("analyze_migration_complexity"));
-    map.insert("arguments".to_string(), serde_json::json!(serde_json::json!({ "project_path": "/path/to/python/project", "analysis_depth": "deep" })));
+    map.insert("tool".to_string(), serde_json::json !("analyze_migration_complexity"));
+    map.insert("arguments".to_string(), serde_json::json !(serde_json::json !({ "project_path": "/path/to/python/project", "analysis_depth": "deep" })));
     map };
-    println!("{}", format!("   Request: {}", serde_json::to_string(& analysis_request).unwrap()));
-    println!();
-    println!("{}", "2\u{fe0f}\u{20e3}  Transpile files in priority order...");
+    println !("{}", format !("   Request: {}", serde_json::to_string(& analysis_request).unwrap()));
+    println !();
+    println !("{}", "2\u{fe0f}\u{20e3}  Transpile files in priority order...");
     let transpile_request = {
     let mut map = std::collections::HashMap::new();
-    map.insert("tool".to_string(), serde_json::json!("transpile_python"));
-    map.insert("arguments".to_string(), serde_json::json!(serde_json::json!({ "source": "# Python code from high-priority file", "mode": "file", "options": serde_json::json!({ "optimization_level": "energy", "verification_level": "comprehensive" }) })));
+    map.insert("tool".to_string(), serde_json::json !("transpile_python"));
+    map.insert("arguments".to_string(), serde_json::json !(serde_json::json !({ "source": "# Python code from high-priority file", "mode": "file", "options": serde_json::json !({ "optimization_level": "energy", "verification_level": "comprehensive" }) })));
     map };
-    println!("{}", format!("   Request: {}", serde_json::to_string(& transpile_request).unwrap()));
-    println!();
-    println!("{}", "3\u{fe0f}\u{20e3}  Verify each transpilation...");
+    println !("{}", format !("   Request: {}", serde_json::to_string(& transpile_request).unwrap()));
+    println !();
+    println !("{}", "3\u{fe0f}\u{20e3}  Verify each transpilation...");
     let verify_request = {
     let mut map = std::collections::HashMap::new();
-    map.insert("tool".to_string(), serde_json::json!("verify_transpilation"));
-    map.insert("arguments".to_string(), serde_json::json!(serde_json::json!({ "python_source": "# Original Python", "rust_source": "# Generated Rust", "verification_level": "comprehensive" })));
+    map.insert("tool".to_string(), serde_json::json !("verify_transpilation"));
+    map.insert("arguments".to_string(), serde_json::json !(serde_json::json !({ "python_source": "# Original Python", "rust_source": "# Generated Rust", "verification_level": "comprehensive" })));
     map };
-    println!("{}", format!("   Request: {}", serde_json::to_string(& verify_request).unwrap()));
-    println!();
-    println!("{}", "🎯 Integration Benefits:");
-    println!("{}", "  • AI assistants can make intelligent migration decisions");
-    println!("{}", "  • Automated quality assurance through verification");
-    println!("{}", "  • Incremental migration reduces project risk");
-    println!("{}", "  • Performance metrics guide optimization priorities");
-    println!();
+    println !("{}", format !("   Request: {}", serde_json::to_string(& verify_request).unwrap()));
+    println !();
+    println !("{}", "🎯 Integration Benefits:");
+    println !("{}", "  • AI assistants can make intelligent migration decisions");
+    println !("{}", "  • Automated quality assurance through verification");
+    println !("{}", "  • Incremental migration reduces project risk");
+    println !("{}", "  • Performance metrics guide optimization priorities");
+    println !();
    
 }
 #[doc = "Run all MCP usage examples."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] #[tokio::main] pub async fn main () {
-    println!("{}", "🚀 Depyler MCP Integration Examples");
-    println!("{}", STR___2.repeat(60 as usize));
-    println!();
-    println!("{}", "This script demonstrates various ways to use Depyler's");
-    println!("{}", "Model Context Protocol(MCP) integration for AI-powered");
-    println!("{}", "Python-to-Rust transpilation.");
-    println!();
-    println!("{}", "📋 Examples included:");
-    println!("{}", "  1. Simple function transpilation");
-    println!("{}", "  2. Project migration analysis");
-    println!("{}", "  3. Transpilation verification");
-    println!("{}", "  4. Batch processing workflow");
-    println!("{}", "  5. AI assistant integration patterns");
-    println!();
-    println!("{}", STR___2.repeat(60 as usize));
-    println!();
+    println !("{}", "🚀 Depyler MCP Integration Examples");
+    println !("{}", STR___2.repeat(60 as usize));
+    println !();
+    println !("{}", "This script demonstrates various ways to use Depyler's");
+    println !("{}", "Model Context Protocol(MCP) integration for AI-powered");
+    println !("{}", "Python-to-Rust transpilation.");
+    println !();
+    println !("{}", "📋 Examples included:");
+    println !("{}", "  1. Simple function transpilation");
+    println !("{}", "  2. Project migration analysis");
+    println !("{}", "  3. Transpilation verification");
+    println !("{}", "  4. Batch processing workflow");
+    println !("{}", "  5. AI assistant integration patterns");
+    println !();
+    println !("{}", STR___2.repeat(60 as usize));
+    println !();
     example_1_simple_transpilation().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println !("{}", format !("{}{}", format !("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_2_project_analysis().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println !("{}", format !("{}{}", format !("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_3_verification().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println !("{}", format !("{}{}", format !("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_4_batch_processing().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println !("{}", format !("{}{}", format !("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_5_ai_assistant_integration().await;
-    println!("{}", "🎉 All examples completed!");
-    println!();
-    println!("{}", "📖 For more information:");
-    println!("{}", "  • MCP Integration Guide: docs/mcp-integration.md");
-    println!("{}", "  • API Reference: docs/cli-reference.md");
-    println!("{}", "  • GitHub: https://github.com/paiml/depyler");
+    println !("{}", "🎉 All examples completed!");
+    println !();
+    println !("{}", "📖 For more information:");
+    println !("{}", "  • MCP Integration Guide: docs/mcp-integration.md");
+    println !("{}", "  • API Reference: docs/cli-reference.md");
+    println !("{}", "  • GitHub: https://github.com/paiml/depyler");
     }

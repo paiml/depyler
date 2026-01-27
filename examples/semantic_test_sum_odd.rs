@@ -3107,8 +3107,8 @@ pub fn sum_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total: i32 = Default::default();
     total = 0;
     for n in nums.iter().cloned() {
-        if (n).py_mod(2) != 0 {
-            total = (total).py_add(n);
+        if (n).py_mod(2i32) != 0 {
+            total = ((total).py_add(n)) as i32;
         }
     }
     Ok(total)
@@ -3116,7 +3116,7 @@ pub fn sum_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", sum_odd(&vec![1, 2, 3, 4, 5, 6, 7]));
+    println!("{}", sum_odd(&vec![1, 2, 3, 4, 5, 6, 7]).unwrap());
     Ok(())
 }
 #[cfg(test)]

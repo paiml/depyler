@@ -3109,7 +3109,7 @@ pub fn is_power_of_two(mut n: i32) -> Result<bool, Box<dyn std::error::Error>> {
         return Ok(false);
     }
     while n > 1 {
-        if (n).py_mod(2) != 0 {
+        if (n).py_mod(2i32) != 0 {
             return Ok(false);
         }
         n = {

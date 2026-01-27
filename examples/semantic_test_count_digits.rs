@@ -3117,7 +3117,7 @@ pub fn count_digits(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
         x = -x;
     }
     while x > 0 {
-        count = (count).py_add(1);
+        count = ((count).py_add(1i32)) as i32;
         x = {
             let a = x;
             let b = 10;
@@ -3140,7 +3140,7 @@ pub fn count_digits(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", count_digits(12345));
+    println!("{}", count_digits(12345).unwrap());
     Ok(())
 }
 #[cfg(test)]

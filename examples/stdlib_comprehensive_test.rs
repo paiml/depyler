@@ -3232,7 +3232,7 @@ pub fn test_dict_get_default() -> i32 {
         map
     };
     let value = data.get("b").cloned().unwrap_or(0);
-    (*value).unwrap()
+    value
 }
 #[doc = "Test dict.keys() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -3261,7 +3261,7 @@ pub fn test_dict_values() -> i32 {
     let values = data.values().cloned().collect::<Vec<_>>();
     total = 0;
     for v in values.iter().cloned() {
-        total = (total).py_add(v);
+        total = ((total).py_add(v)) as i32;
     }
     total
 }
@@ -3545,7 +3545,7 @@ pub fn test_set_update() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive stdlib method test for Depyler transpiler\nTests all common list, dict, and set methods\n\nPurpose: Verify that all Python stdlib collection methods transpile correctly\nExpected: All methods should generate idiomatic, compilable Rust code\n".to_string();
+    let _ = "\nComprehensive stdlib method test for Depyler transpiler\nTests all common list, dict, and set methods\n\nPurpose: Verify that all Python stdlib collection methods transpile correctly\nExpected: All methods should generate idiomatic, compilable Rust code\n";
     Ok(())
 }
 #[cfg(test)]

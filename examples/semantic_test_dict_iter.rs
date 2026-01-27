@@ -3110,7 +3110,7 @@ pub fn sum_values(
     let mut total: i32 = Default::default();
     total = 0;
     for k in d.keys().cloned() {
-        total = (total).py_add(d.get(&k).cloned().unwrap_or_default());
+        total = ((total).py_add(d.get(&k).cloned().unwrap_or_default())) as i32;
     }
     Ok(total)
 }
@@ -3124,6 +3124,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         map.insert("c".to_string(), (30) as i32);
         map
     };
-    println!("{:?}", sum_values(&data));
+    println!("{}", sum_values(&data).unwrap());
     Ok(())
 }

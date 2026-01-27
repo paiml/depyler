@@ -3089,7 +3089,7 @@ impl DepylerRegexMatch {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn has_key<'a, 'b>(d: &'a std::collections::HashMap<String, i32>, key: &'b str) -> bool {
+pub fn has_key<'b, 'a>(d: &'a std::collections::HashMap<String, i32>, key: &'b str) -> bool {
     d.get(key).is_some()
 }
 #[doc = " Depyler: verified panic-free"]

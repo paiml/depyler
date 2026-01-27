@@ -3116,11 +3116,11 @@ pub fn test_simple_set() -> std::collections::HashSet<i32> {
 pub fn test_set_method() -> std::collections::HashSet<String> {
     let mut fruits: std::collections::HashSet<String> = {
         let mut set = std::collections::HashSet::new();
-        set.insert("apple".to_string());
-        set.insert("banana".to_string());
+        set.insert("apple");
+        set.insert("banana");
         set
     };
-    fruits.insert("cherry".to_string());
+    fruits.insert("cherry");
     fruits
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point for standalone compilation"]

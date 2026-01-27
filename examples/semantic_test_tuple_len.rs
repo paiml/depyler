@@ -3089,7 +3089,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn tuple_size(t: (i32, i32, i32, i32)) -> i32 {
-    t.len() as i32 as i32
+    4i32 as i32
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

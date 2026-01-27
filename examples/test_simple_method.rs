@@ -3101,13 +3101,13 @@ impl Counter {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_counter() {
-    let mut c = Counter::new(0);
+    let mut c: Counter = Counter::new(0);
     c.increment();
     let _ = c.count;
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test simple method call".to_string();
+    let _ = "Test simple method call";
     Ok(())
 }

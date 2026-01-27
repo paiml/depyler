@@ -3105,14 +3105,14 @@ impl DepylerRegexMatch {
 }
 pub fn is_sorted(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>> {
     let mut i: i32 = 0;
-    while i < (nums.len() as i32).py_sub(1) {
+    while i < (nums.len() as i32).py_sub(1i32) {
         if nums
             .get(i as usize)
             .cloned()
             .expect("IndexError: list index out of range")
             > {
                 let base = &nums;
-                let idx: i32 = (i).py_add(1);
+                let idx: i32 = (i).py_add(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3125,7 +3125,7 @@ pub fn is_sorted(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>> {
         {
             return Ok(false);
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(true)
 }

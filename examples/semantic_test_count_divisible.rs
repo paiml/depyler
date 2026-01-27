@@ -3108,7 +3108,7 @@ pub fn count_divisible(nums: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::erro
     count = 0;
     for n in nums.iter().cloned() {
         if (n).py_mod(k) == 0 {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     Ok(count)
@@ -3117,8 +3117,8 @@ pub fn count_divisible(nums: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::erro
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
-        "{:?}",
-        count_divisible(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3)
+        "{}",
+        count_divisible(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3).unwrap()
     );
     Ok(())
 }

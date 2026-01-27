@@ -3106,7 +3106,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_arrays() -> Result<i32, Box<dyn std::error::Error>> {
     let arr1: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let _cse_temp_0 = (arr1
+    let _cse_temp_0 = ((arr1
         .get(0usize)
         .cloned()
         .expect("IndexError: list index out of range"))
@@ -3114,13 +3114,13 @@ pub fn test_arrays() -> Result<i32, Box<dyn std::error::Error>> {
         arr1.get(1usize)
             .cloned()
             .expect("IndexError: list index out of range"),
-    );
+    )) as i32;
     let sum_val = _cse_temp_0;
     Ok(sum_val)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Simple test for array generation".to_string();
+    let _ = "Simple test for array generation";
     Ok(())
 }

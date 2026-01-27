@@ -3120,7 +3120,7 @@ pub fn longest_run(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
             .expect("IndexError: list index out of range")
             == {
                 let base = &nums;
-                let idx: i32 = (i).py_sub(1);
+                let idx: i32 = (i).py_sub(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3131,21 +3131,21 @@ pub fn longest_run(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
                     .expect("IndexError: list index out of range")
             }
         {
-            current_run = (current_run).py_add(1);
+            current_run = ((current_run).py_add(1i32)) as i32;
             if current_run > max_run {
                 max_run = current_run;
             }
         } else {
             current_run = 1;
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(max_run)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", longest_run(&vec![1, 1, 2, 2, 2, 3, 3]));
+    println!("{}", longest_run(&vec![1, 1, 2, 2, 2, 3, 3]).unwrap());
     Ok(())
 }
 #[cfg(test)]

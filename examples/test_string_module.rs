@@ -3328,7 +3328,7 @@ pub fn count_letters(text: &str) -> i32 {
     count = 0;
     for char in text.chars() {
         if is_ascii_letter(char.as_str().unwrap_or_default().to_string()) {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3340,7 +3340,7 @@ pub fn count_digits(text: &str) -> i32 {
     count = 0;
     for char in text.chars() {
         if is_digit(char.as_str().unwrap_or_default().to_string()) {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3352,7 +3352,7 @@ pub fn count_whitespace(text: &str) -> i32 {
     count = 0;
     for char in text.chars() {
         if is_whitespace(char.as_str().unwrap_or_default().to_string()) {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3406,7 +3406,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
     result.to_string()
 }
 #[doc = "Simple template substitution"]
-pub fn template_substitute<'b, 'a>(
+pub fn template_substitute<'a, 'b>(
     template: &'a str,
     values: &'b std::collections::HashMap<String, DepylerValue>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -3425,19 +3425,21 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
         if char.is_alphabetic() {
-            let mut shifted: i32;
-            let mut new_char: String;
             let mut base: i32;
+            let mut new_char: String;
+            let mut shifted: i32;
             if !char.is_alphabetic() || char.is_uppercase() {
                 base = "A".chars().next().unwrap() as i32;
-                shifted = (((char as u32 as i32).py_sub(base)).py_add(shift)).py_mod(26);
+                shifted = ((((char as u32 as i32).py_sub(base) as i32).py_add(shift) as i32)
+                    .py_mod(26i32)) as i32;
                 new_char = char::from_u32(((base).py_add(shifted)) as u32)
                     .unwrap()
                     .to_string();
                 result = (result).py_add(new_char);
             } else {
                 base = "a".chars().next().unwrap() as i32;
-                shifted = (((char as u32 as i32).py_sub(base)).py_add(shift)).py_mod(26);
+                shifted = ((((char as u32 as i32).py_sub(base) as i32).py_add(shift) as i32)
+                    .py_mod(26i32)) as i32;
                 new_char = char::from_u32(((base).py_add(shifted)) as u32)
                     .unwrap()
                     .to_string();
@@ -3459,7 +3461,7 @@ pub fn reverse_string(text: &str) -> Result<String, Box<dyn std::error::Error>> 
         if step == 0 {
             panic!("range() arg 3 must not be zero");
         }
-        (-1..(text.len() as i32).py_sub(1))
+        (-1..(text.len() as i32).py_sub(1i32))
             .rev()
             .step_by(step.max(1))
     } {
@@ -3490,7 +3492,7 @@ pub fn is_palindrome(text: &str) -> Result<bool, Box<dyn std::error::Error>> {
     }
     let mut left: i32 = 0;
     let _cse_temp_0 = normalized.len() as i32;
-    let mut right: i32 = (_cse_temp_0).py_sub(1);
+    let mut right: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while left < right {
         if {
             let base = &normalized;
@@ -3519,8 +3521,8 @@ pub fn is_palindrome(text: &str) -> Result<bool, Box<dyn std::error::Error>> {
         } {
             return Ok(false);
         }
-        left = (left).py_add(1);
-        right = (right).py_sub(1);
+        left = ((left).py_add(1i32)) as i32;
+        right = ((right).py_sub(1i32)) as i32;
     }
     Ok(true)
 }
@@ -3532,7 +3534,7 @@ pub fn count_vowels(text: &str) -> i32 {
     count = 0;
     for char in text.chars() {
         if vowels.contains(char) {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3547,7 +3549,7 @@ pub fn count_consonants(text: &str) -> i32 {
         if (is_ascii_letter(char.as_str().unwrap_or_default().to_string()))
             && (!vowels.contains(char))
         {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3602,7 +3604,7 @@ pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python string module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's string module\nconstants and utilities to Rust equivalents.\n\nExpected Rust mappings:\n- string.ascii_letters -> static constants\n- string.digits -> static constants\n- string.Template -> string interpolation\n\nNote: Most functionality implemented as manual string operations.\n".to_string();
+    let _ = "\nComprehensive test of Python string module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's string module\nconstants and utilities to Rust equivalents.\n\nExpected Rust mappings:\n- string.ascii_letters -> static constants\n- string.digits -> static constants\n- string.Template -> string interpolation\n\nNote: Most functionality implemented as manual string operations.\n";
     Ok(())
 }
 #[cfg(test)]

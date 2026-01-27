@@ -3239,17 +3239,17 @@ pub fn days_until_event<'b, 'a>(event_date: &'a DepylerDate, current_date: &'b D
 #[doc = "Check if a year is a leap year"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_leap_year(year: i32) -> Result<bool, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = (year).py_mod(400);
+    let _cse_temp_0 = ((year).py_mod(400i32)) as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
         return Ok(true);
     }
-    let _cse_temp_2 = (year).py_mod(100);
+    let _cse_temp_2 = ((year).py_mod(100i32)) as i32;
     let _cse_temp_3 = _cse_temp_2 == 0;
     if _cse_temp_3 {
         return Ok(false);
     }
-    let _cse_temp_4 = (year).py_mod(4);
+    let _cse_temp_4 = ((year).py_mod(4i32)) as i32;
     let _cse_temp_5 = _cse_temp_4 == 0;
     if _cse_temp_5 {
         return Ok(true);
@@ -3273,7 +3273,7 @@ pub fn days_in_month(year: i32, month: i32) -> Result<i32, Box<dyn std::error::E
     }
     Ok({
         let base = &days;
-        let idx: i32 = (month).py_sub(1);
+        let idx: i32 = (month).py_sub(1i32);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
@@ -3347,7 +3347,7 @@ pub fn working_days_between<'a, 'b>(
     }
     let diff: DepylerTimeDelta = (end).py_sub(start);
     let total_days: i32 = diff.days() as i32;
-    let _cse_temp_1 = (total_days).py_mul(5);
+    let _cse_temp_1 = ((total_days).py_mul(5i32)) as i32;
     let _cse_temp_2 = {
         let a = _cse_temp_1;
         let b = 7;
@@ -3373,7 +3373,7 @@ pub fn add_business_days(
     start_date: &DepylerDate,
     num_days: i32,
 ) -> Result<DepylerDate, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = (num_days).py_mul(7);
+    let _cse_temp_0 = ((num_days).py_mul(7i32)) as i32;
     let _cse_temp_1 = {
         let a = _cse_temp_0;
         let b = 5;
@@ -3432,11 +3432,11 @@ pub fn test_date_range<'a, 'b>(start: &'a DepylerDate, end: &'b DepylerDate) -> 
 #[doc = " Depyler: proven to terminate"]
 pub fn test_time_arithmetic() -> Result<i32, Box<dyn std::error::Error>> {
     let meeting_start: (u32, u32, u32) = (9 as u32, 0 as u32, 0 as u32);
-    let _cse_temp_0 = (meeting_start.hour() as i32).py_mul(60);
-    let _cse_temp_1 = (_cse_temp_0).py_add(meeting_start.minute() as i32);
+    let _cse_temp_0 = ((meeting_start.hour() as i32).py_mul(60i32)) as i32;
+    let _cse_temp_1 = ((_cse_temp_0).py_add(meeting_start.minute() as i32)) as i32;
     let start_minutes: i32 = _cse_temp_1;
     let duration_minutes: i32 = 150;
-    let end_minutes: i32 = (start_minutes).py_add(duration_minutes);
+    let end_minutes: i32 = ((start_minutes).py_add(duration_minutes)) as i32;
     let _cse_temp_2 = {
         let a = end_minutes;
         let b = 60;
@@ -3518,7 +3518,7 @@ pub fn test_all_datetime_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python datetime module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's datetime module\noperations to their Rust equivalents(chrono crate).\n\nExpected Rust mappings:\n- datetime.now() -> chrono::Local::now()\n- datetime.date() -> chrono::NaiveDate\n- datetime.time() -> chrono::NaiveTime\n- timedelta -> chrono::Duration\n- date arithmetic -> chrono date arithmetic\n\nNote: This tests the transpiler's ability to recognize and translate\ndatetime module patterns. Actual implementation may require the chrono crate.\n".to_string();
+    let _ = "\nComprehensive test of Python datetime module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's datetime module\noperations to their Rust equivalents(chrono crate).\n\nExpected Rust mappings:\n- datetime.now() -> chrono::Local::now()\n- datetime.date() -> chrono::NaiveDate\n- datetime.time() -> chrono::NaiveTime\n- timedelta -> chrono::Duration\n- date arithmetic -> chrono date arithmetic\n\nNote: This tests the transpiler's ability to recognize and translate\ndatetime module patterns. Actual implementation may require the chrono crate.\n";
     Ok(())
 }
 #[cfg(test)]

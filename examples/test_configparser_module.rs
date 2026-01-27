@@ -4,7 +4,6 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-#[doc = "// NOTE: Map Python module 'configparser'(tracked in DEPYLER-0424)"]
 use std::io::Cursor;
 const STR__: &'static str = "=";
 #[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
@@ -3094,7 +3093,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_configparser_basic_read() {
     let config_string = "\n[DEFAULT]\nServerAliveInterval = 45\nCompression = yes\nCompressionLevel = 9\n\n[bitbucket.org]\nUser = hg\n\n[topsecret.server.com]\nPort = 50022\nForwardX11 = no\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
     assert!(config.contains("bitbucket.org"));
     assert!(config.contains("topsecret.server.com"));
@@ -3108,7 +3107,7 @@ pub fn test_configparser_basic_read() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "hg".to_string()
+        "hg"
     );
     assert_eq!(
         config
@@ -3120,7 +3119,7 @@ pub fn test_configparser_basic_read() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "50022".to_string()
+        "50022"
     );
     println!("{}", "PASS: test_configparser_basic_read");
 }
@@ -3130,7 +3129,7 @@ pub fn test_configparser_basic_read() {
 pub fn test_configparser_defaults() {
     let config_string =
         "\n[DEFAULT]\nServerAliveInterval = 45\nCompression = yes\n\n[example.com]\nUser = john\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
     assert_eq!(
         config
@@ -3142,7 +3141,7 @@ pub fn test_configparser_defaults() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "45".to_string()
+        "45"
     );
     assert_eq!(
         config
@@ -3154,7 +3153,7 @@ pub fn test_configparser_defaults() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "yes".to_string()
+        "yes"
     );
     assert_eq!(
         config
@@ -3166,7 +3165,7 @@ pub fn test_configparser_defaults() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "john".to_string()
+        "john"
     );
     println!("{}", "PASS: test_configparser_defaults");
 }
@@ -3175,24 +3174,18 @@ pub fn test_configparser_defaults() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_configparser_get_methods() {
     let config_string = "\n[settings]\nport = 8080\ndebug = true\ntimeout = 30.5\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
     assert_eq!(
-        config.get("settings").cloned().unwrap_or("port"),
-        "8080".to_string()
+        config
+            .get("settings")
+            .cloned()
+            .unwrap_or("port".to_string()),
+        "8080"
     );
-    assert_eq!(
-        config.getint("settings".to_string(), "port".to_string()),
-        8080
-    );
-    assert_eq!(
-        config.getboolean("settings".to_string(), "debug".to_string()),
-        true
-    );
-    assert_eq!(
-        config.getfloat("settings".to_string(), "timeout".to_string()),
-        30.5
-    );
+    assert_eq!(config.getint("settings", "port"), 8080);
+    assert_eq!(config.getboolean("settings", "debug"), true);
+    assert_eq!(config.getfloat("settings", "timeout"), 30.5);
     println!("{}", "PASS: test_configparser_get_methods");
 }
 #[doc = "Test listing sections."]
@@ -3201,7 +3194,7 @@ pub fn test_configparser_get_methods() {
 pub fn test_configparser_sections() {
     let config_string =
         "\n[section1]\nkey1 = value1\n\n[section2]\nkey2 = value2\n\n[section3]\nkey3 = value3\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
     let sections = config.sections();
     assert_eq!(sections.len() as i32, 3);
@@ -3216,9 +3209,9 @@ pub fn test_configparser_sections() {
 pub fn test_configparser_options() {
     let config_string =
         "\n[database]\nhost = localhost\nport = 5432\nuser = admin\npassword = secret\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
-    let options = config.options("database".to_string());
+    let options = config.options("database");
     assert!(options.contains("host"));
     assert!(options.contains("port"));
     assert!(options.contains("user"));
@@ -3229,18 +3222,10 @@ pub fn test_configparser_options() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_configparser_set_values() {
-    let config = configparser::ConfigParser();
-    config.add_section("newsection".to_string());
-    config.set(
-        "newsection".to_string(),
-        "option1".to_string(),
-        "value1".to_string(),
-    );
-    config.set(
-        "newsection".to_string(),
-        "option2".to_string(),
-        "value2".to_string(),
-    );
+    let config = config::Config::builder();
+    config.add_section("newsection");
+    config.set("newsection", "option1", "value1");
+    config.set("newsection", "option2", "value2");
     assert_eq!(
         config
             .get_str("newsection")
@@ -3251,7 +3236,7 @@ pub fn test_configparser_set_values() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "value1".to_string()
+        "value1"
     );
     assert_eq!(
         config
@@ -3263,7 +3248,7 @@ pub fn test_configparser_set_values() {
             .cloned()
             .unwrap_or_default()
             .into(),
-        "value2".to_string()
+        "value2"
     );
     println!("{}", "PASS: test_configparser_set_values");
 }
@@ -3272,10 +3257,10 @@ pub fn test_configparser_set_values() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_configparser_has_section() {
     let config_string = "\n[existing]\nkey = value\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
-    assert_eq!(config.has_section("existing".to_string()), true);
-    assert_eq!(config.has_section("nonexistent".to_string()), false);
+    assert_eq!(config.has_section("existing"), true);
+    assert_eq!(config.has_section("nonexistent"), false);
     println!("{}", "PASS: test_configparser_has_section");
 }
 #[doc = "Test checking for option existence."]
@@ -3283,16 +3268,10 @@ pub fn test_configparser_has_section() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_configparser_has_option() {
     let config_string = "\n[section]\nexisting_option = value\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
-    assert_eq!(
-        config.has_option("section".to_string(), "existing_option".to_string()),
-        true
-    );
-    assert_eq!(
-        config.has_option("section".to_string(), "missing_option".to_string()),
-        false
-    );
+    assert_eq!(config.has_option("section", "existing_option"), true);
+    assert_eq!(config.has_option("section", "missing_option"), false);
     println!("{}", "PASS: test_configparser_has_option");
 }
 #[doc = "Test removing sections and options."]
@@ -3301,22 +3280,22 @@ pub fn test_configparser_has_option() {
 pub fn test_configparser_remove() {
     let config_string =
         "\n[section1]\noption1 = value1\noption2 = value2\n\n[section2]\noption3 = value3\n";
-    let config = configparser::ConfigParser();
+    let config = config::Config::builder();
     config.read_string(config_string);
-    config.remove_option("section1".to_string(), "option1".to_string());
-    assert!(!config.has_option("section1".to_string(), "option1".to_string()));
-    assert!(config.has_option("section1".to_string(), "option2".to_string()));
-    config.remove_section("section2".to_string());
-    assert!(!config.has_section("section2".to_string()));
+    config.remove_option("section1", "option1");
+    assert!(!config.has_option("section1", "option1"));
+    assert!(config.has_option("section1", "option2"));
+    config.remove_section("section2");
+    assert!(!config.has_section("section2"));
     println!("{}", "PASS: test_configparser_remove");
 }
 #[doc = "Run all configparser tests."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "CONFIGPARSER MODULE TESTS");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     test_configparser_basic_read();
     test_configparser_defaults();
     test_configparser_get_methods();
@@ -3326,8 +3305,8 @@ pub fn main() {
     test_configparser_has_section();
     test_configparser_has_option();
     test_configparser_remove();
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ALL CONFIGPARSER TESTS PASSED!");
     println!("{}", "Total tests: 9");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
 }

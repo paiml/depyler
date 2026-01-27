@@ -3106,7 +3106,7 @@ impl DepylerRegexMatch {
 #[doc = "Add two numbers - should infer numeric types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn add_numbers<'b, 'a>(a: i32, b: i32) {
+pub fn add_numbers<'a, 'b>(a: i32, b: i32) {
     let _ = (a).py_add(b);
 }
 #[doc = "Process text - should infer string type."]
@@ -3123,8 +3123,8 @@ pub fn calculate_average(numbers: &Vec<i32>) -> Result<i32, Box<dyn std::error::
     total = 0;
     count = 0;
     for num in numbers.iter().cloned() {
-        total = (total).py_add(num);
-        count = (count).py_add(1);
+        total = ((total).py_add(num)) as i32;
+        count = ((count).py_add(1i32)) as i32;
     }
     let _cse_temp_0 = count > 0;
     if _cse_temp_0 {
@@ -3151,7 +3151,7 @@ pub fn list_operations(items: &mut Vec<DepylerValue>) -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nSimple example demonstrating type inference hints in Depyler.\n".to_string();
+    let _ = "\nSimple example demonstrating type inference hints in Depyler.\n";
     Ok(())
 }
 #[cfg(test)]

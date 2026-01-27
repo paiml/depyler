@@ -3094,14 +3094,14 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_create_and_read() {
     let mut buffer = std::io::Cursor();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
-    zf.writestr("test.txt".to_string(), "Hello, ZIP!".to_string());
+    zf.writestr("test.txt", "Hello, ZIP!");
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     let content = {
-        let mut _read_buf = vec![0u8; "test.txt".to_string()];
+        let mut _read_buf = vec![0u8; "test.txt"];
         let _n = zf.read(&mut _read_buf).unwrap_or(0);
         _read_buf.truncate(_n);
         _read_buf
@@ -3114,13 +3114,13 @@ pub fn test_zipfile_create_and_read() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_multiple_files() {
     let mut buffer = std::io::Cursor();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
-    zf.writestr("file1.txt".to_string(), "Content 1".to_string());
-    zf.writestr("file2.txt".to_string(), "Content 2".to_string());
-    zf.writestr("file3.txt".to_string(), "Content 3".to_string());
+    zf.writestr("file1.txt", "Content 1");
+    zf.writestr("file2.txt", "Content 2");
+    zf.writestr("file3.txt", "Content 3");
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     assert_eq!(zf.namelist().len() as i32, 3);
     assert!(zf.namelist().contains("file1.txt"));
@@ -3128,7 +3128,7 @@ pub fn test_zipfile_multiple_files() {
     assert!(zf.namelist().contains("file3.txt"));
     assert_eq!(
         {
-            let mut _read_buf = vec![0u8; "file2.txt".to_string()];
+            let mut _read_buf = vec![0u8; "file2.txt"];
             let _n = zf.read(&mut _read_buf).unwrap_or(0);
             _read_buf.truncate(_n);
             _read_buf
@@ -3142,13 +3142,13 @@ pub fn test_zipfile_multiple_files() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_namelist() {
     let mut buffer = std::io::Cursor();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
-    zf.writestr("alpha.txt".to_string(), "A".to_string());
-    zf.writestr("beta.txt".to_string(), "B".to_string());
-    zf.writestr("gamma.txt".to_string(), "C".to_string());
+    zf.writestr("alpha.txt", "A");
+    zf.writestr("beta.txt", "B");
+    zf.writestr("gamma.txt", "C");
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     let names = zf.namelist();
     assert_eq!(names.len() as i32, 3);
@@ -3162,15 +3162,15 @@ pub fn test_zipfile_namelist() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_getinfo() {
     let mut buffer = std::io::Cursor();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
-    zf.writestr("data.txt".to_string(), "Test data content".to_string());
+    zf.writestr("data.txt", "Test data content");
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
-    let info = zf.getinfo("data.txt".to_string());
-    assert_eq!(info.filename, "data.txt".to_string());
-    assert_eq!(info.file_size, "Test data content".to_string().len() as i32);
+    let info = zf.getinfo("data.txt");
+    assert_eq!(info.filename, "data.txt");
+    assert_eq!(info.file_size, "Test data content".len() as i32);
     println!("{}", "PASS: test_zipfile_getinfo");
 }
 #[doc = "Test ZIP with compression."]
@@ -3178,16 +3178,16 @@ pub fn test_zipfile_getinfo() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_compression() {
     let mut buffer = std::io::Cursor();
-    let _cse_temp_0 = ("This is test data that should compress well! ").py_mul(10);
+    let _cse_temp_0 = ("This is test data that should compress well! ").py_mul(10i32);
     let data = _cse_temp_0.clone();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string(), zipfile.ZIP_DEFLATED);
+    let mut _context = zipfile::ZipFile(buffer, "w", zipfile.ZIP_DEFLATED);
     let zf = _context.__enter__();
-    zf.writestr("compressed.txt".to_string(), data);
+    zf.writestr("compressed.txt", data);
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     let content = String::from_utf8_lossy(&{
-        let mut _read_buf = vec![0u8; "compressed.txt".to_string()];
+        let mut _read_buf = vec![0u8; "compressed.txt"];
         let _n = zf.read(&mut _read_buf).unwrap_or(0);
         _read_buf.truncate(_n);
         _read_buf
@@ -3202,14 +3202,14 @@ pub fn test_zipfile_compression() {
 pub fn test_zipfile_binary_data() {
     let mut buffer = std::io::Cursor();
     let binary_data = 0..(256);
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
-    zf.writestr("binary.dat".to_string(), binary_data);
+    zf.writestr("binary.dat", binary_data);
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     let content = {
-        let mut _read_buf = vec![0u8; "binary.dat".to_string()];
+        let mut _read_buf = vec![0u8; "binary.dat"];
         let _n = zf.read(&mut _read_buf).unwrap_or(0);
         _read_buf.truncate(_n);
         _read_buf
@@ -3222,10 +3222,10 @@ pub fn test_zipfile_binary_data() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_empty() {
     let mut buffer = std::io::Cursor();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     assert_eq!(zf.namelist().len() as i32, 0);
     println!("{}", "PASS: test_zipfile_empty");
@@ -3235,14 +3235,14 @@ pub fn test_zipfile_empty() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_read_mode() {
     let mut buffer = std::io::Cursor();
-    let mut _context = zipfile::ZipFile(buffer, "w".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "w");
     let zf = _context.__enter__();
-    zf.writestr("readonly.txt".to_string(), "Read-only content".to_string());
+    zf.writestr("readonly.txt", "Read-only content");
     buffer.seek(0);
-    let mut _context = zipfile::ZipFile(buffer, "r".to_string());
+    let mut _context = zipfile::ZipFile(buffer, "r");
     let zf = _context.__enter__();
     let content = {
-        let mut _read_buf = vec![0u8; "readonly.txt".to_string()];
+        let mut _read_buf = vec![0u8; "readonly.txt"];
         let _n = zf.read(&mut _read_buf).unwrap_or(0);
         _read_buf.truncate(_n);
         _read_buf
@@ -3254,9 +3254,9 @@ pub fn test_zipfile_read_mode() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ZIPFILE MODULE TESTS");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     test_zipfile_create_and_read();
     test_zipfile_multiple_files();
     test_zipfile_namelist();
@@ -3265,8 +3265,8 @@ pub fn main() {
     test_zipfile_binary_data();
     test_zipfile_empty();
     test_zipfile_read_mode();
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ALL ZIPFILE TESTS PASSED!");
     println!("{}", "Total tests: 8");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
 }

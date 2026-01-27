@@ -3114,7 +3114,7 @@ pub fn multiply(x: i32, y: i32) -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Minimal example for documentation generation.".to_string();
+    let _ = "Minimal example for documentation generation.";
     Ok(())
 }
 #[cfg(test)]

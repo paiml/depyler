@@ -3106,12 +3106,12 @@ pub fn test_set_add() -> std::collections::HashSet<i32> {
 pub fn test_set_remove() -> std::collections::HashSet<String> {
     let mut s: std::collections::HashSet<String> = {
         let mut set = std::collections::HashSet::new();
-        set.insert("apple".to_string());
-        set.insert("banana".to_string());
-        set.insert("cherry".to_string());
+        set.insert("apple");
+        set.insert("banana");
+        set.insert("cherry");
         set
     };
-    if !s.remove(&"banana".to_string()) {
+    if !s.remove(&"banana") {
         panic!("KeyError: element not in set")
     };
     s

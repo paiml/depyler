@@ -3090,7 +3090,7 @@ impl DepylerRegexMatch {
 pub fn double_list(nums: &Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for n in nums.iter().cloned() {
-        result.push((n).py_mul(2));
+        result.push((n).py_mul(2i32));
     }
     result
 }

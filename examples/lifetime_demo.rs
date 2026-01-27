@@ -3122,7 +3122,7 @@ pub fn first_word(s: &str) -> Result<String, Box<dyn std::error::Error>> {
             .cloned()
             .expect("IndexError: list index out of range"));
     }
-    Ok("".to_string())
+    Ok("".to_string().to_string())
 }
 #[doc = "Append an exclamation mark to a string"]
 #[doc = " Depyler: verified panic-free"]

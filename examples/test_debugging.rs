@@ -3128,7 +3128,7 @@ pub fn fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fibonacci((n).py_sub(1))).py_add(fibonacci((n).py_sub(2)))
+    (fibonacci((n).py_sub(1i32))).py_add(fibonacci((n).py_sub(2i32)))
 }
 #[doc = "Find all prime factors of a number."]
 pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -3154,7 +3154,7 @@ pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, Box<dyn std::error::Er
                 }
             };
         }
-        d = (d).py_add(1);
+        d = ((d).py_add(1i32)) as i32;
     }
     let _cse_temp_0 = n > 1;
     if _cse_temp_0 {
@@ -3166,7 +3166,7 @@ pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, Box<dyn std::error::Er
 pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut left: i32 = 0;
     let _cse_temp_0 = arr.len() as i32;
-    let mut right: i32 = (_cse_temp_0).py_sub(1);
+    let mut right: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while left <= right {
         let mid: i32 = {
             let a = (left).py_add(right);
@@ -3198,9 +3198,9 @@ pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::er
                 .expect("IndexError: list index out of range")
                 < target
             {
-                left = (mid).py_add(1);
+                left = ((mid).py_add(1i32)) as i32;
             } else {
-                right = (mid).py_sub(1);
+                right = ((mid).py_sub(1i32)) as i32;
             }
         }
     }

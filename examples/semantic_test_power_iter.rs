@@ -3092,8 +3092,8 @@ pub fn power(base: i32, exp: i32) -> i32 {
     result = 1;
     let mut i: i32 = 0;
     while i < exp {
-        result = (result).py_mul(base);
-        i = (i).py_add(1);
+        result = ((result).py_mul(base)) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     result
 }

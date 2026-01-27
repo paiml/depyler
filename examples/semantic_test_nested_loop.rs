@@ -3094,7 +3094,7 @@ pub fn count_pairs(n: i32) -> i32 {
     for i in 0..(n) {
         for j in 0..(n) {
             if i < j {
-                count = (count).py_add(1);
+                count = ((count).py_add(1i32)) as i32;
             }
         }
     }

@@ -3094,7 +3094,7 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fibonacci_recursive((n).py_sub(1))).py_add(fibonacci_recursive((n).py_sub(2)))
+    (fibonacci_recursive((n).py_sub(1i32))).py_add(fibonacci_recursive((n).py_sub(2i32)))
 }
 #[doc = "Process a list with nested loops - O(n²) complexity."]
 #[doc = " Depyler: verified panic-free"]
@@ -3104,7 +3104,7 @@ pub fn process_list(items: &Vec<i32>) -> i32 {
     for i in items.iter().cloned() {
         for j in items.iter().cloned() {
             if i < j {
-                total = (total).py_add((i).py_mul(j));
+                total = ((total).py_add((i).py_mul(j))) as i32;
             }
         }
     }
@@ -3129,10 +3129,10 @@ pub fn type_check_heavy(values: &Vec<DepylerValue>) -> i32 {
     count = 0;
     for value in values.iter().cloned() {
         if true {
-            count = ((count).py_add(value)).to_i64() as i32;
+            count = ((count).py_add(value)) as i32;
         } else {
             if true {
-                count = (count).py_add(value.len() as i32) as i32;
+                count = ((count).py_add(value.len() as i32) as i32) as i32;
             }
         }
     }
@@ -3152,7 +3152,7 @@ pub fn hot_loop() -> i32 {
     total = 0;
     for i in 0..(100) {
         for j in 0..(100) {
-            total = (total).py_add((i).py_mul(j));
+            total = ((total).py_add((i).py_mul(j))) as i32;
         }
     }
     total
@@ -3160,7 +3160,7 @@ pub fn hot_loop() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Simple performance profiling demo for Depyler.".to_string();
+    let _ = "Simple performance profiling demo for Depyler.";
     Ok(())
 }
 #[cfg(test)]

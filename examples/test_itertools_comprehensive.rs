@@ -3174,7 +3174,7 @@ pub fn test_filter() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut evens: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        if (num).py_mod(2) == 0 {
+        if (num).py_mod(2i32) == 0 {
             evens.push(num);
         }
     }
@@ -3198,8 +3198,8 @@ pub fn test_count(start: i32, step: i32, limit: i32) -> Vec<i32> {
     let mut count: i32 = 0;
     while count < limit {
         result.push(current);
-        current = (current).py_add(step);
-        count = (count).py_add(1);
+        current = ((current).py_add(step)) as i32;
+        count = ((count).py_add(1i32)) as i32;
     }
     result
 }
@@ -3218,7 +3218,7 @@ pub fn test_cycle(
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        idx = ((idx).py_add(1)).py_mod(items.len() as i32);
+        idx = (((idx).py_add(1i32) as i32).py_mod(items.len() as i32)) as i32;
     }
     Ok(result)
 }
@@ -3291,7 +3291,7 @@ pub fn test_accumulate(numbers: &Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     let mut total: i32 = 0;
     for num in numbers.iter().cloned() {
-        total = (total).py_add(num);
+        total = ((total).py_add(num)) as i32;
         result.push(total);
     }
     result
@@ -3301,7 +3301,7 @@ pub fn test_accumulate(numbers: &Vec<i32>) -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
-    for i in 0..((items.len() as i32).py_sub(1)) {
+    for i in 0..((items.len() as i32).py_sub(1i32)) {
         let pair: (i32, i32) = (
             items
                 .get(i as usize)
@@ -3309,7 +3309,7 @@ pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
                 .expect("IndexError: list index out of range"),
             {
                 let base = &items;
-                let idx: i32 = (i).py_add(1);
+                let idx: i32 = (i).py_add(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3337,11 +3337,11 @@ pub fn test_groupby_manual(
     if _cse_temp_1 {
         return Ok(groups);
     }
-    let _cse_temp_2 = (items
+    let _cse_temp_2 = ((items
         .get(0usize)
         .cloned()
         .expect("IndexError: list index out of range"))
-    .py_mod(2);
+    .py_mod(2i32)) as i32;
     let _cse_temp_3 = _cse_temp_2 == 0;
     current_is_even = _cse_temp_3;
     current_group = vec![items
@@ -3353,7 +3353,7 @@ pub fn test_groupby_manual(
             .get(i as usize)
             .cloned()
             .expect("IndexError: list index out of range"))
-        .py_mod(2)
+        .py_mod(2i32)
             == 0;
         if item_is_even == current_is_even {
             current_group.push(
@@ -3376,7 +3376,7 @@ pub fn test_groupby_manual(
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'b, 'a>(
+pub fn test_compress<'a, 'b>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -3438,7 +3438,7 @@ pub fn cartesian_product_manual<'a, 'b>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'a, 'b>(
+pub fn test_zip_longest<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,
@@ -3495,7 +3495,7 @@ pub fn test_batching(items: &Vec<i32>, batch_size: i32) -> Vec<Vec<i32>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sliding_window(items: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
     let mut windows: Vec<Vec<i32>> = vec![];
-    for i in 0..(((items.len() as i32).py_sub(window_size)).py_add(1)) {
+    for i in 0..(((items.len() as i32).py_sub(window_size) as i32).py_add(1i32)) {
         let window: Vec<i32> = {
             let base = &*items;
             let start_idx = (i) as isize;
@@ -3539,7 +3539,7 @@ pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::e
             .expect("IndexError: list index out of range")
             != {
                 let base = &items;
-                let idx: i32 = (i).py_sub(1);
+                let idx: i32 = (i).py_sub(1i32);
                 let actual_idx = if idx < 0 {
                     base.len().saturating_sub(idx.abs() as usize)
                 } else {
@@ -3604,7 +3604,7 @@ pub fn test_quantify(items: &Vec<i32>, threshold: i32) -> i32 {
     count = 0;
     for item in items.iter().cloned() {
         if item > threshold {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3664,7 +3664,7 @@ pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python itertools module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's itertools module\nfunctions to their Rust equivalents(using iterator adapters).\n\nExpected Rust mappings:\n- itertools.chain () -> Iterator::chain ()\n- zip() -> Iterator::zip()\n- enumerate() -> Iterator::enumerate()\n- filter() -> Iterator::filter()\n- map() -> Iterator::map()\n- itertools.count() -> std::ops::Range or RangeFrom\n- itertools.cycle() -> Iterator::cycle()\n- itertools.repeat() -> std::iter::repeat()\n\nNote: Some advanced itertools functions(product, combinations, permutations)\nmay not be fully supported yet.\n".to_string();
+    let _ = "\nComprehensive test of Python itertools module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's itertools module\nfunctions to their Rust equivalents(using iterator adapters).\n\nExpected Rust mappings:\n- itertools.chain () -> Iterator::chain ()\n- zip() -> Iterator::zip()\n- enumerate() -> Iterator::enumerate()\n- filter() -> Iterator::filter()\n- map() -> Iterator::map()\n- itertools.count() -> std::ops::Range or RangeFrom\n- itertools.cycle() -> Iterator::cycle()\n- itertools.repeat() -> std::iter::repeat()\n\nNote: Some advanced itertools functions(product, combinations, permutations)\nmay not be fully supported yet.\n";
     Ok(())
 }
 #[cfg(test)]

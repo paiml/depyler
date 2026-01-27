@@ -3420,9 +3420,9 @@ pub fn test_stack_peek() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn test_priority_queue() -> Vec<String> {
     let mut pq: SimplePriorityQueue = SimplePriorityQueue::new();
-    pq.put(3, "low".to_string());
-    pq.put(1, "high".to_string());
-    pq.put(2, "medium".to_string());
+    pq.put(3, "low");
+    pq.put(1, "high");
+    pq.put(2, "medium");
     let mut results: Vec<String> = vec![];
     while !pq.empty() {
         let item: String = pq.get();
@@ -3510,7 +3510,7 @@ pub fn test_all_array_queue_features() {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python array and queue modules transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's array and queue modules\nto their Rust equivalents.\n\nExpected Rust mappings:\n- array.array() -> Vec or fixed-size arrays\n- queue.Queue -> VecDeque or channel-based queue\n- queue.LifoQueue -> Vec(stack)\n- queue.PriorityQueue -> BinaryHeap\n\nNote: Manual implementations provided for learning.\n".to_string();
+    let _ = "\nComprehensive test of Python array and queue modules transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's array and queue modules\nto their Rust equivalents.\n\nExpected Rust mappings:\n- array.array() -> Vec or fixed-size arrays\n- queue.Queue -> VecDeque or channel-based queue\n- queue.LifoQueue -> Vec(stack)\n- queue.PriorityQueue -> BinaryHeap\n\nNote: Manual implementations provided for learning.\n";
     Ok(())
 }
 #[cfg(test)]

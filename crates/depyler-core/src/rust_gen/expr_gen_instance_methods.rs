@@ -2570,6 +2570,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // User-defined classes can have methods with names like "add" that conflict with
         // built-in collection methods. We must prioritize user-defined methods.
         if self.is_class_instance(object) {
+            // DEPYLER-DUNDER-CLASS-FIX: Translate dunder methods to Rust equivalents
+            // This handles cases like counter.__next__() → counter.next()
+            let method = match method {
+                "__next__" => "next",
+                "__iter__" => "iter",
+                "__len__" => "len",
+                "__str__" => "to_string",
+                "__repr__" => "fmt",
+                "__contains__" => "contains",
+                "__hash__" => "hash",
+                "__eq__" => "eq",
+                "__ne__" => "ne",
+                "__lt__" => "lt",
+                "__le__" => "le",
+                "__gt__" => "gt",
+                "__ge__" => "ge",
+                _ => method,
+            };
+
             // This is a user-defined class instance - use generic method call
             // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
             let method_ident = if keywords::is_rust_keyword(method) {
@@ -2644,6 +2663,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 _ => {}
             }
         }
+
+        // DEPYLER-DUNDER-CALL-FIX: Translate Python dunder methods to Rust equivalents at call sites
+        // This handles cases like obj.__next__() → obj.next(), obj.__len__() → obj.len()
+        // Must be done BEFORE the fallback match to affect the method name used in codegen
+        let method = match method {
+            "__next__" => "next",
+            "__iter__" => "iter",
+            "__len__" => "len",
+            "__str__" => "to_string",
+            "__repr__" => "fmt",
+            "__contains__" => "contains",
+            "__hash__" => "hash",
+            "__eq__" => "eq",
+            "__ne__" => "ne",
+            "__lt__" => "lt",
+            "__le__" => "le",
+            "__gt__" => "gt",
+            "__ge__" => "ge",
+            _ => method,
+        };
 
         // Fallback to method name dispatch
         match method {
@@ -8966,6 +9005,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0786: Check if expression is a string type
     /// Used to determine if `or` operator should return string instead of bool
+    /// DEPYLER-CI-FIX: Also handles Binary Add expressions for string concatenation chains
     pub(crate) fn expr_is_string_type(&self, expr: &HirExpr) -> bool {
         match expr {
             // String literals
@@ -8984,6 +9024,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     method.as_str(),
                     "strip" | "lower" | "upper" | "replace" | "join" | "format"
                 )
+            }
+            // Binary Add with string operands is string concatenation
+            HirExpr::Binary { left, right, op } => {
+                matches!(op, BinOp::Add)
+                    && (self.expr_is_string_type(left) || self.expr_is_string_type(right))
+            }
+            // Function calls that return strings
+            // DEPYLER-STRING-FUNC-FIX: func is Symbol (String), not HirExpr
+            HirExpr::Call { func, .. } => {
+                matches!(func.as_str(), "str" | "format" | "repr")
             }
             _ => false,
         }

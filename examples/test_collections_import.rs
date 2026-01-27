@@ -3126,7 +3126,7 @@ pub fn count_words(text: &str) -> HashMap<String, i32> {
 #[doc = "Group words by their length using defaultdict"]
 #[doc = " Depyler: verified panic-free"]
 pub fn group_by_length(words: &Vec<String>) -> HashMap<i32, Vec<String>> {
-    let groups = HashMap::new();
+    let groups = HashMap::<String, i32>::new();
     for word in words.iter().cloned() {
         groups
             .clone()
@@ -3142,7 +3142,7 @@ pub fn process_queue(items: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::E
     let mut queue: Vec<DepylerValue> = VecDeque::from(items);
     let mut results: Vec<i32> = vec![];
     while !queue.is_empty() {
-        if (queue.len() as i32).py_mod(2) == 0 {
+        if (queue.len() as i32).py_mod(2i32) == 0 {
             results.push(queue.pop_front().expect("popleft from empty deque"));
         } else {
             results.push(queue.pop_back().unwrap_or_default());

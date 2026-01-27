@@ -3130,8 +3130,12 @@ pub fn test_basic_math_functions() -> f64 {
     let floor_result: f64 = (3.7 as f64).floor();
     let ceil_result: f64 = (3.2 as f64).ceil();
     let abs_result: f64 = (-5.5 as f64).abs();
-    ((((sqrt_result).py_add(pow_result)).py_add(floor_result)).py_add(ceil_result))
-        .py_add(abs_result)
+    {
+        let _r: f64 = ((((sqrt_result).py_add(pow_result) as f64).py_add(floor_result) as f64)
+            .py_add(ceil_result) as f64)
+            .py_add(abs_result);
+        _r
+    }
 }
 #[doc = "Test trigonometric functions"]
 #[doc = " Depyler: proven to terminate"]
@@ -3141,7 +3145,10 @@ pub fn test_trigonometric_functions() -> Result<f64, Box<dyn std::error::Error>>
     let sin_result: f64 = (angle as f64).sin();
     let cos_result: f64 = (angle as f64).cos();
     let tan_result: f64 = (angle as f64).tan();
-    Ok(((sin_result).py_add(cos_result)).py_add(tan_result))
+    Ok({
+        let _r: f64 = ((sin_result).py_add(cos_result) as f64).py_add(tan_result);
+        _r
+    })
 }
 #[doc = "Test logarithmic and exponential functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -3150,7 +3157,10 @@ pub fn test_logarithmic_functions() -> f64 {
     let ln_result: f64 = (std::f64::consts::E as f64).ln();
     let log10_result: f64 = (100.0 as f64).log10();
     let exp_result: f64 = (1.0 as f64).exp();
-    ((ln_result).py_add(log10_result)).py_add(exp_result)
+    {
+        let _r: f64 = ((ln_result).py_add(log10_result) as f64).py_add(exp_result);
+        _r
+    }
 }
 #[doc = "Test various rounding operations"]
 #[doc = " Depyler: verified panic-free"]
@@ -3160,7 +3170,10 @@ pub fn test_rounding_functions() -> f64 {
     let floored: f64 = (value as f64).floor();
     let ceiled: f64 = (value as f64).ceil();
     let truncated: f64 = (value as f64).trunc();
-    ((floored).py_add(ceiled)).py_add(truncated)
+    {
+        let _r: f64 = ((floored).py_add(ceiled) as f64).py_add(truncated);
+        _r
+    }
 }
 #[doc = "Test mathematical constants"]
 #[doc = " Depyler: verified panic-free"]
@@ -3183,7 +3196,10 @@ pub fn test_hyperbolic_functions() -> f64 {
     let sinh_result: f64 = (x as f64).sinh();
     let cosh_result: f64 = (x as f64).cosh();
     let tanh_result: f64 = (x as f64).tanh();
-    ((sinh_result).py_add(cosh_result)).py_add(tanh_result)
+    {
+        let _r: f64 = ((sinh_result).py_add(cosh_result) as f64).py_add(tanh_result);
+        _r
+    }
 }
 #[doc = "Test special mathematical functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -3225,14 +3241,14 @@ pub fn test_angle_conversions() -> f64 {
 pub fn calculate_distance(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
     let dx: f64 = (x2).py_sub(x1);
     let dy: f64 = (y2).py_sub(y1);
-    let distance: f64 = (((dx).py_mul(dx)).py_add((dy).py_mul(dy)) as f64).sqrt();
+    let distance: f64 = (((dx).py_mul(dx) as f64).py_add((dy).py_mul(dy)) as f64).sqrt();
     distance
 }
 #[doc = "Calculate hypotenuse using Pythagorean theorem"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_hypotenuse(a: f64, b: f64) -> f64 {
-    (((a).py_mul(a)).py_add((b).py_mul(b)) as f64).sqrt()
+    (((a).py_mul(a) as f64).py_add((b).py_mul(b)) as f64).sqrt()
 }
 #[doc = "Test various power operations"]
 #[doc = " Depyler: verified panic-free"]
@@ -3241,12 +3257,15 @@ pub fn test_power_operations() -> f64 {
     let basic_pow: f64 = (2.0 as f64).powf(8.0 as f64);
     let sqrt_as_pow: f64 = (25.0 as f64).powf(0.5 as f64);
     let cube_root: f64 = (27.0 as f64).powf(0.3333333333333333 as f64);
-    ((basic_pow).py_add(sqrt_as_pow)).py_add(cube_root)
+    {
+        let _r: f64 = ((basic_pow).py_add(sqrt_as_pow) as f64).py_add(cube_root);
+        _r
+    }
 }
 #[doc = "Test min/max with math operations"]
 pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut min_val: f64 = Default::default();
     let mut max_val: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
     let _cse_temp_0 = values.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3306,7 +3325,10 @@ pub fn test_sign_and_copysign() -> f64 {
     let abs2: f64 = (7.3 as f64).abs();
     let result1: f64 = (5.0 as f64).copysign(-1.0 as f64);
     let result2: f64 = (5.0 as f64).copysign(1.0 as f64);
-    (((abs1).py_add(abs2)).py_add(result1)).py_add(result2)
+    {
+        let _r: f64 = (((abs1).py_add(abs2) as f64).py_add(result1) as f64).py_add(result2);
+        _r
+    }
 }
 #[doc = "Test modulo and remainder operations"]
 #[doc = " Depyler: verified panic-free"]
@@ -3364,7 +3386,7 @@ pub fn test_integer_operations() -> Result<i32, Box<dyn std::error::Error>> {
     };
     let a: i32 = 12;
     let b: i32 = 18;
-    let _cse_temp_0 = (a).py_mul(b);
+    let _cse_temp_0 = ((a).py_mul(b)) as i32;
     let _cse_temp_1 = (_cse_temp_0).abs();
     let _cse_temp_2 = {
         let a = _cse_temp_1;
@@ -3392,7 +3414,10 @@ pub fn test_integer_operations() -> Result<i32, Box<dyn std::error::Error>> {
         }
     };
     let lcm: i32 = _cse_temp_2;
-    Ok((((fact).py_add(gcd1)).py_add(gcd2)).py_add(lcm))
+    Ok({
+        let _r: i32 = (((fact).py_add(gcd1) as i32).py_add(gcd2) as i32).py_add(lcm);
+        _r
+    })
 }
 #[doc = "Run all math module tests"]
 #[doc = " Depyler: verified panic-free"]
@@ -3421,7 +3446,7 @@ pub fn test_all_math_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python math module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's math module\nfunctions to their Rust equivalents(std::f64 methods).\n\nExpected Rust mappings:\n- math.sqrt() -> f64::sqrt()\n- math.pow() -> f64::powf()\n- math.floor() -> f64::floor()\n- math.ceil() -> f64::ceil()\n- math.abs() -> f64::abs() or i32::abs()\n- math.pi -> std::f64::consts::PI\n- math.e -> std::f64::consts::E\n".to_string();
+    let _ = "\nComprehensive test of Python math module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's math module\nfunctions to their Rust equivalents(std::f64 methods).\n\nExpected Rust mappings:\n- math.sqrt() -> f64::sqrt()\n- math.pow() -> f64::powf()\n- math.floor() -> f64::floor()\n- math.ceil() -> f64::ceil()\n- math.abs() -> f64::abs() or i32::abs()\n- math.pi -> std::f64::consts::PI\n- math.e -> std::f64::consts::E\n";
     Ok(())
 }
 #[cfg(test)]

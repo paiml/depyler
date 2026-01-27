@@ -3106,14 +3106,14 @@ impl DepylerRegexMatch {
 pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, Box<dyn std::error::Error>> {
     while b != 0 {
         let temp: i32 = b;
-        b = (a).py_mod(b);
+        b = ((a).py_mod(b)) as i32;
         a = temp;
     }
     Ok(a)
 }
 #[doc = " Depyler: proven to terminate"]
 pub fn lcm(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = (a).py_mul(b);
+    let _cse_temp_0 = ((a).py_mul(b)) as i32;
     let product: i32 = _cse_temp_0;
     let divisor: i32 = gcd(a, b)?;
     Ok({
@@ -3136,7 +3136,7 @@ pub fn lcm(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", lcm(12, 18));
+    println!("{}", lcm(12, 18).unwrap());
     Ok(())
 }
 #[cfg(test)]

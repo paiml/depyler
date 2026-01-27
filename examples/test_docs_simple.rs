@@ -3120,8 +3120,8 @@ pub fn fibonacci(n: i32) -> i32 {
     }
     let mut a: i32 = 0;
     b = 1;
-    for _i in (2)..((n).py_add(1)) {
-        let temp: i32 = (a).py_add(b);
+    for _i in (2)..((n).py_add(1i32)) {
+        let temp: i32 = ((a).py_add(b)) as i32;
         a = b;
         b = temp;
     }
@@ -3144,7 +3144,7 @@ pub fn process_data(items: &Vec<i32>) -> HashMap<String, i32> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Example module for documentation generation.\n\nThis module demonstrates various Python features that Depyler\ncan document, including functions and classes.\n".to_string();
+    let _ = "Example module for documentation generation.\n\nThis module demonstrates various Python features that Depyler\ncan document, including functions and classes.\n";
     Ok(())
 }
 #[cfg(test)]

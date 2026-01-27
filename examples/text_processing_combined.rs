@@ -3185,7 +3185,7 @@ pub fn get_most_common_words(
         word_counts.push((word, count));
     }
     for i in 0..(word_counts.len() as i32) {
-        for j in ((i).py_add(1))..(word_counts.len() as i32) {
+        for j in ((i).py_add(1i32))..(word_counts.len() as i32) {
             if word_counts
                 .get(j as usize)
                 .cloned()
@@ -3237,31 +3237,31 @@ pub fn analyze_character_distribution(
         if char.is_alphabetic() {
             distribution.insert(
                 "letters".to_string(),
-                (distribution.get("letters").cloned().unwrap_or_default()).py_add(1),
+                (distribution.get("letters").cloned().unwrap_or_default()).py_add(1i32),
             );
         } else {
             if char.is_numeric() {
                 distribution.insert(
                     "digits".to_string(),
-                    (distribution.get("digits").cloned().unwrap_or_default()).py_add(1),
+                    (distribution.get("digits").cloned().unwrap_or_default()).py_add(1i32),
                 );
             } else {
                 if char.is_whitespace() {
                     distribution.insert(
                         "spaces".to_string(),
-                        (distribution.get("spaces").cloned().unwrap_or_default()).py_add(1),
+                        (distribution.get("spaces").cloned().unwrap_or_default()).py_add(1i32),
                     );
                 } else {
                     if ".,!?;:".contains(char) {
                         distribution.insert(
                             "punctuation".to_string(),
                             (distribution.get("punctuation").cloned().unwrap_or_default())
-                                .py_add(1),
+                                .py_add(1i32),
                         );
                     } else {
                         distribution.insert(
                             "other".to_string(),
-                            (distribution.get("other").cloned().unwrap_or_default()).py_add(1),
+                            (distribution.get("other").cloned().unwrap_or_default()).py_add(1i32),
                         );
                     }
                 }
@@ -3312,7 +3312,7 @@ pub fn calculate_readability_metrics(
     metrics.insert("sentence_count".to_string(), _cse_temp_3);
     total_chars = 0;
     for word in words.iter().cloned() {
-        total_chars = (total_chars).py_add(word.len() as i32) as i32;
+        total_chars = ((total_chars).py_add(word.len() as i32) as i32) as i32;
     }
     let _cse_temp_4 = _cse_temp_0 > 0;
     if _cse_temp_4 {
@@ -3418,7 +3418,7 @@ pub fn find_word_patterns(
 #[doc = " Depyler: proven to terminate"]
 pub fn create_ngrams(words: &Vec<String>, n: i32) -> Vec<String> {
     let mut ngrams: Vec<String> = vec![];
-    for i in 0..(((words.len() as i32).py_sub(n)).py_add(1)) {
+    for i in 0..(((words.len() as i32).py_sub(n) as i32).py_add(1i32)) {
         let mut ngram_words: Vec<String> = vec![];
         for j in 0..(n) {
             ngram_words.push({
@@ -3470,7 +3470,7 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std:
             if step == 0 {
                 panic!("range() arg 3 must not be zero");
             }
-            (-1..(word.len() as i32).py_sub(1))
+            (-1..(word.len() as i32).py_sub(1i32))
                 .rev()
                 .step_by(step.max(1))
         } {
@@ -3507,21 +3507,21 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std:
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut vowel_count: i32 = Default::default();
     let mut consonant_count: i32 = Default::default();
+    let mut vowel_count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
     vowel_count = 0;
     consonant_count = 0;
     for char in text.chars() {
         if char.is_alphabetic() {
             if vowels.contains(char) {
-                vowel_count = (vowel_count).py_add(1);
+                vowel_count = ((vowel_count).py_add(1i32)) as i32;
             } else {
-                consonant_count = (consonant_count).py_add(1);
+                consonant_count = ((consonant_count).py_add(1i32)) as i32;
             }
         }
     }
-    let total_letters: i32 = (vowel_count).py_add(consonant_count);
+    let total_letters: i32 = ((vowel_count).py_add(consonant_count)) as i32;
     let mut result: std::collections::HashMap<String, f64> = {
         let map: HashMap<String, f64> = HashMap::new();
         map

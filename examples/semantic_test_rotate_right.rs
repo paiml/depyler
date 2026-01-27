@@ -3124,7 +3124,7 @@ impl DepylerRegexMatch {
 pub fn rotate_right(nums: &Vec<i32>, mut k: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = nums.len() as i32;
     let n: i32 = _cse_temp_0;
-    let _cse_temp_1 = (k).py_mod(n);
+    let _cse_temp_1 = ((k).py_mod(n)) as i32;
     k = _cse_temp_1;
     Ok({
         let base = &nums;
@@ -3142,6 +3142,6 @@ pub fn rotate_right(nums: &Vec<i32>, mut k: i32) -> Result<i32, Box<dyn std::err
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", rotate_right(&vec![1, 2, 3, 4, 5], 2));
+    println!("{}", rotate_right(&vec![1, 2, 3, 4, 5], 2).unwrap());
     Ok(())
 }

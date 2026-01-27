@@ -3127,7 +3127,7 @@ pub fn find_first_even(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error
             .get(i as usize)
             .cloned()
             .expect("IndexError: list index out of range"))
-        .py_mod(2)
+        .py_mod(2i32)
             == 0
         {
             return Ok(nums
@@ -3135,14 +3135,14 @@ pub fn find_first_even(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error
                 .cloned()
                 .expect("IndexError: list index out of range"));
         }
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(-1)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", find_first_even(&vec![1, 3, 5, 6, 7]));
+    println!("{}", find_first_even(&vec![1, 3, 5, 6, 7]).unwrap());
     Ok(())
 }
 #[cfg(test)]

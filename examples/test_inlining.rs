@@ -3102,17 +3102,17 @@ pub fn add_one(n: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn compute_distance_squared(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
-    let dx: i32 = (x2).py_sub(x1);
-    let dy: i32 = (y2).py_sub(y1);
+    let dx: i32 = ((x2).py_sub(x1)) as i32;
+    let dy: i32 = ((y2).py_sub(y1)) as i32;
     (square(dx)).py_add(square(dy))
 }
 #[doc = "Called only once - should be inlined."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_single_use(value: i32) -> i32 {
-    let _cse_temp_0 = (value).py_mul(2i32);
+    let _cse_temp_0 = ((value).py_mul(2i32)) as i32;
     let temp: i32 = _cse_temp_0;
-    let result: i32 = (temp).py_add(10i32);
+    let result: i32 = ((temp).py_add(10i32)) as i32;
     result
 }
 #[doc = "Main function that uses other functions."]
@@ -3141,7 +3141,7 @@ pub fn has_loop(items: &Vec<DepylerValue>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for item in items.iter().cloned() {
-        total = (total).py_add(item);
+        total = ((total).py_add(item)) as i32;
     }
     total
 }
@@ -3149,28 +3149,28 @@ pub fn has_loop(items: &Vec<DepylerValue>) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn large_function(x: i32, y: i32, z: i32) -> i32 {
-    let a: i32 = (x).py_add(y);
-    let b: i32 = (y).py_add(z);
-    let c: i32 = (z).py_add(x);
-    let _cse_temp_0 = (a).py_mul(b);
+    let a: i32 = ((x).py_add(y)) as i32;
+    let b: i32 = ((y).py_add(z)) as i32;
+    let c: i32 = ((z).py_add(x)) as i32;
+    let _cse_temp_0 = ((a).py_mul(b)) as i32;
     let d: i32 = _cse_temp_0;
-    let _cse_temp_1 = (b).py_mul(c);
+    let _cse_temp_1 = ((b).py_mul(c)) as i32;
     let e: i32 = _cse_temp_1;
-    let _cse_temp_2 = (c).py_mul(a);
+    let _cse_temp_2 = ((c).py_mul(a)) as i32;
     let f: i32 = _cse_temp_2;
-    let g: i32 = (d).py_add(e);
-    let h: i32 = (e).py_add(f);
-    let i: i32 = (f).py_add(d);
-    let _cse_temp_3 = (g).py_mul(h);
+    let g: i32 = ((d).py_add(e)) as i32;
+    let h: i32 = ((e).py_add(f)) as i32;
+    let i: i32 = ((f).py_add(d)) as i32;
+    let _cse_temp_3 = ((g).py_mul(h)) as i32;
     let j: i32 = _cse_temp_3;
-    let _cse_temp_4 = (h).py_mul(i);
+    let _cse_temp_4 = ((h).py_mul(i)) as i32;
     let k: i32 = _cse_temp_4;
-    let _cse_temp_5 = (i).py_mul(g);
+    let _cse_temp_5 = ((i).py_mul(g)) as i32;
     let l: i32 = _cse_temp_5;
-    let m: i32 = (j).py_add(k);
-    let n: i32 = (k).py_add(l);
-    let o: i32 = (l).py_add(j);
-    let _cse_temp_6 = ((m).py_add(n)).py_add(o);
+    let m: i32 = ((j).py_add(k)) as i32;
+    let n: i32 = ((k).py_add(l)) as i32;
+    let o: i32 = ((l).py_add(j)) as i32;
+    let _cse_temp_6 = (((m).py_add(n) as i32).py_add(o)) as i32;
     let result: i32 = _cse_temp_6;
     result
 }

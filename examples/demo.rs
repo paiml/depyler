@@ -3111,7 +3111,7 @@ pub fn fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fibonacci((n).py_sub(1))).py_add(fibonacci((n).py_sub(2)))
+    (fibonacci((n).py_sub(1i32))).py_add(fibonacci((n).py_sub(2i32)))
 }
 #[doc = "Calculate factorial iteratively"]
 #[doc = " Depyler: verified panic-free"]
@@ -3119,8 +3119,8 @@ pub fn fibonacci(n: i32) -> i32 {
 pub fn factorial(n: i32) -> i32 {
     let mut result: i32 = Default::default();
     result = 1;
-    for i in (1)..((n).py_add(1)) {
-        result = (result).py_mul(i);
+    for i in (1)..((n).py_add(1i32)) {
+        result = ((result).py_mul(i)) as i32;
     }
     result
 }
@@ -3144,7 +3144,7 @@ pub fn process_list(numbers: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for num in numbers.iter().cloned() {
-        total = (total).py_add(num);
+        total = ((total).py_add(num)) as i32;
     }
     total
 }

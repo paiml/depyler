@@ -3093,14 +3093,14 @@ pub fn is_perfect_square(n: i32) -> bool {
         return false;
     }
     let mut i: i32 = 0;
-    let _cse_temp_1 = (i).py_mul(i);
+    let _cse_temp_1 = ((i).py_mul(i)) as i32;
     let mut square: i32 = _cse_temp_1.clone();
     while square <= n {
         if square == n {
             return true;
         }
-        i = (i).py_add(1);
-        square = (i).py_mul(i);
+        i = ((i).py_add(1i32)) as i32;
+        square = ((i).py_mul(i)) as i32;
     }
     false
 }

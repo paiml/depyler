@@ -3208,7 +3208,7 @@ pub fn divide_safe(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "try/except with KeyError.\n\n    Python: try d[key] except KeyError\n    Rust: d.get(&key).cloned().unwrap_or(-1)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_key_error<'b, 'a>(
+pub fn get_with_key_error<'a, 'b>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3217,7 +3217,7 @@ pub fn get_with_key_error<'b, 'a>(
 #[doc = "try/except with exception variable binding.\n\n    Python: except KeyError as e → use e\n    Rust: Err(e) =>format!(\"Error: {}\", e)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_bound_exception<'b, 'a>(
+pub fn get_with_bound_exception<'a, 'b>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -3237,7 +3237,7 @@ pub fn get_with_bound_exception<'b, 'a>(
 #[doc = "Multiple exception type handlers.\n\n    Python: except ValueError, except KeyError\n    Rust: match with multiple Err patterns\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn multiple_handlers<'a, 'b>(
+pub fn multiple_handlers<'b, 'a>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3261,11 +3261,11 @@ pub fn nested_try_except(x: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut outer: i32 = 0;
     let mut inner: i32 = 0;
     match (|| -> Result<i32, Box<dyn std::error::Error>> {
-        outer = (x).py_add(1);
+        outer = ((x).py_add(1i32)) as i32;
         match (|| -> Result<i32, Box<dyn std::error::Error>> {
-            inner = (outer).py_mul(2);
+            inner = ((outer).py_mul(2i32)) as i32;
             if inner > 100 {
-                panic!("{}", ValueError::new("Too large".to_string()));
+                panic!("{}", ValueError::new("Too large"));
             }
             return Ok(inner);
         })() {
@@ -3297,7 +3297,7 @@ pub fn try_except_finally_pattern(filename: &str) -> Result<String, Box<dyn std:
             opened = true;
             result = format!("Processing {}", filename);
             if (*filename) == "" {
-                panic!("{}", ValueError::new("Empty filename".to_string()));
+                panic!("{}", ValueError::new("Empty filename"));
             }
             return Ok(result.to_string());
         })() {
@@ -3320,7 +3320,7 @@ pub fn propagate_result(values: &Vec<String>) -> i32 {
     match (|| -> Result<i32, Box<dyn std::error::Error>> {
         for v in values.iter().cloned() {
             let num: i32 = v.parse::<i32>().unwrap_or_default();
-            total = (total).py_add(num);
+            total = ((total).py_add(num)) as i32;
         }
         return Ok(total);
     })() {
@@ -3341,7 +3341,7 @@ pub fn early_return_in_try(x: i32) -> i32 {
         if x < 0 {
             return -1;
         }
-        result = (x).py_mul(2);
+        result = ((x).py_mul(2i32)) as i32;
         if result > 100 {
             return 100;
         }
@@ -3382,9 +3382,9 @@ pub fn exception_with_computation(
                 q
             }
         };
-        step2 = (step1).py_mul(c);
+        step2 = ((step1).py_mul(c)) as i32;
         if step2 < 0 {
-            panic!("{}", ValueError::new("Negative result".to_string()));
+            panic!("{}", ValueError::new("Negative result"));
         }
         return Ok(step2);
     })() {
@@ -3435,7 +3435,7 @@ pub fn try_except_else_finally(s: &str) -> String {
 pub fn raise_without_args(x: i32) -> Result<i32, Box<dyn std::error::Error>> {
     match (|| -> Result<i32, Box<dyn std::error::Error>> {
         if x < 0 {
-            panic!("{}", ValueError::new("Negative".to_string()));
+            panic!("{}", ValueError::new("Negative"));
         }
         return Ok(x);
     })() {
@@ -3453,15 +3453,11 @@ pub fn raise_without_args(x: i32) -> Result<i32, Box<dyn std::error::Error>> {
 pub fn raise_with_message(x: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = x < 0;
     if _cse_temp_0 {
-        return Err(Box::new(ValueError::new(
-            "Value must be non-negative".to_string(),
-        )));
+        return Err(Box::new(ValueError::new("Value must be non-negative")));
     }
     let _cse_temp_1 = x > 100;
     if _cse_temp_1 {
-        return Err(Box::new(ValueError::new(
-            "Value must be <= 100".to_string(),
-        )));
+        return Err(Box::new(ValueError::new("Value must be <= 100")));
     }
     Ok(x)
 }
@@ -3501,17 +3497,17 @@ pub fn validate_and_transform(value: i32) -> Result<i32, Box<dyn std::error::Err
     let _cse_temp_0 = value < 0;
     if _cse_temp_0 {
         return Err(Box::new(ValidationError::new(
-            "Value cannot be negative".to_string().to_string(),
+            "Value cannot be negative".to_string(),
         )));
     }
     let _cse_temp_1 = value > 1000;
     if _cse_temp_1 {
         return Err(Box::new(RangeError::new(value, 0, 1000)));
     }
-    let _cse_temp_2 = (value).py_mod(2);
+    let _cse_temp_2 = ((value).py_mod(2i32)) as i32;
     let _cse_temp_3 = _cse_temp_2 != 0;
     if _cse_temp_3 {
-        return Err(Box::new(ValueError::new("Value must be even".to_string())));
+        return Err(Box::new(ValueError::new("Value must be even")));
     }
     Ok({
         let a = value;
@@ -3551,10 +3547,10 @@ pub fn catch_custom_exception(value: i32) -> Result<String, Box<dyn std::error::
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    assert_eq!(parse_int_safe(&"42".to_string()), 42);
-    assert_eq!(parse_int_safe(&"invalid".to_string()), 0);
-    assert_eq!(parse_int_with_error(&"42".to_string()), 42);
-    assert!(parse_int_with_error(&"invalid".to_string()).is_none());
+    assert_eq!(parse_int_safe(&"42"), 42);
+    assert_eq!(parse_int_safe(&"invalid"), 0);
+    assert_eq!(parse_int_with_error(&"42"), 42);
+    assert!(parse_int_with_error(&"invalid").is_none());
     assert_eq!(divide_safe(10, 2), 5);
     assert_eq!(divide_safe(10, 0), 0);
     let d: std::collections::HashMap<String, i32> = {
@@ -3564,27 +3560,27 @@ pub fn main() {
         map
     };
     assert_eq!(get_with_key_error(&d, &"a"), 1);
-    assert_eq!(get_with_key_error(&d, &"missing".to_string()), -1);
+    assert_eq!(get_with_key_error(&d, &"missing"), -1);
     assert_eq!(
-        multiple_handlers(&"1".to_string(), &{
+        multiple_handlers(&"1", &{
             let mut map = HashMap::new();
-            map.insert("1".to_string().to_string(), 100);
+            map.insert("1".to_string(), 100);
             map
         }),
         100
     );
     assert_eq!(
-        multiple_handlers(&"invalid".to_string(), &{
+        multiple_handlers(&"invalid", &{
             let mut map = HashMap::new();
-            map.insert("1".to_string().to_string(), 100);
+            map.insert("1".to_string(), 100);
             map
         }),
         -1
     );
     assert_eq!(
-        multiple_handlers(&"99".to_string(), &{
+        multiple_handlers(&"99", &{
             let mut map = HashMap::new();
-            map.insert("1".to_string().to_string(), 100);
+            map.insert("1".to_string(), 100);
             map
         }),
         -2
@@ -3592,18 +3588,11 @@ pub fn main() {
     assert_eq!(nested_try_except(10), 22);
     assert_eq!(nested_try_except(100), 101);
     assert_eq!(
-        propagate_result(&vec![
-            "1".to_string().to_string(),
-            "2".to_string().to_string(),
-            "3".to_string().to_string()
-        ]),
+        propagate_result(&vec!["1".to_string(), "2".to_string(), "3".to_string()]),
         6
     );
     assert_eq!(
-        propagate_result(&vec![
-            "1".to_string().to_string(),
-            "invalid".to_string().to_string()
-        ]),
+        propagate_result(&vec!["1".to_string(), "invalid".to_string()]),
         -1
     );
     assert_eq!(early_return_in_try(-5), -1);
@@ -3612,20 +3601,14 @@ pub fn main() {
     assert_eq!(exception_with_computation(10, 2, 3), 15);
     assert_eq!(exception_with_computation(10, 0, 3), -1);
     assert_eq!(exception_with_computation(10, 2, -3), -2);
-    assert_eq!(try_except_else(&"5".to_string()), 10);
-    assert_eq!(try_except_else(&"invalid".to_string()), -1);
-    assert_eq!(
-        try_except_else_finally(&"5".to_string()),
-        "success_done:50".to_string()
-    );
-    assert_eq!(
-        try_except_else_finally(&"invalid".to_string()),
-        "error_done:-1".to_string()
-    );
+    assert_eq!(try_except_else(&"5"), 10);
+    assert_eq!(try_except_else(&"invalid"), -1);
+    assert_eq!(try_except_else_finally(&"5"), "success_done:50");
+    assert_eq!(try_except_else_finally(&"invalid"), "error_done:-1");
     assert_eq!(raise_with_message(50), 50);
     assert_eq!(raise_custom_exception(50, 0, 100), 50);
     assert_eq!(validate_and_transform(100), 50);
-    assert_eq!(catch_custom_exception(100), "Result: 50".to_string());
+    assert_eq!(catch_custom_exception(100), "Result: 50");
     assert!(catch_custom_exception(-1).contains("Validation failed"));
     assert!(catch_custom_exception(2000).contains("Range error"));
     assert!(catch_custom_exception(3).contains("Value error"));

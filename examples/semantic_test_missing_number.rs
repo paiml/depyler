@@ -3105,7 +3105,7 @@ impl DepylerRegexMatch {
 }
 pub fn missing_number(nums: &Vec<i32>, n: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut actual: i32 = Default::default();
-    let _cse_temp_0 = (n).py_mul((n).py_add(1));
+    let _cse_temp_0 = ((n).py_mul((n).py_add(1i32))) as i32;
     let _cse_temp_1 = {
         let a = _cse_temp_0;
         let b = 2;
@@ -3125,13 +3125,13 @@ pub fn missing_number(nums: &Vec<i32>, n: i32) -> Result<i32, Box<dyn std::error
     let expected: i32 = _cse_temp_1;
     actual = 0;
     for x in nums.iter().cloned() {
-        actual = (actual).py_add(x);
+        actual = ((actual).py_add(x)) as i32;
     }
     Ok((expected).py_sub(actual))
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", missing_number(&vec![0, 1, 3, 4, 5], 5));
+    println!("{}", missing_number(&vec![0, 1, 3, 4, 5], 5).unwrap());
     Ok(())
 }

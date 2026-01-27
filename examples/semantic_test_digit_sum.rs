@@ -3109,27 +3109,30 @@ pub fn digit_sum(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
     if _cse_temp_0 {
         return Ok(n);
     }
-    Ok(((n).py_mod(10)).py_add(digit_sum({
-        let a = n;
-        let b = 10;
-        let q = a / b;
-        let r = a % b;
-        let r_negative = r < 0;
-        let b_negative = b < 0;
-        let r_nonzero = r != 0;
-        let signs_differ = r_negative != b_negative;
-        let needs_adjustment = r_nonzero && signs_differ;
-        if needs_adjustment {
-            q - 1
-        } else {
-            q
-        }
-    })?))
+    Ok({
+        let _r: i32 = ((n).py_mod(10i32) as i32).py_add(digit_sum({
+            let a = n;
+            let b = 10;
+            let q = a / b;
+            let r = a % b;
+            let r_negative = r < 0;
+            let b_negative = b < 0;
+            let r_nonzero = r != 0;
+            let signs_differ = r_negative != b_negative;
+            let needs_adjustment = r_nonzero && signs_differ;
+            if needs_adjustment {
+                q - 1
+            } else {
+                q
+            }
+        })?);
+        _r
+    })
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", digit_sum(12345));
+    println!("{}", digit_sum(12345).unwrap());
     Ok(())
 }
 #[cfg(test)]

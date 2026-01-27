@@ -3151,7 +3151,7 @@ pub fn binary_search_left(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn st
             .expect("IndexError: list index out of range")
             < target
         {
-            left = (mid).py_add(1);
+            left = ((mid).py_add(1i32)) as i32;
         } else {
             right = mid;
         }
@@ -3187,7 +3187,7 @@ pub fn binary_search_right(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn s
             .expect("IndexError: list index out of range")
             <= target
         {
-            left = (mid).py_add(1);
+            left = ((mid).py_add(1i32)) as i32;
         } else {
             right = mid;
         }
@@ -3342,7 +3342,7 @@ pub fn count_occurrences_sorted(
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let left: i32 = binary_search_left(&arr, target)?;
     let right: i32 = binary_search_right(&arr, target)?;
-    let count: i32 = (right).py_sub(left);
+    let count: i32 = ((right).py_sub(left)) as i32;
     Ok(count)
 }
 #[doc = "Find start and end indices of target in sorted array"]
@@ -3359,7 +3359,7 @@ pub fn find_range(arr: &Vec<i32>, target: i32) -> Result<(i32, i32), Box<dyn std
         == target;
     let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
     if _cse_temp_3 {
-        return Ok((start, (end).py_sub(1)));
+        return Ok((start, (end).py_sub(1i32)));
     } else {
         return Ok((-1, -1));
     }
@@ -3384,7 +3384,7 @@ pub fn find_closest_value(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn st
     if _cse_temp_3 {
         return Ok({
             let base = &arr;
-            let idx: i32 = (arr.len() as i32).py_sub(1);
+            let idx: i32 = (arr.len() as i32).py_sub(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3397,7 +3397,7 @@ pub fn find_closest_value(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn st
     }
     let before: i32 = {
         let base = &arr;
-        let idx: i32 = (position).py_sub(1);
+        let idx: i32 = (position).py_sub(1i32);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
@@ -3427,8 +3427,8 @@ pub fn merge_sorted_arrays<'b, 'a>(
     arr1: &'a Vec<i32>,
     arr2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut i: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;
@@ -3447,14 +3447,14 @@ pub fn merge_sorted_arrays<'b, 'a>(
                     .cloned()
                     .expect("IndexError: list index out of range"),
             );
-            i = (i).py_add(1);
+            i = ((i).py_add(1i32)) as i32;
         } else {
             result.push(
                 arr2.get(j as usize)
                     .cloned()
                     .expect("IndexError: list index out of range"),
             );
-            j = (j).py_add(1);
+            j = ((j).py_add(1i32)) as i32;
         }
     }
     while i < arr1.len() as i32 {
@@ -3463,7 +3463,7 @@ pub fn merge_sorted_arrays<'b, 'a>(
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     while j < arr2.len() as i32 {
         result.push(
@@ -3471,7 +3471,7 @@ pub fn merge_sorted_arrays<'b, 'a>(
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        j = (j).py_add(1);
+        j = ((j).py_add(1i32)) as i32;
     }
     Ok(result)
 }
@@ -3522,7 +3522,7 @@ pub fn find_floor_ceiling(
     if _cse_temp_0 {
         floor_val = {
             let base = &arr;
-            let idx: i32 = (position).py_sub(1);
+            let idx: i32 = (position).py_sub(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3579,7 +3579,7 @@ pub fn test_all_bisect_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python bisect module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's bisect module\n(binary search and sorted list insertion) to Rust equivalents.\n\nExpected Rust mappings:\n- bisect.bisect_left() -> binary search finding leftmost position\n- bisect.bisect_right() -> binary search finding rightmost position\n- bisect.insort_left() -> insert maintaining sort order(left)\n- bisect.insort_right() -> insert maintaining sort order(right)\n\nNote: Manual implementations provided for learning.\n".to_string();
+    let _ = "\nComprehensive test of Python bisect module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's bisect module\n(binary search and sorted list insertion) to Rust equivalents.\n\nExpected Rust mappings:\n- bisect.bisect_left() -> binary search finding leftmost position\n- bisect.bisect_right() -> binary search finding rightmost position\n- bisect.insort_left() -> insert maintaining sort order(left)\n- bisect.insort_right() -> insert maintaining sort order(right)\n\nNote: Manual implementations provided for learning.\n";
     Ok(())
 }
 #[cfg(test)]

@@ -3089,12 +3089,12 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn double(x: i32) -> i32 {
-    (x).py_mul(2)
+    (x).py_mul(2i32)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn increment(x: i32) -> i32 {
-    (x).py_add(1)
+    (x).py_add(1i32)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

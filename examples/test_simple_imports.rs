@@ -3103,7 +3103,7 @@ pub fn serialize_json(data: &std::collections::HashMap<String, DepylerValue>) ->
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_env_var(name: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| "".to_string().to_string())
+    std::env::var(name).unwrap_or_else(|_| "".to_string())
 }
 #[doc = "Get current working directory"]
 #[doc = " Depyler: verified panic-free"]

@@ -3094,7 +3094,10 @@ pub fn square(x: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn cube(x: i32) -> i32 {
-    ((x).py_mul(x)).py_mul(x)
+    {
+        let _r: i32 = ((x).py_mul(x) as i32).py_mul(x);
+        _r
+    }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

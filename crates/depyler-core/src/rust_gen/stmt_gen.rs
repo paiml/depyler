@@ -4105,13 +4105,32 @@ pub(crate) fn codegen_assign_stmt(
                 // causing `capitalize_words(text)` to miss the `&` borrow.
                 // DEPYLER-1219: Added Type::Optional to track when variables are already Option<T>
                 // This prevents double wrapping in return statements (Some(Some(x)))
+                // DEPYLER-E0599-PYOPS-FIX: Added Type::Int and Type::Float for primitive tracking
+                // Without this, loop body reassignments like `total = total + item` can't find
+                // the variable's type for skipping DepylerValue extraction (.to_i64())
                 Type::List(_)
                 | Type::Dict(_, _)
                 | Type::Set(_)
                 | Type::Tuple(_)
                 | Type::String
-                | Type::Optional(_) => {
+                | Type::Optional(_)
+                | Type::Int
+                | Type::Float => {
                     ctx.var_types.insert(var_name.clone(), annot_type.clone());
+                }
+                _ => {}
+            }
+        } else {
+            // DEPYLER-E0599-PYOPS-FIX: Fallback - infer type from literal value expression
+            // When constraint_collector doesn't set type_annotation (e.g., NASA mode edge cases),
+            // infer the type from the value if it's a literal (0 → Type::Int, 0.0 → Type::Float).
+            // This ensures var_types has the correct type for loop body reassignments.
+            match value {
+                HirExpr::Literal(Literal::Int(_)) => {
+                    ctx.var_types.insert(var_name.clone(), Type::Int);
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
                 }
                 _ => {}
             }
@@ -4720,6 +4739,77 @@ pub(crate) fn codegen_assign_stmt(
             actual_type
         };
 
+        // DEPYLER-CI-FIX: User-defined class constructor calls with incorrect type inference
+        // When HM inference gives a Set/UnificationVar type but value is a class constructor,
+        // the type annotation should be the class name, not HashSet<DepylerValue>.
+        // Pattern: `calc = Calculator(10)` with inferred Set(UnificationVar(6)) type
+        // → Use `let calc: Calculator = Calculator::new(10);` instead of `HashSet<DepylerValue>`
+        //
+        // We detect this case by checking:
+        // 1. actual_type contains UnificationVar (incomplete type inference)
+        // 2. value is HirExpr::Call where func is a known class name
+        let class_constructor_override: Option<proc_macro2::TokenStream> =
+            if let HirExpr::Call { func, .. } = value {
+                if ctx.class_names.contains(func) {
+                    let has_unification_var = matches!(
+                        actual_type,
+                        Type::Set(elem) if matches!(**elem, Type::UnificationVar(_))
+                    ) || matches!(
+                        actual_type,
+                        Type::List(elem) if matches!(**elem, Type::UnificationVar(_))
+                    ) || matches!(actual_type, Type::UnificationVar(_));
+
+                    if has_unification_var {
+                        let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+                        Some(quote! { : #class_ident })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+        // If we have a class constructor override, use it instead of type inference
+        if let Some(class_type_tokens) = class_constructor_override {
+            // Skip the rest of the type inference logic for class constructors
+            // The value_expr is already correct from to_rust_expr
+            // Just set up the type annotation and mutability
+            let _is_first = if let AssignTarget::Symbol(name) = target {
+                !ctx.is_declared(name)
+            } else {
+                true
+            };
+            let is_mut = if let AssignTarget::Symbol(name) = target {
+                ctx.mutable_vars.contains(name)
+            } else {
+                false
+            };
+
+            // Track the variable type for later method calls
+            if let AssignTarget::Symbol(name) = target {
+                if let HirExpr::Call { func, .. } = value {
+                    ctx.var_types
+                        .insert(name.clone(), Type::Custom(func.clone()));
+                }
+            }
+
+            let mutability = if is_mut {
+                quote! { mut }
+            } else {
+                quote! {}
+            };
+            if let AssignTarget::Symbol(name) = target {
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                ctx.declare_var(name);
+                return Ok(quote! {
+                    let #mutability #ident #class_type_tokens = #value_expr;
+                });
+            }
+        }
+
         // DEPYLER-1167: When type annotation is Set(UnificationVar) (unresolved type),
         // infer element type from the set() call's list argument to avoid HashSet<DepylerValue>
         // Pattern: `from_list = set([1, 2, 3])` with inferred Set(UnificationVar) type
@@ -4839,7 +4929,45 @@ pub(crate) fn codegen_assign_stmt(
         // The type annotation on the LHS (e.g., `let x: i32 = ...`) is sufficient for
         // Rust to infer the target type of .into().
         let is_dict_access = matches!(value, HirExpr::Index { .. }) && is_dict_index_access(value);
-        if expr_produces_depyler_value(value, ctx) && !is_dict_access {
+
+        // DEPYLER-E0599-PYOPS-FIX: Skip extraction for Binary expressions with primitive target
+        // When target variable is a known primitive (i32, f64), the PyOps result is i64/f64, NOT DepylerValue.
+        // Adding .to_i64() to an i64 result causes E0599: method not found.
+        // Example: total = total + item where total: i32 → py_add returns i64, NOT DepylerValue
+        // Check both type_annotation (for first assignment) and var_types (for reassignments).
+        let is_binary_with_primitive_target = if let HirExpr::Binary { op, .. } = value {
+            use crate::hir::BinOp;
+            let is_arithmetic = matches!(
+                op,
+                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
+            );
+            if is_arithmetic {
+                // Check if TARGET has a known primitive type
+                // Priority: 1. type_annotation (current assignment), 2. var_types (prior declaration)
+                // Note: type_annotation is &Option<Type>, need to handle reference correctly
+                // CRITICAL: Must dereference t with *t since get() returns Option<&Type>
+                let from_annotation = type_annotation
+                    .as_ref()
+                    .is_some_and(|t| matches!(*t, Type::Int | Type::Float));
+                let from_var_types = if let AssignTarget::Symbol(name) = target {
+                    ctx.var_types
+                        .get(name)
+                        .is_some_and(|t| matches!(*t, Type::Int | Type::Float))
+                } else {
+                    false
+                };
+                from_annotation || from_var_types
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if expr_produces_depyler_value(value, ctx)
+            && !is_dict_access
+            && !is_binary_with_primitive_target
+        {
             if let Some(extraction) = get_depyler_extraction_for_type(actual_type) {
                 let extraction_tokens: proc_macro2::TokenStream = extraction.parse().unwrap();
                 value_expr = parse_quote! { (#value_expr) #extraction_tokens };
@@ -5282,6 +5410,13 @@ pub(crate) fn codegen_assign_stmt(
                         (Some(quote! { : Vec<i32> }), false)
                     }
                 }
+                // DEPYLER-CI-FIX: User-defined class constructor calls
+                // `calc = Calculator(10)` → `let calc: Calculator = Calculator::new(10);`
+                // This prevents E0308 type mismatch when class instance is typed as HashSet<DepylerValue>
+                HirExpr::Call { func, .. } if ctx.class_names.contains(func) => {
+                    let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+                    (Some(quote! { : #class_ident }), false)
+                }
                 // Default: let Rust infer if possible
                 _ => (None, false),
             }
@@ -5387,6 +5522,49 @@ pub(crate) fn codegen_assign_stmt(
             } else {
                 value_expr
             }
+        } else {
+            value_expr
+        }
+    } else {
+        value_expr
+    };
+
+    // DEPYLER-E0308-PYOPS-FIX: Cast PyOps results (i64) to i32 when target variable is i32
+    // PyOps traits (py_add, py_sub, py_mul, py_div, py_mod) return i64 for overflow safety
+    // But when the target variable is typed as i32, we need to cast
+    // Pattern: `total: i32 = 0; total = (total).py_add(item)` → add `as i32`
+    // DEPYLER-CI-FIX: Skip cast for string concatenation (string + string should not cast to i32)
+    let value_expr = if ctx.type_mapper.nasa_mode {
+        let target_is_i32 = match target {
+            AssignTarget::Symbol(name) => {
+                // Check explicit type annotation first, then check var_types for declared variables
+                matches!(type_annotation, Some(Type::Int))
+                    || matches!(ctx.var_types.get(name.as_str()), Some(Type::Int))
+            }
+            _ => false,
+        };
+
+        // DEPYLER-CI-FIX: Check if target is a string type - never cast strings to i32
+        let target_is_string = match target {
+            AssignTarget::Symbol(name) => {
+                matches!(type_annotation, Some(Type::String))
+                    || matches!(ctx.var_types.get(name.as_str()), Some(Type::String))
+            }
+            _ => false,
+        };
+
+        // Check if value is a binary arithmetic expression (generates PyOps)
+        let is_pyops = matches!(
+            value,
+            HirExpr::Binary {
+                op: BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod,
+                ..
+            }
+        );
+
+        // Only cast to i32 if target is i32 AND value is pyops AND target is NOT a string
+        if target_is_i32 && is_pyops && !target_is_string {
+            parse_quote! { (#value_expr) as i32 }
         } else {
             value_expr
         }

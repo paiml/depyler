@@ -3099,10 +3099,10 @@ pub fn test_nested_assignment() -> HashMap<String, HashMap<String, String>> {
         let map: HashMap<String, String> = HashMap::new();
         map
     });
-    d.get_mut(&"outer".to_string())
+    d.get_mut("outer")
         .unwrap()
         .insert("inner".to_string(), "value".to_string());
-    d.get_mut(&"outer".to_string())
+    d.get_mut("outer")
         .unwrap()
         .insert("another".to_string(), "value2".to_string());
     d

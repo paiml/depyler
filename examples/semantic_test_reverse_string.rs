@@ -3107,7 +3107,7 @@ pub fn reverse(s: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut result: String = Default::default();
     result = "".to_string();
     let _cse_temp_0 = s.len() as i32;
-    let mut i: i32 = (_cse_temp_0).py_sub(1);
+    let mut i: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while i >= 0 {
         result = (result).py_add({
             let base = &s;
@@ -3122,13 +3122,13 @@ pub fn reverse(s: &str) -> Result<String, Box<dyn std::error::Error>> {
                 .map(|c| c.to_string())
                 .unwrap_or_default()
         });
-        i = (i).py_sub(1);
+        i = ((i).py_sub(1i32)) as i32;
     }
     Ok(result.to_string())
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", reverse(&"hello"));
+    println!("{}", reverse(&"hello").unwrap());
     Ok(())
 }

@@ -3118,7 +3118,7 @@ pub fn test_simple_break() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_simple_continue() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..(10) {
-        if (i).py_mod(2) == 0 {
+        if (i).py_mod(2i32) == 0 {
             continue;
         }
         println!("{}", i);
@@ -3147,15 +3147,15 @@ pub fn test_while_break() {
             break;
         }
         println!("{}", i);
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
 }
 #[doc = "Test continue in while loop"]
 pub fn test_while_continue() -> Result<(), Box<dyn std::error::Error>> {
     let mut i: i32 = 0;
     while i < 10 {
-        i = (i).py_add(1);
-        if (i).py_mod(2) == 0 {
+        i = ((i).py_add(1i32)) as i32;
+        if (i).py_mod(2i32) == 0 {
             continue;
         }
         println!("{}", i);

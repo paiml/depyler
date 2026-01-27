@@ -3103,7 +3103,7 @@ pub fn test_gzip_compress_decompress() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_gzip_compress_text() {
-    let _cse_temp_0 = ("The quick brown fox jumps over the lazy dog. ").py_mul(10);
+    let _cse_temp_0 = ("The quick brown fox jumps over the lazy dog. ").py_mul(10i32);
     let text = _cse_temp_0.clone();
     let data = text.as_bytes().to_vec();
     let compressed = gzip::compress(data);
@@ -3125,7 +3125,7 @@ pub fn test_gzip_compress_empty() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_gzip_compress_levels() {
-    let _cse_temp_0 = (b"Test data for compression levels! ").py_mul(100);
+    let _cse_temp_0 = ((b"Test data for compression levels! ").py_mul(100i32)) as i32;
     let data = _cse_temp_0;
     let compressed_1 = gzip::compress(data);
     let decompressed_1 = gzip::decompress(compressed_1);
@@ -3140,12 +3140,12 @@ pub fn test_gzip_compress_levels() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_gzip_large_data() {
-    let _cse_temp_0 = (b"ABCDEFGHIJ").py_mul(100);
+    let _cse_temp_0 = ((b"ABCDEFGHIJ").py_mul(100i32)) as i32;
     let data = _cse_temp_0;
     let compressed = gzip::compress(data);
     let decompressed = gzip::decompress(compressed);
     assert_eq!(decompressed, data);
-    assert!((compressed.len() as i32) < (data.len() as i32).py_div(2));
+    assert!((compressed.len() as i32) < (data.len() as i32).py_div(2i32));
     println!("{}", "PASS: test_gzip_large_data");
 }
 #[doc = "Test compressing binary data."]
@@ -3185,9 +3185,9 @@ pub fn test_gzip_multiple_compress() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "GZIP MODULE TESTS");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     test_gzip_compress_decompress();
     test_gzip_compress_text();
     test_gzip_compress_empty();
@@ -3196,8 +3196,8 @@ pub fn main() {
     test_gzip_binary_data();
     test_gzip_unicode_text();
     test_gzip_multiple_compress();
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ALL GZIP TESTS PASSED!");
     println!("{}", "Total tests: 8");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
 }

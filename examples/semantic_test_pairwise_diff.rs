@@ -3109,13 +3109,13 @@ pub fn pairwise_diff(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>
     total = 0;
     let mut i: i32 = 1;
     while i < nums.len() as i32 {
-        diff = (nums
+        diff = ((nums
             .get(i as usize)
             .cloned()
             .expect("IndexError: list index out of range"))
         .py_sub({
             let base = &nums;
-            let idx: i32 = (i).py_sub(1);
+            let idx: i32 = (i).py_sub(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3124,19 +3124,19 @@ pub fn pairwise_diff(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>
             base.get(actual_idx)
                 .cloned()
                 .expect("IndexError: list index out of range")
-        });
+        })) as i32;
         if diff < 0 {
             diff = -diff;
         }
-        total = (total).py_add(diff);
-        i = (i).py_add(1);
+        total = ((total).py_add(diff)) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     Ok(total)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", pairwise_diff(&vec![1, 4, 2, 8, 3]));
+    println!("{}", pairwise_diff(&vec![1, 4, 2, 8, 3]).unwrap());
     Ok(())
 }
 #[cfg(test)]

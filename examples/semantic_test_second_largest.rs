@@ -3128,7 +3128,7 @@ pub fn second_largest(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", second_largest(&vec![5, 2, 8, 1, 9, 3]));
+    println!("{}", second_largest(&vec![5, 2, 8, 1, 9, 3]).unwrap());
     Ok(())
 }
 #[cfg(test)]

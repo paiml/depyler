@@ -3123,8 +3123,8 @@ pub fn lambda_handler(
                     format!("{:?}", {
                         let mut map: HashMap<String, DepylerValue> = HashMap::new();
                         map.insert(
-                            "error".to_string().to_string(),
-                            DepylerValue::Str("Invalid event format".to_string().to_string()),
+                            "error".to_string(),
+                            DepylerValue::Str("Invalid event format".to_string()),
                         );
                         map
                     })
@@ -3194,31 +3194,19 @@ pub fn lambda_handler(
             processed_files.push(DepylerValue::Str(format!("{:?}", {
                 let mut map: HashMap<String, DepylerValue> = HashMap::new();
                 map.insert(
-                    "bucket".to_string().to_string(),
+                    "bucket".to_string(),
                     DepylerValue::Str(format!("{:?}", bucket)),
                 );
-                map.insert(
-                    "key".to_string().to_string(),
-                    DepylerValue::Str(key.to_string()),
-                );
-                map.insert(
-                    "size".to_string().to_string(),
-                    DepylerValue::Str(format!("{:?}", size)),
-                );
-                map.insert(
-                    "type".to_string().to_string(),
-                    DepylerValue::Str(file_type.to_string()),
-                );
-                map.insert(
-                    "processed".to_string().to_string(),
-                    DepylerValue::Bool(true),
-                );
+                map.insert("key".to_string(), DepylerValue::Str(key.to_string()));
+                map.insert("size".to_string(), DepylerValue::Str(format!("{:?}", size)));
+                map.insert("type".to_string(), DepylerValue::Str(file_type.to_string()));
+                map.insert("processed".to_string(), DepylerValue::Bool(true));
                 map
             })));
-            total_size = (total_size).py_add(size);
+            total_size = ((total_size).py_add(size)) as i32;
         }
     }
-    let result: std::collections::HashMap<String, String> = {
+    let result: std::collections::HashMap<String, DepylerValue> = {
         let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(
             "files_processed".to_string(),
@@ -3232,7 +3220,7 @@ pub fn lambda_handler(
             "total_size_mb".to_string(),
             DepylerValue::Str(format!(
                 "{:?}",
-                ((total_size).py_div(1048576) as f64).round() as i32
+                ((total_size).py_div(1048576i32) as f64).round() as i32
             )),
         );
         map.insert(

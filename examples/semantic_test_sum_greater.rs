@@ -3092,7 +3092,7 @@ pub fn sum_greater(nums: &Vec<i32>, threshold: i32) -> i32 {
     total = 0;
     for n in nums.iter().cloned() {
         if n > threshold {
-            total = (total).py_add(n);
+            total = ((total).py_add(n)) as i32;
         }
     }
     total

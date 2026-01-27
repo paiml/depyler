@@ -3304,7 +3304,7 @@ pub fn test_str_special_chars() -> bool {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive string method test for Depyler transpiler\nTests all implemented Python string methods\n\nPurpose: Verify that string methods transpile correctly to Rust\nExpected: All methods should generate idiomatic, compilable Rust code\n".to_string();
+    let _ = "\nComprehensive string method test for Depyler transpiler\nTests all implemented Python string methods\n\nPurpose: Verify that string methods transpile correctly to Rust\nExpected: All methods should generate idiomatic, compilable Rust code\n";
     Ok(())
 }
 #[cfg(test)]

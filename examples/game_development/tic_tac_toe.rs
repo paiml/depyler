@@ -2974,8 +2974,8 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut col;
     let mut row;
+    let mut col;
     if game.current_player == "X" {
     let empty_positions: bool = game.get_empty_positions();
     if empty_positions {

@@ -3109,12 +3109,12 @@ pub fn test_lambda_with_list_operations() -> (Vec<DepylerValue>, Vec<DepylerValu
     let evens = numbers
         .iter()
         .cloned()
-        .filter(|&x| (x).py_mod(2) == 0)
+        .filter(|&x| (x).py_mod(2i32) == 0)
         .collect::<Vec<_>>();
     let double = move |lst: &Vec<i32>| {
         lst.iter()
             .cloned()
-            .map(|x| (x).py_mul(2))
+            .map(|x| (x).py_mul(2i32))
             .collect::<Vec<_>>()
     };
     let doubled = double(&numbers);
@@ -3158,6 +3158,6 @@ pub fn test_lambda_with_closure() {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test lambda function support".to_string();
+    let _ = "Test lambda function support";
     Ok(())
 }

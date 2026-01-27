@@ -3089,7 +3089,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_lambda_with_operations() -> (DepylerValue, DepylerValue, DepylerValue) {
-    let calc = move |x: i32, y: i32, z: i32| ((x).py_add(y)).py_mul(z);
+    let calc = move |x: i32, y: i32, z: i32| ((x).py_add(y) as i32).py_mul(z);
     let result1 = calc(2, 3, 4);
     let negate = move |x: i32| -x;
     let result2 = negate(5);
@@ -3112,13 +3112,13 @@ pub fn test_lambda_as_argument() -> (DepylerValue, DepylerValue) {
         }
         return result;
     };
-    let doubled = apply_to_list(&numbers, move |x: i32| (x).py_mul(2));
+    let doubled = apply_to_list(&numbers, move |x: i32| (x).py_mul(2i32));
     let squared = apply_to_list(&numbers, move |x: i32| (x).py_mul(x));
     return (DepylerValue::from(doubled), DepylerValue::from(squared));
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Advanced lambda function tests".to_string();
+    let _ = "Advanced lambda function tests";
     Ok(())
 }

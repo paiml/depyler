@@ -3105,7 +3105,7 @@ impl DepylerRegexMatch {
 }
 #[doc = " Depyler: proven to terminate"]
 pub fn double_halve(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = (n).py_mul(2);
+    let _cse_temp_0 = ((n).py_mul(2i32)) as i32;
     let doubled: i32 = _cse_temp_0;
     Ok({
         let a = doubled;
@@ -3127,7 +3127,7 @@ pub fn double_halve(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", double_halve(12345));
+    println!("{}", double_halve(12345).unwrap());
     Ok(())
 }
 #[cfg(test)]

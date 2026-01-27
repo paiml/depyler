@@ -3119,7 +3119,7 @@ impl Rectangle {
         return self.width.clone() * self.height.clone();
     }
     pub fn perimeter(&self) -> i32 {
-        return 2 * self.width.clone() + self.height.clone();
+        return 2 * (self.width.clone() + self.height.clone());
     }
     pub fn is_square(&self) -> bool {
         return self.width.clone() == self.height.clone();
@@ -3129,7 +3129,7 @@ impl Rectangle {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_point() -> i32 {
-    let mut p = Point::new(3, 4);
+    let mut p: Point = Point::new(3, 4);
     p.translate(1, 2);
     let dist_sq = p.distance_squared();
     dist_sq
@@ -3138,11 +3138,11 @@ pub fn test_point() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_rectangle() -> i32 {
-    let rect = Rectangle::new(10, 20);
+    let rect: Rectangle = Rectangle::new(10, 20);
     let area = rect.area();
     let perim = rect.perimeter();
     let square = rect.is_square();
-    let sq = Rectangle::new(5, 5);
+    let sq: Rectangle = Rectangle::new(5, 5);
     let is_sq = sq.is_square();
     (area).py_add(perim)
 }
@@ -3160,5 +3160,8 @@ pub fn main() -> i32 {
     let point_result = test_point();
     let rect_result = test_rectangle();
     let static_result = test_static();
-    let _ = ((point_result).py_add(rect_result)).py_add(static_result);
+    let _ = {
+        let _r: i32 = ((point_result).py_add(rect_result) as i32).py_add(static_result);
+        _r
+    };
 }

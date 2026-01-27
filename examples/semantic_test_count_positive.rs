@@ -3092,7 +3092,7 @@ pub fn count_positive(nums: &Vec<i32>) -> i32 {
     count = 0;
     for n in nums.iter().cloned() {
         if n > 0 {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count

@@ -3092,8 +3092,8 @@ pub fn range_sum(start: i32, end: i32) -> i32 {
     total = 0;
     let mut i: i32 = start.clone();
     while i <= end {
-        total = (total).py_add(i);
-        i = (i).py_add(1);
+        total = ((total).py_add(i)) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
     total
 }

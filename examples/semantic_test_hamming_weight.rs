@@ -3091,7 +3091,7 @@ pub fn hamming_weight(mut n: i32) -> i32 {
     let mut count: i32 = Default::default();
     count = 0;
     while n > 0 {
-        count = (count).py_add(n & 1);
+        count = ((count).py_add(n & 1)) as i32;
         n = n >> 1;
     }
     count

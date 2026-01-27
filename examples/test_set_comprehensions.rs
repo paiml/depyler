@@ -3093,7 +3093,7 @@ impl DepylerRegexMatch {
 pub fn test_simple_set_comp() -> std::collections::HashSet<i32> {
     (0..(5))
         .into_iter()
-        .map(|x| (x).py_mul(2))
+        .map(|x| (x).py_mul(2i32))
         .collect::<std::collections::HashSet<_>>()
 }
 #[doc = "Set comprehension with condition"]
@@ -3104,7 +3104,7 @@ pub fn test_set_comp_with_condition() -> std::collections::HashSet<i32> {
         .into_iter()
         .filter(|x| {
             let x = x.clone();
-            (x).py_mod(2) == 0
+            (x).py_mod(2i32) == 0
         })
         .map(|x| x)
         .collect::<std::collections::HashSet<_>>()
@@ -3138,7 +3138,7 @@ pub fn test_set_comp_complex_expr() -> std::collections::HashSet<i32> {
             let x = x.clone();
             x < 4
         })
-        .map(|x| ((x).py_mul(x)).py_add(1))
+        .map(|x| ((x).py_mul(x) as i32).py_add(1i32))
         .collect::<std::collections::HashSet<_>>()
 }
 #[doc = "Set comprehension with expression"]

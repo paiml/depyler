@@ -3091,7 +3091,7 @@ pub fn product(nums: &Vec<i32>) -> i32 {
     let mut result: i32 = Default::default();
     result = 1;
     for n in nums.iter().cloned() {
-        result = (result).py_mul(n);
+        result = ((result).py_mul(n)) as i32;
     }
     result
 }

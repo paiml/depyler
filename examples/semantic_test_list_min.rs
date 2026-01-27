@@ -3119,7 +3119,7 @@ pub fn find_min(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{:?}", find_min(&vec![3, 1, 4, 1, 5, 9, 2, 6]));
+    println!("{}", find_min(&vec![3, 1, 4, 1, 5, 9, 2, 6]).unwrap());
     Ok(())
 }
 #[cfg(test)]

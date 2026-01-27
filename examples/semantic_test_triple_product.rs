@@ -3089,7 +3089,10 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn triple_product(a: i32, b: i32, c: i32) -> i32 {
-    ((a).py_mul(b)).py_mul(c)
+    {
+        let _r: i32 = ((a).py_mul(b) as i32).py_mul(c);
+        _r
+    }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

@@ -3090,7 +3090,10 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn sum_tuple(t: (i32, i32, i32)) -> i32 {
     let (a, b, c) = t;
-    ((a).py_add(b)).py_add(c)
+    {
+        let _r: i32 = ((a).py_add(b) as i32).py_add(c);
+        _r
+    }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

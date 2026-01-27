@@ -3094,13 +3094,13 @@ pub fn integer_sqrt(n: i32) -> i32 {
         return -1;
     }
     i = 0;
-    let mut next_i: i32 = (i).py_add(1);
-    let _cse_temp_1 = (next_i).py_mul(next_i);
+    let mut next_i: i32 = ((i).py_add(1i32)) as i32;
+    let _cse_temp_1 = ((next_i).py_mul(next_i)) as i32;
     let mut square: i32 = _cse_temp_1.clone();
     while square <= n {
-        i = (i).py_add(1);
-        next_i = (i).py_add(1);
-        square = (next_i).py_mul(next_i);
+        i = ((i).py_add(1i32)) as i32;
+        next_i = ((i).py_add(1i32)) as i32;
+        square = ((next_i).py_mul(next_i)) as i32;
     }
     i
 }

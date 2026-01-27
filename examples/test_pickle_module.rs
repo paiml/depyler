@@ -3358,9 +3358,9 @@ pub fn test_pickle_mixed_types() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "PICKLE MODULE TESTS");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     test_pickle_basic_types();
     test_pickle_list();
     test_pickle_dict();
@@ -3371,8 +3371,8 @@ pub fn main() {
     test_pickle_boolean();
     test_pickle_bytes();
     test_pickle_mixed_types();
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
     println!("{}", "ALL PICKLE TESTS PASSED!");
     println!("{}", "Total tests: 10");
-    println!("{}", (STR__).py_mul(60));
+    println!("{}", (STR__).py_mul(60i32));
 }

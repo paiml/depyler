@@ -3140,7 +3140,7 @@ impl Counter {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_with_statement() -> i32 {
-    let mut _context = ResourceManager::new("test".to_string().to_string());
+    let mut _context = ResourceManager::new("test".to_string());
     let rm = _context.__enter__();
     let result: i32 = rm.use_resource();
     result
@@ -3149,12 +3149,12 @@ pub fn demo_with_statement() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn demo_iterator() -> i32 {
     let mut total: i32 = Default::default();
-    let mut counter = Counter::new(3);
+    let mut counter: Counter = Counter::new(3);
     total = 0;
-    let mut val: i32 = counter.__next__();
+    let mut val: i32 = counter.next();
     while val != -1 {
-        total = (total).py_add(val);
-        val = counter.__next__();
+        total = ((total).py_add(val)) as i32;
+        val = counter.next();
     }
     total
 }

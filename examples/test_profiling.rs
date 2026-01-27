@@ -3111,7 +3111,7 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fibonacci_recursive((n).py_sub(1))).py_add(fibonacci_recursive((n).py_sub(2)))
+    (fibonacci_recursive((n).py_sub(1i32))).py_add(fibonacci_recursive((n).py_sub(2i32)))
 }
 #[doc = "Iterative Fibonacci - more efficient."]
 #[doc = " Depyler: verified panic-free"]
@@ -3123,7 +3123,7 @@ pub fn fibonacci_iterative(n: i32) -> i32 {
         return n;
     }
     let (mut a, mut b) = (0, 1);
-    for __sanitized in (2)..((n).py_add(1)) {
+    for __sanitized in (2)..((n).py_add(1i32)) {
         (a, b) = (b, (a).py_add(b));
     }
     b
@@ -3144,7 +3144,7 @@ pub fn process_list(items: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>
                     .cloned()
                     .expect("IndexError: list index out of range")
             {
-                total = (total).py_add(
+                total = ((total).py_add(
                     (items
                         .get(i as usize)
                         .cloned()
@@ -3155,7 +3155,7 @@ pub fn process_list(items: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>
                             .cloned()
                             .expect("IndexError: list index out of range"),
                     ),
-                );
+                )) as i32;
             }
         }
     }
@@ -3193,13 +3193,13 @@ pub fn type_check_heavy(values: &Vec<DepylerValue>) -> i32 {
     count = 0;
     for value in values.iter().cloned() {
         if true {
-            count = (count).py_add(value);
+            count = ((count).py_add(value)) as i32;
         } else {
             if true {
-                count = (count).py_add(value.len() as i32);
+                count = ((count).py_add(value.len() as i32)) as i32;
             } else {
                 if true {
-                    count = (count).py_add(value.len() as i32);
+                    count = ((count).py_add(value.len() as i32)) as i32;
                 }
             }
         }

@@ -3141,7 +3141,7 @@ pub fn test_median_odd() -> Result<f64, Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![1.0, 3.0, 5.0, 7.0, 9.0];
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3193,7 +3193,7 @@ pub fn test_median_even() -> Result<f64, Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0];
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3235,7 +3235,7 @@ pub fn test_median_even() -> Result<f64, Box<dyn std::error::Error>> {
     let mid: i32 = _cse_temp_1;
     let _cse_temp_2 = ({
         let base = &sorted_data;
-        let idx: i32 = (mid).py_sub(1);
+        let idx: i32 = (mid).py_sub(1i32);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
@@ -3277,7 +3277,7 @@ pub fn test_mode() -> Result<i32, Box<dyn std::error::Error>> {
                     .cloned()
                     .expect("IndexError: list index out of range")
             {
-                count = (count).py_add(1);
+                count = ((count).py_add(1i32)) as i32;
             }
         }
         if count > max_count {
@@ -3292,8 +3292,8 @@ pub fn test_mode() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating variance"]
 pub fn test_variance() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     let data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     total = 0.0;
     for value in data.iter().cloned() {
@@ -3314,8 +3314,8 @@ pub fn test_variance() -> Result<f64, Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating standard deviation"]
 pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     let data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     total = 0.0;
     for value in data.iter().cloned() {
@@ -3337,8 +3337,8 @@ pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
 }
 #[doc = "Test finding min and max"]
 pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let data: Vec<f64> = vec![3.5, 1.2, 7.8, 2.4, 9.1];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -3365,8 +3365,8 @@ pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating range(max - min)"]
 pub fn test_range() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let data: Vec<f64> = vec![1.0, 5.0, 3.0, 9.0, 2.0];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -3412,7 +3412,7 @@ pub fn calculate_percentile(
     let mut index: i32 = Default::default();
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1i32))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -3435,7 +3435,7 @@ pub fn calculate_percentile(
         }
     }
     let _cse_temp_0 = sorted_data.len() as i32;
-    let _cse_temp_1 = (percentile).py_mul(_cse_temp_0);
+    let _cse_temp_1 = ((percentile).py_mul(_cse_temp_0)) as i32;
     let _cse_temp_2 = {
         let a = _cse_temp_1;
         let b = 100;
@@ -3455,7 +3455,7 @@ pub fn calculate_percentile(
     index = _cse_temp_2;
     let _cse_temp_3 = index >= _cse_temp_0;
     if _cse_temp_3 {
-        index = (_cse_temp_0).py_sub(1);
+        index = ((_cse_temp_0).py_sub(1i32)) as i32;
     }
     Ok(sorted_data
         .get(index as usize)
@@ -3499,8 +3499,8 @@ pub fn detect_outliers(data: &Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
 }
 #[doc = "Normalize data to 0-1 range"]
 pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3529,7 +3529,7 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     }
     let mut normalized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        let norm_value: f64 = ((value).py_sub(min_val)).py_div(data_range);
+        let norm_value: f64 = ((value).py_sub(min_val) as f64).py_div(data_range);
         normalized.push(norm_value);
     }
     Ok(normalized)
@@ -3560,20 +3560,20 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     }
     let mut standardized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        let z_score: f64 = ((value).py_sub(mean)).py_div(stdev);
+        let z_score: f64 = ((value).py_sub(mean) as f64).py_div(stdev);
         standardized.push(z_score);
     }
     Ok(standardized)
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'b, 'a>(
+pub fn calculate_covariance<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut cov_sum: f64 = Default::default();
-    let mut x_total: f64 = Default::default();
     let mut y_total: f64 = Default::default();
+    let mut x_total: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3621,15 +3621,15 @@ pub fn calculate_covariance<'b, 'a>(
     Ok(covariance)
 }
 #[doc = "Calculate Pearson correlation coefficient"]
-pub fn calculate_correlation<'a, 'b>(
+pub fn calculate_correlation<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut y_var_sum: f64 = Default::default();
-    let mut y_total: f64 = Default::default();
     let mut x_total: f64 = Default::default();
     let mut diff: f64 = Default::default();
     let mut x_var_sum: f64 = Default::default();
+    let mut y_total: f64 = Default::default();
+    let mut y_var_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3707,7 +3707,7 @@ pub fn test_all_statistics_features() -> Result<(), Box<dyn std::error::Error>> 
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python statistics module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's statistics module\nfunctions to their Rust equivalents.\n\nExpected Rust mappings:\n- statistics.mean() -> manual calculation\n- statistics.median() -> manual calculation with sorting\n- statistics.stdev() -> manual standard deviation\n- statistics.variance() -> manual variance calculation\n\nNote: Statistics functions may need manual implementation.\n".to_string();
+    let _ = "\nComprehensive test of Python statistics module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's statistics module\nfunctions to their Rust equivalents.\n\nExpected Rust mappings:\n- statistics.mean() -> manual calculation\n- statistics.median() -> manual calculation with sorting\n- statistics.stdev() -> manual standard deviation\n- statistics.variance() -> manual variance calculation\n\nNote: Statistics functions may need manual implementation.\n";
     Ok(())
 }
 #[cfg(test)]

@@ -3105,15 +3105,13 @@ pub fn test_deep_nested() -> HashMap<String, HashMap<String, HashMap<String, Str
         let map: HashMap<String, std::collections::HashMap<String, String>> = HashMap::new();
         map
     });
-    d.get_mut(&"level1".to_string())
+    d.get_mut("level1").unwrap().insert("level2".to_string(), {
+        let map: HashMap<String, String> = HashMap::new();
+        map
+    });
+    d.get_mut("level1")
         .unwrap()
-        .insert("level2".to_string(), {
-            let map: HashMap<String, String> = HashMap::new();
-            map
-        });
-    d.get_mut(&"level1".to_string())
-        .unwrap()
-        .get_mut(&"level2".to_string())
+        .get_mut("level2")
         .unwrap()
         .insert("level3".to_string(), "deep value".to_string());
     d

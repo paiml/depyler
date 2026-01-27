@@ -3105,28 +3105,31 @@ impl DepylerRegexMatch {
 }
 #[doc = " Depyler: proven to terminate"]
 pub fn test_array_functions() -> Result<i32, Box<dyn std::error::Error>> {
-    let z1 = vec![0; 5];
-    let o1 = vec![1; 10];
+    let z1 = vec![0i32; 5];
+    let o1 = vec![1i32; 10];
     let f1 = vec![42; 8];
-    let z2 = vec![0; 100 as usize];
-    Ok(((z1
-        .get(0usize)
-        .cloned()
-        .expect("IndexError: list index out of range"))
-    .py_add(
-        o1.get(0usize)
+    let z2 = vec![0i32; 100 as usize];
+    Ok({
+        let _r: i32 = ((z1
+            .get(0usize)
             .cloned()
-            .expect("IndexError: list index out of range"),
-    ))
-    .py_add(
-        f1.get(0usize)
-            .cloned()
-            .expect("IndexError: list index out of range"),
-    ))
+            .expect("IndexError: list index out of range"))
+        .py_add(
+            o1.get(0usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ) as i32)
+            .py_add(
+                f1.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        _r
+    })
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test array initialization functions".to_string();
+    let _ = "Test array initialization functions";
     Ok(())
 }

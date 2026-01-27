@@ -3090,8 +3090,8 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_numbers(a: i32, b: i32) -> i32 {
-    let mut result: i32 = (a).py_add(b);
-    let _cse_temp_0 = (result).py_mul(2);
+    let mut result: i32 = ((a).py_add(b)) as i32;
+    let _cse_temp_0 = ((result).py_mul(2i32)) as i32;
     result = _cse_temp_0;
     result
 }
@@ -3109,7 +3109,7 @@ pub fn work_with_list(data: &mut Vec<i32>) -> i32 {
     data.push(100);
     total = 0;
     for item in data.iter().cloned() {
-        total = (total).py_add(item);
+        total = ((total).py_add(item)) as i32;
     }
     total
 }
@@ -3126,7 +3126,7 @@ pub fn check_condition(flag: bool) -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nDemonstration of Depyler's type inference capabilities.\n".to_string();
+    let _ = "\nDemonstration of Depyler's type inference capabilities.\n";
     Ok(())
 }
 #[cfg(test)]

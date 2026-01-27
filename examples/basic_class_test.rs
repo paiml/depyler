@@ -3118,7 +3118,7 @@ impl Rectangle {
         return self.width.clone() * self.height.clone();
     }
     pub fn perimeter(&self) -> i32 {
-        return 2 * self.width.clone() + self.height.clone();
+        return 2 * (self.width.clone() + self.height.clone());
     }
     pub fn is_square(&self) -> bool {
         return self.width.clone() == self.height.clone();
@@ -3150,7 +3150,7 @@ pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_point() {
-    let mut p = Point::new(3, 4);
+    let mut p: Point = Point::new(3, 4);
     assert_eq!(p.x, 3);
     assert_eq!(p.y, 4);
     assert_eq!(p.distance_from_origin(), 5.0);
@@ -3162,28 +3162,28 @@ pub fn test_point() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_rectangle() {
-    let r = Rectangle::new(10, 20);
+    let r: Rectangle = Rectangle::new(10, 20);
     assert_eq!(r.area(), 200);
     assert_eq!(r.perimeter(), 60);
     assert!(!r.is_square());
-    let square = Rectangle::new(15, 15);
+    let square: Rectangle = Rectangle::new(15, 15);
     assert!(square.is_square());
 }
 #[doc = "Test Person dataclass functionality"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_person() {
-    let p = Person::new("Alice".to_string(), 25);
+    let p: Person = Person::new("Alice".to_string(), 25);
     assert_eq!(p.name, "Alice");
     assert_eq!(p.age, 25);
     assert!(p.is_adult());
-    assert_eq!(p.greet(), "Hello, my name is Alice".to_string());
-    let child = Person::new("Bob".to_string(), 10);
+    assert_eq!(p.greet(), "Hello, my name is Alice");
+    let child: Person = Person::new("Bob".to_string(), 10);
     assert!(!child.is_adult());
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test basic class support in Depyler".to_string();
+    let _ = "Test basic class support in Depyler";
     Ok(())
 }

@@ -3115,7 +3115,7 @@ impl Iterator for SimpleGeneratorState {
             1 => {
                 if self.i < self.n {
                     let result = self.i;
-                    self.i = (self.i).py_add(1);
+                    self.i = ((self.i).py_add(1i32)) as i32;
                     return Some(result);
                 } else {
                     self.state = 2;
@@ -3165,7 +3165,7 @@ impl Iterator for FibonacciGeneratorState {
                     let _tuple_temp = (self.b.clone(), (self.a).py_add(self.b));
                     self.a = _tuple_temp.0;
                     self.b = _tuple_temp.1;
-                    self.count = (self.count).py_add(1);
+                    self.count = ((self.count).py_add(1i32)) as i32;
                     return Some(result);
                 } else {
                     self.state = 2;
@@ -3185,7 +3185,7 @@ pub fn test_generator() -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test generator functions for v1.3.0".to_string();
+    let _ = "Test generator functions for v1.3.0";
     Ok(())
 }
 #[cfg(test)]

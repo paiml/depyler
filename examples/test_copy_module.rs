@@ -3202,10 +3202,7 @@ pub fn test_deep_copy_nested_dict() -> HashMap<String, HashMap<String, i32>> {
         (original).clone();
     let _cse_temp_0 = copied.get("group1").is_some();
     if _cse_temp_0 {
-        copied
-            .get_mut(&"group1")
-            .unwrap()
-            .insert("e".to_string(), 5);
+        copied.get_mut("group1").unwrap().insert("e".to_string(), 5);
     }
     copied
 }
@@ -3304,7 +3301,7 @@ pub fn clone_dict_with_filter(
     Ok(filtered)
 }
 #[doc = "Merge two dictionaries by copying"]
-pub fn merge_copied_dicts<'b, 'a>(
+pub fn merge_copied_dicts<'a, 'b>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -3405,7 +3402,7 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nComprehensive test of Python copy module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's copy module\noperations to their Rust equivalents.\n\nExpected Rust mappings:\n- copy.copy() -> .clone()(shallow copy)\n- copy.deepcopy() -> .clone()(deep copy if implemented)\n\nNote: Deep copy semantics may differ between Python and Rust.\n".to_string();
+    let _ = "\nComprehensive test of Python copy module transpilation to Rust.\n\nThis example demonstrates how Depyler transpiles Python's copy module\noperations to their Rust equivalents.\n\nExpected Rust mappings:\n- copy.copy() -> .clone()(shallow copy)\n- copy.deepcopy() -> .clone()(deep copy if implemented)\n\nNote: Deep copy semantics may differ between Python and Rust.\n";
     Ok(())
 }
 #[cfg(test)]
