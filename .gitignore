@@ -145,6 +145,21 @@ result
 result-*
 .direnv/
 
+# Stray compiled test executables in root (DO NOT COMMIT)
+/test_*
+/*_tool
+/test
+
+# Temporary convergence/analysis files
+convergence_*.txt
+corpus_manifest.json
+oip_depyler_training_data.json
+performance_results.csv
+validation_report.md
+
+# Local cargo config (machine-specific)
+.cargo/config.toml
+
 # Large binaries and artifacts (DO NOT COMMIT)
 benchmarks/rust/*_bin
 benchmarks/rust/*.exe
