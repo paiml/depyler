@@ -145,10 +145,60 @@ result
 result-*
 .direnv/
 
-# Stray compiled test executables in root (DO NOT COMMIT)
+# Stray compiled executables in root (DO NOT COMMIT)
+# These are Rust/C binaries accidentally compiled to repo root
 /test_*
 /*_tool
+/*_example
+/*_demo
+/*_test
+/*_basic
+/*_simple
 /test
+/annotated_example
+/basic_*
+/binary_search*
+/calculate_*
+/classify_*
+/contracts_*
+/converge_*
+/dict_*
+/example_*
+/factorial*
+/fibonacci*
+/find_*
+/format_*
+/get_*
+/greet*
+/hello*
+/is_*
+/linear_*
+/list_*
+/marco_*
+/method_*
+/multi_*
+/nested_*
+/no_return*
+/optional_*
+/path_*
+/pipeline*
+/point_*
+/power_*
+/print_*
+/process_*
+/quicksort*
+/range_*
+/recursive_*
+/set_*
+/simple_*
+/split_*
+/stdlib_*
+/string_*
+/sum_*
+/swap_*
+/type_*
+/unified_*
+/v1_*
 
 # Temporary convergence/analysis files
 convergence_*.txt
