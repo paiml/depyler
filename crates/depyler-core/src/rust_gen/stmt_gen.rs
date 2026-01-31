@@ -2258,6 +2258,26 @@ pub(crate) fn codegen_if_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     use std::collections::HashSet;
 
+    // DEPYLER-1400: Handle `if TYPE_CHECKING:` blocks
+    // TYPE_CHECKING is a typing module constant that is always False at runtime.
+    // These blocks are only for type checkers (mypy, pyright) and should be elided.
+    // This pattern is common in typed Python codebases for conditional imports.
+    if let HirExpr::Var(var_name) = condition {
+        if var_name == "TYPE_CHECKING" {
+            // Skip the entire if block - TYPE_CHECKING is always False at runtime
+            // The else branch (if any) would contain runtime code, but typically
+            // TYPE_CHECKING blocks don't have else branches
+            trace_decision!(
+                category = DecisionCategory::TypeMapping,
+                name = "type_checking_elision",
+                chosen = "skip_block",
+                alternatives = ["emit_false_const", "keep_as_is"],
+                confidence = 0.95
+            );
+            return Ok(proc_macro2::TokenStream::new());
+        }
+    }
+
     // CITL: Trace if statement pattern decision
     trace_decision!(
         category = DecisionCategory::TypeMapping,

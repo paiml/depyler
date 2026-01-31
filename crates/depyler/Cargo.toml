@@ -33,7 +33,7 @@ depyler-annotations = { version = "3.23.0", path = "../depyler-annotations" }
 depyler-quality = { version = "3.23.0", path = "../depyler-quality" }
 depyler-oracle = { version = "3.23.0", path = "../depyler-oracle" }
 depyler-graph = { version = "3.23.0", path = "../depyler-graph" }
-entrenar = "0.4.0"
+entrenar = "0.5"
 alimentar = { version = "0.2.2", default-features = false, features = ["local"] }
 arrow = { version = "54", default-features = false, features = ["json"] }
 

@@ -29,7 +29,7 @@ aprender = { version = "0.20.2", default-features = true }
 
 # CITL training framework for pattern store (Issue #172)
 # Issue #212: Also using monitor::ModelLineage for training state tracking
-entrenar = { version = "0.4.0", features = ["citl"] }
+entrenar = { version = "0.5", features = ["citl"] }
 
 # Data loading and versioning (minimal features - just local file loading)
 alimentar = { version = "0.2.2", default-features = false, features = ["local"] }

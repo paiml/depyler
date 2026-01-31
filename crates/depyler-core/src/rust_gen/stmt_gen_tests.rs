@@ -87,6 +87,40 @@ fn test_if_in_check() {
     assert!(code.contains("contains") || code.contains("if") || code.contains("fn"));
 }
 
+/// DEPYLER-1400: TYPE_CHECKING blocks should be elided
+/// TYPE_CHECKING is always False at runtime, so the if block should be skipped.
+#[test]
+fn test_if_type_checking_elided() {
+    let code = transpile(
+        r#"from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    x = 1
+def foo() -> int:
+    return 42"#,
+    );
+    // The TYPE_CHECKING block should NOT appear in the output
+    assert!(
+        !code.contains("TYPE_CHECKING"),
+        "TYPE_CHECKING should be elided from output"
+    );
+    // But the function should still be present
+    assert!(code.contains("fn foo") || code.contains("42"));
+}
+
+/// DEPYLER-1400: Verify TYPE_CHECKING doesn't cause E0425 errors
+#[test]
+fn test_type_checking_no_undefined_variable() {
+    // This pattern is common in typed Python codebases
+    let code = transpile(
+        r#"from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    y = 2
+x = 1"#,
+    );
+    // Should not emit TYPE_CHECKING as a variable
+    assert!(!code.contains("TYPE_CHECKING"));
+}
+
 // ============================================================================
 // FOR LOOPS
 // ============================================================================

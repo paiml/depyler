@@ -1,0 +1,4 @@
+# Temporary coverage config - DO NOT COMMIT
+# Replaces project config during coverage runs
+[build]
+target-dir = "/mnt/nvme-raid0/coverage/depyler"
