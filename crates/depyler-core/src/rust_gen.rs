@@ -6521,9 +6521,13 @@ fn generate_rust_file_internal(
     // Python `.getvalue()` maps to `.into_inner()` on Cursor.
     formatted_code = formatted_code.replace(
         "std::io::Cursor::new()",
-        "std::io::Cursor::new(String::new())",
+        "std::io::Cursor::new(Vec::<u8>::new())",
     );
-    formatted_code = formatted_code.replace(".getvalue()", ".into_inner()");
+    // .getvalue() on Cursor<Vec<u8>> needs String conversion.
+    formatted_code = formatted_code.replace(
+        ".getvalue()",
+        ".get_ref().iter().map(|&b| b as char).collect::<String>()",
+    );
 
     // DEPYLER-CONVERGE-MULTI-ITER5: Fix TypeError::new pattern (E0425).
     // Python `raise TypeError(msg)` transpiles to `TypeError::new(msg)` but TypeError
@@ -6545,6 +6549,18 @@ fn generate_rust_file_internal(
     formatted_code = formatted_code.replace("operator.mul", "|a, b| a * b");
     formatted_code = formatted_code.replace("operator.add", "|a, b| a + b");
     formatted_code = formatted_code.replace("operator.sub", "|a, b| a - b");
+
+    // DEPYLER-CONVERGE-MULTI-ITER5b: Inject missing std imports detected by usage.
+    // If code uses write_all but doesn't import Write trait, add it.
+    if formatted_code.contains(".write_all(") && !formatted_code.contains("use std::io::Write") {
+        formatted_code = format!("use std::io::Write;\n{}", formatted_code);
+    }
+    // If code uses HashMap but doesn't import it, add it.
+    if formatted_code.contains("HashMap") && !formatted_code.contains("use std::collections::HashMap") {
+        formatted_code = format!("use std::collections::HashMap;\n{}", formatted_code);
+    }
+    // If code uses .py_sub() method (datetime), replace with operator `-`.
+    formatted_code = formatted_code.replace(".py_sub(", " - (");
 
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
