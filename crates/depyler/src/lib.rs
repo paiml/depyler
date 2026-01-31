@@ -254,6 +254,10 @@ pub enum Commands {
     /// DEPYLER-1303: Graph-based error analysis
     #[command(subcommand)]
     Graph(GraphCommands),
+
+    /// Corpus registry commands
+    #[command(subcommand)]
+    Corpus(CorpusCommands),
 }
 
 /// Graph analysis subcommands
@@ -326,6 +330,46 @@ pub enum CacheCommands {
         /// Number of parallel jobs
         #[arg(long, default_value = "4")]
         jobs: usize,
+    },
+}
+
+/// Corpus registry subcommands
+#[derive(Subcommand)]
+pub enum CorpusCommands {
+    /// List all registered corpora
+    List {
+        /// Output format (text, json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Only show available (existing) corpora
+        #[arg(long)]
+        available: bool,
+    },
+
+    /// Show details of a specific corpus
+    Show {
+        /// Corpus name (e.g., reprorusted-std-only)
+        name: String,
+    },
+
+    /// Add a corpus to the registry
+    Add {
+        /// Corpus name
+        #[arg(long)]
+        name: String,
+
+        /// Path to the corpus directory
+        #[arg(long)]
+        path: PathBuf,
+
+        /// Description of the corpus
+        #[arg(long)]
+        description: Option<String>,
+
+        /// GitHub repository URL
+        #[arg(long)]
+        github: Option<String>,
     },
 }
 

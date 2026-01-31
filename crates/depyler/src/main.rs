@@ -9,7 +9,7 @@ use depyler::{
     report_cmd::{handle_report_command, ReportArgs},
     transpile_command,
     utol_cmd::handle_utol_command,
-    CacheCommands, Cli, Commands, GraphCommands,
+    CacheCommands, Cli, Commands, CorpusCommands, GraphCommands,
 };
 use std::path::PathBuf;
 
@@ -400,6 +400,166 @@ async fn handle_command(command: Commands) -> Result<()> {
                 format,
             } => graph_cmd::vectorize_corpus(&corpus, &output, &format),
         },
+        Commands::Corpus(corpus_cmd) => handle_corpus_command(corpus_cmd),
+    }
+}
+
+/// Handle corpus registry commands
+fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
+    use depyler_corpus::CorpusRegistry;
+
+    let registry = CorpusRegistry::with_defaults();
+
+    match cmd {
+        CorpusCommands::List { format, available } => {
+            let corpora = if available {
+                registry.list_available()
+            } else {
+                registry.list()
+            };
+
+            if format == "json" {
+                let json_entries: Vec<_> = corpora
+                    .iter()
+                    .map(|c| {
+                        serde_json::json!({
+                            "name": c.name,
+                            "description": c.description,
+                            "path": c.path.display().to_string(),
+                            "exists": c.exists(),
+                            "github": c.github,
+                            "file_count": c.file_count,
+                            "target_rate": c.target_rate,
+                            "tdg_score": c.tdg_score,
+                            "grade": c.grade,
+                            "tests": c.tests,
+                            "coverage": c.coverage,
+                        })
+                    })
+                    .collect();
+                println!("{}", serde_json::to_string_pretty(&json_entries)?);
+            } else {
+                println!("Registered Corpora");
+                println!("==================\n");
+
+                for corpus in corpora {
+                    let status = if corpus.exists() { "✓" } else { "✗" };
+                    println!(
+                        "{} {} - {}",
+                        status, corpus.name, corpus.description
+                    );
+                    println!("   Path: {}", corpus.path.display());
+
+                    if let Some(ref github) = corpus.github {
+                        println!("   GitHub: {github}");
+                    }
+
+                    if let Some(tdg) = corpus.tdg_score {
+                        let grade = corpus.grade.as_deref().unwrap_or("-");
+                        println!("   Quality: TDG {:.1}, Grade {}", tdg, grade);
+                    }
+
+                    if let Some(tests) = corpus.tests {
+                        let coverage = corpus.coverage.unwrap_or(0.0);
+                        println!("   Tests: {}, Coverage: {:.0}%", tests, coverage);
+                    }
+
+                    println!();
+                }
+
+                let total = registry.total_files();
+                println!("Total files across all corpora: {total}");
+            }
+            Ok(())
+        }
+        CorpusCommands::Show { name } => {
+            if let Some(corpus) = registry.get(&name) {
+                println!("Corpus: {}", corpus.name);
+                println!("========{}", "=".repeat(corpus.name.len()));
+                println!();
+                println!("Description: {}", corpus.description);
+                println!("Path: {}", corpus.path.display());
+                println!("Exists: {}", if corpus.exists() { "Yes" } else { "No" });
+
+                if let Some(ref github) = corpus.github {
+                    println!("GitHub: {github}");
+                }
+
+                println!();
+                println!("Configuration:");
+                println!("  Include patterns: {:?}", corpus.include);
+                println!("  Exclude patterns: {:?}", corpus.exclude);
+                println!("  Target rate: {:.1}%", corpus.target_rate);
+
+                if corpus.tdg_score.is_some() || corpus.tests.is_some() {
+                    println!();
+                    println!("Quality Metrics:");
+                    if let Some(tdg) = corpus.tdg_score {
+                        println!("  TDG Score: {:.1}", tdg);
+                    }
+                    if let Some(ref grade) = corpus.grade {
+                        println!("  Grade: {grade}");
+                    }
+                    if let Some(tests) = corpus.tests {
+                        println!("  Tests: {tests}");
+                    }
+                    if let Some(coverage) = corpus.coverage {
+                        println!("  Coverage: {:.0}%", coverage);
+                    }
+                }
+
+                if let Some(count) = corpus.file_count {
+                    println!();
+                    println!("File Count: {count}");
+                }
+
+                println!();
+                println!("Converge Command:");
+                println!(
+                    "  depyler converge --input-dir {} --target-rate {:.0}",
+                    corpus.path.display(),
+                    corpus.target_rate
+                );
+
+                Ok(())
+            } else {
+                anyhow::bail!("Corpus '{}' not found in registry", name)
+            }
+        }
+        CorpusCommands::Add {
+            name,
+            path,
+            description,
+            github,
+        } => {
+            println!("Adding corpus '{}' to registry...", name);
+
+            let mut entry = depyler_corpus::CorpusEntry::new(&name, path.clone());
+            if let Some(desc) = description {
+                entry = entry.with_description(&desc);
+            }
+            if let Some(url) = github {
+                entry = entry.with_github(&url);
+            }
+
+            // For now, just print the entry that would be added
+            // In the future, this could modify corpora.toml
+            println!();
+            println!("[corpora.{}]", name);
+            println!("name = \"{}\"", name);
+            println!("description = \"{}\"", entry.description);
+            println!("path = \"{}\"", path.display());
+            println!("include = {:?}", entry.include);
+            println!("exclude = {:?}", entry.exclude);
+            if let Some(ref gh) = entry.github {
+                println!("github = \"{gh}\"");
+            }
+            println!("target_rate = {}", entry.target_rate);
+            println!();
+            println!("Add the above to corpora.toml to persist this entry.");
+
+            Ok(())
+        }
     }
 }
 
