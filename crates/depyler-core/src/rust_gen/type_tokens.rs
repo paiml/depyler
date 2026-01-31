@@ -161,14 +161,30 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
                 quote! { #base_ident<#(#param_tokens),*> }
             }
         }
+        // DEPYLER-CONVERGE-MULTI: Handle Union types directly to prevent
+        // "UnionType not found" errors (E0425). Union[T, None] becomes
+        // Option<T>; all other unions become DepylerValue.
+        Type::Union(types) => {
+            let non_none: Vec<_> = types
+                .iter()
+                .filter(|t| !matches!(t, Type::None))
+                .collect();
+            if non_none.len() == 1 && non_none.len() < types.len() {
+                let inner = hir_type_to_tokens_with_mode(non_none[0], nasa_mode);
+                quote! { Option<#inner> }
+            } else if nasa_mode {
+                quote! { DepylerValue }
+            } else {
+                quote! { () }
+            }
+        }
+        Type::Final(inner) => hir_type_to_tokens_with_mode(inner, nasa_mode),
         // Fallback for remaining types
         Type::Set(_)
         | Type::Function { .. }
         | Type::Array { .. }
         | Type::TypeVar(_)
-        | Type::UnificationVar(_)
-        | Type::Union(_)
-        | Type::Final(_) => {
+        | Type::UnificationVar(_) => {
             quote! { () }
         }
     }
@@ -372,33 +388,33 @@ mod tests {
 
     #[test]
     fn test_custom_object_nasa_mode() {
-        // NASA mode (default) maps object to String
+        // NASA mode (default) maps object to DepylerValue (DEPYLER-E0308-002)
         let result = hir_type_to_tokens(&Type::Custom("object".to_string()));
-        assert_eq!(tokens_to_string(result), "String");
+        assert_eq!(tokens_to_string(result), "DepylerValue");
     }
 
     #[test]
     fn test_custom_builtins_object_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("builtins.object".to_string()));
-        assert_eq!(tokens_to_string(result), "String");
+        assert_eq!(tokens_to_string(result), "DepylerValue");
     }
 
     #[test]
     fn test_custom_any_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("Any".to_string()));
-        assert_eq!(tokens_to_string(result), "String");
+        assert_eq!(tokens_to_string(result), "DepylerValue");
     }
 
     #[test]
     fn test_custom_typing_any_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("typing.Any".to_string()));
-        assert_eq!(tokens_to_string(result), "String");
+        assert_eq!(tokens_to_string(result), "DepylerValue");
     }
 
     #[test]
     fn test_custom_lowercase_any_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("any".to_string()));
-        assert_eq!(tokens_to_string(result), "String");
+        assert_eq!(tokens_to_string(result), "DepylerValue");
     }
 
     // ============ Non-NASA Mode Tests ============
@@ -584,14 +600,23 @@ mod tests {
 
     #[test]
     fn test_union_fallback() {
+        // DEPYLER-CONVERGE-MULTI: Non-optional unions map to DepylerValue
         let result = hir_type_to_tokens(&Type::Union(vec![Type::Int, Type::String]));
-        assert_eq!(tokens_to_string(result), "()");
+        assert_eq!(tokens_to_string(result), "DepylerValue");
+    }
+
+    #[test]
+    fn test_union_optional() {
+        // Union[int, None] should map to Option<i32>
+        let result = hir_type_to_tokens(&Type::Union(vec![Type::Int, Type::None]));
+        assert_eq!(tokens_to_string(result), "Option<i32>");
     }
 
     #[test]
     fn test_final_fallback() {
+        // DEPYLER-CONVERGE-MULTI: Final[T] now unwraps to T
         let result = hir_type_to_tokens(&Type::Final(Box::new(Type::Int)));
-        assert_eq!(tokens_to_string(result), "()");
+        assert_eq!(tokens_to_string(result), "i32");
     }
 
     // ============ Complex Nested Types ============

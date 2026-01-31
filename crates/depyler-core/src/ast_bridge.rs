@@ -237,6 +237,12 @@ impl AstBridge {
                 // Convert to a `fn main()` function that contains the block body
                 // BUT only if there's no `def main():` already defined
                 ast::Stmt::If(if_stmt) => {
+                    // DEPYLER-CONVERGE-MULTI: Skip `if TYPE_CHECKING:` blocks.
+                    // These contain import-time-only type hints that have no
+                    // runtime meaning and produce E0425 in generated Rust.
+                    if is_type_checking_guard(&if_stmt) {
+                        continue;
+                    }
                     let has_main_function = functions.iter().any(|f| f.name == "main");
                     if !has_main_function {
                         if let Some(main_fn) = self.try_convert_if_main(&if_stmt)? {
@@ -862,7 +868,12 @@ impl AstBridge {
                     let is_enum_class = base_classes.iter().any(|b| {
                         matches!(
                             b.as_str(),
-                            "IntEnum" | "Enum" | "enum.Enum" | "enum.IntEnum"
+                            "IntEnum"
+                                | "Enum"
+                                | "StrEnum"
+                                | "enum.Enum"
+                                | "enum.IntEnum"
+                                | "enum.StrEnum"
                         )
                     });
 
@@ -872,9 +883,15 @@ impl AstBridge {
                             if let ast::Expr::Name(name) = target {
                                 let field_name = name.id.to_string();
 
-                                // IntEnum members are always integers
-                                // (Int for IntEnum, but we default to Int for all enums)
-                                let field_type = Type::Int;
+                                // Infer enum member type from value expression
+                                let field_type = match assign.value.as_ref() {
+                                    ast::Expr::Constant(c) => match &c.value {
+                                        ast::Constant::Str(_) => Type::String,
+                                        ast::Constant::Float(_) => Type::Float,
+                                        _ => Type::Int,
+                                    },
+                                    _ => Type::Int,
+                                };
 
                                 // Convert the value expression
                                 let converted_value =
@@ -2130,6 +2147,16 @@ pub(crate) fn convert_cmpop(op: &ast::CmpOp) -> Result<BinOp> {
         ast::CmpOp::Is => BinOp::Eq,
         ast::CmpOp::IsNot => BinOp::NotEq,
     })
+}
+
+/// DEPYLER-CONVERGE-MULTI: Detect `if TYPE_CHECKING:` guard blocks.
+/// These are Python-only constructs used for import-time type hints
+/// that must be stripped during transpilation.
+fn is_type_checking_guard(if_stmt: &ast::StmtIf) -> bool {
+    match if_stmt.test.as_ref() {
+        ast::Expr::Name(name) => name.id.as_str() == "TYPE_CHECKING",
+        _ => false,
+    }
 }
 
 /// DEPYLER-1136: Capture module-level alias for `import X as Y` patterns

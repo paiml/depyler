@@ -826,34 +826,130 @@ fn convert_enum_class(
     let safe_name = safe_class_name(&class.name);
     let enum_name = make_ident(&safe_name);
 
-    // Enum variants come from class fields
-    // For Enum classes, ALL fields are typically variants
-    let variants: Vec<syn::Variant> = class
-        .fields
-        .iter()
-        .map(|field| {
-            let variant_name = make_ident(&field.name);
-            syn::Variant {
-                attrs: vec![],
-                ident: variant_name,
-                fields: syn::Fields::Unit,
-                discriminant: None,
+    // DEPYLER-CONVERGE-MULTI: Detect whether this is an int-valued or
+    // string-valued enum based on the first member's default value.
+    let is_int_enum = class.fields.iter().any(|f| {
+        matches!(
+            f.default_value,
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(_)))
+        )
+    });
+    let is_str_enum = class.fields.iter().any(|f| {
+        matches!(
+            f.default_value,
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::String(_)))
+        )
+    });
+
+    if is_str_enum {
+        // String-valued enums: generate unit variants + a `value()` method
+        // that returns the string associated with each variant.
+        let variants: Vec<syn::Variant> = class
+            .fields
+            .iter()
+            .map(|field| {
+                let variant_name = make_ident(&field.name);
+                syn::Variant {
+                    attrs: vec![],
+                    ident: variant_name,
+                    fields: syn::Fields::Unit,
+                    discriminant: None,
+                }
+            })
+            .collect();
+
+        let enum_item: syn::Item = parse_quote! {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+            pub enum #enum_name {
+                #(#variants),*
             }
-        })
-        .collect();
+        };
+        items.push(enum_item);
 
-    // Generate the enum definition with derives for Hash, Eq (needed for HashMap keys)
-    let enum_item: syn::Item = parse_quote! {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub enum #enum_name {
-            #(#variants),*
-        }
-    };
-    items.push(enum_item);
+        // Generate `value()` method returning &str for each variant
+        let match_arms: Vec<proc_macro2::TokenStream> = class
+            .fields
+            .iter()
+            .map(|field| {
+                let variant_name = make_ident(&field.name);
+                let val = match &field.default_value {
+                    Some(crate::hir::HirExpr::Literal(crate::hir::Literal::String(s))) => {
+                        s.clone()
+                    }
+                    _ => field.name.to_lowercase(),
+                };
+                quote::quote! { #enum_name::#variant_name => #val }
+            })
+            .collect();
 
-    // Note: Enum methods are not yet supported in this simplified implementation.
-    // The transpiler will need to handle method bodies separately when needed.
-    // For now, we generate a stub impl block with a placeholder to avoid E0599.
+        let impl_item: syn::Item = parse_quote! {
+            impl #enum_name {
+                pub fn value(&self) -> &str {
+                    match self {
+                        #(#match_arms),*
+                    }
+                }
+            }
+        };
+        items.push(impl_item);
+    } else if is_int_enum {
+        // Integer-valued enums: use Rust discriminants directly
+        let variants: Vec<syn::Variant> = class
+            .fields
+            .iter()
+            .map(|field| {
+                let variant_name = make_ident(&field.name);
+                let discriminant = match &field.default_value {
+                    Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(v))) => {
+                        let lit = syn::LitInt::new(&v.to_string(), proc_macro2::Span::call_site());
+                        Some((syn::token::Eq::default(), syn::Expr::Lit(syn::ExprLit {
+                            attrs: vec![],
+                            lit: syn::Lit::Int(lit),
+                        })))
+                    }
+                    _ => None,
+                };
+                syn::Variant {
+                    attrs: vec![],
+                    ident: variant_name,
+                    fields: syn::Fields::Unit,
+                    discriminant,
+                }
+            })
+            .collect();
+
+        let enum_item: syn::Item = parse_quote! {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+            #[repr(i64)]
+            pub enum #enum_name {
+                #(#variants),*
+            }
+        };
+        items.push(enum_item);
+    } else {
+        // Fallback: unit variants with no discriminants
+        let variants: Vec<syn::Variant> = class
+            .fields
+            .iter()
+            .map(|field| {
+                let variant_name = make_ident(&field.name);
+                syn::Variant {
+                    attrs: vec![],
+                    ident: variant_name,
+                    fields: syn::Fields::Unit,
+                    discriminant: None,
+                }
+            })
+            .collect();
+
+        let enum_item: syn::Item = parse_quote! {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+            pub enum #enum_name {
+                #(#variants),*
+            }
+        };
+        items.push(enum_item);
+    }
 
     Ok(items)
 }
