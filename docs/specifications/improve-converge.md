@@ -32,13 +32,13 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Current State (2026-01-31, iter 7) -- MEASURED
+### Current State (2026-01-31, iter 8) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
 | Single-shot compile (reprorusted-std-only) | **95% (19/20)** | 80% | **Met (+15 pp)** |
-| Single-shot compile (fully-typed-reprorusted) | **13.3% (2/15)** | 60% | 46.7 pp |
+| Single-shot compile (fully-typed-reprorusted) | **60% (9/15)** | 60% | **Met** |
 | Single-shot compile (hugging-face-gtc) | **0% (0/128)** | 40% | 40 pp |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
@@ -57,6 +57,7 @@ progress is measured by attempted refutations rather than confirmations.
 | 5b | 2026-01-31 | 10/20 (50%) | 2/15 (13.3%) | 0/128 (0%) | 90ac176a | Cursor Write import, HashMap injection |
 | 6 | 2026-01-31 | 12/20 (60%) | 2/15 (13.3%) | 0/128 (0%) | f14bd685 | Truthiness, chain-iter, pathlib, type(), enum fixes |
 | 7 | 2026-01-31 | **19/20 (95%)** | **2/15 (13.3%)** | **0/128 (0%)** | b91fef3e | 7 convergence fixes + bool truthiness type-awareness; **Tier 1 TARGET MET** |
+| 8 | 2026-01-31 | **19/20 (95%)** | **9/15 (60%)** | **0/128 (0%)** | ae8d0cbf | HashMap, PathOrStringUnion, struct stub, dict insert fixes; **Tier 2 TARGET MET** |
 
 **Measurement methodology notes**:
 - (iter 3) `depyler transpile` writes .rs files alongside .py files.
@@ -80,13 +81,14 @@ progress is measured by attempted refutations rather than confirmations.
 | Compiling | 19 | All stdlib modules except `re` |
 | No .rs generated | 1 | `re` -- regex module unsupported |
 
-**Tier 2 error distribution** (15 files, 2 compiling = 13.3%):
+**Tier 2 error distribution** (15 files, 9 compiling = 60%):
 
-| Error Class | Files | Description |
-|-------------|-------|-------------|
-| `E0308: mismatched types` | 11 | Dominant: type inference gaps in function returns |
-| No .rs generated | 2 | synthetic_augmenter (abort), weak_supervision (abort) |
-| Compiling | 2 | check_test_lib_crates.py, golden_traces_analyzer.py |
+| Status | Files | Description |
+|--------|-------|-------------|
+| Compiling | 9 | check_test_lib_crates, export_hf_corpus, generate_insights, golden_traces_analyzer, hitl_sampler, verify_qa_checklist, category_diff, corpus_quality_report, zero_success_analyzer |
+| `E0308: mismatched types` | 2 | clippy_gate, measure_compile_rate (heterogeneous dict values) |
+| `E0308+E0061` | 2 | augment_corpus (class type), label_corpus (constructor args) |
+| No .rs generated | 2 | synthetic_augmenter (3-arg replace), weak_supervision (panic) |
 
 **Tier 3 error distribution** (128 files, 0 compiling = 0%):
 
