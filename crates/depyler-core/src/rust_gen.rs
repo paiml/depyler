@@ -6430,6 +6430,32 @@ fn generate_rust_file_internal(
         formatted_code = formatted_code.replace("Args :: parse()", "Args::default()");
     }
 
+    // DEPYLER-CONVERGE-MULTI: Strip `if TYPE_CHECKING {}` that leaks through codegen.
+    // The ast_bridge skips top-level TYPE_CHECKING blocks, but they can appear in
+    // synthesized main() or in function bodies processed via StmtConverter::convert_if.
+    // Robust fallback: remove the statement from generated code at text level.
+    formatted_code = formatted_code.replace("    if TYPE_CHECKING {}\n", "");
+    formatted_code = formatted_code.replace("if TYPE_CHECKING {}\n", "");
+    formatted_code = formatted_code.replace("    if TYPE_CHECKING { }\n", "");
+    formatted_code = formatted_code.replace("if TYPE_CHECKING { }\n", "");
+
+    // DEPYLER-CONVERGE-MULTI: Fix `type(x).__name__` pattern.
+    // Python: type(n).__name__ returns the type name as a string.
+    // Transpiler emits: std::any::type_name_of_val(&n).__name__
+    // But type_name_of_val already returns &str, so .__name__ is invalid.
+    // Strip the trailing .__name__ since the function already gives us what we need.
+    formatted_code = formatted_code.replace(").__name__", ")");
+
+    // DEPYLER-CONVERGE-MULTI: Map typing.Sequence<T> to &[T] (slice reference).
+    // Python's typing.Sequence is an abstract read-only sequence type.
+    // In Rust, &[T] is the idiomatic equivalent for borrowed sequence data.
+    formatted_code = formatted_code.replace("Sequence<i32>", "&[i32]");
+    formatted_code = formatted_code.replace("Sequence<i64>", "&[i64]");
+    formatted_code = formatted_code.replace("Sequence<f64>", "&[f64]");
+    formatted_code = formatted_code.replace("Sequence<String>", "&[String]");
+    formatted_code = formatted_code.replace("Sequence<bool>", "&[bool]");
+    formatted_code = formatted_code.replace("Sequence<u8>", "&[u8]");
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
