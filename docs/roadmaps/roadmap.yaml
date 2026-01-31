@@ -3627,3 +3627,27 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-1400
+  github_issue: null
+  item_type: task
+  title: 'Elide TYPE_CHECKING blocks to prevent E0425 errors'
+  status: done
+  priority: high
+  assigned_to: null
+  created: 2026-01-31T06:27:59.831761262+00:00
+  updated: 2026-01-31T07:15:00.000000000+00:00
+  spec: |
+    Handle `if TYPE_CHECKING:` pattern common in typed Python codebases.
+    TYPE_CHECKING is always False at runtime, so these blocks should be elided.
+  acceptance_criteria:
+    - TYPE_CHECKING blocks are completely elided from transpiled output
+    - No E0425 errors for TYPE_CHECKING references
+    - Tests added for TYPE_CHECKING elision
+  phases: []
+  subtasks: []
+  estimated_effort: 2h
+  labels: [codegen, type-system]
+  notes: |
+    Results on reprorusted-std-only corpus:
+    - Convergence rate: 51.2% → 56.1% (+5%)
+    - E0425 errors: 24 files → 8 files (-16 files)
