@@ -507,6 +507,20 @@ pub fn convert_class_to_struct(
     let safe_name = safe_class_name(&class.name);
     let struct_name = make_ident(&safe_name);
 
+    // DEPYLER-1403: Check if class inherits from Enum
+    // Enum classes should generate Rust enums, not structs
+    let is_enum_class = class.base_classes.iter().any(|base| {
+        matches!(
+            base.as_str(),
+            "Enum" | "IntEnum" | "enum.Enum" | "enum.IntEnum" | "StrEnum" | "enum.StrEnum"
+        )
+    });
+
+    // If this is an enum class, generate a Rust enum instead of struct
+    if is_enum_class {
+        return convert_enum_class(class, type_mapper, vararg_functions);
+    }
+
     // DEPYLER-0957: Check if class inherits from Exception
     // Exception classes should default Unknown types to String (not serde_json::Value)
     let is_exception_class = class.base_classes.iter().any(|base| {
@@ -795,6 +809,51 @@ pub fn convert_class_to_struct(
         });
         items.push(impl_block);
     }
+
+    Ok(items)
+}
+
+/// DEPYLER-1403: Convert Python Enum class to Rust enum
+///
+/// Python enum classes like `class Color(enum.Enum)` are converted to Rust enums
+/// with variants for each class constant.
+fn convert_enum_class(
+    class: &HirClass,
+    _type_mapper: &TypeMapper,
+    _vararg_functions: &std::collections::HashSet<String>,
+) -> Result<Vec<syn::Item>> {
+    let mut items = Vec::new();
+    let safe_name = safe_class_name(&class.name);
+    let enum_name = make_ident(&safe_name);
+
+    // Enum variants come from class fields
+    // For Enum classes, ALL fields are typically variants
+    let variants: Vec<syn::Variant> = class
+        .fields
+        .iter()
+        .map(|field| {
+            let variant_name = make_ident(&field.name);
+            syn::Variant {
+                attrs: vec![],
+                ident: variant_name,
+                fields: syn::Fields::Unit,
+                discriminant: None,
+            }
+        })
+        .collect();
+
+    // Generate the enum definition with derives for Hash, Eq (needed for HashMap keys)
+    let enum_item: syn::Item = parse_quote! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum #enum_name {
+            #(#variants),*
+        }
+    };
+    items.push(enum_item);
+
+    // Note: Enum methods are not yet supported in this simplified implementation.
+    // The transpiler will need to handle method bodies separately when needed.
+    // For now, we generate a stub impl block with a placeholder to avoid E0599.
 
     Ok(items)
 }

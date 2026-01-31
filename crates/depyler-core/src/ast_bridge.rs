@@ -779,6 +779,15 @@ impl AstBridge {
                         None
                     }
                 }
+                // DEPYLER-1403: Handle module.Class pattern (e.g., enum.Enum, abc.ABC)
+                ast::Expr::Attribute(attr) => {
+                    // Format as "module.Class" (e.g., "enum.Enum")
+                    if let ast::Expr::Name(module) = attr.value.as_ref() {
+                        Some(format!("{}.{}", module.id, attr.attr))
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             })
             .collect();
@@ -849,7 +858,13 @@ impl AstBridge {
                 // 5. ROOT CAUSE: Missing ast::Stmt::Assign handling for enum classes
                 ast::Stmt::Assign(assign) => {
                     // Check if this class inherits from IntEnum or Enum
-                    let is_enum_class = base_classes.iter().any(|b| b == "IntEnum" || b == "Enum");
+                    // DEPYLER-1403: Also handle enum.Enum, enum.IntEnum module patterns
+                    let is_enum_class = base_classes.iter().any(|b| {
+                        matches!(
+                            b.as_str(),
+                            "IntEnum" | "Enum" | "enum.Enum" | "enum.IntEnum"
+                        )
+                    });
 
                     if is_enum_class {
                         // Extract enum members from simple assignments
