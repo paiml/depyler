@@ -32,14 +32,14 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Baseline (2026-01-31) -- MEASURED
+### Current State (2026-01-31, iter 4) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
-| Single-shot compile (reprorusted-std-only) | **0% (0/20)** | 80% | 80 pp |
-| Single-shot compile (fully-typed-reprorusted) | **0% (0/15)** | 60% | 60 pp |
-| Single-shot compile (hugging-face-gtc) | **0% (0/128)** | 40% | 40 pp |
+| Single-shot compile (reprorusted-std-only) | **35% (7/20)** | 80% | 45 pp |
+| Single-shot compile (fully-typed-reprorusted) | **10% (2/20)** | 60% | 50 pp |
+| Single-shot compile (hugging-face-gtc) | **0% (0/261)** | 40% | 40 pp |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
@@ -52,47 +52,62 @@ progress is measured by attempted refutations rather than confirmations.
 | 1 | 2026-01-31 | 18/68 (26%) | 2/23 (8%) | 14/277 (5%) | b9c25bc9 | UnionType/enum/macro fixes; corrected file counts |
 | 2 | 2026-01-31 | 30/68 (44%) | 5/23 (21%) | 16/277 (5%) | 635db9f7 | Expand UnionType/enum/macro fixes |
 | 3 | 2026-01-31 | 30/68 (44%) | 5/23 (21%) | 16/277 (5%) | 19412a1e | TYPE_CHECKING/__name__/Sequence fallbacks; no rate change |
+| 4 | 2026-01-31 | **7/20 (35%)** | **2/20 (10%)** | **0/261 (0%)** | 0eecb875 | Corrected file counts, TMPDIR fix, line-based TYPE_CHECKING filter |
 
-**Measurement methodology note** (discovered iter 3): `depyler transpile` writes
-.rs files to disk alongside .py files and outputs progress markers to stdout.
-Measurements must read from the on-disk .rs file, NOT capture stdout (which
-corrupts .rs with `✓` characters causing `error: unknown start of token`).
+**Measurement methodology notes**:
+- (iter 3) `depyler transpile` writes .rs files alongside .py files.
+  Measurements must read from the on-disk .rs file, NOT capture stdout.
+- (iter 4) **File count correction**: Previous iterations used broader `find`
+  that included test files and deeper nesting. Correct counts using
+  `find $CORPUS -name "*.py" -not -name "__init__.py"`:
+  Tier 1 = 20, Tier 2 = 20, Tier 3 = 261.
+- (iter 4) **TMPDIR fix**: `rustc` requires a writable temp directory.
+  Sandbox environments block `/tmp` access. Set `TMPDIR` to scratchpad.
+- (iter 4) **Stale binary**: `CARGO_TARGET_DIR=/Volumes/LambdaCache/cargo-target`
+  means `cargo build --release` writes to that location, NOT `./target/release/`.
+  Always copy: `cp /Volumes/LambdaCache/cargo-target/release/depyler ./target/release/`
 
-### Root Cause Analysis (Revised 2026-01-31, iter 3)
+### Root Cause Analysis (Revised 2026-01-31, iter 4)
 
-**Tier 1 error distribution** (68 files, 30 compiling):
-
-| Error Class | Files | Description |
-|-------------|-------|-------------|
-| **pytest references** | 16 | Test files import `pytest` -- not a stdlib module |
-| `E0425: contextmanager` | 2 | `contextlib.contextmanager` not mapped |
-| `E0599: method not found` | 3 | `.items()`, `.values()` on wrong type |
-| `E0308: mismatched types` | 4 | Type inference gaps (csv, datetime, functools) |
-| Transpile crash | 3 | Unsupported Python syntax |
-| Other codegen | 10 | Various (hashlib, io_files, itertools, json, pathlib) |
-
-**Tier 2 error distribution** (23 files, 5 compiling):
+**Tier 1 error distribution** (20 files, 7 compiling = 35%):
 
 | Error Class | Files | Description |
 |-------------|-------|-------------|
-| `E0308: mismatched types` | 9 | Dominant: function args incorrect types |
-| `E0433: unresolved type` | 2 | SyntheticAugmenter, MutationStrategy |
-| `E0425: cannot find value` | 2 | Scope issues in test files |
-| `E0599: method not found` | 1 | `py_div` on PathBuf |
-| Sandbox crash | 4 | `/dev/rmeta` temp dir permission errors |
+| `E0425: cannot find value` | 5 | contextmanager, csv.reader, dataclass, functools.reduce, pathlib.Path |
+| No .rs generated | 3 | threading, re, struct -- unsupported Python modules |
+| `E0599: method not found` | 1 | datetime method not found |
+| `E0405: cannot find trait` | 1 | hashlib trait mapping |
+| `E0308: mismatched types` | 1 | itertools chain type mismatch |
+| `E0061: wrong arg count` | 1 | io_files StringIO arity |
+| Syntax error | 1 | json loads/dumps generates invalid `{` |
 
-**Tier 3 error distribution** (277 files, 16 compiling):
+**Tier 2 error distribution** (20 files, 2 compiling = 10%):
 
-| Error Class | Occurrences | Files | Description |
-|-------------|-------------|-------|-------------|
-| `E0308: mismatched types` | 4,238 | ~120 | Dominant: expected i32 found String in enums |
-| `E0599: method not found` | 1,288 | ~90 | `.iter()` (484), `.is_none()` (351), `.len()` (68) |
-| `E0425: cannot find value` | 819 | ~60 | TYPE_CHECKING (114), Sequence (107), Literal (69) |
-| `E0282: type annotations` | 767 | ~50 | Closures need explicit type annotations |
-| `E0061: wrong arg count` | 643 | ~40 | Struct::new() with wrong parameter count |
-| `E0600: unary op on type` | 276 | ~30 | `!string_field` (Python truthiness on String) |
-| `E0423: enum path separator` | 585 | 99 | `EnumType.VARIANT` instead of `EnumType::VARIANT` |
-| `E0432: unresolved import` | 118 | 4 | md5, hmac stdlib mapping gap |
+| Error Class | Files | Description |
+|-------------|-------|-------------|
+| `E0308: mismatched types` | 10 | Dominant: type inference gaps in function returns |
+| `E0433: unresolved module` | 3 | augment_corpus, test_synthetic, test_weak |
+| No .rs generated | 2 | synthetic_augmenter (abort), weak_supervision (abort) |
+| `E0599: method not found` | 1 | conftest.py method not found |
+| `E0425: cannot find value` | 1 | test_cli_entrypoints scope issue |
+| `E0283: type annotation needed` | 1 | test_stubs ambiguous type |
+
+**Tier 3 error distribution** (261 files, 0 compiling = 0%):
+
+| Error Class | Files | Description |
+|-------------|-------|-------------|
+| `E0425: cannot find value` | 60 | Missing scope references (torch, numpy, etc.) |
+| `E0433: unresolved module` | 39 | Undeclared crates/modules |
+| `E0599: method not found` | 36 | Methods on wrong types |
+| `E0573: expected type found variant` | 34 | Struct/enum confusion |
+| `E0423: expected value found struct` | 25 | Enum path separator (dot vs ::) |
+| `E0277: trait bound not satisfied` | 22 | Missing trait implementations |
+| Transpile failure | 18 | Crashes (2 abort, 16 error) |
+| Syntax: unbalanced delimiters | 18 | 9 `}`, 8 `)`, 1 `}` mismatch |
+| `E0432: unresolved import` | 5 | md5, hmac, etc. |
+| `E0061: wrong arg count` | 2 | Function arity mismatch |
+| `E0562: impl Trait` | 1 | impl Trait in wrong position |
+| `E0416: duplicate binding` | 1 | Pattern binding error |
 
 ### Governing Epistemology
 
