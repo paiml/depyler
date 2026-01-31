@@ -6516,6 +6516,36 @@ fn generate_rust_file_internal(
     // This is a heuristic - we fix the most common patterns at text level.
     formatted_code = fix_python_truthiness(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER5: Fix io.StringIO patterns (E0061 + E0599).
+    // Python `io.StringIO()` maps to `std::io::Cursor::new()` but Cursor requires an argument.
+    // Python `.getvalue()` maps to `.into_inner()` on Cursor.
+    formatted_code = formatted_code.replace(
+        "std::io::Cursor::new()",
+        "std::io::Cursor::new(String::new())",
+    );
+    formatted_code = formatted_code.replace(".getvalue()", ".into_inner()");
+
+    // DEPYLER-CONVERGE-MULTI-ITER5: Fix TypeError::new pattern (E0425).
+    // Python `raise TypeError(msg)` transpiles to `TypeError::new(msg)` but TypeError
+    // is not defined in standalone Rust. Replace with std::io::Error.
+    // Use word-boundary-safe replacement to avoid corrupting ArgumentTypeError etc.
+    formatted_code = formatted_code.replace(
+        "(TypeError::new(",
+        "(std::io::Error::new(std::io::ErrorKind::InvalidInput, ",
+    );
+
+    // DEPYLER-CONVERGE-MULTI-ITER5: Fix docstring-in-main syntax errors.
+    // The transpiler embeds module docstrings as `let _ = "...";` in main().
+    // When docstrings contain unescaped `"` or `{`, this breaks rustc parsing.
+    // Strip these dead docstring assignments.
+    formatted_code = fix_docstring_in_main(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER5: Fix operator.mul and similar operator references (E0425).
+    // Python `operator.mul` transpiles literally but Rust has no operator module.
+    formatted_code = formatted_code.replace("operator.mul", "|a, b| a * b");
+    formatted_code = formatted_code.replace("operator.add", "|a, b| a + b");
+    formatted_code = formatted_code.replace("operator.sub", "|a, b| a - b");
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -6605,6 +6635,48 @@ fn fix_python_truthiness(code: &str) -> String {
 
     for line in &lines {
         result.push((*line).to_string());
+    }
+
+    result.join("\n") + "\n"
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER5: Fix docstring-in-main syntax errors.
+///
+/// The transpiler embeds module docstrings as `let _ = "...";` inside main().
+/// When docstrings contain unescaped quotes, curly braces, or format strings,
+/// rustc fails to parse the string literal. Since these docstrings have no
+/// runtime effect (assigned to `_`), strip them entirely.
+fn fix_docstring_in_main(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Detect `let _ = "...` patterns (docstring assignments).
+        // These are always dead code since they assign to `_`.
+        // Skip single-line: `let _ = "...";`
+        // Skip multi-line: `let _ = "...` (no closing `;` on same line)
+        if trimmed.starts_with("let _ = \"") || trimmed.starts_with("let _ = r#\"") {
+            if trimmed.ends_with("\";") || trimmed.ends_with("\"#;") {
+                // Single-line docstring, skip it
+                i += 1;
+                continue;
+            }
+            // Multi-line: skip until closing `";` or `"#;`
+            i += 1;
+            while i < lines.len() {
+                let t = lines[i].trim();
+                if t.ends_with("\";") || t.ends_with("\"#;") {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        result.push(lines[i].to_string());
+        i += 1;
     }
 
     result.join("\n") + "\n"

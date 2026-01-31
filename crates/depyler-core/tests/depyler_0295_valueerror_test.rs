@@ -23,6 +23,39 @@
 
 use depyler_core::DepylerPipeline;
 
+/// Strip the auto-generated `pub fn main()` from transpiled code so tests
+/// can provide their own main function.
+fn strip_generated_main(code: &str) -> String {
+    let mut result = String::new();
+    let mut skip_depth = 0i32;
+    let mut skipping = false;
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if !skipping && trimmed.starts_with("pub fn main()") {
+            skipping = true;
+            skip_depth = 0;
+        }
+        if skipping {
+            skip_depth += trimmed.matches('{').count() as i32;
+            skip_depth -= trimmed.matches('}').count() as i32;
+            if skip_depth <= 0 && trimmed.contains('}') {
+                skipping = false;
+            }
+            continue;
+        }
+        // Also skip doc comments immediately preceding main
+        if trimmed.starts_with("#[doc = r\" DEPYLER-1216") {
+            continue;
+        }
+        if trimmed.starts_with("#[doc = r\" This file was transpiled") {
+            continue;
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
 #[test]
 fn test_valueerror_type_generated() {
     let python_code = r#"
@@ -144,10 +177,10 @@ def check_positive(x: int) -> int:
         .transpile(python_code)
         .expect("Transpilation failed");
 
-    // Write to temp file
+    // Write to temp file (strip auto-generated main to avoid duplicate)
     let test_code = format!(
         "{}\n{}",
-        rust_code,
+        strip_generated_main(&rust_code),
         r#"
 fn main() {
     assert!(check_positive(5).is_ok());
@@ -190,10 +223,10 @@ def check_positive(x: int) -> int:
         .transpile(python_code)
         .expect("Transpilation failed");
 
-    // Write to temp file
+    // Write to temp file (strip auto-generated main to avoid duplicate)
     let test_code = format!(
         "{}\n{}",
-        rust_code,
+        strip_generated_main(&rust_code),
         r#"
 fn main() {
     // Positive values should succeed
