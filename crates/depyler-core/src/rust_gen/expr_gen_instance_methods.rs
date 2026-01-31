@@ -7007,6 +7007,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     pub(crate) fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // DEPYLER-1402: Handle type(x).__name__ pattern
+        // In Python, type(x).__name__ returns the type name as a string.
+        // Since type(x) already maps to std::any::type_name_of_val(&x) which returns &str,
+        // we just return the type() call without the .__name__ suffix.
+        if attr == "__name__" {
+            if let HirExpr::Call { func, args, .. } = value {
+                if func == "type" && args.len() == 1 {
+                    // type(x).__name__ → std::any::type_name_of_val(&x)
+                    let arg_expr = args[0].to_rust_expr(self.ctx)?;
+                    return Ok(parse_quote! { std::any::type_name_of_val(&#arg_expr) });
+                }
+            }
+        }
+
         // DEPYLER-0608: In cmd_* handlers, args.X → X (field is now a direct parameter)
         // This is because subcommand fields live in Commands::Variant, not on Args
         // The handler function now takes individual field parameters instead of &Args
