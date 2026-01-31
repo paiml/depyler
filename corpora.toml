@@ -1,0 +1,57 @@
+# Depyler Corpus Registry
+#
+# Known corpora for convergence testing and validation.
+# Use: depyler converge --corpus <name>
+
+[corpora]
+
+[corpora.reprorusted-python-cli]
+name = "reprorusted-python-cli"
+description = "Original Python CLI examples - mixed type annotations"
+path = "/home/noah/src/reprorusted-python-cli"
+include = ["examples/**/*.py"]
+exclude = ["**/__pycache__/**", "**/test_*.py", "**/__init__.py"]
+github = "https://github.com/paiml/reprorusted-python-cli"
+file_count = 601  # approximate
+target_rate = 80.0
+
+[corpora.reprorusted-std-only]
+name = "reprorusted-std-only"
+description = "Python stdlib examples - std-only transpilation targets"
+path = "/home/noah/src/reprorusted-std-only"
+include = ["src/**/*.py"]
+exclude = ["**/__pycache__/**", "**/test_*.py", "**/__init__.py"]
+github = "https://github.com/paiml/reprorusted-std-only"
+file_count = 1382
+target_rate = 80.0
+tdg_score = 91.9
+grade = "A"
+tests = 182
+coverage = 100.0
+
+[corpora.fully-typed-reprorusted-python-cli]
+name = "fully-typed-reprorusted-python-cli"
+description = "Fully typed Python CLI utilities - strict type annotations"
+path = "/home/noah/src/fully-typed-reprorusted-python-cli"
+include = ["src/**/*.py"]
+exclude = ["**/__pycache__/**", "**/test_*.py", "**/__init__.py", "**/tests/**"]
+github = "https://github.com/paiml/fully-typed-reprorusted-python-cli"
+file_count = 1839
+target_rate = 80.0
+tdg_score = 90.5
+grade = "A"
+tests = 152
+coverage = 100.0
+
+# Corpus characteristics metadata
+[metadata]
+version = "1.0.0"
+updated = "2026-01-31"
+total_corpora = 3
+total_files = 3822
+
+# Quality thresholds
+[thresholds]
+min_target_rate = 80.0
+min_tdg_score = 85.0
+min_coverage = 95.0

@@ -25,6 +25,9 @@ blake3 = "1.5"
 # Time
 chrono = { version = "0.4", features = ["serde"] }
 
+# Configuration
+toml = "0.8"
+
 # CLI integration
 clap.workspace = true
 colored.workspace = true
