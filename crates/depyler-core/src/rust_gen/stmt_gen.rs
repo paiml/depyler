@@ -1977,6 +1977,13 @@ fn apply_truthiness_conversion(
                 if string_attr_names.contains(&attr.as_str()) {
                     return parse_quote! { !#cond_expr.is_empty() };
                 }
+
+                // DEPYLER-1319: Fallback for collection attribute names (heap, stack, queue, items, etc.)
+                // This matches the same heuristic used in apply_negated_truthiness at line 1761
+                // Uses centralized is_collection_attr_name from truthiness_helpers.rs
+                if is_collection_attr_name(attr) {
+                    return parse_quote! { !#cond_expr.is_empty() };
+                }
             }
 
             // Check if this is accessing an args variable from ArgumentParser
@@ -6175,6 +6182,17 @@ pub(crate) fn codegen_assign_index(
         false
     };
 
+    // DEPYLER-TUPLE-KEY-FIX: Check if dict has tuple keys
+    // Python: Dict[Tuple[int, int], str] → Rust: HashMap<(i32, i32), String>
+    // Tuple keys are used directly, no .to_string() conversion needed
+    let dict_has_tuple_keys = if let HirExpr::Var(base_name) = base {
+        ctx.var_types.get(base_name).is_some_and(
+            |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Tuple(_))),
+        )
+    } else {
+        false
+    };
+
     let final_index = if dict_has_float_keys {
         // DEPYLER-1073: Float keys use DepylerValue for Hash/Eq support
         ctx.needs_depyler_value_enum = true;
@@ -6188,7 +6206,13 @@ pub(crate) fn codegen_assign_index(
             // Variable - use From trait
             parse_quote! { DepylerValue::from(#final_index) }
         }
+    } else if dict_has_tuple_keys {
+        // DEPYLER-TUPLE-KEY-FIX: Tuple key dicts don't need .to_string() conversion
+        // Python: d[(0,0)] = "origin" → Rust: d.insert((0, 0), "origin".to_string())
+        // Tuples are used directly as HashMap keys
+        final_index
     } else if !is_numeric_index && !dict_has_int_keys {
+        // For string-keyed dicts, convert keys to String
         let idx_str = quote! { #final_index }.to_string();
         // Check if already has .to_string() - handle spaces from quote! macro
         // quote! produces ". to_string ( )" with spaces, not ".to_string()"
@@ -11013,6 +11037,26 @@ mod tests {
         let result_str = quote::quote!(#result).to_string();
         // Should delegate to apply_negated_truthiness
         assert!(result_str.contains("is_empty"));
+    }
+
+    #[test]
+    fn test_apply_truthiness_conversion_self_items_collection_attr() {
+        // DEPYLER-1319: Test positive truthiness for self.items (collection attribute)
+        let ctx = CodeGenContext::default();
+        // class_field_types is empty, so it should fall back to is_collection_attr_name heuristic
+        let condition = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("self".to_string())),
+            attr: "items".to_string(),
+        };
+        let cond_expr: syn::Expr = syn::parse_quote! { self.items.clone() };
+        let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        // Should convert to !self.items.clone().is_empty()
+        assert!(
+            result_str.contains("is_empty"),
+            "Expected is_empty() for self.items, got: {}",
+            result_str
+        );
     }
 
     // === Tests for extract_nested_indices_tokens (DEPYLER-COVERAGE-95) ===

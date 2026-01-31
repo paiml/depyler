@@ -198,20 +198,26 @@ fn is_json_value_type(t: &Type) -> bool {
     }
 }
 
-/// DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
-/// This happens when Python has `-> Dict` without type parameters
+/// DEPYLER-1153: Check if return type expects DepylerValue keys
+/// DEPYLER-1318-FIX: Bare Dict and Dict(Unknown, _) use String keys, NOT DepylerValue keys!
+/// This aligns with stmt_gen.rs line 6885 and type_mapper.rs DEPYLER-1318 Dict Unification.
+/// Only explicit DepylerValue key type (rare) would return true here.
 fn return_type_needs_depyler_value_keys(ctx: &CodeGenContext) -> bool {
     if let Some(ref ret_type) = ctx.current_return_type {
         match ret_type {
-            // Bare Dict maps to HashMap<DepylerValue, DepylerValue>
-            Type::Custom(s) if s == "Dict" => true,
-            // Dict with unknown key type also uses DepylerValue keys
-            Type::Dict(key_type, _) => matches!(key_type.as_ref(), Type::Unknown),
+            // DEPYLER-1318-FIX: Bare Dict maps to HashMap<String, DepylerValue> (String keys!)
+            // Per stmt_gen.rs DEPYLER-1203 and type_mapper.rs DEPYLER-1318 Dict Unification
+            Type::Custom(s) if s == "Dict" => false,
+            // DEPYLER-1318-FIX: Dict(Unknown, _) uses String keys per type_mapper.rs line 200
+            Type::Dict(key_type, _) => {
+                // Only use DepylerValue keys when EXPLICITLY specified as such
+                matches!(key_type.as_ref(), Type::Custom(s) if s == "DepylerValue")
+            }
             _ => false,
         }
     } else {
-        // No return type specified - default to DepylerValue keys for safety
-        true
+        // No return type specified - default to String keys (most common pattern)
+        false
     }
 }
 

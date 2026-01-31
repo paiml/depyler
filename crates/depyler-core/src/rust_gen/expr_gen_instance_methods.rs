@@ -1808,26 +1808,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(parse_quote! { #object_expr.insert(#wrapped_arg) });
                 }
 
+                // DEPYLER-SET-ADD-STR-FIX: Convert string literals to owned Strings for HashSet<String>.add()
+                // Python: fruits.add("cherry") → Rust: fruits.insert("cherry".to_string())
+                if !hir_args.is_empty() {
+                    if let HirExpr::Literal(Literal::String(s)) = &hir_args[0] {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        return Ok(parse_quote! { #object_expr.insert(#lit.to_string()) });
+                    }
+                }
+
                 Ok(parse_quote! { #object_expr.insert(#arg) })
             }
             "remove" => {
                 // DEPYLER-0224: Set.remove(value) - remove value or panic if not found
+                // DEPYLER-E0277-FIX: String literals are already &str, other values need &
                 if arg_exprs.len() != 1 {
                     bail!("remove() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! {
-                    if !#object_expr.remove(&#arg) {
-                        panic!("KeyError: element not in set")
-                    }
-                })
+                // Check if arg is a string literal (already a reference)
+                let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                if is_str_lit {
+                    Ok(parse_quote! {
+                        if !#object_expr.remove(#arg) {
+                            panic!("KeyError: element not in set")
+                        }
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        if !#object_expr.remove(&#arg) {
+                            panic!("KeyError: element not in set")
+                        }
+                    })
+                }
             }
             "discard" => {
                 if arg_exprs.len() != 1 {
                     bail!("discard() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.remove(&#arg) })
+                // DEPYLER-E0277-FIX: String literals are already &str, other values need &
+                let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                if is_str_lit {
+                    Ok(parse_quote! { #object_expr.remove(#arg) })
+                } else {
+                    Ok(parse_quote! { #object_expr.remove(&#arg) })
+                }
             }
             "clear" => {
                 if !arg_exprs.is_empty() {
@@ -2600,6 +2626,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0712: Auto-borrow class instance arguments when calling user-defined methods
             // When calling obj.method(other) where both are class instances,
             // the method signature likely expects &Self, so we borrow the argument.
+            // DEPYLER-METHOD-STR-FIX: Also convert string literals to .to_string() for String params
             let processed_args: Vec<syn::Expr> = hir_args
                 .iter()
                 .zip(arg_exprs.iter())
@@ -2607,6 +2634,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // If argument is also a class instance, borrow it
                     if self.is_class_instance(hir_arg) {
                         parse_quote! { &#arg_expr }
+                    } else if let HirExpr::Literal(Literal::String(s)) = hir_arg {
+                        // DEPYLER-METHOD-STR-FIX: Convert string literals to owned Strings
+                        // Python methods with str param receive literals, Rust expects String
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit.to_string() }
                     } else {
                         arg_expr.clone()
                     }
@@ -6905,6 +6937,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-1163: Wrap elements in DepylerValue for mixed-type sets
                 let wrapped = self.wrap_in_depyler_value(elem)?;
                 insert_stmts.push(quote! { set.insert(#wrapped); });
+            } else if let HirExpr::Literal(Literal::String(s)) = elem {
+                // DEPYLER-SET-STR-FIX: Convert string literals to owned Strings for HashSet<String>
+                // Python set literals {"apple", "banana"} with str type need .to_string() in Rust
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                insert_stmts.push(quote! { set.insert(#lit.to_string()); });
             } else {
                 let elem_expr = elem.to_rust_expr(self.ctx)?;
                 insert_stmts.push(quote! { set.insert(#elem_expr); });
@@ -7321,7 +7358,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Heuristic: If name starts with uppercase and attr is ALL_CAPS, it's likely an enum constant
             let first_char = var_name.chars().next().unwrap_or('a');
             let is_type_name = first_char.is_uppercase();
-            let is_constant = attr.chars().all(|c| c.is_uppercase() || c == '_');
+            // DEPYLER-CONVERGE-MULTI: Allow digits in constant names (e.g. FP8_E4M3)
+            let is_constant =
+                attr.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
 
             if is_type_name && is_constant {
                 let type_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());

@@ -582,8 +582,16 @@ pub(crate) fn analyze_mutable_vars(
                                 }
                                 AssignTarget::Index { base, .. } => {
                                     // Index assignment mutates the base
-                                    if let HirExpr::Var(var_name) = base.as_ref() {
-                                        mutable.insert(var_name.clone());
+                                    // DEPYLER-0596-FIX: Handle nested index in tuple assignments
+                                    fn find_base_var(expr: &HirExpr) -> Option<String> {
+                                        match expr {
+                                            HirExpr::Var(name) => Some(name.clone()),
+                                            HirExpr::Index { base, .. } => find_base_var(base),
+                                            _ => None,
+                                        }
+                                    }
+                                    if let Some(var_name) = find_base_var(base.as_ref()) {
+                                        mutable.insert(var_name);
                                     }
                                 }
                                 AssignTarget::Attribute { value, .. } => {
@@ -614,8 +622,17 @@ pub(crate) fn analyze_mutable_vars(
                     AssignTarget::Index { base, .. } => {
                         // DEPYLER-0235 FIX: Index assignments also require mutability
                         // e.g., `arr[i] = value` requires `let mut arr = ...`
-                        if let HirExpr::Var(var_name) = base.as_ref() {
-                            mutable.insert(var_name.clone());
+                        // DEPYLER-0596-FIX: Handle nested index (e.g., `d["a"]["b"] = v`)
+                        // by recursively finding the innermost variable
+                        fn find_base_var(expr: &HirExpr) -> Option<String> {
+                            match expr {
+                                HirExpr::Var(name) => Some(name.clone()),
+                                HirExpr::Index { base, .. } => find_base_var(base),
+                                _ => None,
+                            }
+                        }
+                        if let Some(var_name) = find_base_var(base.as_ref()) {
+                            mutable.insert(var_name);
                         }
                     }
                 }
@@ -4317,6 +4334,21 @@ fn generate_rust_file_internal(
                 fn py_sub(self, rhs: DepylerValue) -> f64 { self - rhs.to_f64() }
             }
 
+            // DEPYLER-HASHSET-PYSUB: PySub for HashSet - Python set difference (s1 - s2)
+            impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+                type Output = std::collections::HashSet<T>;
+                fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+                    self.difference(&rhs).cloned().collect()
+                }
+            }
+
+            impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>> for std::collections::HashSet<T> {
+                type Output = std::collections::HashSet<T>;
+                fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+                    self.difference(rhs).cloned().collect()
+                }
+            }
+
             // === PyMul implementations ===
 
             impl PyMul for i32 {
@@ -6206,10 +6238,18 @@ fn generate_rust_file_internal(
         formatted_code = formatted_code.replace("use digest :: DynDigest;\n", "");
         formatted_code = formatted_code.replace(": Box<dyn DynDigest>", ": String");
 
-        // DEPYLER-1036: Replace undefined UnionType placeholder with String
+        // DEPYLER-1036: Replace undefined UnionType placeholder with String.
+        // The type_mapper.rs creates RustType::Enum { name: "UnionType" } for
+        // non-optional unions that aren't resolved by process_union_type().
+        // When wrapped in Option<...>, the inner placeholder persists.
+        formatted_code = formatted_code.replace("Option<UnionType>", "Option<String>");
         formatted_code = formatted_code.replace("Vec<UnionType>", "Vec<String>");
         formatted_code = formatted_code.replace("&Vec<UnionType>", "&Vec<String>");
+        formatted_code = formatted_code.replace("HashMap<UnionType,", "HashMap<String,");
+        formatted_code = formatted_code.replace(", UnionType>", ", String>");
         formatted_code = formatted_code.replace(": UnionType", ": String");
+        formatted_code = formatted_code.replace("(UnionType)", "(String)");
+        formatted_code = formatted_code.replace("<UnionType>", "<String>");
 
         // DEPYLER-1036: Replace more external crate references
         formatted_code = formatted_code.replace("use md5;\n", "");
@@ -7933,6 +7973,90 @@ mod tests {
         analyze_mutable_vars(&stmts, &mut ctx, &params);
         // DEPYLER-0707: Should clear mutable_vars
         assert!(!ctx.mutable_vars.contains("old_var"));
+    }
+
+    #[test]
+    fn test_analyze_mutable_vars_nested_index_assignment() {
+        // DEPYLER-0596-FIX: Test that nested index assignment marks base variable mutable
+        // Python: d["a"]["b"] = 5 → Rust: d.get_mut("a").unwrap().insert("b", 5)
+        // The variable d should be marked mutable because get_mut requires &mut self
+        let mut ctx = create_test_context();
+        // First declare d
+        let decl = HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("d".to_string()),
+            value: HirExpr::Call {
+                func: "HashMap::new".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        };
+        // Then do nested index assignment: d["a"]["b"] = 5
+        let nested_assign = HirStmt::Assign {
+            target: crate::hir::AssignTarget::Index {
+                base: Box::new(HirExpr::Index {
+                    base: Box::new(HirExpr::Var("d".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::String("a".to_string()))),
+                }),
+                index: Box::new(HirExpr::Literal(Literal::String("b".to_string()))),
+            },
+            value: HirExpr::Literal(Literal::Int(5)),
+            type_annotation: None,
+        };
+        let stmts = vec![decl, nested_assign];
+        let params: Vec<HirParam> = vec![];
+        analyze_mutable_vars(&stmts, &mut ctx, &params);
+        // d should be marked mutable because of nested index assignment
+        assert!(
+            ctx.mutable_vars.contains("d"),
+            "Nested index assignment should mark base variable 'd' as mutable"
+        );
+    }
+
+    #[test]
+    fn test_analyze_mutable_vars_nested_index_in_if_body() {
+        // DEPYLER-0596-FIX: Test that nested index assignment inside if body marks base mutable
+        // Python:
+        //   copied = copy.deepcopy(original)
+        //   if "group1" in copied:
+        //       copied["group1"]["e"] = 5
+        // The variable copied should be marked mutable
+        let mut ctx = create_test_context();
+        // First declare copied
+        let decl = HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("copied".to_string()),
+            value: HirExpr::Call {
+                func: "clone".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        };
+        // Then do nested index assignment inside if body: copied["group1"]["e"] = 5
+        let nested_assign = HirStmt::Assign {
+            target: crate::hir::AssignTarget::Index {
+                base: Box::new(HirExpr::Index {
+                    base: Box::new(HirExpr::Var("copied".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::String("group1".to_string()))),
+                }),
+                index: Box::new(HirExpr::Literal(Literal::String("e".to_string()))),
+            },
+            value: HirExpr::Literal(Literal::Int(5)),
+            type_annotation: None,
+        };
+        let if_stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![nested_assign],
+            else_body: None,
+        };
+        let stmts = vec![decl, if_stmt];
+        let params: Vec<HirParam> = vec![];
+        analyze_mutable_vars(&stmts, &mut ctx, &params);
+        // copied should be marked mutable because of nested index assignment in if body
+        assert!(
+            ctx.mutable_vars.contains("copied"),
+            "Nested index assignment in if body should mark base variable 'copied' as mutable"
+        );
     }
 
     // === Tests for detect_adt_patterns ===

@@ -12,7 +12,7 @@ pub fn is_mutating_method(method: &str) -> bool {
         // List methods
         "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort" |
         // Dict methods
-        "update" | "setdefault" | "popitem" |
+        "update" | "setdefault" | "popitem" | "get_mut" |
         // Set methods
         "add" | "discard" | "difference_update" | "intersection_update" |
         // DEPYLER-0529: File I/O methods that require mutable access
@@ -136,6 +136,11 @@ mod tests {
     #[test]
     fn test_is_mutating_method_dict_popitem() {
         assert!(is_mutating_method("popitem"));
+    }
+
+    #[test]
+    fn test_is_mutating_method_dict_get_mut() {
+        assert!(is_mutating_method("get_mut"));
     }
 
     #[test]

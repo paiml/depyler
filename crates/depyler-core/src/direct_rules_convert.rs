@@ -5416,12 +5416,22 @@ impl<'a> ExprConverter<'a> {
                 let arg = &arg_exprs[0];
                 // Check if it's a list (using position) or set (using remove)
                 // For now, assume set behavior since we're working on sets
+                // DEPYLER-E0277-FIX: String literals are already &str, other values need &
                 if self.is_set_expr(object) {
-                    Ok(parse_quote! {
-                        if !#object_expr.remove(&#arg) {
-                            panic!("KeyError: element not in set");
-                        }
-                    })
+                    let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                    if is_str_lit {
+                        Ok(parse_quote! {
+                            if !#object_expr.remove(#arg) {
+                                panic!("KeyError: element not in set");
+                            }
+                        })
+                    } else {
+                        Ok(parse_quote! {
+                            if !#object_expr.remove(&#arg) {
+                                panic!("KeyError: element not in set");
+                            }
+                        })
+                    }
                 } else {
                     // List remove behavior
                     Ok(parse_quote! {
@@ -5447,7 +5457,13 @@ impl<'a> ExprConverter<'a> {
                     bail!("discard() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.remove(&#arg) })
+                // DEPYLER-E0277-FIX: String literals are already &str, other values need &
+                let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                if is_str_lit {
+                    Ok(parse_quote! { #object_expr.remove(#arg) })
+                } else {
+                    Ok(parse_quote! { #object_expr.remove(&#arg) })
+                }
             }
             "clear" => {
                 if !arg_exprs.is_empty() {
@@ -6690,7 +6706,9 @@ impl<'a> ExprConverter<'a> {
             // Heuristic: If name starts with uppercase and attr is ALL_CAPS, it's likely an enum constant
             let first_char = var_name.chars().next().unwrap_or('a');
             let is_type_name = first_char.is_uppercase();
-            let is_constant = attr.chars().all(|c| c.is_uppercase() || c == '_');
+            // DEPYLER-CONVERGE-MULTI: Allow digits in constant names (e.g. FP8_E4M3)
+            let is_constant =
+                attr.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
 
             if is_type_name && is_constant {
                 let type_ident = make_ident(var_name);
