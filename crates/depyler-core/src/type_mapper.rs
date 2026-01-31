@@ -239,6 +239,10 @@ impl TypeMapper {
                         // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
                         // DEPYLER-0718/1015: Use fallback for bare List (no type params)
                         "List" | "list" => RustType::Vec(Box::new(self.unknown_fallback())),
+                        // DEPYLER-1401: Sequence[T] -> Vec<T> (abstract sequence type)
+                        // Python's typing.Sequence maps to Vec for compatibility
+                        // Deref coercion allows &Vec<T> -> &[T] at call sites
+                        "Sequence" => RustType::Vec(Box::new(self.unknown_fallback())),
                         // DEPYLER-1040b: Use DepylerValue for sets too
                         "Set" => RustType::HashSet(Box::new(self.unknown_fallback())),
                         // DEPYLER-0379: Handle generic tuple annotation
@@ -357,6 +361,11 @@ impl TypeMapper {
                 // Map generic types like MyClass<T> to appropriate Rust types
                 match base.as_str() {
                     "List" if params.len() == 1 => {
+                        RustType::Vec(Box::new(self.map_type(&params[0])))
+                    }
+                    // DEPYLER-1401: Sequence[T] -> Vec<T>
+                    // Python's typing.Sequence maps to Vec for compatibility
+                    "Sequence" if params.len() == 1 => {
                         RustType::Vec(Box::new(self.map_type(&params[0])))
                     }
                     "Dict" if params.len() == 2 => RustType::HashMap(
@@ -1286,6 +1295,35 @@ mod tests {
         } else {
             panic!("Expected Vec for 'list'");
         }
+    }
+
+    #[test]
+    fn test_bare_sequence_type_mapping() {
+        // DEPYLER-1401: Bare Sequence maps to Vec<DepylerValue>
+        let mapper = TypeMapper::new();
+
+        let seq = PythonType::Custom("Sequence".to_string());
+        if let RustType::Vec(inner) = mapper.map_type(&seq) {
+            assert_eq!(*inner, RustType::Custom("DepylerValue".to_string()));
+        } else {
+            panic!("Expected Vec for 'Sequence'");
+        }
+    }
+
+    #[test]
+    fn test_generic_sequence_type_mapping() {
+        // DEPYLER-1401: Sequence[T] maps to Vec<T>
+        let mapper = TypeMapper::new();
+
+        let seq = PythonType::Generic {
+            base: "Sequence".to_string(),
+            params: vec![PythonType::Int],
+        };
+        // Python int maps to i32 by default
+        assert_eq!(
+            mapper.map_type(&seq),
+            RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)))
+        );
     }
 
     #[test]
