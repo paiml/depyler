@@ -32,14 +32,14 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Current State (2026-01-31, iter 4) -- MEASURED
+### Current State (2026-01-31, iter 7) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
-| Single-shot compile (reprorusted-std-only) | **35% (7/20)** | 80% | 45 pp |
-| Single-shot compile (fully-typed-reprorusted) | **10% (2/20)** | 60% | 50 pp |
-| Single-shot compile (hugging-face-gtc) | **0% (0/261)** | 40% | 40 pp |
+| Single-shot compile (reprorusted-std-only) | **95% (19/20)** | 80% | **Met (+15 pp)** |
+| Single-shot compile (fully-typed-reprorusted) | **13.3% (2/15)** | 60% | 46.7 pp |
+| Single-shot compile (hugging-face-gtc) | **0% (0/128)** | 40% | 40 pp |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
@@ -53,6 +53,10 @@ progress is measured by attempted refutations rather than confirmations.
 | 2 | 2026-01-31 | 30/68 (44%) | 5/23 (21%) | 16/277 (5%) | 635db9f7 | Expand UnionType/enum/macro fixes |
 | 3 | 2026-01-31 | 30/68 (44%) | 5/23 (21%) | 16/277 (5%) | 19412a1e | TYPE_CHECKING/__name__/Sequence fallbacks; no rate change |
 | 4 | 2026-01-31 | **7/20 (35%)** | **2/20 (10%)** | **0/261 (0%)** | 0eecb875 | Corrected file counts, TMPDIR fix, line-based TYPE_CHECKING filter |
+| 5 | 2026-01-31 | 10/20 (50%) | 2/15 (13.3%) | 0/128 (0%) | 74717e35 | io.StringIO, docstring, operator fixes; correct Tier 2=15, Tier 3=128 |
+| 5b | 2026-01-31 | 10/20 (50%) | 2/15 (13.3%) | 0/128 (0%) | 90ac176a | Cursor Write import, HashMap injection |
+| 6 | 2026-01-31 | 12/20 (60%) | 2/15 (13.3%) | 0/128 (0%) | f14bd685 | Truthiness, chain-iter, pathlib, type(), enum fixes |
+| 7 | 2026-01-31 | **19/20 (95%)** | **2/15 (13.3%)** | **0/128 (0%)** | b91fef3e | 7 convergence fixes + bool truthiness type-awareness; **Tier 1 TARGET MET** |
 
 **Measurement methodology notes**:
 - (iter 3) `depyler transpile` writes .rs files alongside .py files.
@@ -60,43 +64,42 @@ progress is measured by attempted refutations rather than confirmations.
 - (iter 4) **File count correction**: Previous iterations used broader `find`
   that included test files and deeper nesting. Correct counts using
   `find $CORPUS -name "*.py" -not -name "__init__.py"`:
-  Tier 1 = 20, Tier 2 = 20, Tier 3 = 261.
+  Tier 1 = 20, Tier 2 = 15, Tier 3 = 128 (corrected from 20/261 at iter 5).
 - (iter 4) **TMPDIR fix**: `rustc` requires a writable temp directory.
   Sandbox environments block `/tmp` access. Set `TMPDIR` to scratchpad.
 - (iter 4) **Stale binary**: `CARGO_TARGET_DIR=/Volumes/LambdaCache/cargo-target`
   means `cargo build --release` writes to that location, NOT `./target/release/`.
   Always copy: `cp /Volumes/LambdaCache/cargo-target/release/depyler ./target/release/`
 
-### Root Cause Analysis (Revised 2026-01-31, iter 4)
+### Root Cause Analysis (Revised 2026-01-31, iter 7)
 
-**Tier 1 error distribution** (20 files, 7 compiling = 35%):
+**Tier 1 error distribution** (20 files, 19 compiling = 95%):
 
-| Error Class | Files | Description |
-|-------------|-------|-------------|
-| `E0425: cannot find value` | 5 | contextmanager, csv.reader, dataclass, functools.reduce, pathlib.Path |
-| No .rs generated | 3 | threading, re, struct -- unsupported Python modules |
-| `E0599: method not found` | 1 | datetime method not found |
-| `E0405: cannot find trait` | 1 | hashlib trait mapping |
-| `E0308: mismatched types` | 1 | itertools chain type mismatch |
-| `E0061: wrong arg count` | 1 | io_files StringIO arity |
-| Syntax error | 1 | json loads/dumps generates invalid `{` |
+| Status | Files | Description |
+|--------|-------|-------------|
+| Compiling | 19 | All stdlib modules except `re` |
+| No .rs generated | 1 | `re` -- regex module unsupported |
 
-**Tier 2 error distribution** (20 files, 2 compiling = 10%):
+**Tier 2 error distribution** (15 files, 2 compiling = 13.3%):
 
 | Error Class | Files | Description |
 |-------------|-------|-------------|
-| `E0308: mismatched types` | 10 | Dominant: type inference gaps in function returns |
-| `E0433: unresolved module` | 3 | augment_corpus, test_synthetic, test_weak |
+| `E0308: mismatched types` | 11 | Dominant: type inference gaps in function returns |
 | No .rs generated | 2 | synthetic_augmenter (abort), weak_supervision (abort) |
-| `E0599: method not found` | 1 | conftest.py method not found |
-| `E0425: cannot find value` | 1 | test_cli_entrypoints scope issue |
-| `E0283: type annotation needed` | 1 | test_stubs ambiguous type |
+| Compiling | 2 | check_test_lib_crates.py, golden_traces_analyzer.py |
 
-**Tier 3 error distribution** (261 files, 0 compiling = 0%):
+**Tier 3 error distribution** (128 files, 0 compiling = 0%):
 
-| Error Class | Files | Description |
+| Error Class | Count | Description |
 |-------------|-------|-------------|
-| `E0425: cannot find value` | 60 | Missing scope references (torch, numpy, etc.) |
+| `E0308: mismatched types` | 2821 | Dominant: type inference gaps |
+| `E0599: method not found` | 2000 | Missing method mappings |
+| `E0277: trait not satisfied` | 808 | Type constraint violations |
+| `E0282: type annotation needed` | 612 | Inference failures |
+| `E0425: cannot find value` | 449 | Missing scope references |
+| Other | ~1046 | Various (E0433, E0061, etc.) |
+
+Closest to compiling (Tier 3): deployment/optimization.py (9 errors), inference/batch.py (9 errors)
 | `E0433: unresolved module` | 39 | Undeclared crates/modules |
 | `E0599: method not found` | 36 | Methods on wrong types |
 | `E0573: expected type found variant` | 34 | Struct/enum confusion |
