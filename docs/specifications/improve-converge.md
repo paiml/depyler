@@ -44,24 +44,55 @@ progress is measured by attempted refutations rather than confirmations.
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
 
-### Root Cause Analysis (2026-01-31)
+### Progress Log
 
-**Tier 1 error distribution** (20 files):
-- `E0425: TYPE_CHECKING` not found (12 files) -- `typing.TYPE_CHECKING` guard not handled
-- `E0425: UnionType/Sequence/HashMap` missing (4 files) -- type alias imports not resolved
-- Transpile crash (3 files) -- unsupported Python syntax
-- Parse error (1 file) -- dict literal codegen
+| Iteration | Date | Tier 1 | Tier 2 | Tier 3 | Commit | Notes |
+|-----------|------|--------|--------|--------|--------|-------|
+| 0 (baseline) | 2026-01-31 | 0/20 (0%) | 0/15 (0%) | 0/128 (0%) | 09af6141 | Initial measurement (incorrect file counts) |
+| 1 | 2026-01-31 | 18/68 (26%) | 2/23 (8%) | 14/277 (5%) | b9c25bc9 | UnionType/enum/macro fixes; corrected file counts |
+| 2 | 2026-01-31 | 30/68 (44%) | 5/23 (21%) | 16/277 (5%) | 635db9f7 | Expand UnionType/enum/macro fixes |
+| 3 | 2026-01-31 | 30/68 (44%) | 5/23 (21%) | 16/277 (5%) | 19412a1e | TYPE_CHECKING/__name__/Sequence fallbacks; no rate change |
 
-**Tier 2 error distribution** (15 files):
-- `E0425: UnionType` not found (13 files) -- `X | Y` union type syntax not mapped
-- Transpile crash (2 files) -- large file / complex patterns
+**Measurement methodology note** (discovered iter 3): `depyler transpile` writes
+.rs files to disk alongside .py files and outputs progress markers to stdout.
+Measurements must read from the on-disk .rs file, NOT capture stdout (which
+corrupts .rs with `✓` characters causing `error: unknown start of token`).
 
-**Tier 3 error distribution** (128 files):
-- `E0423: expected value, found struct` (95 files) -- Python enum emitted as Rust struct, not enum
-- Transpile crash (12 files) -- unsupported patterns
-- `E0425: Literal/frozenset` missing (8 files) -- typing constructs not mapped
-- `E0432: unresolved import md5` (4 files) -- stdlib mapping gap
-- Other (9 files) -- various codegen issues
+### Root Cause Analysis (Revised 2026-01-31, iter 3)
+
+**Tier 1 error distribution** (68 files, 30 compiling):
+
+| Error Class | Files | Description |
+|-------------|-------|-------------|
+| **pytest references** | 16 | Test files import `pytest` -- not a stdlib module |
+| `E0425: contextmanager` | 2 | `contextlib.contextmanager` not mapped |
+| `E0599: method not found` | 3 | `.items()`, `.values()` on wrong type |
+| `E0308: mismatched types` | 4 | Type inference gaps (csv, datetime, functools) |
+| Transpile crash | 3 | Unsupported Python syntax |
+| Other codegen | 10 | Various (hashlib, io_files, itertools, json, pathlib) |
+
+**Tier 2 error distribution** (23 files, 5 compiling):
+
+| Error Class | Files | Description |
+|-------------|-------|-------------|
+| `E0308: mismatched types` | 9 | Dominant: function args incorrect types |
+| `E0433: unresolved type` | 2 | SyntheticAugmenter, MutationStrategy |
+| `E0425: cannot find value` | 2 | Scope issues in test files |
+| `E0599: method not found` | 1 | `py_div` on PathBuf |
+| Sandbox crash | 4 | `/dev/rmeta` temp dir permission errors |
+
+**Tier 3 error distribution** (277 files, 16 compiling):
+
+| Error Class | Occurrences | Files | Description |
+|-------------|-------------|-------|-------------|
+| `E0308: mismatched types` | 4,238 | ~120 | Dominant: expected i32 found String in enums |
+| `E0599: method not found` | 1,288 | ~90 | `.iter()` (484), `.is_none()` (351), `.len()` (68) |
+| `E0425: cannot find value` | 819 | ~60 | TYPE_CHECKING (114), Sequence (107), Literal (69) |
+| `E0282: type annotations` | 767 | ~50 | Closures need explicit type annotations |
+| `E0061: wrong arg count` | 643 | ~40 | Struct::new() with wrong parameter count |
+| `E0600: unary op on type` | 276 | ~30 | `!string_field` (Python truthiness on String) |
+| `E0423: enum path separator` | 585 | 99 | `EnumType.VARIANT` instead of `EnumType::VARIANT` |
+| `E0432: unresolved import` | 118 | 4 | md5, hmac stdlib mapping gap |
 
 ### Governing Epistemology
 

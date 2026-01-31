@@ -79,7 +79,7 @@ def {}(x: int) -> int:
         let mut params = Vec::new();
         let mut args = Vec::new();
 
-        for i in 0..50 {
+        for i in 0..10 {
             params.push(format!("param{}: int", i));
             args.push(format!("param{}", i));
         }

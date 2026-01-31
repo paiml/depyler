@@ -847,12 +847,12 @@ def test() -> int:
 #[test]
 fn test_52_write_property() {
     let python = r#"
-class Box:
+class Container:
     def __init__(self, size: int):
         self.size = size
 
 def test() -> int:
-    b = Box(10)
+    b = Container(10)
     b.size = 20
     return b.size
 "#;
