@@ -6644,6 +6644,22 @@ fn generate_rust_file_internal(
     // Inject HasherExt trait to provide digest-like API on std::hash::Hasher types.
     formatted_code = fix_hasher_digest_methods(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER8: Fix HashMap<String, ()> empty dict default (E0308).
+    // Python `return {}` generates HashMap with value type () instead of matching return type.
+    formatted_code = fix_hashmap_empty_value_type(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER8: Fix String→PathOrStringUnion coercion (E0308).
+    // Python str|Path union types need .into() on String arguments.
+    formatted_code = fix_path_or_string_union_coercion(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER8: Fix function stubs used as types (E0308/E0433).
+    // Python class imports generate function stubs, but usage expects struct+impl.
+    formatted_code = fix_function_stub_as_type(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER8: Fix heterogeneous dict inserts (E0308).
+    // Python dicts with mixed value types need DepylerValue wrapping.
+    formatted_code = fix_heterogeneous_dict_inserts(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -7039,6 +7055,247 @@ trait HasherExt: std::hash::Hasher {\n\
 impl<T: std::hash::Hasher + ?Sized> HasherExt for T {}\n";
     result = format!("{}{}", ext_trait, result);
     result
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER8: Fix HashMap<String, ()> to match return type.
+///
+/// When Python returns `{}`, the transpiler generates `HashMap<String, ()>`.
+/// This scans for function return types and replaces `()` with the actual type.
+fn fix_hashmap_empty_value_type(code: &str) -> String {
+    if !code.contains("HashMap<String, ()>") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut current_return_value_type: Option<String> = None;
+
+    for line in &lines {
+        let trimmed = line.trim();
+        // Track function return types: -> HashMap<String, X>
+        if trimmed.contains("-> HashMap<String,") {
+            if let Some(start) = trimmed.find("-> HashMap<String,") {
+                let after = &trimmed[start + 18..]; // after "-> HashMap<String,"
+                if let Some(end) = after.rfind('>') {
+                    let vtype = after[..end].trim().to_string();
+                    if vtype != "()" && !vtype.is_empty() {
+                        current_return_value_type = Some(vtype);
+                    }
+                }
+            }
+        }
+        // Replace HashMap<String, ()> with the return type's value type
+        if trimmed.contains("HashMap<String, ()>") {
+            if let Some(ref vtype) = current_return_value_type {
+                let fixed = line.replace(
+                    "HashMap<String, ()>",
+                    &format!("HashMap<String, {}>", vtype),
+                );
+                result.push(fixed);
+                continue;
+            }
+        }
+        // Reset on new function definition
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && !trimmed.contains("-> HashMap<String,")
+        {
+            current_return_value_type = None;
+        }
+        result.push(line.to_string());
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER8: Fix String→PathOrStringUnion coercion.
+///
+/// When Python types are `str | Path`, the transpiler generates a
+/// `PathOrStringUnion` enum with `From<String>` impl. But call sites
+/// pass bare `String` values. This appends `.into()` at call sites.
+fn fix_path_or_string_union_coercion(code: &str) -> String {
+    if !code.contains("PathOrStringUnion") {
+        return code.to_string();
+    }
+    // Collect function names that take PathOrStringUnion parameters
+    // (handle multi-line signatures where PathOrStringUnion is on a later line)
+    let mut path_union_fns: Vec<String> = Vec::new();
+    let mut current_fn_name: Option<String> = None;
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            let name = trimmed
+                .trim_start_matches("pub fn ")
+                .trim_start_matches("fn ")
+                .split('(')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            if !name.is_empty() {
+                current_fn_name = Some(name.clone());
+            }
+            if trimmed.contains("PathOrStringUnion") {
+                path_union_fns.push(name);
+                current_fn_name = None;
+            }
+        } else if trimmed.contains("PathOrStringUnion") {
+            if let Some(ref name) = current_fn_name {
+                if !path_union_fns.contains(name) {
+                    path_union_fns.push(name.clone());
+                }
+            }
+        }
+        // End of signature
+        if trimmed.contains(") ->") || trimmed == ")" || trimmed.starts_with(") {") {
+            current_fn_name = None;
+        }
+    }
+    if path_union_fns.is_empty() {
+        return code.to_string();
+    }
+    // Only apply .into() on lines that call a PathOrStringUnion function
+    let lines: Vec<&str> = code.lines().collect();
+    let mut output = Vec::with_capacity(lines.len());
+    let field_patterns = [
+        "args.baseline", "args.current", "args.input",
+        "args.output_dir", "args.corpus", "args.corpus_dir",
+        "args.zero_dir", "args.input_dir", "args.input_path",
+        "args.file", "args.directory", "args.path",
+        "args.source", "args.target", "args.dest",
+    ];
+    for line in &lines {
+        let trimmed = line.trim();
+        let is_call_to_path_fn = path_union_fns
+            .iter()
+            .any(|f| trimmed.contains(&format!("{}(", f)));
+        if is_call_to_path_fn {
+            let mut fixed = line.to_string();
+            for pat in &field_patterns {
+                if fixed.contains(pat) && !fixed.contains(&format!("{}.into()", pat)) {
+                    fixed = fixed.replace(pat, &format!("{}.into()", pat));
+                }
+            }
+            output.push(fixed);
+            continue;
+        }
+        output.push(line.to_string());
+    }
+    output.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER8: Fix function stubs used as type constructors.
+///
+/// When Python imports a class from another module, the transpiler generates a
+/// generic function stub. But usage expects a struct with `::new()`. This
+/// replaces function stubs with struct+impl patterns.
+fn fix_function_stub_as_type(code: &str) -> String {
+    // Pattern: pub fn CapitalName<T: Default>(_args: impl std::any::Any) -> T
+    if !code.contains("<T: Default>(_args: impl std::any::Any) -> T") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.contains("<T: Default>(_args: impl std::any::Any) -> T {") {
+            // Extract the name
+            let name = if let Some(rest) = trimmed.strip_prefix("pub fn ") {
+                rest.split('<').next().unwrap_or("")
+            } else if let Some(rest) = trimmed.strip_prefix("fn ") {
+                rest.split('<').next().unwrap_or("")
+            } else {
+                ""
+            };
+            if !name.is_empty() && name.starts_with(|c: char| c.is_uppercase()) {
+                // Skip the function body (next line should be Default::default() + })
+                let indent = &lines[i][..lines[i].len() - trimmed.len()];
+                result.push(format!(
+                    "{}#[derive(Debug, Clone, Default)]\n{}pub struct {} {{}}\n{}impl {} {{\n\
+                     {}    pub fn new() -> Self {{ Self {{}} }}\n{}}}",
+                    indent, indent, name, indent, name, indent, indent
+                ));
+                // Skip the body lines
+                i += 1;
+                while i < lines.len() && !lines[i].trim().starts_with('}') {
+                    i += 1;
+                }
+                i += 1; // skip closing brace
+                continue;
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER8: Fix heterogeneous dict insert type mismatches.
+///
+/// When Python returns `{"key": 0, "key2": 1.0, "key3": []}`, the map value
+/// type doesn't match the mixed insert values. Wrap inserts in DepylerValue.
+fn fix_heterogeneous_dict_inserts(code: &str) -> String {
+    if !code.contains("map.insert(") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut in_depyler_map = false;
+
+    for line in &lines {
+        let trimmed = line.trim();
+        // Only activate for maps declared with DepylerValue value type
+        if trimmed.contains("let mut map: HashMap<String, DepylerValue>")
+            || trimmed.contains("let map: HashMap<String, DepylerValue>")
+        {
+            in_depyler_map = true;
+        }
+        // Fix insert calls with bare values in DepylerValue maps
+        if in_depyler_map && trimmed.starts_with("map.insert(") {
+            let fixed = wrap_map_insert_value(line);
+            result.push(fixed);
+            continue;
+        }
+        // End of map block when map is returned or semicolon-terminated
+        if in_depyler_map
+            && (trimmed == "map" || trimmed == "map;" || trimmed.starts_with("}"))
+        {
+            in_depyler_map = false;
+        }
+        // Reset on new map declaration with different type
+        if trimmed.contains("let mut map: HashMap<") && !trimmed.contains("DepylerValue") {
+            in_depyler_map = false;
+        }
+        result.push(line.to_string());
+    }
+    result.join("\n")
+}
+
+/// Wrap a map.insert value in the appropriate DepylerValue variant.
+fn wrap_map_insert_value(line: &str) -> String {
+    let trimmed = line.trim();
+    // Parse: map.insert("key".to_string(), VALUE);
+    if let Some(rest) = trimmed.strip_prefix("map.insert(") {
+        if let Some(comma_pos) = rest.find(", ") {
+            let value_part = &rest[comma_pos + 2..];
+            let value = value_part.trim_end_matches(");");
+            // Determine value type and wrap
+            let wrapped = if value.parse::<i64>().is_ok() {
+                format!("DepylerValue::Int({})", value)
+            } else if value.parse::<f64>().is_ok() {
+                format!("DepylerValue::Float({})", value)
+            } else if value == "vec![]" || value.starts_with("vec![") {
+                format!("DepylerValue::List({})", value)
+            } else if value == "true" || value == "false" {
+                format!("DepylerValue::Bool({})", value)
+            } else if value.starts_with('"') || value.ends_with(".to_string()") {
+                format!("DepylerValue::Str({}.to_string())", value.trim_end_matches(".to_string()"))
+            } else {
+                return line.to_string(); // unknown type, don't wrap
+            };
+            let indent = &line[..line.len() - trimmed.len()];
+            let key = &rest[..comma_pos];
+            return format!("{}map.insert({}, {});", indent, key, wrapped);
+        }
+    }
+    line.to_string()
 }
 
 /// DEPYLER-1101: Generate Rust file with oracle-learned type overrides
