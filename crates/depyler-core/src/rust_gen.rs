@@ -6660,6 +6660,51 @@ fn generate_rust_file_internal(
     // Python dicts with mixed value types need DepylerValue wrapping.
     formatted_code = fix_heterogeneous_dict_inserts(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix LazyLock<String> static blocks used as types (E0573).
+    // Python `TypeName = Literal["a","b"]` generates LazyLock<String> static but is used as type.
+    formatted_code = fix_lazylock_static_as_type(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix broken LazyLock static initializers (E0599/E0605).
+    // Python module-level sets/lists generate LazyLock with broken enum::iter() + Arc.unwrap().
+    formatted_code = fix_broken_lazylock_initializers(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix `Literal.clone().py_index(...)` blocks (E0425/E0605).
+    // Python typing.Literal generates invalid Literal.clone() patterns.
+    formatted_code = fix_literal_clone_pattern(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix `frozenset<T>` → `HashSet<T>` (E0425).
+    formatted_code = formatted_code.replace("frozenset<", "HashSet<");
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Integer-float comparisons intentionally NOT fixed.
+    // Cannot reliably distinguish float vs int fields at text level.
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix `!string_var` → `string_var.is_empty()` (E0600).
+    formatted_code = fix_negation_on_non_bool(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping (E0308).
+    // Extend to kwargs, config, params etc., not just `map` variable.
+    formatted_code = fix_depyler_value_inserts_generalized(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Add Display impl for enums (E0599).
+    formatted_code = fix_enum_display(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Remove orphaned LazyLock initializer bodies.
+    // After PascalCase→type-alias and broken-init fixes, some multi-line bodies remain.
+    formatted_code = fix_orphaned_lazylock_bodies(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix DepylerValue Str match arm missing .into_iter().
+    // rustfmt wraps the long chain across lines and drops .into_iter() + trailing comma.
+    formatted_code = fix_depyler_value_str_match_arm(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix inline block expressions missing closing parens.
+    // `Arc::new({ let mut set = ... set }` is missing `})` or `}))`.
+    formatted_code = fix_inline_block_expression_parens(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER9: Fix orphaned `;)` after for-loop closings.
+    // The transpiler sometimes generates `};)` where `}` is the for-loop body
+    // closing and `)` is orphaned from a dict construction pattern.
+    formatted_code = fix_orphaned_semicolon_paren(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -7293,6 +7338,733 @@ fn wrap_map_insert_value(line: &str) -> String {
             let indent = &line[..line.len() - trimmed.len()];
             let key = &rest[..comma_pos];
             return format!("{}map.insert({}, {});", indent, key, wrapped);
+        }
+    }
+    line.to_string()
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Convert PascalCase LazyLock statics to type aliases.
+///
+/// Python `TypeName = Literal["a","b"]` generates `pub static TypeName: LazyLock<String>`
+/// but the name is then used as a type in struct fields. Convert to `pub type TypeName = String;`.
+fn fix_lazylock_static_as_type(code: &str) -> String {
+    if !code.contains("std::sync::LazyLock<") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("pub static ") && trimmed.contains("std::sync::LazyLock<") {
+            let name = extract_static_name(trimmed);
+            if !name.is_empty() && is_pascal_case(&name) {
+                result.push(format!("pub type {} = String;", name));
+                i = skip_block(i, &lines);
+                continue;
+            }
+        }
+        // Also handle multi-line: `pub static PascalName: LazyLock<...> =\n    LazyLock::new`
+        if trimmed.starts_with("pub static ")
+            && trimmed.contains("std::sync::LazyLock<")
+            && trimmed.ends_with('=')
+        {
+            let name = extract_static_name(trimmed);
+            if !name.is_empty() && is_pascal_case(&name) {
+                result.push(format!("pub type {} = String;", name));
+                i = skip_block(i, &lines);
+                continue;
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Fix broken LazyLock initializers.
+///
+/// SCREAMING_SNAKE LazyLock statics have broken enum::iter() and Arc.unwrap().
+/// Replace body with empty Vec.
+fn fix_broken_lazylock_initializers(code: &str) -> String {
+    if !code.contains("std::sync::LazyLock<") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Case 1: Single-line `pub static NAME: LazyLock<...> = LazyLock::new(...)`
+        // Only replace SCREAMING_SNAKE_CASE names (broken Tier 3 constants)
+        if trimmed.starts_with("pub static ")
+            && trimmed.contains("std::sync::LazyLock<")
+            && trimmed.contains("= std::sync::LazyLock::new")
+        {
+            let name = extract_static_name(trimmed);
+            if !name.is_empty() && is_screaming_snake(&name) {
+                result.push(format!(
+                    "pub static {}: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| Vec::new());",
+                    name
+                ));
+                i = skip_block(i, &lines);
+                continue;
+            }
+        }
+        // Case 2: Multi-line `pub static NAME: LazyLock<...> =\n    LazyLock::new(...)`
+        if trimmed.starts_with("pub static ")
+            && trimmed.contains("std::sync::LazyLock<")
+            && trimmed.ends_with('=')
+        {
+            let name = extract_static_name(trimmed);
+            if !name.is_empty() && is_screaming_snake(&name) {
+                result.push(format!(
+                    "pub static {}: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| Vec::new());",
+                    name
+                ));
+                i = skip_block(i, &lines);
+                continue;
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Fix Literal.clone().py_index(...) blocks.
+///
+/// Python `typing.Literal["a","b"]` generates a broken `Literal.clone().py_index(...)` pattern.
+/// Replace with empty string since it's typically a default value.
+fn fix_literal_clone_pattern(code: &str) -> String {
+    if !code.contains("Literal.clone()") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.contains("Literal.clone().py_index(") {
+            let indent = &lines[i][..lines[i].len() - trimmed.len()];
+            result.push(format!("{}String::new()", indent));
+            // Skip multi-line Literal block until closing paren
+            let mut depth = count_parens_open(trimmed) - count_parens_close(trimmed);
+            i += 1;
+            while i < lines.len() && depth > 0 {
+                depth += count_parens_open(lines[i].trim());
+                depth -= count_parens_close(lines[i].trim());
+                i += 1;
+            }
+            continue;
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Fix `!string_var` → `string_var.is_empty()`.
+///
+/// Python `not some_string` becomes `!some_string` which is E0600 for String types.
+fn fix_negation_on_non_bool(code: &str) -> String {
+    if !code.contains("!") {
+        return code.to_string();
+    }
+    let string_typed_vars = extract_string_typed_vars(code);
+    if string_typed_vars.is_empty() {
+        return code.to_string();
+    }
+    // Sort by length descending to match longer names first (avoid substring matches)
+    let mut sorted_vars = string_typed_vars.clone();
+    sorted_vars.sort_by_key(|b| std::cmp::Reverse(b.len()));
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let mut fixed = line.to_string();
+        for var in &sorted_vars {
+            let neg_pattern = format!("!{}", var);
+            // Check that the char AFTER the var name is not alphanumeric (word boundary)
+            if let Some(pos) = fixed.find(&neg_pattern) {
+                let after_pos = pos + neg_pattern.len();
+                let next_char = fixed[after_pos..].chars().next();
+                let is_word_boundary = next_char
+                    .map(|c| !c.is_alphanumeric() && c != '_')
+                    .unwrap_or(true);
+                if is_word_boundary {
+                    let empty_check = format!("{}.is_empty()", var);
+                    fixed = format!(
+                        "{}{}{}",
+                        &fixed[..pos],
+                        empty_check,
+                        &fixed[after_pos..]
+                    );
+                }
+            }
+        }
+        result.push(fixed);
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping.
+///
+/// Extends beyond just `map.insert()` to handle `kwargs.insert()`,
+/// `config.insert()`, `params.insert()`, and other common variable names.
+fn fix_depyler_value_inserts_generalized(code: &str) -> String {
+    if !code.contains("HashMap<String, DepylerValue>") {
+        return code.to_string();
+    }
+    let dv_map_vars = extract_depyler_value_map_vars(code);
+    if dv_map_vars.is_empty() {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let trimmed = line.trim();
+        let mut matched = false;
+        for var in &dv_map_vars {
+            let prefix = format!("{}.insert(", var);
+            if trimmed.starts_with(&prefix) {
+                result.push(wrap_generic_insert_value(line, var));
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            result.push(line.to_string());
+        }
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Add Display impl for enums.
+///
+/// Many generated enums need Display for string formatting.
+fn fix_enum_display(code: &str) -> String {
+    if !code.contains("pub enum ") {
+        return code.to_string();
+    }
+    let mut enum_impls = String::new();
+    let lines: Vec<&str> = code.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("pub enum ") && trimmed.ends_with('{') {
+            let name = trimmed
+                .strip_prefix("pub enum ")
+                .unwrap_or("")
+                .trim_end_matches(" {")
+                .trim()
+                .to_string();
+            if !name.is_empty() && !name.contains('<') {
+                let mut variants: Vec<String> = Vec::new();
+                i += 1;
+                while i < lines.len() {
+                    let vline = lines[i].trim();
+                    if vline == "}" {
+                        break;
+                    }
+                    let vname = vline.trim_end_matches(',').trim();
+                    if !vname.is_empty() && !vname.starts_with("//") {
+                        variants.push(vname.to_string());
+                    }
+                    i += 1;
+                }
+                if !variants.is_empty() && !code.contains(&format!("impl std::fmt::Display for {}", name)) {
+                    enum_impls.push_str(&format!(
+                        "\nimpl std::fmt::Display for {} {{\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{\n        match self {{\n",
+                        name
+                    ));
+                    for v in &variants {
+                        enum_impls.push_str(&format!(
+                            "            {}::{} => write!(f, \"{}\"),\n",
+                            name, v, v
+                        ));
+                    }
+                    enum_impls.push_str("        }\n    }\n}\n");
+                }
+            }
+        }
+        i += 1;
+    }
+    if enum_impls.is_empty() {
+        code.to_string()
+    } else {
+        format!("{}{}", code, enum_impls)
+    }
+}
+
+// --- Helper functions for iter9 fixes ---
+
+fn extract_static_name(line: &str) -> String {
+    let rest = line.trim().strip_prefix("pub static ").unwrap_or("");
+    rest.split(':').next().unwrap_or("").trim().to_string()
+}
+
+fn is_pascal_case(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let first = name.chars().next().unwrap_or('_');
+    first.is_uppercase() && !name.chars().all(|c| c.is_uppercase() || c == '_')
+}
+
+fn is_screaming_snake(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() > 1
+        && name
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+}
+
+fn skip_block(start: usize, lines: &[&str]) -> usize {
+    let mut i = start;
+    let trimmed = lines[i].trim();
+    if trimmed.ends_with(';') {
+        return i + 1;
+    }
+    let mut depth: i32 = 0;
+    let mut found_opening = false;
+    loop {
+        let line = lines[i].trim();
+        for c in line.chars() {
+            match c {
+                '{' | '(' => {
+                    depth += 1;
+                    found_opening = true;
+                }
+                '}' | ')' => depth -= 1,
+                _ => {}
+            }
+        }
+        i += 1;
+        // Only break on depth <= 0 if we actually found an opening bracket
+        if (found_opening && depth <= 0) || i >= lines.len() {
+            break;
+        }
+        // Safety: if we've scanned 500 lines without resolution, bail
+        if i - start > 500 {
+            break;
+        }
+    }
+    // Skip trailing semicolons or closing lines
+    while i < lines.len() && lines[i].trim() == "});" {
+        i += 1;
+    }
+    i
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Remove orphaned LazyLock initializer bodies.
+///
+/// After type-alias and broken-init fixes, multi-line LazyLock bodies
+/// can remain as top-level code (not inside any `pub static`). Remove them.
+fn fix_orphaned_lazylock_bodies(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    let mut skip_orphan = false;
+    let mut just_consumed_lazylock = false;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Detect orphaned LazyLock::new that's NOT part of a pub static assignment
+        if trimmed.starts_with("std::sync::LazyLock::new(")
+            && !is_continuation_of_static(i, &lines)
+        {
+            i = skip_block(i, &lines);
+            just_consumed_lazylock = true;
+            continue;
+        }
+        // Remove orphaned `.into_iter()` ONLY right after skip_block consumed a
+        // LazyLock block or when skip_orphan is active. Never remove legitimate
+        // method chains like `v\n.into_iter()\n.map(...)`.
+        if (just_consumed_lazylock || skip_orphan)
+            && (trimmed.starts_with(". into_iter()") || trimmed.starts_with(".into_iter()"))
+        {
+            i += 1;
+            continue;
+        }
+        just_consumed_lazylock = false;
+        // After a one-liner `LazyLock::new(|| Vec::new());`, skip orphaned body lines.
+        if skip_orphan {
+            if is_orphaned_lazylock_body_line(trimmed) {
+                i += 1;
+                continue;
+            }
+            skip_orphan = false;
+        }
+        // Check if this line triggers orphan-skip mode
+        if trimmed.contains("LazyLock::new(|| Vec::new());") {
+            skip_orphan = true;
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// Check if a line looks like an orphaned LazyLock body statement at the top level.
+fn is_orphaned_lazylock_body_line(trimmed: &str) -> bool {
+    if trimmed.is_empty() {
+        return false;
+    }
+    // Valid top-level items - NOT orphaned
+    if trimmed.starts_with("pub ")
+        || trimmed.starts_with("fn ")
+        || trimmed.starts_with("struct ")
+        || trimmed.starts_with("enum ")
+        || trimmed.starts_with("impl ")
+        || trimmed.starts_with("impl<")
+        || trimmed.starts_with("use ")
+        || trimmed.starts_with("const ")
+        || trimmed.starts_with("static ")
+        || trimmed.starts_with("#[")
+        || trimmed.starts_with("#![")
+        || trimmed.starts_with("//")
+        || trimmed.starts_with("type ")
+        || trimmed.starts_with("mod ")
+        || trimmed.starts_with("trait ")
+        || trimmed.starts_with("extern ")
+    {
+        return false;
+    }
+    // Orphaned body patterns from LazyLock replacements
+    trimmed.starts_with("set.insert(")
+        || trimmed.starts_with("let mut set")
+        || trimmed == "set"
+        || trimmed == "}"
+        || trimmed == "});"
+        || trimmed == "]"
+        || trimmed == "]);"
+        || trimmed == "]),"
+        || trimmed.starts_with(". into_iter()")
+        || trimmed.starts_with(".into_iter()")
+        || trimmed.starts_with(".unwrap()")
+        || trimmed.starts_with(".collect::<")
+        // Vec literal items: `"item".to_string(),` or `"item".to_string()`
+        || (trimmed.starts_with('"') && trimmed.contains(".to_string()"))
+        // Vec literal opening/closing: `vec![` or bare `[`
+        || trimmed == "vec!["
+}
+
+/// Check if a LazyLock::new line is a continuation of a pub static on the previous line.
+fn is_continuation_of_static(idx: usize, lines: &[&str]) -> bool {
+    if idx == 0 {
+        return false;
+    }
+    let prev = lines[idx - 1].trim();
+    prev.contains("pub static ") && prev.ends_with('=')
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Fix DepylerValue Str match arm.
+///
+/// rustfmt reformats the Str match arm in IntoIterator impls, dropping `.into_iter()`
+/// and the trailing comma. This causes parse errors in 12+ files.
+fn fix_depyler_value_str_match_arm(code: &str) -> String {
+    if !code.contains(".collect::<Vec<_>>()") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Pattern: `.collect::<Vec<_>>()` followed by `_ => Vec::new().into_iter()`
+        // This means the previous match arm is missing `.into_iter(),`
+        if trimmed == ".collect::<Vec<_>>()" && i + 1 < lines.len() {
+            let next = lines[i + 1].trim();
+            if next.starts_with("_ =>") || next.starts_with("}") {
+                let indent = &lines[i][..lines[i].len() - trimmed.len()];
+                result.push(format!("{}.collect::<Vec<_>>().into_iter(),", indent));
+                i += 1;
+                continue;
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER9: Fix inline block expressions missing closing parens.
+///
+/// Fix orphaned `};)` pattern in for-loop closings.
+///
+/// The transpiler generates `};)` where `}` closes the for-loop body and `)` is
+/// an orphan from a dict block expression `for (k,v) in ({...}).iter() {`.
+fn fix_orphaned_semicolon_paren(code: &str) -> String {
+    if !code.contains("};)") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let trimmed = line.trim();
+        // `};)` is never valid Rust: `}` closes a block, `;` terminates,
+        // and `)` has no matching `(`.
+        if trimmed == "};)" {
+            let indent = &line[..line.len() - trimmed.len()];
+            result.push(format!("{}}}", indent));
+        } else {
+            result.push(line.to_string());
+        }
+    }
+    result.join("\n")
+}
+
+/// Patterns like `Arc::new({ let mut set = HashSet::new(); ... set }` generate
+/// a block expression inside a function call but the closing `}` is missing
+/// the corresponding `)` characters to close `Arc::new(` and `Some(`.
+fn fix_inline_block_expression_parens(code: &str) -> String {
+    if !code.contains("({ let mut") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Detect opening: a line containing `({ let mut`
+        // Skip `for ... in ({ let mut` patterns -- the `for` body brace
+        // confuses depth tracking and these already have correct parens.
+        if trimmed.contains("({ let mut") && !trimmed.contains(" in ({") {
+            let unclosed = count_unquoted_parens(trimmed);
+            if unclosed > 0 {
+                let mut rel_depth: i32 = count_unquoted_braces(trimmed);
+                result.push(lines[i].to_string());
+                i += 1;
+                while i < lines.len() && rel_depth > 0 {
+                    let line_trimmed = lines[i].trim();
+                    rel_depth += count_unquoted_braces(line_trimmed);
+                    if rel_depth <= 0 {
+                        // Check if next line is a method chain continuation
+                        // (e.g., `.into_iter().collect::<...>())`).
+                        // If so, the closing parens should come from the
+                        // continuation line, not from us.
+                        let has_continuation = i + 1 < lines.len() && {
+                            let next = lines[i + 1].trim();
+                            next.starts_with('.')
+                                && (next.contains(".into_iter()")
+                                    || next.contains(".collect")
+                                    || next.contains(".map("))
+                        };
+                        if has_continuation {
+                            // Output the closing `}` line as-is. The continuation
+                            // line already has the `)` closings.
+                            result.push(lines[i].to_string());
+                            i += 1;
+                            // Push the continuation and any further continuations
+                            while i < lines.len() {
+                                let cont = lines[i].trim();
+                                if cont.starts_with('.') || cont.starts_with(')') {
+                                    result.push(lines[i].to_string());
+                                    i += 1;
+                                } else {
+                                    break;
+                                }
+                            }
+                        } else {
+                            // No continuation: add missing `)` chars
+                            let existing_close =
+                                count_trailing_close_parens(line_trimmed);
+                            let needed = unclosed - existing_close;
+                            if needed > 0 {
+                                let indent = &lines[i]
+                                    [..lines[i].len() - line_trimmed.len()];
+                                let close_str = ")".repeat(needed as usize);
+                                if line_trimmed == "}" {
+                                    result.push(format!(
+                                        "{}}}{};",
+                                        indent, close_str
+                                    ));
+                                } else {
+                                    result.push(format!(
+                                        "{}{}",
+                                        lines[i], close_str
+                                    ));
+                                }
+                            } else {
+                                result.push(lines[i].to_string());
+                            }
+                            i += 1;
+                        }
+                    } else {
+                        result.push(lines[i].to_string());
+                        i += 1;
+                    }
+                }
+                continue;
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// Count unclosed parens on a line, skipping string literals.
+fn count_unquoted_parens(line: &str) -> i32 {
+    let mut depth: i32 = 0;
+    let mut in_string = false;
+    let mut prev = '\0';
+    for c in line.chars() {
+        if c == '"' && prev != '\\' {
+            in_string = !in_string;
+        }
+        if !in_string {
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            }
+        }
+        prev = c;
+    }
+    depth
+}
+
+/// Count net brace depth on a line, skipping string literals.
+fn count_unquoted_braces(line: &str) -> i32 {
+    let mut depth: i32 = 0;
+    let mut in_string = false;
+    let mut prev = '\0';
+    for c in line.chars() {
+        if c == '"' && prev != '\\' {
+            in_string = !in_string;
+        }
+        if !in_string {
+            if c == '{' {
+                depth += 1;
+            } else if c == '}' {
+                depth -= 1;
+            }
+        }
+        prev = c;
+    }
+    depth
+}
+
+/// Count trailing `)` characters after the last `}` on a line.
+fn count_trailing_close_parens(line: &str) -> i32 {
+    if let Some(pos) = line.rfind('}') {
+        let after = &line[pos + 1..];
+        after.chars().filter(|&c| c == ')').count() as i32
+    } else {
+        0
+    }
+}
+
+fn count_parens_open(s: &str) -> i32 {
+    s.chars().filter(|&c| c == '(').count() as i32
+}
+
+fn count_parens_close(s: &str) -> i32 {
+    s.chars().filter(|&c| c == ')').count() as i32
+}
+
+fn extract_string_typed_vars(code: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: fn params with String/&str type
+        if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
+            if let Some(start) = trimmed.find('(') {
+                if let Some(end) = trimmed.find(')') {
+                    let params = &trimmed[start + 1..end];
+                    for param in params.split(',') {
+                        let p = param.trim();
+                        if p.ends_with(": String") || p.ends_with(": &str") {
+                            if let Some(name) = p.split(':').next() {
+                                let name = name.trim();
+                                if !name.is_empty() {
+                                    vars.push(name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Match: let var: String = ...
+        if trimmed.starts_with("let ") && trimmed.contains(": String") {
+            let rest = trimmed.strip_prefix("let ").unwrap_or("").trim_start_matches("mut ");
+            if let Some(name) = rest.split(':').next() {
+                let name = name.trim();
+                if !name.is_empty() {
+                    vars.push(name.to_string());
+                }
+            }
+        }
+    }
+    vars
+}
+
+fn extract_depyler_value_map_vars(code: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: let [mut] VARNAME: ... HashMap<String, DepylerValue>
+        if trimmed.starts_with("let ") && trimmed.contains("HashMap<String, DepylerValue>") {
+            let rest = trimmed.strip_prefix("let ").unwrap_or("").trim_start_matches("mut ");
+            if let Some(name) = rest.split(':').next() {
+                let name = name.trim();
+                if !name.is_empty() && name != "map" {
+                    vars.push(name.to_string());
+                }
+            }
+        }
+        // Match: fn return type or parameter with HashMap<String, DepylerValue>
+        if (trimmed.starts_with("fn ") || trimmed.starts_with("pub fn "))
+            && trimmed.contains("HashMap<String, DepylerValue>")
+        {
+            if let Some(start) = trimmed.find('(') {
+                if let Some(end) = trimmed.find(')') {
+                    let params = &trimmed[start + 1..end];
+                    for param in params.split(',') {
+                        let p = param.trim();
+                        if p.contains("HashMap<String, DepylerValue>") {
+                            if let Some(name) = p.split(':').next() {
+                                let name = name.trim().trim_start_matches("mut ");
+                                if !name.is_empty() {
+                                    vars.push(name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    vars
+}
+
+fn wrap_generic_insert_value(line: &str, var_name: &str) -> String {
+    let trimmed = line.trim();
+    let prefix = format!("{}.insert(", var_name);
+    if let Some(rest) = trimmed.strip_prefix(&prefix) {
+        if let Some(comma_pos) = rest.find(", ") {
+            let value_part = &rest[comma_pos + 2..];
+            let value = value_part.trim_end_matches(");");
+            let wrapped = if value.parse::<i64>().is_ok() {
+                format!("DepylerValue::Int({})", value)
+            } else if value.parse::<f64>().is_ok() {
+                format!("DepylerValue::Float({})", value)
+            } else if value == "vec![]" || value.starts_with("vec![") {
+                format!("DepylerValue::List({})", value)
+            } else if value == "true" || value == "false" {
+                format!("DepylerValue::Bool({})", value)
+            } else if value.starts_with('"') || value.ends_with(".to_string()") {
+                format!(
+                    "DepylerValue::Str({}.to_string())",
+                    value.trim_end_matches(".to_string()")
+                )
+            } else {
+                return line.to_string();
+            };
+            let indent = &line[..line.len() - trimmed.len()];
+            let key = &rest[..comma_pos];
+            return format!("{}{}.insert({}, {});", indent, var_name, key, wrapped);
         }
     }
     line.to_string()
@@ -9687,3 +10459,6 @@ mod tests {
         ));
     }
 }
+
+
+

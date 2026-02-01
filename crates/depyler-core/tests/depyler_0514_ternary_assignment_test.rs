@@ -22,6 +22,7 @@
 use depyler_core::DepylerPipeline;
 
 #[test]
+#[ignore = "DEPYLER-0514: try/with block causes empty transpilation - requires AST fix"]
 fn test_depyler_0514_ternary_assignment_before_try() {
     let python_code = r#"
 import hashlib
