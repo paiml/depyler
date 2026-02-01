@@ -6764,6 +6764,44 @@ fn generate_rust_file_internal(
     // 85 E0599 errors in Tier 3.
     formatted_code = fix_depyler_value_vec_join(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER12: Fix `!string_expr.trim().to_string()` truthiness.
+    // Python `not string` checks if string is empty. The transpiler emits `!string` which is
+    // invalid since String doesn't implement Not. Fix to `.is_empty()`.
+    formatted_code = fix_not_string_truthiness(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12: Fix `r#false` and `r#true` raw identifiers.
+    // Python `not match` with keyword variable names produces `r#false`/`r#true`.
+    formatted_code = fix_raw_identifier_booleans(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12: Fix spurious dereference on unwrap results.
+    // `(*x.unwrap_or_default())` → `x.unwrap_or_default()` when x is Option<i32> etc.
+    formatted_code = fix_deref_unwrap_result(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12: Fix &str params passed to ::new() constructors.
+    // Python has no ownership; transpiler emits &str params but constructors expect String.
+    formatted_code = fix_str_params_in_new_calls(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12: Fix String inserted into HashMap<String, DepylerValue>.
+    // When config.field (String) is inserted into a DepylerValue map, wrap it.
+    formatted_code = fix_string_to_depyler_value_insert(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12b: Fix [String].contains(&str_param) membership tests.
+    // When an array of .to_string() values is tested with .contains(param) where param
+    // is &str, convert to str slice array: ["x", "y"].contains(&param).
+    formatted_code = fix_string_array_contains(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12b: Fix config.field move from &Config in DepylerValue::Str().
+    // When a String field is accessed through a shared reference, add .clone().
+    formatted_code = fix_depyler_value_str_clone(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12b: Fix &Option<T> params passed where Option<T> expected.
+    // Add dereference (*param) when &Option param is passed to ::new() constructor.
+    formatted_code = fix_ref_option_in_new(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER12c: Fix (*ref_option.unwrap_or_default()) deref pattern.
+    // When &Option<i32> is unwrapped with *, use .copied().unwrap_or_default() instead.
+    formatted_code = fix_deref_ref_option_unwrap(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -7810,7 +7848,12 @@ fn fix_float_int_in_line(line: &str) -> String {
         "label_smoothing", "cliprange", "cliprange_value", "vf_coef",
         "max_grad_norm", "lam", "dropout", "warmup_ratio", "threshold",
         "score", "loss", "reward", "penalty", "decay", "rate", "ratio",
-        "step_size", "min_lr", "max_lr",
+        "step_size", "min_lr", "max_lr", "diversity_penalty", "max_norm",
+        "min_norm", "scale", "softmax_scale", "norm", "noise_std",
+        "sample_rate", "confidence", "similarity", "distance", "tolerance",
+        "probability", "weight", "bias", "margin", "entropy", "perplexity",
+        "grad_norm", "clip_value", "frequency", "damping", "attenuation",
+        "overlap", "gain", "spacing", "offset_val", "cutoff",
     ];
     for op in &["<= 0", ">= 0", "< 0", "> 0", "== 0", "!= 0"] {
         let float_op = op.replace(" 0", " 0.0");
@@ -7826,7 +7869,9 @@ fn fix_float_int_in_line(line: &str) -> String {
     for op in &["<= 1", ">= 1", "< 1", "> 1", "== 1", "!= 1"] {
         let float_op = op.replace(" 1", " 1.0");
         for field in &["dropout", "top_p", "label_smoothing", "warmup_ratio",
-                       "cliprange", "cliprange_value", "gamma", "lam", "ratio"] {
+                       "cliprange", "cliprange_value", "gamma", "lam", "ratio",
+                       "momentum", "probability", "confidence", "similarity",
+                       "alpha", "beta", "weight", "overlap", "tolerance"] {
             let pattern = format!(".{} {}", field, op);
             if result.contains(&pattern) {
                 let replacement = format!(".{} {}", field, float_op);
@@ -8470,6 +8515,455 @@ fn fix_depyler_value_vec_join(code: &str) -> String {
             );
             result = result.replace(&pattern, &replacement);
         }
+    }
+    result
+}
+
+// --- Iter12 convergence fixes ---
+
+/// Fix `!string_expr.trim().to_string()` and `!string_expr` truthiness patterns.
+/// Python `not string` checks emptiness; Rust `!String` is invalid.
+fn fix_not_string_truthiness(code: &str) -> String {
+    let mut result = code.to_string();
+    // Pattern: `(!expr.trim().to_string())` → `expr.trim().is_empty()`
+    result = fix_not_trim_to_string(&result);
+    // Pattern: `(!expr.to_string())` → `expr.is_empty()`
+    result = fix_not_to_string(&result);
+    result
+}
+
+fn fix_not_trim_to_string(code: &str) -> String {
+    let mut result = code.to_string();
+    let pattern = ".trim().to_string())";
+    while let Some(end_pos) = result.find(pattern) {
+        // Walk backwards to find the `(!` that starts this expression
+        let before = &result[..end_pos];
+        if let Some(start) = before.rfind("(!") {
+            let expr = &result[start + 2..end_pos];
+            // Only fix if expr looks like a variable/field access
+            if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                let old = format!("(!{}{})", expr, ".trim().to_string()");
+                let new = format!("{}.trim().is_empty()", expr);
+                result = result.replacen(&old, &new, 1);
+                continue;
+            }
+        }
+        break;
+    }
+    result
+}
+
+fn fix_not_to_string(code: &str) -> String {
+    let mut result = code.to_string();
+    let marker = ".to_string())";
+    let mut search_from = 0;
+    while search_from < result.len() {
+        let haystack = &result[search_from..];
+        let Some(rel_pos) = haystack.find(marker) else { break };
+        let end_pos = search_from + rel_pos;
+        let before = &result[..end_pos];
+        if let Some(start) = before.rfind("(!") {
+            let expr = &result[start + 2..end_pos];
+            if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                let old = format!("(!{}.to_string())", expr);
+                if result[start..].starts_with(&old) {
+                    let new = format!("{}.is_empty()", expr);
+                    result = format!("{}{}{}", &result[..start], new, &result[start + old.len()..]);
+                    search_from = start + new.len();
+                    continue;
+                }
+            }
+        }
+        search_from = end_pos + marker.len();
+    }
+    result
+}
+
+/// Fix `r#false` and `r#true` raw identifier booleans.
+/// The transpiler sometimes emits these when Python boolean logic on keyword
+/// variables collapses to literal values.
+fn fix_raw_identifier_booleans(code: &str) -> String {
+    let mut result = code.to_string();
+    // Only replace when used as standalone values, not as part of identifiers
+    result = result.replace(" r#false ", " false ");
+    result = result.replace(" r#false;", " false;");
+    result = result.replace(" r#false}", " false}");
+    result = result.replace("(r#false)", "(false)");
+    result = result.replace("{r#false}", "{false}");
+    result = result.replace(" r#true ", " true ");
+    result = result.replace(" r#true;", " true;");
+    result = result.replace(" r#true}", " true}");
+    result = result.replace("(r#true)", "(true)");
+    result = result.replace("{r#true}", "{true}");
+    result
+}
+
+/// Fix spurious dereference on unwrap/unwrap_or_default results.
+/// `(*x.unwrap_or_default())` → `x.unwrap_or_default()` when x is Option<primitive>.
+fn fix_deref_unwrap_result(code: &str) -> String {
+    let mut result = code.to_string();
+    for method in &["unwrap_or_default()", "unwrap()", "unwrap_or(0)", "unwrap_or(0.0)"] {
+        let search = format!(".{}", method);
+        let mut i = 0;
+        while i < result.len() {
+            let Some(pos) = result[i..].find(&search) else { break };
+            let abs = i + pos;
+            let end = abs + search.len();
+            // Check if followed by `)` and preceded by `(*`
+            if end < result.len() && result.as_bytes()[end] == b')' && abs >= 2
+                && &result[abs - 2..abs] == "(*"
+            {
+                // Remove `(*` prefix and `)` suffix, keeping `VAR.method()`
+                let inner = &result[abs..end];
+                let new = inner.to_string();
+                result = format!("{}{}{}", &result[..abs - 2], new, &result[end + 1..]);
+                i = abs - 2 + new.len();
+                continue;
+            }
+            i = abs + search.len();
+        }
+    }
+    result
+}
+
+/// Fix `&str` function params passed to `::new()` constructors.
+/// Detects params typed as `&str` or `&'a str` and adds `.to_string()` in `::new()` calls.
+fn fix_str_params_in_new_calls(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let str_params = collect_str_param_names(&lines);
+    if str_params.is_empty() {
+        return code.to_string();
+    }
+    apply_to_string_in_new_calls(code, &str_params)
+}
+
+fn collect_str_param_names(lines: &[&str]) -> Vec<String> {
+    let mut params = Vec::new();
+    for line in lines {
+        let trimmed = line.trim();
+        // Match function parameter lines like `name: &str,` or `name: &'a str,`
+        if (trimmed.contains(": &str") || trimmed.contains(": &'")) && trimmed.ends_with(',') {
+            let colon = match trimmed.find(':') {
+                Some(c) => c,
+                None => continue,
+            };
+            let name = trimmed[..colon].trim().trim_start_matches("mut ");
+            if name.chars().all(|c| c.is_alphanumeric() || c == '_') && !name.is_empty() {
+                params.push(name.to_string());
+            }
+        }
+    }
+    params.sort();
+    params.dedup();
+    params
+}
+
+fn apply_to_string_in_new_calls(code: &str, params: &[String]) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut in_new_call = false;
+    let mut paren_depth: i32 = 0;
+    for line in code.lines() {
+        let mut fixed_line = line.to_string();
+        if line.contains("::new(") {
+            in_new_call = true;
+            paren_depth = 0;
+        }
+        if in_new_call {
+            for ch in line.chars() {
+                match ch {
+                    '(' => paren_depth += 1,
+                    ')' => paren_depth -= 1,
+                    _ => {}
+                }
+            }
+            for param in params {
+                let trailing_comma = format!("{},", param);
+                let trailing_paren = format!("{})", param);
+                if fixed_line.contains(&trailing_comma) {
+                    let repl = format!("{}.to_string(),", param);
+                    fixed_line = fixed_line.replace(&trailing_comma, &repl);
+                }
+                if fixed_line.contains(&trailing_paren) {
+                    let repl = format!("{}.to_string())", param);
+                    fixed_line = fixed_line.replace(&trailing_paren, &repl);
+                }
+            }
+            if paren_depth <= 0 {
+                in_new_call = false;
+            }
+        }
+        result.push_str(&fixed_line);
+        result.push('\n');
+    }
+    if !code.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+/// Fix String values inserted into HashMap<String, DepylerValue>.
+/// Wraps bare String field accesses with DepylerValue::Str() when inserted into DV maps.
+fn fix_string_to_depyler_value_insert(code: &str) -> String {
+    if !code.contains("HashMap<String, DepylerValue>") {
+        return code.to_string();
+    }
+    let dv_map_vars = collect_depyler_value_map_names(code);
+    if dv_map_vars.is_empty() {
+        return code.to_string();
+    }
+    wrap_string_inserts_in_dv_maps(code, &dv_map_vars)
+}
+
+fn collect_depyler_value_map_names(code: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if !trimmed.contains("HashMap<String, DepylerValue>") {
+            continue;
+        }
+        // Pattern: `let mut var: HashMap<String, DepylerValue>`
+        let rest = match trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
+            Some(r) => r,
+            None => continue,
+        };
+        if let Some(colon) = rest.find(':') {
+            let name = rest[..colon].trim();
+            if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names
+}
+
+fn wrap_string_inserts_in_dv_maps(code: &str, vars: &[String]) -> String {
+    let mut result = code.to_string();
+    for var in vars {
+        // Pattern: `var.insert("key".to_string(), config.field);`
+        // where config.field is a String, needs DepylerValue::Str() wrapping
+        let insert_pat = format!("{}.insert(", var);
+        let mut search_from = 0;
+        while search_from < result.len() {
+            let Some(pos) = result[search_from..].find(&insert_pat) else { break };
+            let abs = search_from + pos;
+            let after_insert = abs + insert_pat.len();
+            // Find the closing `);` for this insert call
+            if let Some(close) = find_matching_close(&result[after_insert..]) {
+                let args = &result[after_insert..after_insert + close];
+                // Split on first comma to get key and value
+                if let Some(comma) = find_top_level_comma(args) {
+                    let value_part = args[comma + 1..].trim();
+                    // If value is already wrapped in DepylerValue::, skip
+                    if !value_part.starts_with("DepylerValue::") {
+                        // If value looks like a field access (config.X) ending with )
+                        if is_field_access(value_part) {
+                            let old_val = value_part.to_string();
+                            let new_val = format!("DepylerValue::Str({})", old_val);
+                            let old_full = format!("{}{}", &result[abs..after_insert], args);
+                            let new_args = format!("{}, {}", &args[..comma], new_val);
+                            let new_full = format!("{}{}", &result[abs..after_insert], new_args);
+                            result = result.replacen(&old_full, &new_full, 1);
+                            search_from = abs + new_full.len();
+                            continue;
+                        }
+                    }
+                }
+            }
+            search_from = abs + insert_pat.len();
+        }
+    }
+    result
+}
+
+fn find_matching_close(s: &str) -> Option<usize> {
+    let mut depth = 1i32;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn is_field_access(s: &str) -> bool {
+    let trimmed = s.trim().trim_end_matches(';');
+    trimmed.contains('.') && trimmed.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+}
+
+// --- Iter12b near-miss targeted fixes ---
+
+/// Fix `["x".to_string(), "y".to_string()].contains(param)` where param is &str.
+/// Convert to `["x", "y"].contains(&param)` which works with &str.
+fn fix_string_array_contains(code: &str) -> String {
+    let mut result = code.to_string();
+    // Find patterns like: ["x".to_string(), "y".to_string()].contains(
+    let marker = ".to_string()].contains(";
+    while let Some(contains_pos) = result.find(marker) {
+        // Find the opening bracket for this array
+        let bracket_search = &result[..contains_pos];
+        let Some(open_bracket) = bracket_search.rfind('[') else { break };
+        let array_content = &result[open_bracket + 1..contains_pos + ".to_string()".len()];
+        // Check if all elements are "string".to_string() patterns
+        if !array_content.contains(".to_string()") {
+            break;
+        }
+        // Strip .to_string() from each element
+        let stripped = array_content.replace(".to_string()", "");
+        // Find the closing paren of .contains(arg)
+        let after_contains = contains_pos + marker.len();
+        let Some(close_paren) = result[after_contains..].find(')') else { break };
+        let arg = result[after_contains..after_contains + close_paren].trim();
+        // Build replacement: ["x", "y"].contains(&arg)
+        let old_end = after_contains + close_paren + 1;
+        let new_expr = format!("[{}].contains(&{})", stripped, arg);
+        result = format!("{}{}{}", &result[..open_bracket], new_expr, &result[old_end..]);
+    }
+    result
+}
+
+/// Fix `DepylerValue::Str(config.field)` where config is a shared reference.
+/// Add `.clone()` to prevent move-out-of-reference errors.
+fn fix_depyler_value_str_clone(code: &str) -> String {
+    let mut result = code.to_string();
+    let pattern = "DepylerValue::Str(";
+    let mut search_from = 0;
+    while search_from < result.len() {
+        let Some(pos) = result[search_from..].find(pattern) else { break };
+        let abs = search_from + pos;
+        let arg_start = abs + pattern.len();
+        // Find the closing paren
+        if let Some(close) = find_matching_close(&result[arg_start..]) {
+            let arg = &result[arg_start..arg_start + close].trim().to_string();
+            // If arg is a field access (config.field) and doesn't already have .clone()
+            if arg.contains('.') && !arg.ends_with(".clone()")
+                && arg.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+            {
+                let old = format!("DepylerValue::Str({})", arg);
+                let new = format!("DepylerValue::Str({}.clone())", arg);
+                result = result.replacen(&old, &new, 1);
+                search_from = abs + new.len();
+                continue;
+            }
+        }
+        search_from = abs + pattern.len();
+    }
+    result
+}
+
+/// Fix &Option<T> params passed to ::new() where Option<T> is expected.
+/// Detect function params typed as `&Option<T>` or `&'a Option<T>` and add `*` deref in ::new().
+fn fix_ref_option_in_new(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let option_params = collect_ref_option_params(&lines);
+    if option_params.is_empty() {
+        return code.to_string();
+    }
+    apply_deref_in_new_calls(code, &option_params)
+}
+
+fn collect_ref_option_params(lines: &[&str]) -> Vec<String> {
+    let mut params = Vec::new();
+    for line in lines {
+        let trimmed = line.trim();
+        // Match: `param: &Option<T>,` or `param: &'a Option<T>,`
+        if !trimmed.contains("Option<") || !trimmed.ends_with(',') {
+            continue;
+        }
+        let Some(colon) = trimmed.find(':') else { continue };
+        let type_part = trimmed[colon + 1..].trim();
+        let is_ref_option = (type_part.starts_with("&Option<") || type_part.starts_with("&'"))
+            && type_part.contains("Option<");
+        if is_ref_option {
+            let name = trimmed[..colon].trim().trim_start_matches("mut ");
+            if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                params.push(name.to_string());
+            }
+        }
+    }
+    params.sort();
+    params.dedup();
+    params
+}
+
+fn apply_deref_in_new_calls(code: &str, params: &[String]) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut in_new_call = false;
+    let mut paren_depth: i32 = 0;
+    for line in code.lines() {
+        let mut fixed_line = line.to_string();
+        // Only start tracking when not already inside a ::new() call
+        if line.contains("::new(") && !in_new_call {
+            in_new_call = true;
+            paren_depth = 0;
+        }
+        if in_new_call {
+            for ch in line.chars() {
+                match ch {
+                    '(' => paren_depth += 1,
+                    ')' => paren_depth -= 1,
+                    _ => {}
+                }
+            }
+            for param in params {
+                if fixed_line.trim() == format!("{},", param) {
+                    fixed_line = fixed_line.replace(
+                        &format!("{},", param),
+                        &format!("*{},", param),
+                    );
+                } else if fixed_line.trim() == format!("{})", param) {
+                    fixed_line = fixed_line.replace(
+                        &format!("{})", param),
+                        &format!("*{})", param),
+                    );
+                }
+            }
+            if paren_depth <= 0 {
+                in_new_call = false;
+            }
+        }
+        result.push_str(&fixed_line);
+        result.push('\n');
+    }
+    if !code.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+// --- Iter12c near-miss flipping fixes ---
+
+/// Fix `(*ref_option.unwrap_or_default())` where ref_option is `&Option<T>`.
+/// Deref the reference first: `(*VAR).unwrap_or_default()` (works for Copy types).
+fn fix_deref_ref_option_unwrap(code: &str) -> String {
+    let mut result = code.to_string();
+    // Pattern: `(*VAR.unwrap_or_default())` → `(*VAR).unwrap_or_default()`
+    let search = ".unwrap_or_default())";
+    let mut i = 0;
+    while i < result.len() {
+        let Some(pos) = result[i..].find(search) else { break };
+        let abs = i + pos;
+        // Walk back to find `(*`
+        if abs >= 2 {
+            let before = &result[..abs];
+            if let Some(star_pos) = before.rfind("(*") {
+                let var = result[star_pos + 2..abs].trim().to_string();
+                if var.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                    let old = format!("(*{}.unwrap_or_default())", var);
+                    let new = format!("(*{}).unwrap_or_default()", var);
+                    result = result.replacen(&old, &new, 1);
+                    i = star_pos + new.len();
+                    continue;
+                }
+            }
+        }
+        i = abs + search.len();
     }
     result
 }

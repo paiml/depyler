@@ -32,14 +32,14 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Current State (2026-01-31, iter 10) -- MEASURED
+### Current State (2026-02-01, iter 12) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
 | Single-shot compile (reprorusted-std-only) | **85% (17/20)** | 80% | **Met (+5 pp)** |
-| Single-shot compile (fully-typed-reprorusted) | **40% (6/15)** | 60% | 20 pp |
-| Single-shot compile (hugging-face-gtc) | **0.8% (1/128)** | 40% | 39.2 pp |
+| Single-shot compile (fully-typed-reprorusted) | **60% (9/15)** | 60% | **Met** |
+| Single-shot compile (hugging-face-gtc) | **3.1% (4/128)** | 40% | 36.9 pp |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
@@ -60,6 +60,8 @@ progress is measured by attempted refutations rather than confirmations.
 | 8 | 2026-01-31 | **19/20 (95%)** | **9/15 (60%)** | **0/128 (0%)** | ae8d0cbf | HashMap, PathOrStringUnion, struct stub, dict insert fixes; **Tier 2 TARGET MET** |
 | 9 | 2026-01-31 | 19/20 (95%) | 9/15 (60%) | 0/128 (0%) | (merged into iter10) | bool truthiness, sorted_vec, field access fixes |
 | 10 | 2026-01-31 | **17/20 (85%)** | **6/15 (40%)** | **1/128 (0.8%)** | 33c56447 | Vec contains deref, membership check, float/int comparison; **first Tier 3 file compiles (training/trl.py)**; NOTE: Tier 1/2 regression from measurement methodology correction |
+| 11 | 2026-02-01 | 17/20 (85%) | **10/16 (62%)** | **3/128 (2.3%)** | acb71446 | Enum Display (..) pattern, borrowed alias .clone(), deref string comparison, Vec<DepylerValue>.join(); **Tier 2 target met at 62%**; 2 new Tier 3 files (hub/collections, inference/streaming) |
+| 12 | 2026-02-01 | 17/20 (85%) | **9/15 (60%)** | **4/128 (3.1%)** | (pending) | !String truthiness, r#false/r#true, deref unwrap, &str→.to_string() in ::new(), DepylerValue::Str clone, [String].contains→[&str], &Option deref in ::new(), (*ref_option).unwrap; **+1 new Tier 3: inference/optimization** |
 
 **Measurement methodology notes**:
 - (iter 3) `depyler transpile` writes .rs files alongside .py files.
