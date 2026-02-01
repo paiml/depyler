@@ -32,14 +32,14 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Current State (2026-01-31, iter 8) -- MEASURED
+### Current State (2026-01-31, iter 10) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
-| Single-shot compile (reprorusted-std-only) | **95% (19/20)** | 80% | **Met (+15 pp)** |
-| Single-shot compile (fully-typed-reprorusted) | **60% (9/15)** | 60% | **Met** |
-| Single-shot compile (hugging-face-gtc) | **0% (0/128)** | 40% | 40 pp |
+| Single-shot compile (reprorusted-std-only) | **85% (17/20)** | 80% | **Met (+5 pp)** |
+| Single-shot compile (fully-typed-reprorusted) | **40% (6/15)** | 60% | 20 pp |
+| Single-shot compile (hugging-face-gtc) | **0.8% (1/128)** | 40% | 39.2 pp |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
@@ -58,6 +58,8 @@ progress is measured by attempted refutations rather than confirmations.
 | 6 | 2026-01-31 | 12/20 (60%) | 2/15 (13.3%) | 0/128 (0%) | f14bd685 | Truthiness, chain-iter, pathlib, type(), enum fixes |
 | 7 | 2026-01-31 | **19/20 (95%)** | **2/15 (13.3%)** | **0/128 (0%)** | b91fef3e | 7 convergence fixes + bool truthiness type-awareness; **Tier 1 TARGET MET** |
 | 8 | 2026-01-31 | **19/20 (95%)** | **9/15 (60%)** | **0/128 (0%)** | ae8d0cbf | HashMap, PathOrStringUnion, struct stub, dict insert fixes; **Tier 2 TARGET MET** |
+| 9 | 2026-01-31 | 19/20 (95%) | 9/15 (60%) | 0/128 (0%) | (merged into iter10) | bool truthiness, sorted_vec, field access fixes |
+| 10 | 2026-01-31 | **17/20 (85%)** | **6/15 (40%)** | **1/128 (0.8%)** | 33c56447 | Vec contains deref, membership check, float/int comparison; **first Tier 3 file compiles (training/trl.py)**; NOTE: Tier 1/2 regression from measurement methodology correction |
 
 **Measurement methodology notes**:
 - (iter 3) `depyler transpile` writes .rs files alongside .py files.
@@ -90,18 +92,18 @@ progress is measured by attempted refutations rather than confirmations.
 | `E0308+E0061` | 2 | augment_corpus (class type), label_corpus (constructor args) |
 | No .rs generated | 2 | synthetic_augmenter (3-arg replace), weak_supervision (panic) |
 
-**Tier 3 error distribution** (128 files, 0 compiling = 0%):
+**Tier 3 error distribution** (128 files, 1 compiling = 0.8%):
 
 | Error Class | Count | Description |
 |-------------|-------|-------------|
-| `E0308: mismatched types` | 2821 | Dominant: type inference gaps |
-| `E0599: method not found` | 2000 | Missing method mappings |
-| `E0277: trait not satisfied` | 808 | Type constraint violations |
-| `E0282: type annotation needed` | 612 | Inference failures |
+| `E0308: mismatched types` | ~1160 | Dominant: &String vs &str, DepylerValue vs String, f64 vs int |
+| `E0599: method not found` | ~551 | Vec\<DepylerValue\>.join(), Enum::new(), .is_none() on non-Option |
+| `E0277: trait not satisfied` | ~424 | Vec indexing with &String, Display trait |
+| `E0282: type annotation needed` | ~85 | Inference failures |
 | `E0425: cannot find value` | 449 | Missing scope references |
 | Other | ~1046 | Various (E0433, E0061, etc.) |
 
-Closest to compiling (Tier 3): deployment/optimization.py (9 errors), inference/batch.py (9 errors)
+Closest to compiling (Tier 3): training/trl.py (0 errors, COMPILES), deployment/optimization.py (4 errors), inference/batch.py (6 errors), hub/collections.py (6 errors)
 | `E0433: unresolved module` | 39 | Undeclared crates/modules |
 | `E0599: method not found` | 36 | Methods on wrong types |
 | `E0573: expected type found variant` | 34 | Struct/enum confusion |
