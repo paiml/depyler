@@ -6746,6 +6746,24 @@ fn generate_rust_file_internal(
     // Python str.join after chars() produces Vec<char> which doesn't support .join().
     formatted_code = fix_vec_char_join(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER11: Fix borrowed type-alias params in ::new() calls.
+    // When a function takes `param: &TypeAlias` where TypeAlias = String, and passes
+    // it to `Struct::new(..., param, ...)`, the constructor expects owned String.
+    // Fix by adding `.clone()` to such arguments in ::new() calls.
+    formatted_code = fix_borrowed_alias_in_new_calls(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER11: Fix (*var) == "literal" deref comparisons.
+    // Python `var == "literal"` transpiles to `(*var) == "literal"` but `*var`
+    // dereferences &String to str, and str == &str has no implementation.
+    // Fix: remove unnecessary dereference. 133 E0277 errors in Tier 3.
+    formatted_code = fix_deref_string_comparison(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER11: Fix Vec<DepylerValue>.join("sep").
+    // Python str.join(list) transpiles to list.join("sep") but Vec<DepylerValue>
+    // doesn't implement Join. Convert to .iter().map(|v| v.to_string()).collect().join().
+    // 85 E0599 errors in Tier 3.
+    formatted_code = fix_depyler_value_vec_join(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -8225,10 +8243,22 @@ fn fix_enum_display(code: &str) -> String {
                         name
                     ));
                     for v in &variants {
-                        enum_impls.push_str(&format!(
-                            "            {}::{} => write!(f, \"{}\"),\n",
-                            name, v, v
-                        ));
+                        let (vname, has_payload) = if let Some(paren) = v.find('(') {
+                            (v[..paren].trim().to_string(), true)
+                        } else {
+                            (v.clone(), false)
+                        };
+                        if has_payload {
+                            enum_impls.push_str(&format!(
+                                "            {}::{}(..) => write!(f, \"{}\"),\n",
+                                name, vname, vname
+                            ));
+                        } else {
+                            enum_impls.push_str(&format!(
+                                "            {}::{} => write!(f, \"{}\"),\n",
+                                name, vname, vname
+                            ));
+                        }
                     }
                     enum_impls.push_str("        }\n    }\n}\n");
                 }
@@ -8241,6 +8271,207 @@ fn fix_enum_display(code: &str) -> String {
     } else {
         format!("{}{}", code, enum_impls)
     }
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER11: Fix borrowed type-alias params in ::new() calls.
+///
+/// When `type Foo = String;` and a function takes `param: &Foo`, passing `param`
+/// to `Bar::new(..., param, ...)` which expects `Foo` (= String) fails with E0308.
+/// Fix: collect type aliases for String, find params with `&Alias` types, then add
+/// `.clone()` to those param names when they appear as ::new() arguments.
+fn fix_borrowed_alias_in_new_calls(code: &str) -> String {
+    // Collect String type aliases
+    let mut string_aliases: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        let rest = match trimmed.strip_prefix("pub type ").or_else(|| trimmed.strip_prefix("type ")) {
+            Some(r) => r,
+            None => continue,
+        };
+        if rest.contains("= String;") || rest.contains("= String ;") {
+            let name_end = rest.find(|c: char| !c.is_alphanumeric() && c != '_');
+            let name = match name_end {
+                Some(e) => &rest[..e],
+                None => continue,
+            };
+            if !name.is_empty() {
+                string_aliases.push(name.to_string());
+            }
+        }
+    }
+    if string_aliases.is_empty() {
+        return code.to_string();
+    }
+    // Find function params with `&Alias` types
+    let mut borrowed_params: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        for alias in &string_aliases {
+            let pattern = format!(": &{}", alias);
+            if trimmed.contains(&pattern) {
+                // Extract param name before the `: &Alias`
+                if let Some(pos) = trimmed.find(&pattern) {
+                    let before = trimmed[..pos].trim();
+                    let param = before.rsplit(|c: char| c == '(' || c == ',' || c.is_whitespace())
+                        .next()
+                        .unwrap_or("")
+                        .trim();
+                    if !param.is_empty() && param.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        borrowed_params.push(param.to_string());
+                    }
+                }
+            }
+        }
+    }
+    if borrowed_params.is_empty() {
+        return code.to_string();
+    }
+    // In ::new() calls (single or multi-line), add .clone() to borrowed params
+    let mut result = String::new();
+    let mut in_new_call = false;
+    let mut paren_depth: i32 = 0;
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("::new(") {
+            in_new_call = true;
+            paren_depth = 0;
+            for ch in trimmed.chars() {
+                match ch {
+                    '(' => paren_depth += 1,
+                    ')' => paren_depth -= 1,
+                    _ => {}
+                }
+            }
+        }
+        if in_new_call {
+            let mut modified = line.to_string();
+            for param in &borrowed_params {
+                let patterns = [
+                    (format!(", {},", param), format!(", {}.clone(),", param)),
+                    (format!(", {})", param), format!(", {}.clone())", param)),
+                    (format!("({},", param), format!("({}.clone(),", param)),
+                    (format!("({})", param), format!("({}.clone())", param)),
+                ];
+                for (from, to) in &patterns {
+                    modified = modified.replace(from, to);
+                }
+                // Handle standalone arg on its own line: `        param,`
+                let arg_trimmed = modified.trim();
+                if arg_trimmed == format!("{},", param) || arg_trimmed == format!("{})", param) {
+                    let indent = &modified[..modified.len() - modified.trim_start().len()];
+                    let suffix = if arg_trimmed.ends_with(',') { "," } else { ")" };
+                    modified = format!("{}{}.clone(){}", indent, param, suffix);
+                }
+            }
+            result.push_str(&modified);
+            if !trimmed.contains("::new(") {
+                for ch in trimmed.chars() {
+                    match ch {
+                        '(' => paren_depth += 1,
+                        ')' => paren_depth -= 1,
+                        _ => {}
+                    }
+                }
+            }
+            if paren_depth <= 0 {
+                in_new_call = false;
+            }
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    if !code.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER11: Fix deref string comparisons.
+///
+/// The transpiler generates `(*var) == "literal"` which dereferences `&String`
+/// to `str`, but `str == &str` has no implementation. Remove the unnecessary `*`.
+/// Pattern: `(*identifier) == "` → `identifier == "`
+fn fix_deref_string_comparison(code: &str) -> String {
+    let mut result = code.to_string();
+    // Pattern: (*var) == "..." or (*var) != "..."
+    let mut i = 0;
+    while i < result.len() {
+        if let Some(pos) = result[i..].find("(*") {
+            let abs_pos = i + pos;
+            // Find the matching close paren
+            let after = &result[abs_pos + 2..];
+            if let Some(close) = after.find(')') {
+                let var_name = &after[..close];
+                // Check it's a simple identifier
+                if var_name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                    let after_close = &result[abs_pos + 2 + close + 1..];
+                    let trimmed = after_close.trim_start();
+                    if trimmed.starts_with("== \"") || trimmed.starts_with("!= \"") {
+                        // Replace (*var) with var
+                        let old = format!("(*{})", var_name);
+                        let new = var_name.to_string();
+                        result = format!(
+                            "{}{}{}",
+                            &result[..abs_pos],
+                            new,
+                            &result[abs_pos + old.len()..]
+                        );
+                        i = abs_pos + new.len();
+                        continue;
+                    }
+                }
+            }
+            i = abs_pos + 2;
+        } else {
+            break;
+        }
+    }
+    result
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER11: Fix Vec<DepylerValue>.join("sep").
+///
+/// `Vec<DepylerValue>` doesn't implement `Join`. Replace `.join("sep")` calls
+/// when the variable type is likely `Vec<DepylerValue>` with the equivalent
+/// `.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("sep")`.
+fn fix_depyler_value_vec_join(code: &str) -> String {
+    if !code.contains("DepylerValue") {
+        return code.to_string();
+    }
+    // Find variables typed as Vec<DepylerValue>
+    let mut dv_vec_vars: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("Vec<DepylerValue>") {
+            // Extract variable name from patterns like:
+            // `let mut varname: Vec<DepylerValue>` or `let varname: Vec<DepylerValue>`
+            if let Some(rest) = trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
+                if let Some(colon) = rest.find(':') {
+                    let name = rest[..colon].trim();
+                    if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        dv_vec_vars.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    if dv_vec_vars.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for var in &dv_vec_vars {
+        // Replace var.join("...") with var.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("...")
+        let pattern = format!("{}.join(", var);
+        if result.contains(&pattern) {
+            let replacement = format!(
+                "{}.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",
+                var
+            );
+            result = result.replace(&pattern, &replacement);
+        }
+    }
+    result
 }
 
 // --- Helper functions for iter9 fixes ---
