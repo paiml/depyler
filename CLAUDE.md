@@ -1358,3 +1358,7 @@ The RAG index includes 335 documents across:
 - All Sovereign AI Stack repos (trueno, aprender, realizar, etc.)
 - Python ground truth corpora (HuggingFace, JAX, vLLM patterns)
 - Rust ground truth corpora (TGI inference, MLOps patterns)
+
+Index auto-updates via post-commit hooks and `ora-fresh` on shell login.
+To manually check freshness: `ora-fresh`
+To force full reindex: `batuta oracle --rag-index --force`
