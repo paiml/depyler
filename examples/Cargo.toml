@@ -1,9 +1,10 @@
 [package]
-name = "text_processing_combined"
+name = "test_cse"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "text_processing_combined"
-path = "text_processing_combined.rs"
+[lib]
+path = "test_cse.rs"
 
+[dev-dependencies]
+quickcheck = "1"

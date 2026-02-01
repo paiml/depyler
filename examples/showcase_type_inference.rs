@@ -1371,6 +1371,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3216,7 +3230,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'a, 'b>(
+pub fn confidence_levels_demo<'b, 'a>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<DepylerValue>,

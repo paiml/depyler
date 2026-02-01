@@ -1390,6 +1390,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3137,10 +3151,10 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut max_val: f64 = Default::default();
     let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
     let mut min_val: f64 = Default::default();
-    let mut max_val: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3412,8 +3426,8 @@ pub fn bin_data(
     data: &Vec<f64>,
     num_bins: i32,
 ) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let mut bin_index: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -3470,11 +3484,11 @@ pub fn calculate_correlation<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut y_sum: f64 = Default::default();
+    let mut x_variance_sum: f64 = Default::default();
     let mut y_variance_sum: f64 = Default::default();
+    let mut y_sum: f64 = Default::default();
     let mut x_sum: f64 = Default::default();
     let mut numerator: f64 = Default::default();
-    let mut x_variance_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3568,8 +3582,8 @@ pub fn group_by_range<'b, 'a>(
     data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {
-    let mut range_key: String = Default::default();
     let mut range_tuple: (f64, f64) = Default::default();
+    let mut range_key: String = Default::default();
     let mut groups: std::collections::HashMap<String, Vec<f64>> = {
         let map: HashMap<String, Vec<f64>> = HashMap::new();
         map

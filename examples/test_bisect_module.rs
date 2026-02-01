@@ -1390,6 +1390,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3513,8 +3527,8 @@ pub fn find_floor_ceiling(
     arr: &Vec<i32>,
     target: i32,
 ) -> Result<(i32, i32), Box<dyn std::error::Error>> {
-    let mut floor_val: i32 = Default::default();
     let mut ceiling_val: i32 = Default::default();
+    let mut floor_val: i32 = Default::default();
     let position: i32 = binary_search_left(&arr, target)?;
     floor_val = -1;
     ceiling_val = -1;

@@ -1372,6 +1372,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3257,7 +3271,7 @@ pub fn simple_arithmetic(a: i32, b: i32) -> i32 {
 #[doc = "Simple string concatenation."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simple_string_concat<'b, 'a>(s1: &'a str, s2: &'b str) -> String {
+pub fn simple_string_concat<'a, 'b>(s1: &'a str, s2: &'b str) -> String {
     let result: String = (s1).py_add(s2);
     result.to_string()
 }
@@ -3274,7 +3288,7 @@ pub fn simple_list_sum(numbers: &Vec<i32>) -> i32 {
 #[doc = "Dictionary lookup with default."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simple_dict_lookup<'a, 'b>(
+pub fn simple_dict_lookup<'b, 'a>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> i32 {

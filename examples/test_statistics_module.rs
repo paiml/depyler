@@ -1389,6 +1389,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3337,8 +3351,8 @@ pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
 }
 #[doc = "Test finding min and max"]
 pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    let mut min_val: f64 = Default::default();
     let mut max_val: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
     let data: Vec<f64> = vec![3.5, 1.2, 7.8, 2.4, 9.1];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -3567,13 +3581,13 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'a, 'b>(
+pub fn calculate_covariance<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut cov_sum: f64 = Default::default();
-    let mut y_total: f64 = Default::default();
     let mut x_total: f64 = Default::default();
+    let mut y_total: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3621,15 +3635,15 @@ pub fn calculate_covariance<'a, 'b>(
     Ok(covariance)
 }
 #[doc = "Calculate Pearson correlation coefficient"]
-pub fn calculate_correlation<'b, 'a>(
+pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut x_total: f64 = Default::default();
     let mut diff: f64 = Default::default();
     let mut x_var_sum: f64 = Default::default();
-    let mut y_total: f64 = Default::default();
     let mut y_var_sum: f64 = Default::default();
+    let mut y_total: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;

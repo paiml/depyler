@@ -1371,6 +1371,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3230,7 +3244,7 @@ pub fn matrix_multiply<'b, 'a>(
     } else {
         0
     };
-    let result: Vec<DepylerValue> = (0..(rows_a))
+    let mut result: Vec<DepylerValue> = (0..(rows_a))
         .into_iter()
         .map(|_| (0..(cols_b)).into_iter().map(|_| 0.0).collect::<Vec<_>>())
         .collect::<Vec<_>>();

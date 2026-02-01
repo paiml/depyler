@@ -1500,6 +1500,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3339,7 +3353,7 @@ pub fn complex_generics<T: Clone>(
 #[doc = "Function using type aliases."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn custom_types<'b, 'a>(
+pub fn custom_types<'a, 'b>(
     user_id: &'a UserId,
     _username: Username,
     all_users: &'b UserData,
@@ -3375,8 +3389,8 @@ pub fn demo_all_types() {
         },
         {
             let mut set = std::collections::HashSet::new();
-            set.insert("x");
-            set.insert("y");
+            set.insert("x".to_string());
+            set.insert("y".to_string());
             set
         },
         (1, 2, 3),

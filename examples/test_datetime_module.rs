@@ -1388,6 +1388,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3228,7 +3242,7 @@ pub fn calculate_age<'a, 'b>(
 #[doc = "Calculate days until a future event"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn days_until_event<'b, 'a>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
+pub fn days_until_event<'a, 'b>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
     let _cse_temp_0 = event_date < current_date;
     if _cse_temp_0 {
         return 0;
@@ -3337,7 +3351,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'a, 'b>(
+pub fn working_days_between<'b, 'a>(
     start: &'a DepylerDate,
     end: &'b DepylerDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {

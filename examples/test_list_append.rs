@@ -1354,6 +1354,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3105,7 +3119,7 @@ impl Logger {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_logger() -> i32 {
     let mut logger: Logger = Logger::new();
-    let count = logger.log("Hello");
+    let count = logger.log("Hello".to_string());
     count
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]

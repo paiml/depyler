@@ -1604,6 +1604,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3356,7 +3370,7 @@ impl DemoClass {
     }
 }
 #[doc = "Show various statement types."]
-pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error>> {
+pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
     let mut x = 10;
     let mut y = 20;
     x = ((x).py_add(5i32)) as i32;
@@ -3422,11 +3436,11 @@ pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error
     }
     let _cse_temp_5 = x > 100;
     if _cse_temp_5 {
-        return Ok(Some(x));
+        return Ok(x);
     } else {
         let _cse_temp_6 = x > 50;
         if _cse_temp_6 {
-            return Ok(Some((x).py_mul(2i32)));
+            return Ok((x).py_mul(2i32));
         } else {
             return Ok(None);
         }

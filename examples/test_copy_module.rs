@@ -1373,6 +1373,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3198,7 +3212,7 @@ pub fn test_deep_copy_nested_dict() -> HashMap<String, HashMap<String, i32>> {
         });
         map
     };
-    let copied: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
+    let mut copied: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
         (original).clone();
     let _cse_temp_0 = copied.get("group1").is_some();
     if _cse_temp_0 {
@@ -3301,7 +3315,7 @@ pub fn clone_dict_with_filter(
     Ok(filtered)
 }
 #[doc = "Merge two dictionaries by copying"]
-pub fn merge_copied_dicts<'a, 'b>(
+pub fn merge_copied_dicts<'b, 'a>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {

@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_D: &'static str = "D";
     const STR_C: &'static str = "C";
-    const STR_B: &'static str = "B";
     const STR_A: &'static str = "A";
+    const STR_D: &'static str = "D";
+    const STR_B: &'static str = "B";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -946,6 +946,16 @@ impl PySub<DepylerValue>for i32 {
     type Output = f64;
     #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
     self - rhs.to_f64()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+    self.difference(& rhs).cloned().collect()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub<& std::collections::HashSet<T>>for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: & std::collections::HashSet<T>) -> Self::Output {
+    self.difference(rhs).cloned().collect()
 }
 } impl PyMul for i32 {
     type Output = i32;
@@ -2450,14 +2460,14 @@ else {
 };
    
 }
-} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'a, 'b>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
+} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'b, 'a>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
     let _cse_temp_0 = a.len() as i32;
     let n = _cse_temp_0;
     let _cse_temp_1 = b.get(0usize).cloned().expect("IndexError: list index out of range").len() as i32;
     let m = _cse_temp_1;
     let _cse_temp_2 = b.len() as i32;
     let k = _cse_temp_2;
-    let result: Vec<DepylerValue>= (0..(n)).into_iter().map(| _ |(0..(m)).into_iter().map(| _ | 0.0).collect::<Vec<_>>()).collect::<Vec<_>>();
+    let mut result: Vec<DepylerValue>= (0..(n)).into_iter().map(| _ |(0..(m)).into_iter().map(| _ | 0.0).collect::<Vec<_>>()).collect::<Vec<_>>();
     for i in 0..(n) {
     for j in 0..(m) {
     for p in 0..(k) {

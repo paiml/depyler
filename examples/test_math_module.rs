@@ -1389,6 +1389,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3264,8 +3278,8 @@ pub fn test_power_operations() -> f64 {
 }
 #[doc = "Test min/max with math operations"]
 pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let _cse_temp_0 = values.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3293,8 +3307,8 @@ pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::
 }
 #[doc = "Calculate statistical values using math operations"]
 pub fn test_statistical_math(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     let _cse_temp_0 = numbers.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {

@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_EMPTY: &'static str = "";
-    const STR__: &'static str = "/";
+const STR__: &'static str = "/";
+    const STR_EMPTY: &'static str = "";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
@@ -924,6 +924,16 @@ impl PySub<DepylerValue>for i32 {
     type Output = f64;
     #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
     self - rhs.to_f64()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+    self.difference(& rhs).cloned().collect()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub<& std::collections::HashSet<T>>for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: & std::collections::HashSet<T>) -> Self::Output {
+    self.difference(rhs).cloned().collect()
 }
 } impl PyMul for i32 {
     type Output = i32;
@@ -2530,8 +2540,8 @@ Ok(dirname.to_string())
 }
 #[doc = "Test splitting path into directory and basename"] #[doc = " Depyler: proven to terminate"] pub fn test_path_split() -> Result <(String, String), Box<dyn std::error::Error>>{
     let mut last_slash: i32 = Default::default();
-    let mut dirname: String = Default::default();
     let mut basename: String = Default::default();
+    let mut dirname: String = Default::default();
     let path: String = "/home/user/documents/file.txt".to_string();
     last_slash = - 1;
     for i in {
@@ -2591,8 +2601,8 @@ Ok((dirname, basename))
 }
 #[doc = "Test splitting path into name and extension"] #[doc = " Depyler: proven to terminate"] pub fn test_path_splitext() -> Result <(String, String), Box<dyn std::error::Error>>{
     let mut last_dot: i32 = Default::default();
-    let mut ext: String = Default::default();
     let mut name: String = Default::default();
+    let mut ext: String = Default::default();
     let path: String = "document.txt".to_string();
     last_dot = - 1;
     for i in {

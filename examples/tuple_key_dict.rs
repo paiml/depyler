@@ -1355,6 +1355,20 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3095,13 +3109,13 @@ pub fn test_tuple_keys() -> HashMap<(i32, i32), String> {
         let map: HashMap<(i32, i32), String> = HashMap::new();
         map
     };
-    d.insert((0, 0).to_string(), "origin".to_string());
-    d.insert((1, 0).to_string(), "right".to_string());
-    d.insert((0, 1).to_string(), "up".to_string());
-    d.insert((1, 1).to_string(), "diagonal".to_string());
+    d.insert((0, 0), "origin".to_string());
+    d.insert((1, 0), "right".to_string());
+    d.insert((0, 1), "up".to_string());
+    d.insert((1, 1), "diagonal".to_string());
     let x: i32 = 2;
     let y: i32 = 3;
-    d.insert((x, y).to_string(), "dynamic".to_string());
+    d.insert((x, y), "dynamic".to_string());
     d
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point for standalone compilation"]

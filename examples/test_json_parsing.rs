@@ -906,6 +906,16 @@ impl PySub<DepylerValue>for i32 {
     #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
     self - rhs.to_f64()
 }
+} impl<T: Eq + std::hash::Hash + Clone>PySub for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+    self.difference(& rhs).cloned().collect()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub<& std::collections::HashSet<T>>for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: & std::collections::HashSet<T>) -> Self::Output {
+    self.difference(rhs).cloned().collect()
+}
 } impl PyMul for i32 {
     type Output = i32;
     #[inline] fn py_mul(self, rhs: i32) -> i32 {
@@ -2367,14 +2377,14 @@ results
     text.split(pattern).map(| s | s.to_string()).collect()
 }
 } #[doc = "Parse JSON from string"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn parse_json_string(json_str: & str) -> std::collections::HashMap<String, DepylerValue>{
-    std::collections::HashMap::<DepylerValue, DepylerValue>::new()
+    std::collections::HashMap::<String, DepylerValue>::new()
 }
 #[doc = "Convert data to JSON string"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn to_json_string(data: & std::collections::HashMap<String, DepylerValue>) -> String {
     format !("{:?}", data)
 }
 #[doc = "Parse JSON with a default value on error"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn parse_json_with_default(json_str: & str, default: std::collections::HashMap<String, DepylerValue>) -> std::collections::HashMap<String, DepylerValue>{
     match(|| -> Result<std::collections::HashMap<String, DepylerValue>, Box<dyn std::error::Error>>{
-    return Ok(std::collections::HashMap::<DepylerValue, DepylerValue>::new());
+    return Ok(std::collections::HashMap::<String, DepylerValue>::new());
     })() {
     Ok(_result) =>{
     return _result;
@@ -2386,9 +2396,9 @@ results
 }
 }
 }
-#[doc = "Merge two JSON strings into one dictionary"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn merge_json_objects<'b, 'a>(json1: & 'a str, json2: & 'b str) -> std::collections::HashMap<String, DepylerValue>{
-    let mut obj1 = std::collections::HashMap::<DepylerValue, DepylerValue>::new();
-    let obj2 = std::collections::HashMap::<DepylerValue, DepylerValue>::new();
+#[doc = "Merge two JSON strings into one dictionary"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn merge_json_objects<'a, 'b>(json1: & 'a str, json2: & 'b str) -> std::collections::HashMap<String, DepylerValue>{
+    let mut obj1 = std::collections::HashMap::<String, DepylerValue>::new();
+    let obj2 = std::collections::HashMap::<String, DepylerValue>::new();
     for(k, v) in (obj2).iter() {
     obj1.insert(k.clone(), v.clone());
     };

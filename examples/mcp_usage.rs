@@ -7,8 +7,8 @@
 use tokio as asyncio;
     use serde_json as json;
     use std::path::PathBuf;
-    const STR___1: &'static str = "\n";
     const STR___2: &'static str = "=";
+    const STR___1: &'static str = "\n";
     use std::collections::HashMap;
     use serde_json;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
@@ -945,6 +945,16 @@ impl PySub<DepylerValue>for i32 {
     type Output = f64;
     #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
     self - rhs.to_f64()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+    self.difference(& rhs).cloned().collect()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub<& std::collections::HashSet<T>>for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: & std::collections::HashSet<T>) -> Self::Output {
+    self.difference(rhs).cloned().collect()
 }
 } impl PyMul for i32 {
     type Output = i32;
@@ -2106,7 +2116,7 @@ else {
     println !("{}", "🐍 Python Source:");
     println !("{}", python_code);
     println !();
-    let result = client.call_tool("transpile_python", {
+    let result = client.call_tool("transpile_python".to_string(), {
     let mut map = std::collections::HashMap::new();
     map.insert("source".to_string(), serde_json::json !(python_code.trim().to_string()));
     map.insert("mode".to_string(), serde_json::json !("inline"));
@@ -2130,7 +2140,7 @@ println !();
     println !("{}", "🔬 Example 2: Project Migration Analysis");
     println !("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
-    let result = client.call_tool("analyze_migration_complexity", {
+    let result = client.call_tool("analyze_migration_complexity".to_string(), {
     let mut map = std::collections::HashMap::new();
     map.insert("project_path".to_string(), serde_json::json !("./examples/showcase"));
     map.insert("analysis_depth".to_string(), serde_json::json !("standard"));
@@ -2173,7 +2183,7 @@ println !();
 else {\n        n * factorial(n - 1)\n    }\n}\n";
     println !("{}", "🔍 Verifying semantic equivalence...");
     println !();
-    let result = client.call_tool("verify_transpilation", {
+    let result = client.call_tool("verify_transpilation".to_string(), {
     let mut map = std::collections::HashMap::new();
     map.insert("python_source".to_string(), serde_json::json !(python_source.trim().to_string()));
     map.insert("rust_source".to_string(), serde_json::json !(rust_source.trim().to_string()));
@@ -2220,13 +2230,13 @@ println !();
     let mut results = vec ! [];
     for(filename, code_snippet) in python_files.iter().cloned() {
     println !("{}", format !("📄 Processing {}...", filename));
-    let transpile_result = client.call_tool("transpile_python", {
+    let transpile_result = client.call_tool("transpile_python".to_string(), {
     let mut map = std::collections::HashMap::new();
     map.insert("source".to_string(), serde_json::json !(code_snippet));
     map.insert("mode".to_string(), serde_json::json !("file"));
     map.insert("options".to_string(), serde_json::json !(serde_json::json !({ "optimization_level": "balanced", "verification_level": "basic" })));
     map }).await;
-    let verify_result = client.call_tool("verify_transpilation", {
+    let verify_result = client.call_tool("verify_transpilation".to_string(), {
     let mut map = HashMap::new();
     map.insert("python_source".to_string(), code_snippet);
     map.insert("rust_source".to_string(), transpile_result.get("rust_code").cloned().unwrap_or_default());

@@ -3100,30 +3100,26 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = " Depyler: verified panic-free"]
-pub fn sum_squares(n: i32) -> i32 {
-    let mut total: i32 = Default::default();
-    total = 0;
-    let mut i: i32 = 1;
-    while i <= n {
-        total = ((total).py_add((i).py_mul(i))) as i32;
-        i = ((i).py_add(1i32)) as i32;
+#[derive(Debug, Clone)]
+pub struct TestStack {
+    pub items: Vec<i32>,
+}
+impl TestStack {
+    pub fn new() -> Self {
+        Self { items: Vec::new() }
     }
-    total
+    pub fn pop(&mut self) -> i32 {
+        if self.items.clone() {
+            return self.items.pop().unwrap_or_default();
+        };
+        return 0;
+    }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", sum_squares(5));
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
-    #[test]
-    fn test_sum_squares_examples() {
-        assert_eq!(sum_squares(0), 0);
-        assert_eq!(sum_squares(1), 1);
-        assert_eq!(sum_squares(-1), -1);
-    }
+    let mut s: TestStack = TestStack::new();
+    s.items.push(1);
+    let result = s.pop();
+    println!("{}", result);
 }

@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_HELLO: &'static str = "Hello";
-    const STR_EMPTY: &'static str = "";
+const STR_EMPTY: &'static str = "";
+    const STR_HELLO: &'static str = "Hello";
     const STR_HELLO_WORLD: &'static str = "Hello World";
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
@@ -924,6 +924,16 @@ impl PySub<DepylerValue>for i32 {
     type Output = f64;
     #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
     self - rhs.to_f64()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+    self.difference(& rhs).cloned().collect()
+}
+} impl<T: Eq + std::hash::Hash + Clone>PySub<& std::collections::HashSet<T>>for std::collections::HashSet<T>{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: & std::collections::HashSet<T>) -> Self::Output {
+    self.difference(rhs).cloned().collect()
 }
 } impl PyMul for i32 {
     type Output = i32;
@@ -2574,10 +2584,10 @@ domain.to_string()
     let normalized: String = words.join (" ");
     normalized.to_string()
 }
-#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
     text.starts_with(pattern)
 }
-#[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
     text.ends_with(pattern)
 }
 #[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
@@ -2587,7 +2597,7 @@ domain.to_string()
     let matches: bool = _cse_temp_0;
     matches
 }
-#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'c, 'b, 'a>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
+#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'b, 'c, 'a>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
     let mut start_pos: i32 = text.find(start_marker).map(| i | i as i32).unwrap_or(- 1);
     let _cse_temp_0 = start_pos.unwrap_or_default()<0;
     if _cse_temp_0 {
@@ -2626,7 +2636,7 @@ else {
 };
     result.to_string()
 }
-#[doc = "Replace multiple patterns"] pub fn replace_multiple<'b, 'a>(text: & 'a str, replacements: & 'b Vec <()>) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Replace multiple patterns"] pub fn replace_multiple<'a, 'b>(text: & 'a str, replacements: & 'b Vec <()>) -> Result<String, Box<dyn std::error::Error>>{
     let mut result: String = Default::default();
     result = text.clone().to_string();
     for replacement in replacements.iter().cloned() {
@@ -2637,7 +2647,7 @@ else {
 }
 Ok(result.to_string())
 }
-#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'b, 'a>(text: & 'a str, word: & 'b str) -> i32 {
+#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'a, 'b>(text: & 'a str, word: & 'b str) -> i32 {
     let mut count: i32 = Default::default();
     let words: Vec<String>= text.split_whitespace().map(| s | s.to_string()).collect::<Vec<String>>();
     count = 0;
@@ -2649,8 +2659,8 @@ Ok(result.to_string())
 } count
 }
 #[doc = "Extract numbers from text"] #[doc = " Depyler: verified panic-free"] pub fn extract_numbers_from_text(text: & str) -> Vec<i32>{
-    let mut num: i32 = Default::default();
     let mut current_num: String = Default::default();
+    let mut num: i32 = Default::default();
     let mut numbers: Vec<i32>= vec ! [];
     current_num = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
@@ -2677,9 +2687,9 @@ let _cse_temp_0 = current_num.len() as i32;
 }
 numbers
 }
-#[doc = "Simple wildcard matching(*means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'a, 'b>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
-    let mut has_suffix: bool = Default::default();
+#[doc = "Simple wildcard matching(*means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'b, 'a>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut has_prefix: bool = Default::default();
+    let mut has_suffix: bool = Default::default();
     let _cse_temp_0 = ! pattern.contains("*");
     if _cse_temp_0 {
     return Ok(text == pattern);
