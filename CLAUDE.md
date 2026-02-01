@@ -1333,22 +1333,28 @@ depyler oracle improve --corpus /path/to/corpus --target-rate 1.0
 
 ## Stack Documentation Search
 
-Query this component's documentation and the entire Sovereign AI Stack using batuta's RAG Oracle:
+**IMPORTANT: Proactively use the batuta RAG oracle when:**
+- Looking up Python→Rust transpilation patterns
+- Finding HuggingFace/JAX/vLLM Python idioms to transpile
+- Understanding Rust equivalents for Python stdlib
+- Researching type inference strategies from ground truth corpora
 
 ```bash
-# Index all stack documentation (run once, persists to ~/.cache/batuta/rag/)
-batuta oracle --rag-index
-
-# Search across the entire stack
+# Search across the entire Sovereign AI Stack
 batuta oracle --rag "your question here"
 
-# Examples
-batuta oracle --rag "SIMD matrix multiplication"
-batuta oracle --rag "how to train a model"
-batuta oracle --rag "tokenization for BERT"
+# Examples for depyler development
+batuta oracle --rag "Python subprocess to Rust Command"
+batuta oracle --rag "type inference for generic collections"
+batuta oracle --rag "HuggingFace tokenizer implementation"
+batuta oracle --rag "async Python to Rust tokio"
+batuta oracle --rag "error handling Python exceptions to Result"
 
-# Check index status
-batuta oracle --rag-stats
+# Reindex if needed (persists to ~/.cache/batuta/rag/)
+batuta oracle --rag-index
 ```
 
-The RAG index includes CLAUDE.md, README.md, and source files from all stack components plus Python ground truth corpora for cross-language pattern matching.
+The RAG index includes 335 documents across:
+- All Sovereign AI Stack repos (trueno, aprender, realizar, etc.)
+- Python ground truth corpora (HuggingFace, JAX, vLLM patterns)
+- Rust ground truth corpora (TGI inference, MLOps patterns)

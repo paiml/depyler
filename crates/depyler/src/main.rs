@@ -444,10 +444,7 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
 
                 for corpus in corpora {
                     let status = if corpus.exists() { "✓" } else { "✗" };
-                    println!(
-                        "{} {} - {}",
-                        status, corpus.name, corpus.description
-                    );
+                    println!("{} {} - {}", status, corpus.name, corpus.description);
                     println!("   Path: {}", corpus.path.display());
 
                     if let Some(ref github) = corpus.github {

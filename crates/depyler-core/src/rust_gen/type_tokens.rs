@@ -165,10 +165,7 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
         // "UnionType not found" errors (E0425). Union[T, None] becomes
         // Option<T>; all other unions become DepylerValue.
         Type::Union(types) => {
-            let non_none: Vec<_> = types
-                .iter()
-                .filter(|t| !matches!(t, Type::None))
-                .collect();
+            let non_none: Vec<_> = types.iter().filter(|t| !matches!(t, Type::None)).collect();
             if non_none.len() == 1 && non_none.len() < types.len() {
                 let inner = hir_type_to_tokens_with_mode(non_none[0], nasa_mode);
                 quote! { Option<#inner> }

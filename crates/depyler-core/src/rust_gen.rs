@@ -6556,7 +6556,9 @@ fn generate_rust_file_internal(
         formatted_code = format!("use std::io::Write;\n{}", formatted_code);
     }
     // If code uses HashMap but doesn't import it, add it.
-    if formatted_code.contains("HashMap") && !formatted_code.contains("use std::collections::HashMap") {
+    if formatted_code.contains("HashMap")
+        && !formatted_code.contains("use std::collections::HashMap")
+    {
         formatted_code = format!("use std::collections::HashMap;\n{}", formatted_code);
     }
     // If code uses .py_sub() method (datetime), replace with operator `-`.
@@ -6605,18 +6607,13 @@ fn generate_rust_file_internal(
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix `DynDigest` trait reference (E0405).
     // When hashlib code references DynDigest, map to a simpler type.
-    formatted_code = formatted_code.replace(
-        "as Box<dyn DynDigest>",
-        "as Box<dyn std::hash::Hasher>",
-    );
+    formatted_code =
+        formatted_code.replace("as Box<dyn DynDigest>", "as Box<dyn std::hash::Hasher>");
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix hex::encode references (E0433).
     // When code uses hex::encode(), replace with a manual hex encoding function.
     if formatted_code.contains("hex::encode(") && !formatted_code.contains("fn hex_encode") {
-        formatted_code = formatted_code.replace(
-            "hex::encode(",
-            "hex_encode(",
-        );
+        formatted_code = formatted_code.replace("hex::encode(", "hex_encode(");
         let helper = "fn hex_encode(bytes: impl AsRef<[u8]>) -> String { \
                        bytes.as_ref().iter().map(|b| format!(\"{:02x}\", b)).collect() }\n";
         formatted_code = format!("{}{}", helper, formatted_code);
@@ -6939,11 +6936,7 @@ fn fix_truthiness_line(line: &str, bool_vars: &[String]) -> String {
 /// Check if an identifier is likely NOT a boolean.
 fn is_likely_non_boolean_ident(ident: &str, bool_vars: &[String]) -> bool {
     // Must be a simple identifier (no dots, parens, brackets, spaces)
-    if ident.contains('.')
-        || ident.contains('(')
-        || ident.contains('[')
-        || ident.contains(' ')
-    {
+    if ident.contains('.') || ident.contains('(') || ident.contains('[') || ident.contains(' ') {
         return false;
     }
     // Skip variables known to be bool from type annotations
@@ -6952,10 +6945,33 @@ fn is_likely_non_boolean_ident(ident: &str, bool_vars: &[String]) -> bool {
     }
     // Skip known boolean prefixes
     let bool_prefixes = [
-        "is_", "has_", "should_", "can_", "will_", "was_", "did_", "does_",
-        "are_", "do_", "were_", "ok", "err", "found", "done", "valid",
-        "enabled", "disabled", "active", "ready", "empty", "full", "true",
-        "false", "success", "failed", "_cse_temp",
+        "is_",
+        "has_",
+        "should_",
+        "can_",
+        "will_",
+        "was_",
+        "did_",
+        "does_",
+        "are_",
+        "do_",
+        "were_",
+        "ok",
+        "err",
+        "found",
+        "done",
+        "valid",
+        "enabled",
+        "disabled",
+        "active",
+        "ready",
+        "empty",
+        "full",
+        "true",
+        "false",
+        "success",
+        "failed",
+        "_cse_temp",
     ];
     for prefix in &bool_prefixes {
         if ident.starts_with(prefix) || ident == *prefix {
@@ -7088,10 +7104,7 @@ fn fix_generator_yield_scope(code: &str) -> String {
         && !result.contains("let mut items")
         && !result.contains("self.items")
     {
-        result = result.replace(
-            "return Some(items)",
-            "return Some(Vec::new())",
-        );
+        result = result.replace("return Some(items)", "return Some(Vec::new())");
     }
     result
 }
@@ -7138,10 +7151,7 @@ fn fix_power_sqrt_types(code: &str) -> String {
     }
     let mut result = code.to_string();
     // Make powf branches return f64 instead of i32
-    result = result.replace(
-        ".powf({ 2 } as f64) as i32",
-        ".powf({ 2 } as f64)",
-    );
+    result = result.replace(".powf({ 2 } as f64) as i32", ".powf({ 2 } as f64)");
     // Make checked_pow branches return f64
     result = result.replace(
         ".expect(\"Power operation overflowed\")",
@@ -7166,7 +7176,10 @@ fn fix_datetime_subtraction(code: &str) -> String {
             // Pattern: ((d2) - (d1).day() as i32).abs()
             // Fix: ((d2.day as i32) - (d1.day as i32)).abs()
             let fixed = line
-                .replace("((d2) - (d1).day() as i32)", "((d2.day as i32) - (d1.day as i32))")
+                .replace(
+                    "((d2) - (d1).day() as i32)",
+                    "((d2.day as i32) - (d1.day as i32))",
+                )
                 .replace("((d2) - (d1).day())", "((d2.day as i32) - (d1.day as i32))");
             result.push(fixed);
         } else {
@@ -7296,11 +7309,21 @@ fn fix_path_or_string_union_coercion(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut output = Vec::with_capacity(lines.len());
     let field_patterns = [
-        "args.baseline", "args.current", "args.input",
-        "args.output_dir", "args.corpus", "args.corpus_dir",
-        "args.zero_dir", "args.input_dir", "args.input_path",
-        "args.file", "args.directory", "args.path",
-        "args.source", "args.target", "args.dest",
+        "args.baseline",
+        "args.current",
+        "args.input",
+        "args.output_dir",
+        "args.corpus",
+        "args.corpus_dir",
+        "args.zero_dir",
+        "args.input_dir",
+        "args.input_path",
+        "args.file",
+        "args.directory",
+        "args.path",
+        "args.source",
+        "args.target",
+        "args.dest",
     ];
     for line in &lines {
         let trimmed = line.trim();
@@ -7396,9 +7419,7 @@ fn fix_heterogeneous_dict_inserts(code: &str) -> String {
             continue;
         }
         // End of map block when map is returned or semicolon-terminated
-        if in_depyler_map
-            && (trimmed == "map" || trimmed == "map;" || trimmed.starts_with("}"))
-        {
+        if in_depyler_map && (trimmed == "map" || trimmed == "map;" || trimmed.starts_with("}")) {
             in_depyler_map = false;
         }
         // Reset on new map declaration with different type
@@ -7428,7 +7449,10 @@ fn wrap_map_insert_value(line: &str) -> String {
             } else if value == "true" || value == "false" {
                 format!("DepylerValue::Bool({})", value)
             } else if value.starts_with('"') || value.ends_with(".to_string()") {
-                format!("DepylerValue::Str({}.to_string())", value.trim_end_matches(".to_string()"))
+                format!(
+                    "DepylerValue::Str({}.to_string())",
+                    value.trim_end_matches(".to_string()")
+                )
             } else {
                 return line.to_string(); // unknown type, don't wrap
             };
@@ -7590,12 +7614,7 @@ fn fix_negation_on_non_bool(code: &str) -> String {
                     .unwrap_or(true);
                 if is_word_boundary {
                     let empty_check = format!("{}.is_empty()", var);
-                    fixed = format!(
-                        "{}{}{}",
-                        &fixed[..pos],
-                        empty_check,
-                        &fixed[after_pos..]
-                    );
+                    fixed = format!("{}{}{}", &fixed[..pos], empty_check, &fixed[after_pos..]);
                 }
             }
         }
@@ -7750,9 +7769,7 @@ fn fix_vec_contains_deref(code: &str) -> String {
             let after = pos + ".contains(&*".len();
             let mut end = after;
             let bytes = result.as_bytes();
-            while end < bytes.len()
-                && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_')
-            {
+            while end < bytes.len() && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_') {
                 end += 1;
             }
             if end > after && end < bytes.len() && bytes[end] == b')' {
@@ -7843,17 +7860,65 @@ fn fix_float_int_in_line(line: &str) -> String {
     let mut result = line.to_string();
     // Pattern: `field_name <= 0;` or `field_name <= 0 {` where field_name is a known float field
     let float_fields = [
-        "beta", "learning_rate", "lr", "momentum", "weight_decay", "epsilon",
-        "gamma", "alpha", "lambda", "temperature", "top_p", "top_k_float",
-        "label_smoothing", "cliprange", "cliprange_value", "vf_coef",
-        "max_grad_norm", "lam", "dropout", "warmup_ratio", "threshold",
-        "score", "loss", "reward", "penalty", "decay", "rate", "ratio",
-        "step_size", "min_lr", "max_lr", "diversity_penalty", "max_norm",
-        "min_norm", "scale", "softmax_scale", "norm", "noise_std",
-        "sample_rate", "confidence", "similarity", "distance", "tolerance",
-        "probability", "weight", "bias", "margin", "entropy", "perplexity",
-        "grad_norm", "clip_value", "frequency", "damping", "attenuation",
-        "overlap", "gain", "spacing", "offset_val", "cutoff",
+        "beta",
+        "learning_rate",
+        "lr",
+        "momentum",
+        "weight_decay",
+        "epsilon",
+        "gamma",
+        "alpha",
+        "lambda",
+        "temperature",
+        "top_p",
+        "top_k_float",
+        "label_smoothing",
+        "cliprange",
+        "cliprange_value",
+        "vf_coef",
+        "max_grad_norm",
+        "lam",
+        "dropout",
+        "warmup_ratio",
+        "threshold",
+        "score",
+        "loss",
+        "reward",
+        "penalty",
+        "decay",
+        "rate",
+        "ratio",
+        "step_size",
+        "min_lr",
+        "max_lr",
+        "diversity_penalty",
+        "max_norm",
+        "min_norm",
+        "scale",
+        "softmax_scale",
+        "norm",
+        "noise_std",
+        "sample_rate",
+        "confidence",
+        "similarity",
+        "distance",
+        "tolerance",
+        "probability",
+        "weight",
+        "bias",
+        "margin",
+        "entropy",
+        "perplexity",
+        "grad_norm",
+        "clip_value",
+        "frequency",
+        "damping",
+        "attenuation",
+        "overlap",
+        "gain",
+        "spacing",
+        "offset_val",
+        "cutoff",
     ];
     for op in &["<= 0", ">= 0", "< 0", "> 0", "== 0", "!= 0"] {
         let float_op = op.replace(" 0", " 0.0");
@@ -7868,10 +7933,26 @@ fn fix_float_int_in_line(line: &str) -> String {
     // Also handle `<= 1`, `>= 1` for probability/ratio fields
     for op in &["<= 1", ">= 1", "< 1", "> 1", "== 1", "!= 1"] {
         let float_op = op.replace(" 1", " 1.0");
-        for field in &["dropout", "top_p", "label_smoothing", "warmup_ratio",
-                       "cliprange", "cliprange_value", "gamma", "lam", "ratio",
-                       "momentum", "probability", "confidence", "similarity",
-                       "alpha", "beta", "weight", "overlap", "tolerance"] {
+        for field in &[
+            "dropout",
+            "top_p",
+            "label_smoothing",
+            "warmup_ratio",
+            "cliprange",
+            "cliprange_value",
+            "gamma",
+            "lam",
+            "ratio",
+            "momentum",
+            "probability",
+            "confidence",
+            "similarity",
+            "alpha",
+            "beta",
+            "weight",
+            "overlap",
+            "tolerance",
+        ] {
             let pattern = format!(".{} {}", field, op);
             if result.contains(&pattern) {
                 let replacement = format!(".{} {}", field, float_op);
@@ -8034,10 +8115,7 @@ fn parse_enum_value_arms(match_body: &str, enum_name: &str) -> Vec<(String, Stri
     arms
 }
 
-fn generate_enum_new_method(
-    enum_name: &str,
-    arms: &[(String, String)],
-) -> String {
+fn generate_enum_new_method(enum_name: &str, arms: &[(String, String)]) -> String {
     let mut method = String::new();
     method.push_str("    pub fn new(s: impl Into<String>) -> Self {\n");
     method.push_str("        let s = s.into();\n");
@@ -8120,10 +8198,7 @@ fn fix_is_none_in_line(line: &str) -> String {
 /// Replace `.collect::<Vec<_>>()` + `.join("")` with `.collect::<String>()`.
 fn fix_vec_char_join(code: &str) -> String {
     // Handle single-line pattern
-    let result = code.replace(
-        ".collect::<Vec<_>>().join(\"\")",
-        ".collect::<String>()",
-    );
+    let result = code.replace(".collect::<Vec<_>>().join(\"\")", ".collect::<String>()");
     // Handle multi-line: `.collect::<Vec<_>>()` on one line, `.join("");` on next
     let lines: Vec<&str> = result.lines().collect();
     let mut output = Vec::with_capacity(lines.len());
@@ -8138,10 +8213,7 @@ fn fix_vec_char_join(code: &str) -> String {
             let next_trimmed = lines[i + 1].trim();
             if next_trimmed.starts_with(".join(\"\")") {
                 // Replace collect with String collection and skip join line
-                let fixed = lines[i].replace(
-                    ".collect::<Vec<_>>()",
-                    ".collect::<String>()",
-                );
+                let fixed = lines[i].replace(".collect::<Vec<_>>()", ".collect::<String>()");
                 // If the join line has a trailing semicolon, append it
                 let suffix = next_trimmed.strip_prefix(".join(\"\")").unwrap_or("");
                 output.push(format!("{}{}", fixed, suffix));
@@ -8282,7 +8354,9 @@ fn fix_enum_display(code: &str) -> String {
                     }
                     i += 1;
                 }
-                if !variants.is_empty() && !code.contains(&format!("impl std::fmt::Display for {}", name)) {
+                if !variants.is_empty()
+                    && !code.contains(&format!("impl std::fmt::Display for {}", name))
+                {
                     enum_impls.push_str(&format!(
                         "\nimpl std::fmt::Display for {} {{\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{\n        match self {{\n",
                         name
@@ -8329,7 +8403,10 @@ fn fix_borrowed_alias_in_new_calls(code: &str) -> String {
     let mut string_aliases: Vec<String> = Vec::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        let rest = match trimmed.strip_prefix("pub type ").or_else(|| trimmed.strip_prefix("type ")) {
+        let rest = match trimmed
+            .strip_prefix("pub type ")
+            .or_else(|| trimmed.strip_prefix("type "))
+        {
             Some(r) => r,
             None => continue,
         };
@@ -8357,7 +8434,8 @@ fn fix_borrowed_alias_in_new_calls(code: &str) -> String {
                 // Extract param name before the `: &Alias`
                 if let Some(pos) = trimmed.find(&pattern) {
                     let before = trimmed[..pos].trim();
-                    let param = before.rsplit(|c: char| c == '(' || c == ',' || c.is_whitespace())
+                    let param = before
+                        .rsplit(|c: char| c == '(' || c == ',' || c.is_whitespace())
                         .next()
                         .unwrap_or("")
                         .trim();
@@ -8449,7 +8527,10 @@ fn fix_deref_string_comparison(code: &str) -> String {
             if let Some(close) = after.find(')') {
                 let var_name = &after[..close];
                 // Check it's a simple identifier
-                if var_name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                if var_name
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+                {
                     let after_close = &result[abs_pos + 2 + close + 1..];
                     let trimmed = after_close.trim_start();
                     if trimmed.starts_with("== \"") || trimmed.starts_with("!= \"") {
@@ -8491,7 +8572,10 @@ fn fix_depyler_value_vec_join(code: &str) -> String {
         if trimmed.contains("Vec<DepylerValue>") {
             // Extract variable name from patterns like:
             // `let mut varname: Vec<DepylerValue>` or `let varname: Vec<DepylerValue>`
-            if let Some(rest) = trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
+            if let Some(rest) = trimmed
+                .strip_prefix("let mut ")
+                .or_else(|| trimmed.strip_prefix("let "))
+            {
                 if let Some(colon) = rest.find(':') {
                     let name = rest[..colon].trim();
                     if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
@@ -8541,7 +8625,10 @@ fn fix_not_trim_to_string(code: &str) -> String {
         if let Some(start) = before.rfind("(!") {
             let expr = &result[start + 2..end_pos];
             // Only fix if expr looks like a variable/field access
-            if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+            if expr
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+            {
                 let old = format!("(!{}{})", expr, ".trim().to_string()");
                 let new = format!("{}.trim().is_empty()", expr);
                 result = result.replacen(&old, &new, 1);
@@ -8559,16 +8646,26 @@ fn fix_not_to_string(code: &str) -> String {
     let mut search_from = 0;
     while search_from < result.len() {
         let haystack = &result[search_from..];
-        let Some(rel_pos) = haystack.find(marker) else { break };
+        let Some(rel_pos) = haystack.find(marker) else {
+            break;
+        };
         let end_pos = search_from + rel_pos;
         let before = &result[..end_pos];
         if let Some(start) = before.rfind("(!") {
             let expr = &result[start + 2..end_pos];
-            if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+            if expr
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+            {
                 let old = format!("(!{}.to_string())", expr);
                 if result[start..].starts_with(&old) {
                     let new = format!("{}.is_empty()", expr);
-                    result = format!("{}{}{}", &result[..start], new, &result[start + old.len()..]);
+                    result = format!(
+                        "{}{}{}",
+                        &result[..start],
+                        new,
+                        &result[start + old.len()..]
+                    );
                     search_from = start + new.len();
                     continue;
                 }
@@ -8602,15 +8699,24 @@ fn fix_raw_identifier_booleans(code: &str) -> String {
 /// `(*x.unwrap_or_default())` → `x.unwrap_or_default()` when x is Option<primitive>.
 fn fix_deref_unwrap_result(code: &str) -> String {
     let mut result = code.to_string();
-    for method in &["unwrap_or_default()", "unwrap()", "unwrap_or(0)", "unwrap_or(0.0)"] {
+    for method in &[
+        "unwrap_or_default()",
+        "unwrap()",
+        "unwrap_or(0)",
+        "unwrap_or(0.0)",
+    ] {
         let search = format!(".{}", method);
         let mut i = 0;
         while i < result.len() {
-            let Some(pos) = result[i..].find(&search) else { break };
+            let Some(pos) = result[i..].find(&search) else {
+                break;
+            };
             let abs = i + pos;
             let end = abs + search.len();
             // Check if followed by `)` and preceded by `(*`
-            if end < result.len() && result.as_bytes()[end] == b')' && abs >= 2
+            if end < result.len()
+                && result.as_bytes()[end] == b')'
+                && abs >= 2
                 && &result[abs - 2..abs] == "(*"
             {
                 // Remove `(*` prefix and `)` suffix, keeping `VAR.method()`
@@ -8722,7 +8828,10 @@ fn collect_depyler_value_map_names(code: &str) -> Vec<String> {
             continue;
         }
         // Pattern: `let mut var: HashMap<String, DepylerValue>`
-        let rest = match trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
+        let rest = match trimmed
+            .strip_prefix("let mut ")
+            .or_else(|| trimmed.strip_prefix("let "))
+        {
             Some(r) => r,
             None => continue,
         };
@@ -8744,7 +8853,9 @@ fn wrap_string_inserts_in_dv_maps(code: &str, vars: &[String]) -> String {
         let insert_pat = format!("{}.insert(", var);
         let mut search_from = 0;
         while search_from < result.len() {
-            let Some(pos) = result[search_from..].find(&insert_pat) else { break };
+            let Some(pos) = result[search_from..].find(&insert_pat) else {
+                break;
+            };
             let abs = search_from + pos;
             let after_insert = abs + insert_pat.len();
             // Find the closing `);` for this insert call
@@ -8794,7 +8905,10 @@ fn find_matching_close(s: &str) -> Option<usize> {
 
 fn is_field_access(s: &str) -> bool {
     let trimmed = s.trim().trim_end_matches(';');
-    trimmed.contains('.') && trimmed.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+    trimmed.contains('.')
+        && trimmed
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
 }
 
 // --- Iter12b near-miss targeted fixes ---
@@ -8808,7 +8922,9 @@ fn fix_string_array_contains(code: &str) -> String {
     while let Some(contains_pos) = result.find(marker) {
         // Find the opening bracket for this array
         let bracket_search = &result[..contains_pos];
-        let Some(open_bracket) = bracket_search.rfind('[') else { break };
+        let Some(open_bracket) = bracket_search.rfind('[') else {
+            break;
+        };
         let array_content = &result[open_bracket + 1..contains_pos + ".to_string()".len()];
         // Check if all elements are "string".to_string() patterns
         if !array_content.contains(".to_string()") {
@@ -8818,12 +8934,19 @@ fn fix_string_array_contains(code: &str) -> String {
         let stripped = array_content.replace(".to_string()", "");
         // Find the closing paren of .contains(arg)
         let after_contains = contains_pos + marker.len();
-        let Some(close_paren) = result[after_contains..].find(')') else { break };
+        let Some(close_paren) = result[after_contains..].find(')') else {
+            break;
+        };
         let arg = result[after_contains..after_contains + close_paren].trim();
         // Build replacement: ["x", "y"].contains(&arg)
         let old_end = after_contains + close_paren + 1;
         let new_expr = format!("[{}].contains(&{})", stripped, arg);
-        result = format!("{}{}{}", &result[..open_bracket], new_expr, &result[old_end..]);
+        result = format!(
+            "{}{}{}",
+            &result[..open_bracket],
+            new_expr,
+            &result[old_end..]
+        );
     }
     result
 }
@@ -8835,15 +8958,20 @@ fn fix_depyler_value_str_clone(code: &str) -> String {
     let pattern = "DepylerValue::Str(";
     let mut search_from = 0;
     while search_from < result.len() {
-        let Some(pos) = result[search_from..].find(pattern) else { break };
+        let Some(pos) = result[search_from..].find(pattern) else {
+            break;
+        };
         let abs = search_from + pos;
         let arg_start = abs + pattern.len();
         // Find the closing paren
         if let Some(close) = find_matching_close(&result[arg_start..]) {
             let arg = &result[arg_start..arg_start + close].trim().to_string();
             // If arg is a field access (config.field) and doesn't already have .clone()
-            if arg.contains('.') && !arg.ends_with(".clone()")
-                && arg.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+            if arg.contains('.')
+                && !arg.ends_with(".clone()")
+                && arg
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
             {
                 let old = format!("DepylerValue::Str({})", arg);
                 let new = format!("DepylerValue::Str({}.clone())", arg);
@@ -8876,7 +9004,9 @@ fn collect_ref_option_params(lines: &[&str]) -> Vec<String> {
         if !trimmed.contains("Option<") || !trimmed.ends_with(',') {
             continue;
         }
-        let Some(colon) = trimmed.find(':') else { continue };
+        let Some(colon) = trimmed.find(':') else {
+            continue;
+        };
         let type_part = trimmed[colon + 1..].trim();
         let is_ref_option = (type_part.starts_with("&Option<") || type_part.starts_with("&'"))
             && type_part.contains("Option<");
@@ -8913,15 +9043,11 @@ fn apply_deref_in_new_calls(code: &str, params: &[String]) -> String {
             }
             for param in params {
                 if fixed_line.trim() == format!("{},", param) {
-                    fixed_line = fixed_line.replace(
-                        &format!("{},", param),
-                        &format!("*{},", param),
-                    );
+                    fixed_line =
+                        fixed_line.replace(&format!("{},", param), &format!("*{},", param));
                 } else if fixed_line.trim() == format!("{})", param) {
-                    fixed_line = fixed_line.replace(
-                        &format!("{})", param),
-                        &format!("*{})", param),
-                    );
+                    fixed_line =
+                        fixed_line.replace(&format!("{})", param), &format!("*{})", param));
                 }
             }
             if paren_depth <= 0 {
@@ -8947,14 +9073,19 @@ fn fix_deref_ref_option_unwrap(code: &str) -> String {
     let search = ".unwrap_or_default())";
     let mut i = 0;
     while i < result.len() {
-        let Some(pos) = result[i..].find(search) else { break };
+        let Some(pos) = result[i..].find(search) else {
+            break;
+        };
         let abs = i + pos;
         // Walk back to find `(*`
         if abs >= 2 {
             let before = &result[..abs];
             if let Some(star_pos) = before.rfind("(*") {
                 let var = result[star_pos + 2..abs].trim().to_string();
-                if var.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
+                if var
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+                {
                     let old = format!("(*{}.unwrap_or_default())", var);
                     let new = format!("(*{}).unwrap_or_default()", var);
                     result = result.replacen(&old, &new, 1);
@@ -9041,8 +9172,7 @@ fn fix_orphaned_lazylock_bodies(code: &str) -> String {
     while i < lines.len() {
         let trimmed = lines[i].trim();
         // Detect orphaned LazyLock::new that's NOT part of a pub static assignment
-        if trimmed.starts_with("std::sync::LazyLock::new(")
-            && !is_continuation_of_static(i, &lines)
+        if trimmed.starts_with("std::sync::LazyLock::new(") && !is_continuation_of_static(i, &lines)
         {
             i = skip_block(i, &lines);
             just_consumed_lazylock = true;
@@ -9250,23 +9380,15 @@ fn fix_inline_block_expression_parens(code: &str) -> String {
                             }
                         } else {
                             // No continuation: add missing `)` chars
-                            let existing_close =
-                                count_trailing_close_parens(line_trimmed);
+                            let existing_close = count_trailing_close_parens(line_trimmed);
                             let needed = unclosed - existing_close;
                             if needed > 0 {
-                                let indent = &lines[i]
-                                    [..lines[i].len() - line_trimmed.len()];
+                                let indent = &lines[i][..lines[i].len() - line_trimmed.len()];
                                 let close_str = ")".repeat(needed as usize);
                                 if line_trimmed == "}" {
-                                    result.push(format!(
-                                        "{}}}{};",
-                                        indent, close_str
-                                    ));
+                                    result.push(format!("{}}}{};", indent, close_str));
                                 } else {
-                                    result.push(format!(
-                                        "{}{}",
-                                        lines[i], close_str
-                                    ));
+                                    result.push(format!("{}{}", lines[i], close_str));
                                 }
                             } else {
                                 result.push(lines[i].to_string());
@@ -9372,7 +9494,10 @@ fn extract_string_typed_vars(code: &str) -> Vec<String> {
         }
         // Match: let var: String = ...
         if trimmed.starts_with("let ") && trimmed.contains(": String") {
-            let rest = trimmed.strip_prefix("let ").unwrap_or("").trim_start_matches("mut ");
+            let rest = trimmed
+                .strip_prefix("let ")
+                .unwrap_or("")
+                .trim_start_matches("mut ");
             if let Some(name) = rest.split(':').next() {
                 let name = name.trim();
                 if !name.is_empty() {
@@ -9390,7 +9515,10 @@ fn extract_depyler_value_map_vars(code: &str) -> Vec<String> {
         let trimmed = line.trim();
         // Match: let [mut] VARNAME: ... HashMap<String, DepylerValue>
         if trimmed.starts_with("let ") && trimmed.contains("HashMap<String, DepylerValue>") {
-            let rest = trimmed.strip_prefix("let ").unwrap_or("").trim_start_matches("mut ");
+            let rest = trimmed
+                .strip_prefix("let ")
+                .unwrap_or("")
+                .trim_start_matches("mut ");
             if let Some(name) = rest.split(':').next() {
                 let name = name.trim();
                 if !name.is_empty() && name != "map" {
@@ -11843,10 +11971,3 @@ mod tests {
         ));
     }
 }
-
-
-
-
-
-
-

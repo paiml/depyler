@@ -873,9 +873,7 @@ fn convert_enum_class(
             .map(|field| {
                 let variant_name = make_ident(&field.name);
                 let val = match &field.default_value {
-                    Some(crate::hir::HirExpr::Literal(crate::hir::Literal::String(s))) => {
-                        s.clone()
-                    }
+                    Some(crate::hir::HirExpr::Literal(crate::hir::Literal::String(s))) => s.clone(),
                     _ => field.name.to_lowercase(),
                 };
                 quote::quote! { #enum_name::#variant_name => #val }
@@ -902,10 +900,13 @@ fn convert_enum_class(
                 let discriminant = match &field.default_value {
                     Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(v))) => {
                         let lit = syn::LitInt::new(&v.to_string(), proc_macro2::Span::call_site());
-                        Some((syn::token::Eq::default(), syn::Expr::Lit(syn::ExprLit {
-                            attrs: vec![],
-                            lit: syn::Lit::Int(lit),
-                        })))
+                        Some((
+                            syn::token::Eq::default(),
+                            syn::Expr::Lit(syn::ExprLit {
+                                attrs: vec![],
+                                lit: syn::Lit::Int(lit),
+                            }),
+                        ))
                     }
                     _ => None,
                 };

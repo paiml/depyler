@@ -351,7 +351,7 @@ impl ModuleMapper {
                     ("reduce".to_string(), "".to_string()), // fold is a method on Iterator, no import needed
                     ("partial".to_string(), "".to_string()), // Closures in Rust
                     ("lru_cache".to_string(), "".to_string()), // Would need external crate
-                    ("wraps".to_string(), "".to_string()),   // Not applicable in Rust
+                    ("wraps".to_string(), "".to_string()),  // Not applicable in Rust
                 ]),
                 constructor_patterns: HashMap::new(),
             },

@@ -5418,7 +5418,8 @@ impl<'a> ExprConverter<'a> {
                 // For now, assume set behavior since we're working on sets
                 // DEPYLER-E0277-FIX: String literals are already &str, other values need &
                 if self.is_set_expr(object) {
-                    let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                    let is_str_lit =
+                        matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
                     if is_str_lit {
                         Ok(parse_quote! {
                             if !#object_expr.remove(#arg) {
@@ -5458,7 +5459,8 @@ impl<'a> ExprConverter<'a> {
                 }
                 let arg = &arg_exprs[0];
                 // DEPYLER-E0277-FIX: String literals are already &str, other values need &
-                let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                let is_str_lit =
+                    matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
                 if is_str_lit {
                     Ok(parse_quote! { #object_expr.remove(#arg) })
                 } else {
@@ -6707,8 +6709,9 @@ impl<'a> ExprConverter<'a> {
             let first_char = var_name.chars().next().unwrap_or('a');
             let is_type_name = first_char.is_uppercase();
             // DEPYLER-CONVERGE-MULTI: Allow digits in constant names (e.g. FP8_E4M3)
-            let is_constant =
-                attr.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
+            let is_constant = attr
+                .chars()
+                .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
 
             if is_type_name && is_constant {
                 let type_ident = make_ident(var_name);

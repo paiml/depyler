@@ -604,10 +604,7 @@ fn test_functools_mapping() {
     assert_eq!(mapping.rust_path, "std");
     // DEPYLER-E0658-FIX: reduce maps to empty string because fold is a method on Iterator
     // and doesn't need an import (use std::iter::Iterator::fold is not valid Rust)
-    assert_eq!(
-        mapping.item_map.get("reduce").unwrap(),
-        ""
-    );
+    assert_eq!(mapping.item_map.get("reduce").unwrap(), "");
 }
 
 #[test]

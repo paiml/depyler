@@ -1827,7 +1827,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arg = &arg_exprs[0];
                 // Check if arg is a string literal (already a reference)
-                let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                let is_str_lit =
+                    matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
                 if is_str_lit {
                     Ok(parse_quote! {
                         if !#object_expr.remove(#arg) {
@@ -1848,7 +1849,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arg = &arg_exprs[0];
                 // DEPYLER-E0277-FIX: String literals are already &str, other values need &
-                let is_str_lit = matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
+                let is_str_lit =
+                    matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
                 if is_str_lit {
                     Ok(parse_quote! { #object_expr.remove(#arg) })
                 } else {
@@ -7359,8 +7361,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let first_char = var_name.chars().next().unwrap_or('a');
             let is_type_name = first_char.is_uppercase();
             // DEPYLER-CONVERGE-MULTI: Allow digits in constant names (e.g. FP8_E4M3)
-            let is_constant =
-                attr.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
+            let is_constant = attr
+                .chars()
+                .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
 
             if is_type_name && is_constant {
                 let type_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());

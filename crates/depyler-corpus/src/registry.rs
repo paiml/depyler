@@ -166,10 +166,7 @@ impl CorpusRegistry {
 
     /// Get total file count across all corpora.
     pub fn total_files(&self) -> usize {
-        self.corpora
-            .values()
-            .filter_map(|e| e.file_count)
-            .sum()
+        self.corpora.values().filter_map(|e| e.file_count).sum()
     }
 
     /// Load registry from TOML file.
@@ -319,8 +316,8 @@ mod tests {
 
     #[test]
     fn test_corpus_entry_with_quality() {
-        let entry = CorpusEntry::new("test", PathBuf::from("/tmp"))
-            .with_quality(91.9, "A", 182, 100.0);
+        let entry =
+            CorpusEntry::new("test", PathBuf::from("/tmp")).with_quality(91.9, "A", 182, 100.0);
 
         assert_eq!(entry.tdg_score, Some(91.9));
         assert_eq!(entry.grade, Some("A".to_string()));
