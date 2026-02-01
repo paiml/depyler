@@ -6681,6 +6681,10 @@ fn generate_rust_file_internal(
     // DEPYLER-CONVERGE-MULTI-ITER9: Fix `!string_var` → `string_var.is_empty()` (E0600).
     formatted_code = fix_negation_on_non_bool(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER10: Fix `!config.field` → `config.field.is_empty()` (E0600).
+    // Python `not obj.field` on String/Vec fields needs .is_empty() in Rust.
+    formatted_code = fix_field_access_truthiness(&formatted_code);
+
     // DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping (E0308).
     // Extend to kwargs, config, params etc., not just `map` variable.
     formatted_code = fix_depyler_value_inserts_generalized(&formatted_code);
@@ -6704,6 +6708,23 @@ fn generate_rust_file_internal(
     // The transpiler sometimes generates `};)` where `}` is the for-loop body
     // closing and `)` is orphaned from a dict construction pattern.
     formatted_code = fix_orphaned_semicolon_paren(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER10: Fix sorted_vec reference pattern.
+    // The transpiler generates `let mut sorted_vec = &...collect::<Vec<_>>();`
+    // with a spurious `&` reference, causing return type mismatch (620+ occurrences).
+    formatted_code = fix_sorted_vec_reference(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER10: Fix Vec<String>.contains(&*str_var) → .iter().any()
+    // Vec<String>.contains() expects &String but &*str_var gives &str (E0308, 139 occurrences).
+    formatted_code = fix_vec_contains_deref(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER10: Fix Vec.get(&string_ref).is_some() → .iter().any()
+    // The transpiler generates .get(&ref) for membership checks but Vec.get() expects usize.
+    formatted_code = fix_vec_get_membership(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER10: Fix integer literals in f64 comparisons.
+    // Python `config.beta <= 0` transpiles with integer `0` but Rust needs `0.0` for f64.
+    formatted_code = fix_float_int_comparison(&formatted_code);
 
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
@@ -7507,10 +7528,277 @@ fn fix_negation_on_non_bool(code: &str) -> String {
     result.join("\n")
 }
 
+/// DEPYLER-CONVERGE-MULTI-ITER10: Fix field-access truthiness patterns.
+///
+/// Python `not config.field` generates `!config.field` which is E0600 on String/Vec.
+/// Convert `!ident.field` (NOT method calls) to `ident.field.is_empty()`.
+fn fix_field_access_truthiness(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let fixed = fix_field_negation_in_line(line);
+        result.push(fixed);
+    }
+    result.join("\n")
+}
+
+fn fix_field_negation_in_line(line: &str) -> String {
+    let mut result = line.to_string();
+    loop {
+        let current = result.clone();
+        if let Some(replacement) = find_and_replace_field_negation(&current) {
+            result = replacement;
+        } else {
+            break;
+        }
+    }
+    result
+}
+
+fn find_and_replace_field_negation(line: &str) -> Option<String> {
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == b'!' {
+            // Check if preceded by a valid context (space, `(`, `=`, `{`, start of line)
+            let valid_prefix = i == 0
+                || matches!(
+                    bytes[i - 1],
+                    b' ' | b'(' | b'=' | b'{' | b'|' | b'&' | b'\t'
+                );
+            if !valid_prefix {
+                i += 1;
+                continue;
+            }
+            // Parse first identifier after `!`
+            let start = i + 1;
+            let mut j = start;
+            while j < len && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if j == start || j >= len || bytes[j] != b'.' {
+                i += 1;
+                continue;
+            }
+            let ident1 = &line[start..j];
+            // Parse second identifier after `.`
+            j += 1;
+            let field_start = j;
+            while j < len && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if j == field_start {
+                i += 1;
+                continue;
+            }
+            let field = &line[field_start..j];
+            // Check what follows: if `(` it's a method call - skip
+            if j < len && bytes[j] == b'(' {
+                i = j;
+                continue;
+            }
+            // Also skip if it's another `.` (chained access like `!self.field.method()`)
+            if j < len && bytes[j] == b'.' {
+                i = j;
+                continue;
+            }
+            // Skip known bool-returning or bool-typed fields
+            if is_likely_bool_field(field) {
+                i = j;
+                continue;
+            }
+            // Replace `!ident.field` with `ident.field.is_empty()`
+            let replacement = format!(
+                "{}{}.{}.is_empty(){}",
+                &line[..i],
+                ident1,
+                field,
+                &line[j..]
+            );
+            return Some(replacement);
+        }
+        i += 1;
+    }
+    None
+}
+
 /// DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping.
 ///
 /// Extends beyond just `map.insert()` to handle `kwargs.insert()`,
 /// `config.insert()`, `params.insert()`, and other common variable names.
+fn is_likely_bool_field(field: &str) -> bool {
+    field.starts_with("is_")
+        || field.starts_with("has_")
+        || field.starts_with("should_")
+        || field.starts_with("can_")
+        || field.starts_with("enable")
+        || field.starts_with("disable")
+        || field.starts_with("use_")
+        || field.starts_with("load_in_")
+        || field.starts_with("allow_")
+        || field.starts_with("do_")
+        || field.starts_with("with_")
+        || field.starts_with("no_")
+        || field.starts_with("skip_")
+        || field.starts_with("force_")
+        || field.starts_with("apply_")
+        || field.starts_with("generate_")
+        || field.starts_with("include_")
+        || field.starts_with("exclude_")
+        || field.ends_with("_enabled")
+        || field.ends_with("_flag")
+        || field.ends_with("_only")
+        || field == "verbose"
+        || field == "debug"
+        || field == "quiet"
+        || field == "overwrite"
+        || field == "resume"
+        || field == "fp16"
+        || field == "bf16"
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER10: Fix `.contains(&*var)` → `.iter().any(|s| s == var)`.
+///
+/// `Vec<String>.contains()` expects `&String` but `&*str_var` dereferences to `&str`.
+/// Replace with `.iter().any()` which uses `String == &str` coercion (139 occurrences).
+fn fix_vec_contains_deref(code: &str) -> String {
+    if !code.contains(".contains(&*") {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    // Match `.contains(&*identifier)` and `.contains(&*identifier)`
+    // where identifier is [a-zA-Z_][a-zA-Z0-9_]*
+    loop {
+        if let Some(pos) = result.find(".contains(&*") {
+            let after = pos + ".contains(&*".len();
+            let mut end = after;
+            let bytes = result.as_bytes();
+            while end < bytes.len()
+                && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_')
+            {
+                end += 1;
+            }
+            if end > after && end < bytes.len() && bytes[end] == b')' {
+                let var = &result[after..end].to_string();
+                let old = format!(".contains(&*{})", var);
+                let new = format!(".iter().any(|s| s == {})", var);
+                result = result.replacen(&old, &new, 1);
+                continue;
+            }
+        }
+        break;
+    }
+    result
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER10: Fix `.get(&ref).is_some()` → `.iter().any()`.
+///
+/// The transpiler generates `VEC.get(&string_ref).is_some()` for `in` checks,
+/// but `Vec::get()` takes `usize`, not `&String`. Convert to `.iter().any()`.
+fn fix_vec_get_membership(code: &str) -> String {
+    if !code.contains(".get(&") || !code.contains(".is_some()") {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    let mut search_from = 0;
+    loop {
+        let haystack = &result[search_from..];
+        let rel_pos = match haystack.find(".get(&") {
+            Some(p) => p,
+            None => break,
+        };
+        let pos = search_from + rel_pos;
+        let after = pos + ".get(&".len();
+        let mut depth = 1;
+        let mut end = after;
+        let bytes = result.as_bytes();
+        while end < bytes.len() && depth > 0 {
+            if bytes[end] == b'(' {
+                depth += 1;
+            } else if bytes[end] == b')' {
+                depth -= 1;
+            }
+            if depth > 0 {
+                end += 1;
+            }
+        }
+        if depth == 0 && end < bytes.len() {
+            let expr = result[after..end].to_string();
+            if expr.starts_with(|c: char| c.is_ascii_digit()) {
+                search_from = end + 1;
+                continue;
+            }
+            let suffix_start = end + 1;
+            if suffix_start + 10 <= result.len()
+                && &result[suffix_start..suffix_start + 10] == ".is_some()"
+            {
+                let old = format!(".get(&{}).is_some()", expr);
+                let new = format!(".iter().any(|s| s == &{})", expr);
+                result = result.replacen(&old, &new, 1);
+                continue;
+            }
+        }
+        search_from = pos + 1;
+    }
+    result
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER10: Fix integer literals in f64 comparisons.
+///
+/// Python `config.field <= 0` transpiles with integer `0` but if the field is `f64`,
+/// Rust needs `0.0`. Pattern: `ident.field <= 0` or `ident.field >= 0` etc.
+/// Only targets known float-comparison patterns with literal `0` or `1`.
+fn fix_float_int_comparison(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let fixed = fix_float_int_in_line(line);
+        result.push_str(&fixed);
+        result.push('\n');
+    }
+    // Remove trailing newline if original didn't have one
+    if !code.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+fn fix_float_int_in_line(line: &str) -> String {
+    let mut result = line.to_string();
+    // Pattern: `field_name <= 0;` or `field_name <= 0 {` where field_name is a known float field
+    let float_fields = [
+        "beta", "learning_rate", "lr", "momentum", "weight_decay", "epsilon",
+        "gamma", "alpha", "lambda", "temperature", "top_p", "top_k_float",
+        "label_smoothing", "cliprange", "cliprange_value", "vf_coef",
+        "max_grad_norm", "lam", "dropout", "warmup_ratio", "threshold",
+        "score", "loss", "reward", "penalty", "decay", "rate", "ratio",
+        "step_size", "min_lr", "max_lr",
+    ];
+    for op in &["<= 0", ">= 0", "< 0", "> 0", "== 0", "!= 0"] {
+        let float_op = op.replace(" 0", " 0.0");
+        for field in &float_fields {
+            let pattern = format!(".{} {}", field, op);
+            if result.contains(&pattern) {
+                let replacement = format!(".{} {}", field, float_op);
+                result = result.replace(&pattern, &replacement);
+            }
+        }
+    }
+    // Also handle `<= 1`, `>= 1` for probability/ratio fields
+    for op in &["<= 1", ">= 1", "< 1", "> 1", "== 1", "!= 1"] {
+        let float_op = op.replace(" 1", " 1.0");
+        for field in &["dropout", "top_p", "label_smoothing", "warmup_ratio",
+                       "cliprange", "cliprange_value", "gamma", "lam", "ratio"] {
+            let pattern = format!(".{} {}", field, op);
+            if result.contains(&pattern) {
+                let replacement = format!(".{} {}", field, float_op);
+                result = result.replace(&pattern, &replacement);
+            }
+        }
+    }
+    result
+}
+
 fn fix_depyler_value_inserts_generalized(code: &str) -> String {
     if !code.contains("HashMap<String, DepylerValue>") {
         return code.to_string();
@@ -7811,6 +8099,18 @@ fn fix_orphaned_semicolon_paren(code: &str) -> String {
         }
     }
     result.join("\n")
+}
+
+/// DEPYLER-CONVERGE-MULTI-ITER10: Fix sorted_vec reference pattern.
+///
+/// The transpiler generates `let mut sorted_vec = &CONSTANT.iter()...collect::<Vec<_>>();`
+/// with a spurious `&` reference. This causes the function to return `&Vec<String>` where
+/// `Vec<String>` is expected (E0308). Fix by removing the `&`.
+fn fix_sorted_vec_reference(code: &str) -> String {
+    if !code.contains("let mut sorted_vec = &") {
+        return code.to_string();
+    }
+    code.replace("let mut sorted_vec = &", "let mut sorted_vec = ")
 }
 
 /// Patterns like `Arc::new({ let mut set = HashSet::new(); ... set }` generate
@@ -10459,6 +10759,10 @@ mod tests {
         ));
     }
 }
+
+
+
+
 
 
 
