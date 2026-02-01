@@ -1,7 +1,7 @@
 # Multi-Corpus Convergence with Concurrent Oracle Training
 
-**Version**: 1.0.0
-**Date**: 2026-01-31
+**Version**: 1.1.0
+**Date**: 2026-02-01
 **Status**: PROPOSED
 **Authors**: Depyler Team
 **Ticket**: DEPYLER-CONVERGE-MULTI
@@ -32,14 +32,15 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Current State (2026-02-01, iter 12) -- MEASURED
+### Current State (2026-02-01, iter 14) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
 | Single-shot compile (reprorusted-std-only) | **85% (17/20)** | 80% | **Met (+5 pp)** |
 | Single-shot compile (fully-typed-reprorusted) | **60% (9/15)** | 60% | **Met** |
-| Single-shot compile (hugging-face-gtc) | **3.1% (4/128)** | 40% | 36.9 pp |
+| Single-shot compile (hugging-face-gtc) | **3.9% (5/128)** | 40% | 36.1 pp |
+| Single-shot compile (jax-gtc) | **0% (0/7)** | 40% | 40 pp |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
@@ -61,7 +62,9 @@ progress is measured by attempted refutations rather than confirmations.
 | 9 | 2026-01-31 | 19/20 (95%) | 9/15 (60%) | 0/128 (0%) | (merged into iter10) | bool truthiness, sorted_vec, field access fixes |
 | 10 | 2026-01-31 | **17/20 (85%)** | **6/15 (40%)** | **1/128 (0.8%)** | 33c56447 | Vec contains deref, membership check, float/int comparison; **first Tier 3 file compiles (training/trl.py)**; NOTE: Tier 1/2 regression from measurement methodology correction |
 | 11 | 2026-02-01 | 17/20 (85%) | **10/16 (62%)** | **3/128 (2.3%)** | acb71446 | Enum Display (..) pattern, borrowed alias .clone(), deref string comparison, Vec<DepylerValue>.join(); **Tier 2 target met at 62%**; 2 new Tier 3 files (hub/collections, inference/streaming) |
-| 12 | 2026-02-01 | 17/20 (85%) | **9/15 (60%)** | **4/128 (3.1%)** | (pending) | !String truthiness, r#false/r#true, deref unwrap, &str→.to_string() in ::new(), DepylerValue::Str clone, [String].contains→[&str], &Option deref in ::new(), (*ref_option).unwrap; **+1 new Tier 3: inference/optimization** |
+| 12 | 2026-02-01 | 17/20 (85%) | **9/15 (60%)** | **4/128 (3.1%)** | 7c349b37 | !String truthiness, r#false/r#true, deref unwrap, &str→.to_string() in ::new(), DepylerValue::Str clone, [String].contains→[&str], &Option deref in ::new(), (*ref_option).unwrap; **+1 new Tier 3: inference/optimization** |
+| 13 | 2026-02-01 | 17/20 (85%) | 9/15 (60%) | 4/128 (3.1%) | (pending) | DepylerValue::from(Enum) → DepylerValue::Str(format!), From<Enum> impls, validate_not_none 2-arg fix + turbofish, CSE py_mul .into() removal; error count reduced (rag/indexing 7→2, audio/music 14→5) but no new files flipped |
+| 14 | 2026-02-01 | 17/20 (85%) | 9/15 (60%) | **5/128 (3.9%)** | (pending) | Multi-line .into() removal in py_mul/py_div chains, tuple(T,DV)→Vec<T> when .len() called; **+1 new Tier 3: deployment/optimization** |
 
 **Measurement methodology notes**:
 - (iter 3) `depyler transpile` writes .rs files alongside .py files.
@@ -105,7 +108,21 @@ progress is measured by attempted refutations rather than confirmations.
 | `E0425: cannot find value` | 449 | Missing scope references |
 | Other | ~1046 | Various (E0433, E0061, etc.) |
 
-Closest to compiling (Tier 3): training/trl.py (0 errors, COMPILES), deployment/optimization.py (4 errors), inference/batch.py (6 errors), hub/collections.py (6 errors)
+Closest to compiling (Tier 3): training/trl.py (0 errors, COMPILES), deployment/optimization.py (0 errors, COMPILES), inference/batch.py (6 errors), hub/collections.py (6 errors)
+
+**Tier 4 error distribution** (7 files, 0 compiling = 0%):
+
+| Error Class | Count | Description |
+|-------------|-------|-------------|
+| `E0433: unresolved module` | ~20 | `jax`, `jnp` modules have no Rust mapping |
+| `E0599: method not found` | ~25 | `Array.shape`, `.reshape()`, `.at` etc. |
+| `E0308: mismatched types` | ~15 | `Array` vs concrete numeric types |
+| `E0562: impl Trait` | ~5 | `impl Fn()` in local variable positions |
+| `E0425: cannot find value` | ~10 | Unmapped kwargs (`static_argnums`, `axis_name`) |
+| Transpile panic | 1 | `neural/layers.py` -- `where` keyword in identifier position |
+
+Root cause: JAX APIs (`jax.grad`, `jax.jit`, `jax.vmap`, `jnp.array`) are
+entirely unmapped. Requires a dedicated JAX-to-Rust stdlib mapping layer.
 | `E0433: unresolved module` | 39 | Undeclared crates/modules |
 | `E0599: method not found` | 36 | Methods on wrong types |
 | `E0573: expected type found variant` | 34 | Struct/enum confusion |
@@ -183,6 +200,36 @@ equivalents. The primary value is in the **error signal**: compile failures
 from this corpus train the oracle on unsupported-library patterns that would
 otherwise be unobserved.
 
+### 2.4 jax-ground-truth-corpus (Tier 4 -- JAX/ML)
+
+| Property | Value |
+|----------|-------|
+| Location | `~/src/jax-ground-truth-corpus` |
+| Python files | 7 (in `src/jax_gtc/`) |
+| LOC | ~2,042 |
+| Complexity | High -- JAX ML framework with autodiff, distributed computing |
+| Categories | 7: arrays, autodiff, distributed, neural, random, training, transforms |
+| Key modules | operations, derivatives, parallel, layers, prng, optimizers, core |
+
+**Category breakdown**:
+
+| Category | Module | Description |
+|----------|--------|-------------|
+| `arrays` | `operations.py` | JAX array operations, broadcasting, reshaping |
+| `autodiff` | `derivatives.py` | Automatic differentiation, gradients, Jacobians |
+| `distributed` | `parallel.py` | Multi-device parallelism, sharding, pmap |
+| `neural` | `layers.py` | Neural network layers, activation functions |
+| `random` | `prng.py` | PRNG key management, random sampling |
+| `training` | `optimizers.py` | Gradient descent, Adam, learning rate schedules |
+| `transforms` | `core.py` | JIT compilation, vmap, pmap transforms |
+
+**Transpilation prognosis**: JAX relies heavily on NumPy-like array semantics,
+functional transformations (jit, vmap, grad), and hardware-agnostic dispatch.
+These patterns stress the transpiler's ability to handle higher-order functions,
+array broadcasting, and numerical computing idioms. Smaller corpus size (7 files)
+makes it tractable for rapid iteration while providing structurally distinct
+error signal from the HuggingFace corpus.
+
 ---
 
 ## 3. Goal 1: Multi-Corpus Single-Shot Compile
@@ -190,8 +237,8 @@ otherwise be unobserved.
 ### 3.1 Conjecture
 
 > **C1**: Depyler can achieve single-shot compilation rates of 80% (Tier 1),
-> 60% (Tier 2), and 40% (Tier 3) within a bounded number of UTOL iterations
-> against three structurally distinct Python corpora.
+> 60% (Tier 2), 40% (Tier 3), and 40% (Tier 4) within a bounded number of
+> UTOL iterations against four structurally distinct Python corpora.
 
 ### 3.2 Rationale
 
@@ -199,7 +246,7 @@ Single-corpus optimization risks overfitting the transpiler to one
 distribution of Python idioms. Ohno (1988) warns against *muda* (waste) from
 localized optimization that degrades global throughput: "The worst waste is
 the waste of overproduction -- producing things that are not needed" (p. 19).
-By converging against three corpora simultaneously, we follow the Toyota
+By converging against four corpora simultaneously, we follow the Toyota
 Production System principle of *heijunka* (production leveling) applied to
 error-class distributions (Liker, 2004, Principle 4).
 
@@ -213,7 +260,8 @@ obtain, the conjecture is refuted and must be revised.
 | F1.1 | Tier 1 plateau | Compile rate stalls below 80% for 10 consecutive UTOL iterations | < 80% after iter 50 | Basic statement (Popper, 1959, Sec. 28) |
 | F1.2 | Tier 2 regression | Tier 2 rate drops > 5 pp while optimizing for Tier 1 | delta < -5 pp | Corroboration degree (Popper, 1963, Ch. 10) |
 | F1.3 | Tier 3 zero signal | No new error categories discovered from Tier 3 after 20 iterations | new_categories == 0 | Informative content (Popper, 1959, Sec. 35) |
-| F1.4 | Cross-corpus interference | Fixing Tier 3 errors introduces regressions in Tier 1 | Tier 1 delta < -2 pp per fix batch | Severity of test (Popper, 1963, Ch. 10) |
+| F1.4 | Cross-corpus interference | Fixing Tier 3/4 errors introduces regressions in Tier 1 | Tier 1 delta < -2 pp per fix batch | Severity of test (Popper, 1963, Ch. 10) |
+| F1.5 | Tier 4 structural divergence | JAX corpus errors share < 30% overlap with Tier 3 error classes | overlap < 0.30 | Degree of falsifiability (Popper, 1959, Sec. 36) |
 
 ### 3.4 Success Metrics
 
@@ -221,7 +269,8 @@ obtain, the conjecture is refuted and must be revised.
 Tier 1 (std-only):     ████████████████████████████████████████ 80%
 Tier 2 (typed-cli):    ████████████████████████████████         60%
 Tier 3 (hf-corpus):    ████████████████████                     40%
-Combined (weighted):   ████████████████████████████████████     ~53%
+Tier 4 (jax-gtc):      ████████████████████                     40%
+Combined (weighted):   ████████████████████████████████████     ~55%
 ```
 
 ### 3.5 Measurement Protocol
@@ -235,6 +284,9 @@ depyler converge --corpus ~/src/fully-typed-reprorusted-python-cli \
   --target-rate 0.60 --max-iterations 50 --seed 42
 
 depyler converge --corpus ~/src/hugging-face-ground-truth-corpus \
+  --target-rate 0.40 --max-iterations 50 --seed 42
+
+depyler converge --corpus ~/src/jax-ground-truth-corpus \
   --target-rate 0.40 --max-iterations 50 --seed 42
 
 # Cross-corpus regression gate
@@ -306,13 +358,13 @@ the oracle to the actual distribution of errors that users encounter.
                     +------------------------+
                     |   Unified Error Stream  |
                     +------------------------+
-                         |         |        |
-              +----------+    +----+----+   +----------+
-              | Tier 1   |    | Tier 2  |   | Tier 3   |
-              | stdlib   |    | typed   |   | ML/HF    |
-              | errors   |    | errors  |   | errors   |
-              +----------+    +---------+   +----------+
-                         |         |        |
+                     |       |       |       |
+              +------+  +---+---+  +----+  +------+
+              |Tier 1|  |Tier 2 |  |Tier|  |Tier 4|
+              |stdlib|  | typed |  | 3  |  | JAX  |
+              |errors|  |errors |  |ML  |  |array |
+              +------+  +-------+  +----+  +------+
+                     |       |       |       |
                     +------------------------+
                     | Heijunka Balancer      |
                     | (class-weighted sample)|
@@ -323,12 +375,12 @@ the oracle to the actual distribution of errors that users encounter.
                     | (mixture of experts)   |
                     +------------------------+
                               |
-              +---------------+---------------+
-              |               |               |
-        +-----------+  +-----------+  +-----------+
-        | Stdlib    |  | Type      |  | Library   |
-        | Expert    |  | Expert    |  | Expert    |
-        +-----------+  +-----------+  +-----------+
+          +----------+--------+--------+----------+
+          |          |                 |           |
+     +--------+ +--------+     +---------+ +--------+
+     |Stdlib  | |Type    |     |Library  | |Numeric |
+     |Expert  | |Expert  |     |Expert   | |Expert  |
+     +--------+ +--------+     +---------+ +--------+
 ```
 
 ### 4.5 Scholarly Grounding
@@ -627,12 +679,12 @@ falsification by retreating to an unfalsifiable catch-all type:
 
 | Goal | Conjecture | Falsifier Count | Severity if Falsified |
 |------|-----------|-----------------|----------------------|
-| G1 (Compile) | C1 | 4 | P0 -- blocks release |
+| G1 (Compile) | C1 | 5 | P0 -- blocks release |
 | G2 (Oracle) | C2 | 4 | P1 -- blocks training |
 | G3 (PMAT A+) | C3 | 4 | P1 -- blocks refactoring |
 | G4 (Coverage) | C4 | 4 | P2 -- tracks regression |
 
-Total falsifiers: **16 independent tests** of the specification's claims.
+Total falsifiers: **17 independent tests** of the specification's claims.
 
 ---
 
@@ -641,35 +693,35 @@ Total falsifiers: **16 independent tests** of the specification's claims.
 ### 8.1 Multi-Corpus Convergence Pipeline
 
 ```
- +-----------+    +-----------+    +-------------+
- | Tier 1    |    | Tier 2    |    | Tier 3      |
- | std-only  |    | typed-cli |    | hf-corpus   |
- | 43 files  |    | 16 files  |    | 143 files   |
- +-----------+    +-----------+    +-------------+
-       |                |                |
-       v                v                v
- +---------------------------------------------+
- |          Unified Transpilation Phase         |
- |  depyler transpile --corpus $TIER --seed 42 |
- +---------------------------------------------+
-       |                |                |
-       v                v                v
- +---------------------------------------------+
- |          Batch Compilation Phase             |
- |  BatchCompiler (tokio, semaphore=16 jobs)    |
- +---------------------------------------------+
-       |                |                |
-       v                v                v
- +---------------------------------------------+
- |          Error Stream Merge                  |
- |  Heijunka-balanced sampling across tiers     |
- +---------------------------------------------+
+ +-----------+  +-----------+  +-------------+  +-----------+
+ | Tier 1    |  | Tier 2    |  | Tier 3      |  | Tier 4    |
+ | std-only  |  | typed-cli |  | hf-corpus   |  | jax-gtc   |
+ | 20 files  |  | 15 files  |  | 128 files   |  | 7 files   |
+ +-----------+  +-----------+  +-------------+  +-----------+
+       |              |              |                |
+       v              v              v                v
+ +--------------------------------------------------------+
+ |            Unified Transpilation Phase                  |
+ |    depyler transpile --corpus $TIER --seed 42          |
+ +--------------------------------------------------------+
+       |              |              |                |
+       v              v              v                v
+ +--------------------------------------------------------+
+ |            Batch Compilation Phase                     |
+ |    BatchCompiler (tokio, semaphore=16 jobs)            |
+ +--------------------------------------------------------+
+       |              |              |                |
+       v              v              v                v
+ +--------------------------------------------------------+
+ |            Error Stream Merge                          |
+ |    Heijunka-balanced sampling across tiers             |
+ +--------------------------------------------------------+
                       |
                       v
  +---------------------------------------------+
  |          Oracle Training (Concurrent)        |
- |  MOE: stdlib-expert + type-expert + lib-exp  |
- |  Curriculum: Tier 1 -> Tier 2 -> Tier 3      |
+ |  MOE: stdlib + type + library + numeric exp  |
+ |  Curriculum: Tier 1 -> 2 -> 3 -> 4           |
  +---------------------------------------------+
                       |
            +----------+----------+
@@ -707,9 +759,10 @@ following the Toyota principle of leveled production:
 
 ```
 Training batch composition (per epoch):
-  - Tier 1 errors: 33% (class-balanced within tier)
-  - Tier 2 errors: 33%
-  - Tier 3 errors: 33%
+  - Tier 1 errors: 25% (class-balanced within tier)
+  - Tier 2 errors: 25%
+  - Tier 3 errors: 25%
+  - Tier 4 errors: 25%
 
 Within each tier, class balance (heijunka):
   - E0308 (type mismatch): capped at 25% of tier allocation
@@ -741,7 +794,7 @@ Within each tier, class balance (heijunka):
        v
   [Falsification Gate]
        |
-       +-- All 16 falsifiers evaluated
+       +-- All 17 falsifiers evaluated
        +-- Escape rate < 0.20
        +-- No cross-tier regression
        |
@@ -761,6 +814,7 @@ Establish falsifiable baselines for all three corpora before any changes.
 - `baseline_tier1.json` -- reprorusted-std-only compile rate
 - `baseline_tier2.json` -- fully-typed-reprorusted compile rate
 - `baseline_tier3.json` -- hugging-face-gtc compile rate
+- `baseline_tier4.json` -- jax-gtc compile rate
 - `baseline_oracle.json` -- Oracle accuracy by category per tier
 - `baseline_coverage.json` -- FAST coverage report
 
@@ -812,7 +866,7 @@ Push FAST coverage to 95% and run the complete falsification matrix.
 
 **Deliverables**:
 - FAST coverage >= 95%
-- All 16 falsifiers evaluated
+- All 17 falsifiers evaluated
 - Falsification report published
 - Oracle accuracy >= 92%
 
@@ -825,6 +879,7 @@ Push FAST coverage to 95% and run the complete falsification matrix.
 | Risk | Probability | Impact | Mitigation | Falsifier |
 |------|-------------|--------|------------|-----------|
 | Tier 3 corpus too complex for current transpiler | High | Low (expected) | Use for error signal only, not compile-rate target | F1.3 |
+| Tier 4 JAX patterns orthogonal to existing fixes | Medium | Low | JAX array/autodiff errors train numeric expert | F1.5 |
 | Coverage tests slow down FAST suite | Medium | High | Profile each new test, enforce 100ms ceiling per test | F4.1 |
 | Complexity refactoring breaks codegen | Medium | High | Full regression suite after each decomposition | F3.1 |
 | Oracle overfits to dominant error class (E0308) | Medium | Medium | Heijunka balancing, per-class F1 monitoring | F2.2 |

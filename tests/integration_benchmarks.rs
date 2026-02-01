@@ -203,8 +203,9 @@ def sample_function(x: int, y: int) -> int:
             );
 
             // All configurations should complete reasonably quickly
+            // Threshold set to 5s to accommodate debug builds and CI environments
             assert!(
-                duration < Duration::from_secs(1),
+                duration < Duration::from_secs(5),
                 "{} configuration took too long: {:?}",
                 config_name,
                 duration

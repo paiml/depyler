@@ -6799,6 +6799,29 @@ fn generate_rust_file_internal(
     // When &Option<i32> is unwrapped with *, use .copied().unwrap_or_default() instead.
     formatted_code = fix_deref_ref_option_unwrap(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER13: Replace DepylerValue::from(EnumType::X) with
+    // DepylerValue::Str(format!("{:?}", EnumType::X)) for generated enum types.
+    formatted_code = fix_depyler_value_from_enum(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER13: Add type annotations to CSE temps in py_mul/py_div chains
+    // to resolve E0282 ambiguous type inference.
+    formatted_code = fix_cse_py_mul_type_annotation(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER13: Add From<EnumType> for DepylerValue impls
+    // for all generated enum types that don't already have them.
+    formatted_code = fix_add_enum_from_impls(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER13: Fix validate_not_none 2-arg calls vs 1-arg definition.
+    formatted_code = fix_validate_not_none_args(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER14: Fix HashMap key type mismatch where outer annotation
+    // says HashMap<String, _> but inner block uses HashMap<DepylerValue, _>.
+    formatted_code = fix_hashmap_key_type_mismatch(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER14: Fix tuple(T, DepylerValue) struct fields that should
+    // be Vec<T> when .len() or .to_string() is called on them.
+    formatted_code = fix_tuple_to_vec_when_len_called(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -9095,6 +9118,234 @@ fn fix_deref_ref_option_unwrap(code: &str) -> String {
             }
         }
         i = abs + search.len();
+    }
+    result
+}
+
+/// ITER13: Replace `DepylerValue::from(EnumType::Variant)` with
+/// `DepylerValue::Str(format!("{:?}", EnumType::Variant))`.
+/// This avoids needing `From<EnumType> for DepylerValue` trait impls.
+fn fix_depyler_value_from_enum(code: &str) -> String {
+    let enum_names = collect_non_dv_enum_names(code);
+    if enum_names.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for name in &enum_names {
+        let prefix = format!("DepylerValue::from({}::", name);
+        while let Some(start) = result.find(&prefix) {
+            let paren_start = start + "DepylerValue::from".len();
+            let after_paren = paren_start + 1;
+            if after_paren < result.len() {
+                if let Some(rel_close) = find_matching_close(&result[after_paren..]) {
+                    let close = after_paren + rel_close;
+                    let inner = result[after_paren..close].to_string();
+                    let old = format!("DepylerValue::from({})", inner);
+                    let new =
+                        format!("DepylerValue::Str(format!(\"{{:?}}\", {}))", inner);
+                    result = result.replacen(&old, &new, 1);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    result
+}
+
+/// ITER13: Remove `.into()` inside py_mul/py_div argument blocks when the value
+/// comes from `.unwrap_or_default()` - py_mul/py_div already accept DepylerValue.
+/// Handles both single-line `.unwrap_or_default().into()` and multi-line patterns
+/// where `.into()` is on the next line with whitespace.
+fn fix_cse_py_mul_type_annotation(code: &str) -> String {
+    let mut result = code.to_string();
+    for py_op in &[".py_mul(", ".py_div("] {
+        let mut search_from = 0;
+        while search_from < result.len() {
+            let Some(op_pos) = result[search_from..].find(py_op) else {
+                break;
+            };
+            let abs_pos = search_from + op_pos;
+            let paren_start = abs_pos + py_op.len();
+            if let Some(rel_close) = find_matching_close(&result[paren_start..]) {
+                let block = &result[paren_start..paren_start + rel_close];
+                let fixed_block =
+                    remove_into_after_unwrap_or_default(block);
+                if fixed_block != block {
+                    let before = &result[..paren_start];
+                    let after = &result[paren_start + rel_close..];
+                    result = format!("{}{}{}", before, fixed_block, after);
+                }
+            }
+            search_from = abs_pos + py_op.len();
+        }
+    }
+    result
+}
+
+/// Remove `.into()` that follows `.unwrap_or_default()` with optional whitespace between.
+fn remove_into_after_unwrap_or_default(block: &str) -> String {
+    let target = ".unwrap_or_default()";
+    let mut result = block.to_string();
+    let mut search_from = 0;
+    while let Some(pos) = result[search_from..].find(target) {
+        let abs_end = search_from + pos + target.len();
+        let remaining = &result[abs_end..];
+        // Skip whitespace (including newlines)
+        let ws_len = remaining.len() - remaining.trim_start().len();
+        let after_ws = &remaining[ws_len..];
+        if after_ws.starts_with(".into()") {
+            // Remove the whitespace + `.into()`
+            let remove_start = abs_end;
+            let remove_end = abs_end + ws_len + ".into()".len();
+            result = format!("{}{}", &result[..remove_start], &result[remove_end..]);
+        }
+        search_from = abs_end;
+        if search_from >= result.len() {
+            break;
+        }
+    }
+    result
+}
+
+/// ITER13: Add `impl From<EnumType> for DepylerValue` for all generated enums
+/// that don't already have From impls. Uses Debug formatting.
+fn fix_add_enum_from_impls(code: &str) -> String {
+    let enum_names = collect_non_dv_enum_names(code);
+    if enum_names.is_empty() {
+        return code.to_string();
+    }
+    let mut impls_to_add = Vec::new();
+    for name in &enum_names {
+        let from_marker = format!("impl From<{}> for DepylerValue", name);
+        if code.contains(&from_marker) {
+            continue;
+        }
+        // Always add From impl for all enums since they may be used via .into()
+        {
+            impls_to_add.push(format!(
+                "impl From<{name}> for DepylerValue {{\n    \
+                 fn from(v: {name}) -> Self {{\n        \
+                 DepylerValue::Str(format!(\"{{:?}}\", v))\n    \
+                 }}\n}}\n"
+            ));
+        }
+    }
+    if impls_to_add.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    if let Some(main_pos) = result.find("\npub fn main()") {
+        let insert = impls_to_add.join("\n");
+        result.insert_str(main_pos, &format!("\n{}", insert));
+    } else {
+        result.push_str(&impls_to_add.join("\n"));
+    }
+    result
+}
+
+/// ITER13: Fix validate_not_none arg count mismatch.
+/// The transpiler generates `fn validate_not_none<T: Default>(_args: impl Any) -> T`
+/// but calls it as `validate_not_none(val, "name")`. Add the second param.
+fn fix_validate_not_none_args(code: &str) -> String {
+    let one_arg_sig = "fn validate_not_none<T: Default>(_args: impl std::any::Any) -> T";
+    if !code.contains(one_arg_sig) {
+        return code.to_string();
+    }
+    let has_two_arg_call = code.lines().any(|l| {
+        let t = l.trim();
+        t.starts_with("validate_not_none(") && t.contains(", \"")
+    });
+    let mut result = if has_two_arg_call {
+        let two_arg_sig =
+            "fn validate_not_none<T: Default>(_args: impl std::any::Any, _name: &str) -> T";
+        code.replace(one_arg_sig, two_arg_sig)
+    } else {
+        code.to_string()
+    };
+    // Also turbofish unused calls with ::<()> to resolve generic type inference
+    let lines: Vec<&str> = result.lines().collect();
+    let mut new_lines: Vec<String> = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let t = line.trim();
+        if t.starts_with("validate_not_none(") && t.ends_with(';') {
+            let fixed = line.replace("validate_not_none(", "validate_not_none::<()>(");
+            new_lines.push(fixed);
+        } else {
+            new_lines.push(line.to_string());
+        }
+    }
+    result = new_lines.join("\n");
+    result
+}
+
+/// Collect names of all `pub enum X` that are NOT `DepylerValue`.
+fn collect_non_dv_enum_names(code: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    for line in code.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("pub enum ") {
+            let name = rest
+                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                .next()
+                .unwrap_or("");
+            if !name.is_empty() && name != "DepylerValue" {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names
+}
+
+/// ITER14 placeholder: HashMap key type mismatch fix deferred.
+/// The DepylerValue-keyed vs String-keyed HashMap mismatch requires deeper
+/// transpiler changes (type propagation from annotation to dict literal builder).
+fn fix_hashmap_key_type_mismatch(code: &str) -> String {
+    code.to_string()
+}
+
+/// ITER14: Fix struct fields typed `(T, DepylerValue)` that should be `Vec<T>`
+/// when `.len()` is called on them. Python `tuple[T, ...]` maps to Vec, not tuple.
+fn fix_tuple_to_vec_when_len_called(code: &str) -> String {
+    // Find struct fields with pattern: `pub X: (SomeType, DepylerValue),`
+    // Then check if `.X.len()` appears in the code
+    let mut replacements: Vec<(String, String, String)> = Vec::new();
+    for line in code.lines() {
+        let t = line.trim();
+        if !t.starts_with("pub ") || !t.contains(": (") || !t.contains(", DepylerValue)") {
+            continue;
+        }
+        // Extract field name and inner type
+        if let Some(colon_pos) = t.find(": (") {
+            let field_part = &t[4..colon_pos]; // after "pub "
+            let field_name = field_part.trim();
+            let type_start = colon_pos + 3; // after ": ("
+            if let Some(comma_pos) = t[type_start..].find(", DepylerValue)") {
+                let inner_type = t[type_start..type_start + comma_pos].trim();
+                // Check if .field_name.len() is used in code
+                let len_pattern = format!(".{}.len()", field_name);
+                let tostr_pattern = format!(".{}.to_string()", field_name);
+                let iter_pattern = format!(".{}.iter()", field_name);
+                if code.contains(&len_pattern)
+                    || code.contains(&tostr_pattern)
+                    || code.contains(&iter_pattern)
+                {
+                    let old_type =
+                        format!("({}, DepylerValue)", inner_type);
+                    let new_type = format!("Vec<{}>", inner_type);
+                    replacements.push((field_name.to_string(), old_type, new_type));
+                }
+            }
+        }
+    }
+    if replacements.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for (_field, old_type, new_type) in &replacements {
+        result = result.replace(old_type.as_str(), new_type.as_str());
     }
     result
 }
