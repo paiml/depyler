@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.25.0] - 2026-02-02
+
+### 🎯 Multi-Corpus Convergence Milestone
+
+**All three external corpus targets now met!**
+
+This release marks a major milestone in the multi-corpus convergence campaign:
+
+| Corpus | Compile Rate | Target | Status |
+|--------|--------------|--------|--------|
+| Tier 1 (stdlib) | 92.7% (38/41) | 80% | ✅ +12.7 pp |
+| Tier 2 (typed-cli) | 62.5% (10/16) | 60% | ✅ +2.5 pp |
+| Tier 5 (algorithms) | 47.5% (48/101) | 40% | ✅ +7.5 pp |
+| Internal examples | 80% (256/320) | 80% | ✅ Met |
+
+### 🔧 Text-Level Post-Processing Fixes (iter17)
+
+Seven new text-level fixes in `rust_gen.rs` that improved Tier 5 from 26% to 47.5%:
+
+1. **Multi-line Result signature detection** (`has_result_return_multiline`)
+   - Scans 5 lines after `fn` declaration for `-> Result<`
+   - Fixes files like `merge_sort.py` with multi-line function signatures
+
+2. **Generic function name extraction**
+   - Strips `<'a, T>` from names like `_merge<'b, 'a>`
+   - Enables proper Result double-wrap detection
+
+3. **`find_call_close_paren` for nested calls**
+   - Balanced parenthesis tracking for complex expressions
+   - Handles `Ok(nested(complex(args)))`
+
+4. **`Ok(!fname(` pattern support**
+   - Logical negation in Result-returning calls
+
+5. **`fix_trailing_comma_in_arith_parens`**
+   - Removes spurious trailing commas: `(expr,)` → `(expr)`
+   - Prevents tuple coercion in arithmetic expressions
+
+6. **`fix_immutable_ref_to_mut`**
+   - `&var` → `&mut var` at call sites when callee needs mutable ref
+
+7. **`fix_regex_match_string_arg`**
+   - Removes `.to_string()` where `&str` expected in `DepylerRegexMatch::new()`
+
+### 📊 Quality Metrics
+
+- **Clippy**: Zero warnings
+- **Tests**: All passing
+- **TDG Grade**: B+ (on track for A+)
+
+### 🔗 Links
+
+- Specification: `docs/specifications/improve-converge.md`
+- Corpus locations documented in spec
+
 ## [3.22.0] - 2025-01-18
 
 ### 🎯 Hero Example Achievement
