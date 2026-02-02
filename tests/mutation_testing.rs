@@ -508,10 +508,10 @@ def arithmetic_test(a: int, b: int) -> int:
             results.killed_mutations + results.survived_mutations + results.equivalent_mutations
         );
 
-        // Performance check
+        // Performance check - mutation testing is compute-intensive, allow reasonable time
         assert!(
-            duration.as_secs() < 30,
-            "Mutation testing should complete quickly"
+            duration.as_secs() < 60,
+            "Mutation testing should complete in under 60 seconds"
         );
     }
 

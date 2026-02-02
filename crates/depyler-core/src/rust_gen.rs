@@ -3455,7 +3455,7 @@ fn generate_rust_file_internal(
                 fn from(v: String) -> Self { DepylerValue::Str(v) }
             }
             impl From<&str> for DepylerValue {
-                fn from(v: &str) -> Self { DepylerValue::Str(v.to_string()) }
+                fn from(v: &str) -> Self { DepylerValue::Str(String::from(v)) }
             }
             impl From<bool> for DepylerValue {
                 fn from(v: bool) -> Self { DepylerValue::Bool(v) }
