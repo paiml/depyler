@@ -92,6 +92,8 @@ is the recommended primary path, but all paths are subject to empirical validati
 
 ### 2.1 Compile Rate by Corpus (v3.25.0)
 
+*Last measured: 2026-02-02*
+
 | Corpus | Files | Compile Rate | Gap to 99% |
 |--------|-------|--------------|------------|
 | Tier 1 (stdlib) | 41 | 92.7% | 6.3 pp |
@@ -99,7 +101,10 @@ is the recommended primary path, but all paths are subject to empirical validati
 | Tier 3 (HuggingFace ML) | 128 | 4.7% | 94.3 pp |
 | Tier 4 (JAX) | 7 | 0% | 99 pp |
 | Tier 5 (algorithms) | 101 | 47.5% | 51.5 pp |
-| Internal examples | 320 | 80% | 19 pp |
+| Internal examples | 321 | 75.7% | 23.3 pp |
+
+**Measured Compile Rates (2026-02-02)**:
+- Internal examples: 243/321 = 75.7% (rustc --crate-type=lib validation)
 
 ### 2.2 Root Causes of Failure
 

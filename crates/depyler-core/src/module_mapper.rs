@@ -724,6 +724,139 @@ impl ModuleMapper {
             },
         );
 
+        // Pandas → Realizar (Spec Section 2.5)
+        // realizar provides DataFrame operations compatible with pandas API
+        module_map.insert(
+            "pandas".to_string(),
+            ModuleMapping {
+                rust_path: "realizar".to_string(),
+                is_external: true,
+                version: Some("0.4".to_string()),
+                item_map: HashMap::from([
+                    // Core types
+                    ("DataFrame".to_string(), "DataFrame".to_string()),
+                    ("Series".to_string(), "Series".to_string()),
+                    // I/O operations
+                    ("read_csv".to_string(), "read_csv".to_string()),
+                    ("read_json".to_string(), "read_json".to_string()),
+                    ("read_parquet".to_string(), "read_parquet".to_string()),
+                    ("to_csv".to_string(), "to_csv".to_string()),
+                    ("to_json".to_string(), "to_json".to_string()),
+                    // Selection and filtering
+                    ("concat".to_string(), "concat".to_string()),
+                    ("merge".to_string(), "join".to_string()),
+                    // Aggregation
+                    ("groupby".to_string(), "group_by".to_string()),
+                    ("agg".to_string(), "aggregate".to_string()),
+                    // Missing data
+                    ("isna".to_string(), "is_null".to_string()),
+                    ("fillna".to_string(), "fill_null".to_string()),
+                    ("dropna".to_string(), "drop_nulls".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([
+                    ("DataFrame".to_string(), ConstructorPattern::New),
+                    ("Series".to_string(), ConstructorPattern::New),
+                ]),
+            },
+        );
+
+        // SciPy → Trueno (Spec Section 2.6)
+        // trueno::scipy provides scientific computing functions
+        module_map.insert(
+            "scipy".to_string(),
+            ModuleMapping {
+                rust_path: "trueno".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::new(),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // scipy.optimize → trueno::optimize
+        module_map.insert(
+            "scipy.optimize".to_string(),
+            ModuleMapping {
+                rust_path: "trueno::optimize".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::from([
+                    ("minimize".to_string(), "minimize".to_string()),
+                    ("minimize_scalar".to_string(), "minimize_scalar".to_string()),
+                    ("root".to_string(), "root".to_string()),
+                    ("brentq".to_string(), "brentq".to_string()),
+                    ("newton".to_string(), "newton".to_string()),
+                    ("curve_fit".to_string(), "curve_fit".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // scipy.stats → trueno::stats
+        module_map.insert(
+            "scipy.stats".to_string(),
+            ModuleMapping {
+                rust_path: "trueno::stats".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::from([
+                    // Distributions
+                    ("norm".to_string(), "Normal".to_string()),
+                    ("uniform".to_string(), "Uniform".to_string()),
+                    ("expon".to_string(), "Exponential".to_string()),
+                    ("poisson".to_string(), "Poisson".to_string()),
+                    ("binom".to_string(), "Binomial".to_string()),
+                    // Statistical tests
+                    ("ttest_ind".to_string(), "ttest_ind".to_string()),
+                    ("ttest_1samp".to_string(), "ttest_1samp".to_string()),
+                    ("pearsonr".to_string(), "pearsonr".to_string()),
+                    ("spearmanr".to_string(), "spearmanr".to_string()),
+                    ("chi2_contingency".to_string(), "chi2_contingency".to_string()),
+                    ("kstest".to_string(), "kstest".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // scipy.interpolate → trueno::interpolate
+        module_map.insert(
+            "scipy.interpolate".to_string(),
+            ModuleMapping {
+                rust_path: "trueno::interpolate".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::from([
+                    ("interp1d".to_string(), "Interp1d".to_string()),
+                    ("interp2d".to_string(), "Interp2d".to_string()),
+                    ("CubicSpline".to_string(), "CubicSpline".to_string()),
+                    ("UnivariateSpline".to_string(), "UnivariateSpline".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([
+                    ("Interp1d".to_string(), ConstructorPattern::New),
+                    ("CubicSpline".to_string(), ConstructorPattern::New),
+                ]),
+            },
+        );
+
+        // scipy.signal → trueno::signal
+        module_map.insert(
+            "scipy.signal".to_string(),
+            ModuleMapping {
+                rust_path: "trueno::signal".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::from([
+                    ("convolve".to_string(), "convolve".to_string()),
+                    ("correlate".to_string(), "correlate".to_string()),
+                    ("fft".to_string(), "fft".to_string()),
+                    ("ifft".to_string(), "ifft".to_string()),
+                    ("butter".to_string(), "butter".to_string()),
+                    ("filtfilt".to_string(), "filtfilt".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
         // =================================================================
         // DEPYLER-EXTDEPS-001: High-Impact Standard Library Mappings (P0)
         // =================================================================
