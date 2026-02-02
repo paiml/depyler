@@ -25,15 +25,15 @@ sovereign-types = ["depyler-core/sovereign-types"] # DEPYLER-1111: Enable TypeDB
 decision-tracing = ["depyler-core/decision-tracing"] # DEPYLER-1148: CITL Flight Recorder
 
 [dependencies]
-depyler-core = { version = "3.23.0", path = "../depyler-core" }
+depyler-core = { version = "3.24.0", path = "../depyler-core" }
 depyler-analyzer = { version = "3.23.0", path = "../depyler-analyzer" }
 depyler-verify = { version = "3.23.0", path = "../depyler-verify" }
 depyler-mcp = { version = "3.23.0", path = "../depyler-mcp" }
 depyler-annotations = { version = "3.23.0", path = "../depyler-annotations" }
 depyler-quality = { version = "3.23.0", path = "../depyler-quality" }
-depyler-oracle = { version = "3.23.0", path = "../depyler-oracle" }
+depyler-oracle = { version = "3.24.0", path = "../depyler-oracle" }
 depyler-graph = { version = "3.23.0", path = "../depyler-graph" }
-depyler-corpus = { version = "3.25.0", path = "../depyler-corpus" }
+depyler-corpus = { version = "3.22.0", path = "../depyler-corpus" }
 entrenar = "0.5"
 alimentar = { version = "0.2.2", default-features = false, features = ["local"] }
 arrow = { version = "54", default-features = false, features = ["json"] }

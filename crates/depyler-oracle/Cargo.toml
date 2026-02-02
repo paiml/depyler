@@ -20,7 +20,7 @@ path = "src/bin/extract_training_data.rs"
 
 [dependencies]
 # Depyler core for error types
-depyler-core = { version = "3.23.0", path = "../depyler-core" }
+depyler-core = { version = "3.25.0", path = "../depyler-core" }
 
 # ML models from aprender
 # Features: parallel (rayon), gpu (wgpu via trueno)
