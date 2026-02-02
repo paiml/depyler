@@ -332,6 +332,38 @@ Typed subsets of dynamic languages have precedent:
 
 **Total**: 6-8 months, 1-2 engineers
 
+### 4.8 Empirical Path A Compliance (Measured 2026-02-02)
+
+**Implementation Status**: `depyler lint --strict` command implemented and operational.
+
+| Corpus | Files | Path A Compliance | Main Violations |
+|--------|-------|-------------------|-----------------|
+| Tier 3 (HuggingFace) | 142 | **88.7%** | getattr (19) |
+| Tier 5 (Algorithms) | 695 | **88.6%** | getattr (221), setattr (69), eval (12) |
+
+**Violation Distribution (Tier 5)**:
+| Code | Violation | Count | % of Total |
+|------|-----------|-------|------------|
+| DP005 | getattr() | 221 | 63.5% |
+| DP006 | setattr() | 69 | 19.8% |
+| DP009 | __getattr__ | 14 | 4.0% |
+| DP015 | __import__ | 14 | 4.0% |
+| DP003 | eval() | 12 | 3.4% |
+| DP007 | metaclass | 7 | 2.0% |
+| DP004 | exec() | 6 | 1.7% |
+| DP013 | globals() | 4 | 1.1% |
+| DP014 | locals() | 1 | 0.3% |
+
+**Key Insight**: ~89% of Python code already complies with Path A restrictions.
+The remaining ~11% primarily uses dynamic attribute access (`getattr`/`setattr`),
+which Path B addresses via sovereign alternatives.
+
+**Validation Command**:
+```bash
+# Measure Path A compliance for any corpus
+depyler lint --corpus /path/to/corpus --strict
+```
+
 ---
 
 ## 5. Path B: Sovereign Fallback (Realizar Bridge)
