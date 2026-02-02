@@ -15,6 +15,7 @@ pub mod cli_shim;
 pub mod compile_cmd;
 pub mod converge;
 pub mod graph_cmd;
+pub mod lint_cmd;
 pub mod report_cmd;
 pub mod report_shim;
 pub mod transpile_shim;
@@ -258,6 +259,28 @@ pub enum Commands {
     /// Corpus registry commands
     #[command(subcommand)]
     Corpus(CorpusCommands),
+
+    /// DEPYLER-99MODE: Lint Python for Depyler Python compliance (Path A)
+    Lint {
+        /// Input Python file or directory
+        input: PathBuf,
+
+        /// Enable strict mode (Depyler Python subset only)
+        #[arg(long)]
+        strict: bool,
+
+        /// Output format (text, json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Fail on first error (stop-the-line)
+        #[arg(long)]
+        fail_fast: bool,
+
+        /// Analyze corpus and report compliance percentage
+        #[arg(long)]
+        corpus: bool,
+    },
 }
 
 /// Graph analysis subcommands

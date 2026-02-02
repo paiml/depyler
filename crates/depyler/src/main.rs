@@ -5,7 +5,8 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, compile_command, converge, graph_cmd, repair_command,
+    analyze_command, check_command, compile_command, converge, graph_cmd, lint_cmd,
+    repair_command,
     report_cmd::{handle_report_command, ReportArgs},
     transpile_command,
     utol_cmd::handle_utol_command,
@@ -401,6 +402,13 @@ async fn handle_command(command: Commands) -> Result<()> {
             } => graph_cmd::vectorize_corpus(&corpus, &output, &format),
         },
         Commands::Corpus(corpus_cmd) => handle_corpus_command(corpus_cmd),
+        Commands::Lint {
+            input,
+            strict,
+            format,
+            fail_fast,
+            corpus,
+        } => lint_cmd::lint_command(input, strict, format, fail_fast, corpus),
     }
 }
 
