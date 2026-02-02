@@ -629,6 +629,101 @@ depyler model test-formats --all-sklearn-models --output format_compatibility.js
 
 **Total**: 10-12 months, 2-3 engineers
 
+### 5.10 Migration Paths for Top 10 sklearn Functions
+
+The following table documents exact migration paths from sklearn to aprender for
+the most commonly used ML functions in data science workflows.
+
+| Rank | sklearn Function | aprender Equivalent | Migration Notes |
+|------|-----------------|---------------------|-----------------|
+| 1 | `train_test_split()` | `aprender::model_selection::train_test_split()` | Identical API |
+| 2 | `LinearRegression.fit()` | `LinearRegression::new().fit()` | Builder pattern |
+| 3 | `StandardScaler.fit_transform()` | `StandardScaler::new().fit_transform()` | Returns `Vector<f64>` |
+| 4 | `KMeans.fit_predict()` | `KMeans::new(k).fit_predict()` | Returns `Vec<usize>` |
+| 5 | `RandomForestClassifier.fit()` | `RandomForest::new().fit()` | Configurable via builder |
+| 6 | `accuracy_score()` | `aprender::metrics::accuracy()` | Returns `f64` |
+| 7 | `cross_val_score()` | `aprender::model_selection::cross_val_score()` | Returns `Vec<f64>` |
+| 8 | `confusion_matrix()` | `aprender::metrics::confusion_matrix()` | Returns 2D `Array` |
+| 9 | `PCA.fit_transform()` | `PCA::new(n_components).fit_transform()` | Returns `Matrix` |
+| 10 | `LogisticRegression.fit()` | `LogisticRegression::new().fit()` | Builder pattern |
+
+**Migration Example: Full ML Pipeline**
+
+**sklearn Python** (source):
+```python
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+# Load data
+X, y = load_data()
+
+# Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+# Scale
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Train
+model = LogisticRegression()
+model.fit(X_train_scaled, y_train)
+
+# Evaluate
+predictions = model.predict(X_test_scaled)
+accuracy = accuracy_score(y_test, predictions)
+print(f"Accuracy: {accuracy:.2%}")
+```
+
+**aprender Rust** (transpiled):
+```rust
+use aprender::model_selection::train_test_split;
+use aprender::preprocessing::StandardScaler;
+use aprender::linear::LogisticRegression;
+use aprender::metrics::accuracy;
+
+fn main() -> anyhow::Result<()> {
+    // Load data
+    let (x, y) = load_data()?;
+
+    // Split (80/20)
+    let (x_train, x_test, y_train, y_test) = train_test_split(&x, &y, 0.2)?;
+
+    // Scale
+    let mut scaler = StandardScaler::new();
+    let x_train_scaled = scaler.fit_transform(&x_train)?;
+    let x_test_scaled = scaler.transform(&x_test)?;
+
+    // Train
+    let mut model = LogisticRegression::new();
+    model.fit(&x_train_scaled, &y_train)?;
+
+    // Evaluate
+    let predictions = model.predict(&x_test_scaled)?;
+    let acc = accuracy(&y_test, &predictions);
+    println!("Accuracy: {:.2}%", acc * 100.0);
+
+    Ok(())
+}
+```
+
+**Key Differences**:
+1. **Error handling**: Uses `Result<T, E>` instead of exceptions
+2. **Mutability**: Explicit `mut` for models being trained
+3. **References**: Uses `&` for borrowed data, avoiding copies
+4. **Types**: Explicit return types (`Vec<f64>`, `Matrix`, etc.)
+
+**Automated Migration Command**:
+```bash
+# Analyze sklearn usage and suggest aprender equivalents
+depyler lint --sklearn-migrate input.py --output migration_report.md
+
+# Auto-transpile with aprender mappings
+depyler transpile input.py --sovereign --output output.rs
+```
+
 ---
 
 ## 6. Path C: Complete Type System
