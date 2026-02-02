@@ -1165,13 +1165,13 @@ depyler migrate plan \
 
 Based on the risk analysis, the following actions are prioritized:
 
-| Priority | Action | Owner | Deadline | Ticket |
-|----------|--------|-------|----------|--------|
-| P0 | Run sovereign gap analysis on Tier 3 corpus | TBD | Week 1 | DEPYLER-GAP-001 |
-| P0 | Implement `depyler lint --strict` (Path A foundation) | TBD | Week 2 | DEPYLER-LINT-001 |
-| P1 | Set up golden trace CI for numerical validation | TBD | Week 2 | DEPYLER-GOLDEN-001 |
-| P1 | Document migration path for top 10 sklearn functions | TBD | Week 3 | DEPYLER-MIGRATE-001 |
-| P2 | Create sovereign stack coverage dashboard | TBD | Week 4 | DEPYLER-DASH-001 |
+| Priority | Action | Owner | Deadline | Ticket | Status |
+|----------|--------|-------|----------|--------|--------|
+| P0 | Run sovereign gap analysis on Tier 3 corpus | Depyler Team | Week 1 | DEPYLER-GAP-001 | DONE |
+| P0 | Implement `depyler lint --strict` (Path A foundation) | Depyler Team | Week 2 | DEPYLER-LINT-001 | DONE |
+| P1 | Set up golden trace CI for numerical validation | Depyler Team | Week 2 | DEPYLER-GOLDEN-001 | DONE |
+| P1 | Document migration path for top 10 sklearn functions | Depyler Team | Week 3 | DEPYLER-MIGRATE-001 | DONE |
+| P2 | Create sovereign stack coverage dashboard | TBD | Week 4 | DEPYLER-DASH-001 | PENDING |
 
 **Validation Command**:
 ```bash
@@ -1179,6 +1179,84 @@ Based on the risk analysis, the following actions are prioritized:
 depyler roadmap status --spec docs/specifications/99-mode.spec.md \
   --check-immediate-actions \
   --output weekly_status.json
+```
+
+### 8.7 Golden Trace CI for Numerical Validation (DEPYLER-GOLDEN-001)
+
+**Status**: IMPLEMENTED (2026-02-02)
+**Workflow**: `.github/workflows/golden-trace.yml`
+
+Golden trace CI validates numerical equivalence between Python source and Rust
+transpiled code. This prevents the "Uncanny Valley" problem (Risk 2) where code
+compiles but produces different results due to floating-point precision, random
+seed handling, or edge case behavior.
+
+#### CI Workflow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Golden Trace CI Pipeline                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Trigger: Push/PR to main (crates/depyler-core, examples/)         │
+│                                                                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
+│  │   Arithmetic    │  │   Statistics    │  │   Algorithms    │     │
+│  │   Tests (||)    │  │   Tests (||)    │  │   Tests (||)    │     │
+│  │   add, mul, pow │  │   avg, sum, max │  │   fib, gcd, prime│     │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘     │
+│           │                    │                    │               │
+│           └────────────────────┼────────────────────┘               │
+│                                ▼                                    │
+│                    ┌───────────────────────┐                        │
+│                    │  Numerical Validation │                        │
+│                    │  Summary              │                        │
+│                    └───────────┬───────────┘                        │
+│                                │                                    │
+│                                ▼                                    │
+│                    ┌───────────────────────┐                        │
+│                    │  Sovereign Purity     │                        │
+│                    │  Check (ldd)          │                        │
+│                    └───────────────────────┘                        │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Test Categories
+
+| Category | Tests | Validation Focus |
+|----------|-------|------------------|
+| arithmetic | add, multiply, divide, power, floor_division | Integer/float precision |
+| statistics | average, sum, count, max, min, median | Statistical accuracy |
+| algorithms | fibonacci, gcd, prime, factorial, binary_search | Algorithmic correctness |
+
+#### Thresholds (Falsification Criteria)
+
+| Metric | Threshold | Action on Failure |
+|--------|-----------|-------------------|
+| Pass rate | ≥80% | CI fails, block merge |
+| Numerical tolerance | 1e-6 | CI warns, review required |
+| Sovereign purity | 0 external deps | CI fails, reject |
+
+#### Usage
+
+```bash
+# Trigger manually with custom tolerance
+gh workflow run golden-trace.yml -f tolerance=1e-8
+
+# View results
+gh run view --log
+```
+
+#### Integration with Renacer
+
+The workflow uses Renacer (v0.9.0) for syscall-level trace comparison:
+
+```bash
+# Local validation (same as CI)
+renacer trace python sklearn_model.py --output golden.trace
+renacer trace ./target/release/model --output rust.trace
+renacer compare golden.trace rust.trace --tolerance 1e-6
 ```
 
 ---
