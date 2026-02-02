@@ -5,7 +5,7 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, compile_command, converge, graph_cmd, lint_cmd,
+    analyze_command, check_command, compile_command, converge, dashboard_cmd, graph_cmd, lint_cmd,
     repair_command,
     report_cmd::{handle_report_command, ReportArgs},
     transpile_command,
@@ -409,6 +409,9 @@ async fn handle_command(command: Commands) -> Result<()> {
             fail_fast,
             corpus,
         } => lint_cmd::lint_command(input, strict, format, fail_fast, corpus),
+        Commands::Dashboard { format, component } => {
+            dashboard_cmd::dashboard_command(&format, component.as_deref())
+        }
     }
 }
 

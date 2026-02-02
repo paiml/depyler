@@ -14,6 +14,7 @@ use std::path::PathBuf;
 pub mod cli_shim;
 pub mod compile_cmd;
 pub mod converge;
+pub mod dashboard_cmd;
 pub mod graph_cmd;
 pub mod lint_cmd;
 pub mod report_cmd;
@@ -280,6 +281,17 @@ pub enum Commands {
         /// Analyze corpus and report compliance percentage
         #[arg(long)]
         corpus: bool,
+    },
+
+    /// DEPYLER-DASH-001: Sovereign stack coverage dashboard
+    Dashboard {
+        /// Output format (text, json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Filter to specific component (aprender, trueno, realizar)
+        #[arg(long)]
+        component: Option<String>,
     },
 }
 
