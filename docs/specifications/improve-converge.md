@@ -32,16 +32,16 @@ error signal, raises PMAT compliance to A+, and holds FAST-tier test coverage
 at 95%. Each goal carries explicit Popperian falsification criteria so that
 progress is measured by attempted refutations rather than confirmations.
 
-### Current State (2026-02-02, iter 16) -- MEASURED
+### Current State (2026-02-02, iter 17) -- MEASURED
 
 | Metric | Current | Target | Gap |
 |--------|---------|--------|-----|
 | Single-shot compile (internal) | 80% (256/320) | 80% | Met |
-| Single-shot compile (reprorusted-std-only) | **92.6% (38/41)** | 80% | **Met (+12.6 pp)** |
-| Single-shot compile (fully-typed-reprorusted) | **60% (9/15)** | 60% | **Met** |
+| Single-shot compile (reprorusted-std-only) | **92.7% (38/41)** | 80% | **Met (+12.7 pp)** |
+| Single-shot compile (fully-typed-reprorusted) | **62.5% (10/16)** | 60% | **Met (+2.5 pp)** |
 | Single-shot compile (hugging-face-gtc) | **4.7% (6/128)** | 40% | 35.3 pp |
 | Single-shot compile (jax-gtc) | **0% (0/7)** | 40% | 40 pp |
-| Single-shot compile (algorithm-comp) | **26.2% (21/80)** | 40% | 13.8 pp |
+| Single-shot compile (algorithm-comp) | **47.5% (48/101)** | 40% | **Met (+7.5 pp)** |
 | Oracle accuracy | 85% | 92% | 7 pp |
 | PMAT TDG grade | B+ | A+ | 2 notches |
 | FAST coverage | ~60% | 95% | ~35 pp |
@@ -67,7 +67,8 @@ progress is measured by attempted refutations rather than confirmations.
 | 13 | 2026-02-01 | 17/20 (85%) | 9/15 (60%) | 4/128 (3.1%) | 97f582d2 | DepylerValue::from(Enum) → DepylerValue::Str(format!), From<Enum> impls, validate_not_none 2-arg fix + turbofish, CSE py_mul .into() removal; error count reduced (rag/indexing 7→2, audio/music 14→5) but no new files flipped |
 | 14 | 2026-02-01 | 17/20 (85%) | 9/15 (60%) | **5/128 (3.9%)** | 97f582d2 | Multi-line .into() removal in py_mul/py_div chains, tuple(T,DV)→Vec<T> when .len() called; **+1 new Tier 3: deployment/optimization** |
 | 15 | 2026-02-01 | 17/20 (85%) | 9/15 (60%) | **6/128 (4.7%)** | d7a6c265 | Type-aware CSE int/float literal fix, Vec.to_string()→.clone(), mixed numeric min/max; **+1 new Tier 3: agents/planning** (inference/embeddings has pre-existing `(f64>` codegen bug); Tier 5 baseline: 19/80 (23.7%); Wolfram reducibility framework added to spec |
-| 16 | 2026-02-02 | **38/41 (92.6%)** | 9/15 (60%) | 6/128 (4.7%) | TBD | Bitwise AND truthiness fix (`if x & N {` → `if (x & N) != 0 {`), Result double-wrapping fix (`Ok(fn()?)`); reverted broken .to_i64() blanket replace; **Tier 1 re-counted to 41 files** (3 transpile failures); **Tier 5: 21/80 (26.2%)** (+2 files: bounds, power now compile) |
+| 16 | 2026-02-02 | **38/41 (92.6%)** | 9/15 (60%) | 6/128 (4.7%) | 7c6117bc | Bitwise AND truthiness fix (`if x & N {` → `if (x & N) != 0 {`), Result double-wrapping fix (`Ok(fn()?)`); reverted broken .to_i64() blanket replace; **Tier 1 re-counted to 41 files** (3 transpile failures); **Tier 5: 21/80 (26.2%)** (+2 files: bounds, power now compile) |
+| 17 | 2026-02-02 | **38/41 (92.7%)** | **10/16 (62.5%)** | 6/128 (4.7%) | (pending) | Multi-line Result signature detection (`has_result_return_multiline`), generic function name extraction fix (strip `<'a, T>`), `find_call_close_paren` for nested calls, `Ok(!fname(` pattern, trailing comma in arith parens, `&ref → &mut ref` call-site fix, regex match `.to_string()` fix; **Tier 2 +1 file (62.5%)**; **Tier 5: 48/101 (47.5%)** (+27 files, corpus re-counted to 101) |
 
 **Measurement methodology notes**:
 - (iter 3) `depyler transpile` writes .rs files alongside .py files.

@@ -6848,7 +6848,21 @@ fn generate_rust_file_internal(
 
     // DEPYLER-CONVERGE-MULTI-ITER16: Fix Ok() double-wrapping of Result-returning function calls.
     // Pattern: `Ok(fn_call(args))` → `Ok(fn_call(args)?)` when fn returns Result
+    // Also handles: `Ok(!fn_call(args))` → `Ok(!fn_call(args)?)` (iter17)
+    // Also handles: generic fns like `fn foo<'a>(...)` (iter17)
     formatted_code = fix_result_double_wrap(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER17: Fix trailing comma creating tuples in arithmetic.
+    // Pattern: `x - (expr,)` → `x - (expr)` (removes trailing comma)
+    formatted_code = fix_trailing_comma_in_arith_parens(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER17: Fix &ref → &mut ref at call sites.
+    // Pattern: `fn f(x: &mut T) ... f(&v)` → `f(&mut v)`
+    formatted_code = fix_immutable_ref_to_mut(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER17: Fix .to_string() where &str expected.
+    // Pattern: `DepylerRegexMatch::new(x.to_string(), ...)` → `...::new(&x.to_string(), ...)`
+    formatted_code = fix_regex_match_string_arg(&formatted_code);
 
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
@@ -9718,78 +9732,68 @@ fn fix_spurious_i64_conversion(code: &str) -> String {
 /// to add `?` to unwrap the inner Result: `Ok(fn_call(args)?)`.
 ///
 /// Strategy: Collect function names that have `-> Result<` signatures,
-/// then find `Ok(fn_name(...)` patterns and add `?` before the closing `)`.
+/// then find `Ok(fn_name(...)` and `Ok(!fn_name(...)` patterns and add `?`.
 fn fix_result_double_wrap(code: &str) -> String {
     // Pass 1: collect function names that return Result
+    // Handles both single-line and multi-line signatures
     let mut result_fns: std::collections::HashSet<String> =
         std::collections::HashSet::new();
-    for line in code.lines() {
+    let code_lines: Vec<&str> = code.lines().collect();
+    for (idx, line) in code_lines.iter().enumerate() {
         let t = line.trim();
-        if (t.starts_with("pub fn ") || t.starts_with("fn "))
-            && t.contains("-> Result<")
-        {
-            let start = if t.starts_with("pub fn ") {
-                7
+        if !(t.starts_with("pub fn ") || t.starts_with("fn ")) {
+            continue;
+        }
+        // Check this line AND subsequent lines for -> Result<
+        let has_result = t.contains("-> Result<")
+            || has_result_return_multiline(&code_lines, idx);
+        if !has_result {
+            continue;
+        }
+        let start = if t.starts_with("pub fn ") { 7 } else { 3 };
+        let rest = &t[start..];
+        if let Some(paren) = rest.find('(') {
+            let raw_name = rest[..paren].trim();
+            // Strip generic/lifetime parameters like <'a, T>
+            let name = if let Some(lt) = raw_name.find('<') {
+                raw_name[..lt].trim()
             } else {
-                3
+                raw_name
             };
-            let rest = &t[start..];
-            if let Some(paren) = rest.find('(') {
-                let name = rest[..paren].trim();
-                if !name.is_empty() {
-                    result_fns.insert(name.to_string());
-                }
+            if !name.is_empty() {
+                result_fns.insert(name.to_string());
             }
         }
     }
     if result_fns.is_empty() {
         return code.to_string();
     }
-    // Pass 2: find Ok(fn_name( patterns and add ? before closing )
+    // Pass 2: find Ok(fn_name( and Ok(!fn_name( patterns, add ? before closing )
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
         let trimmed = line.trim();
         let mut fixed = false;
         for fname in &result_fns {
-            let pattern = format!("Ok({}(", fname);
-            if trimmed.contains(&pattern) && !trimmed.contains(&format!("{}(?", fname)) {
-                // Find the Ok( and its matching closing )
-                let line_str = line.to_string();
-                if let Some(ok_pos) = line_str.find(&pattern) {
-                    let inner_start = ok_pos + 3; // after "Ok("
-                    // Find the matching ) for the inner fn call
-                    let after_ok = &line_str[inner_start..];
-                    if let Some(fn_paren) = after_ok.find('(') {
-                        let call_start = inner_start + fn_paren;
-                        // Count parens to find matching close
-                        let mut depth = 0;
-                        let mut close_pos = None;
-                        for (i, c) in line_str[call_start..].char_indices() {
-                            match c {
-                                '(' => depth += 1,
-                                ')' => {
-                                    depth -= 1;
-                                    if depth == 0 {
-                                        close_pos = Some(call_start + i);
-                                        break;
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                        if let Some(cp) = close_pos {
-                            // Insert ? after the closing ) of the fn call
-                            let before = &line_str[..cp + 1];
-                            let after = &line_str[cp + 1..];
-                            result.push_str(before);
-                            result.push('?');
-                            result.push_str(after);
-                            result.push('\n');
-                            fixed = true;
-                            break;
-                        }
-                    }
+            let already_q = format!("{}(?", fname);
+            // Pattern 1: Ok(fn_name(...)) → Ok(fn_name(...)?)
+            // Pattern 2: Ok(!fn_name(...)) → Ok(!fn_name(...)?)
+            for prefix in &[format!("Ok({}(", fname), format!("Ok(!{}(", fname)] {
+                if !trimmed.contains(prefix.as_str()) || trimmed.contains(&already_q) {
+                    continue;
                 }
+                if let Some(cp) = find_call_close_paren(line, prefix, fname) {
+                    let before = &line[..cp + 1];
+                    let after = &line[cp + 1..];
+                    result.push_str(before);
+                    result.push('?');
+                    result.push_str(after);
+                    result.push('\n');
+                    fixed = true;
+                    break;
+                }
+            }
+            if fixed {
+                break;
             }
         }
         if !fixed {
@@ -9803,6 +9807,354 @@ fn fix_result_double_wrap(code: &str) -> String {
         result.truncate(result.len().saturating_sub(1));
         result
     }
+}
+
+/// Check if a multi-line function signature has `-> Result<` on a subsequent line.
+fn has_result_return_multiline(lines: &[&str], start: usize) -> bool {
+    for i in 1..=5 {
+        let idx = start + i;
+        if idx >= lines.len() {
+            break;
+        }
+        let l = lines[idx].trim();
+        if l.contains("-> Result<") {
+            return true;
+        }
+        if l.ends_with('{') || l.starts_with("pub fn ") || l.starts_with("fn ") {
+            break;
+        }
+    }
+    false
+}
+
+// --- Helper: find the closing paren of a function call in a line ---
+
+/// Given a line and a prefix pattern like "Ok(fname(", find the closing
+/// `)` of the `fname(...)` call and return its position in the line.
+fn find_call_close_paren(line: &str, prefix: &str, fname: &str) -> Option<usize> {
+    let pat_pos = line.find(prefix)?;
+    // Find the ( of the function call itself
+    let fn_name_start = pat_pos + prefix.len() - fname.len() - 1;
+    let after_name = &line[fn_name_start..];
+    let fn_paren = after_name.find('(')?;
+    let call_start = fn_name_start + fn_paren;
+    let mut depth = 0;
+    for (i, c) in line[call_start..].char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(call_start + i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+// --- Helper functions for iter17 fixes ---
+
+/// Fix single-element tuples created by trailing commas in arithmetic.
+///
+/// Pattern: `(left_max) - (\n  expr,\n)` creates `(i32,)` tuple.
+/// The trailing comma before the closing `)` must be removed.
+fn fix_trailing_comma_in_arith_parens(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut output: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    let mut lines_to_fix: Vec<usize> = Vec::new();
+
+    for start in 0..lines.len() {
+        let trimmed = lines[start].trim();
+        let is_arith = trimmed.ends_with("- (")
+            || trimmed.ends_with("+ (")
+            || trimmed.ends_with("* (")
+            || trimmed.ends_with("/ (");
+        if !is_arith {
+            continue;
+        }
+        // Compute paren depth at end of start line
+        let mut depth = 0i32;
+        for ch in lines[start].chars() {
+            match ch {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+        }
+        let arith_inner = depth;
+        let target = depth - 1;
+        let mut j = start + 1;
+        let mut last_trailing_comma: Option<usize> = None;
+        let mut comma_count = 0u32;
+
+        while j < lines.len() {
+            let mut found_close = false;
+            for ch in lines[j].chars() {
+                match ch {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == target {
+                            found_close = true;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if found_close {
+                if comma_count == 1 {
+                    if let Some(fix) = last_trailing_comma {
+                        lines_to_fix.push(fix);
+                    }
+                }
+                break;
+            }
+            if lines[j].trim().ends_with(',') && depth == arith_inner {
+                last_trailing_comma = Some(j);
+                comma_count += 1;
+            }
+            j += 1;
+        }
+    }
+    for &idx in &lines_to_fix {
+        if let Some(pos) = output[idx].rfind(',') {
+            output[idx].remove(pos);
+        }
+    }
+    let mut result = output.join("\n");
+    if code.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
+/// Fix `&var` passed where `&mut var` is required at call sites.
+///
+/// Strategy: Parse function signatures to find which parameters take `&mut`,
+/// then fix call sites to pass `&mut var` instead of `&var`.
+fn fix_immutable_ref_to_mut(code: &str) -> String {
+    use std::collections::HashMap;
+    // Pass 1: Collect fn_name → Vec<param_index> for &mut params
+    let mut mut_params: HashMap<String, Vec<usize>> = HashMap::new();
+    for line in code.lines() {
+        let t = line.trim();
+        if !(t.starts_with("fn ") || t.starts_with("pub fn ")) {
+            continue;
+        }
+        if let Some((name, positions)) = extract_mut_param_positions(t) {
+            if !positions.is_empty() {
+                mut_params.insert(name, positions);
+            }
+        }
+    }
+    if mut_params.is_empty() {
+        return code.to_string();
+    }
+    // Pass 2: Fix call sites
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Skip function definitions
+        if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
+            result.push_str(line);
+            result.push('\n');
+            continue;
+        }
+        let mut line_str = line.to_string();
+        for (fname, positions) in &mut_params {
+            let pat = format!("{}(", fname);
+            if !line_str.contains(&pat) {
+                continue;
+            }
+            line_str = fix_mut_args_in_call(&line_str, fname, positions);
+        }
+        result.push_str(&line_str);
+        result.push('\n');
+    }
+    if code.ends_with('\n') {
+        result
+    } else {
+        result.truncate(result.len().saturating_sub(1));
+        result
+    }
+}
+
+/// Extract function name and positions of `&mut` parameters.
+fn extract_mut_param_positions(sig: &str) -> Option<(String, Vec<usize>)> {
+    let start = if sig.starts_with("pub fn ") {
+        7
+    } else if sig.starts_with("fn ") {
+        3
+    } else {
+        return None;
+    };
+    let rest = &sig[start..];
+    let paren = rest.find('(')?;
+    let raw_name = rest[..paren].trim();
+    let name = if let Some(lt) = raw_name.find('<') {
+        raw_name[..lt].trim()
+    } else {
+        raw_name
+    };
+    if name.is_empty() {
+        return None;
+    }
+    let after = &rest[paren + 1..];
+    let close = after.find(')')?;
+    let params = &after[..close];
+    let mut positions = Vec::new();
+    let mut idx = 0usize;
+    let mut depth = 0i32;
+    let mut current = String::new();
+    for ch in params.chars() {
+        match ch {
+            '<' | '(' => {
+                depth += 1;
+                current.push(ch);
+            }
+            '>' | ')' => {
+                depth -= 1;
+                current.push(ch);
+            }
+            ',' if depth == 0 => {
+                if current.contains("&mut ") {
+                    positions.push(idx);
+                }
+                idx += 1;
+                current.clear();
+            }
+            _ => current.push(ch),
+        }
+    }
+    if current.contains("&mut ") {
+        positions.push(idx);
+    }
+    Some((name.to_string(), positions))
+}
+
+/// Fix a single call site: change `&arg` to `&mut arg` at specified positions.
+fn fix_mut_args_in_call(
+    line: &str,
+    fname: &str,
+    positions: &[usize],
+) -> String {
+    let pat = format!("{}(", fname);
+    let call_pos = match line.find(&pat) {
+        Some(p) => p,
+        None => return line.to_string(),
+    };
+    let args_start = call_pos + pat.len();
+    // Find matching )
+    let mut depth = 1i32;
+    let mut args_end = args_start;
+    for (i, c) in line[args_start..].char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    args_end = args_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let args_str = &line[args_start..args_end];
+    // Split args at depth 0
+    let mut args: Vec<String> = Vec::new();
+    let mut d = 0i32;
+    let mut cur = String::new();
+    for ch in args_str.chars() {
+        match ch {
+            '(' | '<' | '[' => {
+                d += 1;
+                cur.push(ch);
+            }
+            ')' | '>' | ']' => {
+                d -= 1;
+                cur.push(ch);
+            }
+            ',' if d == 0 => {
+                args.push(cur.clone());
+                cur.clear();
+            }
+            _ => cur.push(ch),
+        }
+    }
+    if !cur.is_empty() {
+        args.push(cur);
+    }
+    let mut changed = false;
+    for &pos in positions {
+        if pos < args.len() {
+            let trimmed = args[pos].trim();
+            if trimmed.starts_with('&') && !trimmed.starts_with("&mut ") {
+                let ws = args[pos].len() - args[pos].trim_start().len();
+                let prefix: String = args[pos].chars().take(ws).collect();
+                args[pos] = format!("{}&mut {}", prefix, &trimmed[1..]);
+                changed = true;
+            }
+        }
+    }
+    if !changed {
+        return line.to_string();
+    }
+    format!("{}{}{}", &line[..args_start], args.join(","), &line[args_end..])
+}
+
+/// Fix `.to_string()` passed where `&str` expected in DepylerRegexMatch::new.
+///
+/// Pattern: `DepylerRegexMatch::new(x.to_string(), ...)` should be
+/// `DepylerRegexMatch::new(&x.to_string(), ...)` since new() takes `&str`.
+fn fix_regex_match_string_arg(code: &str) -> String {
+    let target = "DepylerRegexMatch::new(";
+    if !code.contains(target) {
+        return code.to_string();
+    }
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        if line.contains(target) && line.contains(".to_string()") {
+            let fixed = fix_regex_match_line(line, target);
+            result.push_str(&fixed);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    if code.ends_with('\n') {
+        result
+    } else {
+        result.truncate(result.len().saturating_sub(1));
+        result
+    }
+}
+
+/// Fix a single line with DepylerRegexMatch::new(x.to_string(), ...).
+fn fix_regex_match_line(line: &str, target: &str) -> String {
+    let idx = match line.find(target) {
+        Some(i) => i,
+        None => return line.to_string(),
+    };
+    let after_new = &line[idx + target.len()..];
+    // Check if first arg has .to_string() and isn't already &
+    if after_new.trim_start().starts_with('&') {
+        return line.to_string();
+    }
+    if let Some(ts_pos) = after_new.find(".to_string()") {
+        // Ensure .to_string() is in the first arg (before first comma at depth 0)
+        let before_ts = &after_new[..ts_pos];
+        let has_comma = before_ts.chars().any(|c| c == ',');
+        if !has_comma {
+            // Insert & before the first argument
+            let insert_pos = idx + target.len();
+            return format!("{}&{}", &line[..insert_pos], &line[insert_pos..]);
+        }
+    }
+    line.to_string()
 }
 
 // --- Helper functions for iter9 fixes ---
