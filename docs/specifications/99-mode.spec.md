@@ -1183,7 +1183,7 @@ Based on the risk analysis, the following actions are prioritized:
 | P0 | Implement `depyler lint --strict` (Path A foundation) | Depyler Team | Week 2 | DEPYLER-LINT-001 | DONE |
 | P1 | Set up golden trace CI for numerical validation | Depyler Team | Week 2 | DEPYLER-GOLDEN-001 | DONE |
 | P1 | Document migration path for top 10 sklearn functions | Depyler Team | Week 3 | DEPYLER-MIGRATE-001 | DONE |
-| P2 | Create sovereign stack coverage dashboard | TBD | Week 4 | DEPYLER-DASH-001 | PENDING |
+| P2 | Create sovereign stack coverage dashboard | Depyler Team | Week 4 | DEPYLER-DASH-001 | DONE |
 
 **Validation Command**:
 ```bash
@@ -1269,6 +1269,78 @@ The workflow uses Renacer (v0.9.0) for syscall-level trace comparison:
 renacer trace python sklearn_model.py --output golden.trace
 renacer trace ./target/release/model --output rust.trace
 renacer compare golden.trace rust.trace --tolerance 1e-6
+```
+
+### 8.8 Sovereign Stack Coverage Dashboard (DEPYLER-DASH-001)
+
+**Status**: IMPLEMENTED (2026-02-02)
+**Command**: `depyler dashboard`
+
+The sovereign stack coverage dashboard tracks the mapping coverage between Python
+libraries and their sovereign Rust equivalents. This provides visibility into
+Path B (Sovereign Fallback) progress.
+
+#### Usage
+
+```bash
+# Text dashboard with visual progress
+depyler dashboard
+
+# JSON output for CI/CD integration
+depyler dashboard --format json
+
+# Filter to specific component
+depyler dashboard --component aprender
+```
+
+#### Coverage Summary (2026-02-02)
+
+| Python Library | Sovereign Component | Coverage | Status |
+|----------------|---------------------|----------|--------|
+| sklearn | aprender | 100% (10/10) | Complete |
+| numpy | trueno | 100% (10/10) | Complete |
+| pandas | realizar | 100% (10/10) | Complete |
+| scipy | trueno | 80% (8/10) | Good |
+
+**Overall Path B Progress**: 95%
+
+#### Top 10 Function Mappings
+
+**sklearn → aprender**:
+1. `train_test_split()` → `aprender::model_selection::train_test_split()`
+2. `LinearRegression.fit()` → `LinearRegression::new().fit()`
+3. `StandardScaler.fit_transform()` → `StandardScaler::new().fit_transform()`
+4. `KMeans.fit_predict()` → `KMeans::new(k).fit_predict()`
+5. `RandomForestClassifier.fit()` → `RandomForest::new().fit()`
+6. `accuracy_score()` → `aprender::metrics::accuracy()`
+7. `cross_val_score()` → `aprender::model_selection::cross_val_score()`
+8. `confusion_matrix()` → `aprender::metrics::confusion_matrix()`
+9. `PCA.fit_transform()` → `PCA::new(n_components).fit_transform()`
+10. `LogisticRegression.fit()` → `LogisticRegression::new().fit()`
+
+**numpy → trueno**:
+1. `np.array()` → `Vector::from_slice()`
+2. `np.zeros()` → `Vector::zeros()`
+3. `np.ones()` → `Vector::ones()`
+4. `np.dot()` → `Vector::dot()`
+5. `np.sum()` → `Vector::sum()`
+6. `np.mean()` → `Vector::mean()`
+7. `np.std()` → `Vector::std()`
+8. `np.reshape()` → `Matrix::reshape()`
+9. `np.transpose()` → `Matrix::transpose()`
+10. `np.matmul()` → `Matrix::matmul()`
+
+#### CI/CD Integration
+
+```bash
+# In GitHub Actions workflow
+- name: Check Sovereign Coverage
+  run: |
+    coverage=$(depyler dashboard --format json | jq '.path_b_progress')
+    if (( $(echo "$coverage < 90" | bc -l) )); then
+      echo "Warning: Path B coverage below 90%"
+      exit 1
+    fi
 ```
 
 ---
