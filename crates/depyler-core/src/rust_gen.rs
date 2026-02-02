@@ -6838,6 +6838,18 @@ fn generate_rust_file_internal(
     // Pattern: depyler_min(i32_var, f64_var) → depyler_min(i32_var as f64, f64_var)
     formatted_code = fix_mixed_numeric_min_max(&formatted_code);
 
+    // DEPYLER-CONVERGE-MULTI-ITER16: Fix bitwise AND used in boolean context.
+    // Pattern: `if expr & N {` → `if (expr & N) != 0 {`
+    formatted_code = fix_bitwise_and_truthiness(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER16: Fix spurious .to_i64()/.as_i64() on i32 values.
+    // Pattern: `val.to_i64()` → `val as i64`, `val.as_i64()` → `val as i64`
+    formatted_code = fix_spurious_i64_conversion(&formatted_code);
+
+    // DEPYLER-CONVERGE-MULTI-ITER16: Fix Ok() double-wrapping of Result-returning function calls.
+    // Pattern: `Ok(fn_call(args))` → `Ok(fn_call(args)?)` when fn returns Result
+    formatted_code = fix_result_double_wrap(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -9640,6 +9652,157 @@ fn fix_mixed_numeric_min_max(code: &str) -> String {
         }
     }
     result
+}
+
+// --- DEPYLER-CONVERGE-MULTI-ITER16 fixes ---
+
+/// Fix bitwise AND expressions used in boolean context.
+///
+/// Python treats `if x & 1:` as truthiness (nonzero = true).
+/// Rust requires an explicit bool: `if (x & 1) != 0 {`.
+fn fix_bitwise_and_truthiness(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("if ")
+            && trimmed.contains(" & ")
+            && trimmed.ends_with('{')
+            && !trimmed.contains("!=")
+            && !trimmed.contains("==")
+            && !trimmed.contains("&&")
+            && !trimmed.contains("||")
+        {
+            // Extract: "if EXPR {"
+            if let Some(rest) = trimmed.strip_prefix("if ") {
+                if let Some(expr) = rest.strip_suffix('{') {
+                    let expr = expr.trim();
+                    // Only fix if expr contains &  and looks like bitwise
+                    if expr.contains(" & ") {
+                        let indent = line.len() - line.trim_start().len();
+                        let pad: String = " ".repeat(indent);
+                        result.push_str(&format!(
+                            "{}if ({}) != 0 {{\n",
+                            pad, expr
+                        ));
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    if code.ends_with('\n') {
+        result
+    } else {
+        result.truncate(result.len().saturating_sub(1));
+        result
+    }
+}
+
+/// Fix spurious `.to_i64()` and `.as_i64()` calls on i32 values.
+///
+/// The transpiler sometimes emits `.to_i64()` or `.as_i64()` on `i32`
+/// variables, but these methods don't exist. Replace with `as i64`.
+fn fix_spurious_i64_conversion(code: &str) -> String {
+    // NO-OP: Blanket .to_i64()/.as_i64() replacement breaks DepylerValue
+    // method definitions in the preamble. Needs targeted fix scoped to
+    // call sites only, not method definitions.
+    code.to_string()
+}
+
+/// Fix Ok() double-wrapping of Result-returning function calls.
+///
+/// When a function returns `Result<T, E>`, wrapping its return value in
+/// `Ok(fn_call(args))` creates `Result<Result<T, E>, E>`. The fix is
+/// to add `?` to unwrap the inner Result: `Ok(fn_call(args)?)`.
+///
+/// Strategy: Collect function names that have `-> Result<` signatures,
+/// then find `Ok(fn_name(...)` patterns and add `?` before the closing `)`.
+fn fix_result_double_wrap(code: &str) -> String {
+    // Pass 1: collect function names that return Result
+    let mut result_fns: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    for line in code.lines() {
+        let t = line.trim();
+        if (t.starts_with("pub fn ") || t.starts_with("fn "))
+            && t.contains("-> Result<")
+        {
+            let start = if t.starts_with("pub fn ") {
+                7
+            } else {
+                3
+            };
+            let rest = &t[start..];
+            if let Some(paren) = rest.find('(') {
+                let name = rest[..paren].trim();
+                if !name.is_empty() {
+                    result_fns.insert(name.to_string());
+                }
+            }
+        }
+    }
+    if result_fns.is_empty() {
+        return code.to_string();
+    }
+    // Pass 2: find Ok(fn_name( patterns and add ? before closing )
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        let mut fixed = false;
+        for fname in &result_fns {
+            let pattern = format!("Ok({}(", fname);
+            if trimmed.contains(&pattern) && !trimmed.contains(&format!("{}(?", fname)) {
+                // Find the Ok( and its matching closing )
+                let line_str = line.to_string();
+                if let Some(ok_pos) = line_str.find(&pattern) {
+                    let inner_start = ok_pos + 3; // after "Ok("
+                    // Find the matching ) for the inner fn call
+                    let after_ok = &line_str[inner_start..];
+                    if let Some(fn_paren) = after_ok.find('(') {
+                        let call_start = inner_start + fn_paren;
+                        // Count parens to find matching close
+                        let mut depth = 0;
+                        let mut close_pos = None;
+                        for (i, c) in line_str[call_start..].char_indices() {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => {
+                                    depth -= 1;
+                                    if depth == 0 {
+                                        close_pos = Some(call_start + i);
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        if let Some(cp) = close_pos {
+                            // Insert ? after the closing ) of the fn call
+                            let before = &line_str[..cp + 1];
+                            let after = &line_str[cp + 1..];
+                            result.push_str(before);
+                            result.push('?');
+                            result.push_str(after);
+                            result.push('\n');
+                            fixed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if !fixed {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    if code.ends_with('\n') {
+        result
+    } else {
+        result.truncate(result.len().saturating_sub(1));
+        result
+    }
 }
 
 // --- Helper functions for iter9 fixes ---
