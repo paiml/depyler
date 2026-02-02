@@ -106,6 +106,18 @@ is the recommended primary path, but all paths are subject to empirical validati
 **Measured Compile Rates (2026-02-02)**:
 - Internal examples: 243/321 = 75.7% (rustc --crate-type=lib validation)
 
+**External Corpus Single-Shot Compile Rates (2026-02-02, v3.25.0)**:
+
+| Corpus | Files | Passing | Rate | Top Blocker |
+|--------|-------|---------|------|-------------|
+| reprorusted-std-only | 68 | 23 | 33.8% | E0283 (type inference) |
+| fully-typed-reprorusted-python-cli | 23 | 3 | 13.0% | E0061 (argument count) |
+| algorithm-competition-corpus | 201 | TBD | TBD | TBD |
+
+**Top Blocking Error Codes**:
+- **E0283**: Type annotations needed - cannot infer type (114 instances in Tier 1)
+- **E0061**: Function takes X arguments but Y were supplied (65 instances in Tier 2)
+
 ### 2.2 Root Causes of Failure
 
 | Category | % of Failures | Description |
