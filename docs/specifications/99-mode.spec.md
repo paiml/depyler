@@ -27,28 +27,55 @@
 
 ## 1. Executive Summary
 
-This specification defines three independent paths to achieving 99% single-shot
-compile rate for Python-to-Rust transpilation. The current state (v3.25.0)
-achieves 47-92% depending on corpus complexity. Reaching 99% requires
-fundamental architectural decisions about the tradeoff between language
-coverage, runtime purity, and engineering investment.
+This specification defines the roadmap to achieving 99% single-shot compile rate
+for Python-to-Rust transpilation. The current state (v3.25.0) achieves 47-92%
+depending on corpus complexity. Reaching 99% requires a phased approach that
+prioritizes **Sovereign AI Stack purity** as an absolute mandate.
+
+### 🚨 SOVEREIGN AI MANDATE (NON-NEGOTIABLE)
+
+> **The Sovereign AI Stack is not a constraint—it is the product.**
+> Zero external runtime dependencies. No Python interpreters. No FFI bridges.
+> Pure Rust from source to binary.
+
+This mandate is **non-negotiable** for the following reasons:
+1. **Security**: No supply chain attacks via Python ecosystem
+2. **Deployment**: Single static binary, no runtime installation
+3. **Performance**: No interpreter overhead, full LLVM optimization
+4. **Auditability**: Complete source visibility for compliance
+
+**Rejected Approaches** (violate sovereign mandate):
+- ❌ PyO3/Pyo3-ffi (embeds CPython)
+- ❌ RustPython runtime (interpreter overhead)
+- ❌ Cython/Numba (requires Python runtime)
+- ❌ WASM+Python (runtime dependency)
 
 ### Core Insight
 
 **99% on arbitrary Python is effectively impossible without compromises.**
 Python's dynamic semantics (duck typing, metaclasses, runtime reflection) cannot
 be statically transpiled to Rust in the general case. The path forward requires
-one of three approaches, all maintaining **Sovereign AI Stack purity** (no
-external runtime dependencies):
+a **phased approach** with Path B (Sovereign Fallback) as the primary strategy:
 
-| Path | Approach | Compile Rate | Language Coverage | Rust Purity |
-|------|----------|--------------|-------------------|-------------|
-| **A** | Restricted subset | 99% | ~30% of Python | 100% native |
-| **B** | Sovereign fallback | 99% | ~80% of Python | 100% native |
-| **C** | Complete type system | 99% | ~70% of Python | 100% native |
+| Path | Approach | Compile Rate | Language Coverage | Priority |
+|------|----------|--------------|-------------------|----------|
+| **A** | Restricted subset | 99% | ~30% of Python | Phase 1 (Foundation) |
+| **B** | Sovereign fallback | 99% | ~80% of Python | **PRIMARY** |
+| **C** | Complete type system | 99% | ~70% of Python | Phase 3 (Research) |
 
-**Sovereign Constraint**: All paths must produce pure Rust with zero runtime
-Python dependencies. The Sovereign AI Stack does not permit external interpreters.
+### Recommended Strategy
+
+**Path B (Sovereign Fallback) is the PRIMARY path** for the following reasons:
+
+1. **Highest Coverage**: ~80% of Python ecosystem vs 30% for Path A
+2. **ML/Data Science Focus**: Directly addresses Tier 3 (HuggingFace) at 4.7%
+3. **Pragmatic**: Leverages existing Sovereign Stack (aprender, trueno, realizar)
+4. **Enterprise Viable**: Clear migration path for production codebases
+
+**Phased Execution**:
+- **Phase 1** (Months 1-8): Path A — Define "Depyler Python" subset, `depyler lint --strict`
+- **Phase 2** (Months 6-18): Path B — Sovereign fallbacks for sklearn/numpy/pandas
+- **Phase 3** (Months 12-36): Path C — Research on complete type inference
 
 ### Governing Epistemology
 
@@ -56,9 +83,8 @@ Python dependencies. The Sovereign AI Stack does not permit external interpreter
 > or refutability, or testability."
 > -- Karl R. Popper, *Conjectures and Refutations* (1963), p. 37
 
-Each path is stated as a **bold conjecture** with **concrete falsifiers**. The
-specification does not advocate for a single path but provides the framework
-for empirical evaluation.
+Each path is stated as a **bold conjecture** with **concrete falsifiers**. Path B
+is the recommended primary path, but all paths are subject to empirical validation.
 
 ---
 
@@ -907,6 +933,121 @@ The paths are not mutually exclusive. A phased approach:
 3. **Phase 3** (Months 12-36): Research Path C (inference)
    - Reduce annotation burden over time
    - Competitive moat through type system innovation
+
+### 8.5 Risk Analysis and Mitigations
+
+The following risks have been identified and require active mitigation:
+
+#### Risk 1: Sovereign Stack Feature Gaps (HIGH)
+
+**Risk**: Path B depends on aprender/trueno/realizar having feature parity with
+sklearn/numpy. Missing functions will block the 99% goal.
+
+**Mitigation**:
+```bash
+# Quantify the gap immediately
+depyler analyze sovereign-gaps \
+  --corpus /path/to/tier3-huggingface \
+  --output sovereign_gap_report.json
+
+# Track coverage
+batuta stack coverage --component aprender --baseline sklearn
+batuta stack coverage --component trueno --baseline numpy
+```
+
+**Falsification Criteria**:
+| ID | Falsifier | Threshold | Action |
+|----|-----------|-----------|--------|
+| FR.1 | sklearn gap | > 30% functions missing | Prioritize aprender roadmap |
+| FR.2 | numpy gap | > 20% functions missing | Prioritize trueno roadmap |
+| FR.3 | Gap not closing | < 5% improvement/month | Re-evaluate Path B viability |
+
+#### Risk 2: Semantic Divergence ("Uncanny Valley") (MEDIUM)
+
+**Risk**: Transpiled code compiles but produces different results due to:
+- Floating-point precision differences
+- Random seed handling
+- Edge case behavior in ML algorithms
+
+**Mitigation**:
+```bash
+# Golden trace validation is MANDATORY for all ML code
+renacer trace python sklearn_model.py --output golden.trace
+renacer trace ./target/release/model --output rust.trace
+renacer compare golden.trace rust.trace --tolerance 1e-6
+
+# Property-based testing for numerical equivalence
+depyler verify --property numerical-equivalence \
+  --python sklearn_model.py \
+  --rust model.rs \
+  --tolerance 1e-6
+```
+
+**Falsification Criteria**:
+| ID | Falsifier | Threshold | Action |
+|----|-----------|-----------|--------|
+| FR.4 | Numerical divergence | > 1e-4 relative error | Fix algorithm implementation |
+| FR.5 | Random seed mismatch | Non-reproducible results | Align RNG implementations |
+| FR.6 | Edge case divergence | > 5% of edge cases differ | Document or fix |
+
+#### Risk 3: Path C Distraction (LOW)
+
+**Risk**: Research investment in Path C diverts resources from pragmatic Path B wins.
+
+**Mitigation**:
+- Path C is explicitly a **Phase 3** activity (Months 12-36)
+- Path C team is separate from Path A/B team
+- Path C has strict research budget (max 1 FTE until Path B reaches 80%)
+
+**Falsification Criteria**:
+| ID | Falsifier | Threshold | Action |
+|----|-----------|-----------|--------|
+| FR.7 | Path B stalls | < 60% compile rate after 12 months | Redirect Path C resources |
+| FR.8 | Path C overruns | > 2 FTEs before Path B at 80% | Pause Path C |
+
+#### Risk 4: Migration Path Unclear (MEDIUM)
+
+**Risk**: Users don't understand how to migrate existing Python codebases.
+
+**Mitigation**:
+```bash
+# Migration complexity assessment
+depyler analyze migration \
+  --input /path/to/codebase \
+  --output migration_report.json
+
+# Generate step-by-step migration guide
+depyler migrate plan \
+  --input /path/to/codebase \
+  --strategy sovereign-fallback \
+  --output migration_plan.md
+```
+
+**Falsification Criteria**:
+| ID | Falsifier | Threshold | Action |
+|----|-----------|-----------|--------|
+| FR.9 | Migration docs inadequate | NPS < 30 | Rewrite documentation |
+| FR.10 | Migration time excessive | > 2x estimated time | Improve tooling |
+
+### 8.6 Immediate Actions (Next 30 Days)
+
+Based on the risk analysis, the following actions are prioritized:
+
+| Priority | Action | Owner | Deadline | Ticket |
+|----------|--------|-------|----------|--------|
+| P0 | Run sovereign gap analysis on Tier 3 corpus | TBD | Week 1 | DEPYLER-GAP-001 |
+| P0 | Implement `depyler lint --strict` (Path A foundation) | TBD | Week 2 | DEPYLER-LINT-001 |
+| P1 | Set up golden trace CI for numerical validation | TBD | Week 2 | DEPYLER-GOLDEN-001 |
+| P1 | Document migration path for top 10 sklearn functions | TBD | Week 3 | DEPYLER-MIGRATE-001 |
+| P2 | Create sovereign stack coverage dashboard | TBD | Week 4 | DEPYLER-DASH-001 |
+
+**Validation Command**:
+```bash
+# Weekly progress check
+depyler roadmap status --spec docs/specifications/99-mode.spec.md \
+  --check-immediate-actions \
+  --output weekly_status.json
+```
 
 ---
 
