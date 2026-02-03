@@ -3174,13 +3174,15 @@ pub(crate) fn codegen_for_stmt(
     let target_pattern: syn::Pat = generate_for_target_pattern(target, body)?;
 
     // GH-207: Handle dict.items() in for loop context specially
-    // Python: for k, v in dict.items() → Rust: for (k, v) in dict.iter()
+    // Python: for k, v in dict.items() → Rust: for (k, v) in dict.iter().map(|(k, v)| (k.clone(), v.clone()))
     // The standard convert_dict_method returns .iter().map(...).collect() which is wrong for iteration
+    // DEPYLER-0303-PHASE2: Clone both k and v to provide owned values (Python semantics)
     let mut iter_expr = if let HirExpr::MethodCall { object, method, .. } = iter {
         if method == "items" {
-            // Generate object.iter() for iteration (not .items() which doesn't exist on HashMap)
+            // Generate object.iter().map(|(k, v)| (k.clone(), v.clone())) for iteration
+            // This clones both k and v to match Python semantics where loop vars are values, not refs
             let obj_expr = object.to_rust_expr(ctx)?;
-            parse_quote! { #obj_expr.iter() }
+            parse_quote! { #obj_expr.iter().map(|(k, v)| (k.clone(), v.clone())) }
         } else if method == "keys" {
             // dict.keys() → dict.keys() (already correct, but ensure no collect)
             let obj_expr = object.to_rust_expr(ctx)?;
