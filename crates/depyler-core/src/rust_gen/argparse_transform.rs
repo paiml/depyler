@@ -922,7 +922,7 @@ pub fn analyze_subcommand_field_access(
     // as an argparse argument (e.g., `get_year(d: date)` where `d.year` was matching subcommand `year` field)
     // We check if any parser has this variable as its args_var
     let is_args_variable = tracker.parsers.values().any(|p| {
-        p.args_var.as_ref().is_some_and(|av| av == args_param)
+        p.args_var.as_ref().map_or(false, |av| av == args_param)
     });
     if !is_args_variable {
         return None;
