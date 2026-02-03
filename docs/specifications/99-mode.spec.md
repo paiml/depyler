@@ -2531,7 +2531,7 @@ pub fn get_year(d: &DepylerDate) -> i32 {
 **Ticket**: DEPYLER-99MODE-E0308-P2
 **Files Modified**:
 - `crates/depyler-core/src/rust_gen.rs`: Added cross-type comparison traits (`PartialOrd<i32> for DepylerValue`, etc.)
-- `crates/depyler-core/src/rust_gen/stmt_gen.rs`: Added automatic `.into()` coercion for DepylerValue → concrete type assignments
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs`: Initially added automatic `.into()` coercion, but **removed** due to conflict with DEPYLER-1054
 
 **Root Cause**: NASA mode defaults bare `list` annotations to `Vec<DepylerValue>`, but internal code uses concrete types (i32, String). This creates E0308 mismatches when:
 1. Comparing DepylerValue with i32: `if num > max_val` where num is DepylerValue and max_val is i32
@@ -2560,13 +2560,29 @@ pub fn find_max(numbers: &Vec<DepylerValue>) -> Result<i32, ...> {
     }
 }
 
-// AFTER (compiles - cross-type traits and .into() coercion):
+// AFTER (compiles - cross-type traits and DEPYLER-1054 extraction):
 // Cross-type comparison: impl PartialOrd<i32> for DepylerValue
-// Assignment coercion: max_val = numbers.get(0)....into()
+// Assignment extraction: max_val = numbers.get(0).....to_i64() as i32
 ```
 
 **Fix**:
 1. Added `PartialOrd<i32/i64/f64> for DepylerValue` and reverse impls for direct comparisons
 2. Added `PartialEq<i32/i64/f64> for DepylerValue` and reverse impls for equality
-3. Added automatic `.into()` when assigning from DepylerValue to primitive types in NASA mode
+3. Assignment coercion handled by existing DEPYLER-1054 `.to_i64()/.to_f64()/.to_string()` extraction logic
 
+**Note**: The initial P2 fix added automatic `.into()` coercion for assignments, but this was **removed** because it conflicted with DEPYLER-1054's extraction logic. Both running together produced invalid code: `value.into().to_i64() as i32` which caused E0282 type inference errors.
+
+#### Additional Fix: DEPYLER-0303-PHASE2 dict.items() Cloning (2026-02-03)
+
+**Problem**: For loops iterating over `dict.items()` generated `d.iter()` which yields references (`(&K, &V)`). When loop body used these values as owned (e.g., `keys.push(k)` where `k` is `&String`), it failed to compile.
+
+**Fix**: Changed dict.items() codegen in `stmt_gen.rs` (line 3183) from:
+```rust
+d.iter()
+```
+to:
+```rust
+d.iter().map(|(k, v)| (k.clone(), v.clone()))
+```
+
+This clones both k and v to provide owned values, matching Python semantics where loop variables are values, not references.
