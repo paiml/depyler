@@ -3282,6 +3282,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-GH208: Handle is_none/is_some on &mut Option<T> parameters
+        // When a parameter with Optional type is mutated, it becomes &mut Option<T>.
+        // is_none()/is_some() work via auto-deref, but we generate explicit code for clarity.
+        // Also handle method calls on the Option's inner value (e.g., datetime methods).
+        if let HirExpr::Var(var_name) = object {
+            if self.ctx.mut_option_params.contains(var_name) {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                match method {
+                    "is_none" if args.is_empty() => {
+                        return Ok(parse_quote! { #var_ident.is_none() });
+                    }
+                    "is_some" if args.is_empty() => {
+                        return Ok(parse_quote! { #var_ident.is_some() });
+                    }
+                    // For other methods on Option inner value, unwrap first
+                    _ => {
+                        // Check if this is a method that should be called on the inner value
+                        // Common datetime methods that need unwrapping
+                        let needs_unwrap = matches!(
+                            method,
+                            "year" | "month" | "day" | "hour" | "minute" | "second"
+                                | "weekday" | "isoweekday" | "timestamp" | "date" | "time"
+                                | "replace" | "strftime" | "isoformat"
+                        );
+                        if needs_unwrap {
+                            let method_ident =
+                                syn::Ident::new(method, proc_macro2::Span::call_site());
+                            let arg_exprs: Vec<syn::Expr> = args
+                                .iter()
+                                .map(|arg| arg.to_rust_expr(self.ctx))
+                                .collect::<Result<Vec<_>>>()?;
+                            if arg_exprs.is_empty() {
+                                return Ok(
+                                    parse_quote! { #var_ident.as_ref().unwrap().#method_ident() },
+                                );
+                            } else {
+                                return Ok(
+                                    parse_quote! { #var_ident.as_ref().unwrap().#method_ident(#(#arg_exprs),*) },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0964: Handle method calls on &mut Option<HashMap<K, V>> parameters
         // When a parameter is Dict[K,V] with default None, it becomes &mut Option<HashMap>
         // Method calls need to unwrap the Option first:

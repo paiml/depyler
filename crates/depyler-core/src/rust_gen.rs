@@ -8208,10 +8208,17 @@ fn generate_enum_new_method(enum_name: &str, arms: &[(String, String)]) -> Strin
 /// Python's `if config is None:` transpiles to `if config.is_none() {`, but when
 /// `config` is a `&StructType` parameter (not an Option), this fails with E0599.
 /// Since a non-Option reference can never be None, replace with `false`.
+///
+/// DEPYLER-99MODE-E0308: Do NOT replace `.is_none()` for `&mut Option<T>` parameters.
+/// These are legitimate Option types where `.is_none()` is valid.
 fn fix_is_none_on_non_option(code: &str) -> String {
     if !code.contains(".is_none()") {
         return code.to_string();
     }
+
+    // DEPYLER-99MODE-E0308: Extract Option parameter names to skip them
+    let option_params = extract_option_params(code);
+
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
         let trimmed = line.trim();
@@ -8219,7 +8226,7 @@ fn fix_is_none_on_non_option(code: &str) -> String {
         if (trimmed.starts_with("if ") || trimmed.starts_with("let "))
             && trimmed.contains(".is_none()")
         {
-            let fixed = fix_is_none_in_line(line);
+            let fixed = fix_is_none_in_line(line, &option_params);
             result.push_str(&fixed);
         } else {
             result.push_str(line);
@@ -8232,7 +8239,77 @@ fn fix_is_none_on_non_option(code: &str) -> String {
     result
 }
 
-fn fix_is_none_in_line(line: &str) -> String {
+/// DEPYLER-99MODE-E0308: Extract parameter names that are Option types.
+///
+/// Looks for patterns like `param: &mut Option<T>` or `param: Option<T>` in function signatures.
+/// Handles multi-line function signatures by collecting the full signature first.
+fn extract_option_params(code: &str) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+    let mut option_params = HashSet::new();
+
+    // Collect full function signatures (may span multiple lines)
+    let lines: Vec<&str> = code.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Look for function signatures: fn name(...) or pub fn name(...)
+        if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
+            // Collect the full signature until we find the closing )
+            let mut signature = String::new();
+            let mut j = i;
+            let mut paren_depth = 0;
+            let mut found_open_paren = false;
+            while j < lines.len() {
+                let line = lines[j];
+                for ch in line.chars() {
+                    signature.push(ch);
+                    if ch == '(' {
+                        found_open_paren = true;
+                        paren_depth += 1;
+                    } else if ch == ')' {
+                        paren_depth -= 1;
+                        if paren_depth == 0 && found_open_paren {
+                            break;
+                        }
+                    }
+                }
+                if paren_depth == 0 && found_open_paren {
+                    break;
+                }
+                signature.push(' ');
+                j += 1;
+            }
+
+            // Parse parameters between ( and )
+            if let Some(paren_start) = signature.find('(') {
+                if let Some(paren_end) = signature.rfind(')') {
+                    let params_str = &signature[paren_start + 1..paren_end];
+                    // Split by comma (simple parsing, may not handle nested generics perfectly)
+                    for param in params_str.split(',') {
+                        let param = param.trim();
+                        // Pattern: name: ... Option<...>
+                        if let Some(colon_pos) = param.find(':') {
+                            let name = param[..colon_pos].trim();
+                            let ty = param[colon_pos + 1..].trim();
+                            // Check if type contains Option
+                            if ty.contains("Option<") {
+                                option_params.insert(name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+
+            i = j + 1;
+        } else {
+            i += 1;
+        }
+    }
+
+    option_params
+}
+
+fn fix_is_none_in_line(line: &str, option_params: &std::collections::HashSet<String>) -> String {
     let mut result = line.to_string();
     // Find VAR.is_none() patterns where VAR doesn't contain Option-like indicators
     while let Some(pos) = result.find(".is_none()") {
@@ -8245,6 +8322,10 @@ fn fix_is_none_in_line(line: &str) -> String {
         let var = &result[var_start..pos];
         // Skip if the variable name suggests it IS an Option (from .get(), etc.)
         if var.contains("get(") || var.contains("unwrap") || var.is_empty() {
+            break;
+        }
+        // DEPYLER-99MODE-E0308: Skip if the variable is a known Option parameter
+        if option_params.contains(var) {
             break;
         }
         // Simple variable or field access: replace .is_none() with == false

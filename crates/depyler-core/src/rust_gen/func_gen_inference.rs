@@ -903,6 +903,7 @@ impl RustCodeGen for HirFunction {
                 .map(|ip| ip.needs_mut)
                 .unwrap_or(false);
 
+            // DEPYLER-99MODE-E0308: Track Option params that are mutated
             if (is_optional || has_none_default) && inferred_needs_mut {
                 ctx.mut_option_params.insert(param.name.clone());
             }
