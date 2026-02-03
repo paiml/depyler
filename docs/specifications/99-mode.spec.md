@@ -2586,3 +2586,41 @@ d.iter().map(|(k, v)| (k.clone(), v.clone()))
 ```
 
 This clones both k and v to provide owned values, matching Python semantics where loop variables are values, not references.
+
+#### Clippy Warning Fix (2026-02-03)
+
+**Commit**: bb9c41c8
+**Issue**: The `map_or(false, ...)` pattern in `analyze_subcommand_field_access()` triggered clippy's `unnecessary_map_or` lint.
+
+**Fix**: Changed from:
+```rust
+p.args_var.as_ref().map_or(false, |av| av == args_param)
+```
+to:
+```rust
+p.args_var.as_ref().is_some_and(|av| av == args_param)
+```
+
+**Verification**: All 11 `test_analyze_subcommand_field_access` tests pass. Zero clippy warnings.
+
+### 9.8 Current Quality Metrics (2026-02-03)
+
+| Metric | Current | Target | Status |
+|--------|---------|--------|--------|
+| Clippy Warnings | 0 | 0 | ✅ PASS |
+| TDG Score | 93.8 (A) | 95+ (A+) | ⚠️ 1.2 points gap |
+| Test Coverage | TBD | 95% | ⏳ Measuring |
+| SATD Violations | 87 | 0 | ⚠️ Needs work |
+| Max Cyclomatic | 257 | ≤10 | ❌ Needs refactoring |
+
+**Top Complexity Hotspots** (need refactoring):
+1. `codegen_assign_stmt` (257) - stmt_gen.rs:3350
+2. `codegen_return_stmt` (133) - stmt_gen.rs:400
+3. `infer_type_from_expr_usage` (109) - func_gen.rs:2300
+4. `codegen_assign_index` (102) - stmt_gen.rs:3450
+5. `codegen_for_stmt` (87) - stmt_gen.rs:2250
+
+**Next Actions**:
+1. Complete coverage measurement
+2. Address SATD violations (87 items)
+3. Refactor high-complexity functions (long-term)
