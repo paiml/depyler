@@ -2430,3 +2430,48 @@ Key papers found:
 *Batuta oracle consulted: v0.6.2, recipes: transpile-python, quality-golden-trace*
 *Stack components evaluated: depyler, aprender, trueno, renacer, certeza, entrenar*
 *Peer review: Pending external validation*
+
+### 9.7 E0308 Analysis Results (2026-02-03)
+
+**Ticket**: DEPYLER-99MODE-E0308
+**Status**: ANALYZED
+
+#### Error Distribution (3,457 total E0308 errors)
+
+Major categories identified:
+
+| Category | Pattern | Count (est) | Root Cause |
+|----------|---------|-------------|------------|
+| `&mut Option<T>` param issues | `is_none()` → `false`, missing unwrap | ~30% | Mutation detection not triggering |
+| DepylerValue coercions | `expected DepylerValue, found i32` | ~25% | Generic fallback type issues |
+| Return type mismatch | `expected T, found ()` or vice versa | ~20% | Return statement codegen |
+| Reference vs owned | `expected &T, found T` | ~15% | Borrow semantics |
+| Other | Various | ~10% | Edge cases |
+
+#### Root Cause: `&mut Option<T>` Parameter Handling
+
+When a Python function has an optional parameter with default `None` that gets reassigned:
+```python
+def foo(as_of: date | None = None) -> int:
+    if as_of is None:
+        as_of = date.today()  # Reassignment
+    return as_of.year
+```
+
+The transpiler correctly generates `&mut Option<DepylerDate>` parameter type, but:
+1. `as_of is None` generates `false` instead of `as_of.is_none()`
+2. `as_of.year` generates `as_of.year()` instead of `as_of.as_ref().unwrap().year()`
+
+The fix exists in `codegen_assign_symbol` (DEPYLER-1126) for dereference, but:
+- `ctx.mut_option_params` not being populated because
+- `inferred_needs_mut` requires BOTH `is_mutated=true` AND `should_borrow=true`
+- The mutation detection in lifetime analysis may not be detecting the reassignment
+
+#### Recommended Fixes
+
+| Priority | Fix | Impact |
+|----------|-----|--------|
+| P0 | Fix `is_none()` method call on `&mut Option<T>` params | ~30% of E0308 |
+| P1 | Add unwrap for method calls on `&mut Option<T>` params | ~30% of E0308 |
+| P2 | Fix DepylerValue → concrete type coercions | ~25% of E0308 |
+
