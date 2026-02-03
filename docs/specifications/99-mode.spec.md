@@ -2609,18 +2609,27 @@ p.args_var.as_ref().is_some_and(|av| av == args_param)
 |--------|---------|--------|--------|
 | Clippy Warnings | 0 | 0 | ✅ PASS |
 | TDG Score | 93.8 (A) | 95+ (A+) | ⚠️ 1.2 points gap |
-| Test Coverage | TBD | 95% | ⏳ Measuring |
-| SATD Violations | 87 | 0 | ⚠️ Needs work |
-| Max Cyclomatic | 257 | ≤10 | ❌ Needs refactoring |
+| Test Coverage (core) | 85.11% | 95% | ⚠️ 9.89 pp gap |
+| Function Coverage | 92.79% | 95% | ⚠️ 2.21 pp gap |
+| SATD Violations | 87 | 0 | ⚠️ False positives (doc comments) |
+| Max Cyclomatic | 257 | ≤10 | ❌ Long-term refactor |
 
-**Top Complexity Hotspots** (need refactoring):
+**Coverage Breakdown** (depyler-core library):
+- Lines: 85.11% (200,530 total, 29,868 uncovered)
+- Functions: 92.79% (12,108 total, 873 uncovered)
+- Branches: 85.71% (136,472 total, 19,507 uncovered)
+
+**Top Complexity Hotspots** (long-term refactoring targets):
 1. `codegen_assign_stmt` (257) - stmt_gen.rs:3350
 2. `codegen_return_stmt` (133) - stmt_gen.rs:400
 3. `infer_type_from_expr_usage` (109) - func_gen.rs:2300
 4. `codegen_assign_index` (102) - stmt_gen.rs:3450
 5. `codegen_for_stmt` (87) - stmt_gen.rs:2250
 
+**SATD Note**: Most "violations" are actually bug-fix documentation comments (e.g., `// DEPYLER-0357: Fixed ...`)
+rather than TODO/FIXME/HACK markers. These provide valuable context for understanding code changes.
+
 **Next Actions**:
-1. Complete coverage measurement
-2. Address SATD violations (87 items)
-3. Refactor high-complexity functions (long-term)
+1. Add tests for lowest-coverage files to improve from 85% to 95%
+2. Consider refactoring high-complexity functions incrementally
+3. Evaluate SATD tool configuration to reduce false positives
