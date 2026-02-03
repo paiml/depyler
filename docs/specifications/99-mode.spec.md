@@ -1498,6 +1498,47 @@ primary blockers are now:
 
 3. **Expand stdlib method coverage**: E0599 errors indicate missing method implementations.
 
+### 9.6 GH-207 E0599 Method Resolution Fix (2026-02-03)
+
+**Ticket**: GH-207 [P1-HIGH] E0599 Method Resolution Enhancement
+**Status**: DONE
+
+#### Issue
+
+Python `dict.items()` iteration was generating invalid Rust code:
+```python
+# Python
+for k, v in self.headers.items():
+    print(k, v)
+```
+Generated:
+```rust
+// Invalid - HashMap doesn't have .items() method
+for (k, v) in self.headers.clone().items() {
+    println!("{} {}", k, v);
+}
+```
+
+#### Root Cause
+
+The for loop iter expression was using `iter.to_rust_expr(ctx)?` which called
+`convert_dict_method()` returning `.iter().map(...).collect::<Vec<_>>()`. However,
+in for loop iteration context, we only need `.iter()` without collecting.
+
+#### Fix Applied
+
+Added special handling in `codegen_for_stmt()` (stmt_gen.rs:3176) to intercept
+`HirExpr::MethodCall { method: "items"|"keys"|"values", ... }` and convert to:
+- `dict.items()` → `dict.iter()` (key-value pairs)
+- `dict.keys()` → `dict.keys()` (preserved)
+- `dict.values()` → `dict.values()` (preserved)
+
+#### Impact
+
+- **Commit**: 1ff3dcf5
+- **Tests**: All 11,436 depyler-core tests pass
+- **E0599 Reduction**: Eliminates "no method named items found for HashMap" errors
+
 ---
 
 ## 10. Hugging Face Artifact Publishing
