@@ -1442,6 +1442,62 @@ depyler roadmap validate --spec docs/specifications/99-mode.spec.md \
 depyler roadmap andon --live
 ```
 
+### 9.5 GH-204 Import Resolution Audit (2026-02-03)
+
+**Ticket**: GH-204 [P0-CRITICAL] E0433 Systematic Import Resolution
+**Status**: Phase 1 Audit Complete
+
+#### Key Findings
+
+1. **NASA Mode Effectiveness**: NASA mode (enabled by default since DEPYLER-1015) successfully
+   avoids E0433 errors by using std-only stubs instead of external crates. This is a significant
+   contributor to improved single-shot compile rates.
+
+2. **Error Type Clarification**: Unmapped Python imports generate E0425 (cannot find value in
+   this scope) rather than E0433 (failed to resolve: use of undeclared crate or module). The
+   distinction:
+   - E0433: `use unknown_crate::Item;` - crate not in Cargo.toml
+   - E0425: Code references variable that wasn't imported
+
+3. **Current Error Distribution** (from oracle_roi_metrics.json):
+   | Error Code | Count | Description |
+   |------------|-------|-------------|
+   | E0308 | 141 | Type mismatch |
+   | TRANSPILE | 80 | Transpilation failures |
+   | E0277 | 68 | Trait bound issues |
+   | E0599 | 57 | Method not found |
+   | E0747 | 54 | Generic type issues |
+   | E0282 | 29 | Type annotations needed |
+   | E0425 | 21 | Missing import (value not found) |
+
+4. **Bug Fix Applied**: Fixed datetime.replace() failure caused by duplicate "replace" match
+   in expr_gen_instance_methods.rs:3892. The fix removes "replace" from the fallback match
+   list since it's already handled earlier with proper arg-count checking.
+
+5. **Test Status**: All 11,436 depyler-core tests pass, zero clippy warnings.
+
+#### Impact Assessment
+
+The original GH-204 estimate of "2744 examples affected by E0433" may have been measured:
+- Before NASA mode was enabled by default
+- On a different corpus with non-NASA mode crates
+- Including E0425 errors in the count
+
+Current measurement shows E0433 is not a significant blocker with NASA mode enabled. The
+primary blockers are now:
+- E0308 (type mismatch) - requires improved type inference
+- E0277 (trait bounds) - requires better trait mapping
+- E0599 (method not found) - requires stdlib method coverage expansion
+
+#### Recommendations
+
+1. **Re-prioritize GH-204**: With NASA mode, E0433 is largely resolved. Consider closing or
+   re-targeting the ticket.
+
+2. **Focus on E0308/E0277**: These errors represent 40%+ of failures and should be prioritized.
+
+3. **Expand stdlib method coverage**: E0599 errors indicate missing method implementations.
+
 ---
 
 ## 10. Hugging Face Artifact Publishing

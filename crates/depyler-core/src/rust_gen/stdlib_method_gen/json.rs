@@ -92,7 +92,7 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
             {
                 let __json_val = serde_json::from_str::<serde_json::Value>(&#s).unwrap();
                 match __json_val {
-                    serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
+                    serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect::<std::collections::HashMap<String, serde_json::Value>>()),
                     serde_json::Value::Array(arr) => #union_ident::List(arr),
                     _ => panic!("json.loads expected dict or list"),
                 }
@@ -135,7 +135,7 @@ fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn
             {
                 let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).unwrap();
                 match __json_val {
-                    serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
+                    serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect::<std::collections::HashMap<String, serde_json::Value>>()),
                     serde_json::Value::Array(arr) => #union_ident::List(arr),
                     _ => panic!("json.load expected dict or list"),
                 }

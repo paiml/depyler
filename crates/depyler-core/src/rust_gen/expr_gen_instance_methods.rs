@@ -1123,12 +1123,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "replace" => {
                 // DEPYLER-0195: str.replace(old, new) → .replace(old, new)
                 // DEPYLER-0301: str.replace(old, new, count) → .replacen(old, new, count)
-                // DEPYLER-0595: datetime.replace() uses kwargs, has 0-1 positional args
+                // DEPYLER-0595: datetime.replace() uses kwargs, handled separately via convert_instance_method
                 // Use bare string literals without .to_string() for correct types
                 if hir_args.len() < 2 {
-                    // Not str.replace - could be datetime.replace() with kwargs
-                    // Fall through to generic method call
-                    return Ok(parse_quote! { #object_expr.replace() });
+                    // DEPYLER-99MODE: Not enough args for str.replace(), bail with clear error
+                    // datetime.replace() with kwargs is handled by convert_instance_method fallback
+                    bail!(
+                        "str.replace() requires at least 2 arguments (old, new), got {}",
+                        hir_args.len()
+                    );
                 }
                 if hir_args.len() > 3 {
                     bail!("replace() requires 2 or 3 arguments");
@@ -2538,35 +2541,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // String methods like upper/lower should be converted even for method parameters
         // that might be typed as class instances (due to how we track types)
         // DEPYLER-0621: Added encode/decode to ensure bytes conversion works on any string
-        if matches!(
-            method,
-            "upper"
-                | "lower"
-                | "strip"
-                | "lstrip"
-                | "rstrip"
-                | "startswith"
-                | "endswith"
-                | "split"
-                | "splitlines"
-                | "join"
-                | "replace"
-                | "find"
-                | "rfind"
-                | "rindex"
-                | "isdigit"
-                | "isalpha"
-                | "isalnum"
-                | "title"
-                | "center"
-                | "ljust"
-                | "rjust"
-                | "zfill"
-                | "hex"
-                | "format"
-                | "encode"  // DEPYLER-0621: str.encode() → .as_bytes().to_vec()
-                | "decode" // DEPYLER-0621: bytes.decode() → String::from_utf8_lossy()
-        ) {
+        // DEPYLER-99MODE: Handle "replace" specially - only route to string handler if we have
+        // 2+ positional args (str.replace(old, new)). datetime.replace() uses kwargs instead.
+        let is_string_replace = method == "replace" && hir_args.len() >= 2;
+
+        if is_string_replace
+            || matches!(
+                method,
+                "upper"
+                    | "lower"
+                    | "strip"
+                    | "lstrip"
+                    | "rstrip"
+                    | "startswith"
+                    | "endswith"
+                    | "split"
+                    | "splitlines"
+                    | "join"
+                    | "find"
+                    | "rfind"
+                    | "rindex"
+                    | "isdigit"
+                    | "isalpha"
+                    | "isalnum"
+                    | "title"
+                    | "center"
+                    | "ljust"
+                    | "rjust"
+                    | "zfill"
+                    | "hex"
+                    | "format"
+                    | "encode"  // DEPYLER-0621: str.encode() → .as_bytes().to_vec()
+                    | "decode" // DEPYLER-0621: bytes.decode() → String::from_utf8_lossy()
+            )
+        {
             // DEPYLER-1064: Check if object is a DepylerValue variable
             // If so, extract string before calling string method
             let is_depyler_var = if let HirExpr::Var(var_name) = object {
@@ -3881,7 +3889,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     | "split"
                     | "splitlines"
                     | "join"
-                    | "replace"
+                    // DEPYLER-99MODE-FIX: "replace" removed from here - handled earlier with arg count check
+                    // to allow datetime.replace(kwargs) to fall through to datetime handler
                     | "find"
                     | "rfind"
                     | "rindex"
