@@ -4762,57 +4762,10 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
-    // DEPYLER-99MODE-E0308-P2: Automatic DepylerValue → concrete type coercion
-    // When assigning from a collection with DepylerValue elements to a concrete-typed variable,
-    // add .into() to convert. This fixes ~25% of E0308 type mismatch errors in NASA mode.
-    // Pattern: max_val: i32 = numbers.get(0).cloned().expect(...) where numbers: Vec<DepylerValue>
-    if ctx.type_mapper.nasa_mode {
-        if let AssignTarget::Symbol(var_name) = target {
-            // Check if target variable has a concrete primitive type
-            let target_is_primitive = type_annotation
-                .as_ref()
-                .map(|t| matches!(t, Type::Int | Type::Float | Type::String | Type::Bool))
-                .unwrap_or(false)
-                || ctx
-                    .var_types
-                    .get(var_name)
-                    .map(|t| matches!(t, Type::Int | Type::Float | Type::String | Type::Bool))
-                    .unwrap_or(false);
-
-            if target_is_primitive {
-                // Check if source expression involves DepylerValue (collection access patterns)
-                let source_might_be_depyler_value = match value {
-                    // .get(idx).cloned().expect(...) pattern from list access
-                    HirExpr::MethodCall { method, .. }
-                        if method == "expect"
-                            || method == "unwrap"
-                            || method == "unwrap_or"
-                            || method == "unwrap_or_default"
-                            || method == "cloned" =>
-                    {
-                        // Check if this is accessing a Vec<DepylerValue>
-                        let value_str = quote!(#value_expr).to_string();
-                        value_str.contains(".get")
-                            || value_str.contains(".cloned()")
-                            || value_str.contains("iter()")
-                    }
-                    // Variable that was loop variable from Vec<DepylerValue> iteration
-                    HirExpr::Var(src_var) => {
-                        ctx.var_types.get(src_var).is_some_and(|t| {
-                            matches!(t, Type::Custom(name) if name == "DepylerValue")
-                                || matches!(t, Type::Unknown)
-                        })
-                    }
-                    _ => false,
-                };
-
-                if source_might_be_depyler_value {
-                    // Add .into() to convert DepylerValue to the target primitive type
-                    value_expr = parse_quote! { #value_expr.into() };
-                }
-            }
-        }
-    }
+    // NOTE: DEPYLER-99MODE-E0308-P2 automatic .into() coercion was REMOVED because it conflicts
+    // with DEPYLER-1054's .to_i64()/.to_f64() extraction logic. The P2 fix for cross-type
+    // comparisons (DepylerValue > i32) is handled via PartialOrd trait impls in rust_gen.rs.
+    // Assignment coercion is handled by DEPYLER-1054 below using explicit extraction methods.
 
     // If there's a type annotation, handle type conversions
     let (type_annotation_tokens, is_final) = if let Some(target_type) = type_annotation {
