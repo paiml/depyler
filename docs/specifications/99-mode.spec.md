@@ -2469,9 +2469,24 @@ The fix exists in `codegen_assign_symbol` (DEPYLER-1126) for dereference, but:
 
 #### Recommended Fixes
 
-| Priority | Fix | Impact |
-|----------|-----|--------|
-| P0 | Fix `is_none()` method call on `&mut Option<T>` params | ~30% of E0308 |
-| P1 | Add unwrap for method calls on `&mut Option<T>` params | ~30% of E0308 |
-| P2 | Fix DepylerValue → concrete type coercions | ~25% of E0308 |
+| Priority | Fix | Impact | Status |
+|----------|-----|--------|--------|
+| P0 | Fix `is_none()` method call on `&mut Option<T>` params | ~30% of E0308 | ✅ COMPLETED (4831647e) |
+| P1 | Add unwrap for method calls on `&mut Option<T>` params | ~30% of E0308 | In progress |
+| P2 | Fix DepylerValue → concrete type coercions | ~25% of E0308 | Pending |
+
+#### P0 Fix Details (2026-02-03)
+
+**Commit**: 4831647e
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen.rs`: Added `extract_option_params()` to detect Option params from multi-line function signatures
+- `crates/depyler-core/src/rust_gen/expr_gen_instance_methods.rs`: Handler for is_none/is_some on &mut Option<T>
+- `crates/depyler-core/src/rust_gen/func_gen_inference.rs`: Track mut_option_params
+
+**Root Cause**: Post-processing `fix_is_none_on_non_option()` replaced ALL `is_none()` calls with `false`, including those on valid `&mut Option<T>` parameters.
+
+**Fix**:
+1. Parse function signatures to identify Option<T> parameters
+2. Skip Option params when replacing is_none() with false
+3. Generate proper is_none()/is_some() method calls for tracked Option params
 
