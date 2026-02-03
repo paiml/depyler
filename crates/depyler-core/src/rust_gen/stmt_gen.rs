@@ -3173,7 +3173,28 @@ pub(crate) fn codegen_for_stmt(
     // DEPYLER-REFACTOR: Use extracted helper for target pattern generation
     let target_pattern: syn::Pat = generate_for_target_pattern(target, body)?;
 
-    let mut iter_expr = iter.to_rust_expr(ctx)?;
+    // GH-207: Handle dict.items() in for loop context specially
+    // Python: for k, v in dict.items() → Rust: for (k, v) in dict.iter()
+    // The standard convert_dict_method returns .iter().map(...).collect() which is wrong for iteration
+    let mut iter_expr = if let HirExpr::MethodCall { object, method, .. } = iter {
+        if method == "items" {
+            // Generate object.iter() for iteration (not .items() which doesn't exist on HashMap)
+            let obj_expr = object.to_rust_expr(ctx)?;
+            parse_quote! { #obj_expr.iter() }
+        } else if method == "keys" {
+            // dict.keys() → dict.keys() (already correct, but ensure no collect)
+            let obj_expr = object.to_rust_expr(ctx)?;
+            parse_quote! { #obj_expr.keys() }
+        } else if method == "values" {
+            // dict.values() → dict.values()
+            let obj_expr = object.to_rust_expr(ctx)?;
+            parse_quote! { #obj_expr.values() }
+        } else {
+            iter.to_rust_expr(ctx)?
+        }
+    } else {
+        iter.to_rust_expr(ctx)?
+    };
 
     // DEPYLER-1082: Handle iteration over iterator-typed generator state vars
     // Box<dyn Iterator> doesn't implement IntoIterator, so we need while-let loop
