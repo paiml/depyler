@@ -3673,17 +3673,20 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'GH-207 Phase 2: Fix self.dict.items() iteration pattern'
-  status: todo
+  status: completed
   priority: medium
-  assigned_to: null
+  assigned_to: Claude
   created: 2026-02-03T12:00:00+00:00
-  updated: 2026-02-03T12:00:00+00:00
+  updated: 2026-02-03T12:30:00+00:00
   spec: null
   acceptance_criteria:
   - self.dict.items() generates .iter() not .items()
   - Class attribute dict iteration works correctly
   phases: []
   subtasks: []
-  estimated_effort: null
-  labels: []
-  notes: 'Phase 1 (simple dict.items()) fixed in 1ff3dcf5. Phase 2 needs investigation of class attribute code path.'
+  estimated_effort: 2h
+  labels:
+  - bug-fix
+  - E0599
+  - dict-iteration
+  notes: 'Fixed in commit 10d780d2. Root cause: Class method bodies generated via direct_rules_convert.rs which bypassed stmt_gen.rs GH-207 fix. Added items/keys/values handling to both for-loop handlers in direct_rules_convert.rs.'
