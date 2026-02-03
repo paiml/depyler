@@ -2602,6 +2602,54 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             );
         }
 
+        // DEPYLER-GH207: Handle dict methods on class attributes (self.field.items/keys/values)
+        // When object is HirExpr::Attribute { value: self, attr: field_name } and method is a dict method,
+        // route to convert_dict_method BEFORE the is_class_instance check.
+        // This fixes E0599 "no method named 'items' found for struct 'HashMap'" errors.
+        if let HirExpr::Attribute { value, attr } = object {
+            if let HirExpr::Var(var_name) = value.as_ref() {
+                if var_name == "self" {
+                    // Check if this is a dict method
+                    let is_dict_method = matches!(
+                        method,
+                        "items" | "keys" | "values" | "get" | "update" | "setdefault" | "popitem"
+                    );
+                    // Check if field is dict-like (via class_field_types or heuristic)
+                    let field_type_opt = self.ctx.class_field_types.get(attr);
+                    let is_dict_field = field_type_opt.map_or_else(
+                        || {
+                            // Heuristic fallback for common dict field names
+                            matches!(
+                                attr.as_str(),
+                                "config"
+                                    | "settings"
+                                    | "options"
+                                    | "data"
+                                    | "metadata"
+                                    | "headers"
+                                    | "params"
+                                    | "kwargs"
+                            ) || attr.ends_with("_dict")
+                                || attr.ends_with("_map")
+                        },
+                        |field_type| {
+                            matches!(field_type, Type::Dict(_, _))
+                                || matches!(field_type, Type::Custom(s) if s == "Dict")
+                        },
+                    );
+                    if is_dict_method && is_dict_field {
+                        return self.convert_dict_method(
+                            object_expr,
+                            object,
+                            method,
+                            arg_exprs,
+                            hir_args,
+                        );
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0232 FIX: Check for user-defined class instances
         // User-defined classes can have methods with names like "add" that conflict with
         // built-in collection methods. We must prioritize user-defined methods.
@@ -8383,6 +8431,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         false
                     }
+                } else {
+                    false
+                }
+            }
+            // GH-207-PHASE2: Handle method calls that preserve dict type
+            // dict.clone() and dict.copy() return a dict, so items()/keys()/values() should work
+            HirExpr::MethodCall { object, method, .. } => {
+                // Methods that return the same dict type
+                if method == "clone" || method == "copy" {
+                    self.is_dict_expr(object)
                 } else {
                     false
                 }

@@ -717,13 +717,54 @@ pub(crate) fn convert_stmt_with_context(
                 _ => bail!("Unsupported for loop target type"),
             };
 
-            let iter_expr = convert_expr_with_param_types(
-                iter,
-                type_mapper,
-                is_classmethod,
-                vararg_functions,
-                param_types,
-            )?;
+            // GH-207-PHASE2: Handle dict.items() in for loop context
+            // Python: for k, v in dict.items() → Rust: for (k, v) in dict.iter()
+            let iter_expr = if let HirExpr::MethodCall { object, method, .. } = iter {
+                if method == "items" {
+                    let obj_expr = convert_expr_with_param_types(
+                        object,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                    )?;
+                    parse_quote! { #obj_expr.iter() }
+                } else if method == "keys" {
+                    let obj_expr = convert_expr_with_param_types(
+                        object,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                    )?;
+                    parse_quote! { #obj_expr.keys() }
+                } else if method == "values" {
+                    let obj_expr = convert_expr_with_param_types(
+                        object,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                    )?;
+                    parse_quote! { #obj_expr.values() }
+                } else {
+                    convert_expr_with_param_types(
+                        iter,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                    )?
+                }
+            } else {
+                convert_expr_with_param_types(
+                    iter,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?
+            };
             let body_block = convert_block_with_context(
                 body,
                 type_mapper,
@@ -1389,14 +1430,61 @@ pub(crate) fn convert_method_stmt(
                 }
             }
 
-            let iter_expr = convert_expr_with_class_fields(
-                iter,
-                type_mapper,
-                is_classmethod,
-                vararg_functions,
-                param_types,
-                class_field_types,
-            )?;
+            // GH-207-PHASE2: Handle dict.items() in for loop context
+            // Python: for k, v in dict.items() → Rust: for (k, v) in dict.iter()
+            // The standard expr conversion outputs .items() which doesn't exist on HashMap
+            let iter_expr = if let HirExpr::MethodCall { object, method, .. } = iter {
+                if method == "items" {
+                    // Generate object.iter() for iteration
+                    let obj_expr = convert_expr_with_class_fields(
+                        object,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                        class_field_types,
+                    )?;
+                    parse_quote! { #obj_expr.iter() }
+                } else if method == "keys" {
+                    let obj_expr = convert_expr_with_class_fields(
+                        object,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                        class_field_types,
+                    )?;
+                    parse_quote! { #obj_expr.keys() }
+                } else if method == "values" {
+                    let obj_expr = convert_expr_with_class_fields(
+                        object,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                        class_field_types,
+                    )?;
+                    parse_quote! { #obj_expr.values() }
+                } else {
+                    convert_expr_with_class_fields(
+                        iter,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                        class_field_types,
+                    )?
+                }
+            } else {
+                convert_expr_with_class_fields(
+                    iter,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                    class_field_types,
+                )?
+            };
             let body_block = convert_method_body_block(
                 body,
                 type_mapper,
