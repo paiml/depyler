@@ -2473,7 +2473,7 @@ The fix exists in `codegen_assign_symbol` (DEPYLER-1126) for dereference, but:
 |----------|-----|--------|--------|
 | P0 | Fix `is_none()` method call on `&mut Option<T>` params | ~30% of E0308 | ✅ COMPLETED (4831647e) |
 | P1 | Add unwrap for method calls on `&mut Option<T>` params | ~30% of E0308 | ✅ COMPLETED (see 3299-3327) |
-| P2 | Fix DepylerValue → concrete type coercions | ~25% of E0308 | Pending |
+| P2 | Fix DepylerValue → concrete type coercions | ~25% of E0308 | ✅ COMPLETED (2026-02-03) |
 | P3 | Fix argparse subcommand false positive field matching | ~5% of E0308 | ✅ COMPLETED (2026-02-03) |
 
 #### P0 Fix Details (2026-02-03)
@@ -2525,4 +2525,48 @@ pub fn get_year(d: &DepylerDate) -> i32 {
 1. Check if `args_param` (first parameter) matches any parser's `args_var` before analyzing
 2. Return `None` early if the parameter is not the actual argparse args variable
 3. This prevents false positives where function parameters happen to have field names matching subcommand arguments
+
+#### P2 Fix Details (2026-02-03)
+
+**Ticket**: DEPYLER-99MODE-E0308-P2
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen.rs`: Added cross-type comparison traits (`PartialOrd<i32> for DepylerValue`, etc.)
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs`: Added automatic `.into()` coercion for DepylerValue → concrete type assignments
+
+**Root Cause**: NASA mode defaults bare `list` annotations to `Vec<DepylerValue>`, but internal code uses concrete types (i32, String). This creates E0308 mismatches when:
+1. Comparing DepylerValue with i32: `if num > max_val` where num is DepylerValue and max_val is i32
+2. Assigning DepylerValue to i32: `max_val = numbers.get(0).cloned().expect(...)`
+
+**Example of Bug**:
+```python
+# Python
+def find_max(numbers: list) -> int:  # bare list, no type param
+    max_val = numbers[0]
+    for num in numbers:
+        if num > max_val:
+            max_val = num
+    return max_val
+```
+
+```rust
+// BEFORE (E0308 errors):
+pub fn find_max(numbers: &Vec<DepylerValue>) -> Result<i32, ...> {
+    let mut max_val: i32 = Default::default();
+    max_val = numbers.get(0)...;  // ERROR: expected i32, found DepylerValue
+    for num in numbers.iter().cloned() {
+        if num > max_val {  // ERROR: can't compare DepylerValue with i32
+            max_val = num.clone();  // ERROR: expected i32, found DepylerValue
+        }
+    }
+}
+
+// AFTER (compiles - cross-type traits and .into() coercion):
+// Cross-type comparison: impl PartialOrd<i32> for DepylerValue
+// Assignment coercion: max_val = numbers.get(0)....into()
+```
+
+**Fix**:
+1. Added `PartialOrd<i32/i64/f64> for DepylerValue` and reverse impls for direct comparisons
+2. Added `PartialEq<i32/i64/f64> for DepylerValue` and reverse impls for equality
+3. Added automatic `.into()` when assigning from DepylerValue to primitive types in NASA mode
 

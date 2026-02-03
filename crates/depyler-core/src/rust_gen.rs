@@ -3971,6 +3971,61 @@ fn generate_rust_file_internal(
                 }
             }
 
+            // DEPYLER-99MODE-E0308-P2: Cross-type comparisons for DepylerValue
+            // Enables: if depyler_val > 5 (without explicit conversion)
+            // This fixes ~25% of E0308 errors from NASA mode type coercion mismatches
+            impl std::cmp::PartialOrd<i32> for DepylerValue {
+                fn partial_cmp(&self, other: &i32) -> Option<std::cmp::Ordering> {
+                    self.partial_cmp(&DepylerValue::Int(*other as i64))
+                }
+            }
+            impl std::cmp::PartialOrd<i64> for DepylerValue {
+                fn partial_cmp(&self, other: &i64) -> Option<std::cmp::Ordering> {
+                    self.partial_cmp(&DepylerValue::Int(*other))
+                }
+            }
+            impl std::cmp::PartialOrd<f64> for DepylerValue {
+                fn partial_cmp(&self, other: &f64) -> Option<std::cmp::Ordering> {
+                    self.partial_cmp(&DepylerValue::Float(*other))
+                }
+            }
+            // Reverse direction: allow i32 > depyler_val
+            impl std::cmp::PartialOrd<DepylerValue> for i32 {
+                fn partial_cmp(&self, other: &DepylerValue) -> Option<std::cmp::Ordering> {
+                    DepylerValue::Int(*self as i64).partial_cmp(other)
+                }
+            }
+            impl std::cmp::PartialOrd<DepylerValue> for i64 {
+                fn partial_cmp(&self, other: &DepylerValue) -> Option<std::cmp::Ordering> {
+                    DepylerValue::Int(*self).partial_cmp(other)
+                }
+            }
+            impl std::cmp::PartialOrd<DepylerValue> for f64 {
+                fn partial_cmp(&self, other: &DepylerValue) -> Option<std::cmp::Ordering> {
+                    DepylerValue::Float(*self).partial_cmp(other)
+                }
+            }
+
+            // DEPYLER-99MODE-E0308-P2: Cross-type equality for DepylerValue
+            impl std::cmp::PartialEq<i32> for DepylerValue {
+                fn eq(&self, other: &i32) -> bool { self == &DepylerValue::Int(*other as i64) }
+            }
+            impl std::cmp::PartialEq<i64> for DepylerValue {
+                fn eq(&self, other: &i64) -> bool { self == &DepylerValue::Int(*other) }
+            }
+            impl std::cmp::PartialEq<f64> for DepylerValue {
+                fn eq(&self, other: &f64) -> bool { self == &DepylerValue::Float(*other) }
+            }
+            impl std::cmp::PartialEq<DepylerValue> for i32 {
+                fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Int(*self as i64) == other }
+            }
+            impl std::cmp::PartialEq<DepylerValue> for i64 {
+                fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Int(*self) == other }
+            }
+            impl std::cmp::PartialEq<DepylerValue> for f64 {
+                fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Float(*self) == other }
+            }
+
             // DEPYLER-1062: Safe min helper that handles f64 NaN correctly
             // Python: min(1.0, float('nan')) returns 1.0 (NaN is "ignored")
             pub fn depyler_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {

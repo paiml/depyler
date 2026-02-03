@@ -3694,16 +3694,16 @@ roadmap:
   github_issue: null
   item_type: task
   title: E0308 Type Mismatch Analysis and Fixes for 99-mode
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-02-03T12:25:51.579329+00:00
-  updated: 2026-02-03T17:58:52.314227+00:00
+  updated: 2026-02-03T19:35:00+00:00
   spec: docs/specifications/99-mode.spec.md
   acceptance_criteria:
   - 'P0: Fix is_none() method call on &mut Option<T> params - COMPLETED (4831647e)'
   - 'P1: Add unwrap for method calls on &mut Option<T> params - COMPLETED'
-  - 'P2: Fix DepylerValue → concrete type coercions - PENDING'
+  - 'P2: Fix DepylerValue → concrete type coercions - COMPLETED (cross-type traits + .into() coercion)'
   - 'P3: Fix argparse subcommand false positive matching - COMPLETED (a61cf03e)'
   phases: []
   subtasks: []
@@ -3712,4 +3712,4 @@ roadmap:
   - E0308
   - type-inference
   - 99-mode
-  notes: E0308 is the top error code (~40% of failures). P0, P1, P3 fixed. P2 (DepylerValue coercions, ~25%) pending. See 99-mode.spec.md section 9.7 for details.
+  notes: E0308 is the top error code (~40% of failures). All priorities (P0, P1, P2, P3) now COMPLETED. See 99-mode.spec.md section 9.7 for details.
