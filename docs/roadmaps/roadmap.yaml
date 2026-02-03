@@ -1943,7 +1943,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-03T07:19:30.405566504+00:00
-  updated: 2025-12-09T08:31:12.053981457+00:00
+  updated: 2026-02-03T06:22:41.383261+00:00
   spec: null
   acceptance_criteria:
   - E0433 blocked count reduced from 2744 to <500
@@ -2466,7 +2466,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-09T09:09:09.637091275+00:00
-  updated: 2025-12-09T09:09:09.637091275+00:00
+  updated: 2026-02-03T09:16:43.817152+00:00
   spec: null
   acceptance_criteria:
   - E0599 blocked count reduced from ~1000 to <300
@@ -3630,8 +3630,8 @@ roadmap:
 - id: DEPYLER-1400
   github_issue: null
   item_type: task
-  title: 'Elide TYPE_CHECKING blocks to prevent E0425 errors'
-  status: done
+  title: Elide TYPE_CHECKING blocks to prevent E0425 errors
+  status: completed
   priority: high
   assigned_to: null
   created: 2026-01-31T06:27:59.831761262+00:00
@@ -3640,14 +3640,50 @@ roadmap:
     Handle `if TYPE_CHECKING:` pattern common in typed Python codebases.
     TYPE_CHECKING is always False at runtime, so these blocks should be elided.
   acceptance_criteria:
-    - TYPE_CHECKING blocks are completely elided from transpiled output
-    - No E0425 errors for TYPE_CHECKING references
-    - Tests added for TYPE_CHECKING elision
+  - TYPE_CHECKING blocks are completely elided from transpiled output
+  - No E0425 errors for TYPE_CHECKING references
+  - Tests added for TYPE_CHECKING elision
   phases: []
   subtasks: []
   estimated_effort: 2h
-  labels: [codegen, type-system]
+  labels:
+  - codegen
+  - type-system
   notes: |
     Results on reprorusted-std-only corpus:
     - Convergence rate: 51.2% → 56.1% (+5%)
     - E0425 errors: 24 files → 8 files (-16 files)
+- id: DEPYLER-99MODE-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-99MODE-001'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-02T11:00:35.232792+00:00
+  updated: 2026-02-02T15:36:18.831925+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-207-PHASE2
+  github_issue: null
+  item_type: task
+  title: 'GH-207 Phase 2: Fix self.dict.items() iteration pattern'
+  status: todo
+  priority: medium
+  assigned_to: null
+  created: 2026-02-03T12:00:00+00:00
+  updated: 2026-02-03T12:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - self.dict.items() generates .iter() not .items()
+  - Class attribute dict iteration works correctly
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: 'Phase 1 (simple dict.items()) fixed in 1ff3dcf5. Phase 2 needs investigation of class attribute code path.'
