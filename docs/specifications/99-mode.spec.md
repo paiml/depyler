@@ -2472,8 +2472,9 @@ The fix exists in `codegen_assign_symbol` (DEPYLER-1126) for dereference, but:
 | Priority | Fix | Impact | Status |
 |----------|-----|--------|--------|
 | P0 | Fix `is_none()` method call on `&mut Option<T>` params | ~30% of E0308 | ✅ COMPLETED (4831647e) |
-| P1 | Add unwrap for method calls on `&mut Option<T>` params | ~30% of E0308 | In progress |
+| P1 | Add unwrap for method calls on `&mut Option<T>` params | ~30% of E0308 | ✅ COMPLETED (see 3299-3327) |
 | P2 | Fix DepylerValue → concrete type coercions | ~25% of E0308 | Pending |
+| P3 | Fix argparse subcommand false positive field matching | ~5% of E0308 | ✅ COMPLETED (2026-02-03) |
 
 #### P0 Fix Details (2026-02-03)
 
@@ -2489,4 +2490,39 @@ The fix exists in `codegen_assign_symbol` (DEPYLER-1126) for dereference, but:
 1. Parse function signatures to identify Option<T> parameters
 2. Skip Option params when replacing is_none() with false
 3. Generate proper is_none()/is_some() method calls for tracked Option params
+
+#### P3 Fix Details (2026-02-03)
+
+**Ticket**: DEPYLER-99MODE-E0308-P3
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen/argparse_transform.rs`: Added check in `analyze_subcommand_field_access()` to verify first parameter is actually the argparse args_var
+- `crates/depyler-core/src/rust_gen/argparse_transform_tests.rs`: Updated tests and added regression test
+
+**Root Cause**: `analyze_subcommand_field_access()` was matching ANY function whose first parameter accessed a field with the same name as an argparse argument. This caused functions like `get_year(d: date)` to be incorrectly wrapped with subcommand pattern matching because `d.year` was being matched to the argparse subcommand's `year` field.
+
+**Example of Bug**:
+```python
+# Python
+def get_year(d: date) -> int:
+    return d.year
+```
+
+```rust
+// BEFORE (Incorrect - wrapped with argparse pattern):
+pub fn get_year(d: &DepylerDate) -> i32 {
+    if let Some(Commands::Days { year }) = &d.command {
+        d.year() as i32
+    }
+}
+
+// AFTER (Correct - direct attribute access):
+pub fn get_year(d: &DepylerDate) -> i32 {
+    d.year() as i32
+}
+```
+
+**Fix**:
+1. Check if `args_param` (first parameter) matches any parser's `args_var` before analyzing
+2. Return `None` early if the parameter is not the actual argparse args variable
+3. This prevents false positives where function parameters happen to have field names matching subcommand arguments
 

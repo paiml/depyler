@@ -1609,6 +1609,12 @@ fn test_analyze_subcommand_field_access_with_attribute() {
     );
 
     let mut tracker = ArgParserTracker::new();
+    // DEPYLER-99MODE-E0308-P3: Must register a parser with args_var="args" for the analysis to work
+    // This reflects the real-world scenario where args = parser.parse_args() is called
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
     let mut subcommand = SubcommandInfo {
         name: "clone".to_string(),
         help: None,
@@ -1646,6 +1652,11 @@ fn test_analyze_subcommand_field_access_binary_expr() {
     );
 
     let mut tracker = ArgParserTracker::new();
+    // DEPYLER-99MODE-E0308-P3: Must register a parser with args_var="args"
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
     let mut subcommand = SubcommandInfo {
         name: "add".to_string(),
         help: None,
@@ -1680,6 +1691,11 @@ fn test_analyze_subcommand_field_access_if_stmt() {
     );
 
     let mut tracker = ArgParserTracker::new();
+    // DEPYLER-99MODE-E0308-P3: Must register a parser with args_var="args"
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
     let mut subcommand = SubcommandInfo {
         name: "run".to_string(),
         help: None,
@@ -1713,6 +1729,11 @@ fn test_analyze_subcommand_field_access_while_stmt() {
     );
 
     let mut tracker = ArgParserTracker::new();
+    // DEPYLER-99MODE-E0308-P3: Must register a parser with args_var="args"
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
     let mut subcommand = SubcommandInfo {
         name: "loop".to_string(),
         help: None,
@@ -1743,6 +1764,11 @@ fn test_analyze_subcommand_field_access_return_stmt() {
     );
 
     let mut tracker = ArgParserTracker::new();
+    // DEPYLER-99MODE-E0308-P3: Must register a parser with args_var="args"
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
     let mut subcommand = SubcommandInfo {
         name: "get".to_string(),
         help: None,
@@ -1777,6 +1803,11 @@ fn test_analyze_subcommand_field_access_assign_stmt() {
     );
 
     let mut tracker = ArgParserTracker::new();
+    // DEPYLER-99MODE-E0308-P3: Must register a parser with args_var="args"
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
     let mut subcommand = SubcommandInfo {
         name: "set".to_string(),
         help: None,
@@ -1792,6 +1823,61 @@ fn test_analyze_subcommand_field_access_assign_stmt() {
         crate::rust_gen::argparse_transform::analyze_subcommand_field_access(&func, &tracker);
 
     assert!(result.is_some());
+}
+
+/// DEPYLER-99MODE-E0308-P3: Regression test for false positive subcommand field matching
+///
+/// This test ensures that a function like `get_year(d: date)` that accesses `d.year` is NOT
+/// incorrectly matched as a subcommand handler just because there's a subcommand with a `year` field.
+/// The bug was that any function parameter with the same field name as a subcommand argument
+/// would trigger subcommand pattern wrapping, causing incorrect code generation.
+#[test]
+fn test_analyze_subcommand_field_access_non_args_param_false_positive() {
+    // Simulate: def get_year(d: date) -> int: return d.year
+    // This function has a parameter "d" that accesses "d.year"
+    // It should NOT be treated as a subcommand handler even if there's a subcommand with "year" field
+    let func = make_test_function(
+        "get_year",
+        vec![HirParam {
+            name: "d".to_string(),
+            ty: Type::Custom("date".to_string()),
+            default: None,
+            is_vararg: false,
+        }],
+        Type::Int,
+        vec![HirStmt::Return(Some(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("d".to_string())),
+            attr: "year".to_string(),
+        }))],
+    );
+
+    let mut tracker = ArgParserTracker::new();
+    // Register a parser with args_var="args" (NOT "d")
+    let mut parser_info = ArgParserInfo::new("parser".to_string());
+    parser_info.set_args_var("args".to_string());
+    tracker.register_parser("parser".to_string(), parser_info);
+
+    // Register a subcommand with a "year" field
+    let mut subcommand = SubcommandInfo {
+        name: "days".to_string(),
+        help: None,
+        arguments: vec![],
+        subparsers_var: "subparsers".to_string(),
+    };
+    subcommand
+        .arguments
+        .push(ArgParserArgument::new("year".to_string()));
+    tracker.register_subcommand("days".to_string(), subcommand);
+
+    let result =
+        crate::rust_gen::argparse_transform::analyze_subcommand_field_access(&func, &tracker);
+
+    // CRITICAL: This must return None because "d" is not the args variable
+    // Before the fix, this would incorrectly return Some(("Days", ["year"]))
+    assert!(
+        result.is_none(),
+        "Function with non-args parameter should not be treated as subcommand handler"
+    );
 }
 
 // ============================================================================

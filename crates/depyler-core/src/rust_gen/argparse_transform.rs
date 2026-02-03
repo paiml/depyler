@@ -917,6 +917,17 @@ pub fn analyze_subcommand_field_access(
     // Get the args parameter name (should be first parameter if this is a handler)
     let args_param = func.params.first()?.name.as_ref();
 
+    // DEPYLER-99MODE-E0308-P3: Only analyze functions where the first parameter is the argparse args variable
+    // This prevents false positives where a function parameter happens to have the same field name
+    // as an argparse argument (e.g., `get_year(d: date)` where `d.year` was matching subcommand `year` field)
+    // We check if any parser has this variable as its args_var
+    let is_args_variable = tracker.parsers.values().any(|p| {
+        p.args_var.as_ref().map_or(false, |av| av == args_param)
+    });
+    if !is_args_variable {
+        return None;
+    }
+
     // Build mapping: field_name -> (variant_name, SubcommandInfo)
     let mut field_to_variant: HashMap<String, (String, &SubcommandInfo)> = HashMap::new();
     for subcommand in tracker.subcommands.values() {
