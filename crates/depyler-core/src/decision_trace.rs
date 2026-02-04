@@ -212,13 +212,13 @@ fn current_thread_id() -> u64 {
     hasher.finish()
 }
 
-/// Memory-mapped decision writer for zero-blocking trace output
+/// Buffered decision writer for non-blocking trace output
 ///
-/// Uses a circular buffer in a memory-mapped file to capture decisions
+/// Uses an in-memory buffer backed by file I/O to capture decisions
 /// without blocking the transpilation pipeline.
 #[cfg(feature = "decision-tracing")]
 pub struct MmapDecisionWriter {
-    mmap: memmap2::MmapMut,
+    file: std::fs::File,
     offset: usize,
     capacity: usize,
     decisions: Vec<DepylerDecision>,
@@ -229,11 +229,11 @@ impl MmapDecisionWriter {
     /// Default buffer size: 10MB (approximately 78,000 decisions)
     pub const DEFAULT_SIZE: usize = 10 * 1024 * 1024;
 
-    /// Create a new memory-mapped decision writer
+    /// Create a new buffered decision writer
     ///
     /// # Arguments
     /// * `path` - Path to the trace file (e.g., "/tmp/depyler_decisions.msgpack")
-    /// * `size` - Buffer size in bytes (default: 10MB)
+    /// * `size` - Buffer capacity in bytes (default: 10MB)
     pub fn new(path: &std::path::Path, size: usize) -> Result<Self, String> {
         use std::fs::OpenOptions;
 
@@ -243,7 +243,7 @@ impl MmapDecisionWriter {
                 .map_err(|e| format!("Failed to create parent directory: {}", e))?;
         }
 
-        // Create and pre-allocate file
+        // Create file for trace output
         let file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -252,17 +252,8 @@ impl MmapDecisionWriter {
             .open(path)
             .map_err(|e| format!("Failed to create file: {}", e))?;
 
-        file.set_len(size as u64)
-            .map_err(|e| format!("Failed to set file size: {}", e))?;
-
-        // Memory-map the file
-        let mmap = unsafe {
-            memmap2::MmapMut::map_mut(&file)
-                .map_err(|e| format!("Failed to create memory map: {}", e))?
-        };
-
         Ok(Self {
-            mmap,
+            file,
             offset: 0,
             capacity: size,
             decisions: Vec::new(),
@@ -283,8 +274,10 @@ impl MmapDecisionWriter {
         Ok(())
     }
 
-    /// Flush buffered decisions to the memory-mapped file
+    /// Flush buffered decisions to the trace file
     pub fn flush(&mut self) -> Result<(), String> {
+        use std::io::Write;
+
         if self.decisions.is_empty() {
             return Ok(());
         }
@@ -302,14 +295,21 @@ impl MmapDecisionWriter {
             ));
         }
 
-        // Write to memory-mapped region (circular overwrite)
-        self.mmap[0..packed.len()].copy_from_slice(&packed);
-        self.offset = packed.len();
-
-        // Flush mmap to disk
-        self.mmap
+        // Write to file (overwrite from beginning)
+        self.file
+            .set_len(0)
+            .map_err(|e| format!("Failed to truncate file: {}", e))?;
+        use std::io::Seek;
+        self.file
+            .seek(std::io::SeekFrom::Start(0))
+            .map_err(|e| format!("Failed to seek: {}", e))?;
+        self.file
+            .write_all(&packed)
+            .map_err(|e| format!("Failed to write decisions: {}", e))?;
+        self.file
             .flush()
-            .map_err(|e| format!("Failed to flush mmap: {}", e))?;
+            .map_err(|e| format!("Failed to flush file: {}", e))?;
+        self.offset = packed.len();
 
         Ok(())
     }
@@ -521,7 +521,7 @@ pub trait DecisionWriter: Send + Sync {
     }
 }
 
-/// JSON Lines fallback writer when mmap is unavailable
+/// JSON Lines writer for decision trace output
 ///
 /// Writes decisions as newline-delimited JSON for compatibility
 /// with tools that don't support MessagePack.
@@ -627,10 +627,10 @@ impl DecisionWriter for MmapDecisionWriter {
 
 /// Create appropriate decision writer based on environment
 ///
-/// Prefers mmap when available, falls back to JSON for compatibility.
+/// Prefers MessagePack file writer, falls back to JSON for compatibility.
 #[cfg(feature = "decision-tracing")]
 pub fn create_decision_writer(path: &std::path::Path) -> Box<dyn DecisionWriter> {
-    // Try mmap first
+    // Try MessagePack file writer first
     match MmapDecisionWriter::new(path, MmapDecisionWriter::DEFAULT_SIZE) {
         Ok(writer) => Box::new(writer),
         Err(_) => {
