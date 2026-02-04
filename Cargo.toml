@@ -3,7 +3,6 @@ members = [
     "crates/depyler-core",
     "crates/depyler-analyzer",
     "crates/depyler-verify",
-    "crates/depyler-mcp",
     "crates/depyler-annotations",
     "crates/depyler-quality",
     "crates/depyler",
@@ -15,6 +14,7 @@ members = [
     "crates/depyler-graph",
 ]
 exclude = [
+    "crates/depyler-mcp",
     "examples",
     "examples/argparse_cli",
     "examples/comprehensive_cli",
@@ -93,13 +93,8 @@ indicatif = "0.17"
 colored = "2.0"
 dialoguer = "0.11"
 
-# Async (for MCP)
+# Async runtime
 tokio = { version = "1.0", features = ["full"] }
-tokio-util = "0.7"
-
-# MCP SDK
-pmcp = { version = "1.9.2", features = ["validation", "websocket", "http"] }
-async-trait = "0.1"
 
 # Serialization
 toml = "0.8"

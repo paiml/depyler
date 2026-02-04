@@ -23,22 +23,18 @@ coverage = [] # Feature flag to disable heavy property tests during coverage run
 ruchy = []
 sovereign-types = ["depyler-core/sovereign-types"] # DEPYLER-1111: Enable TypeDB integration
 decision-tracing = ["depyler-core/decision-tracing"] # DEPYLER-1148: CITL Flight Recorder
-oracle-training = ["depyler-oracle/training"]  # Oracle CITL training pipeline (adds entrenar ~314 deps)
-ml = ["dep:entrenar", "dep:alimentar", "dep:arrow", "oracle-training"] # Heavy ML training deps (adds ~850 transitive deps)
+oracle-training = ["depyler-oracle/training"]  # Oracle CITL training pipeline (requires external deps)
+ml = ["oracle-training"] # ML training features (requires external deps)
 
 [dependencies]
 depyler-core = { version = "3.24.0", path = "../depyler-core" }
 depyler-analyzer = { version = "3.23.0", path = "../depyler-analyzer" }
 depyler-verify = { version = "3.23.0", path = "../depyler-verify" }
-depyler-mcp = { version = "3.23.0", path = "../depyler-mcp" }
 depyler-annotations = { version = "3.23.0", path = "../depyler-annotations" }
 depyler-quality = { version = "3.23.0", path = "../depyler-quality" }
 depyler-oracle = { version = "3.24.0", path = "../depyler-oracle", default-features = false }
 depyler-graph = { version = "3.23.0", path = "../depyler-graph" }
 depyler-corpus = { version = "3.25.0", path = "../depyler-corpus" }
-entrenar = { version = "0.5", optional = true }
-alimentar = { version = "0.2.2", default-features = false, features = ["local"], optional = true }
-arrow = { version = "54", default-features = false, features = ["json"], optional = true }
 
 anyhow.workspace = true
 thiserror.workspace = true

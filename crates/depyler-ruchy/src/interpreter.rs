@@ -195,6 +195,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "interpreter")]
     fn test_interpreter_with_config_mcp_enabled() {
         let mut config = RuchyConfig::default();
         config.enable_mcp = true;

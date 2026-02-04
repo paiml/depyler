@@ -22,20 +22,21 @@ tracing-subscriber.workspace = true
 rustpython-parser.workspace = true
 rustpython-ast.workspace = true
 
-# Parquet/Arrow for efficient storage
-arrow = { version = "54", default-features = false, features = ["ipc"] }
-parquet = { version = "54", default-features = false, features = ["arrow"] }
-
 # File system traversal
 walkdir = "2"
 
 # CLI
 clap.workspace = true
 
-[dev-dependencies]
-tempfile.workspace = true
-proptest.workspace = true
+[features]
+default = []
+parquet-storage = []  # Enable Parquet/Arrow TypeDB storage (requires external deps)
 
 [[bin]]
 name = "build-type-db"
 path = "src/bin/build_type_db.rs"
+required-features = ["parquet-storage"]
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true

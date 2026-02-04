@@ -14,10 +14,6 @@ categories = ["development-tools", "compilers"]
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 
-# Ruchy language integration - updated to v1.5.0 (self-hosting!)
-ruchy = { version = "1.5.0", optional = true }
-polars = { version = "0.51", optional = true }
-
 # Internal dependencies
 depyler-core = { path = "../depyler-core", version = "3.19.18" }
 
@@ -25,15 +21,14 @@ depyler-core = { path = "../depyler-core", version = "3.19.18" }
 pretty_assertions = "1.4"
 proptest = "1.0"
 quickcheck = "1.0"
-criterion = "0.5"
 tempfile = "3.3"
 insta = { version = "1.40", features = ["yaml"] }
 
 [features]
-default = ["interpreter"]
-interpreter = ["ruchy"]
+default = []
+interpreter = []  # Ruchy interpreter (requires external ruchy dep - not shipped)
 validation = []
-dataframe = ["polars"]
+dataframe = []  # DataFrame support (requires external polars dep - not shipped)
 actor = []
 
 # Note: Benchmark disabled temporarily - needs update for new HirModule API (v3.2.0)

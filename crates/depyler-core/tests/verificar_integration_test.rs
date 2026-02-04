@@ -1,3 +1,5 @@
+// Gate behind verificar-integration feature since verificar is not shipped as a dep
+#![cfg(feature = "verificar-integration")]
 //! Verificar Integration Tests for Depyler
 //!
 //! This module integrates depyler with the verificar testing framework,
