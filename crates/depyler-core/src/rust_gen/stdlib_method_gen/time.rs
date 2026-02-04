@@ -100,7 +100,7 @@ fn convert_time_time() -> Result<syn::Expr> {
     Ok(parse_quote! {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("time operation failed")
             .as_secs_f64()
     })
 }
@@ -143,7 +143,7 @@ fn convert_ctime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> 
                 let secs = #timestamp as i64;
                 let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
                 chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos)
-                    .unwrap()
+                    .expect("time operation failed")
                     .to_string()
             }
         })
@@ -196,7 +196,7 @@ fn convert_strptime(
             _ => arg_exprs[1].clone(),
         };
         Ok(parse_quote! {
-            chrono::NaiveDateTime::parse_from_str(#time_str, #format).unwrap()
+            chrono::NaiveDateTime::parse_from_str(#time_str, #format).expect("time operation failed")
         })
     }
 }
@@ -204,7 +204,7 @@ fn convert_strptime(
 /// time.gmtime(timestamp) → std::time conversion (NASA) or chrono (non-NASA)
 fn convert_gmtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     let timestamp = if arg_exprs.is_empty() {
-        parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
+        parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("time operation failed").as_secs_f64() }
     } else {
         arg_exprs[0].clone()
     };
@@ -219,7 +219,7 @@ fn convert_gmtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr>
             {
                 let secs = #timestamp as i64;
                 let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-                chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos).unwrap()
+                chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos).expect("time operation failed")
             }
         })
     }
@@ -228,7 +228,7 @@ fn convert_gmtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr>
 /// time.localtime(timestamp) → std::time conversion (NASA) or chrono (non-NASA)
 fn convert_localtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     let timestamp = if arg_exprs.is_empty() {
-        parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
+        parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("time operation failed").as_secs_f64() }
     } else {
         arg_exprs[0].clone()
     };
@@ -243,7 +243,7 @@ fn convert_localtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Ex
             {
                 let secs = #timestamp as i64;
                 let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-                chrono::DateTime::<chrono::Local>::from_timestamp(secs, nanos).unwrap()
+                chrono::DateTime::<chrono::Local>::from_timestamp(secs, nanos).expect("time operation failed")
             }
         })
     }

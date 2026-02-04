@@ -51,7 +51,7 @@ fn convert_copy(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     let dst = &arg_exprs[1];
     Ok(parse_quote! {
         {
-            std::fs::copy(&#src, &#dst).unwrap();
+            std::fs::copy(&#src, &#dst).expect("file operation failed");
             #dst.clone()
         }
     })
@@ -66,7 +66,7 @@ fn convert_move(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     let dst = &arg_exprs[1];
     Ok(parse_quote! {
         {
-            std::fs::rename(&#src, &#dst).unwrap();
+            std::fs::rename(&#src, &#dst).expect("file operation failed");
             #dst.clone()
         }
     })
@@ -78,7 +78,7 @@ fn convert_rmtree(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("shutil.rmtree() requires 1 argument (path)");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::remove_dir_all(&#path).unwrap() })
+    Ok(parse_quote! { std::fs::remove_dir_all(&#path).expect("file operation failed") })
 }
 
 /// shutil.copytree(src, dst)
@@ -103,7 +103,7 @@ fn convert_copytree(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
                 }
                 Ok(())
             }
-            copy_dir_all(std::path::Path::new(&#src), std::path::Path::new(&#dst)).unwrap();
+            copy_dir_all(std::path::Path::new(&#src), std::path::Path::new(&#dst)).expect("file operation failed");
             #dst.clone()
         }
     })

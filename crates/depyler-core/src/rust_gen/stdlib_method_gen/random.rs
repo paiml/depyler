@@ -148,7 +148,7 @@ fn convert_choice(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! {
         {
             use rand::seq::SliceRandom;
-            *#seq.choose(&mut rand::thread_rng()).unwrap()
+            *#seq.choose(&mut rand::thread_rng()).expect("random operation failed")
         }
     })
 }
@@ -200,7 +200,7 @@ fn convert_choices(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
             use rand::seq::SliceRandom;
             let mut rng = rand::thread_rng();
             (0..#k)
-                .map(|_| #seq.choose(&mut rng).cloned().unwrap())
+                .map(|_| #seq.choose(&mut rng).cloned().expect("random operation failed"))
                 .collect::<Vec<_>>()
         }
     })
@@ -216,7 +216,7 @@ fn convert_gauss(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! {
         {
             use rand::distributions::Distribution;
-            let normal = rand_distr::Normal::new(#mu as f64, #sigma as f64).unwrap();
+            let normal = rand_distr::Normal::new(#mu as f64, #sigma as f64).expect("random operation failed");
             normal.sample(&mut rand::thread_rng())
         }
     })
@@ -231,7 +231,7 @@ fn convert_expovariate(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! {
         {
             use rand::distributions::Distribution;
-            let exp = rand_distr::Exp::new(#lambd as f64).unwrap();
+            let exp = rand_distr::Exp::new(#lambd as f64).expect("random operation failed");
             exp.sample(&mut rand::thread_rng())
         }
     })

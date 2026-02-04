@@ -1066,7 +1066,7 @@ pub(crate) fn codegen_return_stmt(
                 if is_optional_typed {
                     // For &Option<T> parameters, need (*var).unwrap() to get T
                     // Since optional params are passed by reference: &Option<T>
-                    expr_tokens = parse_quote! { (*#expr_tokens).unwrap() };
+                    expr_tokens = parse_quote! { (*#expr_tokens).expect("optional parameter unwrap failed") };
                 }
             }
         }
@@ -3320,7 +3320,7 @@ pub(crate) fn codegen_for_stmt(
             } else if is_json_value {
                 // DEPYLER-0606: serde_json::Value needs .as_array().unwrap() before iteration
                 // This handles: for item in json_value (where json_value is a JSON array)
-                iter_expr = parse_quote! { #iter_expr.as_array().unwrap().iter().cloned() };
+                iter_expr = parse_quote! { #iter_expr.as_array().expect("JSON value is not an array").iter().cloned() };
             } else if ctx.iterator_vars.contains(var_name) {
                 // DEPYLER-0520: Variable is already an iterator (from .filter().map() etc.)
                 // Don't add .iter().cloned() - iterators don't have .iter() method
@@ -4757,7 +4757,7 @@ pub(crate) fn codegen_assign_stmt(
                 value_expr = parse_quote! { #value_expr? };
             } else {
                 // Current function doesn't return Result - add .unwrap() to extract the value
-                value_expr = parse_quote! { #value_expr.unwrap() };
+                value_expr = parse_quote! { #value_expr.expect("function call result unwrap failed") };
             }
         }
     }
@@ -5894,11 +5894,11 @@ pub(crate) fn codegen_assign_index(
             let needs_clone = matches!(index, HirExpr::Var(_));
             if needs_clone {
                 return Ok(quote! {
-                    #base_ident.as_mut().unwrap().insert(#key_expr.clone(), #value_expr);
+                    #base_ident.as_mut().expect("optional dict parameter was None").insert(#key_expr.clone(), #value_expr);
                 });
             } else {
                 return Ok(quote! {
-                    #base_ident.as_mut().unwrap().insert(#key_expr, #value_expr);
+                    #base_ident.as_mut().expect("optional dict parameter was None").insert(#key_expr, #value_expr);
                 });
             }
         }
@@ -6104,7 +6104,7 @@ pub(crate) fn codegen_assign_index(
             // DEPYLER-0669: HashMap block expressions can't go in json!() macro
             // Use serde_json::to_value() for proper conversion
             ctx.needs_serde_json = true;
-            parse_quote! { serde_json::to_value(#value_expr).unwrap() }
+            parse_quote! { serde_json::to_value(#value_expr).expect("serde_json serialization failed") }
         } else {
             // Need to wrap in serde_json::json!() for HashMap<String, Value>
             // Use json!() instead of to_value() for consistency with dict literals
@@ -6272,7 +6272,7 @@ pub(crate) fn codegen_assign_index(
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
             // DEPYLER-0473: Clone key to avoid move-after-use errors
             Ok(
-                quote! { #base_expr.as_object_mut().unwrap().insert((#final_index).clone(), #final_value_expr); },
+                quote! { #base_expr.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); },
             )
         } else {
             // HashMap.insert(key, value)
@@ -6300,9 +6300,9 @@ pub(crate) fn codegen_assign_index(
             let first_char = idx_str.trim_start().chars().next();
             let is_str_lit = first_char == Some('"');
             chain = if is_str_lit {
-                quote! { #chain.get_mut(#idx).unwrap() }
+                quote! { #chain.get_mut(#idx).expect("key not found in dict") }
             } else {
-                quote! { #chain.get_mut(&#idx).unwrap() }
+                quote! { #chain.get_mut(&#idx).expect("key not found in dict") }
             };
         }
 
@@ -6316,7 +6316,7 @@ pub(crate) fn codegen_assign_index(
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
             // DEPYLER-0473: Clone key to avoid move-after-use errors
             Ok(
-                quote! { #chain.as_object_mut().unwrap().insert((#final_index).clone(), #final_value_expr); },
+                quote! { #chain.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); },
             )
         } else {
             // HashMap.insert(key, value)

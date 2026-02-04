@@ -695,7 +695,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .keys()
                     if is_json_value {
                         Ok(
-                            parse_quote! { #object_expr.as_object().unwrap().keys().cloned().collect::<Vec<_>>() },
+                            parse_quote! { #object_expr.as_object().expect("expected JSON object").keys().cloned().collect::<Vec<_>>() },
                         )
                     } else {
                         Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
@@ -716,7 +716,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .values()
                 if is_json_value {
                     Ok(
-                        parse_quote! { #object_expr.as_object().unwrap().values().cloned().collect::<Vec<_>>() },
+                        parse_quote! { #object_expr.as_object().expect("expected JSON object").values().cloned().collect::<Vec<_>>() },
                     )
                 } else {
                     Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
@@ -729,7 +729,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .iter()
                 if is_json_value {
                     Ok(
-                        parse_quote! { #object_expr.as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+                        parse_quote! { #object_expr.as_object().expect("expected JSON object").iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
                     )
                 } else {
                     Ok(
@@ -2138,7 +2138,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         use std::io::Write;
-                        write!(#stream_fn, "{}", #msg).unwrap();
+                        write!(#stream_fn, "{}", #msg).expect("write failed");
                     }
                 }
             }
@@ -2148,7 +2148,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         use std::io::Write;
-                        #stream_fn.flush().unwrap()
+                        #stream_fn.flush().expect("flush failed")
                     }
                 }
             }
@@ -2159,7 +2159,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     {
                         use std::io::Read;
                         let mut buffer = String::new();
-                        #stream_fn.read_to_string(&mut buffer).unwrap();
+                        #stream_fn.read_to_string(&mut buffer).expect("read failed");
                         buffer
                     }
                 }
@@ -2170,7 +2170,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     {
                         use std::io::BufRead;
                         let mut line = String::new();
-                        #stream_fn.lock().read_line(&mut line).unwrap();
+                        #stream_fn.lock().read_line(&mut line).expect("read failed");
                         line
                     }
                 }
@@ -2183,7 +2183,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         use std::io::BufRead;
-                        #stream_fn.lock().lines().collect::<Result<Vec<_>, _>>().unwrap()
+                        #stream_fn.lock().lines().collect::<Result<Vec<_>, _>>().expect("read failed")
                     }
                 }
             }
@@ -2227,7 +2227,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! {
                 {
                     use clap::CommandFactory;
-                    Args::command().print_help().unwrap()
+                    Args::command().print_help().expect("print help failed")
                 }
             });
         }
@@ -2339,11 +2339,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Use unwrap() since Python would raise exception on failure (matches behavior)
             if is_option_content {
                 return Ok(parse_quote! {
-                    #object_expr.write_all(#content.as_ref().unwrap().as_bytes()).unwrap()
+                    #object_expr.write_all(#content.as_ref().expect("value is None").as_bytes()).expect("write failed")
                 });
             } else {
                 return Ok(parse_quote! {
-                    #object_expr.write_all(#content.as_bytes()).unwrap()
+                    #object_expr.write_all(#content.as_bytes()).expect("write failed")
                 });
             }
         }
@@ -2372,12 +2372,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             match method {
                 // path.stat() → std::fs::metadata(&path).unwrap()
                 "stat" if arg_exprs.is_empty() => {
-                    return Ok(parse_quote! { std::fs::metadata(&#object_expr).unwrap() });
+                    return Ok(parse_quote! { std::fs::metadata(&#object_expr).expect("operation failed") });
                 }
                 // path.absolute() or path.resolve() → path.canonicalize().unwrap()
                 "absolute" | "resolve" if arg_exprs.is_empty() => {
                     return Ok(
-                        parse_quote! { #object_expr.canonicalize().unwrap().to_string_lossy().to_string() },
+                        parse_quote! { #object_expr.canonicalize().expect("operation failed").to_string_lossy().to_string() },
                     );
                 }
                 _ => {} // Fall through to default handling
@@ -2442,7 +2442,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 "timestamp" if arg_exprs.is_empty() => {
                     if nasa_mode {
                         return Ok(
-                            parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as f64 },
+                            parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs() as f64 },
                         );
                     } else {
                         return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
@@ -2483,7 +2483,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Rust's csv::Writer.serialize can handle HashMap
             let row = &arg_exprs[0];
             return Ok(parse_quote! {
-                #object_expr.serialize(&#row).unwrap()
+                #object_expr.serialize(&#row).expect("operation failed")
             });
         }
 
@@ -3053,7 +3053,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("Path.read_text() takes no arguments");
                 }
-                Ok(parse_quote! { std::fs::read_to_string(#object_expr).unwrap() })
+                Ok(parse_quote! { std::fs::read_to_string(#object_expr).expect("read failed") })
             }
 
             // DEPYLER-0960: contains/__contains__ method - dict uses contains_key
@@ -3326,11 +3326,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .collect::<Result<Vec<_>>>()?;
                             if arg_exprs.is_empty() {
                                 return Ok(
-                                    parse_quote! { #var_ident.as_ref().unwrap().#method_ident() },
+                                    parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident() },
                                 );
                             } else {
                                 return Ok(
-                                    parse_quote! { #var_ident.as_ref().unwrap().#method_ident(#(#arg_exprs),*) },
+                                    parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident(#(#arg_exprs),*) },
                                 );
                             }
                         }
@@ -3352,19 +3352,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "get" => {
                         if args.is_empty() {
                             // dict.get() with no args - shouldn't happen for dict but handle gracefully
-                            return Ok(parse_quote! { #var_ident.as_ref().unwrap().get() });
+                            return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").get() });
                         }
                         let key_expr = args[0].to_rust_expr(self.ctx)?;
                         // Check if we need default value (2-arg form)
                         if args.len() > 1 {
                             let default_expr = args[1].to_rust_expr(self.ctx)?;
                             return Ok(parse_quote! {
-                                #var_ident.as_ref().unwrap().get(&#key_expr).cloned().unwrap_or(#default_expr)
+                                #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned().unwrap_or(#default_expr)
                             });
                         } else {
                             // Single arg form - return Option<&V>
                             return Ok(parse_quote! {
-                                #var_ident.as_ref().unwrap().get(&#key_expr).cloned()
+                                #var_ident.as_ref().expect("value is None").get(&#key_expr).cloned()
                             });
                         }
                     }
@@ -3372,21 +3372,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         if !args.is_empty() {
                             let key_expr = args[0].to_rust_expr(self.ctx)?;
                             return Ok(parse_quote! {
-                                #var_ident.as_ref().unwrap().contains_key(&#key_expr)
+                                #var_ident.as_ref().expect("value is None").contains_key(&#key_expr)
                             });
                         }
                     }
                     "keys" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().keys() });
+                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").keys() });
                     }
                     "values" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().values() });
+                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").values() });
                     }
                     "items" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().iter() });
+                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").iter() });
                     }
                     "len" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().len() as i32 });
+                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 });
                     }
                     _ => {} // Fall through to other handlers
                 }
@@ -3434,7 +3434,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Handle Option<Child> - unwrap, call wait, extract exit code
                         if matches!(var_type, Type::Optional(_)) {
                             return Ok(parse_quote! {
-                                #var_ident.as_mut().unwrap().wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+                                #var_ident.as_mut().expect("value is None").wait().ok().and_then(|s| s.code()).unwrap_or(-1)
                             });
                         } else {
                             return Ok(parse_quote! {
@@ -3665,7 +3665,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             }
                         } else if let Some(arg) = arg_exprs.first() {
                             return Ok(parse_quote! {
-                                tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                                tokio::runtime::Runtime::new().expect("operation failed").block_on(#arg)
                             });
                         }
                     }
@@ -4326,7 +4326,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let index_expr = index.to_rust_expr(self.ctx)?;
                 // Use .get() which returns Option<&V>, then .cloned() for owned value
                 return Ok(parse_quote! {
-                    #base_ident.as_ref().unwrap().get(&#index_expr).cloned().unwrap_or_default()
+                    #base_ident.as_ref().expect("value is None").get(&#index_expr).cloned().unwrap_or_default()
                 });
             }
         }
@@ -6460,7 +6460,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let wrapped_val = if val_str.contains("HashMap") || val_str.contains("let mut map")
                 {
                     // Use serde_json::to_value() for HashMap block expressions
-                    quote! { serde_json::to_value(#val_expr).unwrap() }
+                    quote! { serde_json::to_value(#val_expr).expect("operation failed") }
                 } else {
                     // Wrap each value in json!() to convert to serde_json::Value
                     quote! { serde_json::json!(#val_expr) }
@@ -7270,7 +7270,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         return Ok(if attr == "min" {
                             parse_quote! { chrono::NaiveTime::MIN }
                         } else if attr == "max" {
-                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).unwrap() }
+                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("operation failed") }
                         } else {
                             // resolution
                             parse_quote! { chrono::Duration::microseconds(1) }
@@ -7349,19 +7349,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                     "st_mtime" => {
                         return Ok(parse_quote! {
-                            #var_ident.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+                            #var_ident.modified().expect("operation failed").duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs_f64()
                         });
                     }
                     "st_ctime" => {
                         // Creation time (use modified as fallback on Unix)
                         return Ok(parse_quote! {
-                            #var_ident.created().unwrap_or_else(|_| #var_ident.modified().unwrap())
-                                .duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+                            #var_ident.created().unwrap_or_else(|_| #var_ident.modified().expect("operation failed"))
+                                .duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs_f64()
                         });
                     }
                     "st_atime" => {
                         return Ok(parse_quote! {
-                            #var_ident.accessed().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+                            #var_ident.accessed().expect("operation failed").duration_since(std::time::UNIX_EPOCH).expect("operation failed").as_secs_f64()
                         });
                     }
                     "st_mode" => {
@@ -7397,7 +7397,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                     "suffix" => {
                         return Ok(parse_quote! {
-                            #var_ident.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
+                            #var_ident.extension().map(|e| format!(".{}", e.to_str().expect("operation failed"))).unwrap_or_default()
                         });
                     }
                     "stem" => {
@@ -7673,7 +7673,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "stem" => {
                 // p.stem → p.file_stem().unwrap().to_str().unwrap().to_string()
                 return Ok(parse_quote! {
-                    #value_expr.file_stem().unwrap().to_str().unwrap().to_string()
+                    #value_expr.file_stem().expect("operation failed").to_str().expect("operation failed").to_string()
                 });
             }
 
@@ -7681,7 +7681,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // p.suffix → p.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
                 return Ok(parse_quote! {
                     #value_expr.extension()
-                        .map(|e| format!(".{}", e.to_str().unwrap()))
+                        .map(|e| format!(".{}", e.to_str().expect("operation failed")))
                         .unwrap_or_default()
                 });
             }
@@ -7689,7 +7689,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "parent" => {
                 // p.parent → p.parent().unwrap().to_path_buf()
                 return Ok(parse_quote! {
-                    #value_expr.parent().unwrap().to_path_buf()
+                    #value_expr.parent().expect("operation failed").to_path_buf()
                 });
             }
 
@@ -7697,7 +7697,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // p.parts → p.components().map(|c| c.as_os_str().to_str().unwrap().to_string()).collect()
                 return Ok(parse_quote! {
                     #value_expr.components()
-                        .map(|c| c.as_os_str().to_str().unwrap().to_string())
+                        .map(|c| c.as_os_str().to_str().expect("operation failed").to_string())
                         .collect::<Vec<_>>()
                 });
             }
@@ -7711,7 +7711,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
                         let method_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
                         return Ok(
-                            parse_quote! { #var_ident.as_ref().unwrap().#method_ident() as i32 },
+                            parse_quote! { #var_ident.as_ref().expect("value is None").#method_ident() as i32 },
                         );
                     }
                 }

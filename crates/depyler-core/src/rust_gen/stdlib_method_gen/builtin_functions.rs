@@ -135,7 +135,7 @@ pub fn convert_min_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() == 1 {
         // Single iterable: use .min() which now works with DepylerValue (has Ord)
         let iterable = &args[0];
-        Ok(parse_quote! { #iterable.into_iter().min().unwrap() })
+        Ok(parse_quote! { #iterable.into_iter().min().expect("builtin operation failed") })
     } else {
         // Multiple args: use depyler_min helper for safe f64 comparison
         // depyler_min(a, depyler_min(b, c)) for chained comparisons
@@ -157,7 +157,7 @@ pub fn convert_max_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() == 1 {
         // Single iterable: use .max() which now works with DepylerValue (has Ord)
         let iterable = &args[0];
-        Ok(parse_quote! { #iterable.into_iter().max().unwrap() })
+        Ok(parse_quote! { #iterable.into_iter().max().expect("builtin operation failed") })
     } else {
         // Multiple args: use depyler_max helper for safe f64 comparison
         // depyler_max(a, depyler_max(b, c)) for chained comparisons
@@ -217,7 +217,7 @@ pub fn convert_chr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     let code = &args[0];
     // Wrap in parens to ensure cast applies to entire expression, not just last operand
     Ok(parse_quote! {
-        char::from_u32((#code) as u32).unwrap().to_string()
+        char::from_u32((#code) as u32).expect("builtin operation failed").to_string()
     })
 }
 
@@ -312,9 +312,9 @@ pub fn convert_input_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
             {
                 use std::io::Write;
                 print!("{}", #prompt);
-                std::io::stdout().flush().unwrap();
+                std::io::stdout().flush().expect("builtin operation failed");
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
+                std::io::stdin().read_line(&mut input).expect("builtin operation failed");
                 input.trim_end().to_string()
             }
         })
@@ -323,7 +323,7 @@ pub fn convert_input_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
         Ok(parse_quote! {
             {
                 let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
+                std::io::stdin().read_line(&mut input).expect("builtin operation failed");
                 input.trim_end().to_string()
             }
         })

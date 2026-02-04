@@ -1438,16 +1438,16 @@ fn generate_lazy_constant(
                     quote! { #value_expr }
                 } else {
                     ctx.needs_serde_json = true;
-                    quote! { serde_json::to_value(#value_expr).unwrap() }
+                    quote! { serde_json::to_value(#value_expr).expect("serde_json serialization failed") }
                 }
             }
             HirExpr::Call { .. } => {
                 // DEPYLER-0714: Function calls may return Result - unwrap them
                 // Python semantics expect the value, not Result
                 if needs_box_wrap {
-                    quote! { Box::new(#value_expr.unwrap()) }
+                    quote! { Box::new(#value_expr.expect("function call result unwrap failed")) }
                 } else {
-                    quote! { #value_expr.unwrap() }
+                    quote! { #value_expr.expect("function call result unwrap failed") }
                 }
             }
             _ => {

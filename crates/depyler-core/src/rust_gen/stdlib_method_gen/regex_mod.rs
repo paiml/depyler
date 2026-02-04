@@ -205,11 +205,11 @@ fn convert_search(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr
             regex::RegexBuilder::new(#pattern)
                 .case_insensitive(true)
                 .build()
-                .unwrap()
+                .expect("regex operation failed")
                 .find(#text)
         })
     } else {
-        Ok(parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) })
+        Ok(parse_quote! { regex::Regex::new(#pattern).expect("regex operation failed").find(#text) })
     }
 }
 
@@ -222,7 +222,7 @@ fn convert_match(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr>
     let text = extract_str_arg(args, arg_exprs, 1);
 
     // DEPYLER-0389: re.match() in Python only matches at the beginning
-    Ok(parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) })
+    Ok(parse_quote! { regex::Regex::new(#pattern).expect("regex operation failed").find(#text) })
 }
 
 /// Convert re.findall() call
@@ -235,7 +235,7 @@ fn convert_findall(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Exp
 
     Ok(parse_quote! {
         regex::Regex::new(#pattern)
-            .unwrap()
+            .expect("regex operation failed")
             .find_iter(#text)
             .map(|m| m.as_str().to_string())
             .collect::<Vec<_>>()
@@ -252,7 +252,7 @@ fn convert_finditer(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Ex
 
     Ok(parse_quote! {
         regex::Regex::new(#pattern)
-            .unwrap()
+            .expect("regex operation failed")
             .find_iter(#text)
             .map(|m| m.as_str().to_string())
             .collect::<Vec<_>>()
@@ -270,7 +270,7 @@ fn convert_sub(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 
     Ok(parse_quote! {
         regex::Regex::new(#pattern)
-            .unwrap()
+            .expect("regex operation failed")
             .replace_all(#text, #repl)
             .to_string()
     })
@@ -287,7 +287,7 @@ fn convert_subn(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> 
 
     Ok(parse_quote! {
         {
-            let re = regex::Regex::new(#pattern).unwrap();
+            let re = regex::Regex::new(#pattern).expect("regex operation failed");
             let count = re.find_iter(#text).count();
             let result = re.replace_all(#text, #repl).to_string();
             (result, count)
@@ -307,10 +307,10 @@ fn convert_compile(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
             regex::RegexBuilder::new(#pattern)
                 .case_insensitive(true)
                 .build()
-                .unwrap()
+                .expect("regex operation failed")
         })
     } else {
-        Ok(parse_quote! { regex::Regex::new(#pattern).unwrap() })
+        Ok(parse_quote! { regex::Regex::new(#pattern).expect("regex operation failed") })
     }
 }
 
@@ -326,7 +326,7 @@ fn convert_split(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         let maxsplit = &arg_exprs[2];
         Ok(parse_quote! {
             regex::Regex::new(#pattern)
-                .unwrap()
+                .expect("regex operation failed")
                 .splitn(#text, #maxsplit + 1)
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>()
@@ -334,7 +334,7 @@ fn convert_split(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     } else {
         Ok(parse_quote! {
             regex::Regex::new(#pattern)
-                .unwrap()
+                .expect("regex operation failed")
                 .split(#text)
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>()
@@ -363,7 +363,7 @@ fn convert_fullmatch(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::E
     // Wrap pattern with ^ and $ to ensure full match
     Ok(parse_quote! {
         regex::Regex::new(&format!("^(?:{})$", #pattern))
-            .unwrap()
+            .expect("regex operation failed")
             .find(#text)
     })
 }
