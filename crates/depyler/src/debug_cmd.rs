@@ -32,7 +32,7 @@ pub fn generate_debugger_script(
 
     let default_output = PathBuf::from(format!(
         "{}.{}",
-        rust_file.file_stem().unwrap().to_string_lossy(),
+        rust_file.file_stem().expect("file has stem").to_string_lossy(),
         match debugger_type {
             DebuggerType::Gdb | DebuggerType::RustGdb => "gdb",
             DebuggerType::Lldb => "lldb",

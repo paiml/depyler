@@ -864,7 +864,7 @@ impl ExprConverter {
 
         // If only one comparison, return it directly
         if comparisons.len() == 1 {
-            return Ok(comparisons.into_iter().next().unwrap());
+            return Ok(comparisons.into_iter().next().expect("checked len == 1"));
         }
 
         // Chain multiple comparisons with AND

@@ -234,7 +234,7 @@ impl LambdaTypeInferencer {
 
         event_scores
             .into_iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .filter(|(_, conf)| *conf > self.confidence_threshold)
             .map(|(event_type, _)| event_type)
             .ok_or(InferenceError::AmbiguousEventType)
@@ -340,7 +340,7 @@ impl LambdaTypeInferencer {
         let event_scores = self.calculate_confidence_scores(&matches);
         let inferred_type = event_scores
             .iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .filter(|(_, conf)| *conf > self.confidence_threshold)
             .map(|(event_type, _)| event_type.clone())
             .unwrap_or(EventType::Unknown);

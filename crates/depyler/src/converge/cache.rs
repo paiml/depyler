@@ -226,7 +226,10 @@ impl CasStore {
 
         // Atomic write (rename is atomic on POSIX)
         let tmp_path = path.with_extension("tmp");
-        std::fs::create_dir_all(path.parent().unwrap())?;
+        let parent = path.parent().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "blob path has no parent directory")
+        })?;
+        std::fs::create_dir_all(parent)?;
         std::fs::write(&tmp_path, content)?;
         std::fs::rename(&tmp_path, &path)?;
 

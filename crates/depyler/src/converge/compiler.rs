@@ -99,7 +99,10 @@ impl BatchCompiler {
         let mut join_set = JoinSet::new();
 
         for py_file in python_files {
-            let permit = Arc::clone(&semaphore).acquire_owned().await.unwrap();
+            let permit = Arc::clone(&semaphore)
+                .acquire_owned()
+                .await
+                .expect("semaphore acquire");
             let py_file = py_file.clone();
             join_set.spawn(async move {
                 let _permit = permit;

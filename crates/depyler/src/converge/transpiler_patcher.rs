@@ -503,7 +503,7 @@ impl TranspilerPatcher {
                     return Some(func);
                 }
                 Item::Impl(impl_item) if impl_block.is_some() => {
-                    if self.impl_matches(impl_item, impl_block.unwrap()) {
+                    if self.impl_matches(impl_item, impl_block.expect("checked is_some")) {
                         for item in &impl_item.items {
                             if let syn::ImplItem::Fn(method) = item {
                                 if method.sig.ident == name {
@@ -558,7 +558,7 @@ impl TranspilerPatcher {
         let re = regex::Regex::new(&fn_pattern)?;
 
         if let Some(caps) = re.captures(source) {
-            let matched = caps.get(0).unwrap();
+            let matched = caps.get(0).expect("capture group 0 exists");
             let insert_point = matched.end();
 
             let mut result = source.to_string();
@@ -640,7 +640,7 @@ impl TranspilerPatcher {
 
         if let Some(caps) = pattern.captures(source) {
             let indent = caps.get(1).map_or("            ", |m| m.as_str());
-            let insert_point = caps.get(0).unwrap().start();
+            let insert_point = caps.get(0).expect("capture group 0 exists").start();
 
             let new_arm = format!("{}{}\n{}", indent, patch.code_template.trim(), indent);
 

@@ -115,7 +115,10 @@ impl ErrorGraph {
 
         // Create nodes
         for (code, files) in &error_files {
-            let domains = error_domains.get(code).unwrap();
+            let domains = match error_domains.get(code) {
+                Some(d) => d,
+                None => continue,
+            };
             let dominant_domain = find_dominant_domain(domains);
 
             let node = ErrorNode {
@@ -284,7 +287,11 @@ impl ErrorGraph {
         }
 
         // Sort by centrality descending
-        communities.sort_by(|a, b| b.centrality_sum.partial_cmp(&a.centrality_sum).unwrap());
+        communities.sort_by(|a, b| {
+            b.centrality_sum
+                .partial_cmp(&a.centrality_sum)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         communities
     }
@@ -292,7 +299,11 @@ impl ErrorGraph {
     /// Get top N central nodes
     pub fn top_central(&self, n: usize) -> Vec<&ErrorNode> {
         let mut sorted: Vec<_> = self.nodes.iter().collect();
-        sorted.sort_by(|a, b| b.centrality.partial_cmp(&a.centrality).unwrap());
+        sorted.sort_by(|a, b| {
+            b.centrality
+                .partial_cmp(&a.centrality)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         sorted.into_iter().take(n).collect()
     }
 
