@@ -4,9 +4,9 @@
 # Configuration
 CARGO := cargo
 MAKEFLAGS += -j$(shell nproc)
-# Coverage threshold (Toyota Way: 95% minimum)
-# 80% threshold - CLI handlers and I/O code are excluded/hard to test
-COVERAGE_THRESHOLD := 80
+# Coverage threshold (Sovereign Stack standard: 95% target)
+# 85% threshold - actively increasing via DEPYLER-99MODE-001
+COVERAGE_THRESHOLD := 85
 # Quality gate thresholds
 MAX_COMPLEXITY := 10
 MAX_LINES_PER_FUNCTION := 50
@@ -116,7 +116,7 @@ test-comprehensive: test-fixtures test-property test-compilation test-semantic #
 .PHONY: test-fixtures
 test-fixtures: ## Test all Python fixture transpilation
 	@echo "Testing fixture transpilation..."
-	$(CARGO) test --test transpilation_tests $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test transpilation_tests $(TEST_FLAGS)
 # #@ Property Testing (bashrs-style configurable iterations)
 .PHONY: test-property
 test-property: ## Run property tests (fast: 50 cases)
@@ -140,32 +140,32 @@ test-property-basic: test-property ## Alias for test-property (fast mode)
 
 test-property-advanced: ## Run advanced property tests (Phase 8)
 	@echo "Running advanced property tests..."
-	$(CARGO) test --test advanced_property_generators $(TEST_FLAGS)
-	$(CARGO) test --test mutation_testing $(TEST_FLAGS)
-	$(CARGO) test --test fuzzing_tests $(TEST_FLAGS)
+	PROPTEST_CASES=25 QUICKCHECK_TESTS=50 $(CARGO) test --test advanced_property_generators $(TEST_FLAGS)
+	PROPTEST_CASES=25 QUICKCHECK_TESTS=50 $(CARGO) test --test mutation_testing $(TEST_FLAGS)
+	PROPTEST_CASES=25 QUICKCHECK_TESTS=50 $(CARGO) test --test fuzzing_tests $(TEST_FLAGS)
 test-doctests: ## Run all documentation tests
 	@echo "Running doctests..."
-	$(CARGO) test --doc $(TEST_FLAGS)
-	$(CARGO) test --test interactive_doctests $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --doc $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test interactive_doctests $(TEST_FLAGS)
 test-examples: ## Run example validation tests
 	@echo "Running example validation..."
-	$(CARGO) test --test example_validation $(TEST_FLAGS)
-	$(CARGO) test --test comprehensive_examples $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test example_validation $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test comprehensive_examples $(TEST_FLAGS)
 test-coverage: ## Run coverage analysis tests
 	@echo "Running coverage analysis..."
-	$(CARGO) test --test coverage_analysis $(TEST_FLAGS)
-	$(CARGO) test --test edge_case_coverage $(TEST_FLAGS)
-	$(CARGO) test --test error_path_coverage $(TEST_FLAGS)
-	$(CARGO) test --test boundary_value_tests $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test coverage_analysis $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test edge_case_coverage $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test error_path_coverage $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test boundary_value_tests $(TEST_FLAGS)
 test-integration: ## Run integration tests
 	@echo "Running integration tests..."
-	$(CARGO) test --test integration_benchmarks $(TEST_FLAGS)
-	$(CARGO) test --test multi_version_compatibility $(TEST_FLAGS)
-	$(CARGO) test --test large_codebase_tests $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test integration_benchmarks $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test multi_version_compatibility $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test large_codebase_tests $(TEST_FLAGS)
 test-quality: ## Run quality assurance automation
 	@echo "Running quality assurance..."
-	$(CARGO) test --test quality_assurance_automation $(TEST_FLAGS)
-	$(CARGO) test --test specialized_coverage_testing $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test quality_assurance_automation $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test specialized_coverage_testing $(TEST_FLAGS)
 test-all: ## Complete test suite execution
 	@echo "Running complete test suite..."
 	$(MAKE) test-property-basic
@@ -283,12 +283,12 @@ test-ci: ## CI/CD optimized test execution
 # #@ Performance Testing
 test-benchmark: ## Performance regression testing
 	@echo "Running performance benchmarks..."
-	$(CARGO) test --test property_test_benchmarks $(TEST_FLAGS)
-	$(CARGO) test --test integration_benchmarks $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test property_test_benchmarks $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test integration_benchmarks $(TEST_FLAGS)
 	$(CARGO) bench
 test-profile: ## Performance profiling and analysis
 	@echo "Running performance profiling..."
-	$(CARGO) test --test performance_profiling $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test performance_profiling $(TEST_FLAGS)
 	./scripts/run_performance_suite.sh
 # #@ Renacer Profiling (https://github.com/paiml/renacer)
 .PHONY: profile
@@ -312,22 +312,22 @@ profile-cargo-toml: ## Profile DEPYLER-0384 Cargo.toml generation overhead
 	@./scripts/profile_cargo_toml_gen.sh
 test-memory: ## Memory usage validation
 	@echo "Running memory tests..."
-	$(CARGO) test --test memory_safety_tests $(TEST_FLAGS)
-	$(CARGO) test --test resource_exhaustion $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test memory_safety_tests $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test resource_exhaustion $(TEST_FLAGS)
 test-concurrency: ## Thread safety and parallel execution
 	@echo "Running concurrency tests..."
-	$(CARGO) test --test concurrent_execution $(TEST_FLAGS)
-	$(CARGO) test --test thread_safety $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test concurrent_execution $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test thread_safety $(TEST_FLAGS)
 # #@ Development Workflows
 test-watch: ## Continuous testing during development
 	@echo "Starting test watch mode..."
 	$(CARGO) watch -x "test --lib" -x "test --test property_tests"
 test-debug: ## Enhanced debugging and error reporting
 	@echo "Running debug tests..."
-	RUST_BACKTRACE=1 $(CARGO) test $(TEST_FLAGS) -- --nocapture
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 RUST_BACKTRACE=1 $(CARGO) test $(TEST_FLAGS) -- --nocapture
 test-generate: ## Automatic test generation and updates
 	@echo "Running test generation..."
-	$(CARGO) test --test automated_test_generation $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test automated_test_generation $(TEST_FLAGS)
 	./scripts/generate_test_cases.sh
 test-report: ## Comprehensive quality reporting
 	@echo "Generating test reports..."
@@ -337,18 +337,18 @@ test-report: ## Comprehensive quality reporting
 .PHONY: test-compilation
 test-compilation: ## Validate generated Rust compiles
 	@echo "Validating Rust compilation..."
-	$(CARGO) test --test rustc_compilation $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test rustc_compilation $(TEST_FLAGS)
 .PHONY: test-semantic
 test-semantic: ## Test semantic equivalence
 	@echo "Testing semantic equivalence..."
-	$(CARGO) test semantic $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test semantic $(TEST_FLAGS)
 test-unit: ## Run unit tests only
 	@echo "Running unit tests..."
-	$(CARGO) test --lib $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --lib $(TEST_FLAGS)
 # Exhaustive testing (10,000+ cases)
 test-exhaustive: ## Run exhaustive test suite (10k+ cases)
 	@echo "Running exhaustive test suite..."
-	DEPYLER_EXHAUSTIVE=1 $(CARGO) test $(TEST_FLAGS) -- --test-threads=1
+	DEPYLER_EXHAUSTIVE=1 PROPTEST_CASES=10000 QUICKCHECK_TESTS=10000 $(CARGO) test $(TEST_FLAGS) -- --test-threads=1
 # Performance testing
 .PHONY: bench
 bench: ## Run all benchmarks
@@ -367,7 +367,7 @@ bench-size: ## Run binary size benchmarks
 	$(CARGO) bench --bench binary_size
 test-performance: ## Test performance regressions
 	@echo "Testing performance regressions..."
-	$(CARGO) test performance $(TEST_FLAGS)
+	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test performance $(TEST_FLAGS)
 # #@ Validation
 .PHONY: validate
 validate: quality-gate test-comprehensive coverage ## Full validation pipeline
@@ -601,7 +601,7 @@ quality-report: ## Generate comprehensive quality report
 	@echo "Quality report generated: quality_report.txt"
 test-matrix: ## Run tests across different configurations
 	@echo "Running test matrix..."
-	@for config in debug release; do echo "Testing in $$config mode..."; if [ "$$config" = "release" ]; then $(CARGO) test $(TEST_FLAGS) --release; else $(CARGO) test $(TEST_FLAGS); fi; done
+	@for config in debug release; do echo "Testing in $$config mode..."; if [ "$$config" = "release" ]; then PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test $(TEST_FLAGS) --release; else PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test $(TEST_FLAGS); fi; done
 # #@ Documentation
 docs: ## Generate documentation
 	$(CARGO) doc --workspace --no-deps

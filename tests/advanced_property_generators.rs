@@ -466,7 +466,7 @@ mod tests {
     /// Test generator efficiency and performance characteristics
     /// Note: Ignored by default as timing assertions are flaky under system load
     #[test]
-    #[ignore]
+    #[ignore = "timing assertions are flaky under system load"]
     fn test_generator_performance() {
         println!("=== Generator Performance Test ===");
 
