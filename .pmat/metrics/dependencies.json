@@ -1,36 +1,11 @@
 {
   "direct_count": 0,
-  "transitive_count": 731,
-  "timestamp": "2026-02-04T13:23:33.626159+00:00",
+  "transitive_count": 397,
+  "timestamp": "2026-02-04T23:30:00.000000+00:00",
   "previous": {
     "direct_count": 0,
     "transitive_count": 731,
-    "timestamp": "2026-02-04T13:05:33.372515+00:00",
-    "previous": {
-      "direct_count": 0,
-      "transitive_count": 731,
-      "timestamp": "2026-02-04T12:59:29.611995+00:00",
-      "previous": {
-        "direct_count": 0,
-        "transitive_count": 731,
-        "timestamp": "2026-02-04T12:59:09.779204+00:00",
-        "previous": {
-          "direct_count": 0,
-          "transitive_count": 731,
-          "timestamp": "2026-02-04T12:56:09.094418+00:00",
-          "previous": {
-            "direct_count": 0,
-            "transitive_count": 731,
-            "timestamp": "2026-02-04T12:50:44.501977+00:00",
-            "previous": {
-              "direct_count": 0,
-              "transitive_count": 731,
-              "timestamp": "2026-02-04T12:45:46.835895+00:00",
-              "previous": null
-            }
-          }
-        }
-      }
-    }
+    "timestamp": "2026-02-04T21:57:14.452597+00:00",
+    "previous": null
   }
 }

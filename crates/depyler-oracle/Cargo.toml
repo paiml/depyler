@@ -11,14 +11,9 @@ categories = ["development-tools"]
 
 [features]
 default = []
-training = ["dep:entrenar", "dep:arrow", "dep:parquet"]  # CITL training pipeline (adds ~314 transitive deps)
+training = []  # CITL training pipeline (requires external entrenar/arrow/parquet deps - not shipped)
 gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training (adds wgpu/trueno stack)
 compressed-models = ["aprender/format-compression"]  # Zstd compression (lossless, 14x smaller)
-
-[[bin]]
-name = "extract-training-data"
-path = "src/bin/extract_training_data.rs"
-required-features = ["training"]
 
 [dependencies]
 # Depyler core for error types
@@ -28,15 +23,6 @@ depyler-core = { version = "3.25.0", path = "../depyler-core" }
 # Features: parallel (rayon), gpu (wgpu via trueno)
 # Issue #210: Code2Vec embeddings and GNN capabilities
 aprender = { version = "0.20.2", default-features = false }
-
-# CITL training framework for pattern store (Issue #172)
-# Issue #212: Also using monitor::ModelLineage for training state tracking
-entrenar = { version = "0.5", default-features = false, features = ["citl"], optional = true }
-
-# Data loading and versioning (minimal features - just local file loading)
-alimentar = { version = "0.2.2", default-features = false, features = ["local"], optional = true }
-arrow = { version = "54", default-features = false, features = ["prettyprint"], optional = true }
-parquet = { version = "54", default-features = false, features = ["arrow", "snap"], optional = true }
 
 # Serialization
 serde.workspace = true
@@ -76,9 +62,18 @@ clap = { version = "4", features = ["derive"] }
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
 
+[[example]]
+name = "oracle_query_loop_demo"
+required-features = ["training"]
+
+[[example]]
+name = "train_unified_corpus"
+required-features = ["training"]
+
+[[example]]
+name = "train_ambiguity_corpus"
+required-features = ["training"]
+
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
-
-# Synthetic data factory for corpus generation
-verificar = "0.5.0"

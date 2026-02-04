@@ -328,7 +328,9 @@ mod tests {
     fn test_classifier_default() {
         let classifier = ErrorClassifier::default();
         // Just verify it creates without panic
+        #[cfg(feature = "oracle-training")]
         assert!(classifier.query_loop.is_some());
+        let _ = classifier;
     }
 
     #[test]
@@ -533,6 +535,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "oracle-training")]
     fn test_get_suggestions_invalid_code() {
         let mut classifier = ErrorClassifier::new();
         let error = CompilationError {
@@ -548,6 +551,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "oracle-training")]
     fn test_classifier_stats() {
         let classifier = ErrorClassifier::new();
         let stats = classifier.stats();

@@ -26,11 +26,7 @@ mod interpreter_creation {
 
     #[test]
     fn test_with_config_custom() {
-        let config = RuchyConfig {
-            enable_mcp: true,
-            ..Default::default()
-        };
-
+        let config = RuchyConfig::default();
         let interpreter = RuchyInterpreter::with_config(&config);
         // Should be created with custom config
         assert!(interpreter.get_context("test").is_none());
@@ -256,9 +252,11 @@ mod ruchy_config {
     #[test]
     fn test_config_default() {
         let config = RuchyConfig::default();
-        assert!(!config.enable_mcp);
+        // Config should have sensible defaults
+        assert!(!config.use_pipelines);
     }
 
+    #[cfg(feature = "interpreter")]
     #[test]
     fn test_config_with_mcp_enabled() {
         let config = RuchyConfig {
@@ -270,12 +268,9 @@ mod ruchy_config {
 
     #[test]
     fn test_config_clone() {
-        let config = RuchyConfig {
-            enable_mcp: true,
-            ..Default::default()
-        };
+        let config = RuchyConfig::default();
         let cloned = config.clone();
-        assert_eq!(config.enable_mcp, cloned.enable_mcp);
+        assert_eq!(config.use_pipelines, cloned.use_pipelines);
     }
 
     #[test]
@@ -334,11 +329,11 @@ mod integration_scenarios {
         let configs = vec![
             RuchyConfig::default(),
             RuchyConfig {
-                enable_mcp: true,
+                use_pipelines: true,
                 ..Default::default()
             },
             RuchyConfig {
-                enable_mcp: false,
+                use_actors: true,
                 ..Default::default()
             },
         ];

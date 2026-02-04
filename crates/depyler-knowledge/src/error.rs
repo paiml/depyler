@@ -36,11 +36,7 @@ pub enum KnowledgeError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// Arrow/Parquet error
-    #[error("arrow error: {0}")]
-    Arrow(#[from] arrow::error::ArrowError),
-
-    /// Parquet error
-    #[error("parquet error: {0}")]
-    Parquet(#[from] parquet::errors::ParquetError),
+    /// Arrow/Parquet error (when parquet-storage feature is enabled)
+    #[error("storage error: {0}")]
+    Storage(String),
 }

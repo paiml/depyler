@@ -36,16 +36,20 @@
 //! assert!(sig.unwrap().contains("url: str"));
 //! ```
 
+#[cfg(feature = "parquet-storage")]
 pub mod database;
 pub mod error;
 pub mod extractor;
 pub mod harvester;
+#[cfg(feature = "parquet-storage")]
 pub mod query;
 
+#[cfg(feature = "parquet-storage")]
 pub use database::TypeDatabase;
 pub use error::{KnowledgeError, Result};
 pub use extractor::Extractor;
 pub use harvester::{HarvestResult, Harvester};
+#[cfg(feature = "parquet-storage")]
 pub use query::TypeQuery;
 
 use serde::{Deserialize, Serialize};
