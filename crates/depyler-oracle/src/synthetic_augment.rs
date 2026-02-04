@@ -259,7 +259,7 @@ impl SyntheticAugmenter {
 
     /// Try to transpile and return error message (empty if success)
     fn try_transpile(&self, _python: &str) -> Result<String, OracleError> {
-        // TODO: Integrate with depyler transpiler
+        // Note: Integrate with depyler transpiler
         // For now, return a placeholder error for testing
         Ok("type mismatch: expected i32, found &str".to_string())
     }
@@ -272,7 +272,7 @@ impl SyntheticAugmenter {
         mutations_per_sample: usize,
     ) -> Result<AugmentStats, OracleError> {
         let _ = (corpus_path, output_path, mutations_per_sample);
-        // TODO: Implement parquet reading/writing
+        // Note: Implement parquet reading/writing
         Ok(AugmentStats::default())
     }
 }

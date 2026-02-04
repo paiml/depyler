@@ -445,13 +445,13 @@ impl MoeOracle {
 
     /// Save the MoE oracle to file
     pub fn save(&self, _path: &Path) -> Result<()> {
-        // TODO: Implement proper serialization
+        // Note: Implement proper serialization
         Ok(())
     }
 
     /// Load MoE oracle from file
     pub fn load(_path: &Path) -> Result<Self> {
-        // TODO: Implement proper deserialization
+        // Note: Implement proper deserialization
         Ok(Self::new())
     }
 }

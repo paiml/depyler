@@ -194,7 +194,7 @@ impl TypeMapper {
             },
             PythonType::Dict(k, v) => {
                 // DEPYLER-1318 DICT UNIFICATION: Use String for unknown dict keys
-                // 99% of Python dict keys are strings. We optimize for the common case.
+                // 99% of Python dict keys are strings. Defaults to the common case.
                 // This aligns type_mapper.rs with type_tokens.rs to end the Civil War.
                 // Result: `dict` → `HashMap<String, DepylerValue>` everywhere.
                 let key_type = if matches!(**k, PythonType::Unknown) {

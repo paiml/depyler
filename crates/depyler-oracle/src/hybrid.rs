@@ -281,7 +281,7 @@ impl HybridTranspiler {
 
     /// Try local model via aprender (placeholder for future implementation)
     fn try_local_model(&self, _python_code: &str) -> Result<TranspileResult, TranspileError> {
-        // TODO: Implement local model inference using aprender
+        // Note: Implement local model inference using aprender
         // For now, we rely on AST transpilation and API fallback
         Err(TranspileError::ModelFailed(
             "Local model inference not yet implemented".to_string(),

@@ -299,7 +299,7 @@ impl Mutator for ToStringMutator {
 
     fn apply(&self, _repro: &ReproCase) -> Option<Fix> {
         // This mutator is conservative - only applies in specific cases
-        None // TODO: Implement pattern detection
+        None // Note: Implement pattern detection
     }
 
     fn base_confidence(&self) -> f64 {

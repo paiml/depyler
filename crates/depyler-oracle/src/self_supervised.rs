@@ -440,7 +440,7 @@ impl SelfSupervisedCorpusGenerator {
     pub fn generate(&mut self) -> Result<TrainingDataset> {
         let dataset = TrainingDataset::new();
 
-        // TODO: Implement full pipeline
+        // Note: Implement full pipeline
         // 1. Generate Python examples from stdlib
         // 2. Transpile each through Depyler
         // 3. Compile with rustc

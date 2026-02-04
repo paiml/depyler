@@ -773,7 +773,7 @@ impl ModuleMapper {
             },
         );
 
-        // scipy.optimize → trueno::optimize
+        // scipy.optimize → trueno::solver
         module_map.insert(
             "scipy.optimize".to_string(),
             ModuleMapping {

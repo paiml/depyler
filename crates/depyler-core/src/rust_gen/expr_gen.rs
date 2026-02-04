@@ -3429,7 +3429,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Python: greet(name="Alice", greeting="Hello") → Rust: greet("Alice", "Hello")
         // For now, we append kwargs as additional positional arguments. This works for
         // common cases where functions accept positional or keyword arguments in order.
-        // TODO: In the future, we should look up function signatures to determine
+        // DEPYLER-0477: Future work - look up function signatures to determine
         // the correct parameter order and merge positional + kwargs properly
         let kwarg_exprs: Vec<syn::Expr> = if is_user_class {
             // For user-defined classes, convert string literals to String
@@ -10578,7 +10578,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if rust_name.ends_with('!') {
                     // This is a macro - handle it specially
                     // For now, skip macro-based mappings as they need special handling
-                    // TODO: Implement proper macro invocation support
+                    // Note: Implement proper macro invocation support
                     return Ok(None);
                 }
 

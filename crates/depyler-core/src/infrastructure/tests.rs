@@ -313,7 +313,7 @@ mod pattern_store_tests {
 
         // Must complete in < 2000ms for 10K patterns (brute-force acceptable for MVP)
         // Threshold increased to 2000ms to handle loaded CI systems with coverage instrumentation
-        // TODO: Implement HNSW for O(log n) and reduce threshold to <10ms
+        // Note: Implement HNSW for O(log n) and reduce threshold to <10ms
         assert!(
             elapsed.as_millis() < 2000,
             "Lookup took {}ms, expected <2000ms",

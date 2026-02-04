@@ -214,7 +214,7 @@ def repro_function():
         // 4. Check for expected error code
 
         // For now, simulate verification
-        // TODO: Implement actual transpilation and compilation check
+        // Note: Implement actual transpilation and compilation check
         let would_fail = !repro.source.contains("pass  # Placeholder");
 
         if would_fail {

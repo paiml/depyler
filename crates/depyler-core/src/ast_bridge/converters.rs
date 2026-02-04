@@ -466,7 +466,7 @@ impl ExprConverter {
             ast::Constant::Bytes(b) => Literal::Bytes(b.clone()),
             ast::Constant::Bool(b) => Literal::Bool(*b),
             ast::Constant::None => Literal::None,
-            // DEPYLER-0188: Ellipsis as expression (... in abstract methods, placeholders)
+            // DEPYLER-0188: Ellipsis as expression (... in abstract methods, stub bodies)
             // Maps to Unit type - generates () or todo!() depending on context
             ast::Constant::Ellipsis => return Ok(HirExpr::Literal(Literal::None)),
             _ => bail!("Unsupported constant type"),

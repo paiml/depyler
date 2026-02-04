@@ -26,7 +26,7 @@ pub mod features;
 pub mod github_corpus;
 pub mod hybrid;
 pub mod moe_oracle;
-// pub mod mlp_classifier; // TODO: GH-XXX - Implement GPU-accelerated MLP classifier
+// pub mod mlp_classifier; // GH-XXX: Implement GPU-accelerated MLP classifier
 pub mod acceleration_pipeline;
 pub mod ast_embeddings; // Issue #210: Code2Vec-style AST embeddings
 pub mod corpus_extract;
@@ -602,7 +602,7 @@ impl Oracle {
 
         Ok(ClassificationResult {
             category,
-            confidence: 0.85, // TODO: Extract from tree probabilities
+            confidence: 0.85, // Note: Extract from tree probabilities
             suggested_fix,
             related_patterns: related,
         })

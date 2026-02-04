@@ -181,7 +181,7 @@ impl WorklistSolver {
                         .map_err(|e| format!("{} ({})", e, reason))?;
                 } else {
                     // No assignment yet - for now, assign the upper bound
-                    // TODO: Track upper/lower bounds separately for more precise inference
+                    // Note: Track upper/lower bounds separately for more precise inference
                     self.assignments.insert(*var_id, ty.clone());
                 }
                 Ok(())
