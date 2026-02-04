@@ -154,8 +154,7 @@ pub fn lint_file(path: &Path, strict: bool) -> Result<FileReport> {
                 line: line_number,
                 column: find_pattern_column(line, "getattr"),
                 code: codes::DP005.to_string(),
-                message: "'getattr' is prohibited in Depyler Python (dynamic dispatch)"
-                    .to_string(),
+                message: "'getattr' is prohibited in Depyler Python (dynamic dispatch)".to_string(),
                 severity: Severity::Error,
                 source_line: Some(line.to_string()),
             });
@@ -167,8 +166,7 @@ pub fn lint_file(path: &Path, strict: bool) -> Result<FileReport> {
                 line: line_number,
                 column: find_pattern_column(line, "setattr"),
                 code: codes::DP006.to_string(),
-                message: "'setattr' is prohibited in Depyler Python (dynamic dispatch)"
-                    .to_string(),
+                message: "'setattr' is prohibited in Depyler Python (dynamic dispatch)".to_string(),
                 severity: Severity::Error,
                 source_line: Some(line.to_string()),
             });
@@ -302,10 +300,7 @@ fn check_type_annotations(source: &str, violations: &mut Vec<Violation>) -> Resu
                     line: line_num,
                     column: 1,
                     code: codes::DP001.to_string(),
-                    message: format!(
-                        "Function '{}' missing return type annotation",
-                        func.name
-                    ),
+                    message: format!("Function '{}' missing return type annotation", func.name),
                     severity: Severity::Error,
                     source_line: get_source_line(source, line_num),
                 });
@@ -391,7 +386,10 @@ fn find_function_line(source: &str, func_name: &str) -> usize {
 
 /// Get a specific line from source
 fn get_source_line(source: &str, line_num: usize) -> Option<String> {
-    source.lines().nth(line_num.saturating_sub(1)).map(String::from)
+    source
+        .lines()
+        .nth(line_num.saturating_sub(1))
+        .map(String::from)
 }
 
 /// Lint a directory of Python files
@@ -472,7 +470,11 @@ pub fn lint_command(
 /// Print file report in text format
 fn print_file_report(report: &FileReport, fail_fast: bool) {
     if report.violations.is_empty() {
-        println!("{} {} is Depyler Python compliant", "✓".green(), report.path.display());
+        println!(
+            "{} {} is Depyler Python compliant",
+            "✓".green(),
+            report.path.display()
+        );
         return;
     }
 
@@ -502,8 +504,16 @@ fn print_file_report(report: &FileReport, fail_fast: bool) {
         }
     }
 
-    let error_count = report.violations.iter().filter(|v| v.severity == Severity::Error).count();
-    let warning_count = report.violations.iter().filter(|v| v.severity == Severity::Warning).count();
+    let error_count = report
+        .violations
+        .iter()
+        .filter(|v| v.severity == Severity::Error)
+        .count();
+    let warning_count = report
+        .violations
+        .iter()
+        .filter(|v| v.severity == Severity::Warning)
+        .count();
 
     println!(
         "\nFound {} error(s), {} warning(s)",
@@ -519,9 +529,7 @@ fn print_corpus_report(report: &CorpusReport, fail_fast: bool) {
 
     println!(
         "Files analyzed: {}\nCompliant files: {}\nCompliance rate: {:.1}%\n",
-        report.total_files,
-        report.compliant_files,
-        report.compliance_rate
+        report.total_files, report.compliant_files, report.compliance_rate
     );
 
     if !report.violation_counts.is_empty() {

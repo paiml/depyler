@@ -3168,7 +3168,7 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
         })
         .map(|x| x)
         .collect::<Vec<_>>();
-    Ok(((quicksort(left)?).py_add(middle)).py_add(quicksort(right)?))
+    Ok(((quicksort(left)?).py_add(middle) as i32).py_add(quicksort(right)?))
 }
 #[doc = "In-place partition for quicksort"]
 #[doc = " Depyler: proven to terminate"]
@@ -3182,7 +3182,7 @@ pub fn partition(
         .get(high as usize)
         .cloned()
         .expect("IndexError: list index out of range");
-    i = (low).py_sub(1);
+    i = ((low).py_sub(1i32)) as i32;
     for j in (low)..(high) {
         if arr
             .get(j as usize)
@@ -3190,7 +3190,7 @@ pub fn partition(
             .expect("IndexError: list index out of range")
             <= pivot
         {
-            i = (i).py_add(1);
+            i = ((i).py_add(1i32)) as i32;
             let _swap_temp = (
                 arr.get(j as usize)
                     .cloned()
@@ -3209,7 +3209,7 @@ pub fn partition(
             .expect("IndexError: list index out of range"),
         {
             let base = &arr;
-            let idx: i32 = (i).py_add(1);
+            let idx: i32 = (i).py_add(1i32);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -3220,9 +3220,9 @@ pub fn partition(
                 .expect("IndexError: list index out of range")
         },
     );
-    arr[((i).py_add(1)) as usize] = _swap_temp.0;
+    arr[((i).py_add(1i32)) as usize] = _swap_temp.0;
     arr[(high) as usize] = _swap_temp.1;
-    Ok((i).py_add(1))
+    Ok((i).py_add(1i32))
 }
 #[doc = "In-place quicksort implementation"]
 #[doc = " Depyler: verified panic-free"]
@@ -3235,8 +3235,8 @@ pub fn quicksort_inplace(
     let _cse_temp_0 = low < high;
     if _cse_temp_0 {
         let pi: i32 = partition(arr, low, high)?;
-        quicksort_inplace(arr, low, (pi).py_sub(1));
-        quicksort_inplace(arr, (pi).py_add(1), high);
+        quicksort_inplace(arr, low, (pi).py_sub(1i32));
+        quicksort_inplace(arr, (pi).py_add(1i32), high);
     }
     Ok(())
 }

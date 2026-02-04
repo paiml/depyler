@@ -3403,7 +3403,7 @@ impl TestPropertyBased {
         let test_file = tmp_path / "test.txt".to_string();
         test_file.write_text(content);
         let stats = wordcount.count_file(test_file);
-        assert!(stats.chars = = (content.len() as i32));
+        assert !(stats.chars == (content.len() as i32));
     }
     pub fn test_count_file_words_property(&self, _tmp_path_factory: (), _words: ()) {
         let tmp_path = tmp_path_factory.mktemp("data".to_string());
@@ -3602,8 +3602,8 @@ pub fn assume<T: Default>(_args: impl std::any::Any) -> T {
 pub fn main() {
     pytest::main(vec![
         format!("{:?}", file!()),
-        format!("{:?}", "-v".to_string()),
-        format!("{:?}", "--cov=wordcount".to_string()),
-        format!("{:?}", "--cov-report=term-missing".to_string()),
+        format!("{:?}", "-v"),
+        format!("{:?}", "--cov=wordcount"),
+        format!("{:?}", "--cov-report=term-missing"),
     ]);
 }

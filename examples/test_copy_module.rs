@@ -1373,20 +1373,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3212,7 +3198,7 @@ pub fn test_deep_copy_nested_dict() -> HashMap<String, HashMap<String, i32>> {
         });
         map
     };
-    let mut copied: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
+    let copied: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
         (original).clone();
     let _cse_temp_0 = copied.get("group1").is_some();
     if _cse_temp_0 {

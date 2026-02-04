@@ -1389,20 +1389,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3287,7 +3273,7 @@ pub fn flatten_nested_list(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Compute Cartesian product of two lists"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
+pub fn cartesian_product<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
     for item1 in list1.iter().cloned() {
         for item2 in list2.iter().cloned() {

@@ -3127,10 +3127,10 @@ pub fn parallel_sum(numbers: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for num in numbers.iter().cloned() {
-        total = (total).py_add(num);
-        total = (total).py_add(num);
-        total = (total).py_add(num);
-        total = (total).py_add(num);
+        total = ((total).py_add(num)) as i32;
+        total = ((total).py_add(num)) as i32;
+        total = ((total).py_add(num)) as i32;
+        total = ((total).py_add(num)) as i32;
     }
     total
 }
@@ -3174,7 +3174,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Compute dot product with SIMD hints."]
 #[doc = " Depyler: proven to terminate"]
-pub fn dot_product<'a, 'b>(
+pub fn dot_product<'b, 'a>(
     v1: &'a Vec<f64>,
     v2: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {

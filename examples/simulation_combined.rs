@@ -1390,20 +1390,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3193,10 +3179,10 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut max_tails_streak: i32 = Default::default();
     let mut current_type: String = Default::default();
-    let mut max_heads_streak: i32 = Default::default();
     let mut current_streak: i32 = Default::default();
+    let mut max_heads_streak: i32 = Default::default();
+    let mut max_tails_streak: i32 = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3321,8 +3307,8 @@ pub fn simulate_queue_system(
     num_customers: i32,
     service_time_range: (i32, i32),
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut total_wait: i32 = Default::default();
     let mut max_wait: i32 = Default::default();
+    let mut total_wait: i32 = Default::default();
     let mut wait_times: Vec<i32> = vec![];
     let mut queue_length: i32 = 0;
     let mut current_time: i32 = 0;
@@ -3444,8 +3430,8 @@ pub fn simulate_population_growth(
 pub fn analyze_population_trend(
     populations: &Vec<i32>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut peak: i32 = Default::default();
     let mut total_growth: f64 = Default::default();
+    let mut peak: i32 = Default::default();
     let _cse_temp_0 = populations.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {

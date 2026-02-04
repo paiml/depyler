@@ -9,7 +9,7 @@
     result.to_string()
 }
 #[doc = "Process items asynchronously."] #[doc = " Depyler: verified panic-free"] pub async fn process_batch(items: & Vec<String>) -> Vec<String>{
-    let mut results: Vec<String>= vec! [];
+    let mut results: Vec<String>= vec ! [];
     for item in items.iter().cloned() {
     let data = fetch_data(& item).await;
     results.push(data);
@@ -25,8 +25,8 @@ results
     use quickcheck::{
     quickcheck, TestResult };
     #[test] fn test_process_batch_examples() {
-    assert_eq!(process_batch(vec! []), vec! []);
-    assert_eq!(process_batch(vec! [1]), vec! [1]);
+    assert_eq !(process_batch(vec ! []), vec ! []);
+    assert_eq !(process_batch(vec ! [1]), vec ! [1]);
    
 }
 }

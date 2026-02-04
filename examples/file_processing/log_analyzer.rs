@@ -3152,24 +3152,27 @@ impl LogAnalyzer {
             return None;
         };
         if (parts.len() as i32) >= 2 {
-            let timestamp = {
-                let _base = &parts;
-                let _idx = (0) as isize;
-                if _idx < 0 {
-                    _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
-                } else {
-                    _base[_idx as usize].clone()
-                }
-            } + " ".to_string()
-                + {
+            let timestamp = format!(
+                "{}{}",
+                {
                     let _base = &parts;
-                    let _idx = (1) as isize;
+                    let _idx = (0) as isize;
                     if _idx < 0 {
                         _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                     } else {
                         _base[_idx as usize].clone()
                     }
-                };
+                },
+                " ".to_string()
+            ) + {
+                let _base = &parts;
+                let _idx = (1) as isize;
+                if _idx < 0 {
+                    _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
+                } else {
+                    _base[_idx as usize].clone()
+                }
+            };
             let level = {
                 let _base = &parts;
                 let _idx = (2) as isize;
@@ -3439,7 +3442,7 @@ pub fn analyze_log_health(
     log_content: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let mut health_score: f64 = Default::default();
-    let mut analyzer = LogAnalyzer::new();
+    let mut analyzer: LogAnalyzer = LogAnalyzer::new();
     analyzer.load_from_string(log_content);
     if !analyzer.entries {
         return Ok({

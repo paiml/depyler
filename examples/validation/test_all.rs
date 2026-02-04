@@ -3192,7 +3192,7 @@ pub fn test_classify_number() {
 }
 pub fn main() {
     println!("{}", "Depyler Validation Test Suite");
-    println!("{}", ("=").py_mul(30));
+    println!("{}", ("=").py_mul(30i32));
     test_binary_search();
     test_calculate_sum();
     test_process_config();

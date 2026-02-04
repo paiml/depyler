@@ -9319,8 +9319,7 @@ fn fix_depyler_value_from_enum(code: &str) -> String {
                     let close = after_paren + rel_close;
                     let inner = result[after_paren..close].to_string();
                     let old = format!("DepylerValue::from({})", inner);
-                    let new =
-                        format!("DepylerValue::Str(format!(\"{{:?}}\", {}))", inner);
+                    let new = format!("DepylerValue::Str(format!(\"{{:?}}\", {}))", inner);
                     result = result.replacen(&old, &new, 1);
                 } else {
                     break;
@@ -9349,8 +9348,7 @@ fn fix_cse_py_mul_type_annotation(code: &str) -> String {
             let paren_start = abs_pos + py_op.len();
             if let Some(rel_close) = find_matching_close(&result[paren_start..]) {
                 let block = &result[paren_start..paren_start + rel_close];
-                let fixed_block =
-                    remove_into_after_unwrap_or_default(block);
+                let fixed_block = remove_into_after_unwrap_or_default(block);
                 if fixed_block != block {
                     let before = &result[..paren_start];
                     let after = &result[paren_start + rel_close..];
@@ -9510,8 +9508,7 @@ fn fix_tuple_to_vec_when_len_called(code: &str) -> String {
                     || code.contains(&tostr_pattern)
                     || code.contains(&iter_pattern)
                 {
-                    let old_type =
-                        format!("({}, DepylerValue)", inner_type);
+                    let old_type = format!("({}, DepylerValue)", inner_type);
                     let new_type = format!("Vec<{}>", inner_type);
                     replacements.push((field_name.to_string(), old_type, new_type));
                 }
@@ -9536,10 +9533,8 @@ fn fix_tuple_to_vec_when_len_called(code: &str) -> String {
 /// Only applies when the LHS is known to be an integer type.
 /// Tracks int vs float variables to avoid false positives.
 fn fix_cse_int_float_comparison(code: &str) -> String {
-    let mut int_vars: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
-    let mut float_vars: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut int_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut float_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
     // Pass 1: collect typed variables
     for line in code.lines() {
         let t = line.trim();
@@ -9551,10 +9546,7 @@ fn fix_cse_int_float_comparison(code: &str) -> String {
         if let Some(colon) = rest.find(": ") {
             let var = rest[..colon].trim().trim_start_matches("mut ");
             let after_colon = &rest[colon + 2..];
-            let type_name = after_colon
-                .split([' ', '=', ';'])
-                .next()
-                .unwrap_or("");
+            let type_name = after_colon.split([' ', '=', ';']).next().unwrap_or("");
             match type_name {
                 "i32" | "i64" | "isize" | "usize" | "u32" | "u64" => {
                     int_vars.insert(var.to_string());
@@ -9606,26 +9598,17 @@ fn fix_cse_int_float_comparison(code: &str) -> String {
                 if let Some(op_pos) = fixed.find(op) {
                     // Extract LHS variable name
                     let before_op = fixed[..op_pos].trim();
-                    let lhs_var = before_op
-                        .rsplit([' ', '('])
-                        .next()
-                        .unwrap_or("")
-                        .trim();
+                    let lhs_var = before_op.rsplit([' ', '(']).next().unwrap_or("").trim();
                     // Only fix if LHS is known integer (not float)
-                    if int_vars.contains(lhs_var) && !float_vars.contains(lhs_var)
-                    {
+                    if int_vars.contains(lhs_var) && !float_vars.contains(lhs_var) {
                         let after_op = op_pos + op.len();
                         let rest = &fixed[after_op..];
                         let lit_end = rest
-                            .find(|c: char| {
-                                !c.is_ascii_digit() && c != '.' && c != 'f'
-                            })
+                            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'f')
                             .unwrap_or(rest.len());
                         let literal = &rest[..lit_end];
                         if literal.ends_with("f64") && lit_end > 3 {
-                            let int_lit = literal
-                                .trim_end_matches("f64")
-                                .trim_end_matches('.');
+                            let int_lit = literal.trim_end_matches("f64").trim_end_matches('.');
                             if !int_lit.is_empty() {
                                 let before = &fixed[..after_op];
                                 let after = &fixed[after_op + lit_end..];
@@ -9647,8 +9630,7 @@ fn fix_cse_int_float_comparison(code: &str) -> String {
 /// let bindings with Vec type), remove `.to_string()` so the Vec is passed
 /// directly (constructors typically accept Vec, not String).
 fn fix_vec_to_string_debug(code: &str) -> String {
-    let mut vec_vars: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut vec_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
     for line in code.lines() {
         let t = line.trim();
         // struct field: `pub field: Vec<Something>,`
@@ -9679,9 +9661,7 @@ fn fix_vec_to_string_debug(code: &str) -> String {
             if parts.len() >= 2 {
                 let param = parts[0].trim().trim_start_matches("mut ");
                 let param = param.trim_end_matches(',');
-                if !param.is_empty()
-                    && param.chars().all(|c| c.is_alphanumeric() || c == '_')
-                {
+                if !param.is_empty() && param.chars().all(|c| c.is_alphanumeric() || c == '_') {
                     vec_vars.insert(param.to_string());
                 }
             }
@@ -9714,10 +9694,8 @@ fn fix_depyler_value_hashmap_keys(code: &str) -> String {
 /// When depyler_min(a, b) or depyler_max(a, b) have mismatched numeric types,
 /// cast the i32 argument to f64 to unify the generic parameter T.
 fn fix_mixed_numeric_min_max(code: &str) -> String {
-    let mut int_vars: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
-    let mut float_vars: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut int_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut float_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
     for line in code.lines() {
         let t = line.trim();
         for int_type in &["i32", "i64", "isize", "usize"] {
@@ -9775,25 +9753,13 @@ fn fix_mixed_numeric_min_max(code: &str) -> String {
                     let a2_is_float = float_vars.contains(a2_base.trim());
                     if a1_is_int && a2_is_float {
                         let new_arg1 = format!("{} as f64", arg1);
-                        let old_call = format!(
-                            "{}({}, {})",
-                            func, arg1, arg2
-                        );
-                        let new_call = format!(
-                            "{}({}, {})",
-                            func, new_arg1, arg2
-                        );
+                        let old_call = format!("{}({}, {})", func, arg1, arg2);
+                        let new_call = format!("{}({}, {})", func, new_arg1, arg2);
                         result = result.replacen(&old_call, &new_call, 1);
                     } else if a1_is_float && a2_is_int {
                         let new_arg2 = format!("{} as f64", arg2);
-                        let old_call = format!(
-                            "{}({}, {})",
-                            func, arg1, arg2
-                        );
-                        let new_call = format!(
-                            "{}({}, {})",
-                            func, arg1, new_arg2
-                        );
+                        let old_call = format!("{}({}, {})", func, arg1, arg2);
+                        let new_call = format!("{}({}, {})", func, arg1, new_arg2);
                         result = result.replacen(&old_call, &new_call, 1);
                     }
                 }
@@ -9830,10 +9796,7 @@ fn fix_bitwise_and_truthiness(code: &str) -> String {
                     if expr.contains(" & ") {
                         let indent = line.len() - line.trim_start().len();
                         let pad: String = " ".repeat(indent);
-                        result.push_str(&format!(
-                            "{}if ({}) != 0 {{\n",
-                            pad, expr
-                        ));
+                        result.push_str(&format!("{}if ({}) != 0 {{\n", pad, expr));
                         continue;
                     }
                 }
@@ -9872,8 +9835,7 @@ fn fix_spurious_i64_conversion(code: &str) -> String {
 fn fix_result_double_wrap(code: &str) -> String {
     // Pass 1: collect function names that return Result
     // Handles both single-line and multi-line signatures
-    let mut result_fns: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut result_fns: std::collections::HashSet<String> = std::collections::HashSet::new();
     let code_lines: Vec<&str> = code.lines().collect();
     for (idx, line) in code_lines.iter().enumerate() {
         let t = line.trim();
@@ -9881,8 +9843,7 @@ fn fix_result_double_wrap(code: &str) -> String {
             continue;
         }
         // Check this line AND subsequent lines for -> Result<
-        let has_result = t.contains("-> Result<")
-            || has_result_return_multiline(&code_lines, idx);
+        let has_result = t.contains("-> Result<") || has_result_return_multiline(&code_lines, idx);
         if !has_result {
             continue;
         }
@@ -10172,11 +10133,7 @@ fn extract_mut_param_positions(sig: &str) -> Option<(String, Vec<usize>)> {
 }
 
 /// Fix a single call site: change `&arg` to `&mut arg` at specified positions.
-fn fix_mut_args_in_call(
-    line: &str,
-    fname: &str,
-    positions: &[usize],
-) -> String {
+fn fix_mut_args_in_call(line: &str, fname: &str, positions: &[usize]) -> String {
     let pat = format!("{}(", fname);
     let call_pos = match line.find(&pat) {
         Some(p) => p,
@@ -10239,7 +10196,12 @@ fn fix_mut_args_in_call(
     if !changed {
         return line.to_string();
     }
-    format!("{}{}{}", &line[..args_start], args.join(","), &line[args_end..])
+    format!(
+        "{}{}{}",
+        &line[..args_start],
+        args.join(","),
+        &line[args_end..]
+    )
 }
 
 /// Fix `.to_string()` passed where `&str` expected in DepylerRegexMatch::new.

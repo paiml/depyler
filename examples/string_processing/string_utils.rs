@@ -3130,7 +3130,9 @@ pub fn reverse_string(s: &str) -> Result<String, Box<dyn std::error::Error>> {
         if step == 0 {
             panic!("range() arg 3 must not be zero");
         }
-        (-1..(s.len() as i32).py_sub(1)).rev().step_by(step.max(1))
+        (-1..(s.len() as i32).py_sub(1i32))
+            .rev()
+            .step_by(step.max(1))
     } {
         result = (result).py_add({
             let base = &s;
@@ -3156,7 +3158,7 @@ pub fn count_vowels(s: &str) -> i32 {
     count = 0;
     for char in s.chars() {
         if vowels.contains(char) {
-            count = (count).py_add(1);
+            count = ((count).py_add(1i32)) as i32;
         }
     }
     count
@@ -3202,7 +3204,7 @@ pub fn is_palindrome_simple(s: &str) -> Result<bool, Box<dyn std::error::Error>>
                 .unwrap_or_default()
         } != {
             let base = &cleaned;
-            let idx: i32 = ((length).py_sub(1)).py_sub(i);
+            let idx: i32 = ((length).py_sub(1i32) as i32).py_sub(i);
             let actual_idx = if idx < 0 {
                 base.chars().count().saturating_sub(idx.abs() as usize)
             } else {
@@ -3235,7 +3237,7 @@ pub fn count_words(text: &str) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn capitalize_words(text: &str) -> String {
     if text.is_empty() {
-        return "".to_string();
+        return "".to_string().to_string();
     }
     let words = text
         .split_whitespace()

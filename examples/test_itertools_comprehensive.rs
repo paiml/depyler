@@ -1388,20 +1388,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3452,7 +3438,7 @@ pub fn cartesian_product_manual<'a, 'b>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'b, 'a>(
+pub fn test_zip_longest<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,

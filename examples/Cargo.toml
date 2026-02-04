@@ -1,10 +1,9 @@
 [package]
-name = "test_cse"
+name = "semantic_test_list_reverse"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-path = "test_cse.rs"
+[[bin]]
+name = "semantic_test_list_reverse"
+path = "semantic_test_list_reverse.rs"
 
-[dev-dependencies]
-quickcheck = "1"

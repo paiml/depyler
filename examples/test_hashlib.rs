@@ -905,16 +905,6 @@ impl PySub<DepylerValue>for i32 {
     #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
     self - rhs.to_f64()
 }
-} impl<T: Eq + std::hash::Hash + Clone>PySub for std::collections::HashSet<T>{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-    self.difference(& rhs).cloned().collect()
-}
-} impl<T: Eq + std::hash::Hash + Clone>PySub<& std::collections::HashSet<T>>for std::collections::HashSet<T>{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: & std::collections::HashSet<T>) -> Self::Output {
-    self.difference(rhs).cloned().collect()
-}
 } impl PyMul for i32 {
     type Output = i32;
     #[inline] fn py_mul(self, rhs: i32) -> i32 {
@@ -2394,7 +2384,7 @@ results
     {
         hex::encode(hasher.finalize_reset())
 }
-} #[doc = "Verify data integrity using SHA512"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn verify_integrity<'b, 'a>(data: & 'a str, expected_hash: & 'b str) -> bool {
+} #[doc = "Verify data integrity using SHA512"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn verify_integrity<'a, 'b>(data: & 'a str, expected_hash: & 'b str) -> bool {
     let mut hasher: std::collections::HashMap<DepylerValue, DepylerValue>= {
             Box::new(std::collections::hash_map::DefaultHasher::new()) as Box<dyn DynDigest>};
     for(k, v) in (data.as_bytes().to_vec()).iter() {

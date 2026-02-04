@@ -811,7 +811,10 @@ impl ModuleMapper {
                     ("ttest_1samp".to_string(), "ttest_1samp".to_string()),
                     ("pearsonr".to_string(), "pearsonr".to_string()),
                     ("spearmanr".to_string(), "spearmanr".to_string()),
-                    ("chi2_contingency".to_string(), "chi2_contingency".to_string()),
+                    (
+                        "chi2_contingency".to_string(),
+                        "chi2_contingency".to_string(),
+                    ),
                     ("kstest".to_string(), "kstest".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
@@ -829,7 +832,10 @@ impl ModuleMapper {
                     ("interp1d".to_string(), "Interp1d".to_string()),
                     ("interp2d".to_string(), "Interp2d".to_string()),
                     ("CubicSpline".to_string(), "CubicSpline".to_string()),
-                    ("UnivariateSpline".to_string(), "UnivariateSpline".to_string()),
+                    (
+                        "UnivariateSpline".to_string(),
+                        "UnivariateSpline".to_string(),
+                    ),
                 ]),
                 constructor_patterns: HashMap::from([
                     ("Interp1d".to_string(), ConstructorPattern::New),

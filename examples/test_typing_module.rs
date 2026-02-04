@@ -1426,20 +1426,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3198,9 +3184,9 @@ pub fn test_dict_typing() -> HashMap<String, i32> {
 pub fn test_set_typing() -> std::collections::HashSet<String> {
     let colors: std::collections::HashSet<String> = {
         let mut set = std::collections::HashSet::new();
-        set.insert("red".to_string());
-        set.insert("green".to_string());
-        set.insert("blue".to_string());
+        set.insert("red");
+        set.insert("green");
+        set.insert("blue");
         set
     };
     colors
@@ -3318,7 +3304,7 @@ pub fn process_user_data(
     Ok((result, avg_score))
 }
 #[doc = "Test Dict parameters and return"]
-pub fn merge_data<'b, 'a>(
+pub fn merge_data<'a, 'b>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -3417,7 +3403,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Safe dict access"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_value<'b, 'a>(
+pub fn get_value<'a, 'b>(
     data: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<Option<i32>, Box<dyn std::error::Error>> {

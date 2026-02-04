@@ -1371,20 +1371,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3118,8 +3104,8 @@ impl DepylerRegexMatch {
     }
 }
 pub fn is_monotonic(nums: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut decreasing: bool = Default::default();
     let mut increasing: bool = Default::default();
+    let mut decreasing: bool = Default::default();
     let _cse_temp_0 = nums.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {

@@ -3124,9 +3124,9 @@ impl DepylerRegexMatch {
 pub fn binary_search(items: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut low: i32 = 0;
     let _cse_temp_0 = items.len() as i32;
-    let mut high: i32 = (_cse_temp_0).py_sub(1);
+    let mut high: i32 = ((_cse_temp_0).py_sub(1i32)) as i32;
     while low <= high {
-        let mid: i32 = (((low).py_add(high)).py_div(2) as i32) as i32;
+        let mid: i32 = (((low).py_add(high) as i32).py_div(2i32) as i32) as i32;
         if items
             .get(mid as usize)
             .cloned()
@@ -3141,15 +3141,15 @@ pub fn binary_search(items: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::
                 .expect("IndexError: list index out of range")
                 < target
             {
-                low = (mid).py_add(1);
+                low = ((mid).py_add(1i32)) as i32;
             } else {
-                high = (mid).py_sub(1);
+                high = ((mid).py_sub(1i32)) as i32;
             }
         }
     }
     Ok(-1)
 }
-#[doc = "\n    Safe division with contracts.\n    \n    @requires denominator!= 0\n    @ensures result == numerator / denominator\n    "]
+#[doc = "\n    Safe division with contracts.\n    \n    @requires denominator != 0\n    @ensures result == numerator / denominator\n    "]
 #[doc = " Depyler: proven to terminate"]
 pub fn safe_divide(numerator: f64, denominator: f64) -> Result<f64, Box<dyn std::error::Error>> {
     Ok((numerator).py_div(denominator))

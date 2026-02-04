@@ -3129,13 +3129,13 @@ pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, Box<dyn std::e
 pub fn get_hint(guess: i32, target: i32) -> String {
     let _cse_temp_0 = guess < target;
     if _cse_temp_0 {
-        return "Marco!(Too low)".to_string();
+        return "Marco!(Too low)".to_string().to_string();
     } else {
         let _cse_temp_1 = guess > target;
         if _cse_temp_1 {
-            return "Marco!(Too high)".to_string();
+            return "Marco!(Too high)".to_string().to_string();
         } else {
-            return "Polo!".to_string();
+            return "Polo!".to_string().to_string();
         }
     }
 }
@@ -3147,11 +3147,11 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
     if _cse_temp_0 {
         return 0;
     }
-    let _cse_temp_1 = (100).py_mul(rounds);
+    let _cse_temp_1 = ((100i32).py_mul(rounds)) as i32;
     let base_score = _cse_temp_1;
-    let _cse_temp_2 = (attempts).py_mul(5);
+    let _cse_temp_2 = ((attempts).py_mul(5i32)) as i32;
     let penalty = _cse_temp_2;
-    let score = (base_score).py_sub(penalty);
+    let score = ((base_score).py_sub(penalty)) as i32;
     let _cse_temp_3 = score < 0;
     if _cse_temp_3 {
         return 0;
@@ -3164,17 +3164,17 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
 pub fn get_difficulty_name(level: i32) -> String {
     let _cse_temp_0 = level == 1;
     if _cse_temp_0 {
-        return "Easy".to_string();
+        return "Easy".to_string().to_string();
     } else {
         let _cse_temp_1 = level == 2;
         if _cse_temp_1 {
-            return "Medium".to_string();
+            return "Medium".to_string().to_string();
         } else {
             let _cse_temp_2 = level == 3;
             if _cse_temp_2 {
-                return "Hard".to_string();
+                return "Hard".to_string().to_string();
             } else {
-                return "Unknown".to_string();
+                return "Unknown".to_string().to_string();
             }
         }
     }
@@ -3230,14 +3230,14 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
     attempts = 0;
     let mut guess = 50;
     while attempts < max_attempts {
-        attempts = (attempts).py_add(1);
+        attempts = ((attempts).py_add(1i32)) as i32;
         if guess == target {
             return attempts;
         } else {
             if guess < target {
-                guess = (guess).py_add(10);
+                guess = ((guess).py_add(10i32)) as i32;
             } else {
-                guess = (guess).py_sub(5);
+                guess = ((guess).py_sub(5i32)) as i32;
             }
         }
     }
@@ -3246,7 +3246,7 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "\nMarco Polo CLI - Simplified version for current Depyler capabilities.\n\nThis version demonstrates what Depyler can transpile today:\n- Simple functions with type annotations\n- Basic arithmetic and comparisons\n- String operations\n- Integer operations\n".to_string();
+    let _ = "\nMarco Polo CLI - Simplified version for current Depyler capabilities.\n\nThis version demonstrates what Depyler can transpile today:\n- Simple functions with type annotations\n- Basic arithmetic and comparisons\n- String operations\n- Integer operations\n";
     Ok(())
 }
 #[cfg(test)]

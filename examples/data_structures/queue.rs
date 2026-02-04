@@ -3197,7 +3197,7 @@ pub fn level_order_values(
     if _cse_temp_0 {
         return Ok(vec![]);
     }
-    let mut queue = Queue::new();
+    let mut queue: Queue = Queue::new();
     let mut result: Vec<i32> = vec![];
     queue.enqueue(0);
     while !queue.is_empty() {
@@ -3211,8 +3211,8 @@ pub fn level_order_values(
             .expect("IndexError: list index out of range");
         if value.is_some() {
             result.push(value);
-            let left_child: i32 = ((2).py_mul(index)).py_add(1);
-            let right_child: i32 = ((2).py_mul(index)).py_add(2);
+            let left_child: i32 = (((2i32).py_mul(index) as i32).py_add(1i32)) as i32;
+            let right_child: i32 = (((2i32).py_mul(index) as i32).py_add(2i32)) as i32;
             if left_child < tree_values.len() as i32 {
                 queue.enqueue(left_child);
             }

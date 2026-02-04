@@ -3169,17 +3169,17 @@ pub fn format_stats(stats: Stats, show_filename: bool) -> String {
 #[doc = " Depyler: verified panic-free"]
 pub fn main() {
     let mut total_lines: i32 = Default::default();
-    let mut total_words: i32 = Default::default();
     let mut total_chars: i32 = Default::default();
+    let mut total_words: i32 = Default::default();
     let args = Args::default();
     total_lines = 0;
     total_words = 0;
     total_chars = 0;
     for filepath in args.files {
         let stats = count_file(&filepath);
-        total_lines = (total_lines).py_add(stats.lines);
-        total_words = (total_words).py_add(stats.words);
-        total_chars = (total_chars).py_add(stats.chars);
+        total_lines = ((total_lines).py_add(stats.lines)) as i32;
+        total_words = ((total_words).py_add(stats.words)) as i32;
+        total_chars = ((total_chars).py_add(stats.chars)) as i32;
         if args.lines {
             println!("{}", format!("{} {}", stats.lines, stats.filename));
         } else {
@@ -3197,7 +3197,8 @@ pub fn main() {
     let _cse_temp_0 = args.files.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 1;
     if _cse_temp_1 {
-        let total_stats = Stats::new(total_lines, total_words, total_chars, "total".to_string());
+        let total_stats: Stats =
+            Stats::new(total_lines, total_words, total_chars, "total".to_string());
         println!("{}", format_stats(total_stats, true));
     }
     ()

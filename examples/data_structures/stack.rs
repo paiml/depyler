@@ -3145,7 +3145,7 @@ impl Stack {
 }
 #[doc = "Check if parentheses are balanced using a stack"]
 pub fn balanced_parentheses(expression: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut stack: Vec<DepylerValue> = Stack::new();
+    let mut stack: Stack = Stack::new();
     let opening: String = "({[".to_string();
     let closing: String = ")}]".to_string();
     let pairs: std::collections::HashMap<String, String> = {

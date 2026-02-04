@@ -1373,20 +1373,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3137,7 +3123,7 @@ pub fn showcase_dictionary_assignment() -> (
         "key".to_string(),
         DepylerValue::Str("value".to_string().to_string()),
     );
-    let mut nested: std::collections::HashMap<String, DepylerValue> = {
+    let nested: std::collections::HashMap<String, DepylerValue> = {
         let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(
             "level1".to_string(),

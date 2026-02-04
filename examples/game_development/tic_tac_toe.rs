@@ -9,7 +9,7 @@
 }
 impl std::fmt::Display for IndexError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "index out of range: {}", self.message)
+    write !(f, "index out of range: {}", self.message)
 }
 } impl std::error::Error for IndexError {
    
@@ -52,7 +52,7 @@ DepylerValue::Tuple(_dv_tuple) =>_dv_tuple.hash(state) ,
 impl std::fmt::Display for DepylerValue {
     fn fmt(&self, _dv_fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-    DepylerValue::Int(_dv_int) =>write!(_dv_fmt, "{}", _dv_int), DepylerValue::Float(_dv_float) =>write!(_dv_fmt, "{}", _dv_float), DepylerValue::Str(_dv_str) =>write!(_dv_fmt, "{}", _dv_str), DepylerValue::Bool(_dv_bool) =>write!(_dv_fmt, "{}", _dv_bool), DepylerValue::None =>write!(_dv_fmt, "None"), DepylerValue::List(_dv_list) =>write!(_dv_fmt, "{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>write!(_dv_fmt, "{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>write!(_dv_fmt, "{:?}", _dv_tuple) ,
+    DepylerValue::Int(_dv_int) =>write !(_dv_fmt, "{}", _dv_int), DepylerValue::Float(_dv_float) =>write !(_dv_fmt, "{}", _dv_float), DepylerValue::Str(_dv_str) =>write !(_dv_fmt, "{}", _dv_str), DepylerValue::Bool(_dv_bool) =>write !(_dv_fmt, "{}", _dv_bool), DepylerValue::None =>write !(_dv_fmt, "None"), DepylerValue::List(_dv_list) =>write !(_dv_fmt, "{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>write !(_dv_fmt, "{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>write !(_dv_fmt, "{:?}", _dv_tuple) ,
 }
 }
 }
@@ -118,7 +118,7 @@ else {
 }
 } #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"] #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"] pub fn as_string(&self) -> String {
     match self {
-    DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
+    DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format !("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format !("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format !("{:?}", _dv_tuple) ,
 }
 } #[doc = r" DEPYLER-1215: Get as str reference(for string values only)"] pub fn as_str(&self) -> Option<& str>{
     match self {
@@ -126,15 +126,15 @@ else {
 }
 } #[doc = r" DEPYLER-1215: Get as i64(for integer values)"] pub fn as_i64(&self) -> Option<i64>{
     match self {
-    DepylerValue::Int(_dv_int) =>Some(* _dv_int), _ =>None ,
+    DepylerValue::Int(_dv_int) =>Some(*_dv_int), _ =>None ,
 }
 } #[doc = r" DEPYLER-1215: Get as f64(for float values)"] pub fn as_f64(&self) -> Option<f64>{
     match self {
-    DepylerValue::Float(_dv_float) =>Some(* _dv_float), DepylerValue::Int(_dv_int) =>Some(* _dv_int as f64), _ =>None ,
+    DepylerValue::Float(_dv_float) =>Some(*_dv_float), DepylerValue::Int(_dv_int) =>Some(*_dv_int as f64), _ =>None ,
 }
 } #[doc = r" DEPYLER-1215: Get as bool(for boolean values)"] pub fn as_bool(&self) -> Option<bool>{
     match self {
-    DepylerValue::Bool(_dv_bool) =>Some(* _dv_bool), _ =>None ,
+    DepylerValue::Bool(_dv_bool) =>Some(*_dv_bool), _ =>None ,
 }
 } #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
     match self {
@@ -158,7 +158,7 @@ else {
 }
 } #[doc = r" Convert to bool"] pub fn to_bool(&self) -> bool {
     match self {
-    DepylerValue::Bool(_dv_bool) =>* _dv_bool, DepylerValue::Int(_dv_int) =>* _dv_int!= 0, DepylerValue::Float(_dv_float) =>* _dv_float!= 0.0, DepylerValue::Str(_dv_str) =>! _dv_str.is_empty(), DepylerValue::List(_dv_list) =>! _dv_list.is_empty(), DepylerValue::Dict(_dv_dict) =>! _dv_dict.is_empty(), DepylerValue::Tuple(_dv_tuple) =>! _dv_tuple.is_empty(), DepylerValue::None =>false ,
+    DepylerValue::Bool(_dv_bool) =>* _dv_bool, DepylerValue::Int(_dv_int) =>* _dv_int != 0, DepylerValue::Float(_dv_float) =>* _dv_float != 0.0, DepylerValue::Str(_dv_str) =>! _dv_str.is_empty(), DepylerValue::List(_dv_list) =>! _dv_list.is_empty(), DepylerValue::Dict(_dv_dict) =>! _dv_dict.is_empty(), DepylerValue::Tuple(_dv_tuple) =>! _dv_tuple.is_empty(), DepylerValue::None =>false ,
 }
 } #[doc = r" DEPYLER-1064: Get tuple element by index for tuple unpacking"] #[doc = r" Returns the element at the given index, or panics with a readable error"] #[doc = r" Works on both Tuple and List variants(Python treats them similarly for unpacking)"] pub fn get_tuple_elem(&self, _dv_idx: usize) -> DepylerValue {
     match self {
@@ -167,32 +167,32 @@ else {
     _dv_tuple [_dv_idx].clone()
 }
 else {
-    panic!("Tuple index {} out of bounds(length {})", _dv_idx, _dv_tuple.len())
+    panic !("Tuple index {} out of bounds(length {})", _dv_idx, _dv_tuple.len())
 }
 } DepylerValue::List(_dv_list) =>{
     if _dv_idx<_dv_list.len() {
     _dv_list [_dv_idx].clone()
 }
 else {
-    panic!("List index {} out of bounds(length {})", _dv_idx, _dv_list.len())
+    panic !("List index {} out of bounds(length {})", _dv_idx, _dv_list.len())
 }
-} _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+} _dv_other =>panic !("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
 }
 } #[doc = r" DEPYLER-1064: Extract tuple as Vec for multiple assignment"] #[doc = r" Validates that the value is a tuple/list with the expected number of elements"] pub fn extract_tuple(&self, _dv_expected_len: usize) -> Vec<DepylerValue>{
     match self {
     DepylerValue::Tuple(_dv_tuple) =>{
-    if _dv_tuple.len()!= _dv_expected_len {
-    panic!("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
+    if _dv_tuple.len() != _dv_expected_len {
+    panic !("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
 }
 _dv_tuple.clone()
 }
 DepylerValue::List(_dv_list) =>{
-    if _dv_list.len()!= _dv_expected_len {
-    panic!("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
+    if _dv_list.len() != _dv_expected_len {
+    panic !("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
 }
 _dv_list.clone()
 }
-_dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+_dv_other =>panic !("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
 }
 } #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
     match self {
@@ -227,7 +227,7 @@ impl std::ops::Index<usize>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_idx: usize) -> & Self::Output {
     match self {
-    DepylerValue::List(_dv_list) =>& _dv_list [_dv_idx], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_idx], _ =>panic!("Cannot index non-list/tuple DepylerValue") ,
+    DepylerValue::List(_dv_list) =>& _dv_list [_dv_idx], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_idx], _ =>panic !("Cannot index non-list/tuple DepylerValue") ,
 }
 }
 }
@@ -235,7 +235,7 @@ impl std::ops::Index<& str>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_key: & str) -> & Self::Output {
     match self {
-    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Str(_dv_key.to_string())).unwrap_or(& DepylerValue::None), _ =>panic!("Cannot index non-dict DepylerValue with string key") ,
+    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Str(_dv_key.to_string())).unwrap_or(& DepylerValue::None), _ =>panic !("Cannot index non-dict DepylerValue with string key") ,
 }
 }
 }
@@ -243,7 +243,7 @@ impl std::ops::Index<DepylerValue>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_key: DepylerValue) -> & Self::Output {
     match self {
-    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& _dv_key).unwrap_or(& DepylerValue::None), _ =>panic!("Cannot index non-dict DepylerValue") ,
+    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& _dv_key).unwrap_or(& DepylerValue::None), _ =>panic !("Cannot index non-dict DepylerValue") ,
 }
 }
 }
@@ -251,7 +251,7 @@ impl std::ops::Index<i64>for DepylerValue {
     type Output = DepylerValue;
     fn index(&self, _dv_key: i64) -> & Self::Output {
     match self {
-    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Int(_dv_key)).unwrap_or(& DepylerValue::None), DepylerValue::List(_dv_list) =>& _dv_list [_dv_key as usize], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_key as usize], _ =>panic!("Cannot index DepylerValue with integer") ,
+    DepylerValue::Dict(_dv_dict) =>_dv_dict.get(& DepylerValue::Int(_dv_key)).unwrap_or(& DepylerValue::None), DepylerValue::List(_dv_list) =>& _dv_list [_dv_key as usize], DepylerValue::Tuple(_dv_tuple) =>& _dv_tuple [_dv_key as usize], _ =>panic !("Cannot index DepylerValue with integer") ,
 }
 }
 }
@@ -343,11 +343,11 @@ impl std::ops::Index<i32>for DepylerValue {
 }
 } impl From<std::sync::Arc<std::collections::HashSet<i32>>>for DepylerValue {
     fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
-    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x as i64)).collect())
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(*x as i64)).collect())
 }
 } impl From<std::sync::Arc<std::collections::HashSet<i64>>>for DepylerValue {
     fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
-    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x)).collect())
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(*x)).collect())
 }
 } impl From<std::sync::Arc<std::collections::HashSet<String>>>for DepylerValue {
     fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
@@ -405,7 +405,7 @@ impl std::ops::Div for DepylerValue {
     type Output = DepylerValue;
     fn div(self, rhs: Self) -> Self::Output {
     match(self, rhs) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Int(_dv_a / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Int(_dv_a / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
 }
 }
 }
@@ -593,7 +593,7 @@ impl std::ops::Neg for DepylerValue {
 impl std::ops::Not for DepylerValue {
     type Output = bool;
     fn not(self) -> Self::Output {
-   ! self.to_bool()
+    ! self.to_bool()
 }
 } impl std::ops::BitXor<i64>for DepylerValue {
     type Output = DepylerValue;
@@ -646,7 +646,7 @@ _ =>Vec::new().into_iter() ,
 impl std::cmp::PartialOrd for DepylerValue {
     fn partial_cmp(&self, other: & Self) -> Option<std::cmp::Ordering>{
     match(self, other) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) =>Some(_dv_a.total_cmp(_dv_b)) ,(DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) =>Some((* _dv_a as f64).total_cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.total_cmp(&(* _dv_b as f64))) ,(DepylerValue::None, DepylerValue::None) =>Some(std::cmp::Ordering::Equal) ,(DepylerValue::None, _) =>Some(std::cmp::Ordering::Less) ,(_, DepylerValue::None) =>Some(std::cmp::Ordering::Greater) ,(DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) =>_dv_a.partial_cmp(_dv_b) ,(DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) =>_dv_a.partial_cmp(_dv_b), _ =>Option::None ,
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) =>Some(_dv_a.total_cmp(_dv_b)) ,(DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) =>Some(_dv_a.cmp(_dv_b)) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) =>Some((*_dv_a as f64).total_cmp(_dv_b)) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) =>Some(_dv_a.total_cmp(&(*_dv_b as f64))) ,(DepylerValue::None, DepylerValue::None) =>Some(std::cmp::Ordering::Equal) ,(DepylerValue::None, _) =>Some(std::cmp::Ordering::Less) ,(_, DepylerValue::None) =>Some(std::cmp::Ordering::Greater) ,(DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) =>_dv_a.partial_cmp(_dv_b) ,(DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) =>_dv_a.partial_cmp(_dv_b), _ =>Option::None ,
 }
 }
 }
@@ -678,31 +678,31 @@ impl PyTruthy for bool {
 }
 } impl PyTruthy for i32 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0
+    * self != 0
 }
 } impl PyTruthy for i64 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0
+    * self != 0
 }
 } impl PyTruthy for f32 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0.0
+    * self != 0.0
 }
 } impl PyTruthy for f64 {
     #[inline] fn is_true(&self) -> bool {
-    * self!= 0.0
+    * self != 0.0
 }
 } impl PyTruthy for String {
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl PyTruthy for & str {
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for Vec<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for Option<T>{
     #[inline] fn is_true(&self) -> bool {
@@ -710,28 +710,28 @@ impl PyTruthy for bool {
 }
 } impl<K, V>PyTruthy for std::collections::HashMap<K, V>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<K, V>PyTruthy for std::collections::BTreeMap<K, V>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for std::collections::HashSet<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for std::collections::BTreeSet<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl<T>PyTruthy for std::collections::VecDeque<T>{
     #[inline] fn is_true(&self) -> bool {
-   ! self.is_empty()
+    ! self.is_empty()
 }
 } impl PyTruthy for DepylerValue {
     #[doc = r" Python truthiness for DepylerValue:"] #[doc = r#" - Int(0), Float(0.0), Str(""), Bool(false), None -> false"#] #[doc = r" - List([]), Dict({}), Tuple([]) -> false"] #[doc = r" - Everything else -> true"] #[inline] fn is_true(&self) -> bool {
     match self {
-    DepylerValue::Bool(_dv_b) =>* _dv_b, DepylerValue::Int(_dv_i) =>* _dv_i!= 0, DepylerValue::Float(_dv_f) =>* _dv_f!= 0.0, DepylerValue::Str(_dv_s) =>! _dv_s.is_empty(), DepylerValue::List(_dv_l) =>! _dv_l.is_empty(), DepylerValue::Dict(_dv_d) =>! _dv_d.is_empty(), DepylerValue::Tuple(_dv_t) =>! _dv_t.is_empty(), DepylerValue::None =>false ,
+    DepylerValue::Bool(_dv_b) =>* _dv_b, DepylerValue::Int(_dv_i) =>* _dv_i != 0, DepylerValue::Float(_dv_f) =>* _dv_f != 0.0, DepylerValue::Str(_dv_s) =>! _dv_s.is_empty(), DepylerValue::List(_dv_l) =>! _dv_l.is_empty(), DepylerValue::Dict(_dv_d) =>! _dv_d.is_empty(), DepylerValue::Tuple(_dv_t) =>! _dv_t.is_empty(), DepylerValue::None =>false ,
 }
 }
 }
@@ -823,12 +823,12 @@ impl PyAdd for i32 {
 } impl PyAdd<& str>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: & str) -> String {
-    format!("{}{}", self, rhs)
+    format !("{}{}", self, rhs)
 }
 } impl PyAdd<String>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: String) -> String {
-    format!("{}{}", self, rhs)
+    format !("{}{}", self, rhs)
 }
 } impl PyAdd<char>for String {
     type Output = String;
@@ -839,7 +839,7 @@ impl PyAdd for i32 {
 } impl PyAdd<char>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: char) -> String {
-    format!("{}{}", self, rhs)
+    format !("{}{}", self, rhs)
 }
 } impl PyAdd for DepylerValue {
     type Output = DepylerValue;
@@ -1342,7 +1342,7 @@ impl PyDiv for DepylerValue {
     type Output = DepylerValue;
     fn py_div(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
 }
 }
 }
@@ -1463,17 +1463,17 @@ impl PyMod for DepylerValue {
     type Output = DepylerValue;
     fn py_mod(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
-   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>{
+   (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>{
     DepylerValue::Int(((_dv_a % _dv_b) + _dv_b) % _dv_b)
 }
-(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>{
+(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>{
     DepylerValue::Float(((_dv_a % _dv_b) + _dv_b) % _dv_b)
 }
-(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>{
+(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 =>{
     let a = _dv_a as f64;
     DepylerValue::Float(((a % _dv_b) + _dv_b) % _dv_b)
 }
-(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>{
+(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 =>{
     let b = _dv_b as f64;
     DepylerValue::Float(((_dv_a % b) + b) % b)
 }
@@ -1711,22 +1711,22 @@ else {
 }).collect()
 }
 #[inline] fn isalpha(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_alphabetic())
+    ! self.is_empty() &&self.chars().all(| c | c.is_alphabetic())
 }
 #[inline] fn isdigit(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_ascii_digit())
+    ! self.is_empty() &&self.chars().all(| c | c.is_ascii_digit())
 }
 #[inline] fn isalnum(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_alphanumeric())
+    ! self.is_empty() &&self.chars().all(| c | c.is_alphanumeric())
 }
 #[inline] fn isspace(&self) -> bool {
-   ! self.is_empty() &&self.chars().all(| c | c.is_whitespace())
+    ! self.is_empty() &&self.chars().all(| c | c.is_whitespace())
 }
 #[inline] fn islower(&self) -> bool {
-    self.chars().any(| c | c.is_lowercase()) &&! self.chars().any(| c | c.is_uppercase())
+    self.chars().any(| c | c.is_lowercase()) && ! self.chars().any(| c | c.is_uppercase())
 }
 #[inline] fn isupper(&self) -> bool {
-    self.chars().any(| c | c.is_uppercase()) &&! self.chars().any(| c | c.is_lowercase())
+    self.chars().any(| c | c.is_uppercase()) && ! self.chars().any(| c | c.is_lowercase())
 }
 #[inline] fn center(&self, width: usize) -> String {
     if self.len()>= width {
@@ -1736,28 +1736,28 @@ else {
 let padding = width - self.len();
     let left = padding / 2;
     let right = padding - left;
-    format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+    format !("{}{}{}", " ".repeat(left), self, " ".repeat(right))
 }
 #[inline] fn ljust(&self, width: usize) -> String {
     if self.len()>= width {
     return self.to_string();
    
 }
-format!("{}{}", self, " ".repeat(width - self.len()))
+format !("{}{}", self, " ".repeat(width - self.len()))
 }
 #[inline] fn rjust(&self, width: usize) -> String {
     if self.len()>= width {
     return self.to_string();
    
 }
-format!("{}{}", " ".repeat(width - self.len()), self)
+format !("{}{}", " ".repeat(width - self.len()), self)
 }
 #[inline] fn zfill(&self, width: usize) -> String {
     if self.len()>= width {
     return self.to_string();
    
 }
-format!("{}{}", "0".repeat(width - self.len()), self)
+format !("{}{}", "0".repeat(width - self.len()), self)
 }
 #[inline] fn count(&self, sub: & str) -> usize {
     self.matches(sub).count()
@@ -2113,7 +2113,7 @@ else {
 }
 } impl std::fmt::Display for DepylerDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:04}-{:02}-{:02}", self.0, self.1, self.2)
+    write !(f, "{:04}-{:02}-{:02}", self.0, self.1, self.2)
 }
 } #[doc = r" DEPYLER-1067: Wrapper for Python datetime.datetime"] #[doc = r" Provides .year(), .month(), .day(), .hour(), .minute(), .second(), .microsecond() methods"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerDateTime {
     pub year: u32, pub month: u32, pub day: u32, pub hour: u32, pub minute: u32, pub second: u32, pub microsecond: u32 ,
@@ -2254,11 +2254,11 @@ else {
     year: y as u32, month: m, day: d, hour, minute, second, microsecond
 }
 } #[doc = r" ISO format string"] pub fn isoformat(&self) -> String {
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.minute, self.second)
+    format !("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.minute, self.second)
 }
 } impl std::fmt::Display for DepylerDateTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:04}-{:02}-{:02} {:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.minute, self.second)
+    write !(f, "{:04}-{:02}-{:02} {:02}:{:02}:{:02}", self.year, self.month, self.day, self.hour, self.minute, self.second)
 }
 } #[doc = r" DEPYLER-1068: Wrapper for Python datetime.timedelta"] #[doc = r" Provides .days, .seconds, .microseconds, .total_seconds() methods"] #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)] pub struct DepylerTimeDelta {
     pub days: i64, pub seconds: i64, pub microseconds: i64 ,
@@ -2306,8 +2306,8 @@ impl DepylerTimeDelta {
     let hours = self.seconds / 3600;
     let mins  = (self.seconds % 3600) / 60;
     let secs = self.seconds % 60;
-    if self.days!= 0 {
-    write!(f, "{} day{}, {:02}:{:02}:{:02}", self.days, if self.days == 1 {
+    if self.days != 0 {
+    write !(f, "{} day{}, {:02}:{:02}:{:02}", self.days, if self.days == 1 {
     ""
 }
 else {
@@ -2316,7 +2316,7 @@ else {
 , hours, mins, secs)
 }
 else {
-    write!(f, "{:02}:{:02}:{:02}", hours, mins, secs)
+    write !(f, "{:02}:{:02}:{:02}", hours, mins, secs)
 }
 }
 }
@@ -2326,7 +2326,7 @@ else {
 impl DepylerRegexMatch {
     #[doc = r" Create a new match from a string slice match"] pub fn new(text: & str, start: usize, end: usize) -> Self {
     DepylerRegexMatch {
-    matched: text [start..end].to_string(), start, end, groups: vec! [text [start..end].to_string()] ,
+    matched: text [start..end].to_string(), start, end, groups: vec ! [text [start..end].to_string()] ,
 }
 } #[doc = r" Create a match with capture groups"] pub fn with_groups(text: & str, start: usize, end: usize, groups: Vec<String>) -> Self {
     DepylerRegexMatch {
@@ -2340,7 +2340,7 @@ impl DepylerRegexMatch {
     self.groups [1..].to_vec()
 }
 else {
-    vec! []
+    vec ! []
 }
 } #[doc = r" Get the start position"] pub fn start(&self) -> usize {
     self.start
@@ -2391,7 +2391,7 @@ impl TicTacToe {
     board: Vec::new(), current_player: String::new()
 }
 } pub fn make_move(&mut self, row: i32, col: i32) -> bool {
-    if! self.is_valid_move(row, col) {
+    if ! self.is_valid_move(row, col) {
     return false;
     };
     self.board.clone().get_mut(& row).unwrap().insert(col, self.current_player.clone());
@@ -2475,7 +2475,7 @@ else {
 else {
     _base [_idx as usize].clone()
 }
-}!= " ".to_string() {
+} != " ".to_string() {
     return Some({ let _base = & row;
     let _idx  = (0) as isize;
     if _idx<0 {
@@ -2578,7 +2578,7 @@ else {
 else {
     _base [_idx as usize].clone()
 }
-}!= " ".to_string() {
+} != " ".to_string() {
     return Some({ let _base = & {
     let _base = &self.board.clone();
     let _idx  = (0) as isize;
@@ -2689,7 +2689,7 @@ else {
 else {
     _base [_idx as usize].clone()
 }
-}!= " ".to_string() {
+} != " ".to_string() {
     return Some({ let _base = & {
     let _base = &self.board.clone();
     let _idx  = (0) as isize;
@@ -2799,7 +2799,7 @@ else {
 else {
     _base [_idx as usize].clone()
 }
-}!= " ".to_string() {
+} != " ".to_string() {
     return Some({ let _base = & {
     let _base = &self.board.clone();
     let _idx  = (0) as isize;
@@ -2838,7 +2838,7 @@ pub fn is_game_over(&self) -> bool {
    
 }
 pub fn get_empty_positions(&self) -> Vec <(i32, i32)>{
-    let mut positions = vec! [];
+    let mut positions = vec ! [];
     for row in 0..3 {
     for col in 0..3 {
     if {
@@ -2868,9 +2868,9 @@ else {
    
 }
 pub fn board_to_string(&self) -> String {
-    let mut lines = vec! [];
+    let mut lines = vec ! [];
     for(i, row) in self.board.clone().iter().cloned().enumerate().map(|(i, x) |(i as i32, x)) {
-    let line = format!(" {} | {} | {} ", {
+    let line = format !(" {} | {} | {} ", {
     let _base = & row;
     let _idx  = (0) as isize;
     if _idx<0 {
@@ -2970,52 +2970,52 @@ else {
    
 }
 } #[doc = "Play a complete game against computer"] pub fn play_computer_game() -> Result<String, Box<dyn std::error::Error>>{
-    let mut game = TicTacToe::new();
-    let ai = AIPlayer::new("O".to_string());
-    let mut moves_log: Vec<String>= vec! [];
-    while! game.is_game_over() {
-    let mut row;
+    let mut game: TicTacToe = TicTacToe::new();
+    let ai: AIPlayer = AIPlayer::new("O".to_string());
+    let mut moves_log: Vec<String>= vec ! [];
+    while ! game.is_game_over() {
     let mut col;
+    let mut row;
     if game.current_player == "X" {
     let empty_positions: bool = game.get_empty_positions();
     if empty_positions {
    (row, col) = empty_positions.get(0usize).cloned().expect("IndexError: list index out of range");
     game.make_move(row, col);
-    moves_log.push(format!("Human plays at({:?}, {:?})", row, col));
+    moves_log.push(format !("Human plays at({:?}, {:?})", row, col));
    
 }
 } else {
    (row, col) = ai.get_best_move(& game);
     game.make_move(row, col);
-    moves_log.push(format!("AI plays at({:?}, {:?})", row, col));
+    moves_log.push(format !("AI plays at({:?}, {:?})", row, col));
    
 }
 } let winner: bool = game.check_winner();
     if winner {
-    moves_log.push(format!("Winner: {}", winner));
+    moves_log.push(format !("Winner: {}", winner));
    
 }
 else {
-    moves_log.push("Game ended in a tie".to_string().to_string());
+    moves_log.push("Game ended in a tie".to_string());
    
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
-    let winning_positions: Vec<Vec <(i32, i32)>>= vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
+    let winning_positions: Vec<Vec <(i32, i32)>>= vec ! [vec ! [(0, 0) ,(0, 1) ,(0, 2)], vec ! [(1, 0) ,(1, 1) ,(1, 2)], vec ! [(2, 0) ,(2, 1) ,(2, 2)], vec ! [(0, 0) ,(1, 0) ,(2, 0)], vec ! [(0, 1) ,(1, 1) ,(2, 1)], vec ! [(0, 2) ,(1, 2) ,(2, 2)], vec ! [(0, 0) ,(1, 1) ,(2, 2)], vec ! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;
     for positions in winning_positions.iter().cloned() {
     let mut can_win: bool = true;
     for(row, col) in positions.iter().cloned() {
     let cell = board_state.get(row as usize).cloned().expect("IndexError: list index out of range").get(col as usize).cloned().expect("IndexError: list index out of range");
-    if(cell!= " ") &&(cell! = (* player)) {
+    if(cell != " ") &&(cell != (*player)) {
     can_win = false;
     break;
    
 }
 } if can_win {
-    count  = (count).py_add(1);
+    count  = ((count).py_add(1i32)) as i32;
    
 }
 } Ok(count)

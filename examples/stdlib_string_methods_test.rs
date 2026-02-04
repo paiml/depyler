@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_HELLO_WORLD: &'static str = "hello world";
 const STR_HELLO: &'static str = "hello";
+const STR_HELLO_WORLD: &'static str = "hello world";
 #[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
 #[doc = r" DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys"]
 #[derive(Debug, Clone, Default)]
@@ -1354,20 +1354,6 @@ impl PySub<DepylerValue> for f64 {
     #[inline]
     fn py_sub(self, rhs: DepylerValue) -> f64 {
         self - rhs.to_f64()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
     }
 }
 impl PyMul for i32 {
