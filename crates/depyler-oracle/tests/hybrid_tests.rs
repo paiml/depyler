@@ -1,3 +1,5 @@
+// Gate behind api-fallback feature since hybrid module requires ureq
+#![cfg(feature = "api-fallback")]
 //! Comprehensive tests for HybridTranspiler module
 //!
 //! Coverage target: hybrid.rs from 70.42% to 95%+

@@ -26,6 +26,7 @@ pub mod depyler_training;
 pub mod estimator;
 pub mod features;
 pub mod github_corpus;
+#[cfg(feature = "api-fallback")]
 pub mod hybrid;
 pub mod moe_oracle;
 // pub mod mlp_classifier; // GH-XXX: Implement GPU-accelerated MLP classifier
@@ -94,6 +95,7 @@ pub use hansei::{
     CategorySummary, HanseiConfig, HanseiReport, IssueSeverity, TranspileHanseiAnalyzer,
     TranspileIssue, TranspileOutcome, Trend,
 };
+#[cfg(feature = "api-fallback")]
 pub use hybrid::{
     HybridConfig, HybridTranspiler, PatternComplexity, Strategy, TrainingDataCollector,
     TranslationPair, TranspileError, TranspileResult, TranspileStats,
