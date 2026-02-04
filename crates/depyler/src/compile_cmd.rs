@@ -59,7 +59,7 @@ pub fn compile_python_to_binary(
     pb.set_style(
         ProgressStyle::default_bar()
             .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} {msg}")
-            .unwrap()
+            .expect("static progress template")
             .progress_chars("█▓▒░ "),
     );
 

@@ -721,7 +721,7 @@ pub fn extract_training_samples(results: &[CompileResult]) -> Vec<TrainingSample
         .filter(|r| !r.success && r.error.is_some() && r.category.is_some())
         .map(|r| TrainingSample {
             error_text: r.error.clone().unwrap_or_default(),
-            category: r.category.unwrap(),
+            category: r.category.expect("filtered for is_some"),
             source_file: r.file.clone(),
         })
         .collect()
@@ -881,8 +881,8 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
             "--emit=metadata",
             "--crate-type=lib",
             "-o",
-            temp_output.to_str().unwrap(),
-            temp_file.to_str().unwrap(),
+            temp_output.to_str().expect("valid UTF-8 path"),
+            temp_file.to_str().expect("valid UTF-8 path"),
         ])
         .output()
         .map_err(|e| e.to_string())?;
@@ -934,9 +934,9 @@ impl TypeConstraintLearner {
         Self {
             constraints: Vec::new(),
             // Pattern: "expected `Type1`, found `Type2`"
-            e0308_pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`").unwrap(),
+            e0308_pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`").expect("static regex"),
             // Pattern: "--> file.rs:123:45"
-            location_pattern: regex::Regex::new(r"--> ([^:]+):(\d+):\d+").unwrap(),
+            location_pattern: regex::Regex::new(r"--> ([^:]+):(\d+):\d+").expect("static regex"),
         }
     }
 

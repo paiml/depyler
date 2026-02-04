@@ -45,8 +45,8 @@ pub struct CorrelatedDecision {
 /// # Returns
 /// A vector of parsed compilation errors
 pub fn parse_rust_errors(stderr: &str) -> Vec<CompilationError> {
-    let error_re = regex::Regex::new(r"error\[([E\d]+)\]: (.+?)(?:\n|$)").unwrap();
-    let location_re = regex::Regex::new(r"--> .+?:(\d+):(\d+)").unwrap();
+    let error_re = regex::Regex::new(r"error\[([E\d]+)\]: (.+?)(?:\n|$)").expect("static regex");
+    let location_re = regex::Regex::new(r"--> .+?:(\d+):(\d+)").expect("static regex");
 
     let mut errors = Vec::new();
     let mut current_code = String::new();

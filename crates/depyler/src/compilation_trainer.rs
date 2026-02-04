@@ -664,7 +664,7 @@ impl CompilationTrainer {
             let delta = compile_ok as i32 - self.prev_pass_count as i32;
 
             // Update best rate
-            if self.best_rate.is_none() || final_rate > self.best_rate.unwrap() {
+            if self.best_rate.is_none() || final_rate > self.best_rate.unwrap_or(0.0) {
                 self.best_rate = Some(final_rate);
             }
 

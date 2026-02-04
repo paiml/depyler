@@ -85,7 +85,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     let mut transpiler_patcher = if config.patch_transpiler {
         let core_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .unwrap()
+            .expect("manifest dir has parent")
             .join("depyler-core");
         let mut patcher = TranspilerPatcher::new(&core_path);
 
