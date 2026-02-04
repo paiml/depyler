@@ -10,13 +10,15 @@ keywords = ["depyler", "ml", "error-classification", "auto-fix"]
 categories = ["development-tools"]
 
 [features]
-default = ["gpu", "compressed-models"]
-gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training
+default = []
+training = ["dep:entrenar", "dep:arrow", "dep:parquet"]  # CITL training pipeline (adds ~314 transitive deps)
+gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training (adds wgpu/trueno stack)
 compressed-models = ["aprender/format-compression"]  # Zstd compression (lossless, 14x smaller)
 
 [[bin]]
 name = "extract-training-data"
 path = "src/bin/extract_training_data.rs"
+required-features = ["training"]
 
 [dependencies]
 # Depyler core for error types
@@ -25,16 +27,16 @@ depyler-core = { version = "3.25.0", path = "../depyler-core" }
 # ML models from aprender
 # Features: parallel (rayon), gpu (wgpu via trueno)
 # Issue #210: Code2Vec embeddings and GNN capabilities
-aprender = { version = "0.20.2", default-features = true }
+aprender = { version = "0.20.2", default-features = false }
 
 # CITL training framework for pattern store (Issue #172)
 # Issue #212: Also using monitor::ModelLineage for training state tracking
-entrenar = { version = "0.5", features = ["citl"] }
+entrenar = { version = "0.5", default-features = false, features = ["citl"], optional = true }
 
 # Data loading and versioning (minimal features - just local file loading)
-alimentar = { version = "0.2.2", default-features = false, features = ["local"] }
-arrow = { version = "54", default-features = false, features = ["prettyprint"] }
-parquet = { version = "54", default-features = false, features = ["arrow", "snap"] }
+alimentar = { version = "0.2.2", default-features = false, features = ["local"], optional = true }
+arrow = { version = "54", default-features = false, features = ["prettyprint"], optional = true }
+parquet = { version = "54", default-features = false, features = ["arrow", "snap"], optional = true }
 
 # Serialization
 serde.workspace = true

@@ -54,7 +54,17 @@ pub struct FixContext<'a> {
 impl AutoFixer {
     /// Create a new AutoFixer with trained oracle.
     pub fn new() -> Result<Self, OracleError> {
+        #[cfg(feature = "training")]
         let oracle = Oracle::load_or_train()?;
+        #[cfg(not(feature = "training"))]
+        let oracle = {
+            let path = Oracle::default_model_path();
+            if path.exists() {
+                Oracle::load(&path)?
+            } else {
+                Oracle::new()
+            }
+        };
         let rules = Self::default_rules();
         Ok(Self { oracle, rules })
     }
