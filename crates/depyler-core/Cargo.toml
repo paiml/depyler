@@ -44,7 +44,7 @@ sovereign-types = ["depyler-knowledge"]
 phf-lookup = ["phf"]
 # Decision tracing for CITL (Compiler-in-the-Loop) training
 # Captures transpiler decisions for pattern learning
-decision-tracing = ["memmap2", "rmp-serde", "lazy_static"]
+decision-tracing = ["rmp-serde", "lazy_static"]
 # Legacy alias for backward compatibility
 enable-decision-tracing = ["decision-tracing"]
 # Chaos engineering features (renacer pattern)
@@ -55,11 +55,6 @@ chaos-full = ["chaos-network", "chaos-byzantine"]
 # Generative repair via entrenar MCTS/GAN (DEPYLER-ENTRENAR-001)
 generative = ["entrenar"]
 
-
-# Decision tracing dependencies (optional)
-[dependencies.memmap2]
-version = "0.9"
-optional = true
 
 [dependencies.rmp-serde]
 version = "1.1"
