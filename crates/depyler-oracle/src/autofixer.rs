@@ -75,17 +75,17 @@ impl AutoFixer {
             vec![
                 TransformRule {
                     name: "pre_compute_is_some".to_string(),
-                    error_pattern: Regex::new(r"borrow of moved value.*\.is_some\(\)").unwrap(),
+                    error_pattern: Regex::new(r"borrow of moved value.*\.is_some\(\)").expect("static regex"),
                     transform: fix_pre_compute_is_some,
                 },
                 TransformRule {
                     name: "pre_compute_is_none".to_string(),
-                    error_pattern: Regex::new(r"borrow of moved value.*\.is_none\(\)").unwrap(),
+                    error_pattern: Regex::new(r"borrow of moved value.*\.is_none\(\)").expect("static regex"),
                     transform: fix_pre_compute_is_none,
                 },
                 TransformRule {
                     name: "clone_before_move".to_string(),
-                    error_pattern: Regex::new(r"use of moved value").unwrap(),
+                    error_pattern: Regex::new(r"use of moved value").expect("static regex"),
                     transform: fix_clone_before_move,
                 },
             ],
@@ -98,12 +98,12 @@ impl AutoFixer {
                 TransformRule {
                     name: "regex_new_str".to_string(),
                     error_pattern: Regex::new(r"Regex::new.*expected `&str`, found `String`")
-                        .unwrap(),
+                        .expect("static regex"),
                     transform: fix_regex_new_str,
                 },
                 TransformRule {
                     name: "string_to_str".to_string(),
-                    error_pattern: Regex::new(r"expected `&str`, found `String`").unwrap(),
+                    error_pattern: Regex::new(r"expected `&str`, found `String`").expect("static regex"),
                     transform: fix_string_to_str,
                 },
             ],
@@ -114,7 +114,7 @@ impl AutoFixer {
             ErrorCategory::MissingImport,
             vec![TransformRule {
                 name: "add_command_factory".to_string(),
-                error_pattern: Regex::new(r"cannot find value `parser`").unwrap(),
+                error_pattern: Regex::new(r"cannot find value `parser`").expect("static regex"),
                 transform: fix_add_command_factory,
             }],
         );
@@ -182,8 +182,8 @@ impl AutoFixer {
     /// Parse rustc error output into structured errors.
     fn parse_errors(errors: &str) -> Vec<ParsedError> {
         let mut parsed = Vec::new();
-        let error_re = Regex::new(r"error\[E\d+\]:[^\n]+").unwrap();
-        let line_re = Regex::new(r"--> [^:]+:(\d+):\d+").unwrap();
+        let error_re = Regex::new(r"error\[E\d+\]:[^\n]+").expect("static regex");
+        let line_re = Regex::new(r"--> [^:]+:(\d+):\d+").expect("static regex");
 
         let mut current_error = String::new();
         let mut current_line = 0;
@@ -220,13 +220,13 @@ impl AutoFixer {
 
     /// Extract variable name from error message.
     fn extract_var_name(msg: &str) -> Option<String> {
-        let re = Regex::new(r"`([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)`").unwrap();
+        let re = Regex::new(r"`([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)`").expect("static regex");
         re.captures(msg).map(|c| c[1].to_string())
     }
 
     /// Extract type information from error message.
     fn extract_type_info(msg: &str) -> Option<String> {
-        let re = Regex::new(r"type `([^`]+)`").unwrap();
+        let re = Regex::new(r"type `([^`]+)`").expect("static regex");
         re.captures(msg).map(|c| c[1].to_string())
     }
 }
@@ -367,7 +367,7 @@ fn fix_clone_before_move(ctx: &mut FixContext) -> bool {
 fn fix_regex_new_str(ctx: &mut FixContext) -> bool {
     // Pattern: Regex::new("...".to_string())
     // Fix: Regex::new("...")
-    let re = Regex::new(r#"Regex::new\(\s*"([^"]+)"\.to_string\(\)\s*\)"#).unwrap();
+    let re = Regex::new(r#"Regex::new\(\s*"([^"]+)"\.to_string\(\)\s*\)"#).expect("static regex");
 
     if re.is_match(ctx.source) {
         *ctx.source = re

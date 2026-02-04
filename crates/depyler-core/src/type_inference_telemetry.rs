@@ -144,12 +144,12 @@ impl TypeInferenceTelemetry {
 
     /// Enable or disable telemetry
     pub fn set_enabled(&self, enabled: bool) {
-        *self.enabled.lock().unwrap() = enabled;
+        *self.enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
     }
 
     /// Check if telemetry is enabled
     pub fn is_enabled(&self) -> bool {
-        *self.enabled.lock().unwrap()
+        *self.enabled.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Record an unknown type event
@@ -170,7 +170,7 @@ impl TypeInferenceTelemetry {
 
         // Update stats
         {
-            let mut stats = self.stats.lock().unwrap();
+            let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
             let entry = stats.entry(event.expr_kind.clone()).or_default();
             entry.count += 1;
 
@@ -187,7 +187,7 @@ impl TypeInferenceTelemetry {
 
         // Store event
         {
-            let mut events = self.events.lock().unwrap();
+            let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
             // Keep last 10000 events
             if events.len() >= 10000 {
                 events.remove(0);
@@ -198,18 +198,18 @@ impl TypeInferenceTelemetry {
 
     /// Get all events
     pub fn events(&self) -> Vec<UnknownTypeEvent> {
-        self.events.lock().unwrap().clone()
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get stats by expression kind
     pub fn stats(&self) -> HashMap<String, ExprKindStats> {
-        self.stats.lock().unwrap().clone()
+        self.stats.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get summary report
     pub fn summary(&self) -> TelemetrySummary {
-        let stats = self.stats.lock().unwrap();
-        let events = self.events.lock().unwrap();
+        let stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
+        let events = self.events.lock().unwrap_or_else(|e| e.into_inner());
 
         let mut by_kind: Vec<(String, u64)> =
             stats.iter().map(|(k, v)| (k.clone(), v.count)).collect();
@@ -224,19 +224,19 @@ impl TypeInferenceTelemetry {
 
     /// Clear all recorded data
     pub fn clear(&self) {
-        self.events.lock().unwrap().clear();
-        self.stats.lock().unwrap().clear();
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.stats.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 
     /// Export events to JSON for oracle training
     pub fn export_json(&self) -> Result<String, serde_json::Error> {
-        let events = self.events.lock().unwrap();
+        let events = self.events.lock().unwrap_or_else(|e| e.into_inner());
         serde_json::to_string_pretty(&*events)
     }
 
     /// Export stats to JSON
     pub fn export_stats_json(&self) -> Result<String, serde_json::Error> {
-        let stats = self.stats.lock().unwrap();
+        let stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
         serde_json::to_string_pretty(&*stats)
     }
 }

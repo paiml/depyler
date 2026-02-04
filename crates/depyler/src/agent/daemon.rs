@@ -283,7 +283,7 @@ impl AgentDaemon {
         let mut transpilation_events = self
             .transpilation_monitor
             .as_mut()
-            .map(|tm| tm.get_event_receiver());
+            .and_then(|tm| tm.get_event_receiver().ok());
 
         loop {
             tokio::select! {

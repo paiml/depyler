@@ -71,8 +71,10 @@ fn main() {
 
     match matches.subcommand() {
         Some(("analyze", sub_matches)) => {
-            let path = sub_matches.get_one::<String>("path").unwrap();
-            let format = sub_matches.get_one::<String>("format").unwrap();
+            let path = sub_matches.get_one::<String>("path").expect("required argument");
+            let format = sub_matches
+                .get_one::<String>("format")
+                .expect("required argument");
             let output = sub_matches.get_one::<String>("output");
 
             if let Err(e) = run_analyze(path, format, output) {
@@ -81,10 +83,14 @@ fn main() {
             }
         }
         Some(("enforce", sub_matches)) => {
-            let path = sub_matches.get_one::<String>("path").unwrap();
-            let max_tdg = *sub_matches.get_one::<f64>("max-tdg").unwrap();
-            let min_coverage = *sub_matches.get_one::<f64>("min-coverage").unwrap();
-            let max_complexity = *sub_matches.get_one::<u32>("max-complexity").unwrap();
+            let path = sub_matches.get_one::<String>("path").expect("required argument");
+            let max_tdg = *sub_matches.get_one::<f64>("max-tdg").expect("required argument");
+            let min_coverage = *sub_matches
+                .get_one::<f64>("min-coverage")
+                .expect("required argument");
+            let max_complexity = *sub_matches
+                .get_one::<u32>("max-complexity")
+                .expect("required argument");
 
             if let Err(e) = run_enforce(path, max_tdg, min_coverage, max_complexity) {
                 eprintln!("Error: {e}");

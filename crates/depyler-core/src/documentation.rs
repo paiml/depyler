@@ -114,22 +114,22 @@ impl DocGenerator {
         let class_count = module.classes.len();
         let import_count = module.imports.len();
 
-        writeln!(doc, "- **Functions**: {}", func_count).unwrap();
-        writeln!(doc, "- **Classes**: {}", class_count).unwrap();
-        writeln!(doc, "- **Imports**: {}", import_count).unwrap();
+        writeln!(doc, "- **Functions**: {}", func_count).expect("write to String");
+        writeln!(doc, "- **Classes**: {}", class_count).expect("write to String");
+        writeln!(doc, "- **Imports**: {}", import_count).expect("write to String");
         doc.push('\n');
 
         if !module.imports.is_empty() {
             doc.push_str("### Dependencies\n\n");
             for import in &module.imports {
-                writeln!(doc, "- `{}`", import.module).unwrap();
+                writeln!(doc, "- `{}`", import.module).expect("write to String");
             }
             doc.push('\n');
         }
     }
 
     fn write_function_docs(&self, doc: &mut String, func: &HirFunction) {
-        writeln!(doc, "### `{}`\n", func.name).unwrap();
+        writeln!(doc, "### `{}`\n", func.name).expect("write to String");
 
         // Function signature
         doc.push_str("```rust\n");
@@ -146,14 +146,14 @@ impl DocGenerator {
         if !func.params.is_empty() {
             doc.push_str("**Parameters:**\n");
             for param in &func.params {
-                writeln!(doc, "- `{}`: {}", param.name, self.format_type(&param.ty)).unwrap();
+                writeln!(doc, "- `{}`: {}", param.name, self.format_type(&param.ty)).expect("write to String");
             }
             doc.push('\n');
         }
 
         // Return type
         if !matches!(func.ret_type, Type::None) {
-            writeln!(doc, "**Returns:** {}\n", self.format_type(&func.ret_type)).unwrap();
+            writeln!(doc, "**Returns:** {}\n", self.format_type(&func.ret_type)).expect("write to String");
         }
 
         // Properties
@@ -186,7 +186,7 @@ impl DocGenerator {
     }
 
     fn write_class_docs(&self, doc: &mut String, class: &HirClass) {
-        writeln!(doc, "### `{}`\n", class.name).unwrap();
+        writeln!(doc, "### `{}`\n", class.name).expect("write to String");
 
         // Class docstring
         if let Some(ref docstring) = class.docstring {
@@ -204,7 +204,7 @@ impl DocGenerator {
                     field.name,
                     self.format_type(&field.field_type)
                 )
-                .unwrap();
+                .expect("write to String");
             }
             doc.push('\n');
         }
@@ -221,7 +221,7 @@ impl DocGenerator {
     }
 
     fn write_method_docs(&self, doc: &mut String, method: &HirMethod) {
-        writeln!(doc, "#### `{}`", method.name).unwrap();
+        writeln!(doc, "#### `{}`", method.name).expect("write to String");
 
         // Method signature
         doc.push_str("```rust\n");
@@ -269,7 +269,7 @@ impl DocGenerator {
                     "- `{}`: List parameters are passed as slices (`&[T]`) for efficiency",
                     func.name
                 )
-                .unwrap();
+                .expect("write to String");
             }
             if matches!(func.ret_type, Type::Optional(_)) {
                 writeln!(
@@ -277,7 +277,7 @@ impl DocGenerator {
                     "- `{}`: Returns `Option<T>` instead of potentially `None`",
                     func.name
                 )
-                .unwrap();
+                .expect("write to String");
             }
         }
     }
@@ -293,9 +293,9 @@ impl DocGenerator {
             .collect();
 
         if matches!(func.ret_type, Type::None) {
-            writeln!(doc, "{}({});", func.name, args.join(", ")).unwrap();
+            writeln!(doc, "{}({});", func.name, args.join(", ")).expect("write to String");
         } else {
-            writeln!(doc, "let result = {}({});", func.name, args.join(", ")).unwrap();
+            writeln!(doc, "let result = {}({});", func.name, args.join(", ")).expect("write to String");
         }
 
         doc.push_str("```\n\n");
@@ -449,7 +449,7 @@ impl DocGenerator {
         if !module.functions.is_empty() {
             doc.push_str("### Functions\n");
             for func in &module.functions {
-                writeln!(doc, "- [`{}`](#{})", func.name, func.name.to_lowercase()).unwrap();
+                writeln!(doc, "- [`{}`](#{})", func.name, func.name.to_lowercase()).expect("write to String");
             }
             doc.push('\n');
         }
@@ -457,7 +457,7 @@ impl DocGenerator {
         if !module.classes.is_empty() {
             doc.push_str("### Classes\n");
             for class in &module.classes {
-                writeln!(doc, "- [`{}`](#{})", class.name, class.name.to_lowercase()).unwrap();
+                writeln!(doc, "- [`{}`](#{})", class.name, class.name.to_lowercase()).expect("write to String");
             }
             doc.push('\n');
         }
@@ -490,8 +490,8 @@ impl DocGenerator {
                 .map(|param| self.example_value_for_type(&param.name, &param.ty))
                 .collect();
 
-            writeln!(doc, "// Using {}", func.name).unwrap();
-            writeln!(doc, "let result = {}({});", func.name, args.join(", ")).unwrap();
+            writeln!(doc, "// Using {}", func.name).expect("write to String");
+            writeln!(doc, "let result = {}({});", func.name, args.join(", ")).expect("write to String");
             doc.push('\n');
         }
 

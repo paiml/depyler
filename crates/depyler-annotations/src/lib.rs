@@ -363,8 +363,8 @@ pub struct AnnotationExtractor {
 impl Default for AnnotationExtractor {
     fn default() -> Self {
         Self {
-            function_pattern: Regex::new(r"(?m)^def\s+(\w+)\s*\(").unwrap(),
-            class_pattern: Regex::new(r"(?m)^class\s+(\w+)\s*[\(:]").unwrap(),
+            function_pattern: Regex::new(r"(?m)^def\s+(\w+)\s*\(").expect("static regex"),
+            class_pattern: Regex::new(r"(?m)^class\s+(\w+)\s*[\(:]").expect("static regex"),
         }
     }
 }
@@ -389,7 +389,7 @@ impl AnnotationExtractor {
 
         for (i, line) in lines.iter().enumerate() {
             if let Some(captures) = self.function_pattern.captures(line) {
-                if captures.get(1).unwrap().as_str() == function_name {
+                if captures.get(1).expect("capture group 1 exists").as_str() == function_name {
                     // Collect annotations above the function
                     let mut annotations = Vec::new();
                     let mut j = i.saturating_sub(1);
@@ -425,7 +425,7 @@ impl AnnotationExtractor {
 
         for (i, line) in lines.iter().enumerate() {
             if let Some(captures) = self.class_pattern.captures(line) {
-                if captures.get(1).unwrap().as_str() == class_name {
+                if captures.get(1).expect("capture group 1 exists").as_str() == class_name {
                     // Collect annotations above the class
                     let mut annotations = Vec::new();
                     let mut j = i.saturating_sub(1);
@@ -490,8 +490,8 @@ impl AnnotationParser {
 
         for line in source.lines() {
             if let Some(captures) = self.pattern.captures(line) {
-                let key = captures.get(1).unwrap().as_str().to_string();
-                let value = captures.get(2).unwrap().as_str().trim_matches('"').trim();
+                let key = captures.get(1).expect("capture group 1 exists").as_str().to_string();
+                let value = captures.get(2).expect("capture group 2 exists").as_str().trim_matches('"').trim();
 
                 // Special handling for custom_attribute - accumulate instead of replace
                 if key == "custom_attribute" {
