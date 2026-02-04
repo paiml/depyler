@@ -14,6 +14,7 @@ default = []
 training = []  # CITL training pipeline (requires external entrenar/arrow/parquet deps - not shipped)
 gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training (adds wgpu/trueno stack)
 compressed-models = ["aprender/format-compression"]  # Zstd compression (lossless, 14x smaller)
+api-fallback = []  # HTTP API fallback for hybrid transpiler (requires ureq dep - not shipped)
 
 [dependencies]
 # Depyler core for error types
@@ -59,8 +60,9 @@ glob = "0.3"
 # CLI parsing for binary
 clap = { version = "4", features = ["derive"] }
 
-# HTTP client for API fallback
-ureq = { version = "2.9", features = ["json"] }
+# HTTP client for API fallback - removed to reduce dep count (CB-081)
+# Enable api-fallback feature and add ureq dep to restore
+# ureq = { version = "2.9", features = ["json"] }
 
 [[example]]
 name = "oracle_query_loop_demo"
