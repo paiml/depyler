@@ -70,10 +70,10 @@ fn convert_dumps(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     // DEPYLER-0377: Check if indent parameter is provided
     if arg_exprs.len() >= 2 {
         // json.dumps(obj, indent=n) → serde_json::to_string_pretty(&obj).unwrap()
-        Ok(parse_quote! { serde_json::to_string_pretty(&#obj).unwrap() })
+        Ok(parse_quote! { serde_json::to_string_pretty(&#obj).expect("JSON operation failed") })
     } else {
         // json.dumps(obj) → serde_json::to_string(&obj).unwrap()
-        Ok(parse_quote! { serde_json::to_string(&#obj).unwrap() })
+        Ok(parse_quote! { serde_json::to_string(&#obj).expect("JSON operation failed") })
     }
 }
 
@@ -90,7 +90,7 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
         let union_ident: syn::Ident = syn::Ident::new(&union_name, proc_macro2::Span::call_site());
         Ok(parse_quote! {
             {
-                let __json_val = serde_json::from_str::<serde_json::Value>(&#s).unwrap();
+                let __json_val = serde_json::from_str::<serde_json::Value>(&#s).expect("JSON operation failed");
                 match __json_val {
                     serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect::<std::collections::HashMap<String, serde_json::Value>>()),
                     serde_json::Value::Array(arr) => #union_ident::List(arr),
@@ -102,11 +102,11 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
         // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
         ctx.needs_hashmap = true;
         Ok(
-            parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).unwrap() },
+            parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).expect("JSON operation failed") },
         )
     } else {
         // json.loads(s) → serde_json::from_str::<Value>(&s).unwrap()
-        Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() })
+        Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).expect("JSON operation failed") })
     }
 }
 
@@ -117,7 +117,7 @@ fn convert_dump(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
     let obj = &arg_exprs[0];
     let file = &arg_exprs[1];
-    Ok(parse_quote! { serde_json::to_writer(#file, &#obj).unwrap() })
+    Ok(parse_quote! { serde_json::to_writer(#file, &#obj).expect("JSON operation failed") })
 }
 
 /// Convert json.load() call
@@ -133,7 +133,7 @@ fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn
         let union_ident: syn::Ident = syn::Ident::new(&union_name, proc_macro2::Span::call_site());
         Ok(parse_quote! {
             {
-                let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).unwrap();
+                let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).expect("JSON operation failed");
                 match __json_val {
                     serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect::<std::collections::HashMap<String, serde_json::Value>>()),
                     serde_json::Value::Array(arr) => #union_ident::List(arr),
@@ -142,7 +142,7 @@ fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn
             }
         })
     } else {
-        Ok(parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).unwrap() })
+        Ok(parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).expect("JSON operation failed") })
     }
 }
 

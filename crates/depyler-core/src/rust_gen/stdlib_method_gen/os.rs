@@ -80,7 +80,7 @@ fn convert_unlink(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("os.{}() requires exactly 1 argument", method);
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::remove_file(#path).unwrap() })
+    Ok(parse_quote! { std::fs::remove_file(#path).expect("filesystem operation failed") })
 }
 
 /// os.mkdir(path) → std::fs::create_dir(path)
@@ -89,7 +89,7 @@ fn convert_mkdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("os.mkdir() requires at least 1 argument");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::create_dir(#path).unwrap() })
+    Ok(parse_quote! { std::fs::create_dir(#path).expect("filesystem operation failed") })
 }
 
 /// os.makedirs(path) → std::fs::create_dir_all(path)
@@ -98,7 +98,7 @@ fn convert_makedirs(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("os.makedirs() requires at least 1 argument");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::create_dir_all(#path).unwrap() })
+    Ok(parse_quote! { std::fs::create_dir_all(#path).expect("filesystem operation failed") })
 }
 
 /// os.rmdir(path) → std::fs::remove_dir(path)
@@ -107,7 +107,7 @@ fn convert_rmdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("os.rmdir() requires exactly 1 argument");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::remove_dir(#path).unwrap() })
+    Ok(parse_quote! { std::fs::remove_dir(#path).expect("filesystem operation failed") })
 }
 
 /// os.rename(src, dst) → std::fs::rename(src, dst)
@@ -117,7 +117,7 @@ fn convert_rename(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
     let src = &arg_exprs[0];
     let dst = &arg_exprs[1];
-    Ok(parse_quote! { std::fs::rename(#src, #dst).unwrap() })
+    Ok(parse_quote! { std::fs::rename(#src, #dst).expect("filesystem operation failed") })
 }
 
 /// os.getcwd() → std::env::current_dir()

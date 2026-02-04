@@ -80,83 +80,83 @@ pub fn generate_trueno_code(call: &NumpyCall) -> TokenStream {
         }
         NumpyCall::Dot { a, b } => {
             quote! {
-                #a.dot(&#b).unwrap()
+                #a.dot(&#b).expect("numpy operation failed")
             }
         }
         NumpyCall::Sum { arr } => {
             quote! {
-                #arr.sum().unwrap()
+                #arr.sum().expect("numpy operation failed")
             }
         }
         NumpyCall::Mean { arr } => {
             quote! {
-                #arr.mean().unwrap()
+                #arr.mean().expect("numpy operation failed")
             }
         }
         NumpyCall::Sqrt { arr } => {
             quote! {
-                #arr.sqrt().unwrap()
+                #arr.sqrt().expect("numpy operation failed")
             }
         }
         NumpyCall::Abs { arr } => {
             quote! {
-                #arr.abs().unwrap()
+                #arr.abs().expect("numpy operation failed")
             }
         }
         NumpyCall::Min { arr } => {
             quote! {
-                #arr.min().unwrap()
+                #arr.min().expect("numpy operation failed")
             }
         }
         NumpyCall::Max { arr } => {
             quote! {
-                #arr.max().unwrap()
+                #arr.max().expect("numpy operation failed")
             }
         }
         NumpyCall::Exp { arr } => {
             quote! {
-                #arr.exp().unwrap()
+                #arr.exp().expect("numpy operation failed")
             }
         }
         NumpyCall::Log { arr } => {
             quote! {
-                #arr.ln().unwrap()
+                #arr.ln().expect("numpy operation failed")
             }
         }
         NumpyCall::Sin { arr } => {
             quote! {
-                #arr.sin().unwrap()
+                #arr.sin().expect("numpy operation failed")
             }
         }
         NumpyCall::Cos { arr } => {
             quote! {
-                #arr.cos().unwrap()
+                #arr.cos().expect("numpy operation failed")
             }
         }
         NumpyCall::Clip { arr, min, max } => {
             quote! {
-                #arr.clamp(#min, #max).unwrap()
+                #arr.clamp(#min, #max).expect("numpy operation failed")
             }
         }
         NumpyCall::ArgMax { arr } => {
             quote! {
-                #arr.argmax().unwrap()
+                #arr.argmax().expect("numpy operation failed")
             }
         }
         NumpyCall::ArgMin { arr } => {
             quote! {
-                #arr.argmin().unwrap()
+                #arr.argmin().expect("numpy operation failed")
             }
         }
         NumpyCall::Std { arr } => {
             // trueno uses stddev(), not std()
             quote! {
-                #arr.stddev().unwrap()
+                #arr.stddev().expect("numpy operation failed")
             }
         }
         NumpyCall::Var { arr } => {
             quote! {
-                #arr.variance().unwrap()
+                #arr.variance().expect("numpy operation failed")
             }
         }
         NumpyCall::Zeros { size } => {
@@ -174,7 +174,7 @@ pub fn generate_trueno_code(call: &NumpyCall) -> TokenStream {
             // which is np.linalg.norm() default behavior
             // DEPYLER-0667: Wrap arg in parens for correct precedence
             quote! {
-                (#arr).norm_l2().unwrap()
+                (#arr).norm_l2().expect("numpy operation failed")
             }
         }
     }

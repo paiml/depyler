@@ -96,7 +96,7 @@ fn convert_resolve(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("Path.{}() requires exactly 1 argument (self)", method);
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { #path.canonicalize().unwrap() })
+    Ok(parse_quote! { #path.canonicalize().expect("path operation failed") })
 }
 
 fn convert_with_name(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -123,9 +123,9 @@ fn convert_mkdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
     let path = &arg_exprs[0];
     if arg_exprs.len() == 2 {
-        Ok(parse_quote! { std::fs::create_dir_all(#path).unwrap() })
+        Ok(parse_quote! { std::fs::create_dir_all(#path).expect("path operation failed") })
     } else {
-        Ok(parse_quote! { std::fs::create_dir(#path).unwrap() })
+        Ok(parse_quote! { std::fs::create_dir(#path).expect("path operation failed") })
     }
 }
 
@@ -134,7 +134,7 @@ fn convert_rmdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("Path.rmdir() requires exactly 1 argument (self)");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::remove_dir(#path).unwrap() })
+    Ok(parse_quote! { std::fs::remove_dir(#path).expect("path operation failed") })
 }
 
 fn convert_iterdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -144,8 +144,8 @@ fn convert_iterdir(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     let path = &arg_exprs[0];
     Ok(parse_quote! {
         std::fs::read_dir(#path)
-            .unwrap()
-            .map(|e| e.unwrap().path())
+            .expect("path operation failed")
+            .map(|e| e.expect("path operation failed").path())
             .collect::<Vec<_>>()
     })
 }
@@ -155,7 +155,7 @@ fn convert_read_text(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("Path.read_text() requires exactly 1 argument (self)");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::read_to_string(#path).unwrap() })
+    Ok(parse_quote! { std::fs::read_to_string(#path).expect("path operation failed") })
 }
 
 fn convert_read_bytes(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -163,7 +163,7 @@ fn convert_read_bytes(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("Path.read_bytes() requires exactly 1 argument (self)");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::read(#path).unwrap() })
+    Ok(parse_quote! { std::fs::read(#path).expect("path operation failed") })
 }
 
 fn convert_write_text(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -172,7 +172,7 @@ fn convert_write_text(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
     let path = &arg_exprs[0];
     let content = &arg_exprs[1];
-    Ok(parse_quote! { std::fs::write(#path, #content).unwrap() })
+    Ok(parse_quote! { std::fs::write(#path, #content).expect("path operation failed") })
 }
 
 fn convert_write_bytes(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -181,7 +181,7 @@ fn convert_write_bytes(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
     let path = &arg_exprs[0];
     let content = &arg_exprs[1];
-    Ok(parse_quote! { std::fs::write(#path, #content).unwrap() })
+    Ok(parse_quote! { std::fs::write(#path, #content).expect("path operation failed") })
 }
 
 fn convert_unlink(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -189,7 +189,7 @@ fn convert_unlink(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("Path.unlink() requires exactly 1 argument (self)");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { std::fs::remove_file(#path).unwrap() })
+    Ok(parse_quote! { std::fs::remove_file(#path).expect("path operation failed") })
 }
 
 fn convert_rename(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
@@ -199,7 +199,7 @@ fn convert_rename(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     let path = &arg_exprs[0];
     let target = &arg_exprs[1];
     Ok(
-        parse_quote! { { std::fs::rename(&#path, #target).unwrap(); std::path::PathBuf::from(#target) } },
+        parse_quote! { { std::fs::rename(&#path, #target).expect("path operation failed"); std::path::PathBuf::from(#target) } },
     )
 }
 
@@ -208,7 +208,7 @@ fn convert_as_posix(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("Path.as_posix() requires exactly 1 argument (self)");
     }
     let path = &arg_exprs[0];
-    Ok(parse_quote! { #path.to_str().unwrap().to_string() })
+    Ok(parse_quote! { #path.to_str().expect("path operation failed").to_string() })
 }
 
 #[cfg(test)]

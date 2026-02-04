@@ -330,8 +330,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Self::borrow_if_needed(path_expr);
                 }
                 if matches!(var_type, Type::Optional(_)) {
-                    // Option<String> → use .as_ref().unwrap() for path
-                    return parse_quote! { #path_expr.as_ref().unwrap() };
+                    // Option<String> → use .as_ref().expect() for path
+                    return parse_quote! { #path_expr.as_ref().expect("value is None") };
                 }
             }
             // DEPYLER-0541: Heuristic for common optional file path PARAMETER names
@@ -344,7 +344,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 "output_file" | "out_file" | "outfile" | "out_path"
             ) && self.ctx.fn_str_params.contains(var_name.as_str())
             {
-                return parse_quote! { #path_expr.as_ref().unwrap() };
+                return parse_quote! { #path_expr.as_ref().expect("value is None") };
             }
         }
         // Fall back to standard borrow
@@ -395,7 +395,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         syn::Ident::new(name, proc_macro2::Span::call_site())
                     };
-                    return Ok(parse_quote! { #ident.unwrap() });
+                    return Ok(parse_quote! { #ident.expect("value is None") });
                 }
             }
         }
@@ -796,7 +796,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0926: Vector-Vector addition for trueno
             // trueno Vector doesn't implement Add trait, use method call instead
             BinOp::Add if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.add(&#right_expr).unwrap() })
+                Ok(parse_quote! { #left_expr.add(&#right_expr).expect("arithmetic overflow") })
             }
             // DEPYLER-0928: Vector + scalar - element-wise addition
             BinOp::Add if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
@@ -866,7 +866,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0926: Vector-Vector subtraction for trueno
             // trueno Vector doesn't implement Sub trait, use method call instead
             BinOp::Sub if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.sub(&#right_expr).unwrap() })
+                Ok(parse_quote! { #left_expr.sub(&#right_expr).expect("arithmetic overflow") })
             }
             BinOp::Sub => {
                 // Check if we're subtracting from a .len() call to prevent underflow
@@ -907,7 +907,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0926: Vector-Vector division for trueno
             // trueno Vector doesn't implement Div trait, use method call instead
             BinOp::Div if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.div(&#right_expr).unwrap() })
+                Ok(parse_quote! { #left_expr.div(&#right_expr).expect("division failed") })
             }
             BinOp::Div => {
                 // DEPYLER-0188: Check if this is pathlib Path division (path / "segment")
@@ -1436,28 +1436,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0926: Vector-Vector multiplication for trueno
             // trueno Vector doesn't implement Mul trait, use method call instead
             _ if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #left_expr.mul(&#right_expr).unwrap() })
+                Ok(parse_quote! { #left_expr.mul(&#right_expr).expect("multiplication overflow") })
             }
             // DEPYLER-0926: Vector-scalar multiplication for trueno
             // trueno Vector has scale() method for scalar multiplication
             _ if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
-                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).unwrap() })
+                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") })
             }
             // DEPYLER-0926: scalar-Vector multiplication for trueno (commutative)
             _ if self.expr_returns_float(left) && self.is_numpy_array_expr(right) => {
-                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).unwrap() })
+                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") })
             }
             // DEPYLER-0928: Vector * integer - convert integer to f32 for scale()
             _ if self.is_numpy_array_expr(left)
                 && matches!(right, HirExpr::Literal(Literal::Int(_))) =>
             {
-                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).unwrap() })
+                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).expect("scale failed") })
             }
             // DEPYLER-0928: integer * Vector - convert integer to f32 for scale()
             _ if matches!(left, HirExpr::Literal(Literal::Int(_)))
                 && self.is_numpy_array_expr(right) =>
             {
-                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).unwrap() })
+                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).expect("scale failed") })
             }
             // Default multiplication
             _ => {
@@ -1705,20 +1705,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if negate {
                     if needs_borrow {
                         return Ok(
-                            parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_none() },
+                            parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_none() },
                         );
                     } else {
                         return Ok(
-                            parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_none() },
+                            parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_none() },
                         );
                     }
                 } else if needs_borrow {
                     return Ok(
-                        parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_some() },
+                        parse_quote! { #right_expr.as_ref().expect("value is None").get(&#left_expr).is_some() },
                     );
                 } else {
                     return Ok(
-                        parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_some() },
+                        parse_quote! { #right_expr.as_ref().expect("value is None").get(#left_expr).is_some() },
                     );
                 }
             }
@@ -1973,7 +1973,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if is_optional_arg {
                     // Unwrap the Option before PathBuf::from
                     Some(Ok(
-                        parse_quote! { std::path::PathBuf::from(#path_expr.as_ref().unwrap()) },
+                        parse_quote! { std::path::PathBuf::from(#path_expr.as_ref().expect("value is None")) },
                     ))
                 } else {
                     let borrowed_path = Self::borrow_if_needed(&path_expr);
@@ -2012,9 +2012,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                                .unwrap()
+                                .expect("invalid date")
                                 .and_hms_opt(0, 0, 0)
-                                .unwrap()
+                                .expect("invalid time")
                         }))
                     }
                 } else if args.len() >= 6 {
@@ -2048,9 +2048,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                                .unwrap()
+                                .expect("invalid date")
                                 .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
-                                .unwrap()
+                                .expect("invalid time")
                         }))
                     }
                 } else {
@@ -2091,7 +2091,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     ))
                 } else {
                     Some(Ok(parse_quote! {
-                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).expect("invalid date")
                     }))
                 }
             }
@@ -2106,7 +2106,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Some(Ok(parse_quote! { (0u32, 0u32, 0u32) }))
                 } else {
                     Some(Ok(parse_quote! {
-                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+                        chrono::NaiveTime::from_hms_opt(0, 0, 0).expect("invalid time")
                     }))
                 }
             }
@@ -2125,7 +2125,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Some(Ok(parse_quote! { (#hour as u32, 0u32, 0u32) }))
                 } else {
                     Some(Ok(parse_quote! {
-                        chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).unwrap()
+                        chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).expect("invalid time")
                     }))
                 }
             }
@@ -2150,7 +2150,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Some(Ok(parse_quote! { (#hour as u32, #minute as u32, 0u32) }))
                     } else {
                         Some(Ok(parse_quote! {
-                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).unwrap()
+                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).expect("invalid time")
                         }))
                     }
                 } else {
@@ -2164,7 +2164,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         ))
                     } else {
                         Some(Ok(parse_quote! {
-                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
+                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).expect("invalid time")
                         }))
                     }
                 }
@@ -2243,7 +2243,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let result = match arg {
                     HirExpr::Literal(Literal::String(_)) => match arg.to_rust_expr(self.ctx) {
                         Ok(arg_expr) => Ok(
-                            parse_quote! { rust_decimal::Decimal::from_str(&#arg_expr).unwrap() },
+                            parse_quote! { rust_decimal::Decimal::from_str(&#arg_expr).expect("parse failed") },
                         ),
                         Err(e) => Err(e),
                     },
@@ -2253,13 +2253,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     },
                     HirExpr::Literal(Literal::Float(_)) => match arg.to_rust_expr(self.ctx) {
                         Ok(arg_expr) => Ok(
-                            parse_quote! { rust_decimal::Decimal::from_f64_retain(#arg_expr).unwrap() },
+                            parse_quote! { rust_decimal::Decimal::from_f64_retain(#arg_expr).expect("parse failed") },
                         ),
                         Err(e) => Err(e),
                     },
                     _ => match arg.to_rust_expr(self.ctx) {
                         Ok(arg_expr) => Ok(
-                            parse_quote! { rust_decimal::Decimal::from_str(&(#arg_expr).to_string()).unwrap() },
+                            parse_quote! { rust_decimal::Decimal::from_str(&(#arg_expr).to_string()).expect("parse failed") },
                         ),
                         Err(e) => Err(e),
                     },
@@ -2279,11 +2279,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 let s = #arg_expr;
                                 let parts: Vec<&str> = s.split('/').collect();
                                 if parts.len() == 2 {
-                                    let num = parts[0].trim().parse::<i32>().unwrap();
-                                    let denom = parts[1].trim().parse::<i32>().unwrap();
+                                    let num = parts[0].trim().parse::<i32>().expect("parse failed");
+                                    let denom = parts[1].trim().parse::<i32>().expect("parse failed");
                                     num::rational::Ratio::new(num, denom)
                                 } else {
-                                    let num = s.parse::<i32>().unwrap();
+                                    let num = s.parse::<i32>().expect("parse failed");
                                     num::rational::Ratio::from_integer(num)
                                 }
                             }
@@ -2298,13 +2298,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     },
                     HirExpr::Literal(Literal::Float(_)) => match arg.to_rust_expr(self.ctx) {
                         Ok(arg_expr) => Ok(
-                            parse_quote! { num::rational::Ratio::approximate_float(#arg_expr).unwrap() },
+                            parse_quote! { num::rational::Ratio::approximate_float(#arg_expr).expect("parse failed") },
                         ),
                         Err(e) => Err(e),
                     },
                     _ => match arg.to_rust_expr(self.ctx) {
                         Ok(arg_expr) => Ok(
-                            parse_quote! { num::rational::Ratio::approximate_float(#arg_expr as f64).unwrap() },
+                            parse_quote! { num::rational::Ratio::approximate_float(#arg_expr as f64).expect("parse failed") },
                         ),
                         Err(e) => Err(e),
                     },
@@ -2634,9 +2634,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Python: print(divide(17, 5)) → "3"
                 // Rust:   println!("{}", divide(17, 5).unwrap()) → "3"
                 if use_stderr {
-                    Ok(parse_quote! { eprintln!("{}", #arg.unwrap()) })
+                    Ok(parse_quote! { eprintln!("{}", #arg.expect("operation failed")) })
                 } else {
-                    Ok(parse_quote! { println!("{}", #arg.unwrap()) })
+                    Ok(parse_quote! { println!("{}", #arg.expect("operation failed")) })
                 }
             } else {
                 let format_str = if needs_debug { "{:?}" } else { "{}" };
@@ -2669,7 +2669,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .map(|(hir_arg, syn_arg)| {
                     if let HirExpr::Call { func, .. } = hir_arg {
                         if self.ctx.result_returning_functions.contains(func) {
-                            return parse_quote! { #syn_arg.unwrap() };
+                            return parse_quote! { #syn_arg.expect("operation failed") };
                         }
                     }
                     syn_arg.clone()
@@ -2853,9 +2853,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             return if is_max {
-                Some(Ok(parse_quote! { *#iter_expr.iter().max().unwrap() }))
+                Some(Ok(parse_quote! { *#iter_expr.iter().max().expect("empty collection") }))
             } else {
-                Some(Ok(parse_quote! { *#iter_expr.iter().min().unwrap() }))
+                Some(Ok(parse_quote! { *#iter_expr.iter().min().expect("empty collection") }))
             };
         }
 
@@ -3810,7 +3810,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Already unwrapped via unwrap_or - just call .to_string()
                         return Ok(parse_quote! { (#arg).to_string() });
                     }
-                    return Ok(parse_quote! { (#arg).unwrap().to_string() });
+                    return Ok(parse_quote! { (#arg).expect("value is None").to_string() });
                 }
             }
         }
@@ -4238,7 +4238,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Default: assume it's a string and get first char
         Ok(parse_quote! {
-            #char_str.chars().next().unwrap() as i32
+            #char_str.chars().next().expect("empty string") as i32
         })
     }
 
@@ -4517,11 +4517,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if stdlib_method_gen::json::return_type_needs_json_dict(self.ctx) {
                     self.ctx.needs_hashmap = true;
                     return Ok(parse_quote! {
-                        serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#arg).unwrap()
+                        serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#arg).expect("parse failed")
                     });
                 } else {
                     return Ok(parse_quote! {
-                        serde_json::from_str::<serde_json::Value>(&#arg).unwrap()
+                        serde_json::from_str::<serde_json::Value>(&#arg).expect("parse failed")
                     });
                 }
             }
@@ -4543,11 +4543,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if stdlib_method_gen::json::return_type_needs_json_dict(self.ctx) {
                     self.ctx.needs_hashmap = true;
                     return Ok(parse_quote! {
-                        serde_json::from_reader::<_, std::collections::HashMap<String, serde_json::Value>>(#arg).unwrap()
+                        serde_json::from_reader::<_, std::collections::HashMap<String, serde_json::Value>>(#arg).expect("parse failed")
                     });
                 } else {
                     return Ok(parse_quote! {
-                        serde_json::from_reader::<_, serde_json::Value>(#arg).unwrap()
+                        serde_json::from_reader::<_, serde_json::Value>(#arg).expect("parse failed")
                     });
                 }
             }
@@ -4583,9 +4583,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-1004: Add .unwrap() for Result-returning functions
                     if needs_unwrap {
                         if args.is_empty() {
-                            Ok(parse_quote! { #path().unwrap() })
+                            Ok(parse_quote! { #path().expect("operation failed") })
                         } else {
-                            Ok(parse_quote! { #path(#(#args),*).unwrap() })
+                            Ok(parse_quote! { #path(#(#args),*).expect("operation failed") })
                         }
                     } else if args.is_empty() {
                         Ok(parse_quote! { #path() })
@@ -4971,7 +4971,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // DEPYLER-0666: Skip if already unwrapped
                             if !is_unwrapped && matches!(var_type, Type::Optional(ref inner) if matches!(inner.as_ref(), Type::String)) {
                                 // Unwrap the Option and pass reference
-                                return parse_quote! { #arg_expr.as_ref().unwrap() };
+                                return parse_quote! { #arg_expr.as_ref().expect("value is None") };
                             }
                         } else {
                             // DEPYLER-0568: Name-based heuristic for PathBuf when not in var_types
@@ -5424,16 +5424,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let bytes_expr = args[1].to_rust_expr(self.ctx)?;
 
                     if count == 1 {
-                        // struct.unpack('i', bytes) → (i32::from_le_bytes(bytes[0..4].try_into().unwrap()),)
+                        // struct.unpack('i', bytes) → (i32::from_le_bytes(bytes[0..4].try_into().expect("...")),)
                         Ok(Some(parse_quote! {
-                            (i32::from_le_bytes(#bytes_expr[0..4].try_into().unwrap()),)
+                            (i32::from_le_bytes(#bytes_expr[0..4].try_into().expect("operation failed")),)
                         }))
                     } else if count == 2 {
                         // struct.unpack('ii', bytes) → (i32::from_le_bytes(...), i32::from_le_bytes(...))
                         Ok(Some(parse_quote! {
                             (
-                                i32::from_le_bytes(#bytes_expr[0..4].try_into().unwrap()),
-                                i32::from_le_bytes(#bytes_expr[4..8].try_into().unwrap()),
+                                i32::from_le_bytes(#bytes_expr[0..4].try_into().expect("operation failed")),
+                                i32::from_le_bytes(#bytes_expr[4..8].try_into().expect("operation failed")),
                             )
                         }))
                     } else {
@@ -5636,7 +5636,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else if let Some(var_type) = self.ctx.var_types.get(var_name) {
                             if matches!(var_type, Type::Optional(_)) {
                                 // Key is an Option type - unwrap it
-                                parse_quote! { #key.as_ref().unwrap() }
+                                parse_quote! { #key.as_ref().expect("value is None") }
                             } else {
                                 key.clone()
                             }
@@ -6030,21 +6030,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() >= 2 {
                     let a = &arg_exprs[0];
                     let b = &arg_exprs[1];
-                    parse_quote! { #a.dot(&#b).unwrap() }
+                    parse_quote! { #a.dot(&#b).expect("dot product failed") }
                 } else {
                     bail!("np.dot() requires 2 arguments");
                 }
             }
             "sum" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.sum().unwrap() }
+                    parse_quote! { #arr.sum().expect("operation failed") }
                 } else {
                     bail!("np.sum() requires 1 argument");
                 }
             }
             "mean" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.mean().unwrap() }
+                    parse_quote! { #arr.mean().expect("operation failed") }
                 } else {
                     bail!("np.mean() requires 1 argument");
                 }
@@ -6058,7 +6058,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arr = &arg_exprs[0];
                 if self.is_numpy_array_expr(&args[0]) {
-                    parse_quote! { #arr.sqrt().unwrap() }
+                    parse_quote! { #arr.sqrt().expect("operation failed") }
                 } else {
                     parse_quote! { #arr.sqrt() }
                 }
@@ -6069,7 +6069,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arr = &arg_exprs[0];
                 if self.is_numpy_array_expr(&args[0]) {
-                    parse_quote! { #arr.abs().unwrap() }
+                    parse_quote! { #arr.abs().expect("operation failed") }
                 } else {
                     // f64 uses .abs() directly
                     parse_quote! { #arr.abs() }
@@ -6077,14 +6077,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "min" | "amin" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.min().unwrap() }
+                    parse_quote! { #arr.min().expect("empty collection") }
                 } else {
                     bail!("np.min() requires 1 argument");
                 }
             }
             "max" | "amax" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.max().unwrap() }
+                    parse_quote! { #arr.max().expect("empty collection") }
                 } else {
                     bail!("np.max() requires 1 argument");
                 }
@@ -6096,7 +6096,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arr = &arg_exprs[0];
                 if self.is_numpy_array_expr(&args[0]) {
-                    parse_quote! { #arr.exp().unwrap() }
+                    parse_quote! { #arr.exp().expect("operation failed") }
                 } else {
                     parse_quote! { #arr.exp() }
                 }
@@ -6107,7 +6107,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arr = &arg_exprs[0];
                 if self.is_numpy_array_expr(&args[0]) {
-                    parse_quote! { #arr.ln().unwrap() }
+                    parse_quote! { #arr.ln().expect("operation failed") }
                 } else {
                     // f64 uses .ln() for natural log
                     parse_quote! { #arr.ln() }
@@ -6119,7 +6119,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arr = &arg_exprs[0];
                 if self.is_numpy_array_expr(&args[0]) {
-                    parse_quote! { #arr.sin().unwrap() }
+                    parse_quote! { #arr.sin().expect("operation failed") }
                 } else {
                     // f64::sin() returns f64 directly
                     parse_quote! { #arr.sin() }
@@ -6131,7 +6131,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arr = &arg_exprs[0];
                 if self.is_numpy_array_expr(&args[0]) {
-                    parse_quote! { #arr.cos().unwrap() }
+                    parse_quote! { #arr.cos().expect("operation failed") }
                 } else {
                     // f64::cos() returns f64 directly
                     parse_quote! { #arr.cos() }
@@ -6143,21 +6143,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let arr = &arg_exprs[0];
                     let min = &arg_exprs[1];
                     let max = &arg_exprs[2];
-                    parse_quote! { #arr.clamp(#min as f32, #max as f32).unwrap() }
+                    parse_quote! { #arr.clamp(#min as f32, #max as f32).expect("operation failed") }
                 } else {
                     bail!("np.clip() requires 3 arguments (array, min, max)");
                 }
             }
             "argmax" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.argmax().unwrap() }
+                    parse_quote! { #arr.argmax().expect("empty collection") }
                 } else {
                     bail!("np.argmax() requires 1 argument");
                 }
             }
             "argmin" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.argmin().unwrap() }
+                    parse_quote! { #arr.argmin().expect("empty collection") }
                 } else {
                     bail!("np.argmin() requires 1 argument");
                 }
@@ -6165,14 +6165,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "std" => {
                 // trueno uses stddev(), not std()
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.stddev().unwrap() }
+                    parse_quote! { #arr.stddev().expect("operation failed") }
                 } else {
                     bail!("np.std() requires 1 argument");
                 }
             }
             "var" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.variance().unwrap() }
+                    parse_quote! { #arr.variance().expect("operation failed") }
                 } else {
                     bail!("np.var() requires 1 argument");
                 }
@@ -6196,7 +6196,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0583: trueno uses norm_l2() for L2 (Euclidean) norm
                     // DEPYLER-0667: Wrap arg in parens so `a - b` becomes `(a - b).norm_l2()`
                     // Without parens, `a - b.norm_l2()` parses as `a - (b.norm_l2())`
-                    parse_quote! { (#arr).norm_l2().unwrap() }
+                    parse_quote! { (#arr).norm_l2().expect("operation failed") }
                 } else {
                     bail!("np.norm() requires 1 argument");
                 }
@@ -6368,7 +6368,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {
                         #arr.iter().enumerate()
-                            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation failed"))
                             .map(|(i, _)| i as i64)
                             .unwrap_or(0)
                     }
@@ -6380,7 +6380,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {
                         #arr.iter().enumerate()
-                            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                            .min_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation failed"))
                             .map(|(i, _)| i as i64)
                             .unwrap_or(0)
                     }
@@ -6680,7 +6680,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // os.path.getsize(path) → std::fs::metadata().len()
                 parse_quote! {
-                    std::fs::metadata(&#path).unwrap().len() as i64
+                    std::fs::metadata(&#path).expect("operation failed").len() as i64
                 }
             }
 
@@ -6694,11 +6694,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // os.path.getmtime(path) → std::fs::metadata().modified()
                 parse_quote! {
                     std::fs::metadata(&#path)
-                        .unwrap()
+                        .expect("operation failed")
                         .modified()
-                        .unwrap()
+                        .expect("operation failed")
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
+                        .expect("operation failed")
                         .as_secs_f64()
                 }
             }
@@ -6714,11 +6714,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Note: On Unix, this is ctime (change time), but Rust only has created()
                 parse_quote! {
                     std::fs::metadata(&#path)
-                        .unwrap()
+                        .expect("operation failed")
                         .created()
-                        .unwrap()
+                        .expect("operation failed")
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
+                        .expect("operation failed")
                         .as_secs_f64()
                 }
             }
@@ -6836,7 +6836,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // base64.b64decode(data) → base64::engine::general_purpose::STANDARD.decode(data).unwrap()
                 parse_quote! {
-                    base64::engine::general_purpose::STANDARD.decode(#data).unwrap()
+                    base64::engine::general_purpose::STANDARD.decode(#data).expect("operation failed")
                 }
             }
 
@@ -6862,7 +6862,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // base64.urlsafe_b64decode(data) → base64::engine::general_purpose::URL_SAFE.decode(data).unwrap()
                 parse_quote! {
-                    base64::engine::general_purpose::URL_SAFE.decode(#data).unwrap()
+                    base64::engine::general_purpose::URL_SAFE.decode(#data).expect("operation failed")
                 }
             }
 
@@ -6896,7 +6896,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // base64.b16decode(data) → hex::decode(data).unwrap()
                 parse_quote! {
-                    hex::decode(#data).unwrap()
+                    hex::decode(#data).expect("operation failed")
                 }
             }
 
@@ -6971,7 +6971,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         use rand::seq::SliceRandom;
-                        *#seq.choose(&mut rand::thread_rng()).unwrap()
+                        *#seq.choose(&mut rand::thread_rng()).expect("empty collection")
                     }
                 }
             }
@@ -8101,7 +8101,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .replace("[!", "[^");
 
                         let regex = regex::Regex::new(&format!("^{}$", regex_pattern))
-                            .unwrap_or_else(|_| regex::Regex::new("^$").unwrap());
+                            .unwrap_or_else(|_| regex::Regex::new("^$").expect("parse failed"));
 
                         regex.is_match(#name)
                     }
@@ -8127,7 +8127,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .replace("[!", "[^");
 
                         let regex = regex::Regex::new(&format!("^{}$", regex_pattern))
-                            .unwrap_or_else(|_| regex::Regex::new("^$").unwrap());
+                            .unwrap_or_else(|_| regex::Regex::new("^$").expect("parse failed"));
 
                         (#names).into_iter()
                             .filter(|name| regex.is_match(&name.to_string()))
@@ -8736,7 +8736,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
 
                         let result = heap[0].clone();
-                        let last = heap.pop().unwrap();
+                        let last = heap.pop().expect("empty collection");
 
                         if !heap.is_empty() {
                             heap[0] = last;
@@ -9050,7 +9050,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             f
                         } else {
                             // Approximate by converting to float and back
-                            num::rational::Ratio::approximate_float(f.to_f64().unwrap()).unwrap_or(f)
+                            num::rational::Ratio::approximate_float(f.to_f64().expect("operation failed")).unwrap_or(f)
                         }
                     }
                 }
@@ -9089,15 +9089,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("write_text() requires at least 1 argument (content)");
                 }
                 let content = &arg_exprs[0];
-                parse_quote! { std::fs::write(&#path_expr, #content).unwrap() }
+                parse_quote! { std::fs::write(&#path_expr, #content).expect("operation failed") }
             }
 
             "read_text" => {
-                parse_quote! { std::fs::read_to_string(&#path_expr).unwrap() }
+                parse_quote! { std::fs::read_to_string(&#path_expr).expect("operation failed") }
             }
 
             "read_bytes" => {
-                parse_quote! { std::fs::read(&#path_expr).unwrap() }
+                parse_quote! { std::fs::read(&#path_expr).expect("operation failed") }
             }
 
             "write_bytes" => {
@@ -9105,7 +9105,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("write_bytes() requires at least 1 argument (data)");
                 }
                 let data = &arg_exprs[0];
-                parse_quote! { std::fs::write(&#path_expr, #data).unwrap() }
+                parse_quote! { std::fs::write(&#path_expr, #data).expect("operation failed") }
             }
 
             // Path predicates
@@ -9125,25 +9125,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "mkdir" => {
                 // Check if parents=True was passed
                 if !arg_exprs.is_empty() {
-                    parse_quote! { std::fs::create_dir_all(&#path_expr).unwrap() }
+                    parse_quote! { std::fs::create_dir_all(&#path_expr).expect("operation failed") }
                 } else {
-                    parse_quote! { std::fs::create_dir(&#path_expr).unwrap() }
+                    parse_quote! { std::fs::create_dir(&#path_expr).expect("operation failed") }
                 }
             }
 
             "rmdir" => {
-                parse_quote! { std::fs::remove_dir(&#path_expr).unwrap() }
+                parse_quote! { std::fs::remove_dir(&#path_expr).expect("operation failed") }
             }
 
             "unlink" => {
-                parse_quote! { std::fs::remove_file(&#path_expr).unwrap() }
+                parse_quote! { std::fs::remove_file(&#path_expr).expect("operation failed") }
             }
 
             "iterdir" => {
                 parse_quote! {
                     std::fs::read_dir(&#path_expr)
-                        .unwrap()
-                        .map(|e| e.unwrap().path())
+                        .expect("operation failed")
+                        .map(|e| e.expect("operation failed").path())
                         .collect::<Vec<_>>()
                 }
             }
@@ -9157,7 +9157,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let pattern = &arg_exprs[0];
                 parse_quote! {
                     glob::glob(&format!("{}/{}", #path_expr.display(), #pattern))
-                        .unwrap()
+                        .expect("operation failed")
                         .filter_map(|e| e.ok())
                         .collect::<Vec<_>>()
                 }
@@ -9171,7 +9171,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let pattern = &arg_exprs[0];
                 parse_quote! {
                     glob::glob(&format!("{}/**/{}", #path_expr.display(), #pattern))
-                        .unwrap()
+                        .expect("operation failed")
                         .filter_map(|e| e.ok())
                         .collect::<Vec<_>>()
                 }
@@ -9210,7 +9210,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             "resolve" | "absolute" => {
-                parse_quote! { #path_expr.canonicalize().unwrap() }
+                parse_quote! { #path_expr.canonicalize().expect("operation failed") }
             }
 
             "relative_to" => {
@@ -9218,7 +9218,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("relative_to() requires 1 argument (base)");
                 }
                 let base = &arg_exprs[0];
-                parse_quote! { #path_expr.strip_prefix(#base).unwrap().to_path_buf() }
+                parse_quote! { #path_expr.strip_prefix(#base).expect("operation failed").to_path_buf() }
             }
 
             _ => {
@@ -9273,7 +9273,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     parse_quote! { DepylerDateTime::now() }
                 } else {
                     parse_quote! {
-                        chrono::NaiveDateTime::parse_from_str(&#s, "%Y-%m-%dT%H:%M:%S").unwrap()
+                        chrono::NaiveDateTime::parse_from_str(&#s, "%Y-%m-%dT%H:%M:%S").expect("parse failed")
                     }
                 }
             }
@@ -9479,7 +9479,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     };
                     parse_quote! {
-                        chrono::NaiveDateTime::parse_from_str(#s, #fmt).unwrap()
+                        chrono::NaiveDateTime::parse_from_str(#s, #fmt).expect("parse failed")
                     }
                 }
             }
@@ -9527,7 +9527,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     parse_quote! {
                         chrono::DateTime::from_timestamp((#ts).clone() as i64, 0)
-                            .unwrap()
+                            .expect("invalid timestamp")
                             .naive_local()
                     }
                 }
@@ -9614,7 +9614,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     parse_quote! { #dt }
                 } else {
                     let new_year = &arg_exprs[1];
-                    parse_quote! { #dt.with_year(#new_year as i32).unwrap() }
+                    parse_quote! { #dt.with_year(#new_year as i32).expect("invalid date") }
                 }
             }
 
@@ -9646,7 +9646,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%dT%H:%M:%S")
                             .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d %H:%M:%S"))
                             .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d"))
-                            .unwrap()
+                            .expect("parse failed")
                     }
                 }
             }
@@ -9662,7 +9662,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     parse_quote! { DepylerDate::from_ordinal(#n as i64) }
                 } else {
                     parse_quote! {
-                        chrono::NaiveDate::from_num_days_from_ce_opt(#n as i32).unwrap()
+                        chrono::NaiveDate::from_num_days_from_ce_opt(#n as i32).expect("invalid date")
                     }
                 }
             }
@@ -9699,7 +9699,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("Decimal.sqrt() requires exactly 1 argument");
                 }
                 let arg = &arg_exprs[0];
-                parse_quote! { #arg.sqrt().unwrap() }
+                parse_quote! { #arg.sqrt().expect("operation failed") }
             }
 
             "exp" => {
@@ -9866,7 +9866,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         let mut sorted = #data.clone();
-                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation failed"));
                         let len = sorted.len();
                         if len % 2 == 0 {
                             let mid = len / 2;
@@ -9891,7 +9891,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         for &item in #data.iter() {
                             *counts.entry(item).or_insert(0) += 1;
                         }
-                        *counts.iter().max_by_key(|(_, &count)| count).unwrap().0
+                        *counts.iter().max_by_key(|(_, &count)| count).expect("empty collection").0
                     }
                 }
             }
@@ -10035,7 +10035,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         let mut sorted = #data.clone();
-                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation failed"));
                         let n = #n as usize;
                         let mut result = Vec::new();
                         for i in 1..n {
@@ -10183,7 +10183,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
 
                         let result = if is_fallible_constructor {
-                            parse_quote! { #result.unwrap() }
+                            parse_quote! { #result.expect("operation failed") }
                         } else {
                             result
                         };
@@ -10360,7 +10360,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(Some(if method == "min" {
                         parse_quote! { chrono::NaiveTime::MIN }
                     } else {
-                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).unwrap() }
+                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
                     }));
                 }
             }
@@ -10373,7 +10373,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(Some(parse_quote! {
                     (#hex_str).as_bytes()
                         .chunks(2)
-                        .map(|c| u8::from_str_radix(std::str::from_utf8(c).unwrap(), 16).unwrap())
+                        .map(|c| u8::from_str_radix(std::str::from_utf8(c).expect("parse failed"), 16).expect("parse failed"))
                         .collect::<Vec<u8>>()
                 }));
             }
@@ -10599,7 +10599,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "env::current_dir" => {
                         // current_dir returns Result<PathBuf>, we need to convert to String
                         parse_quote! {
-                            #path().unwrap().to_string_lossy().to_string()
+                            #path().expect("operation failed").to_string_lossy().to_string()
                         }
                     }
                     "Regex::new" => {
@@ -10609,7 +10609,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                         let pattern = &arg_exprs[0];
                         parse_quote! {
-                            regex::Regex::new(#pattern).unwrap()
+                            regex::Regex::new(#pattern).expect("parse failed")
                         }
                     }
                     _ => {

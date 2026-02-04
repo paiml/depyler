@@ -312,9 +312,9 @@ pub(crate) fn convert_index_assignment(
             let first_char = idx_str.trim_start().chars().next();
             let is_str_lit = first_char == Some('"');
             chain = if is_str_lit {
-                parse_quote! { #chain.get_mut(#idx).unwrap() }
+                parse_quote! { #chain.get_mut(#idx).expect("index out of bounds") }
             } else {
-                parse_quote! { #chain.get_mut(&#idx).unwrap() }
+                parse_quote! { #chain.get_mut(&#idx).expect("index out of bounds") }
             };
         }
 
@@ -2706,7 +2706,7 @@ impl<'a> ExprConverter<'a> {
             bail!("ord() requires exactly one argument");
         }
         let char_str = &args[0];
-        Ok(parse_quote! { #char_str.chars().next().unwrap() as i32 })
+        Ok(parse_quote! { #char_str.chars().next().expect("empty string") as i32 })
     }
 
     /// DEPYLER-0906: Convert Python chr(n) to Rust char string
@@ -2720,7 +2720,7 @@ impl<'a> ExprConverter<'a> {
             bail!("chr() requires exactly one argument");
         }
         let code = &args[0];
-        Ok(parse_quote! { char::from_u32(#code as u32).unwrap().to_string() })
+        Ok(parse_quote! { char::from_u32(#code as u32).expect("invalid char").to_string() })
     }
 
     /// DEPYLER-0931: Convert Python list() builtin to Rust Vec
@@ -3233,7 +3233,7 @@ impl<'a> ExprConverter<'a> {
         match mode {
             "w" | "w+" | "wb" => {
                 // Write mode: std::fs::File::create()
-                Ok(parse_quote! { std::fs::File::create(&#path).unwrap() })
+                Ok(parse_quote! { std::fs::File::create(&#path).expect("file create failed") })
             }
             "a" | "a+" | "ab" => {
                 // Append mode: OpenOptions with append
@@ -3242,12 +3242,12 @@ impl<'a> ExprConverter<'a> {
                         .append(true)
                         .create(true)
                         .open(&#path)
-                        .unwrap()
+                        .expect("file open failed")
                 })
             }
             _ => {
                 // Read mode (default): std::fs::File::open()
-                Ok(parse_quote! { std::fs::File::open(&#path).unwrap() })
+                Ok(parse_quote! { std::fs::File::open(&#path).expect("file open failed") })
             }
         }
     }
@@ -3261,7 +3261,7 @@ impl<'a> ExprConverter<'a> {
         let month = &args[1];
         let day = &args[2];
         Ok(parse_quote! {
-            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).expect("invalid date")
         })
     }
 
@@ -3282,9 +3282,9 @@ impl<'a> ExprConverter<'a> {
 
         Ok(parse_quote! {
             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                .unwrap()
+                .expect("invalid date")
                 .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
-                .unwrap()
+                .expect("invalid time")
         })
     }
 
@@ -3348,7 +3348,7 @@ impl<'a> ExprConverter<'a> {
                 // DEPYLER-1094: min(iterable) → iterable.iter().cloned().min().unwrap()
                 // Single-arg min finds minimum element in iterable
                 let arg = &args[0];
-                return Ok(parse_quote! { #arg.iter().cloned().min().unwrap() });
+                return Ok(parse_quote! { #arg.iter().cloned().min().expect("empty collection") });
             }
             "min" if args.len() >= 2 => {
                 // DEPYLER-1094: min(a, b, ...) → (a as f64).min(b as f64)
@@ -3366,7 +3366,7 @@ impl<'a> ExprConverter<'a> {
                 // DEPYLER-1094: max(iterable) → iterable.iter().cloned().max().unwrap()
                 // Single-arg max finds maximum element in iterable
                 let arg = &args[0];
-                return Ok(parse_quote! { #arg.iter().cloned().max().unwrap() });
+                return Ok(parse_quote! { #arg.iter().cloned().max().expect("empty collection") });
             }
             "max" if args.len() >= 2 => {
                 // DEPYLER-1094: max(a, b, ...) → (a as f64).max(b as f64)
@@ -4345,7 +4345,7 @@ impl<'a> ExprConverter<'a> {
                                 Ok(parse_quote! { DepylerRegexMatch::search(#pattern, #text) })
                             } else {
                                 Ok(
-                                    parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) },
+                                    parse_quote! { regex::Regex::new(#pattern).expect("invalid regex").find(#text) },
                                 )
                             };
                         } else {
@@ -4357,7 +4357,7 @@ impl<'a> ExprConverter<'a> {
                                 )
                             } else {
                                 Ok(
-                                    parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) },
+                                    parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex").find(&#text_expr) },
                                 )
                             };
                         }
@@ -4371,7 +4371,7 @@ impl<'a> ExprConverter<'a> {
                                 Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
                             } else {
                                 Ok(
-                                    parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) },
+                                    parse_quote! { regex::Regex::new(#pattern).expect("invalid regex").find(#text) },
                                 )
                             };
                         } else {
@@ -4383,7 +4383,7 @@ impl<'a> ExprConverter<'a> {
                                 )
                             } else {
                                 Ok(
-                                    parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) },
+                                    parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex").find(&#text_expr) },
                                 )
                             };
                         }
@@ -4398,7 +4398,7 @@ impl<'a> ExprConverter<'a> {
                                 Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
                             } else {
                                 Ok(
-                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).unwrap().find(#text) },
+                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).expect("invalid regex").find(#text) },
                                 )
                             };
                         } else {
@@ -4410,7 +4410,7 @@ impl<'a> ExprConverter<'a> {
                                 )
                             } else {
                                 Ok(
-                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).unwrap().find(&#text_expr) },
+                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).expect("invalid regex").find(&#text_expr) },
                                 )
                             };
                         }
@@ -4425,7 +4425,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(#pattern)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .find_iter(#text)
                                         .map(|m| m.as_str().to_string())
                                         .collect::<Vec<_>>()
@@ -4441,7 +4441,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .find_iter(&#text_expr)
                                         .map(|m| m.as_str().to_string())
                                         .collect::<Vec<_>>()
@@ -4461,7 +4461,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(#pattern)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .find_iter(#text)
                                         .map(|m| m.as_str().to_string())
                                         .collect::<Vec<_>>()
@@ -4477,7 +4477,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .find_iter(&#text_expr)
                                         .map(|m| m.as_str().to_string())
                                         .collect::<Vec<_>>()
@@ -4498,7 +4498,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(#pattern)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .replace_all(#text, #repl)
                                         .to_string()
                                 })
@@ -4514,7 +4514,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .replace_all(&#text_expr, &#repl_expr)
                                         .to_string()
                                 })
@@ -4540,7 +4540,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     {
-                                        let re = regex::Regex::new(#pattern).unwrap();
+                                        let re = regex::Regex::new(#pattern).expect("invalid regex");
                                         let count = re.find_iter(#text).count();
                                         let result = re.replace_all(#text, #repl).to_string();
                                         (result, count)
@@ -4562,7 +4562,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     {
-                                        let re = regex::Regex::new(&#pattern_expr).unwrap();
+                                        let re = regex::Regex::new(&#pattern_expr).expect("invalid regex");
                                         let count = re.find_iter(&#text_expr).count();
                                         let result = re.replace_all(&#text_expr, &#repl_expr).to_string();
                                         (result, count)
@@ -4581,7 +4581,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(#pattern)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .split(#text)
                                         .map(|s| s.to_string())
                                         .collect::<Vec<_>>()
@@ -4597,7 +4597,7 @@ impl<'a> ExprConverter<'a> {
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
-                                        .unwrap()
+                                        .expect("invalid regex")
                                         .split(&#text_expr)
                                         .map(|s| s.to_string())
                                         .collect::<Vec<_>>()
@@ -4613,14 +4613,14 @@ impl<'a> ExprConverter<'a> {
                                 // NASA mode: compile returns the pattern string
                                 Ok(parse_quote! { #pattern.to_string() })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(#pattern).unwrap() })
+                                Ok(parse_quote! { regex::Regex::new(#pattern).expect("invalid regex") })
                             };
                         } else {
                             let pattern_expr = self.convert(&args[0])?;
                             return if nasa_mode {
                                 Ok(parse_quote! { (#pattern_expr).to_string() })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).unwrap() })
+                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex") })
                             };
                         }
                     }
@@ -4791,7 +4791,7 @@ impl<'a> ExprConverter<'a> {
                             });
                         }
                         return Ok(parse_quote! {
-                            base64::engine::general_purpose::STANDARD.decode(#data).unwrap()
+                            base64::engine::general_purpose::STANDARD.decode(#data).expect("decode failed")
                         });
                     }
                     "urlsafe_b64encode" if arg_exprs.len() == 1 => {
@@ -4813,7 +4813,7 @@ impl<'a> ExprConverter<'a> {
                             });
                         }
                         return Ok(parse_quote! {
-                            base64::engine::general_purpose::URL_SAFE.decode(#data).unwrap()
+                            base64::engine::general_purpose::URL_SAFE.decode(#data).expect("decode failed")
                         });
                     }
                     "b32encode" if arg_exprs.len() == 1 => {
@@ -4835,7 +4835,7 @@ impl<'a> ExprConverter<'a> {
                             });
                         }
                         return Ok(parse_quote! {
-                            data_encoding::BASE32.decode(#data).unwrap()
+                            data_encoding::BASE32.decode(#data).expect("decode failed")
                         });
                     }
                     "b16encode" | "hexlify" if arg_exprs.len() == 1 => {
@@ -4859,7 +4859,7 @@ impl<'a> ExprConverter<'a> {
                             });
                         }
                         return Ok(parse_quote! {
-                            hex::decode(#data).unwrap()
+                            hex::decode(#data).expect("decode failed")
                         });
                     }
                     _ => {} // Fall through for unhandled base64 methods
@@ -5066,7 +5066,7 @@ impl<'a> ExprConverter<'a> {
                         if self.type_mapper.nasa_mode {
                             return Ok(parse_quote! { format!("{:?}", #obj) });
                         }
-                        return Ok(parse_quote! { serde_json::to_string(&#obj).unwrap() });
+                        return Ok(parse_quote! { serde_json::to_string(&#obj).expect("JSON serialize failed") });
                     }
                     "loads" if !arg_exprs.is_empty() => {
                         let _s = &arg_exprs[0];
@@ -5077,7 +5077,7 @@ impl<'a> ExprConverter<'a> {
                             );
                         }
                         return Ok(
-                            parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).unwrap() },
+                            parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).expect("JSON parse failed") },
                         );
                     }
                     _ => {} // Fall through
@@ -5176,7 +5176,7 @@ impl<'a> ExprConverter<'a> {
                         return Ok(parse_quote! {
                             {
                                 use rand::seq::SliceRandom;
-                                #seq.choose(&mut rand::thread_rng()).cloned().unwrap()
+                                #seq.choose(&mut rand::thread_rng()).cloned().expect("empty collection")
                             }
                         });
                     }
@@ -5208,7 +5208,7 @@ impl<'a> ExprConverter<'a> {
                         return Ok(parse_quote! {
                             std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
+                                .expect("time error")
                                 .as_secs_f64()
                         });
                     }
@@ -5255,7 +5255,7 @@ impl<'a> ExprConverter<'a> {
                         return Ok(parse_quote! {
                             std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
+                                .expect("time error")
                                 .as_secs_f64()
                         });
                     }
@@ -6236,7 +6236,7 @@ impl<'a> ExprConverter<'a> {
                     } else {
                         arg_exprs.first().map(|arg| {
                             parse_quote! {
-                                tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                                tokio::runtime::Runtime::new().expect("tokio runtime failed").block_on(#arg)
                             }
                         })
                     }
@@ -6251,7 +6251,7 @@ impl<'a> ExprConverter<'a> {
                         // NASA mode: return empty HashMap stub
                         arg_exprs.first().map(|_| parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
                     } else {
-                        arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).unwrap() })
+                        arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).expect("JSON parse failed") })
                     }
                 }
                 "dumps" | "dump" => {
@@ -6263,7 +6263,7 @@ impl<'a> ExprConverter<'a> {
                     } else {
                         arg_exprs
                             .first()
-                            .map(|arg| parse_quote! { serde_json::to_string(&#arg).unwrap() })
+                            .map(|arg| parse_quote! { serde_json::to_string(&#arg).expect("JSON serialize failed") })
                     }
                 }
                 _ => None,
@@ -6278,11 +6278,11 @@ impl<'a> ExprConverter<'a> {
                 "listdir" => {
                     if let Some(arg) = arg_exprs.first() {
                         Some(
-                            parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
+                            parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.expect("dir entry error").file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
                         )
                     } else {
                         Some(
-                            parse_quote! { std::fs::read_dir(".")?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
+                            parse_quote! { std::fs::read_dir(".")?.map(|e| e.expect("dir entry error").file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
                         )
                     }
                 }
@@ -6339,32 +6339,32 @@ impl<'a> ExprConverter<'a> {
                     bail!("os.{}() requires exactly 1 argument", method);
                 }
                 let path = &arg_exprs[0];
-                // DEPYLER-0956: Use .unwrap() to not require Result return type
-                Some(parse_quote! { std::fs::remove_file(#path).unwrap() })
+                // DEPYLER-0956: Use .expect() to not require Result return type
+                Some(parse_quote! { std::fs::remove_file(#path).expect("operation failed") })
             }
             "mkdir" => {
                 if arg_exprs.is_empty() {
                     bail!("os.mkdir() requires at least 1 argument");
                 }
                 let path = &arg_exprs[0];
-                // DEPYLER-0956: Use .unwrap() to not require Result return type
-                Some(parse_quote! { std::fs::create_dir(#path).unwrap() })
+                // DEPYLER-0956: Use .expect() to not require Result return type
+                Some(parse_quote! { std::fs::create_dir(#path).expect("operation failed") })
             }
             "makedirs" => {
                 if arg_exprs.is_empty() {
                     bail!("os.makedirs() requires at least 1 argument");
                 }
                 let path = &arg_exprs[0];
-                // DEPYLER-0956: Use .unwrap() to not require Result return type
-                Some(parse_quote! { std::fs::create_dir_all(#path).unwrap() })
+                // DEPYLER-0956: Use .expect() to not require Result return type
+                Some(parse_quote! { std::fs::create_dir_all(#path).expect("operation failed") })
             }
             "rmdir" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.rmdir() requires exactly 1 argument");
                 }
                 let path = &arg_exprs[0];
-                // DEPYLER-0956: Use .unwrap() to not require Result return type
-                Some(parse_quote! { std::fs::remove_dir(#path).unwrap() })
+                // DEPYLER-0956: Use .expect() to not require Result return type
+                Some(parse_quote! { std::fs::remove_dir(#path).expect("operation failed") })
             }
             "rename" => {
                 if arg_exprs.len() != 2 {
@@ -6372,8 +6372,8 @@ impl<'a> ExprConverter<'a> {
                 }
                 let src = &arg_exprs[0];
                 let dst = &arg_exprs[1];
-                // DEPYLER-0956: Use .unwrap() to not require Result return type
-                Some(parse_quote! { std::fs::rename(#src, #dst).unwrap() })
+                // DEPYLER-0956: Use .expect() to not require Result return type
+                Some(parse_quote! { std::fs::rename(#src, #dst).expect("operation failed") })
             }
             "getcwd" => {
                 if !arg_exprs.is_empty() {
@@ -6751,7 +6751,7 @@ impl<'a> ExprConverter<'a> {
                         return Ok(if attr == "min" {
                             parse_quote! { chrono::NaiveTime::MIN }
                         } else {
-                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).unwrap() }
+                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).expect("invalid time") }
                         });
                     }
                 }

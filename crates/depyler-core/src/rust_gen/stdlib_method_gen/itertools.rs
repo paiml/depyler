@@ -238,7 +238,7 @@ fn convert_accumulate(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
                     None => x,
                     Some(a) => a + x,
                 });
-                acc.unwrap()
+                acc.expect("iterator operation failed")
             }).collect::<Vec<_>>()
         }
     })

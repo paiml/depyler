@@ -59,7 +59,7 @@ pub fn convert_int_cast(
     // DEPYLER-0653: Add & to convert String to &str
     if arg_exprs.len() == 2 {
         let base = &arg_exprs[1];
-        return Ok(parse_quote! { i64::from_str_radix(&#arg, #base).unwrap() });
+        return Ok(parse_quote! { i64::from_str_radix(&#arg, #base).expect("parse failed") });
     }
 
     if !hir_args.is_empty() {
@@ -204,7 +204,7 @@ pub fn convert_float_cast(
         match &hir_args[0] {
             // String literals need parsing
             HirExpr::Literal(Literal::String(_)) => {
-                return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                return Ok(parse_quote! { #arg.parse::<f64>().expect("parse failed") });
             }
 
             // Integer/float literals can use direct cast
@@ -230,7 +230,7 @@ pub fn convert_float_cast(
                     };
 
                 if is_string {
-                    return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                    return Ok(parse_quote! { #arg.parse::<f64>().expect("parse failed") });
                 }
                 return Ok(parse_quote! { (#arg) as f64 });
             }
@@ -256,7 +256,7 @@ pub fn convert_float_cast(
                     "readline",
                 ];
                 if string_producing_methods.contains(&method.as_str()) {
-                    return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                    return Ok(parse_quote! { #arg.parse::<f64>().expect("parse failed") });
                 }
                 return Ok(parse_quote! { (#arg) as f64 });
             }
@@ -288,7 +288,7 @@ pub fn convert_float_cast(
                     }
                 }
                 // Default: use parse() for index operations on string collections
-                return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                return Ok(parse_quote! { #arg.parse::<f64>().expect("parse failed") });
             }
 
             // Default: cast for numeric types
