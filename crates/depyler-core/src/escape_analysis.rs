@@ -1277,4 +1277,700 @@ mod tests {
         assert!(pattern.source_used_after);
         assert!(pattern.alias_used_after);
     }
+
+    // --- DEPYLER-99MODE: Additional escape analysis coverage tests ---
+
+    #[test]
+    fn test_analyze_while_loop() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: make_literal_int(0),
+                    type_annotation: Some(Type::Int),
+                },
+                HirStmt::While {
+                    condition: HirExpr::Binary {
+                        op: BinOp::Lt,
+                        left: Box::new(make_var("x")),
+                        right: Box::new(make_literal_int(10)),
+                    },
+                    body: vec![HirStmt::Assign {
+                        target: AssignTarget::Symbol("x".to_string()),
+                        value: HirExpr::Binary {
+                            op: BinOp::Add,
+                            left: Box::new(make_var("x")),
+                            right: Box::new(make_literal_int(1)),
+                        },
+                        type_annotation: Some(Type::Int),
+                    }],
+                },
+                HirStmt::Return(Some(make_var("x"))),
+            ],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_for_loop() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::For {
+                    target: AssignTarget::Symbol("item".to_string()),
+                    iter: HirExpr::List(vec![make_literal_int(1), make_literal_int(2)]),
+                    body: vec![HirStmt::Expr(HirExpr::Call {
+                        func: "print".to_string(),
+                        args: vec![make_var("item")],
+                        kwargs: vec![],
+                    })],
+                },
+            ],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_block_stmt() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Block(vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: make_literal_int(1),
+                    type_annotation: Some(Type::Int),
+                },
+                HirStmt::Return(Some(make_var("x"))),
+            ])],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_try_stmt() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Try {
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: make_literal_int(42),
+                    type_annotation: Some(Type::Int),
+                }],
+                handlers: vec![],
+                orelse: Some(vec![HirStmt::Expr(make_var("x"))]),
+                finalbody: Some(vec![HirStmt::Pass]),
+            }],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_with_stmt() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::With {
+                context: HirExpr::Call {
+                    func: "open".to_string(),
+                    args: vec![HirExpr::Literal(crate::hir::Literal::String(
+                        "file.txt".to_string(),
+                    ))],
+                    kwargs: vec![],
+                },
+                target: Some("f".to_string()),
+                body: vec![HirStmt::Expr(make_var("f"))],
+                is_async: false,
+            }],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_assert_stmt() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Assert {
+                test: HirExpr::Binary {
+                    op: BinOp::Gt,
+                    left: Box::new(make_literal_int(5)),
+                    right: Box::new(make_literal_int(0)),
+                },
+                msg: Some(HirExpr::Literal(crate::hir::Literal::String(
+                    "must be positive".to_string(),
+                ))),
+            }],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_raise_stmt() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Raise {
+                exception: Some(HirExpr::Call {
+                    func: "ValueError".to_string(),
+                    args: vec![HirExpr::Literal(crate::hir::Literal::String(
+                        "bad value".to_string(),
+                    ))],
+                    kwargs: vec![],
+                }),
+                cause: None,
+            }],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_raise_with_cause() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Raise {
+                exception: Some(HirExpr::Call {
+                    func: "RuntimeError".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }),
+                cause: Some(make_var("original_error")),
+            }],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+        // Just verifies it doesn't panic
+    }
+
+    #[test]
+    fn test_analyze_pass_break_continue() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Pass,
+                HirStmt::Break { label: None },
+                HirStmt::Continue { label: None },
+            ],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_return_none() {
+        let func = make_function("test", vec![HirStmt::Return(None)]);
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_nested_function_captures() {
+        let func = HirFunction {
+            name: "outer".to_string(),
+            params: smallvec![crate::hir::HirParam {
+                name: "x".to_string(),
+                ty: Type::Int,
+                default: None,
+                is_vararg: false,
+            }],
+            ret_type: Type::Int,
+            body: vec![HirStmt::FunctionDef {
+                name: "inner".to_string(),
+                params: Box::new(smallvec![crate::hir::HirParam {
+                    name: "y".to_string(),
+                    ty: Type::Int,
+                    default: None,
+                    is_vararg: false,
+                }]),
+                ret_type: Type::Int,
+                body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                    op: BinOp::Add,
+                    left: Box::new(make_var("x")),
+                    right: Box::new(make_var("y")),
+                }))],
+                docstring: None,
+            }],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_expr_method_call() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(make_var("items")),
+                method: "append".to_string(),
+                args: vec![make_literal_int(42)],
+                kwargs: vec![],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_expr_index_access() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::Index {
+                base: Box::new(make_var("items")),
+                index: Box::new(make_literal_int(0)),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_slice() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::Slice {
+                base: Box::new(make_var("items")),
+                start: Some(Box::new(make_literal_int(1))),
+                stop: Some(Box::new(make_literal_int(3))),
+                step: Some(Box::new(make_literal_int(1))),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_attribute() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(make_var("obj")),
+                attr: "name".to_string(),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_collections() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Expr(HirExpr::List(vec![make_literal_int(1), make_literal_int(2)])),
+                HirStmt::Expr(HirExpr::Tuple(vec![make_literal_int(3), make_literal_int(4)])),
+                HirStmt::Expr(HirExpr::Set(vec![make_literal_int(5)])),
+                HirStmt::Expr(HirExpr::Dict(vec![(
+                    HirExpr::Literal(crate::hir::Literal::String("k".to_string())),
+                    make_literal_int(1),
+                )])),
+            ],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_list_comprehension() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::ListComp {
+                element: Box::new(HirExpr::Binary {
+                    op: BinOp::Mul,
+                    left: Box::new(make_var("x")),
+                    right: Box::new(make_literal_int(2)),
+                }),
+                generators: vec![crate::hir::HirComprehension {
+                    target: "x".to_string(),
+                    iter: Box::new(HirExpr::Call {
+                        func: "range".to_string(),
+                        args: vec![make_literal_int(10)],
+                        kwargs: vec![],
+                    }),
+                    conditions: vec![HirExpr::Binary {
+                        op: BinOp::Gt,
+                        left: Box::new(make_var("x")),
+                        right: Box::new(make_literal_int(5)),
+                    }],
+                }],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_dict_comprehension() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::DictComp {
+                key: Box::new(make_var("k")),
+                value: Box::new(make_var("v")),
+                generators: vec![crate::hir::HirComprehension {
+                    target: "k".to_string(),
+                    iter: Box::new(make_var("data")),
+                    conditions: vec![],
+                }],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_expr_generator() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::GeneratorExp {
+                element: Box::new(make_var("x")),
+                generators: vec![crate::hir::HirComprehension {
+                    target: "x".to_string(),
+                    iter: Box::new(make_var("items")),
+                    conditions: vec![],
+                }],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_expr_lambda() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::Lambda {
+                params: vec!["x".to_string()],
+                body: Box::new(HirExpr::Binary {
+                    op: BinOp::Mul,
+                    left: Box::new(make_var("x")),
+                    right: Box::new(make_literal_int(2)),
+                }),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_if_expression() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::IfExpr {
+                test: Box::new(HirExpr::Binary {
+                    op: BinOp::Gt,
+                    left: Box::new(make_var("x")),
+                    right: Box::new(make_literal_int(0)),
+                }),
+                body: Box::new(make_var("x")),
+                orelse: Box::new(make_literal_int(0)),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_expr_fstring() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::FString {
+                parts: vec![
+                    crate::hir::FStringPart::Literal("hello ".to_string()),
+                    crate::hir::FStringPart::Expr(Box::new(make_var("name"))),
+                ],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let _errors = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_expr_await() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::Await {
+                value: Box::new(HirExpr::Call {
+                    func: "fetch".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_yield() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(make_literal_int(42))),
+                }),
+                HirStmt::Expr(HirExpr::Yield {
+                    value: None,
+                }),
+            ],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_named_expr() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::NamedExpr {
+                target: "n".to_string(),
+                value: Box::new(make_literal_int(10)),
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_merge_branch_states_moved_in_then() {
+        let mut analysis = UseAfterMoveAnalysis::new();
+        analysis
+            .move_states
+            .insert("x".to_string(), MoveState::Available);
+
+        let before = analysis.move_states.clone();
+        let mut after_then = before.clone();
+        after_then.insert(
+            "x".to_string(),
+            MoveState::Moved(SourceSpan::default()),
+        );
+        let after_else = before.clone();
+
+        analysis.merge_branch_states(&before, &after_then, &after_else);
+
+        assert!(matches!(
+            analysis.move_states.get("x"),
+            Some(MoveState::ConditionallyMoved(_))
+        ));
+    }
+
+    #[test]
+    fn test_merge_loop_state() {
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let mut before = HashMap::new();
+        before.insert("x".to_string(), MoveState::Available);
+
+        analysis.move_states = before.clone();
+        analysis
+            .move_states
+            .insert("x".to_string(), MoveState::Moved(SourceSpan::default()));
+
+        analysis.merge_loop_state(&before);
+
+        assert!(matches!(
+            analysis.move_states.get("x"),
+            Some(MoveState::ConditionallyMoved(_))
+        ));
+    }
+
+    #[test]
+    fn test_function_takes_ownership() {
+        let analysis = UseAfterMoveAnalysis::new();
+        // Borrowing functions return false
+        assert!(!analysis.function_takes_ownership("print"));
+        assert!(!analysis.function_takes_ownership("len"));
+        // Unknown functions also false (conservative)
+        assert!(!analysis.function_takes_ownership("unknown_func"));
+    }
+
+    #[test]
+    fn test_errors_accessor() {
+        let analysis = UseAfterMoveAnalysis::new();
+        assert!(analysis.errors().is_empty());
+    }
+
+    #[test]
+    fn test_needs_clone_accessor() {
+        let analysis = StrategicCloneAnalysis::new();
+        assert!(analysis.needs_clone().is_empty());
+    }
+
+    #[test]
+    fn test_analyze_ownership_comprehensive_with_aliasing() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("a".to_string()),
+                    value: HirExpr::Literal(crate::hir::Literal::String("hello".to_string())),
+                    type_annotation: Some(Type::String),
+                },
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("b".to_string()),
+                    value: make_var("a"),
+                    type_annotation: Some(Type::String),
+                },
+                HirStmt::Expr(HirExpr::Call {
+                    func: "print".to_string(),
+                    args: vec![make_var("a")],
+                    kwargs: vec![],
+                }),
+                HirStmt::Expr(HirExpr::Call {
+                    func: "print".to_string(),
+                    args: vec![make_var("b")],
+                    kwargs: vec![],
+                }),
+            ],
+        );
+        let result = analyze_ownership(&func);
+        assert!(!result.aliasing_patterns.is_empty());
+    }
+
+    #[test]
+    fn test_strategic_clone_with_while() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: make_literal_int(0),
+                    type_annotation: Some(Type::Int),
+                },
+                HirStmt::While {
+                    condition: HirExpr::Binary {
+                        op: BinOp::Lt,
+                        left: Box::new(make_var("x")),
+                        right: Box::new(make_literal_int(10)),
+                    },
+                    body: vec![HirStmt::Assign {
+                        target: AssignTarget::Symbol("x".to_string()),
+                        value: HirExpr::Binary {
+                            op: BinOp::Add,
+                            left: Box::new(make_var("x")),
+                            right: Box::new(make_literal_int(1)),
+                        },
+                        type_annotation: Some(Type::Int),
+                    }],
+                },
+            ],
+        );
+        let mut analysis = StrategicCloneAnalysis::new();
+        let _patterns = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_strategic_clone_with_for() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::For {
+                target: AssignTarget::Symbol("item".to_string()),
+                iter: make_var("items"),
+                body: vec![HirStmt::Expr(make_var("item"))],
+            }],
+        );
+        let mut analysis = StrategicCloneAnalysis::new();
+        let _patterns = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_strategic_clone_collect_uses_method_call() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(make_var("obj")),
+                method: "process".to_string(),
+                args: vec![make_var("data")],
+                kwargs: vec![],
+            })],
+        );
+        let mut analysis = StrategicCloneAnalysis::new();
+        let _patterns = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_strategic_clone_collect_uses_expr_types() {
+        let func = make_function(
+            "test",
+            vec![
+                HirStmt::Expr(HirExpr::Unary {
+                    op: crate::hir::UnaryOp::Neg,
+                    operand: Box::new(make_var("x")),
+                }),
+                HirStmt::Expr(HirExpr::Index {
+                    base: Box::new(make_var("arr")),
+                    index: Box::new(make_literal_int(0)),
+                }),
+                HirStmt::Expr(HirExpr::Attribute {
+                    value: Box::new(make_var("obj")),
+                    attr: "field".to_string(),
+                }),
+                HirStmt::Expr(HirExpr::IfExpr {
+                    test: Box::new(make_var("cond")),
+                    body: Box::new(make_var("a")),
+                    orelse: Box::new(make_var("b")),
+                }),
+            ],
+        );
+        let mut analysis = StrategicCloneAnalysis::new();
+        let _patterns = analysis.analyze_function(&func);
+    }
+
+    #[test]
+    fn test_set_comp() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::SetComp {
+                element: Box::new(make_var("x")),
+                generators: vec![crate::hir::HirComprehension {
+                    target: "x".to_string(),
+                    iter: Box::new(make_var("items")),
+                    conditions: vec![],
+                }],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_expr_call_with_kwargs() {
+        let func = make_function(
+            "test",
+            vec![HirStmt::Expr(HirExpr::Call {
+                func: "create".to_string(),
+                args: vec![make_literal_int(1)],
+                kwargs: vec![
+                    ("name".to_string(), HirExpr::Literal(crate::hir::Literal::String("test".to_string()))),
+                    ("value".to_string(), make_literal_int(42)),
+                ],
+            })],
+        );
+        let mut analysis = UseAfterMoveAnalysis::new();
+        let errors = analysis.analyze_function(&func);
+        assert!(errors.is_empty());
+    }
 }

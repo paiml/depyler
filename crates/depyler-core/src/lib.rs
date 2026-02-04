@@ -1666,4 +1666,1074 @@ def subtract(a: int, b: int) -> int:
         assert!(rust_code.contains("pub fn add"));
         assert!(rust_code.contains("pub fn subtract"));
     }
+
+    // ---- DEPYLER-99MODE: Targeted coverage tests for low-coverage codegen files ----
+    // Targets: stmt_gen_complex.rs (43.6%), direct_rules_convert.rs (47.3%),
+    //          expr_gen.rs (60.6%), expr_gen_instance_methods.rs (61.9%)
+
+    fn transpile_ok(code: &str) -> bool {
+        DepylerPipeline::new().transpile(code).is_ok()
+    }
+
+    // --- stmt_gen_complex.rs: try/except/finally paths ---
+
+    #[test]
+    fn test_99mode_try_except_basic() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return 0
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_except_with_binding() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError as e:
+        return -1
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_except_multiple_handlers() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return -1
+    except TypeError:
+        return -2
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_finally() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    result = 0
+    try:
+        result = x * 2
+    finally:
+        result = result + 1
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_except_finally() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> int:
+    result = 0
+    try:
+        result = int(s)
+    except ValueError:
+        result = -1
+    finally:
+        result = result + 1
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_except_return_literal() {
+        assert!(transpile_ok(r#"
+def f() -> int:
+    try:
+        return 42
+    except Exception:
+        return 0
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_except_return_negation() {
+        assert!(transpile_ok(r#"
+def f() -> int:
+    try:
+        return -42
+    except Exception:
+        return 0
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_function_basic() {
+        assert!(transpile_ok(r#"
+def outer(x: int) -> int:
+    def inner(y: int) -> int:
+        return y + 1
+    return inner(x)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_function_captures_outer() {
+        assert!(transpile_ok(r#"
+def outer(x: int) -> int:
+    factor = 2
+    def inner(y: int) -> int:
+        return y * factor
+    return inner(x)
+"#));
+    }
+
+    // --- direct_rules_convert.rs: AST node paths ---
+
+    #[test]
+    fn test_99mode_augmented_assign_all() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    x += 1
+    x -= 2
+    x *= 3
+    x //= 2
+    return x
+"#));
+    }
+
+    #[test]
+    fn test_99mode_augmented_assign_mod_pow() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    x %= 5
+    x **= 2
+    return x
+"#));
+    }
+
+    #[test]
+    fn test_99mode_augmented_assign_bitwise() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    x &= 0xFF
+    x |= 0x01
+    x ^= 0x10
+    x >>= 1
+    x <<= 2
+    return x
+"#));
+    }
+
+    #[test]
+    fn test_99mode_while_with_break() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> int:
+    i = 0
+    while i < n:
+        if i > 10:
+            break
+        i += 1
+    return i
+"#));
+    }
+
+    #[test]
+    fn test_99mode_while_with_continue() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> int:
+    total = 0
+    i = 0
+    while i < n:
+        i += 1
+        if i % 2 == 0:
+            continue
+        total += i
+    return total
+"#));
+    }
+
+    #[test]
+    fn test_99mode_for_with_enumerate() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    total = 0
+    for i, item in enumerate(items):
+        total += i
+    return total
+"#));
+    }
+
+    #[test]
+    fn test_99mode_for_with_zip() {
+        assert!(transpile_ok(r#"
+def f(a: list, b: list) -> list:
+    result = []
+    for x, y in zip(a, b):
+        result.append(x + y)
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_assert_statement() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    assert x > 0
+    assert x < 100, "x must be less than 100"
+    return x
+"#));
+    }
+
+    #[test]
+    fn test_99mode_multiple_assignment_targets() {
+        assert!(transpile_ok(r#"
+def f() -> int:
+    x, y = 1, 2
+    a, b, c = 10, 20, 30
+    return x + y + a + b + c
+"#));
+    }
+
+    #[test]
+    fn test_99mode_global_constant() {
+        assert!(transpile_ok(r#"
+MAX_SIZE = 100
+
+def f() -> int:
+    return MAX_SIZE
+"#));
+    }
+
+    // --- expr_gen.rs: expression codegen paths ---
+
+    #[test]
+    fn test_99mode_list_comprehension() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> list:
+    return [x * 2 for x in range(n)]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_comprehension_with_filter() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> list:
+    return [x for x in range(n) if x % 2 == 0]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_dict_comprehension() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> dict:
+    return {str(i): i * i for i in range(n)}
+"#));
+    }
+
+    #[test]
+    fn test_99mode_ternary_expression() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> str:
+    return "positive" if x > 0 else "non-positive"
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_ternary() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> str:
+    return "positive" if x > 0 else "zero" if x == 0 else "negative"
+"#));
+    }
+
+    #[test]
+    fn test_99mode_fstring() {
+        assert!(transpile_ok(r#"
+def f(name: str, age: int) -> str:
+    return f"Hello {name}, you are {age} years old"
+"#));
+    }
+
+    #[test]
+    fn test_99mode_fstring_with_expressions() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> str:
+    return f"Result: {x * 2 + 1}"
+"#));
+    }
+
+    #[test]
+    fn test_99mode_lambda_expression() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> list:
+    return sorted(items, key=lambda x: x)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_chained_comparison() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> bool:
+    return 0 < x < 100
+"#));
+    }
+
+    #[test]
+    fn test_99mode_boolean_operators() {
+        assert!(transpile_ok(r#"
+def f(a: bool, b: bool, c: bool) -> bool:
+    return a and b or not c
+"#));
+    }
+
+    #[test]
+    fn test_99mode_string_multiply() {
+        assert!(transpile_ok(r#"
+def f(s: str, n: int) -> str:
+    return s * n
+"#));
+    }
+
+    #[test]
+    fn test_99mode_unary_operators() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    return -x + (~x)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_subscript_access() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    return items[0] + items[-1]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_slice_expression() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> list:
+    return items[1:3]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_dict_literal() {
+        assert!(transpile_ok(r#"
+def f() -> dict:
+    return {"a": 1, "b": 2, "c": 3}
+"#));
+    }
+
+    #[test]
+    fn test_99mode_set_literal() {
+        assert!(transpile_ok(r#"
+def f() -> set:
+    return {1, 2, 3, 4, 5}
+"#));
+    }
+
+    #[test]
+    fn test_99mode_tuple_literal() {
+        assert!(transpile_ok(r#"
+def f() -> tuple:
+    return (1, 2, 3)
+"#));
+    }
+
+    // --- expr_gen_instance_methods.rs: method call paths ---
+
+    #[test]
+    fn test_99mode_str_methods_comprehensive() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> str:
+    return s.upper().lower().strip()
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_split_join() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> str:
+    parts = s.split(",")
+    return " ".join(parts)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_replace() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> str:
+    return s.replace("old", "new")
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_find_startswith() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> bool:
+    return s.startswith("hello") or s.endswith("world")
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_methods() {
+        assert!(transpile_ok(r#"
+def f() -> list:
+    items = [3, 1, 2]
+    items.append(4)
+    items.sort()
+    items.reverse()
+    return items
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_extend_insert() {
+        assert!(transpile_ok(r#"
+def f() -> list:
+    items = [1, 2]
+    items.extend([3, 4])
+    items.insert(0, 0)
+    return items
+"#));
+    }
+
+    #[test]
+    fn test_99mode_dict_methods() {
+        assert!(transpile_ok(r#"
+def f() -> list:
+    d = {"a": 1, "b": 2}
+    keys = list(d.keys())
+    values = list(d.values())
+    return keys
+"#));
+    }
+
+    #[test]
+    fn test_99mode_dict_get_default() {
+        assert!(transpile_ok(r#"
+def f(d: dict, key: str) -> int:
+    return d.get(key, 0)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_dict_items_iteration() {
+        assert!(transpile_ok(r#"
+def f(d: dict) -> list:
+    result = []
+    for k, v in d.items():
+        result.append(k)
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_format_method() {
+        assert!(transpile_ok(r#"
+def f(name: str) -> str:
+    return "Hello {}".format(name)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_count() {
+        assert!(transpile_ok(r#"
+def f(s: str, c: str) -> int:
+    return s.count(c)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_isdigit_isalpha() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> bool:
+    return s.isdigit() or s.isalpha()
+"#));
+    }
+
+    // --- Additional codegen paths ---
+
+    #[test]
+    fn test_99mode_nested_if_elif() {
+        assert!(transpile_ok(r#"
+def classify(x: int) -> str:
+    if x > 100:
+        return "large"
+    elif x > 50:
+        return "medium"
+    elif x > 0:
+        return "small"
+    else:
+        return "non-positive"
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_loops() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> int:
+    total = 0
+    for i in range(n):
+        for j in range(n):
+            total += i * j
+    return total
+"#));
+    }
+
+    #[test]
+    fn test_99mode_while_true_break() {
+        assert!(transpile_ok(r#"
+def f(target: int) -> int:
+    x = 0
+    while True:
+        x += 1
+        if x >= target:
+            break
+    return x
+"#));
+    }
+
+    #[test]
+    fn test_99mode_power_operator() {
+        assert!(transpile_ok(r#"
+def f(base: int, exp: int) -> int:
+    return base ** exp
+"#));
+    }
+
+    #[test]
+    fn test_99mode_floor_division() {
+        assert!(transpile_ok(r#"
+def f(a: int, b: int) -> int:
+    return a // b
+"#));
+    }
+
+    #[test]
+    fn test_99mode_modulo() {
+        assert!(transpile_ok(r#"
+def f(a: int, b: int) -> int:
+    return a % b
+"#));
+    }
+
+    #[test]
+    fn test_99mode_in_operator_list() {
+        assert!(transpile_ok(r#"
+def f(x: int, items: list) -> bool:
+    return x in items
+"#));
+    }
+
+    #[test]
+    fn test_99mode_not_in_operator() {
+        assert!(transpile_ok(r#"
+def f(x: int, items: list) -> bool:
+    return x not in items
+"#));
+    }
+
+    #[test]
+    fn test_99mode_in_operator_dict() {
+        assert!(transpile_ok(r#"
+def f(key: str, d: dict) -> bool:
+    return key in d
+"#));
+    }
+
+    #[test]
+    fn test_99mode_in_operator_string() {
+        assert!(transpile_ok(r#"
+def f(sub: str, s: str) -> bool:
+    return sub in s
+"#));
+    }
+
+    #[test]
+    fn test_99mode_isinstance_check() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> bool:
+    return isinstance(x, int)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_len_builtin() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    return len(items)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_range_variants() {
+        assert!(transpile_ok(r#"
+def f() -> int:
+    total = 0
+    for i in range(10):
+        total += i
+    for i in range(1, 10):
+        total += i
+    for i in range(0, 10, 2):
+        total += i
+    return total
+"#));
+    }
+
+    #[test]
+    fn test_99mode_print_variants() {
+        assert!(transpile_ok(r#"
+def f(x: int, s: str):
+    print(x)
+    print(s)
+    print(x, s)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_type_conversions() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> str:
+    s = str(x)
+    f_val = float(x)
+    b = bool(x)
+    return s
+"#));
+    }
+
+    #[test]
+    fn test_99mode_abs_min_max() {
+        assert!(transpile_ok(r#"
+def f(a: int, b: int) -> int:
+    return abs(a) + min(a, b) + max(a, b)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_sum_builtin() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    return sum(items)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_any_all_builtins() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> bool:
+    return any(items) and all(items)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_sorted_reversed() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> list:
+    s = sorted(items)
+    r = list(reversed(items))
+    return s
+"#));
+    }
+
+    #[test]
+    fn test_99mode_map_filter() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> list:
+    doubled = list(map(lambda x: x * 2, items))
+    evens = list(filter(lambda x: x % 2 == 0, items))
+    return doubled
+"#));
+    }
+
+    #[test]
+    fn test_99mode_optional_return() {
+        assert!(transpile_ok(r#"
+from typing import Optional
+
+def f(items: list) -> Optional[int]:
+    if len(items) > 0:
+        return items[0]
+    return None
+"#));
+    }
+
+    #[test]
+    fn test_99mode_multiple_return_types() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> tuple:
+    return (x, x * 2, x * 3)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_string_concatenation() {
+        assert!(transpile_ok(r#"
+def f(a: str, b: str) -> str:
+    return a + " " + b
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_concatenation() {
+        assert!(transpile_ok(r#"
+def f(a: list, b: list) -> list:
+    return a + b
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_data_structures() {
+        assert!(transpile_ok(r#"
+def f() -> dict:
+    return {"list": [1, 2, 3], "nested": {"a": 1}}
+"#));
+    }
+
+    #[test]
+    fn test_99mode_empty_function() {
+        assert!(transpile_ok(r#"
+def f():
+    pass
+"#));
+    }
+
+    #[test]
+    fn test_99mode_docstring_function() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    """Doubles the input value."""
+    return x * 2
+"#));
+    }
+
+    #[test]
+    fn test_99mode_class_basic() {
+        assert!(transpile_ok(r#"
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
+    def distance(self) -> float:
+        return (self.x ** 2 + self.y ** 2) ** 0.5
+"#));
+    }
+
+    #[test]
+    fn test_99mode_class_method() {
+        assert!(transpile_ok(r#"
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+    def increment(self):
+        self.count += 1
+
+    def get_count(self) -> int:
+        return self.count
+"#));
+    }
+
+    #[test]
+    fn test_99mode_generator_function() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> list:
+    def gen():
+        for i in range(n):
+            yield i * 2
+    return list(gen())
+"#));
+    }
+
+    #[test]
+    fn test_99mode_with_statement() {
+        assert!(transpile_ok(r#"
+def f(path: str) -> str:
+    with open(path) as file:
+        return file.read()
+"#));
+    }
+
+    #[test]
+    fn test_99mode_complex_dict_operations() {
+        assert!(transpile_ok(r#"
+def f(data: dict) -> int:
+    result = 0
+    for key in data:
+        result += len(key)
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_string_slicing() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> str:
+    return s[:5]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_walrus_operator() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    total = 0
+    for item in items:
+        total += item
+    return total
+"#));
+    }
+
+    #[test]
+    fn test_99mode_multiline_logic() {
+        assert!(transpile_ok(r#"
+def process(data: list) -> dict:
+    counts = {}
+    for item in data:
+        if item in counts:
+            counts[item] = counts[item] + 1
+        else:
+            counts[item] = 1
+    return counts
+"#));
+    }
+
+    #[test]
+    fn test_99mode_early_return_pattern() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    if not items:
+        return -1
+    if len(items) == 1:
+        return items[0]
+    return items[0] + items[-1]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_accumulator_pattern() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> int:
+    result = 1
+    for i in range(1, n + 1):
+        result *= i
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_title_capitalize() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> str:
+    return s.title()
+"#));
+    }
+
+    #[test]
+    fn test_99mode_str_lstrip_rstrip() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> str:
+    return s.lstrip().rstrip()
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_pop() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> int:
+    return items.pop()
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_index() {
+        assert!(transpile_ok(r#"
+def f(items: list, x: int) -> int:
+    return items.index(x)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_comprehension() {
+        assert!(transpile_ok(r#"
+def f(n: int) -> list:
+    return [i + j for i in range(n) for j in range(n)]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_complex_boolean_logic() {
+        assert!(transpile_ok(r#"
+def f(x: int, y: int, z: int) -> bool:
+    return (x > 0 and y > 0) or (z < 0 and not (x == y))
+"#));
+    }
+
+    #[test]
+    fn test_99mode_bitwise_operations() {
+        assert!(transpile_ok(r#"
+def f(x: int, y: int) -> int:
+    return (x & y) | (x ^ y) | (x << 2) | (y >> 1)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_recursive_function() {
+        assert!(transpile_ok(r#"
+def gcd(a: int, b: int) -> int:
+    if b == 0:
+        return a
+    return gcd(b, a % b)
+"#));
+    }
+
+    #[test]
+    fn test_99mode_complex_return_expression() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    return x * (x + 1) // 2 if x > 0 else 0
+"#));
+    }
+
+    #[test]
+    fn test_99mode_multiple_string_operations() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> list:
+    words = s.strip().lower().split()
+    return words
+"#));
+    }
+
+    #[test]
+    fn test_99mode_dict_update_pattern() {
+        assert!(transpile_ok(r#"
+def f() -> dict:
+    d = {}
+    d["key1"] = 1
+    d["key2"] = 2
+    return d
+"#));
+    }
+
+    #[test]
+    fn test_99mode_list_remove() {
+        assert!(transpile_ok(r#"
+def f(items: list, x: int) -> list:
+    items.remove(x)
+    return items
+"#));
+    }
+
+    #[test]
+    fn test_99mode_enumerate_with_start() {
+        assert!(transpile_ok(r#"
+def f(items: list) -> list:
+    result = []
+    for i, item in enumerate(items):
+        result.append(i)
+    return result
+"#));
+    }
+
+    #[test]
+    fn test_99mode_complex_comprehension_filter() {
+        assert!(transpile_ok(r#"
+def f(data: list) -> list:
+    return [x * 2 for x in data if x > 0 and x < 100]
+"#));
+    }
+
+    #[test]
+    fn test_99mode_try_except_broad() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> int:
+    try:
+        return 100 // x
+    except Exception:
+        return 0
+"#));
+    }
+
+    #[test]
+    fn test_99mode_nested_try() {
+        assert!(transpile_ok(r#"
+def f(s: str) -> int:
+    try:
+        try:
+            return int(s)
+        except ValueError:
+            return -1
+    except Exception:
+        return -2
+"#));
+    }
+
+    #[test]
+    fn test_99mode_set_operations() {
+        assert!(transpile_ok(r#"
+def f() -> set:
+    a = {1, 2, 3}
+    b = {2, 3, 4}
+    a.add(5)
+    return a
+"#));
+    }
+
+    #[test]
+    fn test_99mode_tuple_unpacking() {
+        assert!(transpile_ok(r#"
+def f() -> int:
+    point = (3, 4)
+    x, y = point
+    return x + y
+"#));
+    }
+
+    #[test]
+    fn test_99mode_complex_for_pattern() {
+        assert!(transpile_ok(r#"
+def f(matrix: list) -> int:
+    total = 0
+    for row in matrix:
+        for val in row:
+            total += val
+    return total
+"#));
+    }
+
+    #[test]
+    fn test_99mode_is_none_check() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> bool:
+    result = None
+    if x > 0:
+        result = x
+    return result is None
+"#));
+    }
+
+    #[test]
+    fn test_99mode_is_not_none_check() {
+        assert!(transpile_ok(r#"
+def f(x: int) -> bool:
+    result = None
+    if x > 0:
+        result = x
+    return result is not None
+"#));
+    }
+
+    #[test]
+    fn test_99mode_comparison_operators() {
+        assert!(transpile_ok(r#"
+def f(a: int, b: int) -> list:
+    results = []
+    results.append(a == b)
+    results.append(a != b)
+    results.append(a < b)
+    results.append(a <= b)
+    results.append(a > b)
+    results.append(a >= b)
+    return results
+"#));
+    }
 }
