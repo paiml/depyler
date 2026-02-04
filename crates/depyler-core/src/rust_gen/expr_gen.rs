@@ -1298,7 +1298,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         op: BinOp,
     ) -> Result<syn::Expr> {
         // DEPYLER-0302: String repetition
-        // DEPYLER-0908: Fixed false positive when variable could be either string or int
+        // DEPYLER-0908: Resolved false positive when variable could be either string or int
         // ONLY use .repeat() when one side is DEFINITELY a string LITERAL
         // Variables are NEVER treated as strings for multiplication because:
         // 1. var_types can have stale type info from different branches
@@ -1678,7 +1678,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: syn::Expr,
         right_expr: syn::Expr,
     ) -> Result<syn::Expr> {
-        // DEPYLER-0380 Bug #3: Handle `var in os.environ` / `var not in os.environ`
+        // DEPYLER-0380 #3: Handle `var in os.environ` / `var not in os.environ`
         if let HirExpr::Attribute { value, attr } = right {
             if let HirExpr::Var(module_name) = &**value {
                 if module_name == "os" && attr == "environ" {
@@ -2461,7 +2461,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 type_based || name_based
             }
-            // DEPYLER-0600 Bug #6: Added comprehension types - they produce collections too
+            // DEPYLER-0600 #6: Comprehension types also produce collections
             HirExpr::List(_)
             | HirExpr::Dict(_)
             | HirExpr::Set(_)
@@ -3265,7 +3265,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // to final match block using convert_chr_builtin/convert_ord_builtin
 
         // DEPYLER-0255: Handle bool(value) → type-aware truthiness check
-        // DEPYLER-REFACTOR-001: Fixed to handle different types correctly
+        // DEPYLER-REFACTOR-001: Handles different types correctly
         if func == "bool" && args.len() == 1 {
             let arg = &args[0];
             match arg {
@@ -3336,7 +3336,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0234: For user-defined class constructors, convert string literals to String
         // This fixes "expected String, found &str" errors when calling constructors
         // DEPYLER-1144: Also coerce list literals when class has Vec<f64> field
-        // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+        // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
         let class_has_vec_f64_field = self
             .ctx
             .class_field_types

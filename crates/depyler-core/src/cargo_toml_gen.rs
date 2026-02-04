@@ -511,10 +511,10 @@ mod tests {
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
-            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 #2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
@@ -685,10 +685,10 @@ mod tests {
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
-            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 #2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
@@ -856,10 +856,10 @@ mod tests {
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
-            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 #2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
@@ -1281,10 +1281,10 @@ mod tests {
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
-            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 #2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters

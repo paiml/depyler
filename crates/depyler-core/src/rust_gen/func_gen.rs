@@ -273,7 +273,7 @@ fn find_var_type_in_body(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
 }
 
 /// DEPYLER-0963: Find the type of a variable from its assignments, with parameter type context.
-/// DEPYLER-0965: Fixed to look at ALL assignments, not just the first one.
+/// DEPYLER-0965: Looks at ALL assignments, not just the first one.
 /// When a variable has multiple assignments (e.g., `x = None` then `x = "hello"`),
 /// we should find the first assignment that gives us a concrete type.
 fn find_var_type_in_body_with_params(
@@ -2194,7 +2194,7 @@ pub(crate) fn infer_return_type_from_body_with_params(
 
     // Add parameter types to environment
     // For argparse validators, parameters are typically strings
-    // DEPYLER-0455 Bug 7: Validator functions receive &str parameters
+    // DEPYLER-0455 #7: Validator functions receive &str parameters
     let is_validator = ctx.validator_functions.contains(&func.name);
     for param in &func.params {
         let param_type = if is_validator && matches!(param.ty, Type::Unknown) {

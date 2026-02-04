@@ -459,7 +459,7 @@ pub(crate) fn codegen_return_type(
             let error_type: syn::Type = syn::parse_str(&error_type_str)
                 .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
 
-            // DEPYLER-0455 Bug 7: Infer return type from function body
+            // DEPYLER-0455 #7: Infer return type from function body
             // Functions without type annotations but that return values (e.g., argparse validators)
             // should infer their return type from actual return statements
             //
@@ -1020,7 +1020,7 @@ impl RustCodeGen for HirFunction {
             ctx.current_subcommand_fields = Some(fields.iter().cloned().collect());
         }
 
-        // DEPYLER-0456 Bug #1: Pre-register all add_parser() calls before body codegen
+        // DEPYLER-0456 #1: Pre-register all add_parser() calls before body codegen
         // This ensures expression statement subcommands (no variable assignment) are included
         // in Commands enum generation. Must run BEFORE codegen_function_body() below.
         crate::rust_gen::argparse_transform::preregister_subcommands_from_hir(
@@ -1235,7 +1235,7 @@ impl RustCodeGen for HirFunction {
         // This fixes functions with side effects that use error handling (raise/try/except)
         // Also handles Type::Unknown (functions without type annotations that don't explicitly return)
         //
-        // DEPYLER-0455 Bug 6: Check if last statement always returns (including try-except)
+        // DEPYLER-0455 #6: Check if last statement always returns (including try-except)
         // Validator functions with try-except that return in all branches should not get Ok(())
         // Use stmt_always_returns() instead of simple Return check to handle exhaustive returns
         if can_fail {

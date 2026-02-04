@@ -103,7 +103,7 @@ pub fn expr_infers_float(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
 }
 
 /// DEPYLER-0932: Check if an expression produces a numpy/trueno Vector value
-/// DEPYLER-1044: Fixed to not flag abs(scalar), sqrt(scalar), etc. as numpy
+/// DEPYLER-1044: Does not flag abs(scalar), sqrt(scalar), etc. as numpy
 pub fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
     match expr {
         // These always create vectors

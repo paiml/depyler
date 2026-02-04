@@ -865,7 +865,7 @@ impl BorrowingContext {
         }
 
         // If string escapes, we need to take ownership to avoid lifetime issues
-        // DEPYLER-0357: Fixed Cow lifetime mismatch bug
+        // DEPYLER-0357: Cow lifetime mismatch resolution
         // Previous behavior: Generated Cow<'static, str> which creates impossible
         // lifetime constraints when returning borrowed parameters
         // New behavior: Use owned String for simplicity and correctness

@@ -55,7 +55,7 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
         }
         Type::List(elem) => {
             // DEPYLER-1203: In NASA mode, Unknown element type defaults to DepylerValue
-            // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+            // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
             // DEPYLER-1209: Also check for UnificationVar
             let elem_ty = if nasa_mode && matches!(**elem, Type::Unknown | Type::UnificationVar(_))
             {

@@ -375,10 +375,10 @@ fn add_stdlib_real_errors(dataset: &mut TrainingDataset) {
     ]);
 }
 
-/// Add samples from historical bug documentation (mined from docs/bugs/*.md)
-fn add_bug_doc_samples(dataset: &mut TrainingDataset) {
+/// Add samples from historical defect documentation (mined from docs/bugs/*.md)
+fn add_defect_doc_samples(dataset: &mut TrainingDataset) {
     dataset.add_many(vec![
-        // From DEPYLER-0161: Dead code elimination bug
+        // From DEPYLER-0161: Dead code elimination issue
         TrainingSample::with_fix(
             "error[E0425]: cannot find value `arr1` in this scope",
             ErrorCategory::SyntaxError,
@@ -473,8 +473,8 @@ pub fn build_combined_corpus() -> TrainingDataset {
         real.add(sample.clone());
     }
 
-    // Add samples mined from bug documentation
-    add_bug_doc_samples(&mut real);
+    // Add samples mined from defect documentation
+    add_defect_doc_samples(&mut real);
 
     // Add additional samples to balance underrepresented categories
     add_borrow_checker_samples(&mut real);

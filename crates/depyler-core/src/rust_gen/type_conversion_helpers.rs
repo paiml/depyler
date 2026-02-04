@@ -36,7 +36,7 @@ pub fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::
             parse_quote! { #value_expr as i32 }
         }
         Type::String => {
-            // DEPYLER-0455 Bug 7: Convert &str to String using .to_string()
+            // DEPYLER-0455 #7: Convert &str to String using .to_string()
             // This handles validator function parameters (&str) returned as String
             parse_quote! { #value_expr.to_string() }
         }

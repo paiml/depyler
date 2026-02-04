@@ -159,7 +159,7 @@ impl TranspilerPatcher {
 
     /// Load patches from embedded defaults
     /// DEPYLER-1311: Updated with contextual keywords from source line extraction
-    /// DEPYLER-1312: Fixed function names and impl block names to match codebase
+    /// DEPYLER-1312: Corrected function names and impl block names to match codebase
     pub fn load_defaults(&mut self) {
         // DEPYLER-1312: Patches with correct function names matching depyler-core
         let defaults = vec![
