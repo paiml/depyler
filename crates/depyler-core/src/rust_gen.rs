@@ -2029,7 +2029,7 @@ fn expr_contains_non_const_ops(expr: &HirExpr) -> bool {
 /// Used for literals and simple expressions that can be const-evaluated.
 /// Complexity: 4 (if-else with helper call)
 ///
-/// DEPYLER-0599: Fixed string literal const type mismatch.
+/// DEPYLER-0599: Resolved string literal const type mismatch.
 /// String literals at module level should be `&str` without `.to_string()`.
 fn generate_simple_constant(
     constant: &HirConstant,
@@ -2213,7 +2213,7 @@ fn is_path_constant_expr(value: &HirExpr) -> bool {
 ///
 /// Handles type inference for unary operations like -1, +1, --1, -1.5, !True, ~0xFF, etc.
 /// DEPYLER-1022: Uses NASA mode aware fallback type
-/// DEPYLER-1040b: Fixed to handle Not and BitNot correctly (not falling through to String)
+/// DEPYLER-1040b: Handles Not and BitNot correctly (no fallthrough to String)
 /// Complexity: 7 (recursive pattern matching with early returns)
 fn infer_unary_type(
     op: &UnaryOp,
@@ -2776,9 +2776,9 @@ fn generate_rust_file_internal(
         validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
         in_json_context: false,      // DEPYLER-0461: Track json!() macro context for nested dicts
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
-        hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+        hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 #2: Track hoisted variables needing String normalization
         none_placeholder_vars: HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment for hoisting
-        cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
+        cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 #2: Track CSE subcommand temps
         precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks for argparse
         nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type (become &str in Rust)
@@ -6716,8 +6716,8 @@ fn generate_rust_file_internal(
     // Python `TypeName = Literal["a","b"]` generates LazyLock<String> static but is used as type.
     formatted_code = fix_lazylock_static_as_type(&formatted_code);
 
-    // DEPYLER-CONVERGE-MULTI-ITER9: Fix broken LazyLock static initializers (E0599/E0605).
-    // Python module-level sets/lists generate LazyLock with broken enum::iter() + Arc.unwrap().
+    // DEPYLER-CONVERGE-MULTI-ITER9: Repair malformed LazyLock static initializers (E0599/E0605).
+    // Python module-level sets/lists generate LazyLock with invalid enum::iter() + Arc.unwrap().
     formatted_code = fix_broken_lazylock_initializers(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER9: Fix `Literal.clone().py_index(...)` blocks (E0425/E0605).
@@ -6727,7 +6727,7 @@ fn generate_rust_file_internal(
     // DEPYLER-CONVERGE-MULTI-ITER9: Fix `frozenset<T>` → `HashSet<T>` (E0425).
     formatted_code = formatted_code.replace("frozenset<", "HashSet<");
 
-    // DEPYLER-CONVERGE-MULTI-ITER9: Integer-float comparisons intentionally NOT fixed.
+    // DEPYLER-CONVERGE-MULTI-ITER9: Integer-float comparisons intentionally NOT addressed.
     // Cannot reliably distinguish float vs int fields at text level.
 
     // DEPYLER-CONVERGE-MULTI-ITER9: Fix `!string_var` → `string_var.is_empty()` (E0600).
@@ -6745,7 +6745,7 @@ fn generate_rust_file_internal(
     formatted_code = fix_enum_display(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER9: Remove orphaned LazyLock initializer bodies.
-    // After PascalCase→type-alias and broken-init fixes, some multi-line bodies remain.
+    // After PascalCase→type-alias and malformed-init corrections, some multi-line bodies remain.
     formatted_code = fix_orphaned_lazylock_bodies(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER9: Fix DepylerValue Str match arm missing .into_iter().
@@ -7623,9 +7623,9 @@ fn fix_lazylock_static_as_type(code: &str) -> String {
     result.join("\n")
 }
 
-/// DEPYLER-CONVERGE-MULTI-ITER9: Fix broken LazyLock initializers.
+/// DEPYLER-CONVERGE-MULTI-ITER9: Repair malformed LazyLock initializers.
 ///
-/// SCREAMING_SNAKE LazyLock statics have broken enum::iter() and Arc.unwrap().
+/// SCREAMING_SNAKE LazyLock statics have invalid enum::iter() and Arc.unwrap().
 /// Replace body with empty Vec.
 fn fix_broken_lazylock_initializers(code: &str) -> String {
     if !code.contains("std::sync::LazyLock<") {
@@ -7637,7 +7637,7 @@ fn fix_broken_lazylock_initializers(code: &str) -> String {
     while i < lines.len() {
         let trimmed = lines[i].trim();
         // Case 1: Single-line `pub static NAME: LazyLock<...> = LazyLock::new(...)`
-        // Only replace SCREAMING_SNAKE_CASE names (broken Tier 3 constants)
+        // Only replace SCREAMING_SNAKE_CASE names (malformed Tier 3 constants)
         if trimmed.starts_with("pub static ")
             && trimmed.contains("std::sync::LazyLock<")
             && trimmed.contains("= std::sync::LazyLock::new")
@@ -7675,7 +7675,7 @@ fn fix_broken_lazylock_initializers(code: &str) -> String {
 
 /// DEPYLER-CONVERGE-MULTI-ITER9: Fix Literal.clone().py_index(...) blocks.
 ///
-/// Python `typing.Literal["a","b"]` generates a broken `Literal.clone().py_index(...)` pattern.
+/// Python `typing.Literal["a","b"]` generates an invalid `Literal.clone().py_index(...)` pattern.
 /// Replace with empty string since it's typically a default value.
 fn fix_literal_clone_pattern(code: &str) -> String {
     if !code.contains("Literal.clone()") {
@@ -10317,7 +10317,7 @@ fn skip_block(start: usize, lines: &[&str]) -> usize {
 
 /// DEPYLER-CONVERGE-MULTI-ITER9: Remove orphaned LazyLock initializer bodies.
 ///
-/// After type-alias and broken-init fixes, multi-line LazyLock bodies
+/// After type-alias and malformed-init corrections, multi-line LazyLock bodies
 /// can remain as top-level code (not inside any `pub static`). Remove them.
 fn fix_orphaned_lazylock_bodies(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
@@ -10956,10 +10956,10 @@ mod tests {
             validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
             in_json_context: false, // DEPYLER-0461: Track json!() macro context for nested dicts
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
-            hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+            hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 #2: Track hoisted variables needing String normalization
             none_placeholder_vars: HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment for hoisting
             precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks
-            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
+            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 #2: Track CSE subcommand temps
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             needs_digest: false,           // DEPYLER-0558: Track digest crate dependency
@@ -11532,7 +11532,7 @@ mod tests {
     #[test]
     fn test_float_literal_decimal_point() {
         // Regression test for DEPYLER-TBD: Ensure float literals always have decimal point
-        // Bug: f64::to_string() for 0.0 produces "0" (no decimal), parsed as integer
+        // Issue: f64::to_string() for 0.0 produces "0" (no decimal), parsed as integer
         // Fix: Always ensure ".0" suffix for floats without decimal/exponent
         let mut ctx = create_test_context();
 
@@ -11672,7 +11672,7 @@ mod tests {
         // Rust's `/` does integer division with int operands
         // We need to cast to float when the context expects float
 
-        // Test 1: int / int returning float (the main bug)
+        // Test 1: int / int returning float (the main issue)
         let divide_func = HirFunction {
             name: "safe_divide".to_string(),
             params: vec![

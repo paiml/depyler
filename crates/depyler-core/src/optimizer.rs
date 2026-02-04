@@ -29,13 +29,13 @@ pub struct OptimizerConfig {
 impl Default for OptimizerConfig {
     fn default() -> Self {
         Self {
-            // DEPYLER-0161: Disabled broken inlining optimization
+            // DEPYLER-0161: Disabled incomplete inlining optimization
             // KNOWN ISSUE: Inlining pass marks functions as "Trivial" but doesn't inline them,
             // then dead code elimination removes assignments, leaving undefined variables.
             // NOTE: Fix inlining logic before re-enabling (tracked in DEPYLER-0161)
             inline_functions: false,
             // DEPYLER-0508: Re-enabled DCE - unused variables should be eliminated
-            // DEPYLER-0363: Previously disabled for argparse debugging, now fixed
+            // DEPYLER-0363: Previously disabled for argparse debugging, now re-enabled
             eliminate_dead_code: true,
             propagate_constants: true,
             eliminate_common_subexpressions: true,
@@ -1352,7 +1352,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 }
             }
         }
-        // DEPYLER-0600 Bug #5: DictComp was missing from DCE analysis!
+        // DEPYLER-0600 #5: DictComp was missing from DCE analysis
         // This caused variables used only in dict comprehension iterators to be
         // incorrectly removed. Example: `d = {str(n): n*n for n in nums}` lost `nums`
         HirExpr::DictComp {

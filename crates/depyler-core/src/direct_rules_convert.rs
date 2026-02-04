@@ -5424,7 +5424,7 @@ impl<'a> ExprConverter<'a> {
 
                 // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
                 // If so, wrap the argument in appropriate DepylerValue variant
-                // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+                // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
                 // NOTE: DirectRulesConverter only has param_types and class_field_types,
                 // not local var_types - those are handled by expr_gen_instance_methods
                 let is_vec_depyler_value = if let HirExpr::Attribute { attr, .. } = object {

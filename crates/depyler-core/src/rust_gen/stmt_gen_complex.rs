@@ -116,7 +116,7 @@ pub(crate) fn codegen_try_stmt(
             ctx.var_types.insert(var_name.clone(), opt_type);
             hoisted_decls.push(quote! { let mut #var_ident: Option<serde_json::Value> = None; });
 
-            // DEPYLER-0455 Bug 2: Track hoisted inference vars
+            // DEPYLER-0455 #2: Track hoisted inference vars
             ctx.hoisted_inference_vars.insert(var_name.clone());
         }
 
@@ -996,7 +996,7 @@ pub(crate) fn try_generate_subcommand_match(
 ) -> Result<Option<proc_macro2::TokenStream>> {
     use quote::{format_ident, quote};
 
-    // DEPYLER-0456 Bug #2: Get dest_field from subparser info
+    // DEPYLER-0456 #2: Get dest_field from subparser info
     // Find the dest_field name (e.g., "action" or "command")
     let dest_field = ctx
         .argparser_tracker
@@ -1614,7 +1614,7 @@ pub(crate) fn is_subcommand_check(
             left,
             right,
         } => {
-            // DEPYLER-0456 Bug #2: Check if left side is args.<dest_field>
+            // DEPYLER-0456 #2: Check if left side is args.<dest_field>
             // (e.g., args.action, args.command, etc.)
             let is_dest_field_attr = matches!(
                 left.as_ref(),

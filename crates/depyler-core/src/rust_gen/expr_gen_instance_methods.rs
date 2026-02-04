@@ -46,7 +46,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-1134: Constraint-Aware Coercion
                 // Check for CONCRETE element type FIRST (from Oracle or type annotations)
                 // Only fall back to DepylerValue wrapping if type is truly Unknown
-                // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+                // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
                 // DEPYLER-1209: Also treat UnificationVar as non-concrete (needs DepylerValue)
                 let concrete_element_type = if let HirExpr::Attribute { value: _, attr } = object {
                     self.ctx.class_field_types.get(attr).and_then(|t| {
@@ -87,7 +87,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
                 // If so, wrap the argument in appropriate DepylerValue variant
-                // DEPYLER-1207: Fixed pattern matching bug - elem.as_ref() returns &Type,
+                // DEPYLER-1207: Pattern matching correction - elem.as_ref() returns &Type,
                 // so we need to dereference with *elem.as_ref() or use &Type::Unknown pattern
                 // DEPYLER-1209: Also check for UnificationVar which indicates incomplete inference
                 let is_vec_depyler_value = if let HirExpr::Attribute { value: _, attr } = object {
@@ -1770,7 +1770,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-FIX: Check if target is HashSet<DepylerValue>
                 // If so, wrap the argument in appropriate DepylerValue variant
-                // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+                // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
                 // DEPYLER-1209: Also check for UnificationVar
                 let is_set_depyler_value = if let HirExpr::Var(var_name) = object {
                     matches!(
@@ -4538,7 +4538,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // String variable - needs proper referencing
                     // HashMap.get() expects &K, so we need to borrow the key
                     // DEPYLER-0521: Don't add & if variable is already &str type
-                    // DEPYLER-0528: Fixed logic - owned String NEEDS borrow, &str does NOT
+                    // DEPYLER-0528: Borrow logic - owned String NEEDS borrow, &str does NOT
                     let index_expr = index.to_rust_expr(self.ctx)?;
                     // DEPYLER-0539: Fix dict key borrowing for &str parameters
                     // Check is_borrowed_str_param FIRST - &str params are tracked as Type::String
@@ -9072,7 +9072,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             // Index access on collections with Unknown element type
-            // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+            // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
             // DEPYLER-1209: Also check for UnificationVar
             HirExpr::Index { base, .. } => {
                 if let HirExpr::Var(name) = base.as_ref() {

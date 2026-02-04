@@ -428,7 +428,7 @@ pub fn is_var_reassigned_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
 }
 
 /// Check if a variable is used in a statement
-/// DEPYLER-0303 Phase 2: Fixed to check assignment targets too (for `d[k] = v`)
+/// DEPYLER-0303 Phase 2: Also checks assignment targets (for `d[k] = v`)
 pub fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {

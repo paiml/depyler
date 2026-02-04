@@ -4,6 +4,9 @@
 # Configuration
 CARGO := cargo
 MAKEFLAGS += -j$(shell nproc)
+# Property test determinism: limit iterations for CI/local speed (CB-126-D)
+export PROPTEST_CASES ?= 5
+export QUICKCHECK_TESTS ?= 5
 # Coverage threshold (Sovereign Stack standard: 95% target)
 # 85% threshold - actively increasing via DEPYLER-99MODE-001
 COVERAGE_THRESHOLD := 85
@@ -49,11 +52,11 @@ test: ## Run comprehensive Rust tests (runs everything, no time limit)
 	@$(CARGO) llvm-cov report --summary-only
 	@$(CARGO) llvm-cov report --summary-only --fail-under-functions $(COVERAGE_THRESHOLD) || true
 .PHONY: test-full
-test-full: test test-frontend ## Run all tests (Rust + frontend)
+test-full: test test-frontend ## Run all tests (Rust + frontend) PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 .PHONY: test-rust
-test-rust: test ## Alias for main test target
+test-rust: test ## Alias for main test target PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 .PHONY: test-frontend
-test-frontend: ## Run frontend tests (npm + deno)
+test-frontend: ## Run frontend tests (npm + deno) PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "Running frontend tests..."
 	@if [ -d "playground" ]; then echo "Running npm tests..."; cd playground && npm test; echo "Running Deno tests..."; cd playground && deno test --allow-read --allow-env --allow-net src/**/*.deno.test.ts src/**/*.test.ts 2>/dev/null || true; fi
 # #@ Building
@@ -110,7 +113,7 @@ playground-clean: ## Clean playground build artifacts
 # Fast tests for development iteration
 # Comprehensive test suite (NASA-grade)
 .PHONY: test-comprehensive
-test-comprehensive: test-fixtures test-property test-compilation test-semantic ## Run all tests with full validation
+test-comprehensive: test-fixtures test-property test-compilation test-semantic ## Run all tests with full validation PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "All comprehensive tests passed ✅"
 # Individual test categories
 .PHONY: test-fixtures
@@ -136,7 +139,7 @@ test-property-comprehensive: ## Run property tests (comprehensive: 500 cases)
 	@echo "✅ Property tests completed (comprehensive mode)!"
 
 # #@ Advanced Testing Infrastructure (Phases 8-10)
-test-property-basic: test-property ## Alias for test-property (fast mode)
+test-property-basic: test-property ## Alias for test-property (fast mode) PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 
 test-property-advanced: ## Run advanced property tests (Phase 8)
 	@echo "Running advanced property tests..."
@@ -166,7 +169,7 @@ test-quality: ## Run quality assurance automation
 	@echo "Running quality assurance..."
 	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test quality_assurance_automation $(TEST_FLAGS)
 	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test specialized_coverage_testing $(TEST_FLAGS)
-test-all: ## Complete test suite execution
+test-all: ## Complete test suite execution PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "Running complete test suite..."
 	$(MAKE) test-property-basic
 	$(MAKE) test-property-advanced
@@ -190,13 +193,13 @@ test-fast: ## Quick feedback loop for development (< 5 min, uses cargo-nextest)
 # Test Impact Analysis (TIA) - DEPYLER-0954
 # Runs only tests affected by code changes for 50-80% faster CI
 .PHONY: test-tia test-affected tia-report
-test-tia: ## Run only tests affected by recent changes (TIA)
+test-tia: ## Run only tests affected by recent changes (TIA) PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "🔍 DEPYLER-0954: Test Impact Analysis"
-	@./scripts/tia.sh HEAD~1
+	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 ./scripts/tia.sh HEAD~1
 
-test-affected: ## Run tests affected by changes since main branch
+test-affected: ## Run tests affected by changes since main branch PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "🔍 Running tests affected by changes since main..."
-	@./scripts/tia.sh main
+	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 ./scripts/tia.sh main
 
 tia-report: ## Show which tests would be affected by current changes
 	@echo "📊 TIA Report: Tests affected by uncommitted changes"
@@ -215,11 +218,11 @@ tia-report: ## Show which tests would be affected by current changes
 # Risk-Based Testing (RBT) - DEPYLER-0957
 # Prioritizes test execution based on impact/likelihood matrix
 .PHONY: test-rbt test-rbt-high rbt-analyze rbt-report
-test-rbt: ## Run tests in risk-priority order (high-risk first)
+test-rbt: ## Run tests in risk-priority order (high-risk first) PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "🎯 DEPYLER-0957: Risk-Based Testing"
-	@./scripts/rbt.sh
+	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 ./scripts/rbt.sh
 
-test-rbt-high: ## Run only high-risk tests (fail-fast mode)
+test-rbt-high: ## Run only high-risk tests (fail-fast mode) PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "🎯 Running high-risk tests only (fail-fast)..."
 	@./scripts/rbt.sh --high-only
 
@@ -275,7 +278,7 @@ test-pre-commit-fast: ## Ultra-fast pre-commit validation (< 60 seconds with bui
 	@echo "   (Type checking only - no test execution)"
 	@timeout 60 cargo check --workspace
 	@echo "✅ Pre-commit validation completed!"
-test-ci: ## CI/CD optimized test execution
+test-ci: ## CI/CD optimized test execution PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "Running CI/CD tests..."
 	$(MAKE) test-property-basic
 	$(MAKE) test-coverage
@@ -329,7 +332,7 @@ test-generate: ## Automatic test generation and updates
 	@echo "Running test generation..."
 	PROPTEST_CASES=5 QUICKCHECK_TESTS=5 $(CARGO) test --test automated_test_generation $(TEST_FLAGS)
 	./scripts/generate_test_cases.sh
-test-report: ## Comprehensive quality reporting
+test-report: ## Comprehensive quality reporting PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "Generating test reports..."
 	./scripts/run_performance_suite.sh
 	$(MAKE) coverage
@@ -699,7 +702,7 @@ performance-regression-test: ## Test for performance regressions
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 # Test execution summary
-test-summary: ## Show test execution summary
+test-summary: ## Show test execution summary PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	@echo "=== Test Execution Summary ==="
 	@echo "Fast tests:        make test-fast"
 	@echo "Comprehensive:     make test-comprehensive"

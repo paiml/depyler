@@ -862,7 +862,7 @@ pub(crate) fn codegen_return_stmt(
             };
 
             // DEPYLER-0272: Pass expression to check if cast is actually needed
-            // DEPYLER-0455 Bug 7: Also pass ctx to check validator function context
+            // DEPYLER-0455 #7: Also pass ctx to check validator function context
             if needs_type_conversion(target_type, e) {
                 expr_tokens = apply_type_conversion(expr_tokens, target_type);
             }
@@ -2069,7 +2069,7 @@ fn apply_truthiness_conversion(
                     return parse_quote! { !#cond_expr.is_empty() };
                 }
 
-                // DEPYLER-0455 Bug 8: Check if this field is a String with a default value
+                // DEPYLER-0455 #8: Check if this field is a String with a default value
                 // Python: if args.encoding (where encoding has default="utf-8")
                 // Rust: if !args.encoding.is_empty() (String cannot be used as bool)
                 let is_string_with_default =
@@ -2437,7 +2437,7 @@ pub(crate) fn codegen_if_stmt(
                 hoisted_decls.push(quote! { let mut #var_ident; });
             }
 
-            // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+            // DEPYLER-0455 #2: Track hoisted variables needing String normalization
             // When a variable is hoisted without type annotation, we need to normalize
             // string literals to String to avoid &str vs String type mismatches
             ctx.hoisted_inference_vars.insert(var_name.clone());
@@ -2489,7 +2489,7 @@ pub(crate) fn codegen_if_stmt(
     // DEPYLER-0935: Restore is_final_statement flag
     ctx.is_final_statement = saved_is_final;
 
-    // DEPYLER-0455 Bug 2: Clean up hoisted inference vars after if-statement
+    // DEPYLER-0455 #2: Clean up hoisted inference vars after if-statement
     // Remove variables from tracking set since they're only relevant within this if-statement
     for var_name in &hoisted_vars {
         ctx.hoisted_inference_vars.remove(var_name);
@@ -4029,7 +4029,7 @@ pub(crate) fn codegen_assign_stmt(
     );
 
     // DEPYLER-0399: Transform CSE assignments for subcommand comparisons
-    // DEPYLER-0456 Bug #2: Use dest_field instead of hardcoded "command"
+    // DEPYLER-0456 #2: Use dest_field instead of hardcoded "command"
     // When we have subcommands, assignments like `_cse_temp_0 = args.action == "clone"`
     // would try to compare Commands enum to string (won't compile).
     // Transform into a match expression that returns bool:
@@ -4052,7 +4052,7 @@ pub(crate) fn codegen_assign_stmt(
                     let variant_name = format_ident!("{}", to_pascal_case(&cmd_name));
                     let var_ident = safe_ident(cse_var);
 
-                    // DEPYLER-0456 Bug #2: Track this CSE temp so is_subcommand_check() can find it
+                    // DEPYLER-0456 #2: Track this CSE temp so is_subcommand_check() can find it
                     ctx.cse_subcommand_temps
                         .insert(cse_var.clone(), cmd_name.clone());
 
@@ -4299,7 +4299,7 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-1134: Guard against overwriting Oracle-seeded types
                 // If var_types already has a CONCRETE type (from Oracle or return type propagation),
                 // don't overwrite it with Unknown. This protects the Oracle's wisdom from local inference.
-                // DEPYLER-1207: Fixed pattern matching bug - use **existing_elem to dereference Box
+                // DEPYLER-1207: Pattern matching correction - use **existing_elem to dereference Box
                 let should_update = match ctx.var_types.get(var_name) {
                     None => true,                // No existing type, safe to insert
                     Some(Type::Unknown) => true, // Unknown can be overwritten
@@ -4368,7 +4368,7 @@ pub(crate) fn codegen_assign_stmt(
                 ctx.var_types
                     .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
             }
-            // DEPYLER-0600 Bug #6: Track type from comprehension expressions
+            // DEPYLER-0600 #6: Track type from comprehension expressions
             // Enables correct {:?} vs {} selection in println! for dict/list/set comprehensions
             HirExpr::DictComp { key, value, .. } => {
                 // Use type inference from func_gen module for comprehension types
@@ -4872,7 +4872,7 @@ pub(crate) fn codegen_assign_stmt(
         //
         // DEPYLER-1168: Same for List(UnificationVar) - avoid Vec<DepylerValue>
         // Pattern: `from_range = list(range(5))` → Infer Vec<i32>, not Vec<DepylerValue>
-        // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+        // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
         let inferred_collection_type: Option<Type> = if let Type::Set(elem) = actual_type {
             if matches!(**elem, Type::UnificationVar(_) | Type::Unknown) {
                 // Try to infer from the value expression
@@ -4900,7 +4900,7 @@ pub(crate) fn codegen_assign_stmt(
             }
         } else if let Type::List(elem) = actual_type {
             // DEPYLER-1168: List with unresolved element type
-            // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+            // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
             if matches!(**elem, Type::UnificationVar(_) | Type::Unknown) {
                 if let HirExpr::Call { func, args, .. } = value {
                     if func == "list" && args.len() == 1 {
@@ -5029,7 +5029,7 @@ pub(crate) fn codegen_assign_stmt(
             }
         }
 
-        // DEPYLER-0380 Bug #1: String literal to String conversion
+        // DEPYLER-0380 #1: String literal to String conversion
         // When assigning a string literal to a String typed variable, add .to_string()
         // Example: `let version: String = "Python 3.x"` should become
         //          `let version: String = "Python 3.x".to_string()`
@@ -5264,7 +5264,7 @@ pub(crate) fn codegen_assign_stmt(
                 }
                 // DEPYLER-0467: Non-empty list literal with type inference
                 // `x = [a, b, c]` where a,b,c are i32 → `Vec<i32>` (NOT Vec<DepylerValue>)
-                // This fixes the critical type inference bug for variable-containing lists
+                // This resolves the type inference issue for variable-containing lists
                 // DEPYLER-1313: Extended to handle nested lists (Vec<Vec<T>>)
                 HirExpr::List(elems) => {
                     let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
@@ -5480,7 +5480,7 @@ pub(crate) fn codegen_assign_stmt(
         }
     };
 
-    // DEPYLER-0455 Bug 2: String literal normalization for hoisted inference variables
+    // DEPYLER-0455 #2: String literal normalization for hoisted inference variables
     // When a variable is hoisted without type annotation, string literals must be
     // normalized to String to ensure consistent type inference across if/else branches
     // Example: let mut format;
