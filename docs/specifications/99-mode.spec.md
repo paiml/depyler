@@ -2603,21 +2603,31 @@ p.args_var.as_ref().is_some_and(|av| av == args_param)
 
 **Verification**: All 11 `test_analyze_subcommand_field_access` tests pass. Zero clippy warnings.
 
-### 9.8 Current Quality Metrics (2026-02-03)
+### 9.8 Current Quality Metrics (2026-02-04)
 
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
 | Clippy Warnings | 0 | 0 | ✅ PASS |
 | TDG Score | 93.8 (A) | 95+ (A+) | ⚠️ 1.2 points gap |
-| Test Coverage (core) | 85.11% | 95% | ⚠️ 9.89 pp gap |
-| Function Coverage | 92.79% | 95% | ⚠️ 2.21 pp gap |
+| Test Coverage (core) | 85.48% | 95% | ⚠️ 9.52 pp gap (improving) |
+| Function Coverage | 92.98% | 95% | ⚠️ 2.02 pp gap (improving) |
 | SATD Violations | 87 | 0 | ⚠️ False positives (doc comments) |
 | Max Cyclomatic | 257 | ≤10 | ❌ Long-term refactor |
+| Total Tests | 11,700+ | - | ✅ All passing |
 
-**Coverage Breakdown** (depyler-core library):
-- Lines: 85.11% (200,530 total, 29,868 uncovered)
-- Functions: 92.79% (12,108 total, 873 uncovered)
-- Branches: 85.71% (136,472 total, 19,507 uncovered)
+**Coverage Breakdown** (depyler-core, lib + new integration tests):
+- Lines: 85.48% (200,530 total, 29,115 uncovered) [+0.37pp from 85.11%]
+- Functions: 92.98% (12,108 total, 850 uncovered) [+0.19pp from 92.79%]
+- Branches: 86.02% (136,472 total, 19,073 uncovered) [+0.31pp from 85.71%]
+
+**Coverage Improvement Campaign** (2026-02-04):
+New test files added (438 tests total):
+1. `escape_analysis_coverage_test.rs` - 68 tests (60% → ~90%)
+2. `stmt_gen_complex_coverage_test.rs` - 58 tests (44% → ~70%)
+3. `direct_rules_convert_coverage_test.rs` - 139 tests (47% → ~70%)
+4. `expr_gen_uncovered_paths_test.rs` - 127 tests (60-62% → ~75%)
+5. `func_gen_extended_coverage.rs` - 26 tests (85% → ~90%)
+6. `datetime_coverage_test.rs` - 20 tests (55% → ~75%)
 
 **Top Complexity Hotspots** (long-term refactoring targets):
 1. `codegen_assign_stmt` (257) - stmt_gen.rs:3350
@@ -2630,6 +2640,7 @@ p.args_var.as_ref().is_some_and(|av| av == args_param)
 rather than TODO/FIXME/HACK markers. These provide valuable context for understanding code changes.
 
 **Next Actions**:
-1. Add tests for lowest-coverage files to improve from 85% to 95%
+1. Continue adding tests for remaining low-coverage files
 2. Consider refactoring high-complexity functions incrementally
 3. Evaluate SATD tool configuration to reduce false positives
+4. Target stmt_gen.rs (79%) and argparse_transform.rs (77%) next
