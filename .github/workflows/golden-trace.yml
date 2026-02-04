@@ -88,7 +88,7 @@ jobs:
     - name: Build Depyler Release
       run: |
         export RUSTFLAGS="-C linker=gcc"
-        cargo build --release --bin depyler --profile ci
+        cargo build --bin depyler --profile ci
 
     - name: Run Golden Trace Tests - ${{ matrix.test-category }}
       id: golden-trace
