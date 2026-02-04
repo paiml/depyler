@@ -223,7 +223,10 @@ impl TranspilationMonitorEngine {
         );
 
         // Create file system watcher
-        let event_sender = self.event_sender.clone().unwrap();
+        let event_sender = self
+            .event_sender
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("event sender not initialized"))?;
         let project_id_clone = project_id.clone();
         let (tx, mut rx) = mpsc::channel(100);
 
@@ -334,8 +337,10 @@ impl TranspilationMonitorEngine {
     }
 
     /// Get event receiver for consuming transpilation events
-    pub fn get_event_receiver(&mut self) -> mpsc::Receiver<TranspilationEvent> {
-        self.event_receiver.take().unwrap()
+    pub fn get_event_receiver(&mut self) -> Result<mpsc::Receiver<TranspilationEvent>> {
+        self.event_receiver
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("event receiver already taken"))
     }
 
     /// Handle file system events
@@ -429,7 +434,10 @@ impl TranspilationMonitorEngine {
     /// Start periodic status updates
     pub async fn start_status_updates(&self) -> Result<()> {
         let mut interval = interval(self.config.update_interval);
-        let event_sender = self.event_sender.clone().unwrap();
+        let event_sender = self
+            .event_sender
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("event sender not initialized"))?;
         let metrics = Arc::clone(&self.metrics);
 
         tokio::spawn(async move {
