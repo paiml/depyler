@@ -25,6 +25,8 @@ sovereign-types = ["depyler-core/sovereign-types"] # DEPYLER-1111: Enable TypeDB
 decision-tracing = ["depyler-core/decision-tracing"] # DEPYLER-1148: CITL Flight Recorder
 oracle-training = ["depyler-oracle/training"]  # Oracle CITL training pipeline (requires external deps)
 ml = ["oracle-training"] # ML training features (requires external deps)
+interactive = [] # Interactive annotation UI (requires dialoguer dep - not shipped)
+watch = [] # File system watching for agent mode (requires notify dep - not shipped)
 
 [dependencies]
 depyler-core = { version = "3.24.0", path = "../depyler-core" }
@@ -45,10 +47,8 @@ tracing-subscriber.workspace = true
 clap.workspace = true
 indicatif.workspace = true
 colored.workspace = true
-dialoguer.workspace = true
 rustpython-parser.workspace = true
 tokio.workspace = true
-notify = "8.0"
 chrono = "0.4"
 walkdir = "2.5"
 rand.workspace = true
