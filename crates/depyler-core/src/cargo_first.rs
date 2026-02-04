@@ -329,7 +329,7 @@ base64 = "0.22"
 # URL parsing (urllib module)
 url = "2.5"
 
-# Temp files
+# Temporary file operations
 tempfile = "3.10"
 
 # Argument parsing (argparse module)

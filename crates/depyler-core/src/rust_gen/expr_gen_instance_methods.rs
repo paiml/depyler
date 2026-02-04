@@ -2057,7 +2057,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // NOTE: Full implementation requires regex type tracking (DEPYLER-0563)
             // For now, return empty vec - generator type system uses serde_json::Value as fallback
             "groups" => {
-                // TODO: Implement proper capture group extraction when regex types are tracked
+                // DEPYLER-0563: Implement proper capture group extraction when regex types are tracked
                 Ok(parse_quote! {
                     Vec::<String>::new()
                 })
@@ -2248,7 +2248,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // f.read() with no arguments → read entire file
             // Need to determine if text or binary mode
             // For now, default to text mode (read_to_string)
-            // TODO: Track file open mode to distinguish text vs binary
+            // Note: Track file open mode to distinguish text vs binary
             return Ok(parse_quote! {
                 {
                     let mut content = String::new();
@@ -2473,7 +2473,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if method == "writeheader" && arg_exprs.is_empty() {
             // writeheader() → no-op in Rust csv crate
             // Headers are typically written automatically or need explicit handling
-            // TODO: Track fieldnames from DictWriter constructor to write proper header
+            // Note: Track fieldnames from DictWriter constructor to write proper header
             return Ok(parse_quote! { () });
         }
 

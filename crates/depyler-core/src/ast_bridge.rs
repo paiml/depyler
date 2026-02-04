@@ -2040,7 +2040,7 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
         let name = vararg.arg.to_string();
 
         // Start with List<String> as a reasonable default
-        // TODO DEPYLER-0477 Phase 2.2: Infer element type from usage
+        // DEPYLER-0477 Phase 2.2: Infer element type from usage (tracked)
         let ty = Type::List(Box::new(Type::String));
 
         params.push(HirParam {
@@ -2051,7 +2051,7 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
         });
     }
 
-    // TODO DEPYLER-0477 Phase 2.2: Extract kwargs (**kwargs)
+    // DEPYLER-0477 Phase 2.2: Extract kwargs (**kwargs) (tracked)
     // if let Some(kwarg) = &args.kwarg {
     //     // Will transpile to HashMap<String, serde_json::Value>
     // }

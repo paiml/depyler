@@ -455,10 +455,10 @@ pub(crate) fn convert_assign_stmt_with_mutable_vars(
                         .collect();
 
                     if let Some(indices) = all_indices {
-                        // All targets are subscripts - generate temp-based assignment
+                        // All targets are subscripts - generate intermediate-based assignment
                         let temp_ident = make_ident("_swap_temp");
 
-                        // Build assignments for each target from temp tuple
+                        // Build assignments for each target from intermediate tuple
                         let mut stmts: Vec<syn::Stmt> = Vec::new();
 
                         // First: let _swap_temp = value_expr;

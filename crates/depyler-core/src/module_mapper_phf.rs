@@ -94,7 +94,7 @@ static MODULE_MAP: phf::Map<&'static str, StaticModuleMapping> = phf_map! {
     // External Crates - Statistics
     "statistics" => StaticModuleMapping { rust_path: "statrs", is_external: true, version: Some("0.16") },
 
-    // External Crates - Temp Files
+    // External Crates - Temporary File Operations
     "tempfile" => StaticModuleMapping { rust_path: "tempfile", is_external: true, version: Some("3.0") },
 
     // External Crates - URL

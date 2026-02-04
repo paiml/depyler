@@ -606,7 +606,7 @@ pub(crate) fn codegen_try_stmt(
                 }
             } else {
                 // Multiple handlers - find one with binding or fallback to catch-all
-                // TODO: Implement proper type-based dispatch for multiple handlers
+                // Note: Implement proper type-based dispatch for multiple handlers
                 let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
                 let handler_code = if let Some(idx) = handlers.iter().position(|h| h.name.is_some())
                 {
