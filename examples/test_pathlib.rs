@@ -1372,20 +1372,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3132,7 +3118,7 @@ pub fn get_python_files(directory: &str) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 #[doc = "Create a nested path from parts"]
-pub fn create_nested_path<'b, 'a>(
+pub fn create_nested_path<'a, 'b>(
     base: &'a str,
     parts: &[String],
 ) -> Result<String, Box<dyn std::error::Error>> {

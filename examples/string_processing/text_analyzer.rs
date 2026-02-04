@@ -3137,10 +3137,10 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::e
         let mut clean_word: i32 = STR_EMPTY;
         for char in word.chars() {
             if char.is_alphabetic() {
-                clean_word = (clean_word).py_add(char);
+                clean_word = ((clean_word).py_add(char)) as i32;
             }
         }
-        if !clean_word.is_empty() {
+        if clean_word != 0 {
             if frequency.get(&clean_word).is_some() {
                 {
                     let _key = clean_word.clone();
@@ -3188,10 +3188,10 @@ pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
 }
 #[doc = "Find the longest common prefix among strings"]
 pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
-    let mut prefix: String = Default::default();
     let mut min_length: i32 = Default::default();
+    let mut prefix: String = Default::default();
     if strings.is_empty() {
-        return Ok(STR_EMPTY);
+        return Ok(STR_EMPTY.to_string());
     }
     let _cse_temp_0 = strings.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 1;
@@ -3303,7 +3303,7 @@ pub fn is_palindrome(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
                 .unwrap_or_default()
         } != {
             let base = &cleaned;
-            let idx: i32 = ((length).py_sub(1)).py_sub(i);
+            let idx: i32 = ((length).py_sub(1i32) as i32).py_sub(i);
             let actual_idx = if idx < 0 {
                 base.chars().count().saturating_sub(idx.abs() as usize)
             } else {

@@ -1372,20 +1372,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3210,7 +3196,7 @@ pub fn large_list_in_loop(n: &DepylerValue) -> Vec<DepylerValue> {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'b, 'a>(
+pub fn linear_search_in_loop<'a, 'b>(
     items: &'a str,
     targets: &'b DepylerValue,
 ) -> Vec<DepylerValue> {
@@ -3267,7 +3253,7 @@ pub fn aggregate_in_nested_loop(matrix: &Vec<Vec<i32>>) -> i32 {
 #[doc = "Large parameters passed by value."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn large_parameter_by_value<'b, 'a>(
+pub fn large_parameter_by_value<'a, 'b>(
     huge_list: &'a Vec<DepylerValue>,
     huge_dict: &'b std::collections::HashMap<String, DepylerValue>,
 ) -> i32 {

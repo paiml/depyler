@@ -3112,7 +3112,7 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    (fibonacci_recursive((n).py_sub(1))).py_add(fibonacci_recursive((n).py_sub(2)))
+    (fibonacci_recursive((n).py_sub(1i32))).py_add(fibonacci_recursive((n).py_sub(2i32)))
 }
 #[doc = "Memoized fibonacci - demonstrates optimization patterns"]
 #[doc = " Depyler: proven to terminate"]
@@ -3123,7 +3123,7 @@ pub fn fibonacci_memoized(
     let mut result: i32 = Default::default();
     if memo.is_none() {
         *memo = Some({
-            let map: HashMap<String, String> = HashMap::new();
+            let map: HashMap<i32, i32> = HashMap::new();
             map
         });
     }
@@ -3135,8 +3135,8 @@ pub fn fibonacci_memoized(
     if _cse_temp_1 {
         result = n;
     } else {
-        let _cse_temp_2 = (fibonacci_memoized((n).py_sub(1), memo)?)
-            .py_add(fibonacci_memoized((n).py_sub(2), memo)?);
+        let _cse_temp_2 = (fibonacci_memoized((n).py_sub(1i32), memo)?)
+            .py_add(fibonacci_memoized((n).py_sub(2i32), memo)?);
         result = _cse_temp_2;
     }
     memo.as_mut().unwrap().insert(n.clone(), result);
@@ -3152,7 +3152,7 @@ pub fn fibonacci_iterative(n: i32) -> i32 {
         return n;
     }
     let (mut a, mut b) = (0, 1);
-    for __sanitized in (2)..((n).py_add(1)) {
+    for __sanitized in (2)..((n).py_add(1i32)) {
         (a, b) = (b, (a).py_add(b));
     }
     b

@@ -3124,7 +3124,7 @@ impl DepylerRegexMatch {
 pub fn filter_even_numbers(numbers: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut result: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        if (num).py_mod(2) == 0 {
+        if (num).py_mod(2i32) == 0 {
             result.push(num);
         }
     }
@@ -3151,8 +3151,8 @@ pub fn merge_sorted_lists<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut i: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;
@@ -3172,7 +3172,7 @@ pub fn merge_sorted_lists<'b, 'a>(
                     .cloned()
                     .expect("IndexError: list index out of range"),
             );
-            i = (i).py_add(1);
+            i = ((i).py_add(1i32)) as i32;
         } else {
             result.push(
                 list2
@@ -3180,7 +3180,7 @@ pub fn merge_sorted_lists<'b, 'a>(
                     .cloned()
                     .expect("IndexError: list index out of range"),
             );
-            j = (j).py_add(1);
+            j = ((j).py_add(1i32)) as i32;
         }
     }
     while i < list1.len() as i32 {
@@ -3190,7 +3190,7 @@ pub fn merge_sorted_lists<'b, 'a>(
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        i = (i).py_add(1);
+        i = ((i).py_add(1i32)) as i32;
     }
     while j < list2.len() as i32 {
         result.push(
@@ -3199,7 +3199,7 @@ pub fn merge_sorted_lists<'b, 'a>(
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        j = (j).py_add(1);
+        j = ((j).py_add(1i32)) as i32;
     }
     Ok(result)
 }
@@ -3212,7 +3212,7 @@ pub fn calculate_running_sum(numbers: &Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     let mut running_total = 0;
     for num in numbers.iter().cloned() {
-        running_total = (running_total).py_add(num);
+        running_total = ((running_total).py_add(num)) as i32;
         result.push(running_total);
     }
     result
@@ -3230,7 +3230,7 @@ pub fn rotate_list_left(
     }
     let _cse_temp_2 = numbers.len() as i32;
     let length = _cse_temp_2;
-    let _cse_temp_3 = (positions).py_mod(length);
+    let _cse_temp_3 = ((positions).py_mod(length)) as i32;
     positions = _cse_temp_3;
     let mut result: Vec<i32> = vec![];
     for i in (positions)..(length) {

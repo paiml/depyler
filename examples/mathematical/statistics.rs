@@ -3142,11 +3142,30 @@ pub fn median(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     };
     let _cse_temp_0 = sorted_nums.len() as i32;
     let n = _cse_temp_0;
-    let _cse_temp_1 = (n).py_mod(2);
+    let _cse_temp_1 = ((n).py_mod(2i32)) as i32;
     let _cse_temp_2 = _cse_temp_1 == 0;
     if _cse_temp_2 {
-        return Ok(((sorted_nums.clone().py_index(DepylerValue::Int(
-            ({
+        return Ok({
+            let _r: f64 = ((sorted_nums.clone().py_index(DepylerValue::Int(
+                ({
+                    let a = n;
+                    let b = 2;
+                    let q = a / b;
+                    let r = a % b;
+                    let r_negative = r < 0;
+                    let b_negative = b < 0;
+                    let r_nonzero = r != 0;
+                    let signs_differ = r_negative != b_negative;
+                    let needs_adjustment = r_nonzero && signs_differ;
+                    if needs_adjustment {
+                        q - 1
+                    } else {
+                        q
+                    }
+                })
+                .py_sub(1i32) as i64,
+            )))
+            .py_add(sorted_nums.clone().py_index(DepylerValue::Int({
                 let a = n;
                 let b = 2;
                 let q = a / b;
@@ -3161,26 +3180,11 @@ pub fn median(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
                 } else {
                     q
                 }
-            })
-            .py_sub(1) as i64,
-        )))
-        .py_add(sorted_nums.clone().py_index(DepylerValue::Int({
-            let a = n;
-            let b = 2;
-            let q = a / b;
-            let r = a % b;
-            let r_negative = r < 0;
-            let b_negative = b < 0;
-            let r_nonzero = r != 0;
-            let signs_differ = r_negative != b_negative;
-            let needs_adjustment = r_nonzero && signs_differ;
-            if needs_adjustment {
-                q - 1
-            } else {
-                q
             }
-        } as i64))))
-        .py_div(2.0));
+                as i64))) as f64)
+                .py_div(2.0);
+            _r
+        });
     } else {
         return Ok(sorted_nums.clone().py_index(DepylerValue::Int({
             let a = n;
@@ -3252,7 +3256,10 @@ pub fn variance(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
         let diff = (num).py_sub(avg);
         sum_squared_diff = (sum_squared_diff).py_add((diff).py_mul(diff));
     }
-    Ok((sum_squared_diff).py_div((numbers.len() as i32).py_sub(1)))
+    Ok({
+        let _r: f64 = (sum_squared_diff).py_div((numbers.len() as i32).py_sub(1i32));
+        _r
+    })
 }
 #[doc = "Calculate sample standard deviation"]
 #[doc = " Depyler: proven to terminate"]
@@ -3266,19 +3273,19 @@ pub fn standard_deviation(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error:
     let _cse_temp_1 = (var).py_div(2.0);
     x = _cse_temp_1;
     for __sanitized in 0..(10) {
-        x = ((x).py_add((var).py_div(x))).py_div(2.0);
+        x = ((x).py_add((var).py_div(x)) as f64).py_div(2.0);
     }
     Ok(x)
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn correlation<'b, 'a>(
+pub fn correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
+    let mut sum_x_squared: f64 = Default::default();
     let mut numerator: f64 = Default::default();
     let mut denominator: f64 = Default::default();
-    let mut sum_x_squared: f64 = Default::default();
     let mut sum_y_squared: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
@@ -3318,7 +3325,8 @@ pub fn correlation<'b, 'a>(
     let _cse_temp_7 = (denominator_squared).py_div(2.0);
     denominator = _cse_temp_7;
     for __sanitized in 0..(10) {
-        denominator = ((denominator).py_add((denominator_squared).py_div(denominator))).py_div(2.0);
+        denominator =
+            ((denominator).py_add((denominator_squared).py_div(denominator)) as f64).py_div(2.0);
     }
     Ok((numerator).py_div(denominator))
 }

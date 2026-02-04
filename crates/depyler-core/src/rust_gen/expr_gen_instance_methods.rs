@@ -3302,9 +3302,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Common datetime methods that need unwrapping
                         let needs_unwrap = matches!(
                             method,
-                            "year" | "month" | "day" | "hour" | "minute" | "second"
-                                | "weekday" | "isoweekday" | "timestamp" | "date" | "time"
-                                | "replace" | "strftime" | "isoformat"
+                            "year"
+                                | "month"
+                                | "day"
+                                | "hour"
+                                | "minute"
+                                | "second"
+                                | "weekday"
+                                | "isoweekday"
+                                | "timestamp"
+                                | "date"
+                                | "time"
+                                | "replace"
+                                | "strftime"
+                                | "isoformat"
                         );
                         if needs_unwrap {
                             let method_ident =
@@ -7693,6 +7704,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // datetime/date properties (require method calls in chrono)
             "year" | "month" | "day" | "hour" | "minute" | "second" | "microsecond" => {
+                // DEPYLER-99MODE-E0308-P1: Check if value is an &mut Option<T> parameter
+                // If so, we need to unwrap it first: as_of.year → as_of.as_ref().unwrap().year()
+                if let HirExpr::Var(var_name) = value {
+                    if self.ctx.mut_option_params.contains(var_name) {
+                        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                        let method_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                        return Ok(
+                            parse_quote! { #var_ident.as_ref().unwrap().#method_ident() as i32 },
+                        );
+                    }
+                }
                 // Check if this might be a datetime/date/time object
                 // We convert: dt.year → dt.year()
                 let method_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());

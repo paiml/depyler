@@ -3113,8 +3113,8 @@ pub fn factorial(n: i32) -> i32 {
         return 1;
     }
     result = 1;
-    for i in (2)..((n).py_add(1)) {
-        result = (result).py_mul(i);
+    for i in (2)..((n).py_add(1i32)) {
+        result = ((result).py_mul(i)) as i32;
     }
     result
 }
@@ -3122,7 +3122,7 @@ pub fn factorial(n: i32) -> i32 {
 pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, Box<dyn std::error::Error>> {
     while b != 0 {
         let temp: i32 = b;
-        b = (a).py_mod(b);
+        b = ((a).py_mod(b)) as i32;
         a = temp;
     }
     Ok(a)
@@ -3137,7 +3137,7 @@ pub fn is_prime(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
     if _cse_temp_1 {
         return Ok(true);
     }
-    let _cse_temp_2 = (n).py_mod(2);
+    let _cse_temp_2 = ((n).py_mod(2i32)) as i32;
     let _cse_temp_3 = _cse_temp_2 == 0;
     if _cse_temp_3 {
         return Ok(false);
@@ -3147,7 +3147,7 @@ pub fn is_prime(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
         if (n).py_mod(i) == 0 {
             return Ok(false);
         }
-        i = (i).py_add(2);
+        i = ((i).py_add(2i32)) as i32;
     }
     Ok(true)
 }
@@ -3157,7 +3157,7 @@ pub fn sum_of_squares(numbers: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for num in numbers.iter().cloned() {
-        total = (total).py_add((num).py_mul(num));
+        total = ((total).py_add((num).py_mul(num))) as i32;
     }
     total
 }
@@ -3174,10 +3174,10 @@ pub fn power(mut base: i32, mut exponent: i32) -> Result<i32, Box<dyn std::error
     }
     result = 1;
     while exponent > 0 {
-        if (exponent).py_mod(2) == 1 {
-            result = (result).py_mul(base);
+        if (exponent).py_mod(2i32) == 1 {
+            result = ((result).py_mul(base)) as i32;
         }
-        base = (base).py_mul(base);
+        base = ((base).py_mul(base)) as i32;
         exponent = {
             let a = exponent;
             let b = 2;

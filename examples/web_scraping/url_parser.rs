@@ -3312,11 +3312,19 @@ impl URL {
     pub fn get_base_url(&self) -> String {
         let mut result = "".to_string();
         if self.scheme.clone() {
-            let result = result + self.scheme.clone() + "://".to_string();
+            let result = format!(
+                "{}{}",
+                result,
+                format!("{}{}", self.scheme.clone(), "://".to_string())
+            );
         };
-        let mut result = result + self.host.clone();
+        let mut result = format!("{}{}", result, self.host.clone());
         if self.port.clone().is_some() {
-            let result = result + ":".to_string() + self.port.clone().to_string();
+            let result = format!(
+                "{}{}",
+                result,
+                format!("{}{}", ":".to_string(), self.port.clone().to_string())
+            );
         };
         return result;
     }
@@ -3325,7 +3333,7 @@ impl URL {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn extract_domain(url: &str) -> String {
-    let parsed = URL::new(url);
+    let parsed: URL = URL::new(url);
     parsed.host
 }
 #[doc = "Basic email validation"]
@@ -3352,7 +3360,7 @@ pub fn is_valid_email(email: &str) -> bool {
     };
     let domain_part: String = {
         let base = (email).clone();
-        let start_idx: i32 = (at_pos).py_add(1);
+        let start_idx: i32 = (at_pos).py_add(1i32);
         let len = base.chars().count() as i32;
         let actual_start = if start_idx < 0 {
             (len + start_idx).max(0) as usize

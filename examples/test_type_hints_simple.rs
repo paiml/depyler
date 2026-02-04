@@ -1371,20 +1371,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3120,7 +3106,7 @@ impl DepylerRegexMatch {
 #[doc = "Add two numbers - should infer numeric types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn add_numbers<'a, 'b>(a: i32, b: i32) {
+pub fn add_numbers<'b, 'a>(a: i32, b: i32) {
     let _ = (a).py_add(b);
 }
 #[doc = "Process text - should infer string type."]
@@ -3132,8 +3118,8 @@ pub fn process_text(text: &str) -> String {
 }
 #[doc = "Calculate average - should infer list of numbers."]
 pub fn calculate_average(numbers: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut total: i32 = Default::default();
     total = 0;
     count = 0;
     for num in numbers.iter().cloned() {

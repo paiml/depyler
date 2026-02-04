@@ -1,5 +1,137 @@
 {
   "models": {
+    "oracle-3.21.0-1765229987531": {
+      "model_id": "oracle-3.21.0-1765229987531",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765229987531,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "200f50799e32b082c0fb1541051459c1deccb1de"
+      }
+    },
+    "oracle-3.21.0-1768357010867": {
+      "model_id": "oracle-3.21.0-1768357010867",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768357010867,
+      "config_hash": "95cfb8a5e2fb316d",
+      "tags": {
+        "commit_sha": "dbbbf3bc8275b463d9f3f08d96d59aa6aab79bac",
+        "sample_count": "12282",
+        "corpus_hash": "95cfb8a5e2fb316d"
+      }
+    },
+    "oracle-3.21.0-1768574781458": {
+      "model_id": "oracle-3.21.0-1768574781458",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768574781458,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "d7acd5a89040184d",
+        "commit_sha": "d72bd33f9dcb21d1f71c3ff631c4a76f26f4acf8"
+      }
+    },
+    "oracle-3.21.0-1765232274582": {
+      "model_id": "oracle-3.21.0-1765232274582",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765232274582,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "92abb18528feb75af02e320f4b7877b282ccb4c7",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.25.0-1770140276944": {
+      "model_id": "oracle-3.25.0-1770140276944",
+      "version": "3.25.0",
+      "accuracy": 0.85,
+      "created_at": 1770140276944,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "commit_sha": "2386cbb221d595b165bea0b403b2095242ff7381",
+        "corpus_hash": "bf21d586f140e564",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1768583921483": {
+      "model_id": "oracle-3.21.0-1768583921483",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768583921483,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "sample_count": "12282",
+        "commit_sha": "01d3540e9d5f82d805c89d06d4be1de8e5b81a7b",
+        "corpus_hash": "d7acd5a89040184d"
+      }
+    },
+    "oracle-3.25.0-1770045464552": {
+      "model_id": "oracle-3.25.0-1770045464552",
+      "version": "3.25.0",
+      "accuracy": 0.85,
+      "created_at": 1770045464552,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "commit_sha": "0e4bff8e407ce4f684b75848a819c501f53d6fef",
+        "corpus_hash": "bf21d586f140e564",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1768052699877": {
+      "model_id": "oracle-3.21.0-1768052699877",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768052699877,
+      "config_hash": "95cfb8a5e2fb316d",
+      "tags": {
+        "corpus_hash": "95cfb8a5e2fb316d",
+        "sample_count": "12282",
+        "commit_sha": "86e4008d6634f4976bdf80f33cf7eb9fb2a8d19c"
+      }
+    },
+    "oracle-3.21.0-1765456764938": {
+      "model_id": "oracle-3.21.0-1765456764938",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765456764938,
+      "config_hash": "9b83859d120e6bab",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "9b83859d120e6bab",
+        "commit_sha": "83198072ee29e6fb1791ed0dbb427fdb072aab4e"
+      }
+    },
+    "oracle-3.21.0-1768513009483": {
+      "model_id": "oracle-3.21.0-1768513009483",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768513009483,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "commit_sha": "9e6ab3e4744ec14266632a66d936e0639407c250",
+        "corpus_hash": "d7acd5a89040184d",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1768549208940": {
+      "model_id": "oracle-3.21.0-1768549208940",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768549208940,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "corpus_hash": "d7acd5a89040184d",
+        "commit_sha": "3518d459c7044b7bb83979f554ce389ad928b6dd",
+        "sample_count": "12282"
+      }
+    },
     "oracle-3.21.0-1768262637548": {
       "model_id": "oracle-3.21.0-1768262637548",
       "version": "3.21.0",
@@ -7,44 +139,68 @@
       "created_at": 1768262637548,
       "config_hash": "95cfb8a5e2fb316d",
       "tags": {
-        "sample_count": "12282",
+        "corpus_hash": "95cfb8a5e2fb316d",
         "commit_sha": "b2e735e96cf4b8295aba52517ac58f18321afbce",
-        "corpus_hash": "95cfb8a5e2fb316d"
-      }
-    },
-    "oracle-3.21.0-1765231185995": {
-      "model_id": "oracle-3.21.0-1765231185995",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765231185995,
-      "config_hash": "bde847bec274bb8f",
-      "tags": {
-        "sample_count": "12282",
-        "commit_sha": "e0938011f7e0bb1d8326b5c69c3bfd2863c228e7",
-        "corpus_hash": "bde847bec274bb8f"
-      }
-    },
-    "oracle-3.21.0-1765227173215": {
-      "model_id": "oracle-3.21.0-1765227173215",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765227173215,
-      "config_hash": "1a4a0052b88d8d55",
-      "tags": {
-        "corpus_hash": "1a4a0052b88d8d55",
-        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
         "sample_count": "12282"
       }
     },
-    "oracle-3.21.0-1768309477197": {
-      "model_id": "oracle-3.21.0-1768309477197",
+    "oracle-3.21.0-1768580515843": {
+      "model_id": "oracle-3.21.0-1768580515843",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768309477197,
-      "config_hash": "95cfb8a5e2fb316d",
+      "created_at": 1768580515843,
+      "config_hash": "d7acd5a89040184d",
       "tags": {
-        "corpus_hash": "95cfb8a5e2fb316d",
-        "commit_sha": "ee710e005302fa0200c9debbb4d52adf3e2b782c",
+        "sample_count": "12282",
+        "commit_sha": "85713986ef2ebc0b4ef2604e19871a8401b53590",
+        "corpus_hash": "d7acd5a89040184d"
+      }
+    },
+    "oracle-3.21.0-1765221727108": {
+      "model_id": "oracle-3.21.0-1765221727108",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765221727108,
+      "config_hash": "3f871ddb05acee99",
+      "tags": {
+        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
+        "sample_count": "12282",
+        "corpus_hash": "3f871ddb05acee99"
+      }
+    },
+    "oracle-3.21.0-1768576099002": {
+      "model_id": "oracle-3.21.0-1768576099002",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768576099002,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "commit_sha": "f28a0c63a3809236f1be8f3bc20fab2d91d1015e",
+        "sample_count": "12282",
+        "corpus_hash": "d7acd5a89040184d"
+      }
+    },
+    "oracle-3.21.0-1768505521164": {
+      "model_id": "oracle-3.21.0-1768505521164",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768505521164,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "corpus_hash": "d7acd5a89040184d",
+        "commit_sha": "49af5b174492b5bca91ac0ce73bbe5acc76194ee",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.25.0-1770112761291": {
+      "model_id": "oracle-3.25.0-1770112761291",
+      "version": "3.25.0",
+      "accuracy": 0.85,
+      "created_at": 1770112761291,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "corpus_hash": "bf21d586f140e564",
+        "commit_sha": "4a3b37f3f3c4f0f8c9d9b4232beb482a55688da7",
         "sample_count": "12282"
       }
     },
@@ -56,176 +212,20 @@
       "config_hash": "d7acd5a89040184d",
       "tags": {
         "corpus_hash": "d7acd5a89040184d",
-        "sample_count": "12282",
-        "commit_sha": "59c36f1d0e4a93c9fd150930c71eeaba5f6128c2"
-      }
-    },
-    "oracle-3.21.0-1765393591543": {
-      "model_id": "oracle-3.21.0-1765393591543",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765393591543,
-      "config_hash": "9b83859d120e6bab",
-      "tags": {
-        "commit_sha": "caa8fd513bea851c78f0af357c72a8993b35ef88",
-        "sample_count": "12282",
-        "corpus_hash": "9b83859d120e6bab"
-      }
-    },
-    "oracle-3.21.0-1765545291846": {
-      "model_id": "oracle-3.21.0-1765545291846",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765545291846,
-      "config_hash": "9b83859d120e6bab",
-      "tags": {
-        "corpus_hash": "9b83859d120e6bab",
-        "commit_sha": "0e6c43269fcc580dd9995d84ef07e7ea93abb2ec",
+        "commit_sha": "59c36f1d0e4a93c9fd150930c71eeaba5f6128c2",
         "sample_count": "12282"
       }
     },
-    "oracle-3.21.0-1768576099002": {
-      "model_id": "oracle-3.21.0-1768576099002",
+    "oracle-3.21.0-1768480750479": {
+      "model_id": "oracle-3.21.0-1768480750479",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768576099002,
+      "created_at": 1768480750479,
       "config_hash": "d7acd5a89040184d",
       "tags": {
-        "commit_sha": "f28a0c63a3809236f1be8f3bc20fab2d91d1015e",
         "corpus_hash": "d7acd5a89040184d",
-        "sample_count": "12282"
-      }
-    },
-    "oracle-3.21.0-1765268081018": {
-      "model_id": "oracle-3.21.0-1765268081018",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765268081018,
-      "config_hash": "8f6054b3f80cb9cb",
-      "tags": {
-        "corpus_hash": "8f6054b3f80cb9cb",
         "sample_count": "12282",
-        "commit_sha": "c1278df5ed643f71d82909720c8a2fb9351597f4"
-      }
-    },
-    "oracle-3.21.0-1765221727108": {
-      "model_id": "oracle-3.21.0-1765221727108",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765221727108,
-      "config_hash": "3f871ddb05acee99",
-      "tags": {
-        "corpus_hash": "3f871ddb05acee99",
-        "sample_count": "12282",
-        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50"
-      }
-    },
-    "oracle-3.21.0-1768505521164": {
-      "model_id": "oracle-3.21.0-1768505521164",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768505521164,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "sample_count": "12282",
-        "commit_sha": "49af5b174492b5bca91ac0ce73bbe5acc76194ee",
-        "corpus_hash": "d7acd5a89040184d"
-      }
-    },
-    "oracle-3.21.0-1768414894446": {
-      "model_id": "oracle-3.21.0-1768414894446",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768414894446,
-      "config_hash": "0652c448873b01ec",
-      "tags": {
-        "sample_count": "12282",
-        "corpus_hash": "0652c448873b01ec",
-        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85"
-      }
-    },
-    "oracle-3.21.0-1768484671470": {
-      "model_id": "oracle-3.21.0-1768484671470",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768484671470,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "commit_sha": "b837f69cb8c18c5beba8563643f7edc6b14c4fc4",
-        "corpus_hash": "d7acd5a89040184d",
-        "sample_count": "12282"
-      }
-    },
-    "oracle-3.21.0-1765467845894": {
-      "model_id": "oracle-3.21.0-1765467845894",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765467845894,
-      "config_hash": "9b83859d120e6bab",
-      "tags": {
-        "sample_count": "12282",
-        "corpus_hash": "9b83859d120e6bab",
-        "commit_sha": "e016a0dac4f38c76331349422862481785c6a432"
-      }
-    },
-    "oracle-3.21.0-1768413794190": {
-      "model_id": "oracle-3.21.0-1768413794190",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768413794190,
-      "config_hash": "e28b83caf88e85a8",
-      "tags": {
-        "sample_count": "12282",
-        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85",
-        "corpus_hash": "e28b83caf88e85a8"
-      }
-    },
-    "oracle-3.22.0-1769459545471": {
-      "model_id": "oracle-3.22.0-1769459545471",
-      "version": "3.22.0",
-      "accuracy": 0.85,
-      "created_at": 1769459545471,
-      "config_hash": "d7299f70a693e9d2",
-      "tags": {
-        "sample_count": "12282",
-        "corpus_hash": "d7299f70a693e9d2",
-        "commit_sha": "d61c3ff4d1ceb85be6fba350d1d2e1ba1d011ff8"
-      }
-    },
-    "oracle-3.21.0-1765625019815": {
-      "model_id": "oracle-3.21.0-1765625019815",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765625019815,
-      "config_hash": "9b83859d120e6bab",
-      "tags": {
-        "sample_count": "12282",
-        "commit_sha": "358df26eba81740ef0fa6dde5e44cf31ef6034a4",
-        "corpus_hash": "9b83859d120e6bab"
-      }
-    },
-    "oracle-3.21.0-1768601547129": {
-      "model_id": "oracle-3.21.0-1768601547129",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768601547129,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "sample_count": "12282",
-        "corpus_hash": "d7acd5a89040184d",
-        "commit_sha": "b6c5151a42e892321a571c6702f26d9f6811be53"
-      }
-    },
-    "oracle-3.21.0-1768357010867": {
-      "model_id": "oracle-3.21.0-1768357010867",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768357010867,
-      "config_hash": "95cfb8a5e2fb316d",
-      "tags": {
-        "sample_count": "12282",
-        "corpus_hash": "95cfb8a5e2fb316d",
-        "commit_sha": "dbbbf3bc8275b463d9f3f08d96d59aa6aab79bac"
+        "commit_sha": "420746b58dee4f060afe101b91d9c50b1117de2f"
       }
     },
     "oracle-3.21.0-1765404897445": {
@@ -236,19 +236,103 @@
       "config_hash": "9b83859d120e6bab",
       "tags": {
         "corpus_hash": "9b83859d120e6bab",
-        "commit_sha": "0e3a3ab449b6dddd2d3cafbc1b8f5c0131bff10d",
+        "sample_count": "12282",
+        "commit_sha": "0e3a3ab449b6dddd2d3cafbc1b8f5c0131bff10d"
+      }
+    },
+    "oracle-3.21.0-1765231185995": {
+      "model_id": "oracle-3.21.0-1765231185995",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765231185995,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "e0938011f7e0bb1d8326b5c69c3bfd2863c228e7"
+      }
+    },
+    "oracle-3.25.0-1770102465335": {
+      "model_id": "oracle-3.25.0-1770102465335",
+      "version": "3.25.0",
+      "accuracy": 0.85,
+      "created_at": 1770102465335,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "commit_sha": "e04c6b384db63ea2365457d1200977ba8fb891fb",
+        "sample_count": "12282",
+        "corpus_hash": "bf21d586f140e564"
+      }
+    },
+    "oracle-3.21.0-1765526362166": {
+      "model_id": "oracle-3.21.0-1765526362166",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765526362166,
+      "config_hash": "9b83859d120e6bab",
+      "tags": {
+        "commit_sha": "cfaa7cd7a33d0801daee4c930935cae5fc41b675",
+        "corpus_hash": "9b83859d120e6bab",
         "sample_count": "12282"
       }
     },
-    "oracle-3.21.0-1768574781458": {
-      "model_id": "oracle-3.21.0-1768574781458",
+    "oracle-3.25.0-1770041811835": {
+      "model_id": "oracle-3.25.0-1770041811835",
+      "version": "3.25.0",
+      "accuracy": 0.85,
+      "created_at": 1770041811835,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "bf21d586f140e564",
+        "commit_sha": "3fee39fd0c983d1b0d292313ca833a54ba5a9f19"
+      }
+    },
+    "oracle-3.21.0-1768594134140": {
+      "model_id": "oracle-3.21.0-1768594134140",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768574781458,
+      "created_at": 1768594134140,
       "config_hash": "d7acd5a89040184d",
       "tags": {
-        "commit_sha": "d72bd33f9dcb21d1f71c3ff631c4a76f26f4acf8",
+        "sample_count": "12282",
         "corpus_hash": "d7acd5a89040184d",
+        "commit_sha": "cee710e08e469003aeba08346b2c8f78caed8b4d"
+      }
+    },
+    "oracle-3.21.0-1768613277181": {
+      "model_id": "oracle-3.21.0-1768613277181",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768613277181,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "commit_sha": "b0091fef09ff22ae2fc6c1d7c1aaf31187d1724e",
+        "corpus_hash": "d7acd5a89040184d",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765228423038": {
+      "model_id": "oracle-3.21.0-1765228423038",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765228423038,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
+        "corpus_hash": "bde847bec274bb8f",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765268081018": {
+      "model_id": "oracle-3.21.0-1765268081018",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765268081018,
+      "config_hash": "8f6054b3f80cb9cb",
+      "tags": {
+        "commit_sha": "c1278df5ed643f71d82909720c8a2fb9351597f4",
+        "corpus_hash": "8f6054b3f80cb9cb",
         "sample_count": "12282"
       }
     },
@@ -264,18 +348,6 @@
         "corpus_hash": "d7acd5a89040184d"
       }
     },
-    "oracle-3.21.0-1768412320122": {
-      "model_id": "oracle-3.21.0-1768412320122",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768412320122,
-      "config_hash": "95cfb8a5e2fb316d",
-      "tags": {
-        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85",
-        "corpus_hash": "95cfb8a5e2fb316d",
-        "sample_count": "12282"
-      }
-    },
     "oracle-3.21.0-1768503177157": {
       "model_id": "oracle-3.21.0-1768503177157",
       "version": "3.21.0",
@@ -288,100 +360,16 @@
         "corpus_hash": "d7acd5a89040184d"
       }
     },
-    "oracle-3.21.0-1768513009483": {
-      "model_id": "oracle-3.21.0-1768513009483",
+    "oracle-3.21.0-1768412320122": {
+      "model_id": "oracle-3.21.0-1768412320122",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768513009483,
-      "config_hash": "d7acd5a89040184d",
+      "created_at": 1768412320122,
+      "config_hash": "95cfb8a5e2fb316d",
       "tags": {
-        "commit_sha": "9e6ab3e4744ec14266632a66d936e0639407c250",
-        "corpus_hash": "d7acd5a89040184d",
+        "corpus_hash": "95cfb8a5e2fb316d",
+        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85",
         "sample_count": "12282"
-      }
-    },
-    "oracle-3.21.0-1768496044190": {
-      "model_id": "oracle-3.21.0-1768496044190",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768496044190,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "commit_sha": "4c92e034edc7b8734ac9b2c309754982fad8f8f7",
-        "sample_count": "12282",
-        "corpus_hash": "d7acd5a89040184d"
-      }
-    },
-    "oracle-3.21.0-1768594134140": {
-      "model_id": "oracle-3.21.0-1768594134140",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768594134140,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "commit_sha": "cee710e08e469003aeba08346b2c8f78caed8b4d",
-        "sample_count": "12282",
-        "corpus_hash": "d7acd5a89040184d"
-      }
-    },
-    "oracle-3.21.0-1768583921483": {
-      "model_id": "oracle-3.21.0-1768583921483",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768583921483,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "commit_sha": "01d3540e9d5f82d805c89d06d4be1de8e5b81a7b",
-        "sample_count": "12282",
-        "corpus_hash": "d7acd5a89040184d"
-      }
-    },
-    "oracle-3.21.0-1768580515843": {
-      "model_id": "oracle-3.21.0-1768580515843",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768580515843,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "corpus_hash": "d7acd5a89040184d",
-        "sample_count": "12282",
-        "commit_sha": "85713986ef2ebc0b4ef2604e19871a8401b53590"
-      }
-    },
-    "oracle-3.21.0-1765456764938": {
-      "model_id": "oracle-3.21.0-1765456764938",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765456764938,
-      "config_hash": "9b83859d120e6bab",
-      "tags": {
-        "commit_sha": "83198072ee29e6fb1791ed0dbb427fdb072aab4e",
-        "corpus_hash": "9b83859d120e6bab",
-        "sample_count": "12282"
-      }
-    },
-    "oracle-3.21.0-1765235819651": {
-      "model_id": "oracle-3.21.0-1765235819651",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765235819651,
-      "config_hash": "8f6054b3f80cb9cb",
-      "tags": {
-        "sample_count": "12282",
-        "corpus_hash": "8f6054b3f80cb9cb",
-        "commit_sha": "9b78a1cc2801bb2f2df84e2c585d9528a47fb7ea"
-      }
-    },
-    "oracle-3.21.0-1765232274582": {
-      "model_id": "oracle-3.21.0-1765232274582",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765232274582,
-      "config_hash": "bde847bec274bb8f",
-      "tags": {
-        "sample_count": "12282",
-        "commit_sha": "92abb18528feb75af02e320f4b7877b282ccb4c7",
-        "corpus_hash": "bde847bec274bb8f"
       }
     },
     "oracle-3.21.0-1768140652812": {
@@ -391,116 +379,32 @@
       "created_at": 1768140652812,
       "config_hash": "95cfb8a5e2fb316d",
       "tags": {
+        "corpus_hash": "95cfb8a5e2fb316d",
         "commit_sha": "725f3134d454b16d1744df5b082fcbc2e8052458",
-        "sample_count": "12282",
-        "corpus_hash": "95cfb8a5e2fb316d"
+        "sample_count": "12282"
       }
     },
-    "oracle-3.21.0-1768613277181": {
-      "model_id": "oracle-3.21.0-1768613277181",
+    "oracle-3.21.0-1765545291846": {
+      "model_id": "oracle-3.21.0-1765545291846",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768613277181,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "commit_sha": "b0091fef09ff22ae2fc6c1d7c1aaf31187d1724e",
-        "sample_count": "12282",
-        "corpus_hash": "d7acd5a89040184d"
-      }
-    },
-    "oracle-3.21.0-1768052699877": {
-      "model_id": "oracle-3.21.0-1768052699877",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768052699877,
-      "config_hash": "95cfb8a5e2fb316d",
-      "tags": {
-        "sample_count": "12282",
-        "commit_sha": "86e4008d6634f4976bdf80f33cf7eb9fb2a8d19c",
-        "corpus_hash": "95cfb8a5e2fb316d"
-      }
-    },
-    "oracle-3.21.0-1768584576470": {
-      "model_id": "oracle-3.21.0-1768584576470",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768584576470,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "corpus_hash": "d7acd5a89040184d",
-        "sample_count": "12282",
-        "commit_sha": "d8628533a073e2b4f5ebce5c26bdc3ace4debc0b"
-      }
-    },
-    "oracle-3.21.0-1768599161994": {
-      "model_id": "oracle-3.21.0-1768599161994",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768599161994,
-      "config_hash": "d7acd5a89040184d",
-      "tags": {
-        "corpus_hash": "d7acd5a89040184d",
-        "sample_count": "12282",
-        "commit_sha": "8d71062fe020b84ad8e46bf407be1819586cf08b"
-      }
-    },
-    "oracle-3.21.0-1765526362166": {
-      "model_id": "oracle-3.21.0-1765526362166",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765526362166,
+      "created_at": 1765545291846,
       "config_hash": "9b83859d120e6bab",
       "tags": {
-        "sample_count": "12282",
-        "commit_sha": "cfaa7cd7a33d0801daee4c930935cae5fc41b675",
-        "corpus_hash": "9b83859d120e6bab"
+        "commit_sha": "0e6c43269fcc580dd9995d84ef07e7ea93abb2ec",
+        "corpus_hash": "9b83859d120e6bab",
+        "sample_count": "12282"
       }
     },
-    "oracle-3.21.0-1768549208940": {
-      "model_id": "oracle-3.21.0-1768549208940",
+    "oracle-3.21.0-1768601547129": {
+      "model_id": "oracle-3.21.0-1768601547129",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768549208940,
+      "created_at": 1768601547129,
       "config_hash": "d7acd5a89040184d",
       "tags": {
-        "sample_count": "12282",
+        "commit_sha": "b6c5151a42e892321a571c6702f26d9f6811be53",
         "corpus_hash": "d7acd5a89040184d",
-        "commit_sha": "3518d459c7044b7bb83979f554ce389ad928b6dd"
-      }
-    },
-    "oracle-3.21.0-1768413098454": {
-      "model_id": "oracle-3.21.0-1768413098454",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1768413098454,
-      "config_hash": "02fd3ac8d72e6539",
-      "tags": {
-        "corpus_hash": "02fd3ac8d72e6539",
-        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85",
-        "sample_count": "12282"
-      }
-    },
-    "oracle-3.23.0-1769537148331": {
-      "model_id": "oracle-3.23.0-1769537148331",
-      "version": "3.23.0",
-      "accuracy": 0.85,
-      "created_at": 1769537148331,
-      "config_hash": "bf21d586f140e564",
-      "tags": {
-        "corpus_hash": "bf21d586f140e564",
-        "commit_sha": "b53b72ce09c8bf490cbe4727e3ebf9233c82aa78",
-        "sample_count": "12282"
-      }
-    },
-    "oracle-3.21.0-1765228423038": {
-      "model_id": "oracle-3.21.0-1765228423038",
-      "version": "3.21.0",
-      "accuracy": 0.85,
-      "created_at": 1765228423038,
-      "config_hash": "bde847bec274bb8f",
-      "tags": {
-        "corpus_hash": "bde847bec274bb8f",
-        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
         "sample_count": "12282"
       }
     },
@@ -511,33 +415,213 @@
       "created_at": 1768557079954,
       "config_hash": "d7acd5a89040184d",
       "tags": {
+        "commit_sha": "77c33b224ed7cbe9240457f6be44141bc8f8bcd2",
         "sample_count": "12282",
-        "corpus_hash": "d7acd5a89040184d",
-        "commit_sha": "77c33b224ed7cbe9240457f6be44141bc8f8bcd2"
+        "corpus_hash": "d7acd5a89040184d"
       }
     },
-    "oracle-3.21.0-1765229987531": {
-      "model_id": "oracle-3.21.0-1765229987531",
+    "oracle-3.21.0-1768414894446": {
+      "model_id": "oracle-3.21.0-1768414894446",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1765229987531,
-      "config_hash": "bde847bec274bb8f",
+      "created_at": 1768414894446,
+      "config_hash": "0652c448873b01ec",
       "tags": {
-        "corpus_hash": "bde847bec274bb8f",
+        "corpus_hash": "0652c448873b01ec",
         "sample_count": "12282",
-        "commit_sha": "200f50799e32b082c0fb1541051459c1deccb1de"
+        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85"
       }
     },
-    "oracle-3.21.0-1768480750479": {
-      "model_id": "oracle-3.21.0-1768480750479",
+    "oracle-3.21.0-1768484671470": {
+      "model_id": "oracle-3.21.0-1768484671470",
       "version": "3.21.0",
       "accuracy": 0.85,
-      "created_at": 1768480750479,
+      "created_at": 1768484671470,
       "config_hash": "d7acd5a89040184d",
       "tags": {
-        "commit_sha": "420746b58dee4f060afe101b91d9c50b1117de2f",
+        "sample_count": "12282",
+        "commit_sha": "b837f69cb8c18c5beba8563643f7edc6b14c4fc4",
+        "corpus_hash": "d7acd5a89040184d"
+      }
+    },
+    "oracle-3.21.0-1768309477197": {
+      "model_id": "oracle-3.21.0-1768309477197",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768309477197,
+      "config_hash": "95cfb8a5e2fb316d",
+      "tags": {
+        "commit_sha": "ee710e005302fa0200c9debbb4d52adf3e2b782c",
+        "sample_count": "12282",
+        "corpus_hash": "95cfb8a5e2fb316d"
+      }
+    },
+    "oracle-3.21.0-1765393591543": {
+      "model_id": "oracle-3.21.0-1765393591543",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765393591543,
+      "config_hash": "9b83859d120e6bab",
+      "tags": {
+        "corpus_hash": "9b83859d120e6bab",
+        "commit_sha": "caa8fd513bea851c78f0af357c72a8993b35ef88",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1768413794190": {
+      "model_id": "oracle-3.21.0-1768413794190",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768413794190,
+      "config_hash": "e28b83caf88e85a8",
+      "tags": {
+        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85",
+        "sample_count": "12282",
+        "corpus_hash": "e28b83caf88e85a8"
+      }
+    },
+    "oracle-3.23.0-1769537148331": {
+      "model_id": "oracle-3.23.0-1769537148331",
+      "version": "3.23.0",
+      "accuracy": 0.85,
+      "created_at": 1769537148331,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "commit_sha": "b53b72ce09c8bf490cbe4727e3ebf9233c82aa78",
+        "sample_count": "12282",
+        "corpus_hash": "bf21d586f140e564"
+      }
+    },
+    "oracle-3.24.0-1770032844543": {
+      "model_id": "oracle-3.24.0-1770032844543",
+      "version": "3.24.0",
+      "accuracy": 0.85,
+      "created_at": 1770032844543,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "corpus_hash": "bf21d586f140e564",
+        "sample_count": "12282",
+        "commit_sha": "a4b6f01062d00a1c70058535b4c545edf30860db"
+      }
+    },
+    "oracle-3.22.0-1769459545471": {
+      "model_id": "oracle-3.22.0-1769459545471",
+      "version": "3.22.0",
+      "accuracy": 0.85,
+      "created_at": 1769459545471,
+      "config_hash": "d7299f70a693e9d2",
+      "tags": {
+        "corpus_hash": "d7299f70a693e9d2",
+        "sample_count": "12282",
+        "commit_sha": "d61c3ff4d1ceb85be6fba350d1d2e1ba1d011ff8"
+      }
+    },
+    "oracle-3.21.0-1768599161994": {
+      "model_id": "oracle-3.21.0-1768599161994",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768599161994,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "commit_sha": "8d71062fe020b84ad8e46bf407be1819586cf08b",
         "corpus_hash": "d7acd5a89040184d",
         "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765235819651": {
+      "model_id": "oracle-3.21.0-1765235819651",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765235819651,
+      "config_hash": "8f6054b3f80cb9cb",
+      "tags": {
+        "corpus_hash": "8f6054b3f80cb9cb",
+        "commit_sha": "9b78a1cc2801bb2f2df84e2c585d9528a47fb7ea",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765467845894": {
+      "model_id": "oracle-3.21.0-1765467845894",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765467845894,
+      "config_hash": "9b83859d120e6bab",
+      "tags": {
+        "sample_count": "12282",
+        "commit_sha": "e016a0dac4f38c76331349422862481785c6a432",
+        "corpus_hash": "9b83859d120e6bab"
+      }
+    },
+    "oracle-3.21.0-1768496044190": {
+      "model_id": "oracle-3.21.0-1768496044190",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768496044190,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "sample_count": "12282",
+        "commit_sha": "4c92e034edc7b8734ac9b2c309754982fad8f8f7",
+        "corpus_hash": "d7acd5a89040184d"
+      }
+    },
+    "oracle-3.25.0-1770124741169": {
+      "model_id": "oracle-3.25.0-1770124741169",
+      "version": "3.25.0",
+      "accuracy": 0.85,
+      "created_at": 1770124741169,
+      "config_hash": "bf21d586f140e564",
+      "tags": {
+        "commit_sha": "3cc4266f8bf0ff79a5310672e85b06b47e4879e5",
+        "sample_count": "12282",
+        "corpus_hash": "bf21d586f140e564"
+      }
+    },
+    "oracle-3.21.0-1768584576470": {
+      "model_id": "oracle-3.21.0-1768584576470",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768584576470,
+      "config_hash": "d7acd5a89040184d",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "d7acd5a89040184d",
+        "commit_sha": "d8628533a073e2b4f5ebce5c26bdc3ace4debc0b"
+      }
+    },
+    "oracle-3.21.0-1765227173215": {
+      "model_id": "oracle-3.21.0-1765227173215",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765227173215,
+      "config_hash": "1a4a0052b88d8d55",
+      "tags": {
+        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
+        "corpus_hash": "1a4a0052b88d8d55",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765625019815": {
+      "model_id": "oracle-3.21.0-1765625019815",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765625019815,
+      "config_hash": "9b83859d120e6bab",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "9b83859d120e6bab",
+        "commit_sha": "358df26eba81740ef0fa6dde5e44cf31ef6034a4"
+      }
+    },
+    "oracle-3.21.0-1768413098454": {
+      "model_id": "oracle-3.21.0-1768413098454",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1768413098454,
+      "config_hash": "02fd3ac8d72e6539",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "02fd3ac8d72e6539",
+        "commit_sha": "f8dad730191bc34ed77c997ac29f3b02f3299e85"
       }
     }
   },
@@ -803,6 +887,48 @@
     {
       "parent_id": "oracle-3.22.0-1769459545471",
       "child_id": "oracle-3.23.0-1769537148331",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.23.0-1769537148331",
+      "child_id": "oracle-3.24.0-1770032844543",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.24.0-1770032844543",
+      "child_id": "oracle-3.25.0-1770041811835",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.25.0-1770041811835",
+      "child_id": "oracle-3.25.0-1770045464552",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.25.0-1770045464552",
+      "child_id": "oracle-3.25.0-1770102465335",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.25.0-1770102465335",
+      "child_id": "oracle-3.25.0-1770112761291",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.25.0-1770112761291",
+      "child_id": "oracle-3.25.0-1770124741169",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.25.0-1770124741169",
+      "child_id": "oracle-3.25.0-1770140276944",
       "change_type": "Retrain",
       "description": "Oracle retrained due to codebase changes"
     }

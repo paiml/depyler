@@ -138,7 +138,9 @@ pub fn get_sklearn_coverage() -> ComponentCoverage {
 
     let mapped = mappings
         .iter()
-        .filter(|m| m.status == MigrationStatus::Mapped || m.status == MigrationStatus::MappedWithChanges)
+        .filter(|m| {
+            m.status == MigrationStatus::Mapped || m.status == MigrationStatus::MappedWithChanges
+        })
         .count();
 
     ComponentCoverage {
@@ -218,7 +220,9 @@ pub fn get_numpy_coverage() -> ComponentCoverage {
 
     let mapped = mappings
         .iter()
-        .filter(|m| m.status == MigrationStatus::Mapped || m.status == MigrationStatus::MappedWithChanges)
+        .filter(|m| {
+            m.status == MigrationStatus::Mapped || m.status == MigrationStatus::MappedWithChanges
+        })
         .count();
 
     ComponentCoverage {
@@ -383,8 +387,7 @@ pub fn get_scipy_coverage() -> ComponentCoverage {
     let mapped = mappings
         .iter()
         .filter(|m| {
-            m.status == MigrationStatus::Mapped
-                || m.status == MigrationStatus::MappedWithChanges
+            m.status == MigrationStatus::Mapped || m.status == MigrationStatus::MappedWithChanges
         })
         .count();
 
@@ -445,7 +448,9 @@ fn load_corpus_metrics() -> (Option<f64>, Option<usize>) {
             let compile_rate = json["baseline"]["transpile_rate"]
                 .as_f64()
                 .map(|r| r * 100.0);
-            let corpus_files = json["baseline"]["files_processed"].as_u64().map(|f| f as usize);
+            let corpus_files = json["baseline"]["files_processed"]
+                .as_u64()
+                .map(|f| f as usize);
             return (compile_rate, corpus_files);
         }
     }
@@ -456,9 +461,20 @@ fn load_corpus_metrics() -> (Option<f64>, Option<usize>) {
 /// Display dashboard in text format
 pub fn display_text(report: &DashboardReport) {
     println!();
-    println!("{}", "═══════════════════════════════════════════════════════════════".bright_blue());
-    println!("{}", "           DEPYLER SOVEREIGN STACK COVERAGE DASHBOARD          ".bright_blue().bold());
-    println!("{}", "═══════════════════════════════════════════════════════════════".bright_blue());
+    println!(
+        "{}",
+        "═══════════════════════════════════════════════════════════════".bright_blue()
+    );
+    println!(
+        "{}",
+        "           DEPYLER SOVEREIGN STACK COVERAGE DASHBOARD          "
+            .bright_blue()
+            .bold()
+    );
+    println!(
+        "{}",
+        "═══════════════════════════════════════════════════════════════".bright_blue()
+    );
     println!();
 
     // Path B Progress
@@ -521,10 +537,7 @@ pub fn display_text(report: &DashboardReport) {
 
         println!(
             "│ {:11} │ {:11} │ {:7} │ {:19} │",
-            component.component,
-            component.replaces,
-            rate_colored,
-            status
+            component.component, component.replaces, rate_colored, status
         );
     }
     println!("└─────────────┴─────────────┴─────────┴─────────────────────┘");
@@ -532,7 +545,10 @@ pub fn display_text(report: &DashboardReport) {
 
     // Detailed mappings
     println!("─────────────────────────────────────────────────────────────────");
-    println!("{}", "                    DETAILED FUNCTION MAPPINGS                   ".bold());
+    println!(
+        "{}",
+        "                    DETAILED FUNCTION MAPPINGS                   ".bold()
+    );
     println!("─────────────────────────────────────────────────────────────────");
     println!();
 
@@ -555,17 +571,11 @@ pub fn display_text(report: &DashboardReport) {
                 MigrationStatus::Incompatible => "⊘".red(),
             };
 
-            let sovereign = mapping
-                .sovereign_fn
-                .as_deref()
-                .unwrap_or("(unmapped)");
+            let sovereign = mapping.sovereign_fn.as_deref().unwrap_or("(unmapped)");
 
             println!(
                 "  {} #{:<2} {} → {}",
-                status_icon,
-                mapping.rank,
-                mapping.python_fn,
-                sovereign
+                status_icon, mapping.rank, mapping.python_fn, sovereign
             );
         }
         println!();
@@ -707,7 +717,8 @@ mod tests {
     #[test]
     fn test_component_coverage_calculation() {
         let coverage = get_sklearn_coverage();
-        let expected_rate = (coverage.mapped_functions as f64 / coverage.total_functions as f64) * 100.0;
+        let expected_rate =
+            (coverage.mapped_functions as f64 / coverage.total_functions as f64) * 100.0;
         assert!((coverage.coverage_rate - expected_rate).abs() < 0.01);
     }
 }

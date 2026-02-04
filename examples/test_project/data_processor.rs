@@ -3213,7 +3213,11 @@ impl DataProcessor {
     ) -> Vec<std::collections::HashMap<String, DepylerValue>> {
         return {
             let mut v: Vec<_> = self.data.clone().into_iter().collect();
-            v.sort_by_key(|x| x.get(&field).cloned().unwrap_or_else(|| "".to_string()));
+            v.sort_by_key(|x| {
+                x.get(&field)
+                    .cloned()
+                    .unwrap_or_else(|| ("".to_string()).to_string())
+            });
             v
         };
     }
@@ -3267,7 +3271,7 @@ pub fn process_numbers(numbers: &Vec<i32>) -> HashMap<String, DepylerValue> {
         .cloned()
         .filter(|n| {
             let n = n.clone();
-            (n).py_mod(2) == 0
+            (n).py_mod(2i32) == 0
         })
         .map(|n| n)
         .collect::<Vec<_>>();
@@ -3277,7 +3281,7 @@ pub fn process_numbers(numbers: &Vec<i32>) -> HashMap<String, DepylerValue> {
         .cloned()
         .filter(|n| {
             let n = n.clone();
-            (n).py_mod(2) != 0
+            (n).py_mod(2i32) != 0
         })
         .map(|n| n)
         .collect::<Vec<_>>();
@@ -3295,7 +3299,10 @@ pub fn process_numbers(numbers: &Vec<i32>) -> HashMap<String, DepylerValue> {
             }
         })
         .collect::<Vec<_>>();
-    let doubled = numbers.iter().map(|&x| (x).py_mul(2)).collect::<Vec<_>>();
+    let doubled = numbers
+        .iter()
+        .map(|&x| (x).py_mul(2i32))
+        .collect::<Vec<_>>();
     let positive = numbers
         .iter()
         .cloned()
@@ -3366,7 +3373,7 @@ pub fn transform_text(text: &str) -> HashMap<String, DepylerValue> {
     let word_count = _cse_temp_0;
     let _cse_temp_1 = text.len() as i32;
     let char_count = _cse_temp_1;
-    let mut word_freq: std::collections::HashMap<String, String> = {
+    let mut word_freq: std::collections::HashMap<String, DepylerValue> = {
         let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map
     };
@@ -3374,18 +3381,18 @@ pub fn transform_text(text: &str) -> HashMap<String, DepylerValue> {
         let word_lower = word.to_lowercase();
         word_freq.insert(
             word_lower.to_string().clone(),
-            (word_freq.get(&word_lower).cloned().unwrap_or(0)).py_add(1),
+            (word_freq.get(&word_lower).cloned().unwrap_or(0)).py_add(1i32),
         );
     }
     let longest = if !words.is_empty() {
         *words.iter().max().unwrap()
     } else {
-        "".to_string()
+        ""
     };
     let shortest = if !words.is_empty() {
         *words.iter().min().unwrap()
     } else {
-        "".to_string()
+        ""
     };
     let char_freq: std::collections::HashMap<DepylerValue, i32> = text
         .into_iter()
@@ -3596,7 +3603,7 @@ pub fn pipeline_example(data: &Vec<i32>) -> i32 {
         operator.add,
         data.iter()
             .cloned()
-            .filter(|&x| (x).py_mod(2) == 0)
+            .filter(|&x| (x).py_mod(2i32) == 0)
             .iter()
             .map(|&x| {
                 if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
@@ -3698,18 +3705,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             map
         },
     ];
-    let processor = DataProcessor::new(sample_data);
+    let processor: DataProcessor = DataProcessor::new(sample_data);
     println!(
         "{} {}",
         "NYC residents:",
         processor.filter_by_field(STR_CITY, "NYC")
     );
     println!("{} {}", "Grouped by city:", processor.group_by(STR_CITY));
-    println!(
-        "{} {}",
-        "Average age:",
-        processor.aggregate(STR_AGE, "avg".to_string())
-    );
+    println!("{} {}", "Average age:", processor.aggregate(STR_AGE, "avg"));
     println!("{} {}", "Distinct cities:", processor.distinct(STR_CITY));
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5, -1, -2, 0];
     println!("{} {}", "\nNumber processing:", process_numbers(&numbers));
@@ -3717,9 +3720,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{} {}", "\nText analysis:", transform_text(&text));
     let matrix: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
     println!(
-        "{} {:?}",
+        "{} {}",
         "\nMatrix operations:",
-        matrix_operations(&matrix)
+        matrix_operations(&matrix).unwrap()
     );
     println!(
         "{} {}",

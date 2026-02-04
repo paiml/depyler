@@ -1388,20 +1388,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3351,7 +3337,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'b, 'a>(
+pub fn working_days_between<'a, 'b>(
     start: &'a DepylerDate,
     end: &'b DepylerDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {

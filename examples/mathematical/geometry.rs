@@ -3121,7 +3121,7 @@ impl Point {
         };
         let mut result = distance_squared / 2.0;
         for _ in 0..10 {
-            let result = result + distance_squared / result / 2.0;
+            let result = format!("{}{}", result, distance_squared / result) / 2.0;
         }
         return result;
     }
@@ -3139,7 +3139,7 @@ impl Rectangle {
         return self.width.clone() * self.height.clone();
     }
     pub fn perimeter(&self) -> f64 {
-        return 2.0 * self.width.clone() + self.height.clone();
+        return 2.0 * (self.width.clone() + self.height.clone());
     }
     pub fn is_square(&self) -> bool {
         return ((self.width.clone() - self.height.clone()).abs() as f64) < 0.0001;
@@ -3171,7 +3171,10 @@ impl Circle {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn triangle_area(base: f64, height: f64) -> f64 {
-    ((0.5).py_mul(base)).py_mul(height)
+    {
+        let _r: f64 = ((0.5).py_mul(base) as f64).py_mul(height);
+        _r
+    }
 }
 #[doc = "Calculate triangle area using Heron's formula"]
 #[doc = " Depyler: proven to terminate"]
@@ -3185,7 +3188,7 @@ pub fn triangle_area_heron(a: f64, b: f64, c: f64) -> Result<f64, Box<dyn std::e
     if _cse_temp_4 {
         return Ok(0.0);
     }
-    let _cse_temp_5 = ((a).py_add(b)).py_add(c);
+    let _cse_temp_5 = ((a).py_add(b) as f64).py_add(c);
     let _cse_temp_6 = (_cse_temp_5).py_div(2.0);
     let s: f64 = _cse_temp_6;
     let _cse_temp_7 = (s).py_mul((s).py_sub(a));
@@ -3199,13 +3202,13 @@ pub fn triangle_area_heron(a: f64, b: f64, c: f64) -> Result<f64, Box<dyn std::e
     let _cse_temp_11 = (area_squared).py_div(2.0);
     result = _cse_temp_11;
     for __sanitized in 0..(10) {
-        result = ((result).py_add((area_squared).py_div(result))).py_div(2.0);
+        result = ((result).py_add((area_squared).py_div(result)) as f64).py_div(2.0);
     }
     Ok(result)
 }
 #[doc = "Find intersection of two lines defined by point pairs"]
 #[doc = " Depyler: proven to terminate"]
-pub fn line_intersection<'a, 'b, 'c, 'l1>(
+pub fn line_intersection<'l1, 'b, 'c, 'a>(
     p1: &'a Point,
     p2: &'b Point,
     p3: &'c Point,
@@ -3215,17 +3218,17 @@ pub fn line_intersection<'a, 'b, 'c, 'l1>(
     let (x2, y2) = (p2.x, p2.y);
     let (x3, y3) = (p3.x, p3.y);
     let (x4, y4) = (p4.x, p4.y);
-    let _cse_temp_0 = ((x1).py_sub(x2)).py_mul((y3).py_sub(y4));
-    let _cse_temp_1 = ((y1).py_sub(y2)).py_mul((x3).py_sub(x4));
+    let _cse_temp_0 = ((x1).py_sub(x2) as i32).py_mul((y3).py_sub(y4));
+    let _cse_temp_1 = ((y1).py_sub(y2) as i32).py_mul((x3).py_sub(x4));
     let denominator = (_cse_temp_0).py_sub(_cse_temp_1);
     let _cse_temp_2 = (denominator).abs();
     let _cse_temp_3 = ((_cse_temp_2 as f64) as f64) < 0.0001;
     if _cse_temp_3 {
         return Ok((false, Point::new(0.0, 0.0)));
     }
-    let _cse_temp_4 = ((x1).py_sub(x3)).py_mul((y3).py_sub(y4));
-    let _cse_temp_5 = ((y1).py_sub(y3)).py_mul((x3).py_sub(x4));
-    let _cse_temp_6 = ((_cse_temp_4).py_sub(_cse_temp_5)).py_div(denominator);
+    let _cse_temp_4 = ((x1).py_sub(x3) as i32).py_mul((y3).py_sub(y4));
+    let _cse_temp_5 = ((y1).py_sub(y3) as i32).py_mul((x3).py_sub(x4));
+    let _cse_temp_6 = ((_cse_temp_4).py_sub(_cse_temp_5) as i32).py_div(denominator);
     let t = _cse_temp_6;
     let _cse_temp_7 = (t).py_mul((x2).py_sub(x1));
     let intersection_x = (x1).py_add(_cse_temp_7);

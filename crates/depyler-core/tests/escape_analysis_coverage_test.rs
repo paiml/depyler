@@ -902,10 +902,7 @@ fn test_strategic_clone_collection_usage() {
         vec![
             assign("a", make_int(1)),
             assign("b", make_var("a")),
-            assign(
-                "lst",
-                HirExpr::List(vec![make_var("a"), make_var("b")]),
-            ),
+            assign("lst", HirExpr::List(vec![make_var("a"), make_var("b")])),
         ],
     );
 
@@ -921,10 +918,7 @@ fn test_strategic_clone_tuple_usage() {
         vec![
             assign("a", make_int(1)),
             assign("b", make_var("a")),
-            assign(
-                "tup",
-                HirExpr::Tuple(vec![make_var("a"), make_var("b")]),
-            ),
+            assign("tup", HirExpr::Tuple(vec![make_var("a"), make_var("b")])),
         ],
     );
 
@@ -940,10 +934,7 @@ fn test_strategic_clone_set_usage() {
         vec![
             assign("a", make_int(1)),
             assign("b", make_var("a")),
-            assign(
-                "s",
-                HirExpr::Set(vec![make_var("a"), make_var("b")]),
-            ),
+            assign("s", HirExpr::Set(vec![make_var("a"), make_var("b")])),
         ],
     );
 
@@ -959,10 +950,7 @@ fn test_strategic_clone_dict_usage() {
         vec![
             assign("a", make_int(1)),
             assign("b", make_var("a")),
-            assign(
-                "d",
-                HirExpr::Dict(vec![(make_var("a"), make_var("b"))]),
-            ),
+            assign("d", HirExpr::Dict(vec![(make_var("a"), make_var("b"))])),
         ],
     );
 
@@ -1209,9 +1197,7 @@ fn test_uam_try_with_handlers() {
         "try_handlers",
         vec![make_param("x", Type::Int)],
         vec![HirStmt::Try {
-            body: vec![
-                assign("result", call("risky_call", vec![make_var("x")])),
-            ],
+            body: vec![assign("result", call("risky_call", vec![make_var("x")]))],
             handlers: vec![
                 ExceptHandler {
                     exception_type: Some("ValueError".to_string()),
@@ -1390,13 +1376,11 @@ fn test_uam_if_with_else_both_move() {
     let func = make_func(
         "if_else_fn",
         vec![make_param("x", Type::String)],
-        vec![
-            HirStmt::If {
-                condition: call("condition", vec![]),
-                then_body: vec![expr_stmt(call("consume", vec![make_var("x")]))],
-                else_body: Some(vec![expr_stmt(call("consume", vec![make_var("x")]))]),
-            },
-        ],
+        vec![HirStmt::If {
+            condition: call("condition", vec![]),
+            then_body: vec![expr_stmt(call("consume", vec![make_var("x")]))],
+            else_body: Some(vec![expr_stmt(call("consume", vec![make_var("x")]))]),
+        }],
     );
 
     let mut analysis = UseAfterMoveAnalysis::new();

@@ -3116,7 +3116,8 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
         if _cse_temp_1 {
             return 1;
         } else {
-            return (fibonacci_recursive((n).py_sub(1))).py_add(fibonacci_recursive((n).py_sub(2)));
+            return (fibonacci_recursive((n).py_sub(1i32)))
+                .py_add(fibonacci_recursive((n).py_sub(2i32)));
         }
     }
 }
@@ -3135,7 +3136,7 @@ pub fn fibonacci_iterative(n: i32) -> i32 {
         }
     }
     let (mut prev, mut curr) = (0, 1);
-    for __sanitized in (2)..((n).py_add(1)) {
+    for __sanitized in (2)..((n).py_add(1i32)) {
         (prev, curr) = (curr, (prev).py_add(curr));
     }
     curr
@@ -3195,7 +3196,7 @@ impl Iterator for FibonacciGeneratorState {
                     let _tuple_temp = (self.b.clone(), (self.a).py_add(self.b));
                     self.a = _tuple_temp.0;
                     self.b = _tuple_temp.1;
-                    self.count = (self.count).py_add(1);
+                    self.count = ((self.count).py_add(1i32)) as i32;
                     return Some(result);
                 } else {
                     self.state = 2;
@@ -3231,8 +3232,8 @@ pub fn fibonacci_memoized(
             return Ok(1);
         }
     }
-    let _cse_temp_3 =
-        (fibonacci_memoized((n).py_sub(1), memo)?).py_add(fibonacci_memoized((n).py_sub(2), memo)?);
+    let _cse_temp_3 = (fibonacci_memoized((n).py_sub(1i32), memo)?)
+        .py_add(fibonacci_memoized((n).py_sub(2i32), memo)?);
     let result = _cse_temp_3;
     memo.as_mut().unwrap().insert(n.clone(), result);
     Ok(result)
@@ -3240,8 +3241,8 @@ pub fn fibonacci_memoized(
 #[doc = "Find the index of a target value in Fibonacci sequence."]
 #[doc = " Depyler: verified panic-free"]
 pub fn find_fibonacci_index(target: i32) -> Option<i32> {
-    let mut index: i32 = Default::default();
     let mut a: i32 = Default::default();
+    let mut index: i32 = Default::default();
     let _cse_temp_0 = target < 0;
     if _cse_temp_0 {
         return None;
@@ -3250,7 +3251,7 @@ pub fn find_fibonacci_index(target: i32) -> Option<i32> {
     index = 0;
     while a < target {
         (a, b) = (b.clone(), (a).py_add(b));
-        index = (index).py_add(1);
+        index = ((index).py_add(1i32)) as i32;
     }
     if a == target {
         Some(index)
@@ -3270,8 +3271,8 @@ pub fn is_fibonacci_number(num: i32) -> bool {
         let root = (({ x } as f64).powf({ 0.5 } as f64)) as i32;
         return (root).py_mul(root) == x;
     };
-    (is_perfect_square((((5).py_mul(num)).py_mul(num)).py_add(4)))
-        || (is_perfect_square((((5).py_mul(num)).py_mul(num)).py_sub(4)))
+    (is_perfect_square((((5i32).py_mul(num) as i32).py_mul(num) as i32).py_add(4i32)))
+        || (is_perfect_square((((5i32).py_mul(num) as i32).py_mul(num) as i32).py_sub(4i32)))
 }
 #[doc = "Test the Fibonacci functions."]
 #[doc = " Depyler: verified panic-free"]

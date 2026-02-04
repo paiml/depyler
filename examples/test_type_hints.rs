@@ -1388,20 +1388,6 @@ impl PySub<DepylerValue> for f64 {
         self - rhs.to_f64()
     }
 }
-impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
-        self.difference(&rhs).cloned().collect()
-    }
-}
-impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
-    for std::collections::HashSet<T>
-{
-    type Output = std::collections::HashSet<T>;
-    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -3172,7 +3158,7 @@ pub fn mixed_operations<'b, 'a>(x: i32, y: i32) {
 #[doc = " Depyler: proven to terminate"]
 pub fn container_operations(
     items: &mut Vec<DepylerValue>,
-) -> Result<Option<DepylerValue>, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
@@ -3181,7 +3167,7 @@ pub fn container_operations(
             .cloned()
             .expect("IndexError: list index out of range");
         items.push(DepylerValue::Int(42 as i64));
-        return Ok(first);
+        return Ok(first.to_string());
     }
     Ok(None)
 }
@@ -3247,19 +3233,4 @@ pub fn partial_annotations<'a, 'b>(
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = "\nExample demonstrating type inference hints in Depyler.\nFunctions without type annotations will receive inference suggestions.\n";
     Ok(())
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
-    #[test]
-    fn test_process_numbers_examples() {
-        assert_eq!(process_numbers(&vec![]), 0);
-        assert_eq!(process_numbers(&vec![1]), 1);
-        assert_eq!(process_numbers(&vec![1, 2, 3]), 3);
-    }
-    #[test]
-    fn test_inferred_return_types_examples() {
-        let _ = inferred_return_types();
-    }
 }

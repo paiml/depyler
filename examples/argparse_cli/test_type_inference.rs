@@ -3174,6 +3174,6 @@ pub fn get_rest(items: &Vec<DepylerValue>) -> String {
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _ = "Test type inference for unannotated parameters(DEPYLER-0492)".to_string();
+    let _ = "Test type inference for unannotated parameters(DEPYLER-0492)";
     Ok(())
 }

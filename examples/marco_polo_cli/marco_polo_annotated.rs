@@ -3262,9 +3262,9 @@ pub fn parse_arguments() -> Args {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn print_welcome() {
-    println!("{}", (STR__).py_mul(50));
+    println!("{}", (STR__).py_mul(50i32));
     println!("{}", {
-        let s = "🎮 Welcome to Marco Polo CLI! 🎮".to_string();
+        let s = "🎮 Welcome to Marco Polo CLI! 🎮";
         let width = 50 as usize;
         let fillchar = " ";
         if s.len() >= width {
@@ -3281,15 +3281,15 @@ pub fn print_welcome() {
             )
         }
     });
-    println!("{}", (STR__).py_mul(50));
+    println!("{}", (STR__).py_mul(50i32));
 }
 #[doc = "Print game statistics."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn print_statistics(game: &MarcoPoloGame, rounds: i32) {
-    println!("{}", ("\n").py_add((STR__).py_mul(50)));
+    println!("{}", ("\n").py_add((STR__).py_mul(50i32)));
     println!("{}", {
-        let s = "📊 Game Statistics 📊".to_string();
+        let s = "📊 Game Statistics 📊";
         let width = 50 as usize;
         let fillchar = " ";
         if s.len() >= width {
@@ -3306,7 +3306,7 @@ pub fn print_statistics(game: &MarcoPoloGame, rounds: i32) {
             )
         }
     });
-    println!("{}", (STR__).py_mul(50));
+    println!("{}", (STR__).py_mul(50i32));
     println!("{}", format!("Rounds played: {}/{}", game.score, rounds));
     println!("{}", format!("Total attempts: {}", game.attempts));
     let _cse_temp_0 = game.score > 0;
@@ -3323,7 +3323,7 @@ pub fn print_statistics(game: &MarcoPoloGame, rounds: i32) {
         "{}",
         format!("Performance: {}", game.calculate_performance())
     );
-    println!("{}", (STR__).py_mul(50));
+    println!("{}", (STR__).py_mul(50i32));
 }
 #[doc = "Main entry point."]
 #[doc = " Depyler: verified panic-free"]
@@ -3331,7 +3331,7 @@ pub fn print_statistics(game: &MarcoPoloGame, rounds: i32) {
 pub fn main() {
     let args = parse_arguments();
     print_welcome();
-    let game = MarcoPoloGame::new(args.difficulty, args.verbose);
+    let game: MarcoPoloGame = MarcoPoloGame::new(args.difficulty, args.verbose);
     println!(
         "{}",
         format!(
@@ -3339,10 +3339,10 @@ pub fn main() {
             args.rounds, args.difficulty
         )
     );
-    for round_num in (1)..((args.rounds).py_add(1)) {
-        println!("{}", format!("\n{}", (STR__).py_mul(30)));
+    for round_num in (1)..((args.rounds).py_add(1i32)) {
+        println!("{}", format!("\n{}", (STR__).py_mul(30i32)));
         println!("{}", format!("Round {} of {}", round_num, args.rounds));
-        println!("{}", format!("{}", (STR__).py_mul(30)));
+        println!("{}", format!("{}", (STR__).py_mul(30i32)));
         if !game.play_round() {
             println!("{}", "\nGame ended early.");
             break;
