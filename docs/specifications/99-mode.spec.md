@@ -2704,8 +2704,41 @@ Session 5 (516 tests):
 **Modules Covered**: 40+ source modules totaling 100,000+ lines
 **CI Fixes**: Fixed cargo fmt formatting, fixed golden-trace --release/--profile conflict
 
+Session 6 (426 tests):
+46. `borrowing_context_99mode_coverage_test.rs` - 31 tests (borrowing_context 1,733 lines)
+47. `cargo_toml_gen_99mode_coverage_test.rs` - 21 tests (cargo_toml_gen 1,570 lines)
+48. `scoring_99mode_coverage_test.rs` - 25 tests (scoring 1,534 lines)
+49. `lambda_testing_99mode_coverage_test.rs` - 18 tests (lambda_testing 1,504 lines)
+50. `typeshed_ingest_99mode_coverage_test.rs` - 19 tests (typeshed_ingest 1,266 lines)
+51. `const_generic_inference_99mode_coverage_test.rs` - 20 tests (const_generic_inference 1,248 lines)
+52. `lambda_optimizer_99mode_coverage_test.rs` - 15 tests (lambda_optimizer 1,203 lines)
+53. `lambda_codegen_99mode_coverage_test.rs` - 16 tests (lambda_codegen 1,195 lines)
+54. `lambda_types_99mode_coverage_test.rs` - 12 tests (lambda_types 1,167 lines)
+55. `binding_gen_99mode_coverage_test.rs` - 15 tests (binding_gen 1,157 lines)
+56. `doctest_extractor_99mode_coverage_test.rs` - 12 tests (doctest_extractor 1,101 lines)
+57. `cargo_first_99mode_coverage_test.rs` - 13 tests (cargo_first 1,017 lines)
+58. `control_flow_analysis_99mode_coverage_test.rs` - 20 tests (control_flow_analysis 1,008 lines)
+59. `error_reporting_99mode_coverage_test.rs` - 16 tests (error_reporting 986 lines)
+60. `hindley_milner_99mode_coverage_test.rs` - 22 tests (hindley_milner 932 lines)
+61. `stdlib_mappings_99mode_coverage_test.rs` - 15 tests (stdlib_mappings 869 lines)
+62. `pattern_extraction_99mode_coverage_test.rs` - 9 tests (pattern_extraction 865 lines)
+63. `expr_type_helpers_99mode_coverage_test.rs` - 15 tests (expr_type_helpers 799 lines)
+64. `walrus_helpers_99mode_coverage_test.rs` - 10 tests (walrus_helpers 789 lines)
+65. `generative_repair_99mode_coverage_test.rs` - 9 tests (generative_repair 782 lines)
+66. `string_analysis_99mode_coverage_test.rs` - 15 tests (string_analysis 761 lines)
+67. `type_tokens_99mode_coverage_test.rs` - 13 tests (type_tokens 711 lines)
+68. `numeric_coercion_99mode_coverage_test.rs` - 14 tests (numeric_coercion 707 lines)
+69. `itertools_gen_99mode_coverage_test.rs` - 13 tests (itertools 1,140 lines)
+70. `hunt_mode_99mode_coverage_test.rs` - 23 tests (hunt_mode/ 3,965 lines total)
+71. `infrastructure_99mode_coverage_test.rs` - 15 tests (infrastructure/ 1,708 lines total)
+
+**Grand Total**: 2,821 tests across 71 test files (Sessions 1-6)
+**Depyler-core Total**: 10,656 tests across all test files
+**Modules Covered**: 70+ source modules totaling 130,000+ lines
+**CI Status**: Green (cargo fmt fixed, golden-trace fixed)
+
 **Next Actions**:
-1. Measure updated coverage with full integration tests
-2. Target remaining uncovered 1000+ line modules
-3. Focus on lambda_codegen, lambda_optimizer, const_generic_inference, hir, optimization
+1. Measure updated coverage (target: 90%+)
+2. Target remaining uncovered modules under 800 lines
+3. Continue pushing toward 95% coverage
 4. Monitor CI for green status
