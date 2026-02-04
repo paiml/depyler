@@ -2609,25 +2609,42 @@ p.args_var.as_ref().is_some_and(|av| av == args_param)
 |--------|---------|--------|--------|
 | Clippy Warnings | 0 | 0 | ✅ PASS |
 | TDG Score | 93.8 (A) | 95+ (A+) | ⚠️ 1.2 points gap |
-| Test Coverage (core) | 85.48% | 95% | ⚠️ 9.52 pp gap (improving) |
-| Function Coverage | 92.98% | 95% | ⚠️ 2.02 pp gap (improving) |
+| Test Coverage (core) | 85.57% | 95% | ⚠️ 9.43 pp gap (improving) |
+| Function Coverage | 93.06% | 95% | ⚠️ 1.94 pp gap (improving) |
+| Branch Coverage | 86.13% | 90% | ⚠️ 3.87 pp gap (improving) |
 | SATD Violations | 87 | 0 | ⚠️ False positives (doc comments) |
 | Max Cyclomatic | 257 | ≤10 | ❌ Long-term refactor |
-| Total Tests | 11,700+ | - | ✅ All passing |
+| Total Tests | 11,900+ | - | ✅ All passing |
 
-**Coverage Breakdown** (depyler-core, lib + new integration tests):
-- Lines: 85.48% (200,530 total, 29,115 uncovered) [+0.37pp from 85.11%]
-- Functions: 92.98% (12,108 total, 850 uncovered) [+0.19pp from 92.79%]
-- Branches: 86.02% (136,472 total, 19,073 uncovered) [+0.31pp from 85.71%]
+**Coverage Breakdown** (depyler-core, lib + 99-mode integration tests):
+- Lines: 85.57% (200,530 total, 28,938 uncovered) [+0.47pp from 85.10%]
+- Functions: 93.06% (12,108 total, 840 uncovered) [+0.27pp from 92.79%]
+- Branches: 86.13% (136,472 total, 18,931 uncovered) [+0.42pp from 85.71%]
 
 **Coverage Improvement Campaign** (2026-02-04):
-New test files added (438 tests total):
+New test files added across two sessions (632 tests total):
+
+Session 1 (438 tests):
 1. `escape_analysis_coverage_test.rs` - 68 tests (60% → ~90%)
 2. `stmt_gen_complex_coverage_test.rs` - 58 tests (44% → ~70%)
 3. `direct_rules_convert_coverage_test.rs` - 139 tests (47% → ~70%)
 4. `expr_gen_uncovered_paths_test.rs` - 127 tests (60-62% → ~75%)
 5. `func_gen_extended_coverage.rs` - 26 tests (85% → ~90%)
 6. `datetime_coverage_test.rs` - 20 tests (55% → ~75%)
+
+Session 2 (194 tests):
+7. `stmt_gen_99mode_coverage_test.rs` - 57 tests (77% → ~85%)
+8. `stdlib_extended_coverage_test.rs` - 69 tests (hashlib 73%, regex 72%, datetime 57%, math 88%)
+9. `lifetime_control_flow_coverage_test.rs` - 32 tests (lifetime 80%, control_flow 86%)
+10. `func_gen_inference_coverage_test.rs` - 36 tests (func_gen_inference 81%, lib 74%)
+
+**Top Remaining Coverage Gaps** (by uncovered lines):
+1. `expr_gen_instance_methods.rs` - 57.30%, 4,457 missed lines
+2. `expr_gen.rs` - 62.11%, 3,696 missed lines
+3. `stmt_gen.rs` - 77.49%, 2,448 missed lines
+4. `rust_gen.rs` - 78.48%, 2,369 missed lines
+5. `func_gen.rs` - 83.09%, 1,281 missed lines
+6. `stmt_gen_complex.rs` - 44.37%, 1,255 missed lines
 
 **Top Complexity Hotspots** (long-term refactoring targets):
 1. `codegen_assign_stmt` (257) - stmt_gen.rs:3350
@@ -2640,7 +2657,7 @@ New test files added (438 tests total):
 rather than TODO/FIXME/HACK markers. These provide valuable context for understanding code changes.
 
 **Next Actions**:
-1. Continue adding tests for remaining low-coverage files
-2. Consider refactoring high-complexity functions incrementally
-3. Evaluate SATD tool configuration to reduce false positives
-4. Target stmt_gen.rs (79%) and argparse_transform.rs (77%) next
+1. Continue targeting expr_gen_instance_methods.rs (57%) and expr_gen.rs (62%) - highest impact
+2. Add more tests for rust_gen.rs (78%) - class generation, import handling
+3. Consider refactoring high-complexity functions incrementally
+4. Evaluate SATD tool configuration to reduce false positives
