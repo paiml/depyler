@@ -18,7 +18,9 @@ pub mod autofixer;
 pub mod automl_tuning;
 pub mod citl_fixer;
 pub mod classifier;
+#[cfg(feature = "training")]
 pub mod corpus_citl;
+#[cfg(feature = "training")]
 pub mod data_store;
 pub mod depyler_training;
 pub mod estimator;
@@ -27,26 +29,36 @@ pub mod github_corpus;
 pub mod hybrid;
 pub mod moe_oracle;
 // pub mod mlp_classifier; // GH-XXX: Implement GPU-accelerated MLP classifier
+#[cfg(feature = "training")]
 pub mod acceleration_pipeline;
 pub mod ast_embeddings; // Issue #210: Code2Vec-style AST embeddings
 pub mod corpus_extract;
 pub mod curriculum;
+#[cfg(feature = "training")]
 pub mod distillation;
+#[cfg(feature = "training")]
 pub mod error_patterns;
+#[cfg(feature = "training")]
 pub mod gnn_encoder;
 pub mod graph_corpus;
 pub mod hansei;
 pub mod hybrid_retrieval;
 pub mod ngram;
+#[cfg(feature = "training")]
 pub mod oip_export;
+#[cfg(feature = "training")]
 pub mod oracle_lineage; // Issue #212: OracleLineage using entrenar::monitor::ModelLineage
 pub mod params_persistence;
 pub mod patterns;
+#[cfg(feature = "training")]
 pub mod query_loop;
 pub mod self_supervised;
 pub mod synthetic;
+#[cfg(feature = "training")]
 pub mod tarantula;
+#[cfg(feature = "training")]
 pub mod tarantula_bridge;
+#[cfg(feature = "training")]
 pub mod tarantula_corpus;
 pub mod tfidf;
 pub mod training;
@@ -58,6 +70,7 @@ pub mod verificar_integration; // DEPYLER-1303: Graph-aware corpus integration
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
 pub use citl_fixer::{CITLFixer, CITLFixerConfig, IterativeFixResult};
+#[cfg(feature = "training")]
 pub use corpus_citl::{CorpusCITL, IngestionStats};
 pub use estimator::{message_to_features, samples_to_features, OracleEstimator};
 pub use graph_corpus::{
@@ -87,6 +100,7 @@ pub use hybrid::{
 };
 pub use hybrid_retrieval::{reciprocal_rank_fusion, Bm25Scorer, HybridRetriever, RrfResult};
 pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
+#[cfg(feature = "training")]
 pub use oracle_lineage::OracleLineage;
 pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
 pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
@@ -99,6 +113,7 @@ pub use depyler_training::{
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
 
 // Oracle Query Loop exports (Issue #172)
+#[cfg(feature = "training")]
 pub use query_loop::{
     apply_simple_diff, auto_fix_loop, AutoFixResult, ErrorContext, OracleMetrics, OracleQueryError,
     OracleQueryLoop, OracleStats, OracleSuggestion, ParseRustErrorCodeError, QueryLoopConfig,
@@ -118,21 +133,25 @@ pub use unified_training::{
 };
 
 // Tarantula fault localization (Strategy #1 - DEPYLER-0631)
+#[cfg(feature = "training")]
 pub use tarantula::{
     FixPriority, SuspiciousTranspilerDecision, TarantulaAnalyzer, TarantulaResult,
     TranspilerDecision, TranspilerDecisionRecord,
 };
 
 // Tarantula corpus analysis for batch processing
+#[cfg(feature = "training")]
 pub use tarantula_corpus::{CorpusAnalysisReport, CorpusAnalyzer, TranspilationResult};
 
 // Tarantula bridge for depyler-core decision trace integration
+#[cfg(feature = "training")]
 pub use tarantula_bridge::{
     category_to_decision, decision_to_record, decisions_to_records, infer_decisions_from_error,
     synthetic_decisions_from_errors,
 };
 
 // Error Pattern Library (Strategy #2 - DEPYLER-0632)
+#[cfg(feature = "training")]
 pub use error_patterns::{
     CorpusEntry, ErrorPattern, ErrorPatternConfig, ErrorPatternLibrary, ErrorPatternStats,
     GoldenTraceEntry,
@@ -145,11 +164,13 @@ pub use curriculum::{
 };
 
 // Knowledge Distillation (Strategy #4 - DEPYLER-0634)
+#[cfg(feature = "training")]
 pub use distillation::{
     DistillationConfig, DistillationStats, ExtractedPattern, KnowledgeDistiller, LlmFixExample,
 };
 
 // GNN Error Encoder (Strategy #5 - DEPYLER-0635)
+#[cfg(feature = "training")]
 pub use gnn_encoder::{
     infer_decision_from_match, map_error_category, DepylerGnnEncoder, GnnEncoderConfig,
     GnnEncoderStats, SimilarPattern, StructuralPattern,
@@ -162,12 +183,14 @@ pub use ast_embeddings::{
 };
 
 // OIP CITL Export (Strategy #6 - DEPYLER-0636)
+#[cfg(feature = "training")]
 pub use oip_export::{
     export_to_jsonl, BatchExporter, DepylerExport, ErrorCodeClass, ExportStats, SpanInfo,
     SuggestionInfo,
 };
 
 // Acceleration Pipeline (DEPYLER-0637) - Unified strategy integration
+#[cfg(feature = "training")]
 pub use acceleration_pipeline::{
     AccelerationPipeline, AnalysisResult, FixSource, PipelineConfig, PipelineStats,
 };
@@ -331,6 +354,7 @@ impl Oracle {
     /// - Model version tracking with lineage chains
     /// - Regression detection between training runs
     /// - Stores lineage in `.depyler/oracle_lineage.json`
+    #[cfg(feature = "training")]
     pub fn load_or_train() -> Result<Self> {
         let model_path = Self::default_model_path();
         let lineage_path = OracleLineage::default_lineage_path();
@@ -723,6 +747,7 @@ impl Oracle {
     ///
     /// # Returns
     /// * Enhanced classification result with structural similarity matches
+    #[cfg(feature = "training")]
     #[must_use]
     pub fn classify_enhanced(
         &self,
@@ -789,6 +814,7 @@ impl Oracle {
 }
 
 /// GH-210 Phase 4: Enhanced classification result with structural similarity.
+#[cfg(feature = "training")]
 #[derive(Debug, Clone)]
 pub struct EnhancedClassificationResult {
     /// Predicted error category (from Random Forest)
@@ -903,6 +929,7 @@ pub fn print_retrain_status(stats: &RetrainStats) {
 }
 
 /// Print lineage history to stdout.
+#[cfg(feature = "training")]
 pub fn print_lineage_history(lineage: &OracleLineage) {
     println!("╭─────────────────────────────────────────────────────╮");
     println!("│            Model Lineage History                    │");
@@ -983,6 +1010,7 @@ fn create_accuracy_bar(accuracy: f64) -> String {
 }
 
 /// Print combined status (drift + retrain + lineage).
+#[cfg(feature = "training")]
 pub fn print_oracle_status(trigger: &RetrainTrigger, lineage: &OracleLineage) {
     print_retrain_status(trigger.stats());
     println!();
@@ -1212,6 +1240,7 @@ mod tests {
     // ============================================================
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_needs_retrain_no_lineage_file() {
         // When no lineage file exists, should need retraining
         let temp_dir = tempfile::TempDir::new().expect("create temp dir");
@@ -1232,6 +1261,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_needs_retrain_commit_changed_lineage() {
         // When commit SHA changes, should need retraining
         let mut lineage = OracleLineage::new();
@@ -1249,6 +1279,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_needs_retrain_corpus_changed_lineage() {
         // When corpus hash changes, should need retraining
         let mut lineage = OracleLineage::new();
@@ -1266,6 +1297,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_no_retrain_when_unchanged_lineage() {
         // When nothing changed, should NOT need retraining
         let mut lineage = OracleLineage::new();
@@ -1283,6 +1315,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_lineage_saves_after_training() {
         let temp_dir = tempfile::TempDir::new().expect("create temp dir");
         let lineage_path = temp_dir.path().join(".depyler").join("oracle_lineage.json");
@@ -1318,6 +1351,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_get_corpus_paths_for_hashing() {
         // Test that we can get corpus paths for hashing
         // This tests the corpus path collection logic
@@ -1426,6 +1460,7 @@ mod tests {
 
     #[test]
     #[ignore] // SLOW: Full model training takes >120s
+    #[cfg(feature = "training")]
     fn test_load_or_train() {
         // Skip full training in fast test mode (coverage runs)
         if std::env::var("DEPYLER_FAST_TESTS").is_ok() {
@@ -1725,6 +1760,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_print_lineage_history_does_not_panic() {
         let lineage = OracleLineage::new();
         // Should not panic with empty lineage
@@ -1737,6 +1773,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_print_oracle_status_does_not_panic() {
         let oracle = Oracle::new();
         let trigger = RetrainTrigger::with_oracle(oracle);
@@ -1805,6 +1842,7 @@ mod tests {
     // ==========================================================================
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_enhanced_classification() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
@@ -1832,6 +1870,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_enhanced_classification_hnsw_used() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
@@ -1855,6 +1894,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_enhanced_classification_without_hnsw() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
@@ -1874,6 +1914,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_enhanced_classification_combined_embedding_size() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
@@ -1895,6 +1936,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_enhanced_features_extraction() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
@@ -1913,6 +1955,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_pattern_fixes_extraction() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
@@ -1944,6 +1987,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "training")]
     fn test_phase4_enhanced_result_clone() {
         let oracle = Oracle::new();
         let mut gnn_encoder = DepylerGnnEncoder::with_defaults();

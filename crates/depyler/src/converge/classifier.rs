@@ -4,9 +4,10 @@
 //! OracleQueryLoop for pattern-based fix suggestions.
 
 use super::compiler::{CompilationError, CompilationResult};
+use depyler_oracle::{ErrorCategory as OracleCategory, Oracle};
+#[cfg(feature = "oracle-training")]
 use depyler_oracle::{
-    ErrorCategory as OracleCategory, ErrorContext, Oracle, OracleQueryLoop, OracleSuggestion,
-    QueryLoopConfig, RustErrorCode,
+    ErrorContext, OracleQueryLoop, OracleSuggestion, QueryLoopConfig, RustErrorCode,
 };
 use std::sync::OnceLock;
 
@@ -16,11 +17,31 @@ static ORACLE: OnceLock<Option<Oracle>> = OnceLock::new();
 /// Get or initialize the Oracle singleton
 fn get_oracle() -> Option<&'static Oracle> {
     ORACLE
-        .get_or_init(|| match Oracle::load_or_train() {
-            Ok(oracle) => Some(oracle),
-            Err(e) => {
-                tracing::warn!("Failed to load oracle: {e}. Using fallback classification.");
-                None
+        .get_or_init(|| {
+            #[cfg(feature = "oracle-training")]
+            {
+                match Oracle::load_or_train() {
+                    Ok(oracle) => Some(oracle),
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to load oracle: {e}. Using fallback classification."
+                        );
+                        None
+                    }
+                }
+            }
+            #[cfg(not(feature = "oracle-training"))]
+            {
+                // Without training feature, try loading from disk only
+                let path = Oracle::default_model_path();
+                if path.exists() {
+                    match Oracle::load(&path) {
+                        Ok(oracle) => Some(oracle),
+                        Err(_) => None,
+                    }
+                } else {
+                    None
+                }
             }
         })
         .as_ref()
@@ -70,18 +91,26 @@ pub struct ErrorClassification {
 /// Classifier for compilation errors using ML Oracle
 pub struct ErrorClassifier {
     /// Optional OracleQueryLoop for pattern-based fixes
+    #[cfg(feature = "oracle-training")]
     query_loop: Option<OracleQueryLoop>,
 }
 
 impl ErrorClassifier {
     /// Create a new error classifier with Oracle integration
     pub fn new() -> Self {
-        // Try to load the query loop with patterns
-        let query_loop = Self::init_query_loop();
-        Self { query_loop }
+        #[cfg(feature = "oracle-training")]
+        {
+            let query_loop = Self::init_query_loop();
+            Self { query_loop }
+        }
+        #[cfg(not(feature = "oracle-training"))]
+        {
+            Self {}
+        }
     }
 
     /// Initialize OracleQueryLoop with default patterns
+    #[cfg(feature = "oracle-training")]
     fn init_query_loop() -> Option<OracleQueryLoop> {
         let config = QueryLoopConfig {
             threshold: 0.7,
@@ -158,6 +187,7 @@ impl ErrorClassifier {
     }
 
     /// Get fix suggestions from OracleQueryLoop for an error
+    #[cfg(feature = "oracle-training")]
     pub fn get_suggestions(&mut self, error: &CompilationError) -> Vec<OracleSuggestion> {
         let query_loop = match &mut self.query_loop {
             Some(ql) => ql,
@@ -192,6 +222,7 @@ impl ErrorClassifier {
     }
 
     /// Get Oracle statistics (if query loop is active)
+    #[cfg(feature = "oracle-training")]
     pub fn stats(&self) -> Option<&depyler_oracle::OracleStats> {
         self.query_loop.as_ref().map(|ql| ql.stats())
     }

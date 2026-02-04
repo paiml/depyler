@@ -1202,7 +1202,17 @@ pub fn run_utol(config: &UtolConfig) -> anyhow::Result<UtolResult> {
     let mut estimator = ConvergenceEstimator::new(config.convergence.target_rate);
 
     // Load or train oracle
+    #[cfg(feature = "training")]
     let oracle = crate::Oracle::load_or_train()?;
+    #[cfg(not(feature = "training"))]
+    let oracle = {
+        let path = crate::Oracle::default_model_path();
+        if path.exists() {
+            crate::Oracle::load(&path)?
+        } else {
+            crate::Oracle::new()
+        }
+    };
 
     // Print header
     if !matches!(config.display.mode, DisplayMode::Silent | DisplayMode::Json) {
