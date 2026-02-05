@@ -2,6 +2,7 @@ use depyler_annotations::TranspilationAnnotations;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
+/// Symbol is an interned string identifier used for variable and function names throughout the HIR.
 pub type Symbol = String;
 
 /// Helper for creating parameter SmallVecs in tests
@@ -157,12 +158,14 @@ pub struct Import {
     pub items: Vec<ImportItem>,
 }
 
+/// Individual item imported from a Python module (`from module import Name` or `import Name as Alias`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ImportItem {
     Named(String),
     Aliased { name: String, alias: String },
 }
 
+/// Python type alias declaration (e.g., `UserId = int` or `NewType('UserId', int)`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeAlias {
     pub name: String,
@@ -170,6 +173,7 @@ pub struct TypeAlias {
     pub is_newtype: bool, // true for NewType, false for simple alias
 }
 
+/// Python Protocol definition, transpiled to a Rust trait.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Protocol {
     pub name: String,
@@ -178,6 +182,7 @@ pub struct Protocol {
     pub is_runtime_checkable: bool,
 }
 
+/// A method signature within a Protocol definition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProtocolMethod {
     pub name: String,
@@ -187,6 +192,7 @@ pub struct ProtocolMethod {
     pub has_default: bool,
 }
 
+/// Python class definition, transpiled to a Rust struct with impl block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirClass {
     pub name: String,
@@ -199,6 +205,7 @@ pub struct HirClass {
     pub type_params: Vec<String>,
 }
 
+/// A method within a Python class, transpiled to an `impl` method on the corresponding struct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirMethod {
     pub name: String,
@@ -212,6 +219,7 @@ pub struct HirMethod {
     pub docstring: Option<String>,
 }
 
+/// A field within a Python class, transpiled to a struct field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirField {
     pub name: String,
@@ -274,6 +282,7 @@ impl HirParam {
     }
 }
 
+/// Top-level Python function definition, transpiled to a Rust `fn` item.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirFunction {
     pub name: Symbol,
@@ -285,6 +294,7 @@ pub struct HirFunction {
     pub docstring: Option<String>,
 }
 
+/// Static analysis properties inferred for a function (purity, termination, error behavior).
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionProperties {
     pub is_pure: bool,
@@ -297,6 +307,7 @@ pub struct FunctionProperties {
     pub is_generator: bool,
 }
 
+/// Target of a Python assignment statement (variable, subscript, attribute, or tuple unpack).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignTarget {
     /// Simple variable assignment: x = value
@@ -312,6 +323,7 @@ pub enum AssignTarget {
     Tuple(Vec<AssignTarget>),
 }
 
+/// Python statement in the HIR, covering all control flow and expression forms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HirStmt {
     Assign {
@@ -377,6 +389,7 @@ pub enum HirStmt {
     },
 }
 
+/// A single `except` clause within a `try/except` block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExceptHandler {
     pub exception_type: Option<String>,
@@ -384,6 +397,7 @@ pub struct ExceptHandler {
     pub body: Vec<HirStmt>,
 }
 
+/// Python expression in the HIR, covering all expression forms including comprehensions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HirExpr {
     Literal(Literal),
@@ -524,6 +538,7 @@ pub enum FStringPart {
     Expr(Box<HirExpr>),
 }
 
+/// Python literal value (integer, float, string, bytes, bool, or None).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Literal {
     Int(i64),
@@ -534,6 +549,7 @@ pub enum Literal {
     None,
 }
 
+/// Binary operator covering arithmetic, comparison, logical, and bitwise operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinOp {
     Add,
@@ -560,6 +576,7 @@ pub enum BinOp {
     NotIn,
 }
 
+/// Unary operator (logical not, arithmetic negation, positive, bitwise not).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOp {
     Not,
@@ -568,6 +585,7 @@ pub enum UnaryOp {
     BitNot,
 }
 
+/// Const generic parameter for fixed-size arrays and compile-time expressions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ConstGeneric {
     /// Literal constant value (e.g., 5 in [T; 5])
@@ -608,6 +626,7 @@ pub enum ExceptionScope {
     Handler,
 }
 
+/// Python type representation in the HIR, mapped to Rust types during code generation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unknown,
