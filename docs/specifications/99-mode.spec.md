@@ -2822,8 +2822,15 @@ Documentation improvements (Session 8):
 - Fixed parse errors in `examples/test_pathlib.rs` and `benchmarks/rust/compute_intensive_manual.rs`
 - TDG Score: `crates/` directory scores 93.8/100 (A) with Documentation 10.0/10
 
-**Grand Total**: 4,040 tests across 116 test files (Sessions 1-8)
-**Session 8 Total**: 694 new tests across 13 new test files
+Session 8 Batch 6 (208 tests, 2026-02-05):
+117. `expr_gen_coverage_s8b6_test.rs` - 84 transpile tests (int-to-float coercion: mixed arithmetic with float params; walrus operator in while/if; string operations: format/join/split/strip/replace/startswith/endswith/find/count/isdigit/isalpha; lambda in filter/map/sorted; chained method calls; nested/ternary expressions; list comprehension with methods; dict/set comprehensions; tuple unpacking; type conversions: int↔str/float↔int/bool→int; collection ops: list append/extend/pop/insert/reverse/sort, dict get/keys/values/items, set add/remove; builtins: len/abs/min/max/sum/any/all/print; class attribute access/methods; complex algorithms: fibonacci/binary_search/transpose; slicing/negative indexing; assert; augmented assign in loops; continue/break)
+118. `python_ops.rs` inline - 80 new tests (String impl coverage for all PythonStringOps methods; edge cases: empty strings, padding overflow, zfill signs; i64/u64 bit_length/bit_count/to_bytes; list clear_py/pop edge cases; String PyAdd; Vec elementwise ops for i32/f32/i64; f32 PyOps variants; i64 floordiv/mod/pow)
+119. `depyler-quality/lib.rs` inline - 28 new tests (evaluate_gate for all QualityRequirement variants: PanicFree/EnergyEfficient/AnnotationConsistency/ClippyClean/CompilationSuccess/MinFunctionCoverage/MaxCognitiveComplexity/MaxPmatTdg; with_custom_gates; print_quality_report passed/failed; serialize; QualityError display; trait impls)
+120. `lint_cmd.rs` inline - 27 new tests (DP009/DP010 __getattr__/__setattr__; DP015 __import__; comment skipping; __metaclass__ variant; strict mode DP001/DP002; single/generic inheritance; empty corpus; helper functions; is_untyped variants; serialization; codes constants)
+121. `dashboard_cmd.rs` inline - 15 new tests (display_text smoke; load_corpus_metrics; serialize; Debug/Clone/PartialEq for MigrationStatus; unmapped/partial detection; progress bar overflow; component assertions)
+
+**Grand Total**: 4,248 tests across 121 test files (Sessions 1-8)
+**Session 8 Total**: 902 new tests across 18 new test files
 **Modules Covered**: 100+ source modules totaling 160,000+ lines
 
 ### 9.9 CI Health (2026-02-05)
