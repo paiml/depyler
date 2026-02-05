@@ -2288,3 +2288,598 @@ pub(crate) fn captures_outer_scope(
     body.iter()
         .any(|stmt| check_stmt_for_capture(stmt, &local_vars, outer_vars))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::*;
+    use std::collections::HashSet;
+
+    // === extract_fields_from_expr tests ===
+
+    #[test]
+    fn test_extract_fields_attribute_match() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "name".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("name"));
+    }
+
+    #[test]
+    fn test_extract_fields_skips_dest_field() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "command".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_wrong_var_name() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("config".to_string())),
+            attr: "name".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_in_call_args() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Call {
+            func: "process".to_string(),
+            args: vec![HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "file".to_string(),
+            }],
+            kwargs: vec![],
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("file"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_binary_expr() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "host".to_string(),
+            }),
+            right: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "port".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("host"));
+        assert!(fields.contains("port"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_unary_expr() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "verbose".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("verbose"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_if_expr() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::IfExpr {
+            test: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "flag".to_string(),
+            }),
+            body: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "val_a".to_string(),
+            }),
+            orelse: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "val_b".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert_eq!(fields.len(), 3);
+        assert!(fields.contains("flag"));
+        assert!(fields.contains("val_a"));
+        assert!(fields.contains("val_b"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_index() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "items".to_string(),
+            }),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("items"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_list() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::List(vec![HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "item".to_string(),
+        }]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("item"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_tuple() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Tuple(vec![HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "x".to_string(),
+        }]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("x"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_set() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Set(vec![HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "tag".to_string(),
+        }]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("tag"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_dict() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "value".to_string(),
+            },
+        )]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("value"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_method_call() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "data".to_string(),
+            }),
+            method: "upper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("data"));
+    }
+
+    #[test]
+    fn test_extract_fields_in_fstring() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::FString {
+            parts: vec![
+                crate::hir::FStringPart::Literal("Hello ".to_string()),
+                crate::hir::FStringPart::Expr(Box::new(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "user".to_string(),
+                })),
+            ],
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("user"));
+    }
+
+    #[test]
+    fn test_extract_fields_literal_no_match() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    // === extract_fields_recursive tests ===
+
+    #[test]
+    fn test_extract_fields_recursive_empty() {
+        let mut fields = HashSet::new();
+        extract_fields_recursive(&[], "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_expr_stmt() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "output".to_string(),
+        })];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("output"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_assign() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "count".to_string(),
+            },
+            type_annotation: None,
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("count"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_if_with_condition() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "debug".to_string(),
+            },
+            then_body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "level".to_string(),
+            })],
+            else_body: Some(vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "quiet".to_string(),
+            })]),
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("debug"));
+        assert!(fields.contains("level"));
+        assert!(fields.contains("quiet"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_while() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::While {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "running".to_string(),
+            },
+            body: vec![],
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("running"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_for() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::For {
+            target: AssignTarget::Symbol("item".to_string()),
+            iter: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "items".to_string(),
+            },
+            body: vec![],
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("items"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_try() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::Try {
+            body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "path".to_string(),
+            })],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Expr(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "fallback".to_string(),
+                })],
+            }],
+            orelse: Some(vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "success".to_string(),
+            })]),
+            finalbody: Some(vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "cleanup".to_string(),
+            })]),
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("path"));
+        assert!(fields.contains("fallback"));
+        assert!(fields.contains("success"));
+        assert!(fields.contains("cleanup"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_with() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::With {
+            context: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "resource".to_string(),
+            },
+            target: Some("r".to_string()),
+            body: vec![],
+            is_async: false,
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("resource"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_custom_dest_field() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "action".to_string(),
+        })];
+        extract_fields_recursive(&stmts, "args", "action", &mut fields);
+        // "action" is the dest_field so it should be filtered out
+        assert!(fields.is_empty());
+    }
+
+    // === is_subcommand_check tests ===
+
+    #[test]
+    fn test_is_subcommand_check_direct_match() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "command".to_string(),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::String("init".to_string()))),
+        };
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, Some("init".to_string()));
+    }
+
+    #[test]
+    fn test_is_subcommand_check_custom_dest() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "action".to_string(),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::String("deploy".to_string()))),
+        };
+        let result = is_subcommand_check(&expr, "action", &ctx);
+        assert_eq!(result, Some("deploy".to_string()));
+    }
+
+    #[test]
+    fn test_is_subcommand_check_wrong_dest() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "name".to_string(),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::String("test".to_string()))),
+        };
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_is_subcommand_check_not_eq_op() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Lt,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "command".to_string(),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::String("init".to_string()))),
+        };
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_is_subcommand_check_not_string_literal() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "command".to_string(),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(42))),
+        };
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_is_subcommand_check_cse_temp() {
+        let mut ctx = CodeGenContext::default();
+        ctx.cse_subcommand_temps
+            .insert("_cse_0".to_string(), "build".to_string());
+        let expr = HirExpr::Var("_cse_0".to_string());
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, Some("build".to_string()));
+    }
+
+    #[test]
+    fn test_is_subcommand_check_unknown_cse_temp() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Var("_cse_99".to_string());
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_is_subcommand_check_literal_no_match() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
+
+    // === captures_outer_scope tests ===
+
+    #[test]
+    fn test_captures_outer_scope_no_capture() {
+        let params = vec![HirParam::new("x".to_string(), Type::Int)];
+        let body = vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))];
+        let outer_vars: HashSet<String> = ["y".to_string()].into_iter().collect();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_uses_outer_var() {
+        let params = vec![HirParam::new("x".to_string(), Type::Int)];
+        let body = vec![HirStmt::Return(Some(HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Var("y".to_string())),
+        }))];
+        let outer_vars: HashSet<String> = ["y".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_locally_assigned() {
+        let params = vec![];
+        let body = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(10)),
+                type_annotation: None,
+            },
+            HirStmt::Return(Some(HirExpr::Var("y".to_string()))),
+        ];
+        let outer_vars: HashSet<String> = ["y".to_string()].into_iter().collect();
+        // y is locally assigned, so NOT captured from outer
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_empty_body() {
+        let params = vec![];
+        let body = vec![];
+        let outer_vars: HashSet<String> = ["z".to_string()].into_iter().collect();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_empty_outer() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Var("x".to_string()))];
+        let outer_vars: HashSet<String> = HashSet::new();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    // === Transpile-based integration tests ===
+
+    fn transpile(python_code: &str) -> String {
+        use crate::ast_bridge::AstBridge;
+        use crate::rust_gen::generate_rust_file;
+        use crate::type_mapper::TypeMapper;
+        use rustpython_parser::{parse, Mode};
+
+        let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
+        let (module, _) = AstBridge::new()
+            .with_source(python_code.to_string())
+            .python_to_hir(ast)
+            .expect("hir");
+        let tm = TypeMapper::default();
+        let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
+        result
+    }
+
+    #[test]
+    fn test_transpile_try_except_basic() {
+        let code = r#"
+def safe_div(a: int, b: int) -> int:
+    try:
+        result = a // b
+        return result
+    except ZeroDivisionError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_div"));
+    }
+
+    #[test]
+    fn test_transpile_try_except_finally() {
+        let code = r#"
+def cleanup_action() -> str:
+    result = ""
+    try:
+        result = "ok"
+    except ValueError:
+        result = "error"
+    finally:
+        result = result + " done"
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn cleanup_action"));
+    }
+
+    #[test]
+    fn test_transpile_try_except_multiple_handlers() {
+        let code = r#"
+def parse_value(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return -1
+    except TypeError:
+        return -2
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_value"));
+    }
+
+    #[test]
+    fn test_transpile_nested_function_with_closure() {
+        let code = r#"
+def outer(x: int) -> int:
+    def inner(y: int) -> int:
+        return x + y
+    return inner(10)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"));
+    }
+}

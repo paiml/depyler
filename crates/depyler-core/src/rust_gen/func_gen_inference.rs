@@ -1313,3 +1313,576 @@ impl RustCodeGen for HirFunction {
         Ok(func_tokens)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::*;
+
+    // === is_file_creating_return_expr tests ===
+
+    #[test]
+    fn test_is_file_creating_open_call() {
+        let expr = HirExpr::Call {
+            func: "open".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("test.txt".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_other_call() {
+        let expr = HirExpr::Call {
+            func: "read".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_file_create_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "create".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("out.txt".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_file_open_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "open".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("in.txt".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_attribute_file() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("io".to_string())),
+                attr: "File".to_string(),
+            }),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_non_file_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("List".to_string())),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_non_create_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "read".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_file_creating_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_var_expr() {
+        let expr = HirExpr::Var("f".to_string());
+        assert!(!is_file_creating_return_expr(&expr));
+    }
+
+    // === is_stdio_return_expr tests ===
+
+    #[test]
+    fn test_is_stdio_stdout() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stdout".to_string(),
+        };
+        assert!(is_stdio_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_stderr() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stderr".to_string(),
+        };
+        assert!(is_stdio_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_not_sys() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("os".to_string())),
+            attr: "stdout".to_string(),
+        };
+        assert!(!is_stdio_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_not_stdout() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "path".to_string(),
+        };
+        assert!(!is_stdio_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_plain_var() {
+        let expr = HirExpr::Var("stdout".to_string());
+        assert!(!is_stdio_return_expr(&expr));
+    }
+
+    // === collect_io_return_types tests ===
+
+    #[test]
+    fn test_collect_io_return_types_empty() {
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&[], &mut has_file, &mut has_stdio);
+        assert!(!has_file);
+        assert!(!has_stdio);
+    }
+
+    #[test]
+    fn test_collect_io_return_file() {
+        let stmts = vec![HirStmt::Return(Some(HirExpr::Call {
+            func: "open".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("f.txt".to_string()))],
+            kwargs: vec![],
+        }))];
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&stmts, &mut has_file, &mut has_stdio);
+        assert!(has_file);
+        assert!(!has_stdio);
+    }
+
+    #[test]
+    fn test_collect_io_return_stdio() {
+        let stmts = vec![HirStmt::Return(Some(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stdout".to_string(),
+        }))];
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&stmts, &mut has_file, &mut has_stdio);
+        assert!(!has_file);
+        assert!(has_stdio);
+    }
+
+    #[test]
+    fn test_collect_io_return_types_in_if_branch() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Var("flag".to_string()),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }))],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("sys".to_string())),
+                attr: "stderr".to_string(),
+            }))]),
+        }];
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&stmts, &mut has_file, &mut has_stdio);
+        assert!(has_file);
+        assert!(has_stdio);
+    }
+
+    #[test]
+    fn test_collect_io_return_types_in_loop() {
+        let stmts = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Return(Some(HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }))],
+        }];
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&stmts, &mut has_file, &mut has_stdio);
+        assert!(has_file);
+    }
+
+    #[test]
+    fn test_collect_io_return_types_in_for() {
+        let stmts = vec![HirStmt::For {
+            target: AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![HirStmt::Return(Some(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("sys".to_string())),
+                attr: "stdout".to_string(),
+            }))],
+        }];
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&stmts, &mut has_file, &mut has_stdio);
+        assert!(has_stdio);
+    }
+
+    #[test]
+    fn test_collect_io_return_none() {
+        let stmts = vec![HirStmt::Return(None)];
+        let mut has_file = false;
+        let mut has_stdio = false;
+        collect_io_return_types(&stmts, &mut has_file, &mut has_stdio);
+        assert!(!has_file);
+        assert!(!has_stdio);
+    }
+
+    // === function_returns_heterogeneous_io tests ===
+
+    #[test]
+    fn test_heterogeneous_io_both_types() {
+        let func = HirFunction {
+            name: "get_output".to_string(),
+            params: smallvec::smallvec![HirParam::new("use_file".to_string(), Type::Bool)],
+            ret_type: Type::Unknown,
+            body: vec![
+                HirStmt::If {
+                    condition: HirExpr::Var("use_file".to_string()),
+                    then_body: vec![HirStmt::Return(Some(HirExpr::Call {
+                        func: "open".to_string(),
+                        args: vec![],
+                        kwargs: vec![],
+                    }))],
+                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Attribute {
+                        value: Box::new(HirExpr::Var("sys".to_string())),
+                        attr: "stdout".to_string(),
+                    }))]),
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(function_returns_heterogeneous_io(&func));
+    }
+
+    #[test]
+    fn test_heterogeneous_io_only_file() {
+        let func = HirFunction {
+            name: "get_file".to_string(),
+            params: smallvec::smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Return(Some(HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!function_returns_heterogeneous_io(&func));
+    }
+
+    #[test]
+    fn test_heterogeneous_io_neither() {
+        let func = HirFunction {
+            name: "get_val".to_string(),
+            params: smallvec::smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!function_returns_heterogeneous_io(&func));
+    }
+
+    // === preload_hir_type_annotations tests ===
+
+    #[test]
+    fn test_preload_simple_assign() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("x"), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_preload_skips_unknown_type() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: Some(Type::Unknown),
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert!(ctx.var_types.get("x").is_none());
+    }
+
+    #[test]
+    fn test_preload_no_annotation() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert!(ctx.var_types.get("x").is_none());
+    }
+
+    #[test]
+    fn test_preload_in_if_branches() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("a".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: Some(Type::Int),
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("b".to_string()),
+                value: HirExpr::Literal(Literal::String("hi".to_string())),
+                type_annotation: Some(Type::String),
+            }]),
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("a"), Some(&Type::Int));
+        assert_eq!(ctx.var_types.get("b"), Some(&Type::String));
+    }
+
+    #[test]
+    fn test_preload_in_while_loop() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("counter".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: Some(Type::Int),
+            }],
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("counter"), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_preload_in_for_loop() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("total".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: Some(Type::Float),
+            }],
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("total"), Some(&Type::Float));
+    }
+
+    #[test]
+    fn test_preload_in_try_block() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::Try {
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("result".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: Some(Type::Int),
+            }],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("ValueError".to_string()),
+                name: None,
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("err_msg".to_string()),
+                    value: HirExpr::Literal(Literal::String("error".to_string())),
+                    type_annotation: Some(Type::String),
+                }],
+            }],
+            orelse: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("ok".to_string()),
+                value: HirExpr::Literal(Literal::Bool(true)),
+                type_annotation: Some(Type::Bool),
+            }]),
+            finalbody: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("done".to_string()),
+                value: HirExpr::Literal(Literal::Bool(true)),
+                type_annotation: Some(Type::Bool),
+            }]),
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("result"), Some(&Type::Int));
+        assert_eq!(ctx.var_types.get("err_msg"), Some(&Type::String));
+        assert_eq!(ctx.var_types.get("ok"), Some(&Type::Bool));
+        assert_eq!(ctx.var_types.get("done"), Some(&Type::Bool));
+    }
+
+    #[test]
+    fn test_preload_in_with_block() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::With {
+            context: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+            target: Some("f".to_string()),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("data".to_string()),
+                value: HirExpr::Literal(Literal::String("".to_string())),
+                type_annotation: Some(Type::String),
+            }],
+            is_async: false,
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("data"), Some(&Type::String));
+    }
+
+    #[test]
+    fn test_preload_in_nested_function() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::FunctionDef {
+            name: "inner".to_string(),
+            params: Box::new(smallvec::smallvec![]),
+            ret_type: Type::None,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("local".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: Some(Type::Int),
+            }],
+            docstring: None,
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("local"), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_preload_in_block() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::Block(vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: Some(Type::Int),
+        }])];
+        preload_hir_type_annotations(&body, &mut ctx);
+        assert_eq!(ctx.var_types.get("x"), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_preload_empty_body() {
+        let mut ctx = CodeGenContext::default();
+        preload_hir_type_annotations(&[], &mut ctx);
+        assert!(ctx.var_types.is_empty());
+    }
+
+    #[test]
+    fn test_preload_tuple_target_ignored() {
+        let mut ctx = CodeGenContext::default();
+        let body = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ]),
+            type_annotation: Some(Type::Int),
+        }];
+        preload_hir_type_annotations(&body, &mut ctx);
+        // Tuple targets don't match Symbol pattern
+        assert!(ctx.var_types.get("a").is_none());
+    }
+
+    // === Transpile-based integration tests ===
+
+    fn transpile(python_code: &str) -> String {
+        use crate::ast_bridge::AstBridge;
+        use crate::rust_gen::generate_rust_file;
+        use crate::type_mapper::TypeMapper;
+        use rustpython_parser::{parse, Mode};
+
+        let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
+        let (module, _) = AstBridge::new()
+            .with_source(python_code.to_string())
+            .python_to_hir(ast)
+            .expect("hir");
+        let tm = TypeMapper::default();
+        let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
+        result
+    }
+
+    #[test]
+    fn test_transpile_nested_function_return() {
+        let code = r#"
+def make_adder(n: int) -> int:
+    def adder(x: int) -> int:
+        return n + x
+    return adder
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_adder"));
+    }
+
+    #[test]
+    fn test_transpile_function_with_type_annotations() {
+        let code = r#"
+def greet(name: str) -> str:
+    result: str = "Hello, " + name
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn greet"));
+        assert!(rust.contains("String") || rust.contains("str"));
+    }
+
+    #[test]
+    fn test_transpile_function_return_type_inferred() {
+        let code = r#"
+def double(x: int) -> int:
+    return x * 2
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn double"));
+        assert!(rust.contains("i64") || rust.contains("i32"));
+    }
+
+    #[test]
+    fn test_transpile_async_function() {
+        let code = r#"
+async def fetch_data(url: str) -> str:
+    return url
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("async"));
+        assert!(rust.contains("fn fetch_data"));
+    }
+}
