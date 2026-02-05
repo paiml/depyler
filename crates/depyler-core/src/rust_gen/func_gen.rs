@@ -7555,4 +7555,327 @@ mod tests {
         assert!(!return_type_expects_int(&Type::Float));
         assert!(!return_type_expects_int(&Type::String));
     }
+
+    // === Session 9 Batch 6: Targeted coverage ===
+
+    #[test]
+    fn test_s9b6_func_multiple_params() {
+        let code = transpile(
+            "def add(a: int, b: int, c: int) -> int:\n    return a + b + c\n",
+        );
+        assert!(code.contains("fn add"));
+        assert!(code.contains("a: i"), "params: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_default_param() {
+        let code = transpile(
+            "def greet(name: str = \"World\") -> str:\n    return \"Hello \" + name\n",
+        );
+        assert!(code.contains("fn greet"));
+    }
+
+    #[test]
+    fn test_s9b6_func_bool_param() {
+        let code = transpile(
+            "def check(flag: bool) -> bool:\n    return not flag\n",
+        );
+        assert!(code.contains("fn check"));
+        assert!(code.contains("bool"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_list_param() {
+        let code = transpile(
+            "def total(nums: list) -> int:\n    return sum(nums)\n",
+        );
+        assert!(code.contains("fn total"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_dict_param() {
+        let code = transpile(
+            "def keys(d: dict) -> list:\n    return list(d.keys())\n",
+        );
+        assert!(code.contains("fn keys"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_optional_param() {
+        let code = transpile(
+            "def maybe(x: int = None) -> int:\n    if x is None:\n        return 0\n    return x\n",
+        );
+        assert!(code.contains("fn maybe"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_no_return_type() {
+        let code = transpile("def printer(msg: str):\n    print(msg)\n");
+        assert!(code.contains("fn printer"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_returns_none() {
+        let code = transpile(
+            "def do_nothing() -> None:\n    pass\n",
+        );
+        assert!(code.contains("fn do_nothing"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_docstring() {
+        let code = transpile(
+            "def documented(x: int) -> int:\n    \"\"\"This function doubles x.\"\"\"\n    return x * 2\n",
+        );
+        assert!(code.contains("fn documented"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_complex_return() {
+        let code = transpile(
+            "def complex_ret(x: int, y: int) -> int:\n    if x > y:\n        return x - y\n    elif x < y:\n        return y - x\n    else:\n        return 0\n",
+        );
+        assert!(code.contains("fn complex_ret"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_string_operations() {
+        let code = transpile(
+            "def process(s: str) -> str:\n    s = s.strip()\n    s = s.lower()\n    return s\n",
+        );
+        assert!(code.contains("fn process"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_type_inference_float() {
+        let code = transpile(
+            "def calc():\n    x = 3.14\n    y = 2.71\n    return x + y\n",
+        );
+        assert!(code.contains("fn calc"), "output: {code}");
+        assert!(code.contains("f64"), "Float inference: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_type_inference_string() {
+        let code = transpile(
+            "def make_str():\n    return \"hello world\"\n",
+        );
+        assert!(code.contains("fn make_str"), "output: {code}");
+        assert!(code.contains("String") || code.contains("str"), "String inference: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_type_inference_bool() {
+        let code = transpile(
+            "def is_valid():\n    return True\n",
+        );
+        assert!(code.contains("fn is_valid"), "output: {code}");
+        assert!(code.contains("bool"), "Bool inference: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_for_loop() {
+        let code = transpile(
+            "def sum_range(n: int) -> int:\n    total = 0\n    for i in range(n):\n        total += i\n    return total\n",
+        );
+        assert!(code.contains("fn sum_range"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_while_loop() {
+        let code = transpile(
+            "def countdown(n: int) -> int:\n    while n > 0:\n        n -= 1\n    return n\n",
+        );
+        assert!(code.contains("fn countdown"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_recursive() {
+        let code = transpile(
+            "def fib(n: int) -> int:\n    if n <= 1:\n        return n\n    return fib(n - 1) + fib(n - 2)\n",
+        );
+        assert!(code.contains("fn fib"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_enumerate() {
+        let code = transpile(
+            "def find_idx(items: list, target: int) -> int:\n    for i, item in enumerate(items):\n        if item == target:\n            return i\n    return -1\n",
+        );
+        assert!(code.contains("fn find_idx"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_zip() {
+        let code = transpile(
+            "def dot_product(a: list, b: list) -> int:\n    total = 0\n    for x, y in zip(a, b):\n        total += x * y\n    return total\n",
+        );
+        assert!(code.contains("fn dot_product"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_literals() {
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Int(42))), Type::Int);
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Float(1.0))), Type::Float);
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Bool(true))), Type::Bool);
+        assert_eq!(
+            infer_expr_type_simple(&HirExpr::Literal(Literal::String("hi".to_string()))),
+            Type::String
+        );
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_none() {
+        assert_eq!(
+            infer_expr_type_simple(&HirExpr::Literal(Literal::None)),
+            Type::None
+        );
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_list() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let ty = infer_expr_type_simple(&expr);
+        assert_eq!(ty, Type::List(Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_empty_list() {
+        let expr = HirExpr::List(vec![]);
+        let ty = infer_expr_type_simple(&expr);
+        assert_eq!(ty, Type::List(Box::new(Type::Unknown)));
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ]);
+        let ty = infer_expr_type_simple(&expr);
+        assert_eq!(ty, Type::Tuple(vec![Type::Int, Type::String]));
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_dict() {
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("a".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
+        let ty = infer_expr_type_simple(&expr);
+        assert_eq!(ty, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_unary_not() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Literal(Literal::Bool(true))),
+        };
+        assert_eq!(infer_expr_type_simple(&expr), Type::Bool);
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_comparison() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Lt,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert_eq!(infer_expr_type_simple(&expr), Type::Bool);
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_binop_add_int() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert_eq!(infer_expr_type_simple(&expr), Type::Int);
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_binop_add_float() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Float(1.0))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+        };
+        assert_eq!(infer_expr_type_simple(&expr), Type::Float);
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_binop_string_add() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::String("a".to_string()))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::String("b".to_string()))),
+        };
+        assert_eq!(infer_expr_type_simple(&expr), Type::String);
+    }
+
+    #[test]
+    fn test_s9b6_infer_expr_type_simple_bool_op() {
+        let expr = HirExpr::Binary {
+            op: BinOp::And,
+            left: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            right: Box::new(HirExpr::Literal(Literal::Bool(false))),
+        };
+        assert_eq!(infer_expr_type_simple(&expr), Type::Bool);
+    }
+
+    #[test]
+    fn test_s9b6_function_returns_owned_string_simple() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec::smallvec![],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(
+                HirExpr::Literal(Literal::String("hello".to_string())),
+            ))],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        assert!(function_returns_owned_string(&func));
+    }
+
+    #[test]
+    fn test_s9b6_function_returns_owned_string_concat() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec::smallvec![],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                left: Box::new(HirExpr::Literal(Literal::String("a".to_string()))),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Literal(Literal::String("b".to_string()))),
+            }))],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        assert!(function_returns_string_concatenation(&func));
+    }
+
+    #[test]
+    fn test_s9b6_func_with_class_method() {
+        let code = transpile(
+            "class Calculator:\n    def __init__(self, value: int):\n        self.value = value\n    def add(self, x: int) -> int:\n        return self.value + x\n",
+        );
+        assert!(code.contains("struct Calculator"), "output: {code}");
+        assert!(code.contains("fn add"), "output: {code}");
+    }
+
+    #[test]
+    fn test_s9b6_func_with_multiple_returns() {
+        let code = transpile(
+            "def classify(x: int) -> str:\n    if x > 0:\n        return \"positive\"\n    if x < 0:\n        return \"negative\"\n    return \"zero\"\n",
+        );
+        assert!(code.contains("fn classify"), "output: {code}");
+    }
 }

@@ -623,4 +623,286 @@ mod tests {
         // Should return empty string literal as fallback
         assert!(matches!(result, syn::Expr::Lit(_)));
     }
+
+    // ============ NASA mode tests (default context has nasa_mode=true) ============
+
+    #[test]
+    fn test_s9b6_nasa_search_sets_depyler_regex_match() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("abc123".to_string())),
+        ];
+        let _ = convert_re_method("search", &args, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_regex_match);
+    }
+
+    #[test]
+    fn test_s9b6_nasa_search_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("abc123".to_string())),
+        ];
+        let result = convert_re_method("search", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerRegexMatch"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_match_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"^\w+".to_string())),
+            HirExpr::Literal(Literal::String("hello".to_string())),
+        ];
+        let result = convert_re_method("match", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("match_start"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_findall_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("a1b2c3".to_string())),
+        ];
+        let result = convert_re_method("findall", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerRegexMatch"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_finditer_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("a1b2".to_string())),
+        ];
+        let result = convert_re_method("finditer", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("into_iter"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_sub_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("X".to_string())),
+            HirExpr::Literal(Literal::String("a1b2".to_string())),
+        ];
+        let result = convert_re_method("sub", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerRegexMatch"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_subn_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("X".to_string())),
+            HirExpr::Literal(Literal::String("a1b2c3".to_string())),
+        ];
+        let result = convert_re_method("subn", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerRegexMatch"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_compile_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\d+".to_string()))];
+        let result = convert_re_method("compile", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("to_string"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_split_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\s+".to_string())),
+            HirExpr::Literal(Literal::String("hello world".to_string())),
+        ];
+        let result = convert_re_method("split", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerRegexMatch"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_escape_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String("hello.*world".to_string()))];
+        let result = convert_re_method("escape", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("to_string"));
+    }
+
+    #[test]
+    fn test_s9b6_nasa_fullmatch_output() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("12345".to_string())),
+        ];
+        let result = convert_re_method("fullmatch", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerRegexMatch"));
+    }
+
+    // ============ Error path tests (work in both modes) ============
+
+    #[test]
+    fn test_s9b6_convert_re_search_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\d+".to_string()))];
+        let result = convert_re_method("search", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_match_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\w+".to_string()))];
+        let result = convert_re_method("match", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_findall_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\d+".to_string()))];
+        let result = convert_re_method("findall", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_finditer_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\d+".to_string()))];
+        let result = convert_re_method("finditer", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_sub_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("X".to_string())),
+        ];
+        let result = convert_re_method("sub", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_fullmatch_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\d+".to_string()))];
+        let result = convert_re_method("fullmatch", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_compile_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args: Vec<HirExpr> = vec![];
+        let result = convert_re_method("compile", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_escape_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args: Vec<HirExpr> = vec![];
+        let result = convert_re_method("escape", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_split_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String(r"\s+".to_string()))];
+        let result = convert_re_method("split", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_subn_missing_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Literal(Literal::String(r"\d+".to_string())),
+            HirExpr::Literal(Literal::String("X".to_string())),
+        ];
+        let result = convert_re_method("subn", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_unknown_method_err() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::String("test".to_string()))];
+        let result = convert_re_method("nonexistent", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    // ============ Var arg tests ============
+
+    #[test]
+    fn test_s9b6_convert_re_search_with_var_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Var("pattern".to_string()),
+            HirExpr::Var("text".to_string()),
+        ];
+        let result = convert_re_method("search", &args, &mut ctx);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_sub_with_var_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Var("pat".to_string()),
+            HirExpr::Var("repl".to_string()),
+            HirExpr::Var("text".to_string()),
+        ];
+        let result = convert_re_method("sub", &args, &mut ctx);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s9b6_convert_re_compile_with_var_arg() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("pattern".to_string())];
+        let result = convert_re_method("compile", &args, &mut ctx);
+        assert!(result.is_ok());
+    }
+
+    // ============ extract_str_arg edge cases ============
+
+    #[test]
+    fn test_s9b6_extract_str_arg_with_non_string_literal() {
+        let args = vec![HirExpr::Literal(Literal::Int(42))];
+        let arg_exprs: Vec<syn::Expr> = vec![parse_quote! { 42 }];
+        let result = extract_str_arg(&args, &arg_exprs, 0);
+        // Non-string literals fall through to arg_exprs
+        assert!(matches!(result, syn::Expr::Lit(_)));
+    }
+
+    #[test]
+    fn test_s9b6_extract_str_arg_multiple_args() {
+        let args = vec![
+            HirExpr::Literal(Literal::String("first".to_string())),
+            HirExpr::Literal(Literal::String("second".to_string())),
+        ];
+        let arg_exprs: Vec<syn::Expr> = vec![parse_quote! { "first" }, parse_quote! { "second" }];
+        let result0 = extract_str_arg(&args, &arg_exprs, 0);
+        let result1 = extract_str_arg(&args, &arg_exprs, 1);
+        assert!(matches!(result0, syn::Expr::Lit(_)));
+        assert!(matches!(result1, syn::Expr::Lit(_)));
+    }
 }

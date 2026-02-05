@@ -4877,4 +4877,440 @@ def make_list() -> list:
         let rust = transpile(code);
         assert!(rust.contains("fn make_list"), "output: {}", rust);
     }
+
+    // === S9 Batch 6: Uncovered code paths ===
+
+    #[test]
+    fn test_s9b6_parse_from_tokens_expr_stmt() {
+        let code = r#"
+def parse_int(s: str) -> int:
+    x = int("42")
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_int"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_parse_from_tokens_in_try() {
+        let code = r#"
+def safe_parse(s: str) -> int:
+    try:
+        x = int(s)
+        return x
+    except ValueError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_parse"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_with_else_block() {
+        let code = r#"
+def try_else(s: str) -> str:
+    try:
+        x = int(s)
+    except ValueError:
+        return "error"
+    else:
+        return "success"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn try_else"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_bare_except() {
+        let code = r#"
+def catch_all(s: str) -> int:
+    try:
+        return int(s)
+    except:
+        return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn catch_all"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_multiple_exception_types() {
+        let code = r#"
+def multi_handler(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return -1
+    except TypeError:
+        return -2
+    except KeyError:
+        return -3
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn multi_handler"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_ops_in_try() {
+        let code = r#"
+def string_transform(s: str) -> str:
+    try:
+        result = s.upper()
+        result = result.strip()
+        return result
+    except AttributeError:
+        return ""
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn string_transform"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_list_ops_in_try() {
+        let code = r#"
+def list_builder(n: int) -> list:
+    try:
+        items = []
+        items.append(n)
+        items.append(n * 2)
+        return items
+    except:
+        return []
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn list_builder"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_try_blocks() {
+        let code = r#"
+def nested_try(s: str) -> int:
+    try:
+        outer = int(s)
+        try:
+            inner = outer * 2
+            return inner
+        except:
+            return outer
+    except ValueError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn nested_try"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_assignment_in_try_no_annotation() {
+        let code = r#"
+def infer_type(s: str) -> int:
+    try:
+        result = int(s)
+    except ValueError:
+        result = 0
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn infer_type"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_function_returns_dict() {
+        let code = r#"
+def make_config() -> dict:
+    def builder() -> dict:
+        config = {}
+        config["key"] = "value"
+        return config
+    return builder()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_config"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_function_with_capture_via_with() {
+        let code = r#"
+def with_context(filename: str) -> str:
+    with open(filename) as f:
+        def reader() -> str:
+            return f.read()
+        return reader()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn with_context"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_function_try_except_capture() {
+        let code = r#"
+def error_handler(s: str) -> int:
+    try:
+        base = int(s)
+        def multiply() -> int:
+            return base * 2
+        return multiply()
+    except ValueError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn error_handler"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_with_finally_and_else() {
+        let code = r#"
+def full_try(s: str) -> int:
+    try:
+        x = int(s)
+    except ValueError:
+        return -1
+    else:
+        return x
+    finally:
+        print("cleanup")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn full_try"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_recursive_nested_function_no_captures() {
+        let code = r#"
+def outer() -> int:
+    def fibonacci(n: int) -> int:
+        if n <= 1:
+            return n
+        return fibonacci(n - 1) + fibonacci(n - 2)
+    return fibonacci(5)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_else_with_list_return() {
+        let code = r#"
+def parse_list(items: list) -> list:
+    result = []
+    try:
+        for item in items:
+            result.append(int(item))
+    except ValueError:
+        return []
+    else:
+        return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_list"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_with_stmt_args_field_access() {
+        let code = r#"
+def process_file(args) -> str:
+    with open(args.filename) as f:
+        return f.read()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process_file"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_else_finally_args_access() {
+        let code = r#"
+def process_input(args) -> int:
+    try:
+        result = int(args.value)
+    except ValueError:
+        return 0
+    else:
+        return result
+    finally:
+        print(args.verbose)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process_input"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_function_returns_tuple() {
+        let code = r#"
+def make_pair(x: int, y: int) -> tuple:
+    def pair() -> tuple:
+        return (x, y)
+    return pair()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_pair"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_with_break_continue() {
+        let code = r#"
+def find_valid(items: list) -> int:
+    for item in items:
+        try:
+            x = int(item)
+            if x > 0:
+                return x
+            continue
+        except ValueError:
+            break
+    return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_valid"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_multiple_nested_functions() {
+        let code = r#"
+def outer() -> int:
+    def add(a: int, b: int) -> int:
+        return a + b
+    def multiply(a: int, b: int) -> int:
+        return a * b
+    return add(2, 3) + multiply(4, 5)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_except_with_walrus() {
+        let code = r#"
+def walrus_try(s: str) -> int:
+    try:
+        if (x := int(s)) > 0:
+            return x
+    except ValueError:
+        return 0
+    return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn walrus_try"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_function_with_nested_loop() {
+        let code = r#"
+def matrix_sum(rows: list) -> int:
+    def sum_row(row: list) -> int:
+        total = 0
+        for item in row:
+            total += item
+        return total
+    result = 0
+    for row in rows:
+        result += sum_row(row)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn matrix_sum"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_except_type_annotation_escape() {
+        let code = r#"
+def annotated_escape(s: str) -> int:
+    x: int
+    try:
+        x = int(s)
+    except ValueError:
+        x = 0
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn annotated_escape"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_try_with_else() {
+        let code = r#"
+def nested_else(s: str) -> str:
+    try:
+        x = int(s)
+        try:
+            y = x * 2
+        except:
+            return "inner error"
+        else:
+            return "inner success"
+    except ValueError:
+        return "outer error"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn nested_else"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_exception_tuple_handler() {
+        let code = r#"
+def tuple_catch(s: str) -> int:
+    try:
+        return int(s)
+    except (ValueError, TypeError, AttributeError):
+        return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn tuple_catch"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_function_bool_return() {
+        let code = r#"
+def outer() -> bool:
+    x = 10
+    def check() -> bool:
+        return x > 5
+    return check()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_finally_with_return_in_finally() {
+        let code = r#"
+def finally_return(s: str) -> int:
+    try:
+        x = int(s)
+        return x
+    finally:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn finally_return"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_complex_nested_capture() {
+        let code = r#"
+def complex_capture(base: int) -> int:
+    multiplier = 2
+    def level1() -> int:
+        def level2() -> int:
+            return base * multiplier
+        return level2() + base
+    return level1()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn complex_capture"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_try_except_with_dict_ops() {
+        let code = r#"
+def dict_ops(key: str) -> dict:
+    try:
+        result = {}
+        result[key] = "value"
+        result["count"] = 1
+        return result
+    except:
+        return {}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn dict_ops"), "output: {}", rust);
+    }
 }

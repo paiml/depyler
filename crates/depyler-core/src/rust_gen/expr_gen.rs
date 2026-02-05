@@ -13340,4 +13340,270 @@ def remove(d: dict, key: str) -> None:
         let rust = transpile(code);
         assert!(rust.contains("fn remove"), "output: {}", rust);
     }
+
+    // --- S9B6: Coverage-focused tests for expr_gen.rs ---
+
+    #[test]
+    fn test_s9b6_coerce_int_to_float_variable() {
+        let code = r#"
+def calc(i: int, dx: float) -> float:
+    return i * dx
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn calc"), "output: {}", rust);
+        assert!(rust.contains("i") && rust.contains("dx"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_coerce_int_to_float_binary_expr() {
+        let code = r#"
+def multiply(i: int, j: int, dx: float) -> float:
+    return (i + j) * dx
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn multiply"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_iterable_element_type_filter() {
+        let code = r#"
+def filter_positive(items: list) -> list:
+    return [x for x in items if x > 0]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn filter_positive"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_builtin_type_as_function_reference() {
+        let code = r#"
+def convert_all(items: list) -> list:
+    return list(map(int, items))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn convert_all"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_narrowed_option_after_none_check() {
+        let code = r#"
+def process(opt: int) -> int:
+    if opt is not None:
+        return opt + 1
+    return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nasa_mode_div_expecting_int() {
+        let code = r#"
+def divide(a: int, b: int) -> int:
+    return a / b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn divide"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nasa_mode_chained_arithmetic() {
+        let code = r#"
+def compute(x: int, y: float) -> float:
+    return x + y * 2
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn compute"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_type_anchoring_chained_pyops() {
+        let code = r#"
+def chain_ops(a: int, b: int, c: int) -> int:
+    return a + b - c * 2
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn chain_ops"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_nested_collection_vec_vec() {
+        let code = r#"
+def nested_lists() -> list:
+    return [[1, 2], [3, 4]]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn nested_lists"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_mixed_int_float_list() {
+        let code = r#"
+def mixed_values() -> list:
+    return [1, 2.5, 3]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn mixed_values"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_multi_level_dict_access() {
+        let code = r#"
+def get_nested(data: dict) -> str:
+    return data['level1']['level2']
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn get_nested"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_tuple_unpacking_from_index() {
+        let code = r#"
+def unpack(parts: list) -> tuple:
+    a, b = parts[0], parts[1]
+    return (a, b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn unpack"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_walrus_in_while_loop() {
+        let code = r#"
+def read_lines(f: list) -> list:
+    lines = []
+    for line in f:
+        if line:
+            lines.append(line)
+    return lines
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn read_lines"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_walrus_with_method_call() {
+        let code = r#"
+def check_length(data: list) -> bool:
+    n = len(data)
+    if n > 0:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_length"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_generator_state_in_class() {
+        let code = r#"
+class Counter:
+    def __init__(self, start: int):
+        self.value = start
+
+    def get_value(self) -> int:
+        return self.value
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("Counter") || rust.contains("struct"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_concat_with_format() {
+        let code = r#"
+def greet(name: str, age: int) -> str:
+    return f"{name}{age}"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn greet"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_boolean_context_not_items() {
+        let code = r#"
+def is_empty(items: list) -> bool:
+    if not items:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn is_empty"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_boolean_context_if_results() {
+        let code = r#"
+def has_results(results: list) -> bool:
+    if results:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn has_results"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_comparison_chain() {
+        let code = r#"
+def in_range(x: int, y: int) -> bool:
+    return 0 < x < 10 < y
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn in_range"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_augmented_assignment_float() {
+        let code = r#"
+def accumulate(x: int, y: float) -> float:
+    result = x
+    result += y
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn accumulate"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_multiple_return_values() {
+        let code = r#"
+def split_triple(val: int) -> tuple:
+    a = val
+    b = val * 2
+    c = val * 3
+    return a, b, c
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn split_triple"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_conditional_with_methods() {
+        let code = r#"
+def transform(x: str, cond: bool) -> str:
+    return x.upper() if cond else x.lower()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn transform"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_comprehension() {
+        let code = r#"
+def make_dict(items: dict) -> dict:
+    return {k: v for k, v in items.items()}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_dict"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_set_comprehension() {
+        let code = r#"
+def doubled_set(n: int) -> set:
+    return {x * 2 for x in range(n)}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn doubled_set"), "output: {}", rust);
+    }
 }
