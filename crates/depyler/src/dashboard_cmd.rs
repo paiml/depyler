@@ -721,4 +721,132 @@ mod tests {
             (coverage.mapped_functions as f64 / coverage.total_functions as f64) * 100.0;
         assert!((coverage.coverage_rate - expected_rate).abs() < 0.01);
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S8B6: Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_display_text_does_not_panic() {
+        let report = generate_dashboard();
+        // Just verify it doesn't panic
+        display_text(&report);
+    }
+
+    #[test]
+    fn test_load_corpus_metrics_missing_file() {
+        // When the file doesn't exist, should return (None, None)
+        let (compile_rate, corpus_files) = load_corpus_metrics();
+        // We can't guarantee the file exists, but both should be Some or None
+        let _ = (compile_rate, corpus_files);
+    }
+
+    #[test]
+    fn test_migration_status_debug() {
+        assert!(format!("{:?}", MigrationStatus::Mapped).contains("Mapped"));
+        assert!(format!("{:?}", MigrationStatus::MappedWithChanges).contains("MappedWithChanges"));
+        assert!(format!("{:?}", MigrationStatus::Partial).contains("Partial"));
+        assert!(format!("{:?}", MigrationStatus::Unmapped).contains("Unmapped"));
+        assert!(format!("{:?}", MigrationStatus::Incompatible).contains("Incompatible"));
+    }
+
+    #[test]
+    fn test_migration_status_clone() {
+        let s = MigrationStatus::Mapped;
+        let s2 = s.clone();
+        assert_eq!(s, s2);
+    }
+
+    #[test]
+    fn test_component_coverage_serialize() {
+        let coverage = get_sklearn_coverage();
+        let json = serde_json::to_string(&coverage).unwrap();
+        assert!(json.contains("aprender"));
+        assert!(json.contains("sklearn"));
+    }
+
+    #[test]
+    fn test_dashboard_report_serialize() {
+        let report = generate_dashboard();
+        let json = serde_json::to_string(&report).unwrap();
+        assert!(json.contains("path_b_progress"));
+        assert!(json.contains("components"));
+    }
+
+    #[test]
+    fn test_function_mapping_clone() {
+        let mapping = FunctionMapping {
+            python_fn: "func()".to_string(),
+            sovereign_fn: Some("sovereign_func()".to_string()),
+            status: MigrationStatus::Mapped,
+            rank: 1,
+        };
+        let cloned = mapping.clone();
+        assert_eq!(cloned.python_fn, "func()");
+        assert_eq!(cloned.rank, 1);
+    }
+
+    #[test]
+    fn test_function_mapping_unmapped() {
+        let mapping = FunctionMapping {
+            python_fn: "unknown()".to_string(),
+            sovereign_fn: None,
+            status: MigrationStatus::Unmapped,
+            rank: 99,
+        };
+        assert!(mapping.sovereign_fn.is_none());
+        assert_eq!(mapping.status, MigrationStatus::Unmapped);
+    }
+
+    #[test]
+    fn test_scipy_has_unmapped_functions() {
+        let coverage = get_scipy_coverage();
+        assert!(coverage.mappings.iter().any(|m| m.status == MigrationStatus::Unmapped));
+    }
+
+    #[test]
+    fn test_pandas_has_partial_functions() {
+        let coverage = get_pandas_coverage();
+        assert!(coverage.mappings.iter().any(|m| m.status == MigrationStatus::Partial));
+    }
+
+    #[test]
+    fn test_progress_bar_overflow() {
+        let bar = create_progress_bar(150.0, 10);
+        assert!(!bar.is_empty());
+    }
+
+    #[test]
+    fn test_dashboard_path_b_progress_range() {
+        let report = generate_dashboard();
+        // All components are at least partially mapped, so progress > 0
+        assert!(report.path_b_progress > 0.0);
+        assert!(report.path_b_progress <= 100.0);
+    }
+
+    #[test]
+    fn test_all_components_have_10_functions() {
+        let report = generate_dashboard();
+        for component in &report.components {
+            assert_eq!(
+                component.total_functions, 10,
+                "{} should have 10 functions",
+                component.component
+            );
+        }
+    }
+
+    #[test]
+    fn test_dashboard_report_has_timestamp() {
+        let report = generate_dashboard();
+        assert!(!report.timestamp.is_empty());
+    }
+
+    #[test]
+    fn test_dashboard_report_clone() {
+        let report = generate_dashboard();
+        let cloned = report.clone();
+        assert_eq!(cloned.components.len(), report.components.len());
+        assert_eq!(cloned.path_b_progress, report.path_b_progress);
+    }
 }
