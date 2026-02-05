@@ -2873,3 +2873,74 @@ Session 9 Batch 4 (118 tests, 2026-02-05):
 | Coverage Threshold | 86.23% | Region coverage (workspace) |
 | TDG Score (root) | 87.8 (A-) | Python corpus files drag score |
 | TDG Score (crates/) | 93.8 (A) | Core Rust code quality |
+
+## 10. Session 10: Deep Coverage Push (2026-02-05)
+
+### 10.1 Objectives
+
+- Push region coverage from 86.23% toward 90%+
+- Add integration tests targeting lowest-coverage source files
+- Refactor high-complexity functions blocking inline test additions
+- Maintain zero clippy warnings and zero test failures
+
+### 10.2 Refactoring
+
+**math.rs**: Reduced `convert_math_method` complexity from 32→8 by extracting 6 category dispatchers:
+- `dispatch_trig()`, `dispatch_power_log()`, `dispatch_rounding_special()`
+- `dispatch_checks()`, `dispatch_integer()`, `dispatch_other()`
+- Uses `Option<Result<T>>` with chained `or_else()` pattern
+
+**hashlib.rs**: Reduced `convert_new` complexity from 14→7 and `convert_hashlib_method` from 16→5:
+- `convert_new_static()` - compile-time known algorithm names
+- `convert_new_dynamic()` - runtime algorithm selection
+- `dispatch_hashlib_constructor()` - method dispatch
+
+### 10.3 Integration Test Files Added
+
+Session 10 Batch 1 (58 tests, 2026-02-05):
+- `rust_gen_fixup_s10_coverage_test.rs` - 58 tests targeting rust_gen.rs fixup functions
+  - Enum path fixups, truthiness, is_none, HashMap, classes, imports
+  - Power/sqrt, algorithms, strings, exceptions, comprehensions
+  - Augmented assigns, bitwise, lambda, text processing
+
+Session 10 Batch 2 (66 tests, 2026-02-05):
+- `expr_gen_s10_deep_coverage_test.rs` - 66 tests targeting expr_gen.rs
+  - Chained comparisons, boolean expressions, string/list operations
+  - Dict/set methods, builtins, type conversions, nested expressions
+  - Unary ops, slice operations, list methods
+
+Session 10 Batch 3 (110 tests, 2026-02-05):
+- `stmt_gen_complex_s10_coverage_test.rs` - 46 tests for stmt_gen_complex.rs
+  - Try/except: basic, binding, finally, multiple handlers, negative/float defaults
+  - Nested functions: basic, capture, recursive, string/list params, multiple
+  - Floor division + ZeroDivisionError, raise, with statement, assert
+  - Classes, comprehensions, tuple return, default parameters, lambdas
+- `instance_methods_s10_coverage_test.rs` - 64 tests for expr_gen_instance_methods.rs
+  - Dict methods: get, keys, values, items, pop, setdefault, clear, copy
+  - List methods: append, extend, sort, reverse, count, clear, copy
+  - String methods: split, rsplit, find, replace, startswith, endswith, strip, etc.
+  - Set operations: remove, clear, pop, issubset, issuperset, symmetric_difference
+  - Builtins: sorted, reversed, min, max, sum, any, all, map, filter, abs, round
+  - Membership testing, type conversions, enumerate, zip
+
+Session 10 Batch 4 (58 tests, 2026-02-05):
+- `advanced_patterns_s10_coverage_test.rs` - 58 tests for advanced patterns
+  - Lambda: basic, capture, in map/filter/sorted, multi-arg
+  - F-strings: basic, expression, multiple parts, method calls, nested
+  - Type annotations: List, Dict, Tuple, Set, Optional
+  - Ternary expressions, generators (sum/any/all), complex control flow
+  - Int/float coercion, recursion, boolean logic, power operations
+  - Empty collections, string formatting, multiple return types
+
+**Session 10 Total**: 292 new integration tests across 5 test files
+**Grand Total**: 5,205+ tests across 126+ test files (Sessions 1-10)
+
+### 10.4 CI Health (2026-02-05)
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| cargo fmt | PASS | All formatting fixed |
+| cargo clippy | PASS | Zero warnings (--workspace mode) |
+| cargo test | PASS | 13,175+ lib tests, zero failures |
+| Coverage | TBD | Measuring with llvm-cov |
+| TDG Score (crates/) | 93.8+ (A) | Improved with refactoring |
