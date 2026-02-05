@@ -22,7 +22,7 @@ use syn::parse_quote;
 /// - Integer: gcd, lcm, factorial, isqrt, comb, perm
 /// - Other: ldexp, frexp, isclose, modf, fmod, hypot, dist, remainder
 ///
-/// # Complexity: 10 (delegated to helper functions)
+/// # Complexity: 8 (delegated to category dispatchers)
 pub fn convert_math_method(
     method: &str,
     args: &[HirExpr],
@@ -33,50 +33,84 @@ pub fn convert_math_method(
         .map(|arg| arg.to_rust_expr(ctx))
         .collect::<Result<Vec<_>>>()?;
 
-    let result = match method {
-        // Trigonometric
-        "sin" | "cos" | "tan" | "asin" | "acos" | "atan" => convert_trig(method, &arg_exprs)?,
-        "atan2" => convert_atan2(&arg_exprs)?,
-        // Hyperbolic
-        "sinh" | "cosh" | "tanh" | "asinh" | "acosh" | "atanh" => {
-            convert_hyperbolic(method, &arg_exprs)?
-        }
-        // Power/Log
-        "sqrt" | "exp" | "ln" | "log2" | "log10" => convert_power_log(method, &arg_exprs)?,
-        "log" => convert_log(&arg_exprs)?,
-        "pow" => convert_pow(&arg_exprs)?,
-        "expm1" => convert_expm1(&arg_exprs)?,
-        // Rounding
-        "ceil" | "floor" | "trunc" | "round" => convert_rounding(method, &arg_exprs)?,
-        // Special
-        "fabs" => convert_fabs(&arg_exprs)?,
-        "copysign" => convert_copysign(&arg_exprs)?,
-        "degrees" => convert_degrees(&arg_exprs)?,
-        "radians" => convert_radians(&arg_exprs)?,
-        // Checks
-        "isnan" => convert_isnan(&arg_exprs)?,
-        "isinf" => convert_isinf(&arg_exprs)?,
-        "isfinite" => convert_isfinite(&arg_exprs)?,
-        // Integer
-        "gcd" => convert_gcd(&arg_exprs)?,
-        "lcm" => convert_lcm(&arg_exprs)?,
-        "factorial" => convert_factorial(&arg_exprs)?,
-        "isqrt" => convert_isqrt(&arg_exprs)?,
-        "comb" => convert_comb(&arg_exprs)?,
-        "perm" => convert_perm(&arg_exprs)?,
-        // Other
-        "ldexp" => convert_ldexp(&arg_exprs)?,
-        "frexp" => convert_frexp(&arg_exprs)?,
-        "isclose" => convert_isclose(&arg_exprs)?,
-        "modf" => convert_modf(&arg_exprs)?,
-        "fmod" => convert_fmod(&arg_exprs)?,
-        "hypot" => convert_hypot(&arg_exprs)?,
-        "dist" => convert_dist(&arg_exprs)?,
-        "remainder" => convert_remainder(&arg_exprs)?,
-        _ => bail!("math.{} not implemented yet", method),
-    };
+    let result = dispatch_trig(method, &arg_exprs)
+        .or_else(|| dispatch_power_log(method, &arg_exprs))
+        .or_else(|| dispatch_rounding_special(method, &arg_exprs))
+        .or_else(|| dispatch_checks(method, &arg_exprs))
+        .or_else(|| dispatch_integer(method, &arg_exprs))
+        .or_else(|| dispatch_other(method, &arg_exprs));
 
-    Ok(Some(result))
+    match result {
+        Some(r) => Ok(Some(r?)),
+        None => bail!("math.{} not implemented yet", method),
+    }
+}
+
+fn dispatch_trig(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>> {
+    match method {
+        "sin" | "cos" | "tan" | "asin" | "acos" | "atan" => Some(convert_trig(method, args)),
+        "atan2" => Some(convert_atan2(args)),
+        "sinh" | "cosh" | "tanh" | "asinh" | "acosh" | "atanh" => {
+            Some(convert_hyperbolic(method, args))
+        }
+        _ => None,
+    }
+}
+
+fn dispatch_power_log(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>> {
+    match method {
+        "sqrt" | "exp" | "ln" | "log2" | "log10" => Some(convert_power_log(method, args)),
+        "log" => Some(convert_log(args)),
+        "pow" => Some(convert_pow(args)),
+        "expm1" => Some(convert_expm1(args)),
+        _ => None,
+    }
+}
+
+fn dispatch_rounding_special(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>> {
+    match method {
+        "ceil" | "floor" | "trunc" | "round" => Some(convert_rounding(method, args)),
+        "fabs" => Some(convert_fabs(args)),
+        "copysign" => Some(convert_copysign(args)),
+        "degrees" => Some(convert_degrees(args)),
+        "radians" => Some(convert_radians(args)),
+        _ => None,
+    }
+}
+
+fn dispatch_checks(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>> {
+    match method {
+        "isnan" => Some(convert_isnan(args)),
+        "isinf" => Some(convert_isinf(args)),
+        "isfinite" => Some(convert_isfinite(args)),
+        _ => None,
+    }
+}
+
+fn dispatch_integer(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>> {
+    match method {
+        "gcd" => Some(convert_gcd(args)),
+        "lcm" => Some(convert_lcm(args)),
+        "factorial" => Some(convert_factorial(args)),
+        "isqrt" => Some(convert_isqrt(args)),
+        "comb" => Some(convert_comb(args)),
+        "perm" => Some(convert_perm(args)),
+        _ => None,
+    }
+}
+
+fn dispatch_other(method: &str, args: &[syn::Expr]) -> Option<Result<syn::Expr>> {
+    match method {
+        "ldexp" => Some(convert_ldexp(args)),
+        "frexp" => Some(convert_frexp(args)),
+        "isclose" => Some(convert_isclose(args)),
+        "modf" => Some(convert_modf(args)),
+        "fmod" => Some(convert_fmod(args)),
+        "hypot" => Some(convert_hypot(args)),
+        "dist" => Some(convert_dist(args)),
+        "remainder" => Some(convert_remainder(args)),
+        _ => None,
+    }
 }
 
 /// Trigonometric: sin, cos, tan, asin, acos, atan
@@ -801,5 +835,467 @@ mod tests {
         assert!(result.is_err());
         let err = result.err().unwrap();
         assert!(err.to_string().contains("not implemented yet"));
+    }
+
+    // ============ S9B7: Error paths for argument count validation ============
+
+    // --- convert_trig ---
+    #[test]
+    fn test_s9b7_trig_zero_args() {
+        let result = convert_trig("sin", &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_trig_two_args() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let b: syn::Expr = parse_quote! { 2.0 };
+        let result = convert_trig("sin", &[a, b]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_hyperbolic ---
+    #[test]
+    fn test_s9b7_hyperbolic_zero_args() {
+        let result = convert_hyperbolic("sinh", &[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_power_log ---
+    #[test]
+    fn test_s9b7_power_log_zero_args() {
+        let result = convert_power_log("sqrt", &[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_log ---
+    #[test]
+    fn test_s9b7_log_zero_args() {
+        let result = convert_log(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_log_three_args() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let b: syn::Expr = parse_quote! { 2.0 };
+        let c: syn::Expr = parse_quote! { 3.0 };
+        let result = convert_log(&[a, b, c]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_rounding ---
+    #[test]
+    fn test_s9b7_rounding_zero_args() {
+        let result = convert_rounding("ceil", &[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_fabs ---
+    #[test]
+    fn test_s9b7_fabs_zero_args() {
+        let result = convert_fabs(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_copysign ---
+    #[test]
+    fn test_s9b7_copysign_zero_args() {
+        let result = convert_copysign(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_copysign_one_arg() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let result = convert_copysign(&[a]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_copysign_three_args() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let b: syn::Expr = parse_quote! { 2.0 };
+        let c: syn::Expr = parse_quote! { 3.0 };
+        let result = convert_copysign(&[a, b, c]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_degrees ---
+    #[test]
+    fn test_s9b7_degrees_zero_args() {
+        let result = convert_degrees(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_radians ---
+    #[test]
+    fn test_s9b7_radians_zero_args() {
+        let result = convert_radians(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_isnan ---
+    #[test]
+    fn test_s9b7_isnan_zero_args() {
+        let result = convert_isnan(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_isinf ---
+    #[test]
+    fn test_s9b7_isinf_zero_args() {
+        let result = convert_isinf(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_isfinite ---
+    #[test]
+    fn test_s9b7_isfinite_zero_args() {
+        let result = convert_isfinite(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_gcd ---
+    #[test]
+    fn test_s9b7_gcd_zero_args() {
+        let result = convert_gcd(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_gcd_one_arg() {
+        let a: syn::Expr = parse_quote! { 12 };
+        let result = convert_gcd(&[a]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_gcd_three_args() {
+        let a: syn::Expr = parse_quote! { 12 };
+        let b: syn::Expr = parse_quote! { 8 };
+        let c: syn::Expr = parse_quote! { 4 };
+        let result = convert_gcd(&[a, b, c]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_lcm ---
+    #[test]
+    fn test_s9b7_lcm_zero_args() {
+        let result = convert_lcm(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_lcm_one_arg() {
+        let a: syn::Expr = parse_quote! { 4 };
+        let result = convert_lcm(&[a]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_lcm_three_args() {
+        let a: syn::Expr = parse_quote! { 4 };
+        let b: syn::Expr = parse_quote! { 6 };
+        let c: syn::Expr = parse_quote! { 8 };
+        let result = convert_lcm(&[a, b, c]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_factorial ---
+    #[test]
+    fn test_s9b7_factorial_zero_args() {
+        let result = convert_factorial(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_isqrt ---
+    #[test]
+    fn test_s9b7_isqrt_zero_args() {
+        let result = convert_isqrt(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_comb ---
+    #[test]
+    fn test_s9b7_comb_zero_args() {
+        let result = convert_comb(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_comb_one_arg() {
+        let a: syn::Expr = parse_quote! { 5 };
+        let result = convert_comb(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_perm ---
+    #[test]
+    fn test_s9b7_perm_zero_args() {
+        let result = convert_perm(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_ldexp ---
+    #[test]
+    fn test_s9b7_ldexp_zero_args() {
+        let result = convert_ldexp(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_ldexp_one_arg() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let result = convert_ldexp(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_frexp ---
+    #[test]
+    fn test_s9b7_frexp_zero_args() {
+        let result = convert_frexp(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_isclose ---
+    #[test]
+    fn test_s9b7_isclose_zero_args() {
+        let result = convert_isclose(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_isclose_one_arg() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let result = convert_isclose(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_modf ---
+    #[test]
+    fn test_s9b7_modf_zero_args() {
+        let result = convert_modf(&[]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_fmod ---
+    #[test]
+    fn test_s9b7_fmod_zero_args() {
+        let result = convert_fmod(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_fmod_one_arg() {
+        let a: syn::Expr = parse_quote! { 7.0 };
+        let result = convert_fmod(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_hypot ---
+    #[test]
+    fn test_s9b7_hypot_zero_args() {
+        let result = convert_hypot(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_hypot_one_arg() {
+        let a: syn::Expr = parse_quote! { 3.0 };
+        let result = convert_hypot(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_dist ---
+    #[test]
+    fn test_s9b7_dist_zero_args() {
+        let result = convert_dist(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_dist_one_arg() {
+        let a: syn::Expr = parse_quote! { vec![1.0, 2.0] };
+        let result = convert_dist(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_remainder ---
+    #[test]
+    fn test_s9b7_remainder_zero_args() {
+        let result = convert_remainder(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_remainder_one_arg() {
+        let a: syn::Expr = parse_quote! { 5.0 };
+        let result = convert_remainder(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_atan2 ---
+    #[test]
+    fn test_s9b7_atan2_zero_args() {
+        let result = convert_atan2(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_atan2_one_arg() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let result = convert_atan2(&[a]);
+        assert!(result.is_err());
+    }
+
+    // --- convert_pow ---
+    #[test]
+    fn test_s9b7_pow_zero_args() {
+        let result = convert_pow(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_pow_one_arg() {
+        let a: syn::Expr = parse_quote! { 2.0 };
+        let result = convert_pow(&[a]);
+        assert!(result.is_err());
+    }
+
+    // ============ S9B7: Output verification for key functions ============
+
+    #[test]
+    fn test_s9b7_trig_sin_output_contains_sin() {
+        let arg: syn::Expr = parse_quote! { x };
+        let result = convert_trig("sin", &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("sin"));
+    }
+
+    #[test]
+    fn test_s9b7_trig_cos_output_contains_cos() {
+        let arg: syn::Expr = parse_quote! { x };
+        let result = convert_trig("cos", &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("cos"));
+    }
+
+    #[test]
+    fn test_s9b7_trig_tan_output_contains_tan() {
+        let arg: syn::Expr = parse_quote! { x };
+        let result = convert_trig("tan", &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("tan"));
+    }
+
+    #[test]
+    fn test_s9b7_hyperbolic_sinh_output_contains_sinh() {
+        let arg: syn::Expr = parse_quote! { x };
+        let result = convert_hyperbolic("sinh", &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("sinh"));
+    }
+
+    #[test]
+    fn test_s9b7_hyperbolic_cosh_output_contains_cosh() {
+        let arg: syn::Expr = parse_quote! { x };
+        let result = convert_hyperbolic("cosh", &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("cosh"));
+    }
+
+    #[test]
+    fn test_s9b7_isclose_with_three_args() {
+        let a: syn::Expr = parse_quote! { 1.0 };
+        let b: syn::Expr = parse_quote! { 1.0001 };
+        let tol: syn::Expr = parse_quote! { 0.001 };
+        let result = convert_isclose(&[a, b, tol]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("rel_tol"));
+    }
+
+    #[test]
+    fn test_s9b7_perm_one_arg_factorial_case() {
+        let n: syn::Expr = parse_quote! { 5 };
+        let result = convert_perm(&[n]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        // With 1 arg, k = n (factorial case)
+        assert!(code.contains("result"));
+    }
+
+    #[test]
+    fn test_s9b7_expm1_zero_args() {
+        let result = convert_expm1(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_expm1_output() {
+        let arg: syn::Expr = parse_quote! { 1.0 };
+        let result = convert_expm1(&[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("exp_m1"));
+    }
+
+    #[test]
+    fn test_s9b7_copysign_output() {
+        let x: syn::Expr = parse_quote! { 1.0 };
+        let y: syn::Expr = parse_quote! { -1.0 };
+        let result = convert_copysign(&[x, y]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("copysign"));
+    }
+
+    #[test]
+    fn test_s9b7_ldexp_output() {
+        let x: syn::Expr = parse_quote! { 1.5 };
+        let i: syn::Expr = parse_quote! { 3 };
+        let result = convert_ldexp(&[x, i]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("powi"));
+    }
+
+    #[test]
+    fn test_s9b7_frexp_output() {
+        let x: syn::Expr = parse_quote! { 8.0 };
+        let result = convert_frexp(&[x]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("log2"));
+    }
+
+    #[test]
+    fn test_s9b7_modf_output() {
+        let x: syn::Expr = parse_quote! { 3.5 };
+        let result = convert_modf(&[x]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("trunc"));
+    }
+
+    #[test]
+    fn test_s9b7_fmod_output() {
+        let x: syn::Expr = parse_quote! { 7.0 };
+        let y: syn::Expr = parse_quote! { 3.0 };
+        let result = convert_fmod(&[x, y]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("%"));
+    }
+
+    #[test]
+    fn test_s9b7_remainder_output() {
+        let x: syn::Expr = parse_quote! { 7.0 };
+        let y: syn::Expr = parse_quote! { 3.0 };
+        let result = convert_remainder(&[x, y]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("round"));
+    }
+
+    #[test]
+    fn test_s9b7_perm_three_args_error() {
+        let a: syn::Expr = parse_quote! { 5 };
+        let b: syn::Expr = parse_quote! { 2 };
+        let c: syn::Expr = parse_quote! { 1 };
+        let result = convert_perm(&[a, b, c]);
+        assert!(result.is_err());
     }
 }

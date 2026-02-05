@@ -43,36 +43,43 @@ use syn::parse_quote;
 /// - `hashlib.blake2s()` / `hashlib.blake2s(data)`
 /// - `hashlib.new(name, data)`
 ///
-/// # Complexity: 8 (within limits)
+/// # Complexity: 5 (delegated to dispatch helper)
 pub fn convert_hashlib_method(
     method: &str,
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    // Convert arguments
     let arg_exprs: Vec<syn::Expr> = args
         .iter()
         .map(|arg| arg.to_rust_expr(ctx))
         .collect::<Result<Vec<_>>>()?;
 
-    let result = match method {
-        "md5" => convert_md5(&arg_exprs, ctx)?,
-        "sha1" => convert_sha1(&arg_exprs, ctx)?,
-        "sha224" => convert_sha224(&arg_exprs, ctx)?,
-        "sha256" => convert_sha256(&arg_exprs, ctx)?,
-        "sha384" => convert_sha384(&arg_exprs, ctx)?,
-        "sha512" => convert_sha512(&arg_exprs, ctx)?,
-        "sha3_224" => convert_sha3_224(&arg_exprs, ctx)?,
-        "sha3_256" => convert_sha3_256(&arg_exprs, ctx)?,
-        "sha3_384" => convert_sha3_384(&arg_exprs, ctx)?,
-        "sha3_512" => convert_sha3_512(&arg_exprs, ctx)?,
-        "blake2b" => convert_blake2b(&arg_exprs, ctx)?,
-        "blake2s" => convert_blake2s(&arg_exprs, ctx)?,
-        "new" => convert_new(args, &arg_exprs, ctx)?,
-        _ => bail!("hashlib.{} not implemented yet", method),
-    };
-
+    let result = dispatch_hashlib_constructor(method, args, &arg_exprs, ctx)?;
     Ok(Some(result))
+}
+
+fn dispatch_hashlib_constructor(
+    method: &str,
+    args: &[HirExpr],
+    arg_exprs: &[syn::Expr],
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Expr> {
+    match method {
+        "md5" => convert_md5(arg_exprs, ctx),
+        "sha1" => convert_sha1(arg_exprs, ctx),
+        "sha224" => convert_sha224(arg_exprs, ctx),
+        "sha256" => convert_sha256(arg_exprs, ctx),
+        "sha384" => convert_sha384(arg_exprs, ctx),
+        "sha512" => convert_sha512(arg_exprs, ctx),
+        "sha3_224" => convert_sha3_224(arg_exprs, ctx),
+        "sha3_256" => convert_sha3_256(arg_exprs, ctx),
+        "sha3_384" => convert_sha3_384(arg_exprs, ctx),
+        "sha3_512" => convert_sha3_512(arg_exprs, ctx),
+        "blake2b" => convert_blake2b(arg_exprs, ctx),
+        "blake2s" => convert_blake2s(arg_exprs, ctx),
+        "new" => convert_new(args, arg_exprs, ctx),
+        _ => bail!("hashlib.{} not implemented yet", method),
+    }
 }
 
 /// Convert hashlib hash object instance methods
@@ -350,95 +357,50 @@ fn convert_new(
 
     // Check if we can determine the algorithm at compile time
     if let Some(HirExpr::Literal(Literal::String(alg_name))) = args.first() {
-        // Static dispatch based on algorithm name
-        let alg_lower = alg_name.to_lowercase();
-        let data_expr = arg_exprs.get(1);
-
-        match alg_lower.as_str() {
-            "md5" => {
-                if let Some(data) = data_expr {
-                    convert_md5(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_md5(&[], ctx)
-                }
-            }
-            "sha1" => {
-                if let Some(data) = data_expr {
-                    convert_sha1(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha1(&[], ctx)
-                }
-            }
-            "sha224" => {
-                if let Some(data) = data_expr {
-                    convert_sha224(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha224(&[], ctx)
-                }
-            }
-            "sha256" => {
-                if let Some(data) = data_expr {
-                    convert_sha256(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha256(&[], ctx)
-                }
-            }
-            "sha384" => {
-                if let Some(data) = data_expr {
-                    convert_sha384(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha384(&[], ctx)
-                }
-            }
-            "sha512" => {
-                if let Some(data) = data_expr {
-                    convert_sha512(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha512(&[], ctx)
-                }
-            }
-            "sha3_256" | "sha3-256" => {
-                if let Some(data) = data_expr {
-                    convert_sha3_256(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha3_256(&[], ctx)
-                }
-            }
-            "sha3_512" | "sha3-512" => {
-                if let Some(data) = data_expr {
-                    convert_sha3_512(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_sha3_512(&[], ctx)
-                }
-            }
-            "blake2b" => {
-                if let Some(data) = data_expr {
-                    convert_blake2b(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_blake2b(&[], ctx)
-                }
-            }
-            "blake2s" => {
-                if let Some(data) = data_expr {
-                    convert_blake2s(std::slice::from_ref(data), ctx)
-                } else {
-                    convert_blake2s(&[], ctx)
-                }
-            }
-            _ => bail!("hashlib.new(): unsupported algorithm '{}'", alg_name),
-        }
+        convert_new_static(alg_name, arg_exprs.get(1), ctx)
     } else {
-        // Dynamic dispatch - use Box<dyn DynDigest> pattern
-        ctx.needs_digest = true;
-        ctx.needs_sha2 = true;
-        ctx.needs_md5 = true;
-        ctx.needs_sha1 = true;
-
-        let name = &arg_exprs[0];
-        Ok(parse_quote! {
-            depyler_runtime::create_hasher(#name)?
-        })
+        convert_new_dynamic(arg_exprs, ctx)
     }
+}
+
+/// Static dispatch: algorithm name known at compile time
+fn convert_new_static(
+    alg_name: &str,
+    data_expr: Option<&syn::Expr>,
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Expr> {
+    let alg_lower = alg_name.to_lowercase();
+    let args = match data_expr {
+        Some(data) => std::slice::from_ref(data).to_vec(),
+        None => vec![],
+    };
+
+    match alg_lower.as_str() {
+        "md5" => convert_md5(&args, ctx),
+        "sha1" => convert_sha1(&args, ctx),
+        "sha224" => convert_sha224(&args, ctx),
+        "sha256" => convert_sha256(&args, ctx),
+        "sha384" => convert_sha384(&args, ctx),
+        "sha512" => convert_sha512(&args, ctx),
+        "sha3_256" | "sha3-256" => convert_sha3_256(&args, ctx),
+        "sha3_512" | "sha3-512" => convert_sha3_512(&args, ctx),
+        "blake2b" => convert_blake2b(&args, ctx),
+        "blake2s" => convert_blake2s(&args, ctx),
+        _ => bail!("hashlib.new(): unsupported algorithm '{}'", alg_name),
+    }
+}
+
+/// Dynamic dispatch: algorithm name not known at compile time
+fn convert_new_dynamic(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+    ctx.needs_digest = true;
+    ctx.needs_sha2 = true;
+    ctx.needs_md5 = true;
+    ctx.needs_sha1 = true;
+
+    let name = &arg_exprs[0];
+    Ok(parse_quote! {
+        depyler_runtime::create_hasher(#name)?
+    })
 }
 
 // =============================================================================
@@ -907,5 +869,358 @@ mod tests {
         let data = HirExpr::Literal(Literal::Bytes(b"data".to_vec()));
         let result = convert_hashlib_instance_method("update", &[data], &mut ctx).unwrap();
         assert!(result.is_some());
+    }
+
+    // ============ S9B7: Data argument branch coverage for all algorithms ============
+
+    #[test]
+    fn test_s9b7_hashlib_sha1_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha1(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha1"));
+        assert!(ctx.needs_sha1);
+        assert!(ctx.needs_digest);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha224_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha224(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha224"));
+        assert!(ctx.needs_sha2);
+        assert!(ctx.needs_digest);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha384_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha384(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha384"));
+        assert!(ctx.needs_sha2);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha512_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha512(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha512"));
+        assert!(ctx.needs_sha2);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha3_224_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha3_224(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha3_224"));
+        assert!(ctx.needs_sha3);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha3_256_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha3_256(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha3_256"));
+        assert!(ctx.needs_sha3);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha3_384_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha3_384(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha3_384"));
+        assert!(ctx.needs_sha3);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_sha3_512_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_sha3_512(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Sha3_512"));
+        assert!(ctx.needs_sha3);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_blake2b_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_blake2b(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Blake2b512"));
+        assert!(ctx.needs_blake2);
+        assert!(ctx.needs_digest);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_blake2s_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_blake2s(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Blake2s256"));
+        assert!(ctx.needs_blake2);
+        assert!(ctx.needs_digest);
+    }
+
+    // ============ S9B7: convert_new with data arg ============
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha256_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha256".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"payload".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha256" };
+        let data_expr: syn::Expr = parse_quote! { b"payload" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha256"));
+        assert!(code.contains("update"));
+        assert!(ctx.needs_sha2);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_md5_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("md5".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"test".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "md5" };
+        let data_expr: syn::Expr = parse_quote! { b"test" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Md5"));
+        assert!(code.contains("update"));
+        assert!(ctx.needs_md5);
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha1_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha1".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"abc".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha1" };
+        let data_expr: syn::Expr = parse_quote! { b"abc" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha1"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha224_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha224".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"x".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha224" };
+        let data_expr: syn::Expr = parse_quote! { b"x" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha224"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha384_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha384".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"y".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha384" };
+        let data_expr: syn::Expr = parse_quote! { b"y" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha384"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha512_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha512".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"z".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha512" };
+        let data_expr: syn::Expr = parse_quote! { b"z" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha512"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha3_256_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha3_256".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"d".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha3_256" };
+        let data_expr: syn::Expr = parse_quote! { b"d" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_256"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha3_512_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha3_512".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"e".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha3_512" };
+        let data_expr: syn::Expr = parse_quote! { b"e" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_512"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_blake2b_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("blake2b".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"f".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "blake2b" };
+        let data_expr: syn::Expr = parse_quote! { b"f" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Blake2b512"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_blake2s_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("blake2s".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"g".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "blake2s" };
+        let data_expr: syn::Expr = parse_quote! { b"g" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Blake2s256"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha3_dash_256_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha3-256".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"h".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha3-256" };
+        let data_expr: syn::Expr = parse_quote! { b"h" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_256"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_new_sha3_dash_512_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha3-512".to_string()));
+        let data_hir = HirExpr::Literal(Literal::Bytes(b"i".to_vec()));
+        let name_expr: syn::Expr = parse_quote! { "sha3-512" };
+        let data_expr: syn::Expr = parse_quote! { b"i" };
+        let result = convert_new(&[name_hir, data_hir], &[name_expr, data_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_512"));
+        assert!(code.contains("update"));
+    }
+
+    // ============ S9B7: Instance methods - name, digest_size, block_size ============
+
+    #[test]
+    fn test_s9b7_hashlib_convert_name() {
+        let result = convert_name().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("name"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_convert_digest_size() {
+        let result = convert_digest_size().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("output_size"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_convert_block_size() {
+        let result = convert_block_size().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("block_size"));
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_instance_name_dispatch() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_instance_method("name", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+        let code = quote::quote!(#(result.unwrap())).to_string();
+        // Just ensure dispatch works
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_instance_digest_size_dispatch() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_instance_method("digest_size", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s9b7_hashlib_instance_block_size_dispatch() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_instance_method("block_size", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    // ============ S9B7: Dynamic dispatch (non-literal algorithm name) ============
+
+    #[test]
+    fn test_s9b7_hashlib_new_dynamic_dispatch() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Var("algo_name".to_string());
+        let name_expr: syn::Expr = parse_quote! { algo_name };
+        let result = convert_new(&[name_hir], &[name_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("create_hasher"));
+        assert!(ctx.needs_digest);
+        assert!(ctx.needs_sha2);
+        assert!(ctx.needs_md5);
+        assert!(ctx.needs_sha1);
+    }
+
+    // ============ S9B7: convert_md5 with data (direct call) ============
+
+    #[test]
+    fn test_s9b7_hashlib_md5_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_md5(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+        assert!(code.contains("Md5"));
+        assert!(ctx.needs_md5);
+        assert!(ctx.needs_digest);
     }
 }
