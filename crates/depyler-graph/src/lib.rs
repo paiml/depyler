@@ -249,4 +249,190 @@ def foo(x: int) -> str:
         let failure = &analysis.vectorized_failures[0];
         assert_eq!(failure.error_code, "E0308");
     }
+
+    #[test]
+    fn test_analyze_with_no_errors() {
+        let python = "def foo():\n    return 42\n";
+        let errors: Vec<(String, String, usize)> = vec![];
+
+        let result = analyze_with_graph(python, &errors);
+        assert!(result.is_ok());
+
+        let analysis = result.unwrap();
+        assert_eq!(analysis.total_errors, 0);
+        assert!(analysis.vectorized_failures.is_empty());
+        assert!(analysis.error_distribution.is_empty());
+        // Patient zeros may still be identified via pagerank even without errors
+        // but none should have direct errors
+        for pz in &analysis.patient_zeros {
+            assert_eq!(pz.direct_errors, 0);
+        }
+    }
+
+    #[test]
+    fn test_analyze_invalid_python() {
+        let python = "def broken(:\n";
+        let errors: Vec<(String, String, usize)> = vec![];
+
+        let result = analyze_with_graph(python, &errors);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_analyze_empty_source() {
+        let python = "";
+        let errors: Vec<(String, String, usize)> = vec![];
+
+        let result = analyze_with_graph(python, &errors);
+        assert!(result.is_ok());
+
+        let analysis = result.unwrap();
+        assert_eq!(analysis.node_count, 0);
+        assert_eq!(analysis.edge_count, 0);
+    }
+
+    #[test]
+    fn test_analyze_error_distribution() {
+        let python = r#"
+def foo():
+    return 42
+
+def bar():
+    return foo()
+"#;
+        let errors = vec![
+            ("E0308".to_string(), "err1".to_string(), 10),
+            ("E0599".to_string(), "err2".to_string(), 10),
+        ];
+
+        let result = analyze_with_graph(python, &errors);
+        assert!(result.is_ok());
+
+        let analysis = result.unwrap();
+        assert_eq!(analysis.total_errors, 2);
+        // Errors should be distributed across nodes
+        let total_dist: usize = analysis.error_distribution.values().sum();
+        assert!(total_dist <= 2);
+    }
+
+    #[test]
+    fn test_graph_error_display_parse() {
+        let err = GraphError::ParseError("unexpected token".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("parse"));
+        assert!(msg.contains("unexpected token"));
+    }
+
+    #[test]
+    fn test_graph_error_display_build() {
+        let err = GraphError::BuildError("node conflict".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("construction"));
+        assert!(msg.contains("node conflict"));
+    }
+
+    #[test]
+    fn test_graph_error_display_overlay() {
+        let err = GraphError::OverlayError("mapping failed".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("overlay"));
+        assert!(msg.contains("mapping failed"));
+    }
+
+    #[test]
+    fn test_graph_node_serde_roundtrip() {
+        let node = GraphNode {
+            id: "my_func".to_string(),
+            kind: NodeKind::Function,
+            file: std::path::PathBuf::from("test.py"),
+            line: 10,
+            column: 4,
+            error_count: 2,
+            impact_score: 3.14,
+        };
+
+        let json = serde_json::to_string(&node).unwrap();
+        let deserialized: GraphNode = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.id, "my_func");
+        assert_eq!(deserialized.kind, NodeKind::Function);
+        assert_eq!(deserialized.line, 10);
+        assert_eq!(deserialized.column, 4);
+        assert_eq!(deserialized.error_count, 2);
+    }
+
+    #[test]
+    fn test_graph_edge_serde_roundtrip() {
+        let edge = GraphEdge {
+            kind: EdgeKind::Calls,
+            weight: 2.5,
+        };
+
+        let json = serde_json::to_string(&edge).unwrap();
+        let deserialized: GraphEdge = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.kind, EdgeKind::Calls);
+        assert!((deserialized.weight - 2.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_graph_analysis_serde_roundtrip() {
+        let analysis = GraphAnalysis {
+            node_count: 5,
+            edge_count: 3,
+            patient_zeros: vec![],
+            vectorized_failures: vec![],
+            error_distribution: HashMap::new(),
+            total_errors: 0,
+        };
+
+        let json = serde_json::to_string(&analysis).unwrap();
+        let deserialized: GraphAnalysis = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.node_count, 5);
+        assert_eq!(deserialized.edge_count, 3);
+        assert_eq!(deserialized.total_errors, 0);
+    }
+
+    #[test]
+    fn test_analyze_complex_program() {
+        let python = r#"
+import math
+
+class Shape:
+    def area(self):
+        pass
+
+class Circle(Shape):
+    def area(self):
+        return 3.14
+
+def compute(shape):
+    return shape.area()
+
+def main():
+    c = Circle()
+    return compute(c)
+"#;
+        let errors = vec![
+            ("E0599".to_string(), "no method area".to_string(), 30),
+            ("E0308".to_string(), "type mismatch".to_string(), 50),
+        ];
+
+        let result = analyze_with_graph(python, &errors);
+        assert!(result.is_ok());
+
+        let analysis = result.unwrap();
+        // Should have import, classes, methods, and functions
+        assert!(analysis.node_count >= 5);
+        assert_eq!(analysis.total_errors, 2);
+    }
+
+    #[test]
+    fn test_graph_error_is_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<GraphError>();
+        assert_sync::<GraphError>();
+    }
 }

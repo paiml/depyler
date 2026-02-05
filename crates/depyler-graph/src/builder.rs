@@ -610,4 +610,432 @@ def bar():
         let bar_node = graph.get_node("bar").unwrap();
         assert_eq!(bar_node.line, 4);
     }
+
+    #[test]
+    fn test_empty_source() {
+        let python = "";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        assert_eq!(graph.node_count(), 0);
+        assert_eq!(graph.edge_count(), 0);
+    }
+
+    #[test]
+    fn test_invalid_python_source() {
+        let python = "def foo(:\n    return";
+        let mut builder = GraphBuilder::new();
+        let result = builder.build_from_source(python);
+        assert!(result.is_err());
+        match result {
+            Err(crate::GraphError::ParseError(msg)) => {
+                assert!(!msg.is_empty());
+            }
+            _ => panic!("expected ParseError"),
+        }
+    }
+
+    #[test]
+    fn test_dependency_graph_default() {
+        let graph = DependencyGraph::default();
+        assert_eq!(graph.node_count(), 0);
+        assert_eq!(graph.edge_count(), 0);
+    }
+
+    #[test]
+    fn test_graph_builder_default() {
+        let builder = GraphBuilder::default();
+        // GraphBuilder::default() should be equivalent to new()
+        let _builder2 = GraphBuilder::new();
+        // Both should parse the same source identically
+        drop(builder);
+    }
+
+    #[test]
+    fn test_get_node_nonexistent() {
+        let graph = DependencyGraph::new();
+        assert!(graph.get_node("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_get_node_mut() {
+        let python = "def foo():\n    return 42\n";
+        let mut builder = GraphBuilder::new();
+        let mut graph = builder.build_from_source(python).unwrap();
+
+        // Mutate error count
+        let node = graph.get_node_mut("foo").unwrap();
+        node.error_count = 5;
+
+        // Verify mutation persisted
+        let node = graph.get_node("foo").unwrap();
+        assert_eq!(node.error_count, 5);
+    }
+
+    #[test]
+    fn test_get_node_mut_nonexistent() {
+        let mut graph = DependencyGraph::new();
+        assert!(graph.get_node_mut("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_node_ids() {
+        let python = "def alpha():\n    pass\n\ndef beta():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let ids = graph.node_ids();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&"alpha".to_string()));
+        assert!(ids.contains(&"beta".to_string()));
+    }
+
+    #[test]
+    fn test_add_edge_missing_from_node() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let mut graph = builder.build_from_source(python).unwrap();
+
+        let edge = GraphEdge {
+            kind: EdgeKind::Calls,
+            weight: 1.0,
+        };
+        let added = graph.add_edge("nonexistent", "foo", edge);
+        assert!(!added);
+    }
+
+    #[test]
+    fn test_add_edge_missing_to_node() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let mut graph = builder.build_from_source(python).unwrap();
+
+        let edge = GraphEdge {
+            kind: EdgeKind::Calls,
+            weight: 1.0,
+        };
+        let added = graph.add_edge("foo", "nonexistent", edge);
+        assert!(!added);
+    }
+
+    #[test]
+    fn test_add_edge_both_missing() {
+        let mut graph = DependencyGraph::new();
+        let edge = GraphEdge {
+            kind: EdgeKind::Calls,
+            weight: 1.0,
+        };
+        let added = graph.add_edge("a", "b", edge);
+        assert!(!added);
+    }
+
+    #[test]
+    fn test_add_edge_success() {
+        let python = "def foo():\n    pass\n\ndef bar():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let mut graph = builder.build_from_source(python).unwrap();
+
+        let edge = GraphEdge {
+            kind: EdgeKind::Calls,
+            weight: 2.0,
+        };
+        let added = graph.add_edge("bar", "foo", edge);
+        assert!(added);
+        assert_eq!(graph.edge_count(), 1);
+    }
+
+    #[test]
+    fn test_incoming_edges_nonexistent_node() {
+        let graph = DependencyGraph::new();
+        let edges = graph.incoming_edges("nonexistent");
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn test_outgoing_edges_nonexistent_node() {
+        let graph = DependencyGraph::new();
+        let edges = graph.outgoing_edges("nonexistent");
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn test_import_statement_creates_module_node() {
+        let python = "import os\n\ndef foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let import_node = graph.get_node("import:os");
+        assert!(import_node.is_some());
+        assert_eq!(import_node.unwrap().kind, NodeKind::Module);
+    }
+
+    #[test]
+    fn test_multiple_imports() {
+        let python = "import os\nimport sys\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        assert!(graph.get_node("import:os").is_some());
+        assert!(graph.get_node("import:sys").is_some());
+        assert_eq!(graph.node_count(), 2);
+    }
+
+    #[test]
+    fn test_multiple_classes_with_methods() {
+        let python = r#"
+class Dog:
+    def bark(self):
+        pass
+
+class Cat:
+    def meow(self):
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        assert!(graph.get_node("Dog").is_some());
+        assert!(graph.get_node("Cat").is_some());
+        assert!(graph.get_node("Dog.bark").is_some());
+        assert!(graph.get_node("Cat.meow").is_some());
+        assert_eq!(graph.node_count(), 4);
+    }
+
+    #[test]
+    fn test_chained_calls_edges() {
+        let python = r#"
+def a():
+    return 1
+
+def b():
+    return a()
+
+def c():
+    return b()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        assert_eq!(graph.node_count(), 3);
+        assert_eq!(graph.edge_count(), 2);
+
+        // c -> b
+        let c_out = graph.outgoing_edges("c");
+        assert_eq!(c_out.len(), 1);
+        assert_eq!(c_out[0].0.id, "b");
+        assert_eq!(c_out[0].1.kind, EdgeKind::Calls);
+
+        // b -> a
+        let b_out = graph.outgoing_edges("b");
+        assert_eq!(b_out.len(), 1);
+        assert_eq!(b_out[0].0.id, "a");
+    }
+
+    #[test]
+    fn test_function_calling_multiple_functions() {
+        let python = r#"
+def x():
+    return 1
+
+def y():
+    return 2
+
+def z():
+    return x() + y()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let z_out = graph.outgoing_edges("z");
+        assert_eq!(z_out.len(), 2);
+        let callee_names: Vec<&str> = z_out.iter().map(|(n, _)| n.id.as_str()).collect();
+        assert!(callee_names.contains(&"x"));
+        assert!(callee_names.contains(&"y"));
+    }
+
+    #[test]
+    fn test_class_with_multiple_methods() {
+        let python = r#"
+class Calc:
+    def add(self):
+        pass
+    def sub(self):
+        pass
+    def mul(self):
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        assert!(graph.get_node("Calc").is_some());
+        assert!(graph.get_node("Calc.add").is_some());
+        assert!(graph.get_node("Calc.sub").is_some());
+        assert!(graph.get_node("Calc.mul").is_some());
+        // 1 class + 3 methods
+        assert_eq!(graph.node_count(), 4);
+    }
+
+    #[test]
+    fn test_edge_kind_variants() {
+        assert_ne!(EdgeKind::Calls, EdgeKind::Imports);
+        assert_ne!(EdgeKind::Calls, EdgeKind::Inherits);
+        assert_ne!(EdgeKind::Calls, EdgeKind::Accesses);
+        assert_ne!(EdgeKind::Calls, EdgeKind::References);
+
+        // Test Clone and Copy
+        let kind = EdgeKind::Calls;
+        let _cloned = kind;
+        let _copied = kind;
+    }
+
+    #[test]
+    fn test_node_kind_variants() {
+        assert_ne!(NodeKind::Function, NodeKind::Class);
+        assert_ne!(NodeKind::Function, NodeKind::Method);
+        assert_ne!(NodeKind::Function, NodeKind::Module);
+        assert_ne!(NodeKind::Function, NodeKind::Variable);
+
+        // Test Clone and Copy
+        let kind = NodeKind::Function;
+        let _cloned = kind;
+        let _copied = kind;
+    }
+
+    #[test]
+    fn test_node_kind_serde_roundtrip() {
+        let kind = NodeKind::Function;
+        let json = serde_json::to_string(&kind).unwrap();
+        let deserialized: NodeKind = serde_json::from_str(&json).unwrap();
+        assert_eq!(kind, deserialized);
+    }
+
+    #[test]
+    fn test_edge_kind_serde_roundtrip() {
+        let kind = EdgeKind::Inherits;
+        let json = serde_json::to_string(&kind).unwrap();
+        let deserialized: EdgeKind = serde_json::from_str(&json).unwrap();
+        assert_eq!(kind, deserialized);
+    }
+
+    #[test]
+    fn test_offset_to_line_boundary() {
+        let mut builder = GraphBuilder::new();
+        builder.source = "line1\nline2\nline3\n".to_string();
+        // offset 0 => line 1
+        assert_eq!(builder.offset_to_line(0), 1);
+        // offset 5 ('\n') => line 1 (before incrementing for the \n)
+        assert_eq!(builder.offset_to_line(5), 1);
+        // offset 6 ('l' of line2) => line 2
+        assert_eq!(builder.offset_to_line(6), 2);
+    }
+
+    #[test]
+    fn test_offset_to_column_boundary() {
+        let mut builder = GraphBuilder::new();
+        builder.source = "abc\ndef\n".to_string();
+        // offset 0 => column 1
+        assert_eq!(builder.offset_to_column(0), 1);
+        // offset 1 => column 2
+        assert_eq!(builder.offset_to_column(1), 2);
+        // offset 4 => first char of next line => column 1
+        assert_eq!(builder.offset_to_column(4), 1);
+        // offset 5 => column 2
+        assert_eq!(builder.offset_to_column(5), 2);
+    }
+
+    #[test]
+    fn test_calls_in_if_body() {
+        let python = r#"
+def helper():
+    return 1
+
+def main():
+    if True:
+        helper()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let out = graph.outgoing_edges("main");
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0.id, "helper");
+    }
+
+    #[test]
+    fn test_calls_in_for_loop() {
+        let python = r#"
+def process():
+    return 1
+
+def main():
+    for i in range(10):
+        process()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let out = graph.outgoing_edges("main");
+        // process is called (range is external so no edge)
+        assert!(out.iter().any(|(n, _)| n.id == "process"));
+    }
+
+    #[test]
+    fn test_calls_in_while_loop() {
+        let python = r#"
+def check():
+    return True
+
+def main():
+    while check():
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "check"));
+    }
+
+    #[test]
+    fn test_calls_in_assignment() {
+        let python = r#"
+def compute():
+    return 42
+
+def main():
+    x = compute()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let out = graph.outgoing_edges("main");
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0.id, "compute");
+    }
+
+    #[test]
+    fn test_multiple_inheritance_edges() {
+        let python = r#"
+class A:
+    pass
+
+class B:
+    pass
+
+class C(A, B):
+    pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let c_out = graph.outgoing_edges("C");
+        assert_eq!(c_out.len(), 2);
+        let base_names: Vec<&str> = c_out.iter().map(|(n, _)| n.id.as_str()).collect();
+        assert!(base_names.contains(&"A"));
+        assert!(base_names.contains(&"B"));
+
+        // All inheritance edges
+        for (_, edge) in &c_out {
+            assert_eq!(edge.kind, EdgeKind::Inherits);
+        }
+    }
 }

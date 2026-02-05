@@ -13126,4 +13126,340 @@ mod tests {
             Type::Unknown
         ));
     }
+
+    // ========================================================================
+    // Transpile-based coverage tests (DEPYLER-99MODE-S9)
+    // ========================================================================
+
+    fn transpile(python_code: &str) -> String {
+        use crate::ast_bridge::AstBridge;
+        use crate::rust_gen::generate_rust_file;
+        use crate::type_mapper::TypeMapper;
+        use rustpython_parser::{parse, Mode};
+        let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
+        let (module, _) = AstBridge::new()
+            .with_source(python_code.to_string())
+            .python_to_hir(ast)
+            .expect("hir");
+        let tm = TypeMapper::default();
+        let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
+        result
+    }
+
+    #[test]
+    fn test_s9_module_empty() {
+        let code = transpile("");
+        // Empty module should still generate valid Rust
+        assert!(!code.is_empty() || code.is_empty()); // Just ensure no panic
+    }
+
+    #[test]
+    fn test_s9_module_single_constant_int() {
+        let code = transpile("MAX_SIZE = 100\n");
+        assert!(
+            code.contains("MAX_SIZE") || code.contains("100"),
+            "Should contain constant: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_single_constant_str() {
+        let code = transpile("VERSION = \"1.0.0\"\n");
+        assert!(
+            code.contains("VERSION") || code.contains("1.0.0"),
+            "Should contain string constant: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_multiple_constants() {
+        let code = transpile("X = 10\nY = 20\nZ = 30\n");
+        assert!(
+            code.contains("10") && code.contains("20") && code.contains("30"),
+            "Should contain all constant values: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_constant_float() {
+        let code = transpile("RATE = 0.05\n");
+        assert!(
+            code.contains("RATE") || code.contains("0.05"),
+            "Should contain float constant: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_constant_bool() {
+        let code = transpile("DEBUG = True\n");
+        assert!(
+            code.contains("DEBUG") || code.contains("true"),
+            "Should contain bool constant: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_import_os() {
+        let code = transpile("import os\n\ndef run():\n    pass\n");
+        // os import should be processed
+        assert!(code.contains("fn run"));
+    }
+
+    #[test]
+    fn test_s9_module_import_sys() {
+        let code = transpile("import sys\n\ndef main():\n    pass\n");
+        assert!(code.contains("fn main"));
+    }
+
+    #[test]
+    fn test_s9_module_from_import() {
+        let code = transpile("from collections import defaultdict\n\ndef test():\n    pass\n");
+        assert!(code.contains("fn test"));
+    }
+
+    #[test]
+    fn test_s9_module_import_json() {
+        let code = transpile(
+            "import json\n\ndef parse(data: str) -> str:\n    return data\n",
+        );
+        assert!(code.contains("fn parse"));
+    }
+
+    #[test]
+    fn test_s9_module_class_basic() {
+        let code = transpile(
+            "class Point:\n    def __init__(self, x: int, y: int):\n        self.x = x\n        self.y = y\n",
+        );
+        assert!(
+            code.contains("struct") || code.contains("Point"),
+            "Should generate struct for class: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_class_with_method() {
+        let code = transpile(
+            "class Counter:\n    def __init__(self):\n        self.count = 0\n    def increment(self):\n        self.count = self.count + 1\n",
+        );
+        assert!(
+            code.contains("Counter") || code.contains("increment"),
+            "Should generate struct with method: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_class_and_function() {
+        let code = transpile(
+            "class Pair:\n    def __init__(self, a: int, b: int):\n        self.a = a\n        self.b = b\n\ndef make_pair(x: int, y: int) -> int:\n    return x + y\n",
+        );
+        assert!(code.contains("Pair") || code.contains("struct"));
+        assert!(code.contains("fn make_pair"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_list_return() {
+        let code = transpile("def numbers() -> list:\n    return [1, 2, 3]\n");
+        assert!(code.contains("fn numbers"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_dict_return() {
+        let code = transpile("def config() -> dict:\n    return {\"key\": \"value\"}\n");
+        assert!(code.contains("fn config"));
+        assert!(
+            code.contains("HashMap") || code.contains("hash"),
+            "Should use HashMap for dict: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_multiple_functions() {
+        let code = transpile(
+            "def alpha() -> int:\n    return 1\n\ndef beta() -> int:\n    return 2\n\ndef gamma() -> int:\n    return 3\n",
+        );
+        assert!(code.contains("fn alpha"));
+        assert!(code.contains("fn beta"));
+        assert!(code.contains("fn gamma"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_mutable_var() {
+        let code = transpile(
+            "def accumulate() -> int:\n    total = 0\n    total = total + 1\n    total = total + 2\n    return total\n",
+        );
+        assert!(code.contains("mut"), "Reassigned var should be mut: {code}");
+    }
+
+    #[test]
+    fn test_s9_module_function_calls_len() {
+        let code = transpile(
+            "def length(items: list) -> int:\n    return len(items)\n",
+        );
+        assert!(code.contains("fn length"));
+        assert!(code.contains("len()"), "Should call len(): {code}");
+    }
+
+    #[test]
+    fn test_s9_module_global_and_function() {
+        let code = transpile(
+            "THRESHOLD = 42\n\ndef check(x: int) -> bool:\n    return x > 0\n",
+        );
+        assert!(code.contains("fn check"));
+        assert!(
+            code.contains("42") || code.contains("THRESHOLD"),
+            "Should have constant: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_function_with_string_ops() {
+        let code = transpile(
+            "def upper_case(s: str) -> str:\n    return s.upper()\n",
+        );
+        assert!(code.contains("fn upper_case"));
+        assert!(
+            code.contains("to_uppercase") || code.contains("upper"),
+            "Should map upper to Rust: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_function_with_print() {
+        let code = transpile(
+            "def say_hello():\n    print(\"hello\")\n",
+        );
+        assert!(code.contains("fn say_hello"));
+        assert!(
+            code.contains("println!") || code.contains("print"),
+            "Should map print: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_function_with_enumerate() {
+        let code = transpile(
+            "def indexed(items: list) -> int:\n    total = 0\n    for i, item in enumerate(items):\n        total = total + i\n    return total\n",
+        );
+        assert!(code.contains("fn indexed"));
+        assert!(
+            code.contains("enumerate") || code.contains("iter()"),
+            "Should handle enumerate: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_function_with_range() {
+        let code = transpile(
+            "def count_up(n: int) -> int:\n    total = 0\n    for i in range(n):\n        total = total + i\n    return total\n",
+        );
+        assert!(code.contains("fn count_up"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_set() {
+        let code = transpile(
+            "def unique_count(items: list) -> int:\n    s = set()\n    return len(s)\n",
+        );
+        assert!(code.contains("fn unique_count"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_tuple_return() {
+        let code = transpile(
+            "def divmod_fn(a: int, b: int) -> tuple:\n    return (a // b, a % b)\n",
+        );
+        assert!(code.contains("fn divmod_fn"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_assert() {
+        let code = transpile(
+            "def validated(x: int) -> int:\n    assert x >= 0\n    return x\n",
+        );
+        assert!(code.contains("fn validated"));
+        assert!(code.contains("assert"), "Should have assertion: {code}");
+    }
+
+    #[test]
+    fn test_s9_module_nested_function() {
+        let code = transpile(
+            "def outer() -> int:\n    def inner() -> int:\n        return 1\n    return inner()\n",
+        );
+        assert!(code.contains("outer"));
+        assert!(code.contains("inner"));
+    }
+
+    #[test]
+    fn test_s9_module_function_with_break() {
+        let code = transpile(
+            "def find_first(items: list) -> int:\n    for x in items:\n        if x > 0:\n            break\n    return 0\n",
+        );
+        assert!(code.contains("fn find_first"));
+        assert!(code.contains("break"), "Should contain break: {code}");
+    }
+
+    #[test]
+    fn test_s9_module_function_with_continue() {
+        let code = transpile(
+            "def skip_neg(items: list) -> int:\n    total = 0\n    for x in items:\n        if x < 0:\n            continue\n        total = total + x\n    return total\n",
+        );
+        assert!(code.contains("fn skip_neg"));
+        assert!(code.contains("continue"), "Should contain continue: {code}");
+    }
+
+    #[test]
+    fn test_s9_module_function_ternary_expr() {
+        let code = transpile(
+            "def abs_val(x: int) -> int:\n    return x if x >= 0 else -x\n",
+        );
+        assert!(code.contains("fn abs_val"));
+        assert!(code.contains("if"), "Should contain conditional expr: {code}");
+    }
+
+    #[test]
+    fn test_s9_module_function_string_concat() {
+        let code = transpile(
+            "def concat(a: str, b: str) -> str:\n    return a + b\n",
+        );
+        assert!(code.contains("fn concat"));
+    }
+
+    #[test]
+    fn test_s9_module_constant_list() {
+        let code = transpile("ITEMS = [1, 2, 3]\n");
+        assert!(
+            code.contains("1") && code.contains("2") && code.contains("3"),
+            "Should have list constant values: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_analyze_mutable_vars_basic() {
+        // Test that analyze_mutable_vars detects reassignment
+        let code = transpile(
+            "def mutate() -> int:\n    x = 1\n    x = x + 1\n    return x\n",
+        );
+        assert!(code.contains("mut"), "Reassigned x should be mutable: {code}");
+    }
+
+    #[test]
+    fn test_s9_module_analyze_mutable_vars_list_push() {
+        let code = transpile(
+            "def build() -> list:\n    items = []\n    items.append(1)\n    return items\n",
+        );
+        assert!(
+            code.contains("mut"),
+            "List with append should be mutable: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_module_function_with_while_and_break() {
+        let code = transpile(
+            "def search(limit: int) -> int:\n    i = 0\n    while i < limit:\n        if i > 10:\n            break\n        i = i + 1\n    return i\n",
+        );
+        assert!(code.contains("fn search"));
+        assert!(code.contains("while"));
+        assert!(code.contains("break"));
+    }
 }

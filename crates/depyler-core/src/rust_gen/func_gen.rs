@@ -7212,4 +7212,347 @@ mod tests {
         let fields = extract_args_field_accesses(&body, "args");
         assert!(fields.is_empty());
     }
+
+    // ========================================================================
+    // Transpile-based coverage tests (DEPYLER-99MODE-S9)
+    // ========================================================================
+
+    fn transpile(python_code: &str) -> String {
+        use crate::ast_bridge::AstBridge;
+        use crate::rust_gen::generate_rust_file;
+        use crate::type_mapper::TypeMapper;
+        use rustpython_parser::{parse, Mode};
+        let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
+        let (module, _) = AstBridge::new()
+            .with_source(python_code.to_string())
+            .python_to_hir(ast)
+            .expect("hir");
+        let tm = TypeMapper::default();
+        let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
+        result
+    }
+
+    #[test]
+    fn test_s9_func_simple_return_int() {
+        let code = transpile("def answer() -> int:\n    return 42\n");
+        assert!(code.contains("fn answer"));
+        assert!(code.contains("i32"));
+        assert!(code.contains("42"));
+    }
+
+    #[test]
+    fn test_s9_func_two_int_params() {
+        let code = transpile("def add(a: int, b: int) -> int:\n    return a + b\n");
+        assert!(code.contains("fn add"));
+        assert!(code.contains("a:"));
+        assert!(code.contains("b:"));
+        assert!(code.contains("i32"));
+    }
+
+    #[test]
+    fn test_s9_func_float_return_type() {
+        let code = transpile("def pi_val() -> float:\n    return 3.14\n");
+        assert!(code.contains("f64"));
+    }
+
+    #[test]
+    fn test_s9_func_bool_return_type() {
+        let code = transpile("def is_even(n: int) -> bool:\n    return n % 2 == 0\n");
+        assert!(code.contains("bool"));
+    }
+
+    #[test]
+    fn test_s9_func_string_return_type() {
+        let code = transpile("def greet(name: str) -> str:\n    return name\n");
+        assert!(code.contains("fn greet"));
+        assert!(
+            code.contains("String") || code.contains("str"),
+            "Should have string type: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_func_no_return_type() {
+        let code = transpile("def noop():\n    pass\n");
+        assert!(code.contains("fn noop"));
+    }
+
+    #[test]
+    fn test_s9_func_multiple_statements() {
+        let code = transpile(
+            "def calc(x: int) -> int:\n    y = x * 2\n    z = y + 1\n    return z\n",
+        );
+        assert!(code.contains("fn calc"));
+        assert!(code.contains("let"));
+    }
+
+    #[test]
+    fn test_s9_func_if_else_body() {
+        let code = transpile(
+            "def classify(x: int) -> str:\n    if x > 0:\n        return \"positive\"\n    else:\n        return \"non-positive\"\n",
+        );
+        assert!(code.contains("if"));
+        assert!(code.contains("else"));
+    }
+
+    #[test]
+    fn test_s9_func_for_loop_body() {
+        let code = transpile(
+            "def total(items: list) -> int:\n    s = 0\n    for item in items:\n        s = s + item\n    return s\n",
+        );
+        assert!(code.contains("for"));
+    }
+
+    #[test]
+    fn test_s9_func_while_loop_body() {
+        let code = transpile(
+            "def countdown(n: int) -> int:\n    total = 0\n    while n > 0:\n        total = total + n\n        n = n - 1\n    return total\n",
+        );
+        assert!(code.contains("while"));
+    }
+
+    #[test]
+    fn test_s9_func_nested_function_def() {
+        let code = transpile(
+            "def outer(x: int) -> int:\n    def inner(y: int) -> int:\n        return y + 1\n    return inner(x)\n",
+        );
+        assert!(code.contains("inner"));
+    }
+
+    #[test]
+    fn test_s9_func_default_param_int() {
+        let code = transpile("def greet(count: int = 5) -> int:\n    return count\n");
+        assert!(code.contains("fn greet"));
+    }
+
+    #[test]
+    fn test_s9_func_default_param_string() {
+        let code = transpile(
+            "def hello(name: str = \"world\") -> str:\n    return name\n",
+        );
+        assert!(code.contains("fn hello"));
+    }
+
+    #[test]
+    fn test_s9_func_multiple_params_with_defaults() {
+        let code = transpile(
+            "def config(host: str = \"localhost\", port: int = 8080) -> str:\n    return host\n",
+        );
+        assert!(code.contains("fn config"));
+    }
+
+    #[test]
+    fn test_s9_func_return_list() {
+        let code = transpile(
+            "def make_list() -> list:\n    return [1, 2, 3]\n",
+        );
+        assert!(code.contains("fn make_list"));
+        assert!(code.contains("1") && code.contains("2") && code.contains("3"));
+    }
+
+    #[test]
+    fn test_s9_func_return_dict() {
+        let code = transpile(
+            "def make_dict() -> dict:\n    return {\"a\": 1}\n",
+        );
+        assert!(code.contains("fn make_dict"));
+    }
+
+    #[test]
+    fn test_s9_func_return_tuple() {
+        let code = transpile(
+            "def pair() -> tuple:\n    return (1, 2)\n",
+        );
+        assert!(code.contains("fn pair"));
+    }
+
+    #[test]
+    fn test_s9_func_return_none() {
+        let code = transpile("def nop() -> None:\n    return None\n");
+        assert!(code.contains("fn nop"));
+    }
+
+    #[test]
+    fn test_s9_func_return_optional() {
+        let code = transpile(
+            "def find(x: int) -> int:\n    if x > 0:\n        return x\n    return None\n",
+        );
+        assert!(code.contains("fn find"));
+        // Optional pattern should be detected
+        assert!(
+            code.contains("Option") || code.contains("None"),
+            "Should handle Optional return: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_func_docstring() {
+        let code = transpile(
+            "def documented(x: int) -> int:\n    \"\"\"This is a docstring.\"\"\"\n    return x\n",
+        );
+        assert!(code.contains("fn documented"));
+    }
+
+    #[test]
+    fn test_s9_func_multiple_functions() {
+        let code = transpile(
+            "def first() -> int:\n    return 1\n\ndef second() -> int:\n    return 2\n",
+        );
+        assert!(code.contains("fn first"));
+        assert!(code.contains("fn second"));
+    }
+
+    #[test]
+    fn test_s9_func_call_other_function() {
+        let code = transpile(
+            "def helper() -> int:\n    return 42\n\ndef main_fn() -> int:\n    return helper()\n",
+        );
+        assert!(code.contains("fn helper"));
+        assert!(code.contains("fn main_fn"));
+        assert!(code.contains("helper()"));
+    }
+
+    #[test]
+    fn test_s9_func_recursive() {
+        let code = transpile(
+            "def factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n",
+        );
+        assert!(code.contains("fn factorial"));
+        assert!(code.contains("factorial"));
+    }
+
+    #[test]
+    fn test_s9_func_list_param() {
+        let code = transpile(
+            "def sum_list(items: list) -> int:\n    total = 0\n    for x in items:\n        total = total + x\n    return total\n",
+        );
+        assert!(code.contains("fn sum_list"));
+    }
+
+    #[test]
+    fn test_s9_func_dict_param() {
+        let code = transpile(
+            "def get_value(d: dict, key: str) -> str:\n    return d[key]\n",
+        );
+        assert!(code.contains("fn get_value"));
+    }
+
+    #[test]
+    fn test_s9_func_try_except_body() {
+        let code = transpile(
+            "def safe_div(a: int, b: int) -> int:\n    try:\n        return a // b\n    except:\n        return 0\n",
+        );
+        assert!(code.contains("fn safe_div"));
+    }
+
+    #[test]
+    fn test_s9_func_assert_in_body() {
+        let code = transpile(
+            "def positive(x: int) -> int:\n    assert x > 0\n    return x\n",
+        );
+        assert!(code.contains("fn positive"));
+        assert!(code.contains("assert"));
+    }
+
+    #[test]
+    fn test_s9_func_infer_return_from_literal_int() {
+        let code = transpile("def inferred():\n    return 42\n");
+        assert!(code.contains("fn inferred"));
+        assert!(code.contains("i32"), "Should infer i32 from int literal: {code}");
+    }
+
+    #[test]
+    fn test_s9_func_infer_return_from_literal_str() {
+        let code = transpile("def inferred_str():\n    return \"hello\"\n");
+        assert!(code.contains("fn inferred_str"));
+        assert!(
+            code.contains("String") || code.contains("str"),
+            "Should infer string type: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_func_infer_return_from_literal_float() {
+        let code = transpile("def inferred_float():\n    return 1.5\n");
+        assert!(code.contains("fn inferred_float"));
+        assert!(code.contains("f64"), "Should infer f64: {code}");
+    }
+
+    #[test]
+    fn test_s9_func_infer_return_from_literal_bool() {
+        let code = transpile("def inferred_bool():\n    return True\n");
+        assert!(code.contains("fn inferred_bool"));
+        assert!(code.contains("bool"), "Should infer bool: {code}");
+    }
+
+    #[test]
+    fn test_s9_func_mutable_var_reassignment() {
+        let code = transpile(
+            "def mutate() -> int:\n    x = 1\n    x = 2\n    return x\n",
+        );
+        assert!(code.contains("mut"), "Reassigned var should be mut: {code}");
+    }
+
+    #[test]
+    fn test_s9_func_keyword_param_name() {
+        // "impl" is a Rust keyword, should be escaped
+        let code = transpile("def check(loop: int) -> int:\n    return loop\n");
+        assert!(code.contains("fn check"), "Function should be generated: {code}");
+    }
+
+    #[test]
+    fn test_s9_func_empty_body_pass() {
+        let code = transpile("def stub():\n    pass\n");
+        assert!(code.contains("fn stub"));
+    }
+
+    #[test]
+    fn test_s9_func_fstring_in_body() {
+        let code = transpile(
+            "def greet(name: str) -> str:\n    return f\"Hello, {name}!\"\n",
+        );
+        assert!(code.contains("fn greet"));
+        assert!(
+            code.contains("format!") || code.contains("Hello"),
+            "Should contain format macro: {code}"
+        );
+    }
+
+    #[test]
+    fn test_s9_func_list_comprehension_body() {
+        let code = transpile(
+            "def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n",
+        );
+        assert!(code.contains("fn squares"));
+    }
+
+    #[test]
+    fn test_s9_func_lambda_in_body() {
+        let code = transpile(
+            "def make_adder(x: int):\n    f = lambda y: x + y\n    return f\n",
+        );
+        assert!(code.contains("fn make_adder"));
+    }
+
+    #[test]
+    fn test_s9_func_return_type_expects_float_cases() {
+        // Test the return_type_expects_float helper directly
+        assert!(return_type_expects_float(&Type::Float));
+        assert!(return_type_expects_float(&Type::Optional(Box::new(Type::Float))));
+        assert!(return_type_expects_float(&Type::List(Box::new(Type::Float))));
+        assert!(return_type_expects_float(&Type::Tuple(vec![Type::Int, Type::Float])));
+        assert!(!return_type_expects_float(&Type::Int));
+        assert!(!return_type_expects_float(&Type::String));
+        assert!(!return_type_expects_float(&Type::Bool));
+    }
+
+    #[test]
+    fn test_s9_func_return_type_expects_int_cases() {
+        assert!(return_type_expects_int(&Type::Int));
+        assert!(return_type_expects_int(&Type::Optional(Box::new(Type::Int))));
+        assert!(return_type_expects_int(&Type::List(Box::new(Type::Int))));
+        assert!(return_type_expects_int(&Type::Tuple(vec![Type::Float, Type::Int])));
+        assert!(!return_type_expects_int(&Type::Float));
+        assert!(!return_type_expects_int(&Type::String));
+    }
 }

@@ -223,4 +223,151 @@ mod tests {
         );
         assert!("invalid".parse::<TypeFactKind>().is_err());
     }
+
+    #[test]
+    fn test_type_fact_kind_from_str_method() {
+        assert_eq!(
+            "method".parse::<TypeFactKind>().unwrap(),
+            TypeFactKind::Method
+        );
+    }
+
+    #[test]
+    fn test_type_fact_kind_from_str_attribute() {
+        assert_eq!(
+            "attribute".parse::<TypeFactKind>().unwrap(),
+            TypeFactKind::Attribute
+        );
+    }
+
+    #[test]
+    fn test_type_fact_kind_from_str_invalid_returns_error() {
+        let result = "unknown_kind".parse::<TypeFactKind>();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("unknown_kind"));
+    }
+
+    #[test]
+    fn test_type_fact_kind_from_str_empty_string() {
+        let result = "".parse::<TypeFactKind>();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_type_fact_kind_from_str_case_sensitive() {
+        // "Function" with capital F should fail
+        let result = "Function".parse::<TypeFactKind>();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_type_fact_kind_clone_and_eq() {
+        let kind = TypeFactKind::Function;
+        let cloned = kind.clone();
+        assert_eq!(kind, cloned);
+    }
+
+    #[test]
+    fn test_type_fact_kind_debug() {
+        let kind = TypeFactKind::Function;
+        let debug_str = format!("{kind:?}");
+        assert_eq!(debug_str, "Function");
+    }
+
+    #[test]
+    fn test_type_fact_function_fqn() {
+        let fact = TypeFact::function(
+            "os.path",
+            "join",
+            "(path: str, *paths: str) -> str",
+            "str",
+        );
+        assert_eq!(fact.fqn(), "os.path.join");
+    }
+
+    #[test]
+    fn test_type_fact_class_return_type_format() {
+        let fact = TypeFact::class("collections", "OrderedDict");
+        assert_eq!(fact.return_type, "collections.OrderedDict");
+        assert_eq!(fact.signature, "");
+    }
+
+    #[test]
+    fn test_type_fact_method_symbol_format() {
+        let fact = TypeFact::method(
+            "http.client",
+            "HTTPConnection",
+            "request",
+            "(self, method: str, url: str) -> None",
+            "None",
+        );
+        assert_eq!(fact.symbol, "HTTPConnection.request");
+        assert_eq!(fact.fqn(), "http.client.HTTPConnection.request");
+    }
+
+    #[test]
+    fn test_type_fact_clone() {
+        let original = TypeFact::function("mod", "func", "(x: int) -> int", "int");
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn test_type_fact_serialization_json() {
+        let fact = TypeFact::function("math", "sqrt", "(x: float) -> float", "float");
+        let json = serde_json::to_string(&fact).unwrap();
+        let deserialized: TypeFact = serde_json::from_str(&json).unwrap();
+        assert_eq!(fact, deserialized);
+    }
+
+    #[test]
+    fn test_type_fact_kind_serialization_json() {
+        let kind = TypeFactKind::Method;
+        let json = serde_json::to_string(&kind).unwrap();
+        let deserialized: TypeFactKind = serde_json::from_str(&json).unwrap();
+        assert_eq!(kind, deserialized);
+    }
+
+    #[test]
+    fn test_type_fact_with_empty_strings() {
+        let fact = TypeFact::function("", "", "", "");
+        assert_eq!(fact.module, "");
+        assert_eq!(fact.symbol, "");
+        assert_eq!(fact.fqn(), ".");
+    }
+
+    #[test]
+    fn test_type_fact_with_unicode_symbol() {
+        let fact = TypeFact::function("mymod", "calc_\u{03c0}", "(n: int) -> float", "float");
+        assert_eq!(fact.symbol, "calc_\u{03c0}");
+        assert_eq!(fact.fqn(), "mymod.calc_\u{03c0}");
+    }
+
+    #[test]
+    fn test_type_fact_method_class_with_dots() {
+        let fact = TypeFact::method(
+            "pkg.submod",
+            "MyClass",
+            "do_thing",
+            "(self) -> None",
+            "None",
+        );
+        assert_eq!(fact.fqn(), "pkg.submod.MyClass.do_thing");
+    }
+
+    #[test]
+    fn test_type_fact_kind_display_roundtrip() {
+        let kinds = [
+            TypeFactKind::Function,
+            TypeFactKind::Class,
+            TypeFactKind::Method,
+            TypeFactKind::Attribute,
+        ];
+        for kind in &kinds {
+            let display_str = kind.to_string();
+            let parsed: TypeFactKind = display_str.parse().unwrap();
+            assert_eq!(*kind, parsed);
+        }
+    }
 }

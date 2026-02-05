@@ -197,4 +197,185 @@ def caller():
         let suspects = overlay.find_upstream_suspects("problematic");
         assert!(suspects.contains(&"caller".to_string()));
     }
+
+    #[test]
+    fn test_overlay_errors_empty() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let overlaid = overlay.overlay_errors(&[]);
+        assert!(overlaid.is_empty());
+    }
+
+    #[test]
+    fn test_overlay_multiple_errors() {
+        let python = "def foo():\n    pass\n\ndef bar():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let errors = vec![
+            ("E0308".to_string(), "type mismatch".to_string(), 10),
+            ("E0599".to_string(), "no method found".to_string(), 20),
+            ("E0425".to_string(), "undefined value".to_string(), 30),
+        ];
+        let overlaid = overlay.overlay_errors(&errors);
+
+        assert_eq!(overlaid.len(), 3);
+        assert_eq!(overlaid[0].code, "E0308");
+        assert_eq!(overlaid[1].code, "E0599");
+        assert_eq!(overlaid[2].code, "E0425");
+    }
+
+    #[test]
+    fn test_overlay_preserves_error_message() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let errors = vec![(
+            "E0308".to_string(),
+            "expected i32, found String".to_string(),
+            5,
+        )];
+        let overlaid = overlay.overlay_errors(&errors);
+
+        assert_eq!(overlaid[0].message, "expected i32, found String");
+        assert_eq!(overlaid[0].rust_line, 5);
+    }
+
+    #[test]
+    fn test_estimate_python_line_minimum_is_1() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        // Rust line 1 / 10 = 0, but max(1) = 1
+        let estimated = overlay.estimate_python_line(1);
+        assert_eq!(estimated, 1);
+    }
+
+    #[test]
+    fn test_estimate_python_line_ratio() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        // Rust line 100 / 10 = 10
+        let estimated = overlay.estimate_python_line(100);
+        assert_eq!(estimated, 10);
+    }
+
+    #[test]
+    fn test_find_associated_node_empty_graph() {
+        let graph = DependencyGraph::new();
+        let overlay = ErrorOverlay::new(&graph);
+
+        let (node, conf) = overlay.find_associated_node(5);
+        assert!(node.is_none());
+        assert_eq!(conf, 0.0);
+    }
+
+    #[test]
+    fn test_find_associated_node_closest_match() {
+        let python = r#"
+def first():
+    pass
+
+def second():
+    pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        // Line 2 should match closest to first (line 2)
+        let (node, conf) = overlay.find_associated_node(2);
+        assert!(node.is_some());
+        assert!(conf > 0.3);
+    }
+
+    #[test]
+    fn test_upstream_suspects_no_callers() {
+        let python = "def lonely():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let suspects = overlay.find_upstream_suspects("lonely");
+        assert!(suspects.is_empty());
+    }
+
+    #[test]
+    fn test_upstream_suspects_nonexistent_node() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let suspects = overlay.find_upstream_suspects("nonexistent");
+        assert!(suspects.is_empty());
+    }
+
+    #[test]
+    fn test_upstream_suspects_method_inheritance() {
+        let python = r#"
+class Base:
+    def method(self):
+        pass
+
+class Derived(Base):
+    def method(self):
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        // Derived.method is a Method node, so inheritance suspects should include Base
+        let suspects = overlay.find_upstream_suspects("Derived.method");
+        assert!(suspects.contains(&"Base".to_string()));
+    }
+
+    #[test]
+    fn test_overlaid_error_serde_roundtrip() {
+        let error = OverlaidError {
+            code: "E0308".to_string(),
+            message: "type mismatch".to_string(),
+            rust_line: 42,
+            python_line_estimate: 5,
+            node_id: Some("foo".to_string()),
+            association_confidence: 0.85,
+            upstream_suspects: vec!["bar".to_string()],
+        };
+
+        let json = serde_json::to_string(&error).unwrap();
+        let deserialized: OverlaidError = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.code, "E0308");
+        assert_eq!(deserialized.rust_line, 42);
+        assert_eq!(deserialized.node_id, Some("foo".to_string()));
+        assert_eq!(deserialized.upstream_suspects.len(), 1);
+    }
+
+    #[test]
+    fn test_association_confidence_decreases_with_distance() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+
+        // Closer lines should have higher confidence
+        let (_, conf_close) = overlay.find_associated_node(2);
+        let (_, conf_far) = overlay.find_associated_node(50);
+
+        // Near the node should be higher confidence
+        assert!(conf_close >= conf_far);
+    }
 }

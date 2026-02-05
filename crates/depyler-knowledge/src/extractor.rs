@@ -497,4 +497,298 @@ def get(url: str, **kwargs) -> Response: ...
 
         assert!(facts[0].signature.contains("**kwargs"));
     }
+
+    #[test]
+    fn test_extractor_default() {
+        let extractor = Extractor::default();
+        // Default should not include private
+        let source = "def _hidden(): ...\ndef visible(): ...";
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "visible");
+    }
+
+    #[test]
+    fn test_extract_async_function() {
+        let source = r#"
+async def fetch(url: str) -> bytes: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "aiohttp", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "fetch");
+        assert_eq!(facts[0].kind, TypeFactKind::Function);
+        assert!(facts[0].signature.starts_with("async "));
+        assert_eq!(facts[0].return_type, "bytes");
+    }
+
+    #[test]
+    fn test_extract_function_no_return_type() {
+        let source = r#"
+def setup(): ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "None");
+    }
+
+    #[test]
+    fn test_extract_annotated_assign() {
+        let source = r#"
+VERSION: str
+DEBUG: bool
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "config", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 2);
+        assert_eq!(facts[0].symbol, "VERSION");
+        assert_eq!(facts[0].kind, TypeFactKind::Attribute);
+        assert_eq!(facts[0].return_type, "str");
+        assert_eq!(facts[1].symbol, "DEBUG");
+        assert_eq!(facts[1].return_type, "bool");
+    }
+
+    #[test]
+    fn test_extract_private_annotated_assign_excluded() {
+        let source = r#"
+_internal: int
+public: str
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "public");
+    }
+
+    #[test]
+    fn test_extract_generic_type() {
+        let source = r#"
+def values() -> List[int]: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "List[int]");
+    }
+
+    #[test]
+    fn test_extract_nested_generic_type() {
+        let source = r#"
+def nested() -> Dict[str, List[int]]: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "Dict[str, List[int]]");
+    }
+
+    #[test]
+    fn test_extract_union_type_pipe() {
+        let source = r#"
+def maybe(x: int) -> str | None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "str | None");
+    }
+
+    #[test]
+    fn test_extract_varargs() {
+        let source = r#"
+def concat(*args: str) -> str: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("*args: str"));
+    }
+
+    #[test]
+    fn test_extract_class_attribute() {
+        let source = r#"
+class Config:
+    timeout: int
+    name: str
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "app", "test.pyi")
+            .unwrap();
+
+        // class + 2 attributes
+        assert_eq!(facts.len(), 3);
+
+        let timeout = facts
+            .iter()
+            .find(|f| f.symbol == "Config.timeout")
+            .unwrap();
+        assert_eq!(timeout.kind, TypeFactKind::Attribute);
+        assert_eq!(timeout.return_type, "int");
+    }
+
+    #[test]
+    fn test_extract_class_private_method_excluded() {
+        let source = r#"
+class MyClass:
+    def _private(self) -> None: ...
+    def public(self) -> int: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        // class + public method only (private excluded)
+        assert_eq!(facts.len(), 2);
+        let method = facts
+            .iter()
+            .find(|f| f.kind == TypeFactKind::Method)
+            .unwrap();
+        assert_eq!(method.symbol, "MyClass.public");
+    }
+
+    #[test]
+    fn test_extract_class_private_method_included() {
+        let source = r#"
+class MyClass:
+    def _private(self) -> None: ...
+    def public(self) -> int: ...
+"#;
+        let extractor = Extractor::new().with_private();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        // class + 2 methods (both included)
+        assert_eq!(facts.len(), 3);
+    }
+
+    #[test]
+    fn test_extract_async_method() {
+        let source = r#"
+class Client:
+    async def fetch(self, url: str) -> bytes: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "http", "test.pyi")
+            .unwrap();
+
+        // class + async method
+        assert_eq!(facts.len(), 2);
+        let method = facts
+            .iter()
+            .find(|f| f.kind == TypeFactKind::Method)
+            .unwrap();
+        assert_eq!(method.symbol, "Client.fetch");
+        assert!(method.signature.starts_with("async "));
+    }
+
+    #[test]
+    fn test_extract_invalid_syntax() {
+        let source = "def invalid syntax here %%%: ...";
+        let extractor = Extractor::new();
+        let result = extractor.extract_source(source, "test", "test.pyi");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_empty_source() {
+        let source = "";
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "empty", "test.pyi")
+            .unwrap();
+        assert!(facts.is_empty());
+    }
+
+    #[test]
+    fn test_extract_multiple_functions() {
+        let source = r#"
+def add(a: int, b: int) -> int: ...
+def sub(a: int, b: int) -> int: ...
+def mul(a: int, b: int) -> int: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "math_ops", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 3);
+        let symbols: Vec<&str> = facts.iter().map(|f| f.symbol.as_str()).collect();
+        assert!(symbols.contains(&"add"));
+        assert!(symbols.contains(&"sub"));
+        assert!(symbols.contains(&"mul"));
+    }
+
+    #[test]
+    fn test_extract_function_with_default_no_type() {
+        let source = r#"
+def func(x, y = ...): ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("y = ..."));
+    }
+
+    #[test]
+    fn test_extract_dotted_return_type() {
+        let source = r#"
+def connect() -> http.client.HTTPConnection: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "http.client.HTTPConnection");
+    }
+
+    #[test]
+    fn test_extract_private_class_excluded() {
+        let source = r#"
+class _Internal: ...
+class Public: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "Public");
+    }
 }

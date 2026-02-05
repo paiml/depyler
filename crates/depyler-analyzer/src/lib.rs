@@ -330,6 +330,217 @@ mod tests {
         assert_eq!(coverage.coverage_percentage, 50.0); // 2 annotations out of 4 possible
     }
 
+    // ========================================================================
+    // Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_analyze_function_with_unknown_types() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func = HirFunction {
+            name: "untyped".to_string(),
+            params: smallvec![HirParam {
+                name: Symbol::from("a"),
+                ty: Type::Unknown,
+                default: None,
+                is_vararg: false,
+            }],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Return(None)],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+            top_level_stmts: vec![],
+        };
+        let result = analyzer.analyze(&module).unwrap();
+        let fm = &result.function_metrics[0];
+        assert!(!fm.has_type_annotations);
+        assert!(!fm.return_type_annotated);
+    }
+
+    #[test]
+    fn test_analyze_multiple_functions() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func1 = create_test_function();
+        let func2 = HirFunction {
+            name: "func2".to_string(),
+            params: smallvec![],
+            ret_type: Type::Bool,
+            body: vec![
+                HirStmt::If {
+                    condition: HirExpr::Literal(Literal::Bool(true)),
+                    then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
+                        true,
+                    ))))],
+                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
+                        Literal::Bool(false),
+                    )))]),
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let module = HirModule {
+            functions: vec![func1, func2],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+            top_level_stmts: vec![],
+        };
+        let result = analyzer.analyze(&module).unwrap();
+        assert_eq!(result.module_metrics.total_functions, 2);
+        assert!(result.module_metrics.max_cyclomatic_complexity >= 2);
+    }
+
+    #[test]
+    fn test_analysis_result_serialization() {
+        let result = AnalysisResult {
+            module_metrics: ModuleMetrics {
+                total_functions: 1,
+                total_lines: 10,
+                avg_cyclomatic_complexity: 2.0,
+                max_cyclomatic_complexity: 2,
+                avg_cognitive_complexity: 1.0,
+                max_cognitive_complexity: 1,
+            },
+            function_metrics: vec![FunctionMetrics {
+                name: "test".to_string(),
+                cyclomatic_complexity: 2,
+                cognitive_complexity: 1,
+                lines_of_code: 10,
+                parameters: 1,
+                max_nesting_depth: 1,
+                has_type_annotations: true,
+                return_type_annotated: true,
+            }],
+            type_coverage: TypeCoverage {
+                total_parameters: 1,
+                annotated_parameters: 1,
+                total_functions: 1,
+                functions_with_return_type: 1,
+                coverage_percentage: 100.0,
+            },
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("test"));
+        let deserialized: AnalysisResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.module_metrics.total_functions, 1);
+    }
+
+    #[test]
+    fn test_module_metrics_debug_clone() {
+        let metrics = ModuleMetrics {
+            total_functions: 5,
+            total_lines: 50,
+            avg_cyclomatic_complexity: 3.0,
+            max_cyclomatic_complexity: 8,
+            avg_cognitive_complexity: 2.5,
+            max_cognitive_complexity: 6,
+        };
+        let debug = format!("{:?}", metrics);
+        assert!(debug.contains("ModuleMetrics"));
+        let cloned = metrics.clone();
+        assert_eq!(cloned.total_functions, 5);
+    }
+
+    #[test]
+    fn test_function_metrics_debug_clone() {
+        let fm = FunctionMetrics {
+            name: "my_func".to_string(),
+            cyclomatic_complexity: 3,
+            cognitive_complexity: 2,
+            lines_of_code: 15,
+            parameters: 2,
+            max_nesting_depth: 3,
+            has_type_annotations: false,
+            return_type_annotated: true,
+        };
+        let debug = format!("{:?}", fm);
+        assert!(debug.contains("my_func"));
+        let cloned = fm.clone();
+        assert_eq!(cloned.name, "my_func");
+    }
+
+    #[test]
+    fn test_type_coverage_debug_clone() {
+        let tc = TypeCoverage {
+            total_parameters: 10,
+            annotated_parameters: 7,
+            total_functions: 5,
+            functions_with_return_type: 3,
+            coverage_percentage: 66.67,
+        };
+        let debug = format!("{:?}", tc);
+        assert!(debug.contains("TypeCoverage"));
+        let cloned = tc.clone();
+        assert_eq!(cloned.total_parameters, 10);
+    }
+
+    #[test]
+    fn test_module_metrics_empty_functions() {
+        let analyzer = Analyzer::new();
+        let empty: Vec<FunctionMetrics> = vec![];
+        let metrics = analyzer.calculate_module_metrics(&empty);
+        assert_eq!(metrics.total_functions, 0);
+        assert_eq!(metrics.total_lines, 0);
+        assert_eq!(metrics.avg_cyclomatic_complexity, 0.0);
+        assert_eq!(metrics.max_cyclomatic_complexity, 0);
+        assert_eq!(metrics.avg_cognitive_complexity, 0.0);
+        assert_eq!(metrics.max_cognitive_complexity, 0);
+    }
+
+    #[test]
+    fn test_type_coverage_all_annotated() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func = HirFunction {
+            name: "all_typed".to_string(),
+            params: smallvec![
+                HirParam {
+                    name: Symbol::from("a"),
+                    ty: Type::Int,
+                    default: None,
+                    is_vararg: false,
+                },
+                HirParam {
+                    name: Symbol::from("b"),
+                    ty: Type::String,
+                    default: None,
+                    is_vararg: false,
+                },
+            ],
+            ret_type: Type::Bool,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+            top_level_stmts: vec![],
+        };
+        let coverage = analyzer.calculate_type_coverage(&module);
+        assert_eq!(coverage.coverage_percentage, 100.0);
+    }
+
     #[test]
     fn test_module_metrics_calculation() {
         let analyzer = Analyzer::new();
