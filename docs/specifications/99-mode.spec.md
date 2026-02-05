@@ -2812,13 +2812,18 @@ Session 8 Batch 4 (179 tests, 2026-02-05):
 112. `optimization_s8_deep_coverage_test.rs` - 39 direct API tests (PerformanceOptimizer: conservative/standard/aggressive levels, constant folding int/float add/sub/mul/recursive, DCE, strength reduction, loop unrolling, all 5 PerformanceHints, bounds checking, optimize_module)
 113. `instance_methods_s8b4_coverage_test.rs` - 68 transpile tests (list: append/extend/pop/insert/remove/sort/reverse/clear/copy/count/index; dict: get/keys/values/items/update/pop/clear/setdefault; str: upper/lower/strip/split/join/replace/find/startswith/endswith/isdigit/isalpha/title/capitalize/count/zfill/encode/format; set: add/discard; builtins: abs/min/max/sum/sorted/reversed/enumerate/zip/range)
 
+Session 8 Batch 5 (170 tests, 2026-02-05):
+114. `stmt_gen_complex_s8b5_coverage_test.rs` - 60 transpile tests (try/except: basic, ValueError, binding, finally, multiple handlers, variable hoisting, parse optimization, negative/float/string fallback, floor div ZeroDivisionError, nested exceptions, handler raise, try-in-loop, boolean return, pass handler; nested functions: basic/no-params; IO returns; type annotations in if/while/for/try/with; param inference; mutability detection; vararg; string concat; main special handling; assert; with/open; raise; default params)
+115. `func_gen_inference_s8b5_coverage_test.rs` - 41 transpile tests (nested function detection: explicit/string-return/no-params/multi-params; heterogeneous IO; return type inference: int/str/bool/list/None/tuple; error type mapping: OS/Value/Index; preload annotations: nested-if/while/for/try/with/nested-fn; param inference: comparison/string-ops/optional; keyword fn names; string ownership: concat/format/upper; generator detection; recursive functions; class methods; lifetime analysis)
+116. `codegen_edge_cases_s8b5_coverage_test.rs` - 69 transpile tests (augmented assign: +=/-=/*=//=/%=; comparisons: </<=/>/>=/==/!=; logical: and/or/not; bitwise: &/|/^/<</>>; unary: neg/bitnot; floor-div/power; string: multiply/in/not-in; comprehensions: list/dict/set with conditions; tuple: unpacking/return; slicing: list/string; ternary: simple/nested; f-strings: simple/expr/multi; range: 1/2/3-arg; classes: init/methods/__str__/Stack; enumerate/zip; while-true-break/continue/pass; type conversions; imports; walrus; isinstance)
+
 Documentation improvements (Session 8):
 - Added doc comments to 30+ public types in `hir.rs` and `type_mapper.rs`
 - Fixed parse errors in `examples/test_pathlib.rs` and `benchmarks/rust/compute_intensive_manual.rs`
 - TDG Score: `crates/` directory scores 93.8/100 (A) with Documentation 10.0/10
 
-**Grand Total**: 3,870 tests across 113 test files (Sessions 1-8)
-**Session 8 Total**: 524 new tests across 10 new test files
+**Grand Total**: 4,040 tests across 116 test files (Sessions 1-8)
+**Session 8 Total**: 694 new tests across 13 new test files
 **Modules Covered**: 100+ source modules totaling 160,000+ lines
 
 ### 9.9 CI Health (2026-02-05)
