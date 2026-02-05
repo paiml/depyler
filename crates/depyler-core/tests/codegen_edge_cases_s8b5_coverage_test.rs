@@ -58,7 +58,10 @@ def f() -> int:
 "#,
     );
     assert!(
-        code.contains("*=") || code.contains("* 2") || code.contains("py_mul") || code.contains("mul"),
+        code.contains("*=")
+            || code.contains("* 2")
+            || code.contains("py_mul")
+            || code.contains("mul"),
         "code: {code}"
     );
 }
@@ -292,7 +295,10 @@ def f(a: int, b: int) -> int:
     return a ** b
 "#,
     );
-    assert!(code.contains("pow") || code.contains("powi"), "code: {code}");
+    assert!(
+        code.contains("pow") || code.contains("powi"),
+        "code: {code}"
+    );
 }
 
 // ── String operations ───────────────────────────────────────────
@@ -340,7 +346,10 @@ def f(items: list[int]) -> list[int]:
     return [x * 2 for x in items]
 "#,
     );
-    assert!(code.contains("map") || code.contains("iter"), "code: {code}");
+    assert!(
+        code.contains("map") || code.contains("iter"),
+        "code: {code}"
+    );
 }
 
 #[test]
@@ -351,7 +360,10 @@ def f(items: list[int]) -> list[int]:
     return [x for x in items if x > 0]
 "#,
     );
-    assert!(code.contains("filter") || code.contains("iter"), "code: {code}");
+    assert!(
+        code.contains("filter") || code.contains("iter"),
+        "code: {code}"
+    );
 }
 
 #[test]
@@ -464,7 +476,10 @@ def f() -> int:
     return MAX_SIZE
 "#,
     );
-    assert!(code.contains("MAX_SIZE") || code.contains("100"), "code: {code}");
+    assert!(
+        code.contains("MAX_SIZE") || code.contains("100"),
+        "code: {code}"
+    );
 }
 
 // ── Lambda ──────────────────────────────────────────────────────
@@ -551,7 +566,10 @@ def f(n: int) -> list[int]:
     return result
 "#,
     );
-    assert!(code.contains("step_by") || code.contains("fn f"), "code: {code}");
+    assert!(
+        code.contains("step_by") || code.contains("fn f"),
+        "code: {code}"
+    );
 }
 
 // ── Nested data structures ──────────────────────────────────────
@@ -564,7 +582,10 @@ def f() -> list[list[int]]:
     return [[1, 2], [3, 4]]
 "#,
     );
-    assert!(code.contains("vec!") || code.contains("Vec"), "code: {code}");
+    assert!(
+        code.contains("vec!") || code.contains("Vec"),
+        "code: {code}"
+    );
 }
 
 #[test]
@@ -575,7 +596,10 @@ def f() -> list[int]:
     return []
 "#,
     );
-    assert!(code.contains("vec!") || code.contains("Vec"), "code: {code}");
+    assert!(
+        code.contains("vec!") || code.contains("Vec"),
+        "code: {code}"
+    );
 }
 
 #[test]
@@ -586,7 +610,10 @@ def f() -> dict[str, int]:
     return {}
 "#,
     );
-    assert!(code.contains("HashMap") || code.contains("new"), "code: {code}");
+    assert!(
+        code.contains("HashMap") || code.contains("new"),
+        "code: {code}"
+    );
 }
 
 // ── isinstance check ────────────────────────────────────────────
@@ -612,7 +639,10 @@ def f(x: int) -> float:
     return float(x)
 "#,
     );
-    assert!(code.contains("as f64") || code.contains("f64"), "code: {code}");
+    assert!(
+        code.contains("as f64") || code.contains("f64"),
+        "code: {code}"
+    );
 }
 
 #[test]
@@ -623,7 +653,10 @@ def f(x: float) -> int:
     return int(x)
 "#,
     );
-    assert!(code.contains("as i64") || code.contains("i64"), "code: {code}");
+    assert!(
+        code.contains("as i64") || code.contains("i64"),
+        "code: {code}"
+    );
 }
 
 // ── Global constants ────────────────────────────────────────────
@@ -658,7 +691,10 @@ def f():
     return None
 "#,
     );
-    assert!(code.contains("None") || code.contains("fn f"), "code: {code}");
+    assert!(
+        code.contains("None") || code.contains("fn f"),
+        "code: {code}"
+    );
 }
 
 // ── f-strings ───────────────────────────────────────────────────
@@ -725,7 +761,10 @@ class Point:
         self.y = y
 "#,
     );
-    assert!(code.contains("struct Point") || code.contains("Point"), "code: {code}");
+    assert!(
+        code.contains("struct Point") || code.contains("Point"),
+        "code: {code}"
+    );
 }
 
 #[test]

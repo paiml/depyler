@@ -1562,20 +1562,18 @@ mod tests {
             name: "get_output".to_string(),
             params: smallvec::smallvec![HirParam::new("use_file".to_string(), Type::Bool)],
             ret_type: Type::Unknown,
-            body: vec![
-                HirStmt::If {
-                    condition: HirExpr::Var("use_file".to_string()),
-                    then_body: vec![HirStmt::Return(Some(HirExpr::Call {
-                        func: "open".to_string(),
-                        args: vec![],
-                        kwargs: vec![],
-                    }))],
-                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Attribute {
-                        value: Box::new(HirExpr::Var("sys".to_string())),
-                        attr: "stdout".to_string(),
-                    }))]),
-                },
-            ],
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("use_file".to_string()),
+                then_body: vec![HirStmt::Return(Some(HirExpr::Call {
+                    func: "open".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }))],
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("sys".to_string())),
+                    attr: "stdout".to_string(),
+                }))]),
+            }],
             properties: FunctionProperties::default(),
             annotations: depyler_annotations::TranspilationAnnotations::default(),
             docstring: None,

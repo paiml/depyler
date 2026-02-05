@@ -8183,7 +8183,11 @@ mod tests {
         let mutable_vars = std::collections::HashSet::new();
         let result = convert_symbol_assignment("x", value_expr, &mutable_vars).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("let x"), "Should create let binding: {}", code);
+        assert!(
+            code.contains("let x"),
+            "Should create let binding: {}",
+            code
+        );
         assert!(!code.contains("mut"), "Should not be mutable: {}", code);
     }
 
@@ -8217,7 +8221,11 @@ mod tests {
         let value_expr: syn::Expr = parse_quote! { 42 };
         let result = convert_attribute_assignment(&base, "x", value_expr, &type_mapper).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("self") && code.contains("x"), "Should set self.x: {}", code);
+        assert!(
+            code.contains("self") && code.contains("x"),
+            "Should set self.x: {}",
+            code
+        );
     }
 
     #[test]
@@ -8242,7 +8250,11 @@ mod tests {
         let value_expr: syn::Expr = parse_quote! { 42 };
         let result = convert_index_assignment(&base, &index, value_expr, &type_mapper).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("insert"), "Should use insert for dict assignment: {}", code);
+        assert!(
+            code.contains("insert"),
+            "Should use insert for dict assignment: {}",
+            code
+        );
     }
 
     #[test]
@@ -8271,7 +8283,8 @@ mod tests {
             value_expr,
             &type_mapper,
             &mutable_vars,
-        ).unwrap();
+        )
+        .unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("mut"), "Should be mutable: {}", code);
     }
@@ -8285,14 +8298,15 @@ mod tests {
             value: Box::new(HirExpr::Var("self".to_string())),
             attr: "value".to_string(),
         };
-        let result = convert_assign_stmt_with_mutable_vars(
-            &target,
-            value_expr,
-            &type_mapper,
-            &mutable_vars,
-        ).unwrap();
+        let result =
+            convert_assign_stmt_with_mutable_vars(&target, value_expr, &type_mapper, &mutable_vars)
+                .unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("value"), "Should assign to attribute: {}", code);
+        assert!(
+            code.contains("value"),
+            "Should assign to attribute: {}",
+            code
+        );
     }
 
     #[test]
@@ -8304,12 +8318,9 @@ mod tests {
             base: Box::new(HirExpr::Var("data".to_string())),
             index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
         };
-        let result = convert_assign_stmt_with_mutable_vars(
-            &target,
-            value_expr,
-            &type_mapper,
-            &mutable_vars,
-        ).unwrap();
+        let result =
+            convert_assign_stmt_with_mutable_vars(&target, value_expr, &type_mapper, &mutable_vars)
+                .unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("insert"), "Should use insert: {}", code);
     }
@@ -8323,14 +8334,15 @@ mod tests {
             AssignTarget::Symbol("a".to_string()),
             AssignTarget::Symbol("b".to_string()),
         ]);
-        let result = convert_assign_stmt_with_mutable_vars(
-            &target,
-            value_expr,
-            &type_mapper,
-            &mutable_vars,
-        ).unwrap();
+        let result =
+            convert_assign_stmt_with_mutable_vars(&target, value_expr, &type_mapper, &mutable_vars)
+                .unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("a") && code.contains("b"), "Should unpack tuple: {}", code);
+        assert!(
+            code.contains("a") && code.contains("b"),
+            "Should unpack tuple: {}",
+            code
+        );
     }
 
     // =========================================================================
@@ -8359,11 +8371,18 @@ mod tests {
         let stmt = HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                0,
+            ))))]),
         };
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("if") && code.contains("else"), "Should have if/else: {}", code);
+        assert!(
+            code.contains("if") && code.contains("else"),
+            "Should have if/else: {}",
+            code
+        );
     }
 
     #[test]
@@ -8375,7 +8394,8 @@ mod tests {
             condition: HirExpr::Literal(Literal::Bool(true)),
             body: vec![HirStmt::Break { label: None }],
         };
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("while"), "Should have while: {}", code);
     }
@@ -8394,7 +8414,8 @@ mod tests {
             },
             body: vec![HirStmt::Pass],
         };
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("for"), "Should have for loop: {}", code);
     }
@@ -8417,10 +8438,19 @@ mod tests {
             },
             body: vec![HirStmt::Pass],
         };
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("k") && code.contains("v"), "Should unpack tuple: {}", code);
-        assert!(code.contains("iter"), "Should use .iter() for .items(): {}", code);
+        assert!(
+            code.contains("k") && code.contains("v"),
+            "Should unpack tuple: {}",
+            code
+        );
+        assert!(
+            code.contains("iter"),
+            "Should use .iter() for .items(): {}",
+            code
+        );
     }
 
     #[test]
@@ -8438,7 +8468,8 @@ mod tests {
             },
             body: vec![HirStmt::Pass],
         };
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("keys"), "Should use .keys(): {}", code);
     }
@@ -8458,7 +8489,8 @@ mod tests {
             },
             body: vec![HirStmt::Pass],
         };
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("values"), "Should use .values(): {}", code);
     }
@@ -8469,7 +8501,8 @@ mod tests {
         let empty_set = std::collections::HashSet::new();
         let empty_map = std::collections::HashMap::new();
         let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::String("done".to_string()))));
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("return"), "Should have return: {}", code);
     }
@@ -8480,7 +8513,8 @@ mod tests {
         let empty_set = std::collections::HashSet::new();
         let empty_map = std::collections::HashMap::new();
         let stmt = HirStmt::Return(None);
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("return"), "Should have return: {}", code);
     }
@@ -8491,9 +8525,14 @@ mod tests {
         let empty_set = std::collections::HashSet::new();
         let empty_map = std::collections::HashMap::new();
         let stmt = HirStmt::Expr(HirExpr::Var("x".to_string()));
-        let result = convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
+        let result =
+            convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("let _"), "Pure expr should use let _: {}", code);
+        assert!(
+            code.contains("let _"),
+            "Pure expr should use let _: {}",
+            code
+        );
     }
 
     // =========================================================================
@@ -8513,8 +8552,14 @@ mod tests {
             type_annotation: None,
         };
         let result = convert_stmt_with_mutable_vars(
-            &stmt, &type_mapper, false, &empty_set, &empty_map, &mutable_vars,
-        ).unwrap();
+            &stmt,
+            &type_mapper,
+            false,
+            &empty_set,
+            &empty_map,
+            &mutable_vars,
+        )
+        .unwrap();
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("mut"), "Should be mutable: {}", code);
     }
@@ -8527,7 +8572,12 @@ mod tests {
         let mutable_vars = std::collections::HashSet::new();
         let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))));
         let result = convert_stmt_with_mutable_vars(
-            &stmt, &type_mapper, false, &empty_set, &empty_map, &mutable_vars,
+            &stmt,
+            &type_mapper,
+            false,
+            &empty_set,
+            &empty_map,
+            &mutable_vars,
         );
         assert!(result.is_ok());
     }
@@ -8642,9 +8692,10 @@ mod tests {
     fn test_expr_converter_convert_dict_with_items() {
         let type_mapper = TypeMapper::default();
         let converter = ExprConverter::new(&type_mapper);
-        let expr = HirExpr::Dict(vec![
-            (HirExpr::Literal(Literal::String("a".to_string())), HirExpr::Literal(Literal::Int(1))),
-        ]);
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("a".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
         let result = converter.convert(&expr);
         assert!(result.is_ok());
     }
@@ -8677,9 +8728,7 @@ mod tests {
     fn test_expr_converter_convert_frozenset() {
         let type_mapper = TypeMapper::default();
         let converter = ExprConverter::new(&type_mapper);
-        let expr = HirExpr::FrozenSet(vec![
-            HirExpr::Literal(Literal::Int(1)),
-        ]);
+        let expr = HirExpr::FrozenSet(vec![HirExpr::Literal(Literal::Int(1))]);
         let result = converter.convert(&expr);
         assert!(result.is_ok());
     }
@@ -8731,7 +8780,11 @@ mod tests {
         };
         let result = converter.convert(&expr).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("if") && code.contains("else"), "Should have ternary: {}", code);
+        assert!(
+            code.contains("if") && code.contains("else"),
+            "Should have ternary: {}",
+            code
+        );
     }
 
     #[test]
@@ -8842,7 +8895,11 @@ mod tests {
         };
         let result = converter.convert(&expr).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("contains"), "Should use contains for 'in': {}", code);
+        assert!(
+            code.contains("contains"),
+            "Should use contains for 'in': {}",
+            code
+        );
     }
 
     #[test]
@@ -8856,7 +8913,11 @@ mod tests {
         };
         let result = converter.convert(&expr).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("contains"), "Should use contains for 'not in': {}", code);
+        assert!(
+            code.contains("contains"),
+            "Should use contains for 'not in': {}",
+            code
+        );
     }
 
     #[test]
@@ -8884,7 +8945,11 @@ mod tests {
         };
         let result = converter.convert(&expr).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("println"), "Should convert to println!: {}", code);
+        assert!(
+            code.contains("println"),
+            "Should convert to println!: {}",
+            code
+        );
     }
 
     #[test]
@@ -8911,8 +8976,11 @@ mod tests {
         };
         let result = converter.convert(&expr).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("as") || code.contains("i64") || code.contains("i32"),
-            "Should cast to int: {}", code);
+        assert!(
+            code.contains("as") || code.contains("i64") || code.contains("i32"),
+            "Should cast to int: {}",
+            code
+        );
     }
 
     #[test]
@@ -8926,7 +8994,11 @@ mod tests {
         };
         let result = converter.convert(&expr).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("to_string"), "Should convert to to_string(): {}", code);
+        assert!(
+            code.contains("to_string"),
+            "Should convert to to_string(): {}",
+            code
+        );
     }
 
     #[test]
@@ -9009,7 +9081,8 @@ mod tests {
         let empty_set = std::collections::HashSet::new();
         let empty_map = std::collections::HashMap::new();
         let stmts = vec![HirStmt::Pass];
-        let result = convert_block_with_context(&stmts, &type_mapper, false, &empty_set, &empty_map);
+        let result =
+            convert_block_with_context(&stmts, &type_mapper, false, &empty_set, &empty_map);
         assert!(result.is_ok());
     }
 
@@ -9112,7 +9185,10 @@ mod tests {
             }),
         ];
         let result = find_mutable_vars_in_body(&stmts);
-        assert!(!result.contains("text"), "upper() should NOT mark as mutable");
+        assert!(
+            !result.contains("text"),
+            "upper() should NOT mark as mutable"
+        );
     }
 
     // =========================================================================

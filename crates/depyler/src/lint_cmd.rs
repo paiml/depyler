@@ -744,7 +744,10 @@ mod tests {
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP015));
         // DP015 is a Warning, not Error
-        assert!(report.violations.iter().any(|v| v.severity == Severity::Warning));
+        assert!(report
+            .violations
+            .iter()
+            .any(|v| v.severity == Severity::Warning));
     }
 
     #[test]
