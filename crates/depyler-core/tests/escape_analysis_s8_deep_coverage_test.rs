@@ -1019,9 +1019,9 @@ fn test_uam_float_literals() {
     let func = make_func_no_params(
         "f",
         vec![return_expr(binary(
-            float_lit(3.14),
+            float_lit(1.5),
             BinOp::Add,
-            float_lit(2.71),
+            float_lit(2.5),
         ))],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
