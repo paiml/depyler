@@ -2959,3 +2959,89 @@ Session 10 Batch 6 (29 tests, 2026-02-05):
 | Coverage | 88.61% | Region coverage (+2.38% from S9) |
 | Branch Coverage | 94.42% | Branch coverage (+8.19% from baseline) |
 | TDG Score (crates/) | 93.8+ (A) | Improved with refactoring |
+
+## 11. Session 11: Targeted Coverage for Low-Coverage Crates (2026-02-05)
+
+### 11.1 Strategy
+
+Session 11 focused on two complementary approaches:
+1. **Inline tests for low-coverage crate modules** - targeting differential.rs (48.48% → 80.03%), graph_cmd.rs (51.90% → 94.04%), score_cmd.rs (76.92% → 89.04%), lint_cmd.rs (87.22% → 89.52%)
+2. **Integration tests for depyler-core** - targeting dict/set operations, control flow patterns, and codegen edge cases through the full transpile pipeline
+
+### 11.2 Test Files Created/Modified
+
+Session 11 Batch 1 (85 inline tests, 2026-02-05):
+- `depyler-testing/src/differential.rs` - 24 tests for normalize_output, compute_diff, compare_outputs, generate_report
+- `depyler/src/graph_cmd.rs` - 18 tests for analyze_corpus, vectorize_corpus, check_compilation edge cases
+- `depyler/src/score_cmd.rs` - 17 tests for score_file, format_*, generate_cargo_toml
+- `depyler/src/lint_cmd.rs` - 13 tests for edge cases, serialization, corpus operations
+
+Session 11 Batch 2 (106 integration tests, 2026-02-05):
+- `dict_set_ops_s11_coverage_test.rs` - 62 tests for dict/set/regex/string operations
+  - Dict operations: get, pop, setdefault, update, keys/values/items, comprehensions
+  - Set operations: symmetric_difference, issubset, issuperset, union, intersection, difference
+  - Regex: search, findall, sub, split, match
+  - String methods: center, zfill, count, title, capitalize, isdigit, isalpha
+  - List operations: sort_with_key, sorted_with_reverse, insert, pop_index, index, extend
+  - Builtins: abs, round, min/max, enumerate, zip, isinstance, any/all, sum, map/filter
+  - Complex patterns: nested dict, dict iteration, set from list, membership testing
+  - Slices: start/end, step, string slice, string reverse
+- `control_flow_s11_coverage_test.rs` - 44 tests for control flow and complex patterns
+  - Nested functions: captures, recursive, with list param
+  - Try/except: basic, finally, multiple handlers, variable hoisting, binding, nested
+  - Complex control flow: while/break, for/else, nested loops, continue, chained elif
+  - Generators: sum, any, all, max
+  - Comprehensions: multiple ifs, method calls, nested, ternary
+  - Type inference: dict_comp, ternary, tuple_unpack, augmented_assign
+  - Assert, pass, with, lambda, f-strings, classes
+
+Session 11 Batch 3 (49 integration tests, 2026-02-05):
+- `codegen_edge_cases_s11_test.rs` - 49 tests for codegen edge cases
+  - Augmented assignment: add, sub, mul, floordiv, mod, string concat
+  - Global constants: int, string, float, bool, multiple
+  - Multiple assignment: tuple unpack, swap, unpack three
+  - Operator precedence: complex arithmetic, boolean logic, power, negation, bitwise
+  - Type coercion: int↔float, int↔str, bool→int
+  - Python idioms: list/string multiplication, ternary, default args, docstrings
+  - Error handling: raise ValueError, raise NotImplementedError
+  - Math: sqrt, floor/ceil, fabs
+  - Collections: empty/literal list/dict/set
+  - Algorithms: fibonacci, gcd, binary_search, bubble_sort
+  - Print: basic, multiple args, formatted
+
+**Session 11 Total**: 240 new tests across 7 files (4 inline + 3 integration)
+**Grand Total**: 5,509+ tests across 131+ test files (Sessions 1-11)
+
+### 11.3 Coverage Impact
+
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| differential.rs | 48.48% | 80.03% | +31.55% |
+| graph_cmd.rs | 51.90% | 94.04% | +42.14% |
+| score_cmd.rs | 76.92% | 89.04% | +12.12% |
+| lint_cmd.rs | 87.22% | 89.52% | +2.30% |
+| **Overall Region** | **88.61%** | **88.82%** | **+0.21%** |
+| **Overall Branch** | **94.42%** | **94.52%** | **+0.10%** |
+
+### 11.4 CI Health (2026-02-05)
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| cargo fmt | PASS | All formatting clean |
+| cargo clippy | PASS | Zero warnings (--workspace mode) |
+| cargo test | PASS | 13,175+ lib tests, zero failures |
+| Coverage | 88.82% | Region coverage (+0.21% from S10) |
+| Branch Coverage | 94.52% | Branch coverage (+0.10% from S10) |
+| TDG Score (crates/) | 93.8+ (A) | Maintained |
+
+### 11.5 Remaining Low-Coverage Files
+
+| File | Region | Notes |
+|------|--------|-------|
+| differential.rs | 80.03% | I/O-heavy methods still uncovered |
+| compile_cmd.rs | 88.54% | Oracle loop retry logic needs I/O |
+| depyler/lib.rs | 88.19% | CLI dispatch code |
+| report_cmd/graph_analysis.rs | 88.86% | Graph visualization |
+| contract_verification.rs | 89.45% | Complex verification paths |
+| memory_safety.rs | 89.04% | Unsafe pattern detection |
+| dashboard_cmd.rs | 89.21% | Terminal UI rendering |
