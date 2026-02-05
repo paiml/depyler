@@ -983,4 +983,207 @@ mod tests {
         assert_eq!(codes::DP014, "DP014");
         assert_eq!(codes::DP015, "DP015");
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S11: Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_s11_lint_strict_all_typed() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("typed.py");
+        fs::write(
+            &py_file,
+            "def multiply(a: int, b: int) -> int:\n    return a * b\n\ndef greet(name: str) -> str:\n    return f\"Hello, {name}\"\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(report.compliant);
+    }
+
+    #[test]
+    fn test_s11_lint_multiple_functions_missing_types() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("untyped.py");
+        fs::write(
+            &py_file,
+            "def foo(x):\n    return x\n\ndef bar(y):\n    return y * 2\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        // Should find DP001 and DP002 violations for both functions
+        let dp001_count = report
+            .violations
+            .iter()
+            .filter(|v| v.code == codes::DP001)
+            .count();
+        let dp002_count = report
+            .violations
+            .iter()
+            .filter(|v| v.code == codes::DP002)
+            .count();
+        assert!(dp001_count >= 2);
+        assert!(dp002_count >= 2);
+    }
+
+    #[test]
+    fn test_s11_lint_class_with_all_violations() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("messy.py");
+        fs::write(
+            &py_file,
+            "class Bad(Base1, Base2, metaclass=Meta):\n    def __getattr__(self, name):\n        return eval(name)\n    def __setattr__(self, name, value):\n        exec(f'{name} = {value}')\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(!report.compliant);
+        // Should detect: DP003 (eval), DP004 (exec), DP007 (metaclass),
+        // DP008 (multiple inheritance), DP009 (__getattr__), DP010 (__setattr__)
+        let violation_codes: Vec<&str> =
+            report.violations.iter().map(|v| v.code.as_str()).collect();
+        assert!(violation_codes.contains(&"DP003"));
+        assert!(violation_codes.contains(&"DP004"));
+        assert!(violation_codes.contains(&"DP007"));
+        assert!(violation_codes.contains(&"DP008"));
+    }
+
+    #[test]
+    fn test_s11_lint_corpus_all_compliant() {
+        let temp = TempDir::new().unwrap();
+        fs::write(
+            temp.path().join("a.py"),
+            "def add(x: int, y: int) -> int:\n    return x + y\n",
+        )
+        .unwrap();
+        fs::write(
+            temp.path().join("b.py"),
+            "def sub(x: int, y: int) -> int:\n    return x - y\n",
+        )
+        .unwrap();
+
+        let report = lint_corpus(temp.path(), true).unwrap();
+        assert_eq!(report.total_files, 2);
+        assert_eq!(report.compliant_files, 2);
+        assert!((report.compliance_rate - 100.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s11_lint_corpus_violation_counts() {
+        let temp = TempDir::new().unwrap();
+        fs::write(temp.path().join("a.py"), "x = eval('1')\ny = eval('2')\n").unwrap();
+        fs::write(temp.path().join("b.py"), "z = eval('3')\n").unwrap();
+
+        let report = lint_corpus(temp.path(), false).unwrap();
+        assert!(report.violation_counts.contains_key("DP003"));
+        assert_eq!(*report.violation_counts.get("DP003").unwrap(), 3);
+    }
+
+    #[test]
+    fn test_s11_contains_function_call_edge_cases() {
+        // At start of line
+        assert!(contains_function_call("eval('x')", "eval"));
+        // After space
+        assert!(contains_function_call("x = eval('x')", "eval"));
+        // After equals
+        assert!(contains_function_call("x=eval('x')", "eval"));
+        // After open paren
+        assert!(contains_function_call("print(eval('x'))", "eval"));
+        // After dot - function treats this as valid since '.' is not alphanumeric/_
+        assert!(contains_function_call("obj.eval('x')", "eval"));
+        // Part of variable name (alphanumeric/_) should NOT match
+        assert!(!contains_function_call("my_eval('x')", "eval"));
+        assert!(!contains_function_call("_eval('x')", "eval"));
+    }
+
+    #[test]
+    fn test_s11_lint_report_serialization() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "x = eval('1')\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        let json = serde_json::to_string(&report).unwrap();
+        assert!(json.contains("DP003"));
+
+        let deserialized: FileReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.violations.len(), report.violations.len());
+    }
+
+    #[test]
+    fn test_s11_corpus_report_serialization() {
+        let report = CorpusReport {
+            total_files: 5,
+            compliant_files: 3,
+            compliance_rate: 60.0,
+            files: vec![],
+            violation_counts: std::collections::HashMap::from([
+                ("DP003".to_string(), 2),
+                ("DP004".to_string(), 1),
+            ]),
+        };
+        let json = serde_json::to_string_pretty(&report).unwrap();
+        assert!(json.contains("compliance_rate"));
+
+        let deserialized: CorpusReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.total_files, 5);
+    }
+
+    #[test]
+    fn test_s11_violation_debug() {
+        let v = Violation {
+            line: 10,
+            column: 5,
+            code: "DP003".to_string(),
+            message: "test message".to_string(),
+            severity: Severity::Error,
+            source_line: Some("eval('x')".to_string()),
+        };
+        let debug = format!("{:?}", v);
+        assert!(debug.contains("DP003"));
+        assert!(debug.contains("test message"));
+    }
+
+    #[test]
+    fn test_s11_lint_non_strict_skips_type_checks() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("untyped.py");
+        fs::write(&py_file, "def add(a, b):\n    return a + b\n").unwrap();
+
+        // Non-strict should not flag missing type annotations
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP001));
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP002));
+    }
+
+    #[test]
+    fn test_s11_lint_subdirectory_py_files() {
+        let temp = TempDir::new().unwrap();
+        let subdir = temp.path().join("subdir");
+        fs::create_dir_all(&subdir).unwrap();
+        fs::write(
+            subdir.join("test.py"),
+            "x = eval('1')\n",
+        )
+        .unwrap();
+
+        let report = lint_corpus(temp.path(), false).unwrap();
+        assert_eq!(report.total_files, 1);
+        assert!(!report.files[0].compliant);
+    }
+
+    #[test]
+    fn test_s11_severity_serialize() {
+        let json_err = serde_json::to_string(&Severity::Error).unwrap();
+        let json_warn = serde_json::to_string(&Severity::Warning).unwrap();
+        assert!(json_err.contains("Error"));
+        assert!(json_warn.contains("Warning"));
+
+        let deser_err: Severity = serde_json::from_str(&json_err).unwrap();
+        let deser_warn: Severity = serde_json::from_str(&json_warn).unwrap();
+        assert_eq!(deser_err, Severity::Error);
+        assert_eq!(deser_warn, Severity::Warning);
+    }
 }

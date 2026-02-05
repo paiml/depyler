@@ -735,6 +735,310 @@ mod tests {
         let output = format_markdown(&report);
         assert!(!output.contains("## Top Blockers"));
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S11: Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_s11_generate_cargo_toml_serde_derive() {
+        let code = "use serde::Serialize;\n#[derive(serde::Deserialize)]";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("serde"));
+        assert!(toml.contains("derive"));
+    }
+
+    #[test]
+    fn test_s11_generate_cargo_toml_rand() {
+        let code = "use rand::Rng;\nlet mut rng = rand::thread_rng();";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("rand"));
+    }
+
+    #[test]
+    fn test_s11_generate_cargo_toml_all_deps() {
+        let code = r#"
+use once_cell::sync::Lazy;
+use clap::Parser;
+use serde::Serialize;
+use serde_json::Value;
+use regex::Regex;
+use chrono::NaiveDate;
+use itertools::Itertools;
+use csv::Reader;
+use tempfile::TempDir;
+use rand::Rng;
+"#;
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("once_cell"));
+        assert!(toml.contains("clap"));
+        assert!(toml.contains("serde_json"));
+        assert!(toml.contains("regex"));
+        assert!(toml.contains("chrono"));
+        assert!(toml.contains("itertools"));
+        assert!(toml.contains("csv"));
+        assert!(toml.contains("tempfile"));
+        assert!(toml.contains("rand"));
+    }
+
+    #[test]
+    fn test_s11_generate_cargo_toml_no_deps() {
+        let code = "fn main() { println!(\"hello\"); }";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("[package]"));
+        assert!(toml.contains("[dependencies]"));
+        // Should not have any dep lines after [dependencies]
+        let deps_section = toml.split("[dependencies]").nth(1).unwrap();
+        assert!(deps_section.trim().is_empty());
+    }
+
+    #[test]
+    fn test_s11_parse_cargo_errors_e0277() {
+        let output = "error[E0277]: the trait bound `Foo: Clone` is not satisfied";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E0277");
+    }
+
+    #[test]
+    fn test_s11_parse_cargo_errors_e0599() {
+        let output = "error[E0599]: no method named `nonexistent` found for struct `Vec<i32>`";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E0599");
+    }
+
+    #[test]
+    fn test_s11_parse_cargo_errors_mixed_with_warnings() {
+        let output = "warning: unused variable\nerror[E0308]: mismatched types\nwarning: dead code\nerror[E0425]: cannot find value\nnote: see docs";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[0].code, "E0308");
+        assert_eq!(errors[1].code, "E0425");
+    }
+
+    #[test]
+    fn test_s11_parse_cargo_errors_long_error_code() {
+        let output = "error[E1234]: some very long error message with lots of details about what went wrong";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E1234");
+    }
+
+    #[test]
+    fn test_s11_format_human_zero_results() {
+        let report = CorpusScoreReport {
+            aggregate_score: 0.0,
+            grade: Grade::F,
+            results: vec![],
+            category_averages: CategoryBreakdown {
+                a1_parse: 0,
+                a2_type_check: 0,
+                a3_cargo_build: 0,
+                b1_no_e0308: 0,
+                b2_no_e0599: 0,
+                b3_no_e0425: 0,
+                c1_doctest: 0,
+                c2_unit_test: 0,
+                c3_property_test: 0,
+                d1_clippy: 0,
+                d2_tdg: 0,
+                d3_complexity: 0,
+                e1_trace_match: 0,
+                e2_output_equiv: 0,
+            },
+            top_blockers: vec![],
+        };
+        let output = format_human(&report);
+        assert!(output.contains("0.0"));
+        assert!(output.contains("Files scored: 0"));
+    }
+
+    #[test]
+    fn test_s11_format_json_zero_results() {
+        let report = CorpusScoreReport {
+            aggregate_score: 0.0,
+            grade: Grade::F,
+            results: vec![],
+            category_averages: CategoryBreakdown {
+                a1_parse: 0,
+                a2_type_check: 0,
+                a3_cargo_build: 0,
+                b1_no_e0308: 0,
+                b2_no_e0599: 0,
+                b3_no_e0425: 0,
+                c1_doctest: 0,
+                c2_unit_test: 0,
+                c3_property_test: 0,
+                d1_clippy: 0,
+                d2_tdg: 0,
+                d3_complexity: 0,
+                e1_trace_match: 0,
+                e2_output_equiv: 0,
+            },
+            top_blockers: vec![],
+        };
+        let json_str = format_json(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(parsed["files_scored"], 0);
+        assert_eq!(parsed["gateway_passed"], 0);
+    }
+
+    #[test]
+    fn test_s11_format_markdown_zero_results() {
+        let report = CorpusScoreReport {
+            aggregate_score: 0.0,
+            grade: Grade::F,
+            results: vec![],
+            category_averages: CategoryBreakdown {
+                a1_parse: 0,
+                a2_type_check: 0,
+                a3_cargo_build: 0,
+                b1_no_e0308: 0,
+                b2_no_e0599: 0,
+                b3_no_e0425: 0,
+                c1_doctest: 0,
+                c2_unit_test: 0,
+                c3_property_test: 0,
+                d1_clippy: 0,
+                d2_tdg: 0,
+                d3_complexity: 0,
+                e1_trace_match: 0,
+                e2_output_equiv: 0,
+            },
+            top_blockers: vec![],
+        };
+        let output = format_markdown(&report);
+        assert!(output.contains("**Files scored**: 0"));
+    }
+
+    #[test]
+    fn test_s11_format_human_multiple_blockers() {
+        let mut report = make_test_report();
+        report.top_blockers = vec![
+            Blocker {
+                pattern: "E0308".to_string(),
+                affected_files: 10,
+                avg_points_lost: 5.5,
+            },
+            Blocker {
+                pattern: "E0425".to_string(),
+                affected_files: 7,
+                avg_points_lost: 3.0,
+            },
+            Blocker {
+                pattern: "E0599".to_string(),
+                affected_files: 3,
+                avg_points_lost: 2.1,
+            },
+        ];
+        let output = format_human(&report);
+        assert!(output.contains("E0308"));
+        assert!(output.contains("E0425"));
+        assert!(output.contains("E0599"));
+        assert!(output.contains("10 files"));
+    }
+
+    #[test]
+    fn test_s11_format_json_multiple_blockers() {
+        let mut report = make_test_report();
+        report.top_blockers = vec![
+            Blocker {
+                pattern: "E0308".to_string(),
+                affected_files: 10,
+                avg_points_lost: 5.5,
+            },
+            Blocker {
+                pattern: "E0425".to_string(),
+                affected_files: 7,
+                avg_points_lost: 3.0,
+            },
+        ];
+        let json_str = format_json(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        let blockers = parsed["top_blockers"].as_array().unwrap();
+        assert_eq!(blockers.len(), 2);
+    }
+
+    #[test]
+    fn test_s11_format_human_gateway_mixed() {
+        let breakdown = make_test_breakdown();
+        let mut report = make_test_report();
+        report.results.push(SingleShotResult {
+            file_path: PathBuf::from("test2.py"),
+            score: SingleShotScore {
+                total: 30,
+                compilation: 10,
+                type_inference: 5,
+                test_coverage: 0,
+                code_quality: 5,
+                semantic_equivalence: 5,
+                gateway_passed: false,
+                mode: ScoringMode::Fast,
+            },
+            category_breakdown: breakdown,
+            error_details: vec![],
+            transpiler_decisions: vec![],
+        });
+        let output = format_human(&report);
+        assert!(output.contains("Gateway passed: 1/2"));
+    }
+
+    #[test]
+    fn test_s11_score_file_simple() {
+        let temp = tempfile::tempdir().unwrap();
+        let py_file = temp.path().join("simple.py");
+        std::fs::write(
+            &py_file,
+            "def add(a: int, b: int) -> int:\n    return a + b\n",
+        )
+        .unwrap();
+
+        let config = ScoringConfig::default();
+        let calculator = ScoreCalculator::with_config(config);
+        let result = score_file(
+            &py_file.to_path_buf(),
+            ScoringMode::Quick,
+            &calculator,
+            false,
+        );
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.score.total > 0);
+    }
+
+    #[test]
+    fn test_s11_score_file_invalid_python() {
+        let temp = tempfile::tempdir().unwrap();
+        let py_file = temp.path().join("bad.py");
+        std::fs::write(&py_file, "def @@@ invalid").unwrap();
+
+        let config = ScoringConfig::default();
+        let calculator = ScoreCalculator::with_config(config);
+        let result = score_file(
+            &py_file.to_path_buf(),
+            ScoringMode::Quick,
+            &calculator,
+            false,
+        );
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        // Parse should fail, so compilation score should be low
+        assert!(!result.score.gateway_passed || result.score.total < 100);
+    }
+
+    #[test]
+    fn test_s11_score_file_nonexistent() {
+        let config = ScoringConfig::default();
+        let calculator = ScoreCalculator::with_config(config);
+        let result = score_file(
+            &PathBuf::from("/nonexistent/file.py"),
+            ScoringMode::Quick,
+            &calculator,
+            false,
+        );
+        assert!(result.is_err());
+    }
 }
 
 /// Handle the score command
