@@ -2829,7 +2829,36 @@ Session 8 Batch 6 (208 tests, 2026-02-05):
 120. `lint_cmd.rs` inline - 27 new tests (DP009/DP010 __getattr__/__setattr__; DP015 __import__; comment skipping; __metaclass__ variant; strict mode DP001/DP002; single/generic inheritance; empty corpus; helper functions; is_untyped variants; serialization; codes constants)
 121. `dashboard_cmd.rs` inline - 15 new tests (display_text smoke; load_corpus_metrics; serialize; Debug/Clone/PartialEq for MigrationStatus; unmapped/partial detection; progress bar overflow; component assertions)
 
-**Grand Total**: 4,248 tests across 121 test files (Sessions 1-8)
+Session 9 Batch 1 (154 tests, 2026-02-05):
+- `stmt_gen_complex.rs` inline - 43 tests (try/except patterns: hoisting, floor_div, exception binding, loop, bool return, negative/float/string fallback; nested functions: capture list, string capture, no params, shadowed params; captures_outer_scope: assign value, call args, method call, comprehension, fstring, index, attribute, if_expr, try body, with context, dict comp, set comp, generator exp, lambda, yield, named expr)
+- `expr_gen_instance_methods.rs` inline - 73 tests (dict: get/setdefault/pop/update/clear; string: isdigit/isalpha/title/center/ljust/rjust/zfill/encode/isalnum/isnumeric/isspace/swapcase/casefold/removeprefix/removesuffix; list: insert/remove/count/index/copy/clear; set: add/discard/union/intersection/difference; lambda: sorted/filter/map; comprehensions: set/dict/list; fstring: method/expression/multiple; slicing: basic/from/range/string/negative; tuples; generators; frozenset; chained methods; regex; async; complex algorithms)
+- `expr_gen.rs` inline - 38 tests (walrus, type conversions, builtins: len/abs/min/max/sum/sorted/reversed/range/print; binary ops: floor_div/power/modulo/bitwise; unary ops; complex expressions; dict/nested dict literals; class methods; multiple return; nested calls)
+
+Session 9 Batch 2 (302 tests, 2026-02-05):
+- `stmt_gen.rs` inline - 42 tests (assignments: dict/list/tuple/augmented; returns: None/empty/tuple/list/dict/conditional; for loops: range/enumerate/zip/dict items/keys/values/string/break; while: true-break/continue; if/elif/else; with/open; del; algorithms: binary search, bubble sort, fibonacci, gcd, factorial, is_prime, string reverse, count words, two_sum)
+- `rust_gen.rs` inline - 28 tests (module-level codegen, imports, classes, constants, mutability analysis)
+- `func_gen.rs` inline - 18 tests (function signatures, body patterns, try/except)
+- `generator_gen.rs` inline - 20 tests (yield, generator expressions)
+- `argparse_transform_tests.rs` inline - 16 tests (CLI argument patterns)
+- `depyler-graph` crate - 42 tests (builder, error_overlay, impact, vectorize)
+- `depyler-knowledge` crate - 28 tests (error, extractor, harvester)
+- `depyler-quality` crate - 37 tests (quality gates, reports, validation)
+- `depyler-testing` crate - 10 tests (differential testing, program output)
+- `depyler-annotations` crate - 50 tests (annotation parsing, validation)
+- `depyler-analyzer` crate - 17 tests (metrics, type_flow)
+
+Session 9 Batch 3 (91 tests, 2026-02-05):
+- `expr_gen_instance_methods.rs` inline - 62 tests (dict items/keys/values iteration, string split/join/strip/lstrip/rstrip/find/count/startswith/endswith/replace/isdigit/isalpha; list sort/reverse/pop/index/count; comprehensions with if/methods; dict/set comprehensions; generators: sum/any/all; lambda: sorted/filter/map; fstring with expression/method; tuple return/index; set add/discard/union; slicing: basic/from/range/string; ternary; walrus; chained methods; enumerate; zip; named_expr; negative index; dict/set/frozenset literals; await/yield; nested list comp; complex dict comp)
+- `expr_gen.rs` inline - 29 tests (comparison chains, boolean and/or, string/list multiply, complex ternary, isinstance, enumerate, zip, global constants, multiple assignment, augmented string concat, nested loops, early return, list of lists, fstring, empty collections, bitwise/shift ops, floor div/mod, power, unary not, classes, imports, assert, del)
+
+Session 9 Batch 4 (118 tests, 2026-02-05):
+- `type_mapper.rs` inline - 36 tests (type mapping, nested types, generics)
+- `ast_bridge.rs` inline - 42 tests (Python-to-HIR conversion, operators, imports, classes, docstrings)
+- `control_stmt_helpers.rs` inline - 23 tests (break/continue/pass generation, labels)
+- `stmt_gen_complex.rs` inline - 17 tests (try/except: finally, float/string/negative fallback, exception binding, assignment hoisting, loop in body, multiple handlers, floor div, nested; nested functions: recursive, string/list/dict params, void return, list return)
+
+**Grand Total**: 4,913+ tests across 121+ test files (Sessions 1-9)
+**Session 9 Total**: 665 new inline tests across 16 source files
 **Session 8 Total**: 902 new tests across 18 new test files
 **Modules Covered**: 100+ source modules totaling 160,000+ lines
 
