@@ -1219,6 +1219,84 @@ impl AnnotationParser {
 mod tests {
     use super::*;
 
+    // ===================================================================
+    // Default Implementation Tests
+    // ===================================================================
+
+    #[test]
+    fn test_default_annotations() {
+        let annotations = TranspilationAnnotations::default();
+        assert_eq!(annotations.type_strategy, TypeStrategy::Conservative);
+        assert_eq!(annotations.ownership_model, OwnershipModel::Owned);
+        assert_eq!(annotations.safety_level, SafetyLevel::Safe);
+        assert_eq!(annotations.fallback_strategy, FallbackStrategy::Error);
+    }
+
+    #[test]
+    fn test_default_annotations_all_fields() {
+        let a = TranspilationAnnotations::default();
+        assert_eq!(a.bounds_checking, BoundsChecking::Explicit);
+        assert_eq!(a.optimization_level, OptimizationLevel::Standard);
+        assert_eq!(a.thread_safety, ThreadSafety::NotRequired);
+        assert_eq!(a.interior_mutability, InteriorMutability::None);
+        assert_eq!(a.string_strategy, StringStrategy::Conservative);
+        assert_eq!(a.hash_strategy, HashStrategy::Standard);
+        assert_eq!(a.panic_behavior, PanicBehavior::Propagate);
+        assert_eq!(a.error_strategy, ErrorStrategy::Panic);
+        assert_eq!(a.global_strategy, GlobalStrategy::None);
+        assert_eq!(a.termination, Termination::Unknown);
+        assert!(a.invariants.is_empty());
+        assert!(!a.verify_bounds);
+        assert!(a.service_type.is_none());
+        assert!(a.migration_strategy.is_none());
+        assert!(a.compatibility_layer.is_none());
+        assert!(a.pattern.is_none());
+        assert!(a.lambda_annotations.is_none());
+        assert!(a.custom_attributes.is_empty());
+        assert!(a.performance_hints.is_empty());
+    }
+
+    #[test]
+    fn test_default_lambda_annotations() {
+        let la = LambdaAnnotations::default();
+        assert_eq!(la.runtime, LambdaRuntime::ProvidedAl2);
+        assert!(la.event_type.is_none());
+        assert!(la.cold_start_optimize);
+        assert_eq!(la.memory_size, 128);
+        assert_eq!(la.architecture, Architecture::Arm64);
+        assert!(la.pre_warm_paths.is_empty());
+        assert!(!la.custom_serialization);
+        assert!(!la.batch_failure_reporting);
+        assert!(la.timeout.is_none());
+        assert!(!la.tracing_enabled);
+        assert!(la.environment_variables.is_empty());
+    }
+
+    #[test]
+    fn test_annotation_validator_default() {
+        let v = AnnotationValidator;
+        let a = TranspilationAnnotations::default();
+        assert!(v.validate(&a).is_ok());
+    }
+
+    #[test]
+    fn test_annotation_extractor_default() {
+        let e = AnnotationExtractor::default();
+        let result = e.extract_function_annotations("def foo():\n    pass", "foo");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_annotation_parser_default() {
+        let p = AnnotationParser::default();
+        let a = p.parse_annotations("# no annotations here").unwrap();
+        assert_eq!(a, TranspilationAnnotations::default());
+    }
+
+    // ===================================================================
+    // Core Parser Tests
+    // ===================================================================
+
     #[test]
     fn test_parse_basic_annotations() {
         let parser = AnnotationParser::new();
@@ -1233,6 +1311,182 @@ def test_function():
         assert_eq!(annotations.type_strategy, TypeStrategy::Conservative);
         assert_eq!(annotations.ownership_model, OwnershipModel::Borrowed);
     }
+
+    #[test]
+    fn test_parse_empty_source() {
+        let parser = AnnotationParser::new();
+        let annotations = parser.parse_annotations("").unwrap();
+        assert_eq!(annotations, TranspilationAnnotations::default());
+    }
+
+    #[test]
+    fn test_parse_no_annotations_in_source() {
+        let parser = AnnotationParser::new();
+        let source = "def foo():\n    return 42\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations, TranspilationAnnotations::default());
+    }
+
+    #[test]
+    fn test_parse_function_annotations_delegates() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: ownership = \"shared\"\ndef foo(): pass";
+        let a = parser.parse_function_annotations(source).unwrap();
+        assert_eq!(a.ownership_model, OwnershipModel::Shared);
+    }
+
+    // ===================================================================
+    // Type Strategy Parser Tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_type_strategy_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("conservative", TypeStrategy::Conservative),
+            ("aggressive", TypeStrategy::Aggressive),
+            ("zero_copy", TypeStrategy::ZeroCopy),
+            ("always_owned", TypeStrategy::AlwaysOwned),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: type_strategy = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.type_strategy, *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_type_strategy_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: type_strategy = \"bogus\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    // ===================================================================
+    // Ownership Model Parser Tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_ownership_model_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("owned", OwnershipModel::Owned),
+            ("borrowed", OwnershipModel::Borrowed),
+            ("shared", OwnershipModel::Shared),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: ownership = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.ownership_model, *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_ownership_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: ownership = \"moved\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    // ===================================================================
+    // Safety Level Parser Tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_safety_annotations() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: safety_level = "unsafe_allowed"
+# @depyler: bounds_checking = "disabled"
+def unsafe_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.safety_level, SafetyLevel::UnsafeAllowed);
+        assert_eq!(annotations.bounds_checking, BoundsChecking::Disabled);
+    }
+
+    #[test]
+    fn test_parse_safety_level_safe() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: safety_level = \"safe\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.safety_level, SafetyLevel::Safe);
+    }
+
+    #[test]
+    fn test_parse_safety_level_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: safety_level = \"yolo\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    // ===================================================================
+    // Fallback Strategy Tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_fallback_strategy() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: fallback = "mcp"
+def complex_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.fallback_strategy, FallbackStrategy::Mcp);
+    }
+
+    #[test]
+    fn test_parse_fallback_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("mcp", FallbackStrategy::Mcp),
+            ("manual", FallbackStrategy::Manual),
+            ("error", FallbackStrategy::Error),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: fallback = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.fallback_strategy, *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_fallback_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: fallback = \"skip\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    // ===================================================================
+    // Bounds Checking Tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_bounds_checking_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("explicit", BoundsChecking::Explicit),
+            ("implicit", BoundsChecking::Implicit),
+            ("disabled", BoundsChecking::Disabled),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: bounds_checking = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.bounds_checking, *expected);
+        }
+    }
+
+    // ===================================================================
+    // Performance Hints Tests
+    // ===================================================================
 
     #[test]
     fn test_parse_performance_annotations() {
@@ -1258,32 +1512,99 @@ def fast_function():
     }
 
     #[test]
-    fn test_parse_safety_annotations() {
+    fn test_optimization_hints() {
         let parser = AnnotationParser::new();
         let source = r#"
-# @depyler: safety_level = "unsafe_allowed"
-# @depyler: bounds_checking = "disabled"
-def unsafe_function():
+# @depyler: optimization_hint = "vectorize"
+# @depyler: optimization_level = "aggressive"
+def optimized_function():
     pass
         "#;
 
         let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.safety_level, SafetyLevel::UnsafeAllowed);
-        assert_eq!(annotations.bounds_checking, BoundsChecking::Disabled);
+        assert!(annotations
+            .performance_hints
+            .contains(&PerformanceHint::Vectorize));
+        assert_eq!(
+            annotations.optimization_level,
+            OptimizationLevel::Aggressive
+        );
     }
 
     #[test]
-    fn test_parse_fallback_strategy() {
+    fn test_parse_optimization_hint_latency() {
         let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: fallback = "mcp"
-def complex_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.fallback_strategy, FallbackStrategy::Mcp);
+        let source = "# @depyler: optimization_hint = \"latency\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert!(a
+            .performance_hints
+            .contains(&PerformanceHint::OptimizeForLatency));
     }
+
+    #[test]
+    fn test_parse_optimization_hint_throughput() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: optimization_hint = \"throughput\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert!(a
+            .performance_hints
+            .contains(&PerformanceHint::OptimizeForThroughput));
+    }
+
+    #[test]
+    fn test_parse_optimization_hint_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: optimization_hint = \"magic\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_parse_unroll_loops_invalid_value() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: unroll_loops = \"not_a_number\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_parse_performance_critical_false() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: performance_critical = \"false\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert!(!a
+            .performance_hints
+            .contains(&PerformanceHint::PerformanceCritical));
+    }
+
+    #[test]
+    fn test_parse_vectorize_false() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: vectorize = \"false\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert!(!a
+            .performance_hints
+            .contains(&PerformanceHint::Vectorize));
+    }
+
+    #[test]
+    fn test_parse_optimization_level_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("standard", OptimizationLevel::Standard),
+            ("aggressive", OptimizationLevel::Aggressive),
+            ("conservative", OptimizationLevel::Conservative),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: optimization_level = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.optimization_level, *expected);
+        }
+    }
+
+    // ===================================================================
+    // Thread Safety Tests
+    // ===================================================================
 
     #[test]
     fn test_parse_thread_safety() {
@@ -1302,6 +1623,327 @@ def thread_safe_function():
             InteriorMutability::ArcMutex
         );
     }
+
+    #[test]
+    fn test_parse_interior_mutability_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("none", InteriorMutability::None),
+            ("arc_mutex", InteriorMutability::ArcMutex),
+            ("ref_cell", InteriorMutability::RefCell),
+            ("cell", InteriorMutability::Cell),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: interior_mutability = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.interior_mutability, *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_thread_safety_not_required() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: thread_safety = \"not_required\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.thread_safety, ThreadSafety::NotRequired);
+    }
+
+    // ===================================================================
+    // String and Hash Strategy Tests
+    // ===================================================================
+
+    #[test]
+    fn test_string_and_hash_strategies() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: string_strategy = "zero_copy"
+# @depyler: hash_strategy = "fnv"
+def string_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.string_strategy, StringStrategy::ZeroCopy);
+        assert_eq!(annotations.hash_strategy, HashStrategy::Fnv);
+    }
+
+    #[test]
+    fn test_parse_string_strategy_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("conservative", StringStrategy::Conservative),
+            ("always_owned", StringStrategy::AlwaysOwned),
+            ("zero_copy", StringStrategy::ZeroCopy),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: string_strategy = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.string_strategy, *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_hash_strategy_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("standard", HashStrategy::Standard),
+            ("fnv", HashStrategy::Fnv),
+            ("ahash", HashStrategy::AHash),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: hash_strategy = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.hash_strategy, *expected);
+        }
+    }
+
+    // ===================================================================
+    // Error Handling Annotations Tests
+    // ===================================================================
+
+    #[test]
+    fn test_error_handling_annotations() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: panic_behavior = "return_error"
+# @depyler: error_strategy = "result_type"
+def error_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.panic_behavior, PanicBehavior::ReturnError);
+        assert_eq!(annotations.error_strategy, ErrorStrategy::ResultType);
+    }
+
+    #[test]
+    fn test_parse_panic_behavior_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("propagate", PanicBehavior::Propagate),
+            ("return_error", PanicBehavior::ReturnError),
+            ("abort", PanicBehavior::Abort),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: panic_behavior = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.panic_behavior, *expected);
+        }
+    }
+
+    #[test]
+    fn test_parse_error_strategy_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("panic", ErrorStrategy::Panic),
+            ("result_type", ErrorStrategy::ResultType),
+            ("option_type", ErrorStrategy::OptionType),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: error_strategy = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.error_strategy, *expected);
+        }
+    }
+
+    // ===================================================================
+    // Global Strategy Tests
+    // ===================================================================
+
+    #[test]
+    fn test_global_strategy() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: global_strategy = "lazy_static"
+def global_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.global_strategy, GlobalStrategy::LazyStatic);
+    }
+
+    #[test]
+    fn test_parse_global_strategy_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("none", GlobalStrategy::None),
+            ("lazy_static", GlobalStrategy::LazyStatic),
+            ("once_cell", GlobalStrategy::OnceCell),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: global_strategy = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.global_strategy, *expected);
+        }
+    }
+
+    // ===================================================================
+    // Termination Tests
+    // ===================================================================
+
+    #[test]
+    fn test_parse_termination_unknown() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = \"unknown\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.termination, Termination::Unknown);
+    }
+
+    #[test]
+    fn test_parse_termination_proven() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = \"proven\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.termination, Termination::Proven);
+    }
+
+    #[test]
+    fn test_parse_termination_bounded_loop() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = \"bounded_100\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.termination, Termination::BoundedLoop(100));
+    }
+
+    #[test]
+    fn test_parse_termination_bounded_loop_zero() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = \"bounded_0\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.termination, Termination::BoundedLoop(0));
+    }
+
+    #[test]
+    fn test_parse_termination_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = \"infinite\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_parse_termination_bounded_non_numeric() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = \"bounded_abc\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    // ===================================================================
+    // Verification Annotations Tests
+    // ===================================================================
+
+    #[test]
+    fn test_verification_annotations() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: termination = "proven"
+# @depyler: invariant = "left <= right"
+# @depyler: verify_bounds = "true"
+def verified_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.termination, Termination::Proven);
+        assert!(annotations
+            .invariants
+            .contains(&"left <= right".to_string()));
+        assert!(annotations.verify_bounds);
+    }
+
+    #[test]
+    fn test_parse_verify_bounds_false() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: verify_bounds = \"false\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert!(!a.verify_bounds);
+    }
+
+    // ===================================================================
+    // Service and Migration Tests
+    // ===================================================================
+
+    #[test]
+    fn test_service_and_migration_annotations() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: service_type = "web_api"
+# @depyler: migration_strategy = "incremental"
+# @depyler: compatibility_layer = "pyo3"
+def service_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.service_type, Some(ServiceType::WebApi));
+        assert_eq!(
+            annotations.migration_strategy,
+            Some(MigrationStrategy::Incremental)
+        );
+        assert_eq!(
+            annotations.compatibility_layer,
+            Some(CompatibilityLayer::PyO3)
+        );
+    }
+
+    #[test]
+    fn test_parse_service_type_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("web_api", ServiceType::WebApi),
+            ("cli", ServiceType::Cli),
+            ("library", ServiceType::Library),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: service_type = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.service_type, Some(expected.clone()));
+        }
+    }
+
+    #[test]
+    fn test_parse_migration_strategy_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("incremental", MigrationStrategy::Incremental),
+            ("big_bang", MigrationStrategy::BigBang),
+            ("hybrid", MigrationStrategy::Hybrid),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: migration_strategy = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.migration_strategy, Some(expected.clone()));
+        }
+    }
+
+    #[test]
+    fn test_parse_compatibility_layer_all_variants() {
+        let parser = AnnotationParser::new();
+        let cases = [
+            ("pyo3", CompatibilityLayer::PyO3),
+            ("ctypes", CompatibilityLayer::CTypes),
+            ("none", CompatibilityLayer::None),
+        ];
+        for (input, expected) in &cases {
+            let source = format!("# @depyler: compatibility_layer = \"{input}\"");
+            let a = parser.parse_annotations(&source).unwrap();
+            assert_eq!(a.compatibility_layer, Some(expected.clone()));
+        }
+    }
+
+    #[test]
+    fn test_parse_pattern_annotation() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: pattern = \"observer\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.pattern, Some("observer".to_string()));
+    }
+
+    // ===================================================================
+    // Error Type Tests
+    // ===================================================================
 
     #[test]
     fn test_invalid_annotation_key() {
@@ -1330,118 +1972,42 @@ def test_function():
     }
 
     #[test]
-    fn test_default_annotations() {
-        let annotations = TranspilationAnnotations::default();
-        assert_eq!(annotations.type_strategy, TypeStrategy::Conservative);
-        assert_eq!(annotations.ownership_model, OwnershipModel::Owned);
-        assert_eq!(annotations.safety_level, SafetyLevel::Safe);
-        assert_eq!(annotations.fallback_strategy, FallbackStrategy::Error);
+    fn test_annotation_error_display_invalid_syntax() {
+        let err = AnnotationError::InvalidSyntax("bad line".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("Invalid annotation syntax"));
+        assert!(msg.contains("bad line"));
     }
 
     #[test]
-    fn test_optimization_hints() {
-        let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: optimization_hint = "vectorize"
-# @depyler: optimization_level = "aggressive"
-def optimized_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert!(annotations
-            .performance_hints
-            .contains(&PerformanceHint::Vectorize));
-        assert_eq!(
-            annotations.optimization_level,
-            OptimizationLevel::Aggressive
-        );
+    fn test_annotation_error_display_unknown_key() {
+        let err = AnnotationError::UnknownKey("foo_bar".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("Unknown annotation key"));
+        assert!(msg.contains("foo_bar"));
     }
 
     #[test]
-    fn test_string_and_hash_strategies() {
-        let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: string_strategy = "zero_copy"
-# @depyler: hash_strategy = "fnv"
-def string_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.string_strategy, StringStrategy::ZeroCopy);
-        assert_eq!(annotations.hash_strategy, HashStrategy::Fnv);
+    fn test_annotation_error_display_invalid_value() {
+        let err = AnnotationError::InvalidValue {
+            key: "type_strategy".to_string(),
+            value: "bogus".to_string(),
+        };
+        let msg = format!("{err}");
+        assert!(msg.contains("Invalid value for key type_strategy"));
+        assert!(msg.contains("bogus"));
     }
 
     #[test]
-    fn test_error_handling_annotations() {
-        let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: panic_behavior = "return_error"
-# @depyler: error_strategy = "result_type"
-def error_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.panic_behavior, PanicBehavior::ReturnError);
-        assert_eq!(annotations.error_strategy, ErrorStrategy::ResultType);
+    fn test_annotation_error_is_debug() {
+        let err = AnnotationError::UnknownKey("test".to_string());
+        let debug = format!("{err:?}");
+        assert!(debug.contains("UnknownKey"));
     }
 
-    #[test]
-    fn test_service_and_migration_annotations() {
-        let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: service_type = "web_api"
-# @depyler: migration_strategy = "incremental"
-# @depyler: compatibility_layer = "pyo3"
-def service_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.service_type, Some(ServiceType::WebApi));
-        assert_eq!(
-            annotations.migration_strategy,
-            Some(MigrationStrategy::Incremental)
-        );
-        assert_eq!(
-            annotations.compatibility_layer,
-            Some(CompatibilityLayer::PyO3)
-        );
-    }
-
-    #[test]
-    fn test_verification_annotations() {
-        let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: termination = "proven"
-# @depyler: invariant = "left <= right"
-# @depyler: verify_bounds = "true"
-def verified_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.termination, Termination::Proven);
-        assert!(annotations
-            .invariants
-            .contains(&"left <= right".to_string()));
-        assert!(annotations.verify_bounds);
-    }
-
-    #[test]
-    fn test_global_strategy() {
-        let parser = AnnotationParser::new();
-        let source = r#"
-# @depyler: global_strategy = "lazy_static"
-def global_function():
-    pass
-        "#;
-
-        let annotations = parser.parse_annotations(source).unwrap();
-        assert_eq!(annotations.global_strategy, GlobalStrategy::LazyStatic);
-    }
+    // ===================================================================
+    // Lambda Annotations Tests
+    // ===================================================================
 
     #[test]
     fn test_lambda_annotations_basic() {
@@ -1506,6 +2072,18 @@ def handler(event, context):
     }
 
     #[test]
+    fn test_lambda_eventbridge_without_type_parameter() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"EventBridgeEvent\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(
+            la.event_type,
+            Some(LambdaEventType::EventBridgeEvent(None))
+        );
+    }
+
+    #[test]
     fn test_lambda_sqs_batch_processing() {
         let parser = AnnotationParser::new();
         let source = r#"
@@ -1558,6 +2136,166 @@ def handler(event, context):
             LambdaRuntime::Custom("rust-runtime-1.0".to_string())
         );
     }
+
+    #[test]
+    fn test_lambda_runtime_provided_al2023() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: lambda_runtime = \"provided.al2023\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.runtime, LambdaRuntime::ProvidedAl2023);
+    }
+
+    #[test]
+    fn test_lambda_architecture_x86_64() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: architecture = \"x86_64\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.architecture, Architecture::X86_64);
+    }
+
+    #[test]
+    fn test_lambda_architecture_x64_alias() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: architecture = \"x64\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.architecture, Architecture::X86_64);
+    }
+
+    #[test]
+    fn test_lambda_architecture_aarch64_alias() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: architecture = \"aarch64\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.architecture, Architecture::Arm64);
+    }
+
+    #[test]
+    fn test_lambda_architecture_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: architecture = \"mips\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_lambda_memory_size_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: memory_size = \"lots\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_lambda_timeout_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: timeout = \"forever\"";
+        let result = parser.parse_annotations(source);
+        assert!(matches!(result, Err(AnnotationError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_lambda_tracing_true() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: tracing = \"true\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert!(la.tracing_enabled);
+    }
+
+    #[test]
+    fn test_lambda_tracing_false() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: tracing = \"false\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert!(!la.tracing_enabled);
+    }
+
+    #[test]
+    fn test_lambda_cold_start_optimize_false() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: cold_start_optimize = \"false\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert!(!la.cold_start_optimize);
+    }
+
+    #[test]
+    fn test_lambda_event_type_s3() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"S3Event\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.event_type, Some(LambdaEventType::S3Event));
+    }
+
+    #[test]
+    fn test_lambda_event_type_sns() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"SnsEvent\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.event_type, Some(LambdaEventType::SnsEvent));
+    }
+
+    #[test]
+    fn test_lambda_event_type_dynamodb() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"DynamodbEvent\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.event_type, Some(LambdaEventType::DynamodbEvent));
+    }
+
+    #[test]
+    fn test_lambda_event_type_cloudwatch() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"CloudwatchEvent\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.event_type, Some(LambdaEventType::CloudwatchEvent));
+    }
+
+    #[test]
+    fn test_lambda_event_type_kinesis() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"KinesisEvent\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(la.event_type, Some(LambdaEventType::KinesisEvent));
+    }
+
+    #[test]
+    fn test_lambda_event_type_api_gateway_v2() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"APIGatewayV2HttpRequest\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(
+            la.event_type,
+            Some(LambdaEventType::ApiGatewayV2HttpRequest)
+        );
+    }
+
+    #[test]
+    fn test_lambda_event_type_custom() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: event_type = \"MyCustomEvent\"";
+        let a = parser.parse_annotations(source).unwrap();
+        let la = a.lambda_annotations.unwrap();
+        assert_eq!(
+            la.event_type,
+            Some(LambdaEventType::Custom("MyCustomEvent".to_string()))
+        );
+    }
+
+    // ===================================================================
+    // Custom Attributes Tests
+    // ===================================================================
 
     #[test]
     fn test_custom_custom_attribute_single() {
@@ -1624,5 +2362,507 @@ def my_function():
 
         let annotations = parser.parse_annotations(source).unwrap();
         assert_eq!(annotations.custom_attributes.len(), 0);
+    }
+
+    // ===================================================================
+    // AnnotationValidator Tests
+    // ===================================================================
+
+    #[test]
+    fn test_validator_new() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations::default();
+        assert!(v.validate(&a).is_ok());
+    }
+
+    #[test]
+    fn test_validator_zero_copy_string_with_owned_conflict() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            string_strategy: StringStrategy::ZeroCopy,
+            ownership_model: OwnershipModel::Owned,
+            ..Default::default()
+        };
+        let result = v.validate(&a);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("Zero-copy string strategy")));
+    }
+
+    #[test]
+    fn test_validator_refcell_with_thread_safety_conflict() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            thread_safety: ThreadSafety::Required,
+            interior_mutability: InteriorMutability::RefCell,
+            ..Default::default()
+        };
+        let result = v.validate(&a);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("RefCell is not thread-safe")));
+    }
+
+    #[test]
+    fn test_validator_conflicting_panic_and_error_strategy() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            panic_behavior: PanicBehavior::ReturnError,
+            error_strategy: ErrorStrategy::Panic,
+            ..Default::default()
+        };
+        let result = v.validate(&a);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("Conflicting panic behavior")));
+    }
+
+    #[test]
+    fn test_validator_aggressive_opt_with_explicit_bounds_conflict() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            optimization_level: OptimizationLevel::Aggressive,
+            bounds_checking: BoundsChecking::Explicit,
+            ..Default::default()
+        };
+        let result = v.validate(&a);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("Aggressive optimization")));
+    }
+
+    #[test]
+    fn test_validator_multiple_conflicts() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            string_strategy: StringStrategy::ZeroCopy,
+            ownership_model: OwnershipModel::Owned,
+            thread_safety: ThreadSafety::Required,
+            interior_mutability: InteriorMutability::RefCell,
+            ..Default::default()
+        };
+        let result = v.validate(&a);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.len() >= 2);
+    }
+
+    #[test]
+    fn test_validator_no_conflict_with_valid_combination() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            string_strategy: StringStrategy::AlwaysOwned,
+            ownership_model: OwnershipModel::Owned,
+            thread_safety: ThreadSafety::Required,
+            interior_mutability: InteriorMutability::ArcMutex,
+            ..Default::default()
+        };
+        assert!(v.validate(&a).is_ok());
+    }
+
+    // ===================================================================
+    // Suggest Improvements Tests
+    // ===================================================================
+
+    #[test]
+    fn test_suggest_improvements_perf_critical_not_aggressive() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            performance_hints: vec![PerformanceHint::PerformanceCritical],
+            optimization_level: OptimizationLevel::Standard,
+            ..Default::default()
+        };
+        let suggestions = v.suggest_improvements(&a);
+        assert!(suggestions.iter().any(|s| s.contains("aggressive")));
+    }
+
+    #[test]
+    fn test_suggest_improvements_thread_safe_not_shared() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            thread_safety: ThreadSafety::Required,
+            ownership_model: OwnershipModel::Owned,
+            ..Default::default()
+        };
+        let suggestions = v.suggest_improvements(&a);
+        assert!(suggestions.iter().any(|s| s.contains("shared")));
+    }
+
+    #[test]
+    fn test_suggest_improvements_web_api_no_latency() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            service_type: Some(ServiceType::WebApi),
+            ..Default::default()
+        };
+        let suggestions = v.suggest_improvements(&a);
+        assert!(suggestions.iter().any(|s| s.contains("latency")));
+    }
+
+    #[test]
+    fn test_suggest_improvements_none_when_optimal() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations::default();
+        let suggestions = v.suggest_improvements(&a);
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_suggest_improvements_web_api_with_latency_no_suggestion() {
+        let v = AnnotationValidator::new();
+        let a = TranspilationAnnotations {
+            service_type: Some(ServiceType::WebApi),
+            performance_hints: vec![PerformanceHint::OptimizeForLatency],
+            ..Default::default()
+        };
+        let suggestions = v.suggest_improvements(&a);
+        assert!(!suggestions.iter().any(|s| s.contains("latency")));
+    }
+
+    // ===================================================================
+    // AnnotationExtractor Tests
+    // ===================================================================
+
+    #[test]
+    fn test_extractor_new() {
+        let e = AnnotationExtractor::new();
+        let result = e.extract_function_annotations("def foo():\n    pass", "bar");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_function_with_annotation() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: ownership = \"borrowed\"\ndef my_func(x):\n    return x";
+        let result = e.extract_function_annotations(source, "my_func");
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("@depyler:"));
+    }
+
+    #[test]
+    fn test_extractor_function_no_annotation() {
+        let e = AnnotationExtractor::new();
+        let source = "# just a regular comment\ndef my_func(x):\n    return x";
+        let result = e.extract_function_annotations(source, "my_func");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_function_not_found() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: ownership = \"borrowed\"\ndef foo():\n    pass";
+        let result = e.extract_function_annotations(source, "bar");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_class_with_annotation() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: service_type = \"web_api\"\nclass MyService:\n    pass";
+        let result = e.extract_class_annotations(source, "MyService");
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("@depyler:"));
+    }
+
+    #[test]
+    fn test_extractor_class_no_annotation() {
+        let e = AnnotationExtractor::new();
+        let source = "# regular comment\nclass MyClass:\n    pass";
+        let result = e.extract_class_annotations(source, "MyClass");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_class_not_found() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: ownership = \"borrowed\"\nclass Foo:\n    pass";
+        let result = e.extract_class_annotations(source, "Bar");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_class_with_parentheses() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: ownership = \"shared\"\nclass Child(Parent):\n    pass";
+        let result = e.extract_class_annotations(source, "Child");
+        assert!(result.is_some());
+    }
+
+    // ===================================================================
+    // Serialization Tests
+    // ===================================================================
+
+    #[test]
+    fn test_serialize_transpilation_annotations() {
+        let a = TranspilationAnnotations::default();
+        let json = serde_json::to_string(&a).unwrap();
+        assert!(json.contains("Conservative"));
+        assert!(json.contains("Owned"));
+    }
+
+    #[test]
+    fn test_deserialize_transpilation_annotations() {
+        let a = TranspilationAnnotations::default();
+        let json = serde_json::to_string(&a).unwrap();
+        let deserialized: TranspilationAnnotations = serde_json::from_str(&json).unwrap();
+        assert_eq!(a, deserialized);
+    }
+
+    #[test]
+    fn test_serialize_lambda_annotations() {
+        let la = LambdaAnnotations::default();
+        let json = serde_json::to_string(&la).unwrap();
+        assert!(json.contains("ProvidedAl2"));
+        assert!(json.contains("Arm64"));
+    }
+
+    #[test]
+    fn test_deserialize_lambda_annotations() {
+        let la = LambdaAnnotations::default();
+        let json = serde_json::to_string(&la).unwrap();
+        let deserialized: LambdaAnnotations = serde_json::from_str(&json).unwrap();
+        assert_eq!(la, deserialized);
+    }
+
+    #[test]
+    fn test_serialize_roundtrip_all_event_types() {
+        let event_types = vec![
+            LambdaEventType::Auto,
+            LambdaEventType::S3Event,
+            LambdaEventType::ApiGatewayProxyRequest,
+            LambdaEventType::ApiGatewayV2HttpRequest,
+            LambdaEventType::SqsEvent,
+            LambdaEventType::SnsEvent,
+            LambdaEventType::DynamodbEvent,
+            LambdaEventType::EventBridgeEvent(None),
+            LambdaEventType::EventBridgeEvent(Some("Order".to_string())),
+            LambdaEventType::CloudwatchEvent,
+            LambdaEventType::KinesisEvent,
+            LambdaEventType::Custom("MyEvent".to_string()),
+        ];
+        for et in event_types {
+            let json = serde_json::to_string(&et).unwrap();
+            let deserialized: LambdaEventType = serde_json::from_str(&json).unwrap();
+            assert_eq!(et, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_serialize_roundtrip_with_lambda_annotations() {
+        let la = LambdaAnnotations {
+            event_type: Some(LambdaEventType::SqsEvent),
+            memory_size: 512,
+            timeout: Some(60),
+            tracing_enabled: true,
+            batch_failure_reporting: true,
+            ..Default::default()
+        };
+        let a = TranspilationAnnotations {
+            lambda_annotations: Some(la),
+            service_type: Some(ServiceType::WebApi),
+            pattern: Some("microservice".to_string()),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&a).unwrap();
+        let deserialized: TranspilationAnnotations = serde_json::from_str(&json).unwrap();
+        assert_eq!(a, deserialized);
+    }
+
+    // ===================================================================
+    // Clone and Debug Trait Tests
+    // ===================================================================
+
+    #[test]
+    fn test_transpilation_annotations_clone() {
+        let a = TranspilationAnnotations {
+            type_strategy: TypeStrategy::Aggressive,
+            invariants: vec!["x > 0".to_string()],
+            ..Default::default()
+        };
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_lambda_annotations_clone() {
+        let la = LambdaAnnotations {
+            memory_size: 1024,
+            event_type: Some(LambdaEventType::S3Event),
+            ..Default::default()
+        };
+        let cloned = la.clone();
+        assert_eq!(la, cloned);
+    }
+
+    #[test]
+    fn test_annotation_extractor_clone() {
+        let e = AnnotationExtractor::new();
+        let _cloned = e.clone();
+        // If this compiles and runs, Clone works
+    }
+
+    #[test]
+    fn test_annotation_parser_new_and_default_equivalent() {
+        let p1 = AnnotationParser::new();
+        let p2 = AnnotationParser::default();
+        // Both should produce identical results on the same input
+        let source = "# @depyler: ownership = \"shared\"";
+        let a1 = p1.parse_annotations(source).unwrap();
+        let a2 = p2.parse_annotations(source).unwrap();
+        assert_eq!(a1, a2);
+    }
+
+    #[test]
+    fn test_annotation_validator_debug() {
+        let v = AnnotationValidator::new();
+        let debug_str = format!("{v:?}");
+        assert!(debug_str.contains("AnnotationValidator"));
+    }
+
+    #[test]
+    fn test_annotation_extractor_debug() {
+        let e = AnnotationExtractor::new();
+        let debug_str = format!("{e:?}");
+        assert!(debug_str.contains("AnnotationExtractor"));
+    }
+
+    // ===================================================================
+    // Enum Variant Equality and Hash Tests
+    // ===================================================================
+
+    #[test]
+    fn test_lambda_event_type_hash_in_collections() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(LambdaEventType::Auto);
+        set.insert(LambdaEventType::S3Event);
+        set.insert(LambdaEventType::Auto); // duplicate
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_enum_equality() {
+        assert_eq!(TypeStrategy::Conservative, TypeStrategy::Conservative);
+        assert_ne!(TypeStrategy::Conservative, TypeStrategy::Aggressive);
+        assert_eq!(OwnershipModel::Owned, OwnershipModel::Owned);
+        assert_ne!(OwnershipModel::Owned, OwnershipModel::Borrowed);
+        assert_eq!(
+            Termination::BoundedLoop(10),
+            Termination::BoundedLoop(10)
+        );
+        assert_ne!(Termination::BoundedLoop(10), Termination::BoundedLoop(20));
+    }
+
+    // ===================================================================
+    // Parser Edge Cases
+    // ===================================================================
+
+    #[test]
+    fn test_parse_annotation_with_extra_whitespace_before_key() {
+        let parser = AnnotationParser::new();
+        // Extra spaces between # and @depyler are handled by \s* in the regex
+        let source = "#   @depyler: ownership = \"shared\"";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.ownership_model, OwnershipModel::Shared);
+    }
+
+    #[test]
+    fn test_parse_annotation_mixed_with_plain_comments() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# This is a regular comment
+# @depyler: ownership = "borrowed"
+# Another plain comment
+def foo():
+    pass
+        "#;
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.ownership_model, OwnershipModel::Borrowed);
+    }
+
+    #[test]
+    fn test_parse_all_annotations_combined() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: type_strategy = "aggressive"
+# @depyler: ownership = "shared"
+# @depyler: safety_level = "unsafe_allowed"
+# @depyler: fallback = "manual"
+# @depyler: bounds_checking = "implicit"
+# @depyler: optimization_level = "conservative"
+# @depyler: thread_safety = "required"
+# @depyler: interior_mutability = "arc_mutex"
+# @depyler: string_strategy = "always_owned"
+# @depyler: hash_strategy = "ahash"
+# @depyler: panic_behavior = "abort"
+# @depyler: error_strategy = "option_type"
+# @depyler: global_strategy = "once_cell"
+# @depyler: termination = "bounded_50"
+# @depyler: verify_bounds = "true"
+# @depyler: service_type = "cli"
+# @depyler: migration_strategy = "hybrid"
+# @depyler: compatibility_layer = "ctypes"
+# @depyler: pattern = "singleton"
+def full_function():
+    pass
+        "#;
+
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a.type_strategy, TypeStrategy::Aggressive);
+        assert_eq!(a.ownership_model, OwnershipModel::Shared);
+        assert_eq!(a.safety_level, SafetyLevel::UnsafeAllowed);
+        assert_eq!(a.fallback_strategy, FallbackStrategy::Manual);
+        assert_eq!(a.bounds_checking, BoundsChecking::Implicit);
+        assert_eq!(a.optimization_level, OptimizationLevel::Conservative);
+        assert_eq!(a.thread_safety, ThreadSafety::Required);
+        assert_eq!(a.interior_mutability, InteriorMutability::ArcMutex);
+        assert_eq!(a.string_strategy, StringStrategy::AlwaysOwned);
+        assert_eq!(a.hash_strategy, HashStrategy::AHash);
+        assert_eq!(a.panic_behavior, PanicBehavior::Abort);
+        assert_eq!(a.error_strategy, ErrorStrategy::OptionType);
+        assert_eq!(a.global_strategy, GlobalStrategy::OnceCell);
+        assert_eq!(a.termination, Termination::BoundedLoop(50));
+        assert!(a.verify_bounds);
+        assert_eq!(a.service_type, Some(ServiceType::Cli));
+        assert_eq!(a.migration_strategy, Some(MigrationStrategy::Hybrid));
+        assert_eq!(a.compatibility_layer, Some(CompatibilityLayer::CTypes));
+        assert_eq!(a.pattern, Some("singleton".to_string()));
+    }
+
+    #[test]
+    fn test_parse_only_comments_no_depyler_prefix() {
+        let parser = AnnotationParser::new();
+        let source = "# just a comment\n# another one\n";
+        let a = parser.parse_annotations(source).unwrap();
+        assert_eq!(a, TranspilationAnnotations::default());
+    }
+
+    #[test]
+    fn test_extractor_function_at_first_line() {
+        let e = AnnotationExtractor::new();
+        let source = "def first_func():\n    pass";
+        let result = e.extract_function_annotations(source, "first_func");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_empty_source() {
+        let e = AnnotationExtractor::new();
+        let result = e.extract_function_annotations("", "anything");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extractor_class_empty_source() {
+        let e = AnnotationExtractor::new();
+        let result = e.extract_class_annotations("", "anything");
+        assert!(result.is_none());
     }
 }

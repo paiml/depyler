@@ -1459,4 +1459,600 @@ mod tests {
         let result = generate_state_struct_name(&input_name);
         assert_eq!(result.to_string(), "GState");
     }
+
+    // ============================================================
+    // Transpile-based generator tests (DEPYLER-COVERAGE-GEN)
+    // ============================================================
+
+    /// Helper function for transpile-based tests
+    fn transpile(python_code: &str) -> String {
+        use crate::ast_bridge::AstBridge;
+        use crate::rust_gen::generate_rust_file;
+        use crate::type_mapper::TypeMapper;
+        use rustpython_parser::{parse, Mode};
+        let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
+        let (module, _) = AstBridge::new()
+            .with_source(python_code.to_string())
+            .python_to_hir(ast)
+            .expect("hir");
+        let tm = TypeMapper::default();
+        let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
+        result
+    }
+
+    // --- Basic yield ---
+
+    #[test]
+    fn test_transpile_simple_yield_generates_iterator() {
+        let code = "def gen():\n    yield 1";
+        let rust = transpile(code);
+        assert!(rust.contains("impl Iterator"), "should implement Iterator");
+        assert!(rust.contains("fn next("), "should have next() method");
+    }
+
+    #[test]
+    fn test_transpile_simple_yield_generates_state_struct() {
+        let code = "def gen():\n    yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "should create PascalCase state struct: got {}",
+            rust
+        );
+        assert!(rust.contains("state:"), "state struct should have state field");
+    }
+
+    #[test]
+    fn test_transpile_yield_int_literal_item_type() {
+        let code = "def gen():\n    yield 42";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Item = i64") || rust.contains("Item = i32"),
+            "yield int should produce integer Item type: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_yield_string_literal_item_type() {
+        let code = "def gen():\n    yield 'hello'";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Item = String"),
+            "yield str should produce String Item type: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_multiple_yields_state_machine() {
+        let code = "def gen():\n    yield 1\n    yield 2\n    yield 3";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("self.state"),
+            "multiple yields should produce state machine: got {}",
+            rust
+        );
+        assert!(
+            rust.contains("match"),
+            "state machine should use match: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_multiple_yields_returns_none_when_exhausted() {
+        let code = "def gen():\n    yield 1\n    yield 2";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("None"),
+            "exhausted generator should return None: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_yield_produces_some() {
+        let code = "def gen():\n    yield 10";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Some("),
+            "yield should produce Some(...): got {}",
+            rust
+        );
+    }
+
+    // --- Yield from ---
+
+    #[test]
+    fn test_transpile_yield_from_list() {
+        let code = "def gen():\n    yield from [1, 2, 3]";
+        let rust = transpile(code);
+        // yield from should either use into_iter/chain or flatten pattern
+        assert!(
+            rust.contains("iter") || rust.contains("Iterator") || rust.contains("into_iter"),
+            "yield from list should use iteration: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_yield_from_range() {
+        let code = "def gen():\n    yield from range(5)";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Iterator") || rust.contains("iter"),
+            "yield from range should produce iterator code: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_yield_from_generator() {
+        let code = "def inner():\n    yield 1\n\ndef outer():\n    yield from inner()";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("InnerState") || rust.contains("inner"),
+            "yield from generator should reference inner gen: got {}",
+            rust
+        );
+        assert!(
+            rust.contains("OuterState") || rust.contains("outer"),
+            "yield from should produce outer state struct: got {}",
+            rust
+        );
+    }
+
+    // --- Generator expressions ---
+
+    #[test]
+    fn test_transpile_generator_expression_simple() {
+        let code = "result = (x for x in range(10))";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("map") || rust.contains("iter") || rust.contains("filter"),
+            "genexpr should use iterator combinators: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_expression_with_filter() {
+        let code = "result = (x for x in range(10) if x > 5)";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("filter") || rust.contains("if") || rust.contains("> 5"),
+            "filtered genexpr should have condition: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_expression_with_transform() {
+        let code = "result = (x * 2 for x in range(10))";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("map") || rust.contains("* 2"),
+            "transform genexpr should apply mapping: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with return value ---
+
+    #[test]
+    fn test_transpile_generator_early_return_empty() {
+        let code = "def gen(n):\n    if n < 0:\n        return\n    yield n";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("None") || rust.contains("return"),
+            "early return in generator should map to None: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_with_return_produces_struct() {
+        let code = "def gen():\n    yield 1\n    return";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "generator with return should still produce state struct: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with state variables ---
+
+    #[test]
+    fn test_transpile_generator_with_accumulator() {
+        let code =
+            "def gen(n: int):\n    total = 0\n    for i in range(n):\n        total += i\n        yield total";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "generator should create state struct: got {}",
+            rust
+        );
+        assert!(
+            rust.contains("impl Iterator"),
+            "should implement Iterator: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_fibonacci() {
+        let code = "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("FibState"),
+            "fibonacci gen should produce FibState: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with while loops ---
+
+    #[test]
+    fn test_transpile_while_loop_generator() {
+        let code = "def gen():\n    i = 0\n    while i < 5:\n        yield i\n        i += 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("self.state"),
+            "while loop gen should produce state machine: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_infinite_generator() {
+        let code =
+            "def count(start: int = 0):\n    n = start\n    while True:\n        yield n\n        n += 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("CountState"),
+            "infinite gen should produce CountState: got {}",
+            rust
+        );
+        assert!(
+            rust.contains("impl Iterator"),
+            "should implement Iterator: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with parameters ---
+
+    #[test]
+    fn test_transpile_generator_single_typed_param() {
+        let code = "def gen(n: int):\n    for i in range(n):\n        yield i";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("n:") || rust.contains("n :"),
+            "should capture param n: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_multiple_params() {
+        let code = "def gen(start: int, end: int):\n    i = start\n    while i < end:\n        yield i\n        i += 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "multi-param generator should produce state struct: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with conditionals ---
+
+    #[test]
+    fn test_transpile_generator_with_if_filter() {
+        let code =
+            "def gen(n: int):\n    for i in range(n):\n        if i % 2 == 0:\n            yield i";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("% 2") || rust.contains("== 0"),
+            "conditional generator should have modulo check: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_if_else_yield() {
+        let code = "def gen(n: int):\n    for i in range(n):\n        if i > 5:\n            yield i\n        else:\n            yield 0";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("if") && rust.contains("else"),
+            "if/else generator should preserve conditional: got {}",
+            rust
+        );
+    }
+
+    // --- Nested generators ---
+
+    #[test]
+    fn test_transpile_nested_loop_generator() {
+        let code = "def gen(rows: int, cols: int):\n    for i in range(rows):\n        for j in range(cols):\n            yield (i, j)";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "nested loop gen should produce state struct: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_pipeline() {
+        let code =
+            "def gen1():\n    yield 1\n    yield 2\n\ndef gen2():\n    for x in gen1():\n        yield x * 2";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Gen1State") || rust.contains("Gen1"),
+            "pipeline should produce Gen1State: got {}",
+            rust
+        );
+        assert!(
+            rust.contains("Gen2State") || rust.contains("Gen2"),
+            "pipeline should produce Gen2State: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with try/except ---
+
+    #[test]
+    fn test_transpile_generator_with_try_except() {
+        let code = "def gen(items):\n    for item in items:\n        try:\n            yield int(item)\n        except:\n            pass";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "try/except gen should produce state struct: got {}",
+            rust
+        );
+    }
+
+    // --- Type annotations on generators ---
+
+    #[test]
+    fn test_transpile_iterator_int_return_type() {
+        let code =
+            "from typing import Iterator\n\ndef gen() -> Iterator[int]:\n    yield 1\n    yield 2";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("i64") || rust.contains("i32"),
+            "Iterator[int] should produce integer type: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_iterator_str_return_type() {
+        let code =
+            "from typing import Iterator\n\ndef gen() -> Iterator[str]:\n    yield 'hello'";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("String"),
+            "Iterator[str] should produce String type: got {}",
+            rust
+        );
+    }
+
+    // --- State struct naming ---
+
+    #[test]
+    fn test_transpile_snake_case_generator_name() {
+        let code = "def count_up():\n    yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("CountUpState"),
+            "snake_case name should become PascalCase state struct: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_single_word_generator_name() {
+        let code = "def counter():\n    yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("CounterState"),
+            "single word should be PascalCased: got {}",
+            rust
+        );
+    }
+
+    // --- StopIteration handling ---
+
+    #[test]
+    fn test_transpile_generator_terminal_state_returns_none() {
+        let code = "def gen():\n    yield 1\n    yield 2";
+        let rust = transpile(code);
+        // Terminal state must return None (StopIteration equivalent)
+        assert!(
+            rust.contains("_ => None"),
+            "terminal state should return None for StopIteration: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with break ---
+
+    #[test]
+    fn test_transpile_generator_with_break() {
+        let code = "def gen(n: int):\n    for i in range(100):\n        if i >= n:\n            break\n        yield i";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("break"),
+            "generator with break should preserve break: got {}",
+            rust
+        );
+    }
+
+    // --- Generator consuming ---
+
+    #[test]
+    fn test_transpile_generator_consumed_in_list() {
+        let code = "def gen():\n    yield 1\n    yield 2\n\nresult = list(gen())";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("collect") || rust.contains("vec!") || rust.contains("Vec"),
+            "list(gen()) should use collect or Vec: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_consumed_in_sum() {
+        let code = "def gen():\n    yield 1\n    yield 2\n\ntotal = sum(gen())";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("sum") || rust.contains("fold"),
+            "sum(gen()) should produce sum/fold: got {}",
+            rust
+        );
+    }
+
+    // --- Public function signature ---
+
+    #[test]
+    fn test_transpile_generator_public_fn() {
+        let code = "def gen():\n    yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("pub fn gen"),
+            "generator function should be public: got {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_generator_returns_impl_iterator() {
+        let code = "def gen():\n    yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("impl Iterator"),
+            "generator fn should return impl Iterator: got {}",
+            rust
+        );
+    }
+
+    // --- Sequential loops ---
+
+    #[test]
+    fn test_transpile_sequential_loop_generator() {
+        let code = "def gen():\n    for i in range(3):\n        yield i\n    for j in range(3, 6):\n        yield j";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "sequential loop gen should produce state struct: got {}",
+            rust
+        );
+    }
+
+    // --- Yield None ---
+
+    #[test]
+    fn test_transpile_yield_none() {
+        let code = "def gen():\n    yield None";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("None"),
+            "yield None should produce None in output: got {}",
+            rust
+        );
+    }
+
+    // --- Yield expression ---
+
+    #[test]
+    fn test_transpile_yield_binary_expression() {
+        let code = "def gen(a: int, b: int):\n    yield a + b";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("+"),
+            "yield a+b should preserve addition: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with list state ---
+
+    #[test]
+    fn test_transpile_generator_list_state() {
+        let code = "def gen():\n    items = []\n    for i in range(5):\n        yield i";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "generator with list state should produce struct: got {}",
+            rust
+        );
+    }
+
+    // --- Debug derive ---
+
+    #[test]
+    fn test_transpile_generator_derives_debug() {
+        let code = "def gen():\n    yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Debug"),
+            "generator state struct should derive or impl Debug: got {}",
+            rust
+        );
+    }
+
+    // --- Yield in conditional ---
+
+    #[test]
+    fn test_transpile_yield_in_if_false_guard() {
+        let code = "def gen():\n    if False:\n        yield 1";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "guarded yield should still produce state struct: got {}",
+            rust
+        );
+    }
+
+    // --- Generator with default param ---
+
+    #[test]
+    fn test_transpile_generator_default_param() {
+        let code = "def gen(n: int = 10):\n    for i in range(n):\n        yield i";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("GenState"),
+            "generator with default param should produce struct: got {}",
+            rust
+        );
+    }
+
+    // --- Yield function call result ---
+
+    #[test]
+    fn test_transpile_yield_function_call() {
+        let code = "def gen():\n    yield len([1, 2, 3])";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("len") || rust.contains(".len()"),
+            "yield len() should produce len call: got {}",
+            rust
+        );
+    }
+
+    // --- Yield method call result ---
+
+    #[test]
+    fn test_transpile_yield_method_call() {
+        let code = "def gen():\n    yield 'hello'.upper()";
+        let rust = transpile(code);
+        assert!(
+            rust.contains("to_uppercase") || rust.contains("upper"),
+            "yield str.upper() should map to Rust uppercase: got {}",
+            rust
+        );
+    }
 }

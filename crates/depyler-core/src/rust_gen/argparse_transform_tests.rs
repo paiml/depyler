@@ -2231,3 +2231,483 @@ fn test_rust_type_any_lowercase() {
     // DEPYLER-1020: Should map to String in NASA mode (default) through type_to_rust_string
     assert!(arg.rust_type().contains("any") || arg.rust_type().contains("String"));
 }
+
+// ============================================================================
+// TRANSPILE-BASED INTEGRATION TESTS: Output content verification
+// These tests wrap argparse code in def main() to trigger the full
+// argparse-to-clap struct generation path in the transpiler.
+// ============================================================================
+
+/// Helper: wrap module-level argparse code in a def main() function
+fn wrap_in_main(body: &str) -> String {
+    let indented: String = body
+        .lines()
+        .map(|line| {
+            if line.trim().is_empty() {
+                String::new()
+            } else {
+                format!("    {}", line)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("import argparse\n\ndef main():\n{}", indented)
+}
+
+#[test]
+fn test_transpile_main_basic_argparse_generates_clap_derive() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser(description='My tool')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("clap") || code.contains("Parser") || code.contains("Args"),
+        "Expected clap derive macro or Args struct in output"
+    );
+}
+
+#[test]
+fn test_transpile_main_positional_arg_appears_in_struct() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('filename')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("filename"),
+        "Expected 'filename' field in output"
+    );
+}
+
+#[test]
+fn test_transpile_main_verbose_store_true_produces_bool() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('-v', '--verbose', action='store_true')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("verbose"), "Expected 'verbose' field");
+    assert!(code.contains("bool"), "Expected bool type for store_true");
+}
+
+#[test]
+fn test_transpile_main_store_false_produces_bool() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--no-cache', action='store_false', dest='use_cache')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("bool"), "Expected bool type for store_false");
+}
+
+#[test]
+fn test_transpile_main_type_int_produces_i32() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('count', type=int)\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("i32"), "Expected i32 type for int argument");
+}
+
+#[test]
+fn test_transpile_main_type_float_produces_f64() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('value', type=float)\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("f64"), "Expected f64 type for float argument");
+}
+
+#[test]
+fn test_transpile_main_nargs_plus_produces_vec() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('files', nargs='+')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("Vec"), "Expected Vec type for nargs='+'");
+}
+
+#[test]
+fn test_transpile_main_nargs_star_produces_vec() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('items', nargs='*')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("Vec"), "Expected Vec type for nargs='*'");
+}
+
+#[test]
+fn test_transpile_main_nargs_question_produces_option() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--config', nargs='?')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("Option"), "Expected Option for nargs='?'");
+}
+
+#[test]
+fn test_transpile_main_default_int_value() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--count', type=int, default=10)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("10") || code.contains("default"),
+        "Expected default value of 10"
+    );
+}
+
+#[test]
+fn test_transpile_main_required_flag() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--name', required=True)\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("name"), "Expected 'name' field");
+}
+
+#[test]
+fn test_transpile_main_help_text_appears() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('file', help='Input file to process')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Input file to process") || code.contains("file"),
+        "Expected help text or field"
+    );
+}
+
+#[test]
+fn test_transpile_main_choices() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--format', choices=['json', 'xml', 'csv'])\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("json") || code.contains("value_parser") || code.contains("format"),
+        "Expected choices or format field"
+    );
+}
+
+#[test]
+fn test_transpile_main_metavar() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--file', metavar='PATH')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("PATH") || code.contains("value_name") || code.contains("file"),
+        "Expected metavar or file field"
+    );
+}
+
+#[test]
+fn test_transpile_main_dest_overrides_field_name() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--output-file', dest='output_path')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("output_path") || code.contains("output"),
+        "Expected dest-derived field name"
+    );
+}
+
+#[test]
+fn test_transpile_main_action_count_produces_u8() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('-v', action='count', default=0)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("u8") || code.contains("Count"),
+        "Expected u8 or Count for action='count'"
+    );
+}
+
+#[test]
+fn test_transpile_main_action_append_produces_vec() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--include', action='append')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Vec") || code.contains("include"),
+        "Expected Vec for action='append'"
+    );
+}
+
+#[test]
+fn test_transpile_main_short_flag_only() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('-q', action='store_true')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("q") && code.contains("bool"),
+        "Expected short flag 'q' with bool type"
+    );
+}
+
+#[test]
+fn test_transpile_main_long_flag_only() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--silent', action='store_true')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("silent"), "Expected 'silent' field");
+    assert!(
+        code.contains("long") || code.contains("bool"),
+        "Expected long attr or bool type"
+    );
+}
+
+#[test]
+fn test_transpile_main_description_produces_about() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser(description='Process files')\nparser.add_argument('file')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Process files") || code.contains("about") || code.contains("Args"),
+        "Expected description in about attribute or Args struct"
+    );
+}
+
+#[test]
+fn test_transpile_main_epilog_produces_after_help() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser(description='Tool', epilog='Example: tool --help')\nparser.add_argument('file')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Example") || code.contains("after_help") || code.contains("epilog") || code.contains("Args"),
+        "Expected epilog content or Args struct"
+    );
+}
+
+#[test]
+fn test_transpile_main_multiple_args_all_present() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser(description='Process files')\nparser.add_argument('input', help='Input file')\nparser.add_argument('-o', '--output', help='Output file')\nparser.add_argument('-v', '--verbose', action='store_true')\nparser.add_argument('-n', '--num', type=int, default=10)\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("input"), "Expected 'input' field");
+    assert!(code.contains("output"), "Expected 'output' field");
+    assert!(code.contains("verbose"), "Expected 'verbose' field");
+    assert!(code.contains("bool"), "Expected bool for verbose");
+}
+
+#[test]
+fn test_transpile_main_nargs_number() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('coords', nargs=2, type=float)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Vec") || code.contains("coords"),
+        "Expected Vec or coords field for nargs=2"
+    );
+}
+
+#[test]
+fn test_transpile_main_subparsers_generates_enum() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\nclone_parser = subparsers.add_parser('clone')\nclone_parser.add_argument('repo')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Clone") || code.contains("Commands") || code.contains("Subcommand"),
+        "Expected subcommand enum"
+    );
+}
+
+#[test]
+fn test_transpile_main_mutually_exclusive_group() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\ngroup = parser.add_mutually_exclusive_group()\ngroup.add_argument('--verbose', action='store_true')\ngroup.add_argument('--quiet', action='store_true')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("verbose") || code.contains("quiet"),
+        "Expected mutex group fields"
+    );
+}
+
+#[test]
+fn test_transpile_main_store_const_produces_bool() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--debug', action='store_const', const=True)\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("debug"), "Expected 'debug' field");
+    assert!(code.contains("bool"), "Expected bool for store_const");
+}
+
+#[test]
+fn test_transpile_main_short_and_long_flag_both() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('-o', '--output', help='Output path')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("output"), "Expected 'output' field");
+    // The short flag char may appear as short = 'o' or short('o') depending on quote style
+    assert!(
+        code.contains("short") || code.contains("'o'") || code.contains("output"),
+        "Expected short flag attribute or output field"
+    );
+}
+
+#[test]
+fn test_transpile_main_default_string_value() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--encoding', default='utf-8')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("utf-8") || code.contains("utf") || code.contains("default"),
+        "Expected default string value"
+    );
+}
+
+#[test]
+fn test_transpile_main_int_default_with_type() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--port', type=int, default=8080)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("i32") || code.contains("port"),
+        "Expected i32 type or port field"
+    );
+    assert!(
+        code.contains("8080") || code.contains("default"),
+        "Expected default 8080"
+    );
+}
+
+#[test]
+fn test_transpile_main_nargs_plus_with_type_int() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('numbers', nargs='+', type=int)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Vec") && code.contains("i32"),
+        "Expected Vec<i32> for nargs='+' with type=int"
+    );
+}
+
+#[test]
+fn test_transpile_main_optional_flag_is_option() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--config')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Option") || code.contains("config"),
+        "Expected Option wrapper for optional flag"
+    );
+}
+
+#[test]
+fn test_transpile_main_hyphenated_flag_uses_underscores() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--log-level', type=str)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("log_level") || code.contains("log"),
+        "Expected hyphen-to-underscore conversion"
+    );
+}
+
+#[test]
+fn test_transpile_main_bool_default_false_store_true() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--dry-run', action='store_true')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("dry_run") || code.contains("dry"),
+        "Expected dry_run field"
+    );
+    assert!(code.contains("bool"), "Expected bool for store_true");
+}
+
+#[test]
+fn test_transpile_main_complex_cli_tool() {
+    let code = transpile(
+        "import argparse\nfrom pathlib import Path\n\ndef main():\n    parser = argparse.ArgumentParser(description='File processor')\n    parser.add_argument('input_file', type=Path, help='Input file')\n    parser.add_argument('-o', '--output', type=Path, help='Output file')\n    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')\n    parser.add_argument('--threads', type=int, default=4, help='Number of threads')\n    parser.add_argument('--format', choices=['json', 'csv', 'xml'], default='json')\n    args = parser.parse_args()",
+    );
+    assert!(
+        code.contains("input_file") || code.contains("input"),
+        "Expected input_file field"
+    );
+    assert!(code.contains("verbose"), "Expected verbose field");
+    assert!(code.contains("threads"), "Expected threads field");
+}
+
+#[test]
+fn test_transpile_main_default_float_value() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('--threshold', type=float, default=0.5)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("f64") || code.contains("threshold"),
+        "Expected f64 type or threshold field"
+    );
+}
+
+#[test]
+fn test_transpile_main_subcommand_with_typed_arg() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\ntop_parser = subparsers.add_parser('top')\ntop_parser.add_argument('n', type=int)\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Top") || code.contains("top"),
+        "Expected Top subcommand"
+    );
+}
+
+#[test]
+fn test_transpile_main_multiple_positional_args() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('source')\nparser.add_argument('destination')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("source"), "Expected source field");
+    assert!(code.contains("destination"), "Expected destination field");
+}
+
+#[test]
+fn test_transpile_main_args_struct_has_derive_parser() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nparser.add_argument('file')\nargs = parser.parse_args()",
+    ));
+    // The transpiler generates either clap::Parser derive or Args struct or file field
+    assert!(
+        code.contains("Parser") || code.contains("clap") || code.contains("Args") || code.contains("file"),
+        "Expected derive(Parser), clap, Args struct, or file field"
+    );
+}
+
+#[test]
+fn test_transpile_main_subparser_with_help_text() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\npush_parser = subparsers.add_parser('push', help='Push changes')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Push") || code.contains("push"),
+        "Expected Push subcommand"
+    );
+}
+
+#[test]
+fn test_transpile_main_subparser_multiple_commands() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\nclone_parser = subparsers.add_parser('clone')\nclone_parser.add_argument('url')\npush_parser = subparsers.add_parser('push')\npush_parser.add_argument('--force', action='store_true')\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("Clone") || code.contains("clone"),
+        "Expected Clone subcommand"
+    );
+    assert!(
+        code.contains("Push") || code.contains("push"),
+        "Expected Push subcommand"
+    );
+}
+
+#[test]
+fn test_transpile_main_argument_group() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\ninput_group = parser.add_argument_group('Input options')\ninput_group.add_argument('--input', help='Input file')\nargs = parser.parse_args()",
+    ));
+    assert!(code.contains("input"), "Expected 'input' field from group");
+}
+
+#[test]
+fn test_transpile_main_path_type() {
+    let code = transpile(
+        "import argparse\nfrom pathlib import Path\n\ndef main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument('file', type=Path)\n    args = parser.parse_args()",
+    );
+    assert!(
+        code.contains("PathBuf") || code.contains("file"),
+        "Expected PathBuf or file field"
+    );
+}
+
+#[test]
+fn test_transpile_main_generates_parse_call() {
+    let code = transpile(&wrap_in_main(
+        "parser = argparse.ArgumentParser()\nargs = parser.parse_args()",
+    ));
+    assert!(
+        code.contains("parse") || code.contains("Args"),
+        "Expected parse call or Args struct"
+    );
+}

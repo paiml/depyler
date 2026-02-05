@@ -323,6 +323,175 @@ mod tests {
         assert_eq!(deserialized.very_high, 1);
     }
 
+    // ========================================================================
+    // Additional coverage tests for metrics
+    // ========================================================================
+
+    #[test]
+    fn test_transpilation_metrics_serialization() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_millis(10),
+            analysis_time: Duration::from_millis(20),
+            transpilation_time: Duration::from_millis(30),
+            total_time: Duration::from_millis(60),
+            source_size_bytes: 100,
+            output_size_bytes: 200,
+            functions_transpiled: 3,
+            direct_transpilation_rate: 0.75,
+            mcp_fallback_count: 1,
+        };
+        let json = serde_json::to_string(&metrics).unwrap();
+        assert!(json.contains("100"));
+        let deserialized: TranspilationMetrics = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.source_size_bytes, 100);
+        assert_eq!(deserialized.functions_transpiled, 3);
+    }
+
+    #[test]
+    fn test_transpilation_metrics_debug_clone() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_millis(5),
+            analysis_time: Duration::from_millis(10),
+            transpilation_time: Duration::from_millis(15),
+            total_time: Duration::from_millis(30),
+            source_size_bytes: 500,
+            output_size_bytes: 300,
+            functions_transpiled: 2,
+            direct_transpilation_rate: 1.0,
+            mcp_fallback_count: 0,
+        };
+        let debug = format!("{:?}", metrics);
+        assert!(debug.contains("TranspilationMetrics"));
+        let cloned = metrics.clone();
+        assert_eq!(cloned.source_size_bytes, 500);
+    }
+
+    #[test]
+    fn test_quality_metrics_serialization() {
+        let qm = QualityMetrics {
+            cyclomatic_distribution: ComplexityDistribution {
+                low: 3,
+                medium: 2,
+                high: 1,
+                very_high: 0,
+            },
+            cognitive_distribution: ComplexityDistribution {
+                low: 4,
+                medium: 1,
+                high: 1,
+                very_high: 0,
+            },
+            type_coverage: 0.9,
+            panic_free_functions: 5,
+            terminating_functions: 6,
+            pure_functions: 4,
+        };
+        let json = serde_json::to_string(&qm).unwrap();
+        let deserialized: QualityMetrics = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.panic_free_functions, 5);
+        assert_eq!(deserialized.type_coverage, 0.9);
+    }
+
+    #[test]
+    fn test_quality_metrics_debug_clone() {
+        let qm = QualityMetrics {
+            cyclomatic_distribution: ComplexityDistribution::new(),
+            cognitive_distribution: ComplexityDistribution::new(),
+            type_coverage: 0.5,
+            panic_free_functions: 2,
+            terminating_functions: 3,
+            pure_functions: 1,
+        };
+        let debug = format!("{:?}", qm);
+        assert!(debug.contains("QualityMetrics"));
+        let cloned = qm.clone();
+        assert_eq!(cloned.pure_functions, 1);
+    }
+
+    #[test]
+    fn test_performance_profile_serialization() {
+        let pp = PerformanceProfile {
+            parsing_throughput_mbps: 10.5,
+            hir_generation_throughput_mbps: 5.2,
+            transpilation_throughput_mbps: 3.7,
+            memory_peak_mb: 2.1,
+        };
+        let json = serde_json::to_string(&pp).unwrap();
+        let deserialized: PerformanceProfile = serde_json::from_str(&json).unwrap();
+        assert!((deserialized.parsing_throughput_mbps - 10.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_performance_profile_debug_clone() {
+        let pp = PerformanceProfile {
+            parsing_throughput_mbps: 1.0,
+            hir_generation_throughput_mbps: 2.0,
+            transpilation_throughput_mbps: 3.0,
+            memory_peak_mb: 4.0,
+        };
+        let debug = format!("{:?}", pp);
+        assert!(debug.contains("PerformanceProfile"));
+        let cloned = pp.clone();
+        assert_eq!(cloned.memory_peak_mb, 4.0);
+    }
+
+    #[test]
+    fn test_complexity_distribution_add_boundary() {
+        let mut dist = ComplexityDistribution::new();
+        dist.add(5); // upper bound of low
+        assert_eq!(dist.low, 1);
+        dist.add(6); // lower bound of medium
+        assert_eq!(dist.medium, 1);
+        dist.add(10); // upper bound of medium
+        assert_eq!(dist.medium, 2);
+        dist.add(11); // lower bound of high
+        assert_eq!(dist.high, 1);
+        dist.add(20); // upper bound of high
+        assert_eq!(dist.high, 2);
+        dist.add(21); // lower bound of very_high
+        assert_eq!(dist.very_high, 1);
+    }
+
+    #[test]
+    fn test_complexity_distribution_clone() {
+        let dist = ComplexityDistribution {
+            low: 1,
+            medium: 2,
+            high: 3,
+            very_high: 4,
+        };
+        let cloned = dist.clone();
+        assert_eq!(cloned.low, 1);
+        assert_eq!(cloned.medium, 2);
+        assert_eq!(cloned.high, 3);
+        assert_eq!(cloned.very_high, 4);
+    }
+
+    #[test]
+    fn test_complexity_distribution_debug() {
+        let dist = ComplexityDistribution::new();
+        let debug = format!("{:?}", dist);
+        assert!(debug.contains("ComplexityDistribution"));
+    }
+
+    #[test]
+    fn test_performance_profile_large_source() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_secs(1),
+            analysis_time: Duration::from_secs(2),
+            transpilation_time: Duration::from_secs(3),
+            total_time: Duration::from_secs(6),
+            source_size_bytes: 10 * 1024 * 1024, // 10 MB
+            output_size_bytes: 5 * 1024 * 1024,
+            functions_transpiled: 100,
+            direct_transpilation_rate: 0.95,
+            mcp_fallback_count: 5,
+        };
+        let profile = PerformanceProfile::calculate(&metrics, 50 * 1024 * 1024);
+        assert!((profile.parsing_throughput_mbps - 10.0).abs() < 0.01);
+        assert!((profile.memory_peak_mb - 50.0).abs() < 0.01);
+    }
+
     #[test]
     fn test_weighted_average_calculation() {
         let mut dist = ComplexityDistribution::new();

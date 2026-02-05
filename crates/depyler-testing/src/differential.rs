@@ -618,6 +618,215 @@ mod tests {
         assert_eq!(result.passed, cloned.passed);
     }
 
+    // ========================================================================
+    // Additional coverage tests for data structures and serialization
+    // ========================================================================
+
+    #[test]
+    fn test_differential_test_result_deserialize() {
+        let json = r#"{
+            "test_name": "deser_test",
+            "passed": false,
+            "python_output": {"stdout":"py","stderr":"","exit_code":0,"runtime_ms":5},
+            "rust_output": {"stdout":"rs","stderr":"","exit_code":0,"runtime_ms":3},
+            "mismatches": [{"StdoutDifference":{"python":"py","rust":"rs","diff":"mismatch"}}]
+        }"#;
+        let result: DifferentialTestResult = serde_json::from_str(json).unwrap();
+        assert_eq!(result.test_name, "deser_test");
+        assert!(!result.passed);
+        assert_eq!(result.mismatches.len(), 1);
+    }
+
+    #[test]
+    fn test_mismatch_serialize_all_variants() {
+        let variants = vec![
+            Mismatch::StdoutDifference {
+                python: "a".to_string(),
+                rust: "b".to_string(),
+                diff: "d".to_string(),
+            },
+            Mismatch::StderrDifference {
+                python: "err_a".to_string(),
+                rust: "err_b".to_string(),
+            },
+            Mismatch::ExitCodeDifference { python: 0, rust: 1 },
+        ];
+        for v in &variants {
+            let json = serde_json::to_string(v).unwrap();
+            assert!(!json.is_empty());
+            let deserialized: Mismatch = serde_json::from_str(&json).unwrap();
+            assert_eq!(v, &deserialized);
+        }
+    }
+
+    #[test]
+    fn test_program_output_ne() {
+        let out1 = ProgramOutput {
+            stdout: "a".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 10,
+        };
+        let out2 = ProgramOutput {
+            stdout: "b".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 10,
+        };
+        assert_ne!(out1, out2);
+    }
+
+    #[test]
+    fn test_program_output_exit_code_ne() {
+        let out1 = ProgramOutput {
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 0,
+        };
+        let out2 = ProgramOutput {
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            exit_code: 1,
+            runtime_ms: 0,
+        };
+        assert_ne!(out1, out2);
+    }
+
+    #[test]
+    fn test_differential_test_result_serialize_roundtrip() {
+        let result = DifferentialTestResult {
+            test_name: "roundtrip".to_string(),
+            passed: false,
+            python_output: ProgramOutput {
+                stdout: "42\n".to_string(),
+                stderr: "warning".to_string(),
+                exit_code: 0,
+                runtime_ms: 15,
+            },
+            rust_output: ProgramOutput {
+                stdout: "43\n".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 3,
+            },
+            mismatches: vec![
+                Mismatch::StdoutDifference {
+                    python: "42".to_string(),
+                    rust: "43".to_string(),
+                    diff: "off by one".to_string(),
+                },
+            ],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: DifferentialTestResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(result, deserialized);
+    }
+
+    #[test]
+    fn test_differential_test_result_debug() {
+        let result = DifferentialTestResult {
+            test_name: "debug_test".to_string(),
+            passed: true,
+            python_output: ProgramOutput {
+                stdout: "".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 0,
+            },
+            rust_output: ProgramOutput {
+                stdout: "".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 0,
+            },
+            mismatches: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("debug_test"));
+        assert!(debug.contains("DifferentialTestResult"));
+    }
+
+    #[test]
+    fn test_mismatch_eq() {
+        let m1 = Mismatch::ExitCodeDifference { python: 0, rust: 1 };
+        let m2 = Mismatch::ExitCodeDifference { python: 0, rust: 1 };
+        let m3 = Mismatch::ExitCodeDifference { python: 0, rust: 2 };
+        assert_eq!(m1, m2);
+        assert_ne!(m1, m3);
+    }
+
+    #[test]
+    fn test_mismatch_debug_all_variants() {
+        let variants = vec![
+            Mismatch::StdoutDifference {
+                python: "p".to_string(),
+                rust: "r".to_string(),
+                diff: "d".to_string(),
+            },
+            Mismatch::StderrDifference {
+                python: "pe".to_string(),
+                rust: "re".to_string(),
+            },
+            Mismatch::ExitCodeDifference { python: 0, rust: 1 },
+        ];
+        for v in &variants {
+            let debug = format!("{:?}", v);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_program_output_with_large_output() {
+        let large = "x".repeat(10000);
+        let output = ProgramOutput {
+            stdout: large.clone(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 100,
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        let deserialized: ProgramOutput = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.stdout, large);
+    }
+
+    #[test]
+    fn test_differential_test_result_multiple_mismatches() {
+        let result = DifferentialTestResult {
+            test_name: "multi_mismatch".to_string(),
+            passed: false,
+            python_output: ProgramOutput {
+                stdout: "hello".to_string(),
+                stderr: "err".to_string(),
+                exit_code: 0,
+                runtime_ms: 10,
+            },
+            rust_output: ProgramOutput {
+                stdout: "world".to_string(),
+                stderr: "error".to_string(),
+                exit_code: 1,
+                runtime_ms: 5,
+            },
+            mismatches: vec![
+                Mismatch::StdoutDifference {
+                    python: "hello".to_string(),
+                    rust: "world".to_string(),
+                    diff: "different".to_string(),
+                },
+                Mismatch::StderrDifference {
+                    python: "err".to_string(),
+                    rust: "error".to_string(),
+                },
+                Mismatch::ExitCodeDifference { python: 0, rust: 1 },
+            ],
+        };
+        assert_eq!(result.mismatches.len(), 3);
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("StdoutDifference"));
+        assert!(json.contains("StderrDifference"));
+        assert!(json.contains("ExitCodeDifference"));
+    }
+
     #[test]
     #[ignore] // Requires external tools
     fn test_normalize_output() {

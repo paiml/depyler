@@ -333,4 +333,253 @@ def c():
         let c_score = scores.iter().find(|s| s.node_id == "c");
         assert!(c_score.is_some());
     }
+
+    #[test]
+    fn test_impact_scorer_empty_graph() {
+        let graph = DependencyGraph::new();
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors);
+        let scores = scorer.calculate_impact();
+        assert!(scores.is_empty());
+    }
+
+    #[test]
+    fn test_with_damping_clamped() {
+        let graph = DependencyGraph::new();
+        let errors: Vec<OverlaidError> = vec![];
+
+        // Damping > 1.0 should be clamped to 1.0
+        let scorer = ImpactScorer::new(&graph, &errors).with_damping(2.0);
+        assert_eq!(scorer.damping, 1.0);
+
+        // Damping < 0.0 should be clamped to 0.0
+        let scorer = ImpactScorer::new(&graph, &errors).with_damping(-0.5);
+        assert_eq!(scorer.damping, 0.0);
+
+        // Normal damping preserved
+        let scorer = ImpactScorer::new(&graph, &errors).with_damping(0.5);
+        assert!((scorer.damping - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_with_iterations_minimum_1() {
+        let graph = DependencyGraph::new();
+        let errors: Vec<OverlaidError> = vec![];
+
+        // 0 iterations should become 1
+        let scorer = ImpactScorer::new(&graph, &errors).with_iterations(0);
+        assert_eq!(scorer.iterations, 1);
+
+        // Normal iterations preserved
+        let scorer = ImpactScorer::new(&graph, &errors).with_iterations(100);
+        assert_eq!(scorer.iterations, 100);
+    }
+
+    #[test]
+    fn test_identify_patient_zeros_empty_scores() {
+        let graph = DependencyGraph::new();
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors);
+
+        let patient_zeros = scorer.identify_patient_zeros(&[], 5);
+        assert!(patient_zeros.is_empty());
+    }
+
+    #[test]
+    fn test_patient_zero_fix_priority_ordering() {
+        let python = r#"
+def bug_a():
+    return "x"
+
+def bug_b():
+    return bug_a()
+
+def caller1():
+    return bug_a()
+
+def caller2():
+    return bug_a()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let raw_errors = vec![
+            ("E0308".to_string(), "error".to_string(), 10),
+            ("E0308".to_string(), "error".to_string(), 50),
+            ("E0308".to_string(), "error".to_string(), 80),
+        ];
+        let overlaid = overlay.overlay_errors(&raw_errors);
+
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        let pzs = scorer.identify_patient_zeros(&scores, 5);
+
+        // Fix priorities should be sequential starting from 1
+        for (i, pz) in pzs.iter().enumerate() {
+            assert_eq!(pz.fix_priority, i + 1);
+        }
+    }
+
+    #[test]
+    fn test_patient_zero_impact_score_positive() {
+        let python = r#"
+def root():
+    return "bug"
+
+def user():
+    return root()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        let raw_errors = vec![("E0308".to_string(), "error".to_string(), 10)];
+        let overlaid = overlay.overlay_errors(&raw_errors);
+
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        let pzs = scorer.identify_patient_zeros(&scores, 5);
+
+        // All patient zeros should have positive impact
+        for pz in &pzs {
+            assert!(pz.impact_score > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_patient_zero_top_n_limit() {
+        let python = r#"
+def a():
+    return 1
+def b():
+    return 2
+def c():
+    return 3
+def d():
+    return 4
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlay = ErrorOverlay::new(&graph);
+        // Errors at different lines to associate with different nodes
+        let raw_errors = vec![
+            ("E0308".to_string(), "e1".to_string(), 10),
+            ("E0308".to_string(), "e2".to_string(), 30),
+            ("E0308".to_string(), "e3".to_string(), 50),
+            ("E0308".to_string(), "e4".to_string(), 70),
+        ];
+        let overlaid = overlay.overlay_errors(&raw_errors);
+
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+
+        // Request only top 2
+        let pzs = scorer.identify_patient_zeros(&scores, 2);
+        assert!(pzs.len() <= 2);
+    }
+
+    #[test]
+    fn test_impact_score_serde_roundtrip() {
+        let score = ImpactScore {
+            node_id: "foo".to_string(),
+            direct_errors: 3,
+            downstream_errors: 5,
+            pagerank_score: 0.42,
+            total_impact: 7.2,
+        };
+
+        let json = serde_json::to_string(&score).unwrap();
+        let deserialized: ImpactScore = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.node_id, "foo");
+        assert_eq!(deserialized.direct_errors, 3);
+        assert_eq!(deserialized.downstream_errors, 5);
+        assert!((deserialized.pagerank_score - 0.42).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_patient_zero_serde_roundtrip() {
+        let pz = PatientZero {
+            node_id: "root_cause".to_string(),
+            impact_score: 15.5,
+            direct_errors: 2,
+            downstream_affected: 4,
+            fix_priority: 1,
+            estimated_fix_impact: 6,
+        };
+
+        let json = serde_json::to_string(&pz).unwrap();
+        let deserialized: PatientZero = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.node_id, "root_cause");
+        assert_eq!(deserialized.fix_priority, 1);
+        assert_eq!(deserialized.estimated_fix_impact, 6);
+    }
+
+    #[test]
+    fn test_direct_errors_counted_correctly() {
+        let python = "def target():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let overlaid = vec![
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "a".to_string(),
+                rust_line: 1,
+                python_line_estimate: 2,
+                node_id: Some("target".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "b".to_string(),
+                rust_line: 2,
+                python_line_estimate: 2,
+                node_id: Some("target".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+        ];
+
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+
+        let target_score = scores.iter().find(|s| s.node_id == "target").unwrap();
+        assert_eq!(target_score.direct_errors, 2);
+    }
+
+    #[test]
+    fn test_pagerank_scores_all_nonnegative() {
+        let python = r#"
+def a():
+    return b()
+def b():
+    return c()
+def c():
+    return 1
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors).with_iterations(100);
+        let scores = scorer.calculate_impact();
+
+        // All PageRank scores should be non-negative
+        for score in &scores {
+            assert!(
+                score.pagerank_score >= 0.0,
+                "Negative pagerank for {}",
+                score.node_id
+            );
+        }
+        // Chain: a -> b -> c. c is most depended-upon, should have highest pagerank
+        let a_pr = scores.iter().find(|s| s.node_id == "a").unwrap().pagerank_score;
+        let c_pr = scores.iter().find(|s| s.node_id == "c").unwrap().pagerank_score;
+        assert!(c_pr >= a_pr, "c should have higher pagerank than a");
+    }
 }

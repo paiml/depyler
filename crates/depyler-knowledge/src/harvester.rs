@@ -235,4 +235,150 @@ mod tests {
         assert_eq!(result.all_files().len(), 1);
         assert_eq!(result.all_files()[0], Path::new("b.py"));
     }
+
+    #[test]
+    fn test_harvest_result_empty_no_files() {
+        let result = HarvestResult {
+            package: "empty".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![],
+            source_files: vec![],
+            has_types_package: false,
+        };
+        assert!(!result.has_stubs());
+        assert!(result.all_files().is_empty());
+    }
+
+    #[test]
+    fn test_harvest_result_multiple_stubs() {
+        let result = HarvestResult {
+            package: "multi".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![
+                PathBuf::from("a.pyi"),
+                PathBuf::from("b.pyi"),
+                PathBuf::from("c.pyi"),
+            ],
+            source_files: vec![PathBuf::from("d.py")],
+            has_types_package: true,
+        };
+        assert!(result.has_stubs());
+        // Should return stubs, not sources
+        assert_eq!(result.all_files().len(), 3);
+    }
+
+    #[test]
+    fn test_harvest_result_clone() {
+        let result = HarvestResult {
+            package: "pkg".to_string(),
+            root: PathBuf::from("/tmp/test"),
+            stub_files: vec![PathBuf::from("x.pyi")],
+            source_files: vec![],
+            has_types_package: true,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.package, "pkg");
+        assert_eq!(cloned.root, PathBuf::from("/tmp/test"));
+        assert_eq!(cloned.stub_files.len(), 1);
+        assert!(cloned.has_types_package);
+    }
+
+    #[test]
+    fn test_harvest_result_debug() {
+        let result = HarvestResult {
+            package: "test".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![],
+            source_files: vec![],
+            has_types_package: false,
+        };
+        let debug_str = format!("{result:?}");
+        assert!(debug_str.contains("test"));
+        assert!(debug_str.contains("HarvestResult"));
+    }
+
+    #[test]
+    fn test_harvester_creates_directory() {
+        let temp = TempDir::new().unwrap();
+        let nested = temp.path().join("a").join("b").join("c");
+        let harvester = Harvester::new(&nested).unwrap();
+        assert!(harvester.target_dir().exists());
+        assert!(nested.is_dir());
+    }
+
+    #[test]
+    fn test_harvester_target_dir() {
+        let temp = TempDir::new().unwrap();
+        let harvester = Harvester::new(temp.path()).unwrap();
+        assert_eq!(harvester.target_dir(), temp.path());
+    }
+
+    #[test]
+    fn test_harvester_cleanup() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.path().join("harvest");
+        let harvester = Harvester::new(&target).unwrap();
+        assert!(target.exists());
+
+        harvester.cleanup().unwrap();
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn test_harvester_cleanup_nonexistent_is_ok() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.path().join("nonexistent");
+        // Create and immediately remove
+        std::fs::create_dir_all(&target).unwrap();
+        let harvester = Harvester::new(&target).unwrap();
+        std::fs::remove_dir_all(&target).unwrap();
+
+        // Cleanup on nonexistent path should succeed
+        assert!(harvester.cleanup().is_ok());
+    }
+
+    #[test]
+    fn test_harvester_find_files_by_extension() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+
+        // Create test files
+        std::fs::write(root.join("a.pyi"), "").unwrap();
+        std::fs::write(root.join("b.pyi"), "").unwrap();
+        std::fs::write(root.join("c.py"), "").unwrap();
+        std::fs::write(root.join("d.txt"), "").unwrap();
+
+        let harvester = Harvester::new(root).unwrap();
+        let pyi_files = harvester.find_files_by_extension(root, "pyi");
+        assert_eq!(pyi_files.len(), 2);
+
+        let py_files = harvester.find_files_by_extension(root, "py");
+        assert_eq!(py_files.len(), 1);
+
+        let txt_files = harvester.find_files_by_extension(root, "txt");
+        assert_eq!(txt_files.len(), 1);
+    }
+
+    #[test]
+    fn test_harvester_find_files_nested_dirs() {
+        let temp = TempDir::new().unwrap();
+        let root = temp.path();
+
+        let subdir = root.join("subpkg");
+        std::fs::create_dir_all(&subdir).unwrap();
+        std::fs::write(root.join("top.pyi"), "").unwrap();
+        std::fs::write(subdir.join("nested.pyi"), "").unwrap();
+
+        let harvester = Harvester::new(root).unwrap();
+        let files = harvester.find_files_by_extension(root, "pyi");
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn test_harvester_find_files_empty_dir() {
+        let temp = TempDir::new().unwrap();
+        let harvester = Harvester::new(temp.path()).unwrap();
+        let files = harvester.find_files_by_extension(temp.path(), "pyi");
+        assert!(files.is_empty());
+    }
 }
