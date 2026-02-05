@@ -198,7 +198,10 @@ impl TypeInferenceTelemetry {
 
     /// Get all events
     pub fn events(&self) -> Vec<UnknownTypeEvent> {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Get stats by expression kind
@@ -224,7 +227,10 @@ impl TypeInferenceTelemetry {
 
     /// Clear all recorded data
     pub fn clear(&self) {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         self.stats.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 

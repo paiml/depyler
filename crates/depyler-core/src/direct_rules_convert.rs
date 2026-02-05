@@ -4613,14 +4613,18 @@ impl<'a> ExprConverter<'a> {
                                 // NASA mode: compile returns the pattern string
                                 Ok(parse_quote! { #pattern.to_string() })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(#pattern).expect("invalid regex") })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(#pattern).expect("invalid regex") },
+                                )
                             };
                         } else {
                             let pattern_expr = self.convert(&args[0])?;
                             return if nasa_mode {
                                 Ok(parse_quote! { (#pattern_expr).to_string() })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex") })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex") },
+                                )
                             };
                         }
                     }
@@ -5066,7 +5070,9 @@ impl<'a> ExprConverter<'a> {
                         if self.type_mapper.nasa_mode {
                             return Ok(parse_quote! { format!("{:?}", #obj) });
                         }
-                        return Ok(parse_quote! { serde_json::to_string(&#obj).expect("JSON serialize failed") });
+                        return Ok(
+                            parse_quote! { serde_json::to_string(&#obj).expect("JSON serialize failed") },
+                        );
                     }
                     "loads" if !arg_exprs.is_empty() => {
                         let _s = &arg_exprs[0];

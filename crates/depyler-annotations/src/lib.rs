@@ -490,8 +490,17 @@ impl AnnotationParser {
 
         for line in source.lines() {
             if let Some(captures) = self.pattern.captures(line) {
-                let key = captures.get(1).expect("capture group 1 exists").as_str().to_string();
-                let value = captures.get(2).expect("capture group 2 exists").as_str().trim_matches('"').trim();
+                let key = captures
+                    .get(1)
+                    .expect("capture group 1 exists")
+                    .as_str()
+                    .to_string();
+                let value = captures
+                    .get(2)
+                    .expect("capture group 2 exists")
+                    .as_str()
+                    .trim_matches('"')
+                    .trim();
 
                 // Special handling for custom_attribute - accumulate instead of replace
                 if key == "custom_attribute" {

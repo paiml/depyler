@@ -1066,7 +1066,8 @@ pub(crate) fn codegen_return_stmt(
                 if is_optional_typed {
                     // For &Option<T> parameters, need (*var).unwrap() to get T
                     // Since optional params are passed by reference: &Option<T>
-                    expr_tokens = parse_quote! { (*#expr_tokens).expect("optional parameter unwrap failed") };
+                    expr_tokens =
+                        parse_quote! { (*#expr_tokens).expect("optional parameter unwrap failed") };
                 }
             }
         }
@@ -4757,7 +4758,8 @@ pub(crate) fn codegen_assign_stmt(
                 value_expr = parse_quote! { #value_expr? };
             } else {
                 // Current function doesn't return Result - add .unwrap() to extract the value
-                value_expr = parse_quote! { #value_expr.expect("function call result unwrap failed") };
+                value_expr =
+                    parse_quote! { #value_expr.expect("function call result unwrap failed") };
             }
         }
     }

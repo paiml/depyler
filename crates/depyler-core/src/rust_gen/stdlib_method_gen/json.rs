@@ -106,7 +106,9 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
         )
     } else {
         // json.loads(s) → serde_json::from_str::<Value>(&s).unwrap()
-        Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).expect("JSON operation failed") })
+        Ok(
+            parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).expect("JSON operation failed") },
+        )
     }
 }
 
@@ -142,7 +144,9 @@ fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn
             }
         })
     } else {
-        Ok(parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).expect("JSON operation failed") })
+        Ok(
+            parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).expect("JSON operation failed") },
+        )
     }
 }
 

@@ -533,7 +533,11 @@ impl ProfilingReport {
     fn format_function_metrics(&self, output: &mut String) {
         output.push_str(&format!("{}\n", "Function Metrics".bold()));
         let mut sorted_metrics: Vec<_> = self.metrics.values().collect();
-        sorted_metrics.sort_by(|a, b| b.time_percentage.partial_cmp(&a.time_percentage).unwrap_or(std::cmp::Ordering::Equal));
+        sorted_metrics.sort_by(|a, b| {
+            b.time_percentage
+                .partial_cmp(&a.time_percentage)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         for metrics in sorted_metrics.iter().take(10) {
             let hot_marker = if metrics.is_hot { "🔥" } else { "  " };

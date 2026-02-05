@@ -85,12 +85,14 @@ impl AutoFixer {
             vec![
                 TransformRule {
                     name: "pre_compute_is_some".to_string(),
-                    error_pattern: Regex::new(r"borrow of moved value.*\.is_some\(\)").expect("static regex"),
+                    error_pattern: Regex::new(r"borrow of moved value.*\.is_some\(\)")
+                        .expect("static regex"),
                     transform: fix_pre_compute_is_some,
                 },
                 TransformRule {
                     name: "pre_compute_is_none".to_string(),
-                    error_pattern: Regex::new(r"borrow of moved value.*\.is_none\(\)").expect("static regex"),
+                    error_pattern: Regex::new(r"borrow of moved value.*\.is_none\(\)")
+                        .expect("static regex"),
                     transform: fix_pre_compute_is_none,
                 },
                 TransformRule {
@@ -113,7 +115,8 @@ impl AutoFixer {
                 },
                 TransformRule {
                     name: "string_to_str".to_string(),
-                    error_pattern: Regex::new(r"expected `&str`, found `String`").expect("static regex"),
+                    error_pattern: Regex::new(r"expected `&str`, found `String`")
+                        .expect("static regex"),
                     transform: fix_string_to_str,
                 },
             ],
@@ -230,7 +233,8 @@ impl AutoFixer {
 
     /// Extract variable name from error message.
     fn extract_var_name(msg: &str) -> Option<String> {
-        let re = Regex::new(r"`([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)`").expect("static regex");
+        let re = Regex::new(r"`([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)`")
+            .expect("static regex");
         re.captures(msg).map(|c| c[1].to_string())
     }
 
