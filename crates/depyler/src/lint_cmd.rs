@@ -702,4 +702,282 @@ mod tests {
         assert_eq!(report.compliant_files, 1);
         assert!((report.compliance_rate - 50.0).abs() < 0.1);
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S8B6: Additional coverage tests
+    // ========================================================================
+
+    #[test]
+    fn test_lint_getattr_def_prohibited() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(
+            &py_file,
+            "class Foo:\n    def __getattr__(self, name):\n        pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP009));
+    }
+
+    #[test]
+    fn test_lint_setattr_def_prohibited() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(
+            &py_file,
+            "class Foo:\n    def __setattr__(self, name, value):\n        pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP010));
+    }
+
+    #[test]
+    fn test_lint_dynamic_import_prohibited() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "mod = __import__('os')\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP015));
+        // DP015 is a Warning, not Error
+        assert!(report.violations.iter().any(|v| v.severity == Severity::Warning));
+    }
+
+    #[test]
+    fn test_lint_comment_line_skipped() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("ok.py");
+        // eval in a comment should not trigger
+        fs::write(&py_file, "# eval('something')\nx = 1\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP003));
+    }
+
+    #[test]
+    fn test_lint_metaclass_variant() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "__metaclass__ = type\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP007));
+    }
+
+    #[test]
+    fn test_lint_strict_missing_return_type() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "def add(a: int, b: int):\n    return a + b\n").unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP001));
+    }
+
+    #[test]
+    fn test_lint_strict_missing_param_type() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "def add(a, b) -> int:\n    return a + b\n").unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP002));
+    }
+
+    #[test]
+    fn test_lint_single_inheritance_ok() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("ok.py");
+        fs::write(
+            &py_file,
+            "class Dog(Animal):\n    def bark(self) -> str:\n        return 'woof'\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP008));
+    }
+
+    #[test]
+    fn test_lint_generic_inheritance_not_multi() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("ok.py");
+        // Generic[T] should not count as multiple inheritance
+        fs::write(
+            &py_file,
+            "from typing import Generic, TypeVar\nT = TypeVar('T')\nclass Box(Generic[T]):\n    pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP008));
+    }
+
+    #[test]
+    fn test_empty_corpus() {
+        let temp = TempDir::new().unwrap();
+        // No .py files
+        let report = lint_corpus(temp.path(), false).unwrap();
+        assert_eq!(report.total_files, 0);
+        assert_eq!(report.compliant_files, 0);
+        assert_eq!(report.compliance_rate, 100.0);
+    }
+
+    #[test]
+    fn test_find_pattern_column_found() {
+        assert_eq!(find_pattern_column("x = eval('y')", "eval"), 5);
+    }
+
+    #[test]
+    fn test_find_pattern_column_not_found() {
+        assert_eq!(find_pattern_column("x = 1", "eval"), 1);
+    }
+
+    #[test]
+    fn test_find_function_line_found() {
+        let source = "x = 1\ndef foo(a: int) -> int:\n    return a\n";
+        assert_eq!(find_function_line(source, "foo"), 2);
+    }
+
+    #[test]
+    fn test_find_function_line_not_found() {
+        let source = "x = 1\n";
+        assert_eq!(find_function_line(source, "missing"), 1);
+    }
+
+    #[test]
+    fn test_get_source_line() {
+        let source = "line1\nline2\nline3";
+        assert_eq!(get_source_line(source, 2), Some("line2".to_string()));
+        assert_eq!(get_source_line(source, 0), Some("line1".to_string())); // saturating_sub
+        assert_eq!(get_source_line(source, 100), None);
+    }
+
+    #[test]
+    fn test_is_untyped_unknown() {
+        use depyler_core::hir::Type;
+        assert!(is_untyped(&Type::Unknown));
+    }
+
+    #[test]
+    fn test_is_untyped_any() {
+        use depyler_core::hir::Type;
+        assert!(is_untyped(&Type::Custom("Any".to_string())));
+    }
+
+    #[test]
+    fn test_is_untyped_typed() {
+        use depyler_core::hir::Type;
+        assert!(!is_untyped(&Type::Int));
+        assert!(!is_untyped(&Type::String));
+        assert!(!is_untyped(&Type::Custom("MyClass".to_string())));
+    }
+
+    #[test]
+    fn test_contains_function_call_at_start() {
+        assert!(contains_function_call("eval('x')", "eval"));
+    }
+
+    #[test]
+    fn test_contains_function_call_no_match() {
+        assert!(!contains_function_call("no_call_here", "eval"));
+    }
+
+    #[test]
+    fn test_violation_severity_eq() {
+        assert_eq!(Severity::Error, Severity::Error);
+        assert_eq!(Severity::Warning, Severity::Warning);
+        assert_ne!(Severity::Error, Severity::Warning);
+    }
+
+    #[test]
+    fn test_violation_clone() {
+        let v = Violation {
+            line: 1,
+            column: 1,
+            code: "DP001".to_string(),
+            message: "test".to_string(),
+            severity: Severity::Error,
+            source_line: Some("test line".to_string()),
+        };
+        let v2 = v.clone();
+        assert_eq!(v2.code, "DP001");
+        assert_eq!(v2.line, 1);
+    }
+
+    #[test]
+    fn test_file_report_clone() {
+        let r = FileReport {
+            path: PathBuf::from("test.py"),
+            violations: vec![],
+            compliant: true,
+        };
+        let r2 = r.clone();
+        assert!(r2.compliant);
+    }
+
+    #[test]
+    fn test_corpus_report_serialize() {
+        let report = CorpusReport {
+            total_files: 1,
+            compliant_files: 1,
+            compliance_rate: 100.0,
+            files: vec![],
+            violation_counts: std::collections::HashMap::new(),
+        };
+        let json = serde_json::to_string(&report).unwrap();
+        assert!(json.contains("total_files"));
+    }
+
+    #[test]
+    fn test_lint_multiple_violations_same_file() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(
+            &py_file,
+            "x = eval('1')\ny = exec('2')\nz = getattr(o, 'a')\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.len() >= 3);
+        assert!(report.violations.iter().any(|v| v.code == codes::DP003));
+        assert!(report.violations.iter().any(|v| v.code == codes::DP004));
+        assert!(report.violations.iter().any(|v| v.code == codes::DP005));
+    }
+
+    #[test]
+    fn test_violation_source_line_present() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "x = eval('1')\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        let v = &report.violations[0];
+        assert!(v.source_line.is_some());
+        assert!(v.source_line.as_ref().unwrap().contains("eval"));
+    }
+
+    #[test]
+    fn test_codes_constants() {
+        assert_eq!(codes::DP001, "DP001");
+        assert_eq!(codes::DP002, "DP002");
+        assert_eq!(codes::DP003, "DP003");
+        assert_eq!(codes::DP004, "DP004");
+        assert_eq!(codes::DP005, "DP005");
+        assert_eq!(codes::DP006, "DP006");
+        assert_eq!(codes::DP007, "DP007");
+        assert_eq!(codes::DP008, "DP008");
+        assert_eq!(codes::DP009, "DP009");
+        assert_eq!(codes::DP010, "DP010");
+        assert_eq!(codes::DP011, "DP011");
+        assert_eq!(codes::DP012, "DP012");
+        assert_eq!(codes::DP013, "DP013");
+        assert_eq!(codes::DP014, "DP014");
+        assert_eq!(codes::DP015, "DP015");
+    }
 }
