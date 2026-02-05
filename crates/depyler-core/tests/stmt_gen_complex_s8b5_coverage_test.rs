@@ -617,7 +617,10 @@ def f() -> int:
 "#,
     );
     assert!(code.contains("fn f"), "code: {code}");
-    assert!(code.contains("let mut"), "should detect mutable var: {code}");
+    assert!(
+        code.contains("let mut"),
+        "should detect mutable var: {code}"
+    );
 }
 
 #[test]

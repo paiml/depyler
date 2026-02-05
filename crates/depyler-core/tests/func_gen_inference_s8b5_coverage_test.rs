@@ -419,7 +419,10 @@ def f(s: str) -> str:
 "#,
     );
     assert!(code.contains("fn f"), "code: {code}");
-    assert!(code.contains("String") || code.contains("str"), "should return string type: {code}");
+    assert!(
+        code.contains("String") || code.contains("str"),
+        "should return string type: {code}"
+    );
 }
 
 // ── Error type with raise ────────────────────────────────────────
@@ -452,7 +455,10 @@ class Counter:
         return self.count
 "#,
     );
-    assert!(code.contains("Counter") || code.contains("fn"), "code: {code}");
+    assert!(
+        code.contains("Counter") || code.contains("fn"),
+        "code: {code}"
+    );
 }
 
 // ── Lifetime analysis (DEPYLER-0275) ──────────────────────────────

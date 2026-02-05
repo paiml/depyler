@@ -1350,10 +1350,7 @@ mod tests {
 
     #[test]
     fn test_string_impl_split_on() {
-        assert_eq!(
-            String::from("a,b,c").split_on(","),
-            vec!["a", "b", "c"]
-        );
+        assert_eq!(String::from("a,b,c").split_on(","), vec!["a", "b", "c"]);
     }
 
     #[test]
@@ -1474,10 +1471,7 @@ mod tests {
 
     #[test]
     fn test_string_impl_join_py() {
-        assert_eq!(
-            String::from(", ").join_py(vec!["a", "b", "c"]),
-            "a, b, c"
-        );
+        assert_eq!(String::from(", ").join_py(vec!["a", "b", "c"]), "a, b, c");
     }
 
     #[test]

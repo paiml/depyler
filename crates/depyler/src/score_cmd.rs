@@ -108,14 +108,14 @@ fn score_file(
         type_check_ok,
         build_ok,
         errors: &errors,
-        doctest_pass: false,       // would need to run doctests
-        unit_test_pass: false,     // would need to run tests
-        property_test_pass: false, // would need to run property tests
-        clippy_clean: false,       // would need to run clippy
+        doctest_pass: false,          // would need to run doctests
+        unit_test_pass: false,        // would need to run tests
+        property_test_pass: false,    // would need to run property tests
+        clippy_clean: false,          // would need to run clippy
         tdg_grade_b_or_better: false, // would need PMAT
-        complexity_ok: true,       // assume OK for now
-        trace_match: false,        // requires Renacer
-        output_equiv: false,       // requires running both
+        complexity_ok: true,          // assume OK for now
+        trace_match: false,           // requires Renacer
+        output_equiv: false,          // requires running both
     });
 
     let score = calculator.calculate(&breakdown, mode);
@@ -274,7 +274,11 @@ fn format_human(report: &CorpusScoreReport) -> String {
     // Summary
     output.push_str(&format!("Files scored: {}\n", report.results.len()));
 
-    let gateway_passed = report.results.iter().filter(|r| r.score.gateway_passed).count();
+    let gateway_passed = report
+        .results
+        .iter()
+        .filter(|r| r.score.gateway_passed)
+        .count();
     output.push_str(&format!(
         "Gateway passed: {}/{} ({:.1}%)\n",
         gateway_passed,
@@ -379,7 +383,11 @@ fn format_markdown(report: &CorpusScoreReport) -> String {
     output.push_str("## Summary\n\n");
     output.push_str(&format!("- **Files scored**: {}\n", report.results.len()));
 
-    let gateway_passed = report.results.iter().filter(|r| r.score.gateway_passed).count();
+    let gateway_passed = report
+        .results
+        .iter()
+        .filter(|r| r.score.gateway_passed)
+        .count();
     output.push_str(&format!(
         "- **Gateway passed**: {}/{} ({:.1}%)\n",
         gateway_passed,
@@ -658,7 +666,12 @@ mod tests {
         let json_str = format_json(&report).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
         assert!(parsed["category_averages"]["compilation"].as_u64().unwrap() > 0);
-        assert!(parsed["category_averages"]["type_inference"].as_u64().unwrap() > 0);
+        assert!(
+            parsed["category_averages"]["type_inference"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
     }
 
     #[test]
@@ -776,7 +789,11 @@ pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
             }
         }
     }
-    eprintln!("\r[{}/{}] Scoring... 100%", python_files.len(), python_files.len());
+    eprintln!(
+        "\r[{}/{}] Scoring... 100%",
+        python_files.len(),
+        python_files.len()
+    );
     println!();
 
     // Aggregate results

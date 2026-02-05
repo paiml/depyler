@@ -1206,7 +1206,10 @@ mod tests {
                 branch_coverage: 0.85,
                 function_coverage: 0.95,
             },
-            gates_passed: vec!["PMAT TDG Range".to_string(), "Complexity Limits".to_string()],
+            gates_passed: vec![
+                "PMAT TDG Range".to_string(),
+                "Complexity Limits".to_string(),
+            ],
             gates_failed: vec![],
             overall_status: QualityStatus::Passed,
         };

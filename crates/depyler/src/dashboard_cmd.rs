@@ -801,13 +801,19 @@ mod tests {
     #[test]
     fn test_scipy_has_unmapped_functions() {
         let coverage = get_scipy_coverage();
-        assert!(coverage.mappings.iter().any(|m| m.status == MigrationStatus::Unmapped));
+        assert!(coverage
+            .mappings
+            .iter()
+            .any(|m| m.status == MigrationStatus::Unmapped));
     }
 
     #[test]
     fn test_pandas_has_partial_functions() {
         let coverage = get_pandas_coverage();
-        assert!(coverage.mappings.iter().any(|m| m.status == MigrationStatus::Partial));
+        assert!(coverage
+            .mappings
+            .iter()
+            .any(|m| m.status == MigrationStatus::Partial));
     }
 
     #[test]

@@ -166,7 +166,11 @@ fn test_fallback_type_annotation_nasa_mode() {
     // Default TypeMapper has nasa_mode = true
     let tokens = ctx.fallback_type_annotation();
     let s = tokens.to_string();
-    assert!(s.contains("String"), "NASA mode should return `: String`, got: {}", s);
+    assert!(
+        s.contains("String"),
+        "NASA mode should return `: String`, got: {}",
+        s
+    );
 }
 
 #[test]
@@ -174,7 +178,11 @@ fn test_fallback_type_nasa_mode() {
     let mut ctx = CodeGenContext::default();
     let tokens = ctx.fallback_type();
     let s = tokens.to_string();
-    assert!(s.contains("String"), "NASA mode should return `String`, got: {}", s);
+    assert!(
+        s.contains("String"),
+        "NASA mode should return `String`, got: {}",
+        s
+    );
 }
 
 #[test]
@@ -281,7 +289,8 @@ fn test_mutable_vars_tracking() {
 #[test]
 fn test_var_types_tracking() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types.insert("count".to_string(), crate::hir::Type::Int);
+    ctx.var_types
+        .insert("count".to_string(), crate::hir::Type::Int);
     assert_eq!(ctx.var_types.get("count"), Some(&crate::hir::Type::Int));
 }
 
@@ -322,7 +331,8 @@ fn test_ref_params_tracking() {
 #[test]
 fn test_result_returning_functions() {
     let mut ctx = CodeGenContext::default();
-    ctx.result_returning_functions.insert("open_file".to_string());
+    ctx.result_returning_functions
+        .insert("open_file".to_string());
     assert!(ctx.result_returning_functions.contains("open_file"));
 }
 
@@ -349,10 +359,7 @@ fn test_module_constant_types() {
     );
     ctx.module_constant_types
         .insert("CONFIG".to_string(), dict_type.clone());
-    assert_eq!(
-        ctx.module_constant_types.get("CONFIG"),
-        Some(&dict_type)
-    );
+    assert_eq!(ctx.module_constant_types.get("CONFIG"), Some(&dict_type));
 }
 
 #[test]
