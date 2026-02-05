@@ -390,6 +390,340 @@ fn format_markdown(report: &CorpusScoreReport) -> String {
     output
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use depyler_core::scoring::{
+        Blocker, CategoryBreakdown, CorpusScoreReport, Grade, SingleShotResult, SingleShotScore,
+    };
+
+    #[test]
+    fn test_parse_mode_fast() {
+        assert!(matches!(parse_mode("fast"), ScoringMode::Fast));
+    }
+
+    #[test]
+    fn test_parse_mode_quick() {
+        assert!(matches!(parse_mode("quick"), ScoringMode::Quick));
+    }
+
+    #[test]
+    fn test_parse_mode_full() {
+        assert!(matches!(parse_mode("full"), ScoringMode::Full));
+    }
+
+    #[test]
+    fn test_parse_mode_default_is_fast() {
+        assert!(matches!(parse_mode("unknown"), ScoringMode::Fast));
+        assert!(matches!(parse_mode(""), ScoringMode::Fast));
+    }
+
+    #[test]
+    fn test_parse_mode_case_insensitive() {
+        assert!(matches!(parse_mode("QUICK"), ScoringMode::Quick));
+        assert!(matches!(parse_mode("Full"), ScoringMode::Full));
+        assert!(matches!(parse_mode("FAST"), ScoringMode::Fast));
+    }
+
+    #[test]
+    fn test_parse_format_json() {
+        assert!(matches!(parse_format("json"), OutputFormat::Json));
+    }
+
+    #[test]
+    fn test_parse_format_markdown() {
+        assert!(matches!(parse_format("markdown"), OutputFormat::Markdown));
+    }
+
+    #[test]
+    fn test_parse_format_md() {
+        assert!(matches!(parse_format("md"), OutputFormat::Markdown));
+    }
+
+    #[test]
+    fn test_parse_format_human_default() {
+        assert!(matches!(parse_format("human"), OutputFormat::Human));
+        assert!(matches!(parse_format(""), OutputFormat::Human));
+        assert!(matches!(parse_format("text"), OutputFormat::Human));
+    }
+
+    #[test]
+    fn test_parse_format_case_insensitive() {
+        assert!(matches!(parse_format("JSON"), OutputFormat::Json));
+        assert!(matches!(parse_format("Markdown"), OutputFormat::Markdown));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_empty_code() {
+        let toml = generate_cargo_toml_for_code("fn main() {}");
+        assert!(toml.contains("[package]"));
+        assert!(toml.contains("score_test"));
+        assert!(toml.contains("[dependencies]"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_serde_json() {
+        let code = "use serde_json::Value;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("serde_json"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_once_cell() {
+        let code = "use once_cell::sync::Lazy;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("once_cell"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_clap() {
+        let code = "use clap::Parser;\n#[derive(clap::Parser)]";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("clap"));
+        assert!(toml.contains("derive"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_regex() {
+        let code = "use regex::Regex;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("regex"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_chrono() {
+        let code = "use chrono::NaiveDate;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("chrono"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_multiple_deps() {
+        let code = "use serde::Serialize;\nuse regex::Regex;\nuse rand::Rng;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("serde"));
+        assert!(toml.contains("regex"));
+        assert!(toml.contains("rand"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_itertools() {
+        let code = "use itertools::Itertools;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("itertools"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_csv() {
+        let code = "use csv::Reader;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("csv"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_with_tempfile() {
+        let code = "use tempfile::TempDir;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("tempfile"));
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_empty() {
+        let errors = parse_cargo_errors("");
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_e0308() {
+        let output = "error[E0308]: mismatched types";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E0308");
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_multiple() {
+        let output = "error[E0308]: mismatched types\nerror[E0425]: cannot find value";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[0].code, "E0308");
+        assert_eq!(errors[1].code, "E0425");
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_no_error_lines() {
+        let output = "warning: unused variable\nnote: some hint";
+        let errors = parse_cargo_errors(output);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_preserves_message() {
+        let output = "error[E0599]: no method named `foo` found for struct `Bar`";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.contains("no method named"));
+    }
+
+    fn make_test_breakdown() -> CategoryBreakdown {
+        CategoryBreakdown {
+            a1_parse: 10,
+            a2_type_check: 10,
+            a3_cargo_build: 10,
+            b1_no_e0308: 8,
+            b2_no_e0599: 8,
+            b3_no_e0425: 5,
+            c1_doctest: 0,
+            c2_unit_test: 0,
+            c3_property_test: 0,
+            d1_clippy: 5,
+            d2_tdg: 3,
+            d3_complexity: 2,
+            e1_trace_match: 5,
+            e2_output_equiv: 5,
+        }
+    }
+
+    fn make_test_report() -> CorpusScoreReport {
+        let breakdown = make_test_breakdown();
+        CorpusScoreReport {
+            aggregate_score: 75.5,
+            grade: Grade::B,
+            results: vec![SingleShotResult {
+                file_path: PathBuf::from("test.py"),
+                score: SingleShotScore {
+                    total: 75,
+                    compilation: 30,
+                    type_inference: 21,
+                    test_coverage: 0,
+                    code_quality: 10,
+                    semantic_equivalence: 10,
+                    gateway_passed: true,
+                    mode: ScoringMode::Fast,
+                },
+                category_breakdown: breakdown.clone(),
+                error_details: vec![],
+                transpiler_decisions: vec![],
+            }],
+            category_averages: breakdown,
+            top_blockers: vec![Blocker {
+                pattern: "E0308".to_string(),
+                affected_files: 5,
+                avg_points_lost: 3.2,
+            }],
+        }
+    }
+
+    #[test]
+    fn test_format_human_contains_score() {
+        let report = make_test_report();
+        let output = format_human(&report);
+        assert!(output.contains("75.5"));
+        assert!(output.contains("Compilation"));
+        assert!(output.contains("Type Inference"));
+        assert!(output.contains("Test Coverage"));
+        assert!(output.contains("Code Quality"));
+        assert!(output.contains("Semantic Equiv"));
+    }
+
+    #[test]
+    fn test_format_human_contains_blockers() {
+        let report = make_test_report();
+        let output = format_human(&report);
+        assert!(output.contains("E0308"));
+        assert!(output.contains("5 files"));
+    }
+
+    #[test]
+    fn test_format_human_contains_summary() {
+        let report = make_test_report();
+        let output = format_human(&report);
+        assert!(output.contains("Files scored: 1"));
+        assert!(output.contains("Gateway passed: 1/1"));
+    }
+
+    #[test]
+    fn test_format_json_valid() {
+        let report = make_test_report();
+        let json_str = format_json(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(parsed["aggregate_score"], 75.5);
+        assert_eq!(parsed["grade"], "B");
+        assert_eq!(parsed["files_scored"], 1);
+    }
+
+    #[test]
+    fn test_format_json_contains_categories() {
+        let report = make_test_report();
+        let json_str = format_json(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert!(parsed["category_averages"]["compilation"].as_u64().unwrap() > 0);
+        assert!(parsed["category_averages"]["type_inference"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn test_format_json_contains_blockers() {
+        let report = make_test_report();
+        let json_str = format_json(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        let blockers = parsed["top_blockers"].as_array().unwrap();
+        assert_eq!(blockers.len(), 1);
+        assert_eq!(blockers[0]["pattern"], "E0308");
+    }
+
+    #[test]
+    fn test_format_markdown_contains_table() {
+        let report = make_test_report();
+        let output = format_markdown(&report);
+        assert!(output.contains("| Category |"));
+        assert!(output.contains("| A. Compilation |"));
+        assert!(output.contains("| B. Type Inference |"));
+        assert!(output.contains("| C. Test Coverage |"));
+        assert!(output.contains("| D. Code Quality |"));
+        assert!(output.contains("| E. Semantic Equiv |"));
+    }
+
+    #[test]
+    fn test_format_markdown_contains_header() {
+        let report = make_test_report();
+        let output = format_markdown(&report);
+        assert!(output.contains("# Single-Shot Compile Score:"));
+        assert!(output.contains("75.5"));
+    }
+
+    #[test]
+    fn test_format_markdown_contains_blockers_section() {
+        let report = make_test_report();
+        let output = format_markdown(&report);
+        assert!(output.contains("## Top Blockers"));
+        assert!(output.contains("E0308"));
+    }
+
+    #[test]
+    fn test_format_markdown_contains_summary() {
+        let report = make_test_report();
+        let output = format_markdown(&report);
+        assert!(output.contains("## Summary"));
+        assert!(output.contains("**Files scored**: 1"));
+    }
+
+    #[test]
+    fn test_format_human_no_blockers() {
+        let mut report = make_test_report();
+        report.top_blockers.clear();
+        let output = format_human(&report);
+        assert!(!output.contains("Top Blockers"));
+    }
+
+    #[test]
+    fn test_format_markdown_no_blockers() {
+        let mut report = make_test_report();
+        report.top_blockers.clear();
+        let output = format_markdown(&report);
+        assert!(!output.contains("## Top Blockers"));
+    }
+}
+
 /// Handle the score command
 pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
     let mode = parse_mode(&args.mode);
