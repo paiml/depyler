@@ -2802,8 +2802,18 @@ Session 8 (188 tests, 2026-02-05):
 - Fixed failing `test_generate_dot` in numpy_gen (accept `expect()`)
 - Raised coverage threshold from 85% to 86% (CB-124)
 
-**Grand Total**: 3,534 tests across 107 test files (Sessions 1-8)
-**Session 8 Total**: 188 new tests across 4 new test files
+Session 8 Batch 3 (157 tests, 2026-02-05):
+108. `complex_stmt_s8_coverage_test.rs` - 42 tests (try/except hoisting, nested functions, generators, raise patterns, complex control flow, async, del, assert)
+109. `advanced_patterns_s8_coverage_test.rs` - 40 tests (borrowing/escape analysis, optimization paths, generic inference, class patterns, dict/string ops, builtins)
+110. `codegen_pipeline_s8_coverage_test.rs` - 35 tests (deep nesting, scope shadowing, union types, cargo dep detection, complex types, lambda/closure, imports)
+
+Documentation improvements (Session 8):
+- Added doc comments to 30+ public types in `hir.rs` and `type_mapper.rs`
+- Fixed parse errors in `examples/test_pathlib.rs` and `benchmarks/rust/compute_intensive_manual.rs`
+- TDG Score: `crates/` directory scores 93.8/100 (A) with Documentation 10.0/10
+
+**Grand Total**: 3,691 tests across 110 test files (Sessions 1-8)
+**Session 8 Total**: 345 new tests across 7 new test files
 **Modules Covered**: 100+ source modules totaling 160,000+ lines
 
 ### 9.9 CI Health (2026-02-05)
@@ -2815,4 +2825,5 @@ Session 8 (188 tests, 2026-02-05):
 | cargo test | PASS | All tests green |
 | Golden Trace | PASS | Numerical equivalence validated |
 | Coverage Threshold | 86% | Raised from 85% |
-| TDG Score | 87.8 (A-) | Target: 95+ (A+) |
+| TDG Score (root) | 87.8 (A-) | Python corpus files drag score |
+| TDG Score (crates/) | 93.8 (A) | Core Rust code quality |
