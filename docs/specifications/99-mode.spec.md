@@ -2932,8 +2932,22 @@ Session 10 Batch 4 (58 tests, 2026-02-05):
   - Int/float coercion, recursion, boolean logic, power operations
   - Empty collections, string formatting, multiple return types
 
-**Session 10 Total**: 292 new integration tests across 5 test files
-**Grand Total**: 5,205+ tests across 126+ test files (Sessions 1-10)
+Session 10 Batch 5 (35 tests, 2026-02-05):
+- `func_gen_s10_coverage_test.rs` - 35 tests for func_gen.rs
+  - Parameter type inference: print, string methods, len, iteration, indexing
+  - Return type handling, mutable parameter analysis
+  - Callable parameters, nested functions with different return types
+  - Default parameters with None, boolean flag parameters
+
+Session 10 Batch 6 (29 tests, 2026-02-05):
+- `type_mapper_s10_coverage_test.rs` - 29 tests for type_mapper.rs
+  - Bare types: list, dict, set, tuple
+  - Generic annotations: List[int], Dict[str,int], Set[int], Tuple[int,str]
+  - Nested generics: List[List[int]], Optional[List[int]], Dict[str,List[int]]
+  - Primitive types, custom class types, bytes, None return
+
+**Session 10 Total**: 356 new integration tests across 7 test files
+**Grand Total**: 5,269+ tests across 128+ test files (Sessions 1-10)
 
 ### 10.4 CI Health (2026-02-05)
 
@@ -2942,5 +2956,6 @@ Session 10 Batch 4 (58 tests, 2026-02-05):
 | cargo fmt | PASS | All formatting fixed |
 | cargo clippy | PASS | Zero warnings (--workspace mode) |
 | cargo test | PASS | 13,175+ lib tests, zero failures |
-| Coverage | TBD | Measuring with llvm-cov |
+| Coverage | 88.61% | Region coverage (+2.38% from S9) |
+| Branch Coverage | 94.42% | Branch coverage (+8.19% from baseline) |
 | TDG Score (crates/) | 93.8+ (A) | Improved with refactoring |
