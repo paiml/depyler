@@ -541,6 +541,219 @@ mod tests {
         assert_eq!(coverage.coverage_percentage, 100.0);
     }
 
+    // ========================================================================
+    // S9B7: Additional coverage tests for analyzer edge cases
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_analyze_function_with_nested_if() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func = HirFunction {
+            name: "nested".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::If {
+                    condition: HirExpr::Literal(Literal::Bool(false)),
+                    then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                    else_body: None,
+                }],
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
+                    Literal::Int(2),
+                )))]),
+            }],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+            top_level_stmts: vec![],
+        };
+        let result = analyzer.analyze(&module).unwrap();
+        let fm = &result.function_metrics[0];
+        assert!(fm.cyclomatic_complexity >= 3);
+        assert!(fm.max_nesting_depth >= 2);
+    }
+
+    #[test]
+    fn test_s9b7_type_coverage_no_functions() {
+        let analyzer = Analyzer::new();
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+            top_level_stmts: vec![],
+        };
+        let coverage = analyzer.calculate_type_coverage(&module);
+        assert_eq!(coverage.total_parameters, 0);
+        assert_eq!(coverage.annotated_parameters, 0);
+        assert_eq!(coverage.total_functions, 0);
+        assert_eq!(coverage.functions_with_return_type, 0);
+        assert_eq!(coverage.coverage_percentage, 100.0);
+    }
+
+    #[test]
+    fn test_s9b7_analyze_function_empty_body() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func = HirFunction {
+            name: "empty_body".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let result = analyzer.analyze_function(&func).unwrap();
+        assert_eq!(result.name, "empty_body");
+        assert_eq!(result.lines_of_code, 0);
+        assert_eq!(result.parameters, 0);
+        assert_eq!(result.max_nesting_depth, 0);
+        assert!(result.has_type_annotations);
+        assert!(result.return_type_annotated);
+    }
+
+    #[test]
+    fn test_s9b7_type_coverage_mixed_annotations() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func = HirFunction {
+            name: "mixed".to_string(),
+            params: smallvec![
+                HirParam {
+                    name: Symbol::from("a"),
+                    ty: Type::Int,
+                    default: None,
+                    is_vararg: false,
+                },
+                HirParam {
+                    name: Symbol::from("b"),
+                    ty: Type::Unknown,
+                    default: None,
+                    is_vararg: false,
+                },
+                HirParam {
+                    name: Symbol::from("c"),
+                    ty: Type::Float,
+                    default: None,
+                    is_vararg: false,
+                },
+            ],
+            ret_type: Type::Unknown,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+            top_level_stmts: vec![],
+        };
+        let coverage = analyzer.calculate_type_coverage(&module);
+        assert_eq!(coverage.total_parameters, 3);
+        assert_eq!(coverage.annotated_parameters, 2);
+        assert_eq!(coverage.functions_with_return_type, 0);
+        // 2 annotated params + 0 return types out of 3 params + 1 function = 2/4 = 50%
+        assert!((coverage.coverage_percentage - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s9b7_module_metrics_single_function() {
+        let analyzer = Analyzer::new();
+        let metrics = vec![FunctionMetrics {
+            name: "solo".to_string(),
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            lines_of_code: 10,
+            parameters: 2,
+            max_nesting_depth: 1,
+            has_type_annotations: true,
+            return_type_annotated: true,
+        }];
+        let mm = analyzer.calculate_module_metrics(&metrics);
+        assert_eq!(mm.total_functions, 1);
+        assert_eq!(mm.total_lines, 10);
+        assert_eq!(mm.avg_cyclomatic_complexity, 5.0);
+        assert_eq!(mm.max_cyclomatic_complexity, 5);
+        assert_eq!(mm.avg_cognitive_complexity, 3.0);
+        assert_eq!(mm.max_cognitive_complexity, 3);
+    }
+
+    #[test]
+    fn test_s9b7_analysis_result_debug_clone() {
+        let result = AnalysisResult {
+            module_metrics: ModuleMetrics {
+                total_functions: 2,
+                total_lines: 20,
+                avg_cyclomatic_complexity: 3.0,
+                max_cyclomatic_complexity: 4,
+                avg_cognitive_complexity: 2.0,
+                max_cognitive_complexity: 3,
+            },
+            function_metrics: vec![],
+            type_coverage: TypeCoverage {
+                total_parameters: 0,
+                annotated_parameters: 0,
+                total_functions: 0,
+                functions_with_return_type: 0,
+                coverage_percentage: 100.0,
+            },
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("AnalysisResult"));
+        let cloned = result.clone();
+        assert_eq!(cloned.module_metrics.total_functions, 2);
+    }
+
+    #[test]
+    fn test_s9b7_analyze_function_partial_type_annotations() {
+        use smallvec::smallvec;
+        let analyzer = Analyzer::new();
+        let func = HirFunction {
+            name: "partial".to_string(),
+            params: smallvec![
+                HirParam {
+                    name: Symbol::from("x"),
+                    ty: Type::Int,
+                    default: None,
+                    is_vararg: false,
+                },
+                HirParam {
+                    name: Symbol::from("y"),
+                    ty: Type::Unknown,
+                    default: None,
+                    is_vararg: false,
+                },
+            ],
+            ret_type: Type::String,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let result = analyzer.analyze_function(&func).unwrap();
+        // Not all params have type annotations
+        assert!(!result.has_type_annotations);
+        assert!(result.return_type_annotated);
+    }
+
     #[test]
     fn test_module_metrics_calculation() {
         let analyzer = Analyzer::new();

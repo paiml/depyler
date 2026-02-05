@@ -363,6 +363,89 @@ class Derived(Base):
         assert_eq!(deserialized.upstream_suspects.len(), 1);
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for error_overlay
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_overlay_single_error_with_no_node_match() {
+        let graph = DependencyGraph::new();
+        let overlay = ErrorOverlay::new(&graph);
+        let errors = vec![("E0308".to_string(), "msg".to_string(), 100)];
+        let overlaid = overlay.overlay_errors(&errors);
+        assert_eq!(overlaid.len(), 1);
+        assert!(overlaid[0].node_id.is_none());
+        assert_eq!(overlaid[0].association_confidence, 0.0);
+        assert!(overlaid[0].upstream_suspects.is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_estimate_python_line_at_zero() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+        // Rust line 0 / 10 = 0, max(1) = 1
+        assert_eq!(overlay.estimate_python_line(0), 1);
+    }
+
+    #[test]
+    fn test_s9b7_estimate_python_line_large_value() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+        assert_eq!(overlay.estimate_python_line(1000), 100);
+    }
+
+    #[test]
+    fn test_s9b7_upstream_suspects_for_function_node() {
+        let python = r#"
+def dep():
+    return 1
+
+def caller():
+    dep()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+        // dep is called by caller, so upstream suspects for dep include caller
+        let suspects = overlay.find_upstream_suspects("dep");
+        assert!(suspects.contains(&"caller".to_string()));
+    }
+
+    #[test]
+    fn test_s9b7_overlaid_error_fields() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+        let errors = vec![("E0599".to_string(), "no method found".to_string(), 5)];
+        let overlaid = overlay.overlay_errors(&errors);
+        assert_eq!(overlaid[0].code, "E0599");
+        assert_eq!(overlaid[0].message, "no method found");
+        assert_eq!(overlaid[0].rust_line, 5);
+        assert!(overlaid[0].python_line_estimate >= 1);
+    }
+
+    #[test]
+    fn test_s9b7_overlaid_error_debug_clone() {
+        let error = OverlaidError {
+            code: "E0308".to_string(),
+            message: "test".to_string(),
+            rust_line: 10,
+            python_line_estimate: 1,
+            node_id: None,
+            association_confidence: 0.0,
+            upstream_suspects: vec![],
+        };
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("OverlaidError"));
+        let cloned = error.clone();
+        assert_eq!(cloned.code, "E0308");
+    }
+
     #[test]
     fn test_association_confidence_decreases_with_distance() {
         let python = "def foo():\n    pass\n";

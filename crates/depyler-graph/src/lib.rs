@@ -428,6 +428,109 @@ def main():
         assert_eq!(analysis.total_errors, 2);
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for graph lib
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_graph_node_debug_clone() {
+        let node = GraphNode {
+            id: "n".to_string(),
+            kind: NodeKind::Function,
+            file: std::path::PathBuf::from("test.py"),
+            line: 1,
+            column: 1,
+            error_count: 0,
+            impact_score: 0.0,
+        };
+        let debug = format!("{:?}", node);
+        assert!(debug.contains("GraphNode"));
+        let cloned = node.clone();
+        assert_eq!(cloned.id, "n");
+    }
+
+    #[test]
+    fn test_s9b7_graph_edge_debug_clone() {
+        let edge = GraphEdge {
+            kind: EdgeKind::Imports,
+            weight: 1.0,
+        };
+        let debug = format!("{:?}", edge);
+        assert!(debug.contains("GraphEdge"));
+        let cloned = edge.clone();
+        assert_eq!(cloned.kind, EdgeKind::Imports);
+    }
+
+    #[test]
+    fn test_s9b7_graph_analysis_debug_clone() {
+        let analysis = GraphAnalysis {
+            node_count: 0,
+            edge_count: 0,
+            patient_zeros: vec![],
+            vectorized_failures: vec![],
+            error_distribution: HashMap::new(),
+            total_errors: 0,
+        };
+        let debug = format!("{:?}", analysis);
+        assert!(debug.contains("GraphAnalysis"));
+        let cloned = analysis.clone();
+        assert_eq!(cloned.node_count, 0);
+    }
+
+    #[test]
+    fn test_s9b7_analyze_with_graph_multiple_errors_same_line() {
+        let python = "def foo():\n    return 42\n";
+        let errors = vec![
+            ("E0308".to_string(), "e1".to_string(), 5),
+            ("E0308".to_string(), "e2".to_string(), 5),
+        ];
+        let result = analyze_with_graph(python, &errors).unwrap();
+        assert_eq!(result.total_errors, 2);
+    }
+
+    #[test]
+    fn test_s9b7_graph_error_debug() {
+        let e1 = GraphError::ParseError("bad".to_string());
+        let debug1 = format!("{:?}", e1);
+        assert!(debug1.contains("ParseError"));
+
+        let e2 = GraphError::BuildError("err".to_string());
+        let debug2 = format!("{:?}", e2);
+        assert!(debug2.contains("BuildError"));
+
+        let e3 = GraphError::OverlayError("fail".to_string());
+        let debug3 = format!("{:?}", e3);
+        assert!(debug3.contains("OverlayError"));
+    }
+
+    #[test]
+    fn test_s9b7_analyze_with_graph_only_class() {
+        let python = r#"
+class Standalone:
+    def method(self):
+        pass
+"#;
+        let errors: Vec<(String, String, usize)> = vec![];
+        let result = analyze_with_graph(python, &errors).unwrap();
+        assert!(result.node_count >= 2);
+        assert_eq!(result.total_errors, 0);
+    }
+
+    #[test]
+    fn test_s9b7_error_distribution_aggregation() {
+        let python = "def foo():\n    return 42\n";
+        let errors = vec![
+            ("E0308".to_string(), "e1".to_string(), 10),
+            ("E0599".to_string(), "e2".to_string(), 10),
+            ("E0425".to_string(), "e3".to_string(), 10),
+        ];
+        let result = analyze_with_graph(python, &errors).unwrap();
+        assert_eq!(result.total_errors, 3);
+        // All errors may map to the same node or not
+        let total_dist: usize = result.error_distribution.values().sum();
+        assert!(total_dist <= 3);
+    }
+
     #[test]
     fn test_graph_error_is_send_sync() {
         fn assert_send<T: Send>() {}

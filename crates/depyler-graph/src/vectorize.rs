@@ -761,6 +761,151 @@ def caller():
         assert_eq!(deserialized.callees.len(), 2);
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for vectorize
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_vectorize_no_errors() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let vectorized = vectorize_failures(&graph, &[], python);
+        assert!(vectorized.is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_vectorize_error_without_node() {
+        let graph = DependencyGraph::new();
+        let errors = vec![OverlaidError {
+            code: "E0308".to_string(),
+            message: "msg".to_string(),
+            rust_line: 1,
+            python_line_estimate: 1,
+            node_id: None,
+            association_confidence: 0.0,
+            upstream_suspects: vec![],
+        }];
+        let vectorized = vectorize_failures(&graph, &errors, "");
+        assert_eq!(vectorized.len(), 1);
+        assert_eq!(vectorized[0].graph_context.in_degree, 0);
+        assert_eq!(vectorized[0].graph_context.out_degree, 0);
+        assert!(vectorized[0].graph_context.callers.is_empty());
+        assert!(vectorized[0].graph_context.callees.is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_extract_snippet_large_context() {
+        let source = "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n";
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source,
+        };
+        let snippet = context.extract_snippet(5, 10);
+        // Should get all lines since context is larger than file
+        assert!(snippet.contains("a"));
+        assert!(snippet.contains("j"));
+    }
+
+    #[test]
+    fn test_s9b7_extract_snippet_single_line() {
+        let source = "only_line";
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source,
+        };
+        let snippet = context.extract_snippet(1, 0);
+        assert_eq!(snippet, "only_line");
+    }
+
+    #[test]
+    fn test_s9b7_classify_e0308_f64() {
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source: "",
+        };
+        let (cat, sub, fix, _) = context.classify_error("E0308", "expected i32, found f64");
+        assert_eq!(cat, "type_mismatch");
+        assert_eq!(sub, "numeric_type_mismatch");
+        assert_eq!(fix, "cast");
+    }
+
+    #[test]
+    fn test_s9b7_vectorized_failure_debug_clone() {
+        let failure = VectorizedFailure {
+            id: "f0".to_string(),
+            error_code: "E0308".to_string(),
+            error_message: "err".to_string(),
+            ast_context: AstContext {
+                containing_function: None,
+                containing_class: None,
+                return_type: None,
+                parameter_types: vec![],
+                local_types: vec![],
+                statement_kind: "".to_string(),
+                expression_kind: "".to_string(),
+                ast_depth: 0,
+            },
+            graph_context: GraphContext {
+                node_id: None,
+                in_degree: 0,
+                out_degree: 0,
+                callees: vec![],
+                callers: vec![],
+                inheritance_chain: vec![],
+            },
+            source_snippet: "".to_string(),
+            labels: FailureLabels {
+                category: "".to_string(),
+                subcategory: "".to_string(),
+                fix_type: "".to_string(),
+                confidence: 0.0,
+            },
+        };
+        let debug = format!("{:?}", failure);
+        assert!(debug.contains("VectorizedFailure"));
+        let cloned = failure.clone();
+        assert_eq!(cloned.id, "f0");
+    }
+
+    #[test]
+    fn test_s9b7_serialize_json_multiple() {
+        let make = |id: &str| VectorizedFailure {
+            id: id.to_string(),
+            error_code: "E0308".to_string(),
+            error_message: "m".to_string(),
+            ast_context: AstContext {
+                containing_function: None,
+                containing_class: None,
+                return_type: None,
+                parameter_types: vec![],
+                local_types: vec![],
+                statement_kind: "".to_string(),
+                expression_kind: "".to_string(),
+                ast_depth: 0,
+            },
+            graph_context: GraphContext {
+                node_id: None,
+                in_degree: 0,
+                out_degree: 0,
+                callees: vec![],
+                callers: vec![],
+                inheritance_chain: vec![],
+            },
+            source_snippet: "".to_string(),
+            labels: FailureLabels {
+                category: "".to_string(),
+                subcategory: "".to_string(),
+                fix_type: "".to_string(),
+                confidence: 0.0,
+            },
+        };
+        let failures = vec![make("a"), make("b")];
+        let json = serialize_to_json(&failures).unwrap();
+        assert!(json.contains("\"a\""));
+        assert!(json.contains("\"b\""));
+    }
+
     #[test]
     fn test_classify_e0308_i64_numeric() {
         let context = FailureContext {

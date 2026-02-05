@@ -356,6 +356,63 @@ mod tests {
         assert_eq!(fact.fqn(), "pkg.submod.MyClass.do_thing");
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for knowledge lib
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_type_fact_function_empty_signature() {
+        let fact = TypeFact::function("mod", "func", "", "int");
+        assert_eq!(fact.signature, "");
+        assert_eq!(fact.return_type, "int");
+        assert_eq!(fact.kind, TypeFactKind::Function);
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_class_fqn() {
+        let fact = TypeFact::class("pkg.sub", "Cls");
+        assert_eq!(fact.fqn(), "pkg.sub.Cls");
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_method_return_type() {
+        let fact = TypeFact::method("mod", "Cls", "meth", "(self) -> Vec<i32>", "Vec<i32>");
+        assert_eq!(fact.return_type, "Vec<i32>");
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_kind_ne() {
+        assert_ne!(TypeFactKind::Function, TypeFactKind::Class);
+        assert_ne!(TypeFactKind::Method, TypeFactKind::Attribute);
+        assert_ne!(TypeFactKind::Function, TypeFactKind::Method);
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_ne() {
+        let f1 = TypeFact::function("a", "b", "", "");
+        let f2 = TypeFact::function("a", "c", "", "");
+        assert_ne!(f1, f2);
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_kind_attribute_display() {
+        assert_eq!(TypeFactKind::Attribute.to_string(), "attribute");
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_class_empty_signature() {
+        let fact = TypeFact::class("mod", "Empty");
+        assert_eq!(fact.signature, "");
+    }
+
+    #[test]
+    fn test_s9b7_type_fact_debug() {
+        let fact = TypeFact::function("m", "f", "sig", "ret");
+        let debug = format!("{:?}", fact);
+        assert!(debug.contains("TypeFact"));
+        assert!(debug.contains("Function"));
+    }
+
     #[test]
     fn test_type_fact_kind_display_roundtrip() {
         let kinds = [

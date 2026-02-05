@@ -552,6 +552,114 @@ def d():
         assert_eq!(target_score.direct_errors, 2);
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for impact scoring
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_impact_score_debug_clone() {
+        let score = ImpactScore {
+            node_id: "n".to_string(),
+            direct_errors: 1,
+            downstream_errors: 2,
+            pagerank_score: 0.5,
+            total_impact: 3.0,
+        };
+        let debug = format!("{:?}", score);
+        assert!(debug.contains("ImpactScore"));
+        let cloned = score.clone();
+        assert_eq!(cloned.node_id, "n");
+    }
+
+    #[test]
+    fn test_s9b7_patient_zero_debug_clone() {
+        let pz = PatientZero {
+            node_id: "root".to_string(),
+            impact_score: 10.0,
+            direct_errors: 3,
+            downstream_affected: 2,
+            fix_priority: 1,
+            estimated_fix_impact: 5,
+        };
+        let debug = format!("{:?}", pz);
+        assert!(debug.contains("PatientZero"));
+        let cloned = pz.clone();
+        assert_eq!(cloned.fix_priority, 1);
+    }
+
+    #[test]
+    fn test_s9b7_count_direct_errors_no_node_id() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        // Error without node_id should not count
+        let overlaid = vec![OverlaidError {
+            code: "E0308".to_string(),
+            message: "a".to_string(),
+            rust_line: 1,
+            python_line_estimate: 1,
+            node_id: None,
+            association_confidence: 0.0,
+            upstream_suspects: vec![],
+        }];
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        let target_score = scores.iter().find(|s| s.node_id == "foo").unwrap();
+        assert_eq!(target_score.direct_errors, 0);
+    }
+
+    #[test]
+    fn test_s9b7_identify_patient_zeros_filters_zero_impact() {
+        let python = "def foo():\n    pass\n\ndef bar():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors);
+        let scores = scorer.calculate_impact();
+        // With no errors, total_impact should be based on pagerank only
+        // With damping=0.85 and uniform init, total_impact = 10*pr*max(direct,1)
+        // The filter is > 0.0, so nodes with positive pagerank will be included
+        let pzs = scorer.identify_patient_zeros(&scores, 10);
+        for pz in &pzs {
+            assert!(pz.impact_score > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_s9b7_with_damping_normal_value() {
+        let graph = DependencyGraph::new();
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors).with_damping(0.9);
+        assert!((scorer.damping - 0.9).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_s9b7_downstream_errors_with_caller_errors() {
+        let python = r#"
+def callee():
+    return 1
+
+def caller():
+    return callee()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlaid = vec![OverlaidError {
+            code: "E0308".to_string(),
+            message: "err".to_string(),
+            rust_line: 1,
+            python_line_estimate: 1,
+            node_id: Some("caller".to_string()),
+            association_confidence: 0.9,
+            upstream_suspects: vec![],
+        }];
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        // callee has caller as incoming, and caller has 1 direct error
+        let callee_score = scores.iter().find(|s| s.node_id == "callee").unwrap();
+        assert_eq!(callee_score.downstream_errors, 1);
+    }
+
     #[test]
     fn test_pagerank_scores_all_nonnegative() {
         let python = r#"

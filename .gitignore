@@ -221,6 +221,5 @@ benchmarks/rust/*.exe
 .compile_test_tmp/
 
 # PMAT
-.pmat/context.idx/
 .pmat/workspace.idx/
 .pmat/deps-cache.json
