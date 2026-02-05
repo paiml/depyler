@@ -8,8 +8,8 @@ MAKEFLAGS += -j$(shell nproc)
 export PROPTEST_CASES ?= 5
 export QUICKCHECK_TESTS ?= 5
 # Coverage threshold (Sovereign Stack standard: 95% target)
-# 85% threshold - actively increasing via DEPYLER-99MODE-001
-COVERAGE_THRESHOLD := 85
+# Raising to 86% as coverage improves via DEPYLER-99MODE-S8
+COVERAGE_THRESHOLD := 86
 # Quality gate thresholds
 MAX_COMPLEXITY := 10
 MAX_LINES_PER_FUNCTION := 50
