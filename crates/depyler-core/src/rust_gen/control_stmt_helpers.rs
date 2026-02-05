@@ -327,3 +327,196 @@ mod tests {
         assert_eq!(token_count, 0);
     }
 }
+
+// ============ Additional coverage tests ============
+
+#[cfg(test)]
+mod coverage_tests {
+    use super::*;
+
+    fn tokens_to_string(tokens: proc_macro2::TokenStream) -> String {
+        tokens.to_string()
+    }
+
+    // ============ Pass stmt idempotency and invariants ============
+
+    #[test]
+    fn test_pass_stmt_is_deterministic() {
+        let results: Vec<String> = (0..10)
+            .map(|_| tokens_to_string(codegen_pass_stmt().unwrap()))
+            .collect();
+        assert!(results.iter().all(|r| r == &results[0]));
+    }
+
+    #[test]
+    fn test_pass_stmt_produces_no_semicolons() {
+        let result = tokens_to_string(codegen_pass_stmt().unwrap());
+        assert!(!result.contains(';'));
+    }
+
+    #[test]
+    fn test_pass_stmt_produces_no_keywords() {
+        let result = tokens_to_string(codegen_pass_stmt().unwrap());
+        assert!(!result.contains("pass"));
+        assert!(!result.contains("break"));
+        assert!(!result.contains("continue"));
+    }
+
+    // ============ Break stmt content checks ============
+
+    #[test]
+    fn test_break_no_label_contains_break_keyword() {
+        let result = tokens_to_string(codegen_break_stmt(&None).unwrap());
+        assert!(result.contains("break"));
+    }
+
+    #[test]
+    fn test_break_no_label_does_not_contain_continue() {
+        let result = tokens_to_string(codegen_break_stmt(&None).unwrap());
+        assert!(!result.contains("continue"));
+    }
+
+    #[test]
+    fn test_break_with_label_contains_lifetime_tick() {
+        let result = tokens_to_string(codegen_break_stmt(&Some("my_loop".to_string())).unwrap());
+        assert!(result.contains("'my_loop"));
+    }
+
+    #[test]
+    fn test_break_with_label_contains_semicolon() {
+        let result = tokens_to_string(codegen_break_stmt(&Some("x".to_string())).unwrap());
+        assert!(result.contains(';'));
+    }
+
+    // ============ Continue stmt content checks ============
+
+    #[test]
+    fn test_continue_no_label_contains_continue_keyword() {
+        let result = tokens_to_string(codegen_continue_stmt(&None).unwrap());
+        assert!(result.contains("continue"));
+    }
+
+    #[test]
+    fn test_continue_no_label_does_not_contain_break() {
+        let result = tokens_to_string(codegen_continue_stmt(&None).unwrap());
+        assert!(!result.contains("break"));
+    }
+
+    #[test]
+    fn test_continue_with_label_contains_lifetime_tick() {
+        let result =
+            tokens_to_string(codegen_continue_stmt(&Some("my_loop".to_string())).unwrap());
+        assert!(result.contains("'my_loop"));
+    }
+
+    #[test]
+    fn test_continue_with_label_contains_semicolon() {
+        let result = tokens_to_string(codegen_continue_stmt(&Some("x".to_string())).unwrap());
+        assert!(result.contains(';'));
+    }
+
+    // ============ Determinism across many labels ============
+
+    #[test]
+    fn test_break_deterministic_with_same_label() {
+        let label = Some("outer".to_string());
+        let results: Vec<String> = (0..5)
+            .map(|_| tokens_to_string(codegen_break_stmt(&label).unwrap()))
+            .collect();
+        assert!(results.windows(2).all(|w| w[0] == w[1]));
+    }
+
+    #[test]
+    fn test_continue_deterministic_with_same_label() {
+        let label = Some("inner".to_string());
+        let results: Vec<String> = (0..5)
+            .map(|_| tokens_to_string(codegen_continue_stmt(&label).unwrap()))
+            .collect();
+        assert!(results.windows(2).all(|w| w[0] == w[1]));
+    }
+
+    // ============ Various label names ============
+
+    #[test]
+    fn test_break_with_label_starting_with_underscore() {
+        let result =
+            tokens_to_string(codegen_break_stmt(&Some("_private".to_string())).unwrap());
+        assert_eq!(result, "break '_private ;");
+    }
+
+    #[test]
+    fn test_continue_with_label_starting_with_underscore() {
+        let result =
+            tokens_to_string(codegen_continue_stmt(&Some("_private".to_string())).unwrap());
+        assert_eq!(result, "continue '_private ;");
+    }
+
+    #[test]
+    fn test_break_with_label_all_underscores() {
+        let result = tokens_to_string(codegen_break_stmt(&Some("___".to_string())).unwrap());
+        assert_eq!(result, "break '___ ;");
+    }
+
+    #[test]
+    fn test_continue_with_label_all_underscores() {
+        let result =
+            tokens_to_string(codegen_continue_stmt(&Some("___".to_string())).unwrap());
+        assert_eq!(result, "continue '___ ;");
+    }
+
+    // ============ String length of generated tokens ============
+
+    #[test]
+    fn test_pass_stmt_string_length_zero() {
+        let result = tokens_to_string(codegen_pass_stmt().unwrap());
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_break_no_label_string_length() {
+        let result = tokens_to_string(codegen_break_stmt(&None).unwrap());
+        assert_eq!(result, "break ;");
+        assert_eq!(result.len(), 7);
+    }
+
+    #[test]
+    fn test_continue_no_label_string_length() {
+        let result = tokens_to_string(codegen_continue_stmt(&None).unwrap());
+        assert_eq!(result, "continue ;");
+        assert_eq!(result.len(), 10);
+    }
+
+    // ============ Combined statement generation ============
+
+    #[test]
+    fn test_all_three_stmts_produce_valid_results() {
+        let pass = codegen_pass_stmt();
+        let brk = codegen_break_stmt(&None);
+        let cont = codegen_continue_stmt(&None);
+
+        assert!(pass.is_ok());
+        assert!(brk.is_ok());
+        assert!(cont.is_ok());
+    }
+
+    #[test]
+    fn test_all_three_stmts_different_output() {
+        let pass = tokens_to_string(codegen_pass_stmt().unwrap());
+        let brk = tokens_to_string(codegen_break_stmt(&None).unwrap());
+        let cont = tokens_to_string(codegen_continue_stmt(&None).unwrap());
+
+        assert_ne!(pass, brk);
+        assert_ne!(pass, cont);
+        assert_ne!(brk, cont);
+    }
+
+    #[test]
+    fn test_labeled_break_and_continue_same_label_differ() {
+        let label = Some("same_label".to_string());
+        let brk = tokens_to_string(codegen_break_stmt(&label).unwrap());
+        let cont = tokens_to_string(codegen_continue_stmt(&label).unwrap());
+        assert_ne!(brk, cont);
+        assert!(brk.starts_with("break"));
+        assert!(cont.starts_with("continue"));
+    }
+}
