@@ -2211,4 +2211,177 @@ def classify(x: int) -> str:
         assert!(rust.contains("negative"));
         assert!(rust.contains("zero"));
     }
+
+    // === Session 9 Batch 6: Targeted coverage ===
+
+    #[test]
+    fn test_s9b6_infer_dict_return() {
+        let code = r#"
+def make_dict() -> dict:
+    d = {}
+    d["a"] = 1
+    d["b"] = 2
+    return d
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_dict"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_tuple_return() {
+        let code = r#"
+def pair(a: int, b: int) -> tuple:
+    return a, b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn pair"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_set_return() {
+        let code = r#"
+def unique_chars(s: str) -> set:
+    result = set()
+    for c in s:
+        result.add(c)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn unique_chars"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_binary_op() {
+        let code = r#"
+def compute(a: int, b: int):
+    return a * b + a - b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn compute"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_comparison() {
+        let code = r#"
+def check(x: int, y: int):
+    return x > y
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check"), "output: {}", rust);
+        assert!(rust.contains("bool"), "should infer bool: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_method_call() {
+        let code = r#"
+def upper(s: str):
+    return s.upper()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn upper"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_len() {
+        let code = r#"
+def count(items: list):
+    return len(items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn count"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_sum() {
+        let code = r#"
+def total(nums: list):
+    return sum(nums)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn total"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_min_max() {
+        let code = r#"
+def largest(nums: list):
+    return max(nums)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn largest"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_str_join() {
+        let code = r#"
+def combine(parts: list):
+    return ",".join(parts)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn combine"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_str_split() {
+        let code = r#"
+def split_csv(line: str):
+    return line.split(",")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn split_csv"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_void_function() {
+        let code = r#"
+def log(msg: str):
+    print(msg)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn log"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_list_comprehension() {
+        let code = r#"
+def doubles(nums: list):
+    return [x * 2 for x in nums]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn doubles"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_nested_return() {
+        let code = r#"
+def safe_div(a: int, b: int):
+    if b == 0:
+        return None
+    return a // b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_div"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_from_isinstance() {
+        let code = r#"
+def is_str(x) -> bool:
+    return isinstance(x, str)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn is_str"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_infer_multiple_exit_paths() {
+        let code = r#"
+def analyze(x: int):
+    if x > 0:
+        return "positive"
+    return "non-positive"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn analyze"), "output: {}", rust);
+    }
 }

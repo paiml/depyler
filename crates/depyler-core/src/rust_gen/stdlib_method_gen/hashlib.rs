@@ -694,4 +694,218 @@ mod tests {
         let result = convert_hashlib_instance_method("unsupported", &[], &mut ctx);
         assert!(result.is_err());
     }
+
+    // ============ Direct API coverage tests for hashlib ============
+
+    #[test]
+    fn test_s9b6_hashlib_sha256_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha256", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha256"));
+        assert!(ctx.needs_sha2);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha512_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha512", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha512"));
+        assert!(ctx.needs_sha2);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha224_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha224", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha224"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha384_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha384", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha384"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_md5_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("md5", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Md5"));
+        assert!(ctx.needs_md5);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha1_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha1", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha1"));
+        assert!(ctx.needs_sha1);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_blake2b_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("blake2b", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Blake2b512"));
+        assert!(ctx.needs_blake2);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_blake2s_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("blake2s", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Blake2s256"));
+        assert!(ctx.needs_blake2);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha3_224_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha3_224", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_224"));
+        assert!(ctx.needs_sha3);
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha3_256_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha3_256", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_256"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha3_384_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha3_384", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_384"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha3_512_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_method("sha3_512", &[], &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha3_512"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_sha256_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Literal(Literal::Bytes(b"hello".to_vec()))];
+        let result = convert_hashlib_method("sha256", &args, &mut ctx).unwrap().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha256"));
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_hexdigest_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hexdigest(&mut ctx).unwrap();
+        assert!(ctx.needs_hex);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("finalize"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_digest_output() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_digest(&mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("finalize"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_copy_output() {
+        let result = convert_copy().unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("clone"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_update_with_data() {
+        let mut ctx = CodeGenContext::default();
+        let data: syn::Expr = parse_quote! { b"hello" };
+        let result = convert_update(&[data], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("update"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_update_no_data() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_update(&[], &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_new_sha256() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha256".to_string()));
+        let name_expr: syn::Expr = parse_quote! { "sha256" };
+        let result = convert_new(&[name_hir], &[name_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha256"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_new_md5() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("md5".to_string()));
+        let name_expr: syn::Expr = parse_quote! { "md5" };
+        let result = convert_new(&[name_hir], &[name_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Md5"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_new_sha1() {
+        let mut ctx = CodeGenContext::default();
+        let name_hir = HirExpr::Literal(Literal::String("sha1".to_string()));
+        let name_expr: syn::Expr = parse_quote! { "sha1" };
+        let result = convert_new(&[name_hir], &[name_expr], &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Sha1"));
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_instance_digest() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_instance_method("digest", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_instance_hexdigest() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_instance_method("hexdigest", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_instance_copy() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_hashlib_instance_method("copy", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s9b6_hashlib_instance_update() {
+        let mut ctx = CodeGenContext::default();
+        let data = HirExpr::Literal(Literal::Bytes(b"data".to_vec()));
+        let result = convert_hashlib_instance_method("update", &[data], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
 }

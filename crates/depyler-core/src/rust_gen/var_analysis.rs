@@ -2708,4 +2708,446 @@ mod tests {
         }];
         assert!(!needs_boxed_dyn_write("file", &then_body, &else_body));
     }
+
+    // === Session 9 Batch 6: Targeted coverage ===
+
+    #[test]
+    fn test_s9b6_is_var_used_in_attribute() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        assert!(is_var_used_in_expr("obj", &expr));
+        assert!(!is_var_used_in_expr("other", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("data".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(is_var_used_in_expr("data", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_unary() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("flag".to_string())),
+        };
+        assert!(is_var_used_in_expr("flag", &expr));
+        assert!(!is_var_used_in_expr("other", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_list_expr() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Var("a".to_string()),
+            HirExpr::Literal(Literal::Int(1)),
+        ]);
+        assert!(is_var_used_in_expr("a", &expr));
+        assert!(!is_var_used_in_expr("b", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_tuple_expr() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Var("y".to_string()),
+        ]);
+        assert!(is_var_used_in_expr("x", &expr));
+        assert!(is_var_used_in_expr("y", &expr));
+        assert!(!is_var_used_in_expr("z", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_dict_expr() {
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("k".to_string())),
+            HirExpr::Var("v".to_string()),
+        )]);
+        assert!(is_var_used_in_expr("v", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_method_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "do_thing".to_string(),
+            args: vec![HirExpr::Var("arg".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_var_used_in_expr("obj", &expr));
+        assert!(is_var_used_in_expr("arg", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_binary_and() {
+        let expr = HirExpr::Binary {
+            op: BinOp::And,
+            left: Box::new(HirExpr::Var("a".to_string())),
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        assert!(is_var_used_in_expr("a", &expr));
+        assert!(is_var_used_in_expr("b", &expr));
+        assert!(!is_var_used_in_expr("c", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_direct_or_simple() {
+        let var_expr = HirExpr::Var("x".to_string());
+        assert!(is_var_direct_or_simple_in_expr("x", &var_expr));
+        assert!(!is_var_direct_or_simple_in_expr("y", &var_expr));
+
+        let other = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_var_direct_or_simple_in_expr("x", &other));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_as_dict_key_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("dict".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_var_used_as_dict_key_in_expr("key", &expr));
+        assert!(!is_var_used_as_dict_key_in_expr("dict", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_as_dict_key_nested() {
+        let inner = HirExpr::Index {
+            base: Box::new(HirExpr::Var("dict".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        let expr = HirExpr::Call {
+            func: "process".to_string(),
+            args: vec![inner],
+            kwargs: vec![],
+        };
+        assert!(is_var_used_as_dict_key_in_expr("key", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_as_func_arg_in_call() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Var("msg".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_var_used_as_func_arg_in_expr("msg", &expr));
+        assert!(!is_var_used_as_func_arg_in_expr("other", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_in_comparison_via_call() {
+        // Test comparison via method call pattern
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        // Variable used in call args isn't directly a comparison
+        assert!(!is_var_in_comparison_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_in_comparison_not_found() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_var_in_comparison_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_reassigned_in_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+        assert!(is_var_reassigned_in_stmt("x", &stmt));
+        assert!(!is_var_reassigned_in_stmt("y", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_reassigned_via_augmented_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            type_annotation: None,
+        };
+        assert!(is_var_reassigned_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_reassigned_in_for_body() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+        };
+        assert!(is_var_reassigned_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_extract_assigned_symbols_basic() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            },
+        ];
+        let syms = extract_assigned_symbols(&stmts);
+        assert!(syms.contains("x"));
+        assert!(syms.contains("y"));
+        assert_eq!(syms.len(), 2);
+    }
+
+    #[test]
+    fn test_s9b6_extract_assigned_symbols_in_if() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("a".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("b".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            }]),
+        }];
+        let syms = extract_assigned_symbols(&stmts);
+        assert!(syms.contains("a"));
+        assert!(syms.contains("b"));
+    }
+
+    #[test]
+    fn test_s9b6_extract_toplevel_assigned_symbols() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("top".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("inner".to_string()),
+                    value: HirExpr::Literal(Literal::Int(2)),
+                    type_annotation: None,
+                }],
+                else_body: None,
+            },
+        ];
+        let syms = extract_toplevel_assigned_symbols(&stmts);
+        assert!(syms.contains("top"));
+        // Inner should still be found in if branches
+        assert!(syms.contains("inner"));
+    }
+
+    #[test]
+    fn test_s9b6_collect_vars_in_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let vars = collect_vars_in_expr(&expr);
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn test_s9b6_collect_vars_in_var() {
+        let expr = HirExpr::Var("x".to_string());
+        let vars = collect_vars_in_expr(&expr);
+        assert!(vars.contains("x"));
+        assert_eq!(vars.len(), 1);
+    }
+
+    #[test]
+    fn test_s9b6_collect_vars_in_complex_expr() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("a".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Binary {
+                left: Box::new(HirExpr::Var("b".to_string())),
+                op: BinOp::Mul,
+                right: Box::new(HirExpr::Var("c".to_string())),
+            }),
+        };
+        let vars = collect_vars_in_expr(&expr);
+        assert!(vars.contains("a"));
+        assert!(vars.contains("b"));
+        assert!(vars.contains("c"));
+        assert_eq!(vars.len(), 3);
+    }
+
+    #[test]
+    fn test_s9b6_collect_vars_in_call() {
+        let expr = HirExpr::Call {
+            func: "f".to_string(),
+            args: vec![
+                HirExpr::Var("x".to_string()),
+                HirExpr::Var("y".to_string()),
+            ],
+            kwargs: vec![],
+        };
+        let vars = collect_vars_in_expr(&expr);
+        assert!(vars.contains("x"));
+        assert!(vars.contains("y"));
+    }
+
+    #[test]
+    fn test_s9b6_find_var_position_in_tuple() {
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+            AssignTarget::Symbol("c".to_string()),
+        ];
+        assert_eq!(find_var_position_in_tuple("a", &targets), Some(0));
+        assert_eq!(find_var_position_in_tuple("b", &targets), Some(1));
+        assert_eq!(find_var_position_in_tuple("c", &targets), Some(2));
+        assert_eq!(find_var_position_in_tuple("d", &targets), None);
+    }
+
+    #[test]
+    fn test_s9b6_find_assigned_expr_basic() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        let expr = find_assigned_expr("x", &stmts);
+        assert!(expr.is_some());
+    }
+
+    #[test]
+    fn test_s9b6_find_assigned_expr_not_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        assert!(find_assigned_expr("y", &stmts).is_none());
+    }
+
+    #[test]
+    fn test_s9b6_is_var_in_assign_target_tuple() {
+        let target = AssignTarget::Tuple(vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ]);
+        assert!(is_var_used_in_assign_target("a", &target));
+        assert!(is_var_used_in_assign_target("b", &target));
+        assert!(!is_var_used_in_assign_target("c", &target));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_stmt_for_body() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![HirExpr::Var("x".to_string())],
+                kwargs: vec![],
+            })],
+        };
+        assert!(is_var_used_in_stmt("x", &stmt));
+        assert!(!is_var_used_in_stmt("z", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_stmt_while() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Var("running".to_string()),
+            body: vec![],
+        };
+        assert!(is_var_used_in_stmt("running", &stmt));
+        assert!(!is_var_used_in_stmt("other", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_stmt_if() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("cond".to_string()),
+            then_body: vec![],
+            else_body: None,
+        };
+        assert!(is_var_used_in_stmt("cond", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_stmt_return() {
+        let stmt = HirStmt::Return(Some(HirExpr::Var("result".to_string())));
+        assert!(is_var_used_in_stmt("result", &stmt));
+        assert!(!is_var_used_in_stmt("other", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_in_stmt_return_none() {
+        let stmt = HirStmt::Return(None);
+        assert!(!is_var_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_extract_walrus_no_walrus() {
+        let expr = HirExpr::Var("x".to_string());
+        let (assigns, cleaned) = extract_walrus_from_condition(&expr);
+        assert!(assigns.is_empty());
+        assert!(matches!(cleaned, HirExpr::Var(_)));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_as_dict_key_in_assign_value() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("result".to_string()),
+            value: HirExpr::Index {
+                base: Box::new(HirExpr::Var("data".to_string())),
+                index: Box::new(HirExpr::Var("key".to_string())),
+            },
+            type_annotation: None,
+        };
+        assert!(is_var_used_as_dict_key_in_stmt("key", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_used_as_func_arg_in_expr_stmt() {
+        let stmt = HirStmt::Expr(HirExpr::Call {
+            func: "process".to_string(),
+            args: vec![HirExpr::Var("data".to_string())],
+            kwargs: vec![],
+        });
+        assert!(is_var_used_as_func_arg_in_stmt("data", &stmt));
+    }
+
+    #[test]
+    fn test_s9b6_is_var_in_comparison_in_if_stmt_not_found() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("x".to_string()),
+            then_body: vec![],
+            else_body: None,
+        };
+        // Just using a var as condition isn't a comparison
+        assert!(!is_var_in_comparison_in_stmt("y", &stmt));
+    }
 }

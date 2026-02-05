@@ -1408,3 +1408,222 @@ fn test_s9_zip_pattern() {
         "def pair_up(a: list, b: list) -> list:\n    result = []\n    for x, y in zip(a, b):\n        result.append(x + y)\n    return result"
     ));
 }
+
+// === Session 9 Batch 6: Deep coverage via pipeline ===
+
+#[test]
+fn test_s9b6_pipeline_binary_search() {
+    assert!(transpile_ok(
+        "def binary_search(arr: list, target: int) -> int:\n    lo = 0\n    hi = len(arr) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_bubble_sort() {
+    assert!(transpile_ok(
+        "def bubble_sort(arr: list) -> list:\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n - i - 1):\n            if arr[j] > arr[j + 1]:\n                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n    return arr"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_insertion_sort() {
+    assert!(transpile_ok(
+        "def insertion_sort(arr: list) -> list:\n    for i in range(1, len(arr)):\n        key = arr[i]\n        j = i - 1\n        while j >= 0 and arr[j] > key:\n            arr[j + 1] = arr[j]\n            j -= 1\n        arr[j + 1] = key\n    return arr"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_selection_sort() {
+    assert!(transpile_ok(
+        "def selection_sort(arr: list) -> list:\n    n = len(arr)\n    for i in range(n):\n        min_idx = i\n        for j in range(i + 1, n):\n            if arr[j] < arr[min_idx]:\n                min_idx = j\n        arr[i], arr[min_idx] = arr[min_idx], arr[i]\n    return arr"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_counter() {
+    assert!(transpile_ok(
+        "def count_chars(s: str) -> dict:\n    counts = {}\n    for c in s:\n        if c in counts:\n            counts[c] += 1\n        else:\n            counts[c] = 1\n    return counts"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_flatten_nested() {
+    assert!(transpile_ok(
+        "def flatten(matrix: list) -> list:\n    result = []\n    for row in matrix:\n        for item in row:\n            result.append(item)\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_max_subarray() {
+    assert!(transpile_ok(
+        "def max_subarray(nums: list) -> int:\n    max_sum = nums[0]\n    current = nums[0]\n    for i in range(1, len(nums)):\n        if current < 0:\n            current = nums[i]\n        else:\n            current += nums[i]\n        if current > max_sum:\n            max_sum = current\n    return max_sum"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_palindrome() {
+    assert!(transpile_ok(
+        "def is_palindrome(s: str) -> bool:\n    s = s.lower()\n    left = 0\n    right = len(s) - 1\n    while left < right:\n        if s[left] != s[right]:\n            return False\n        left += 1\n        right -= 1\n    return True"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_class_stack() {
+    assert!(transpile_ok(
+        "class Stack:\n    def __init__(self):\n        self.items = []\n    def push(self, item: int) -> None:\n        self.items.append(item)\n    def pop(self) -> int:\n        return self.items.pop()\n    def is_empty(self) -> bool:\n        return len(self.items) == 0\n    def size(self) -> int:\n        return len(self.items)"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_class_queue() {
+    assert!(transpile_ok(
+        "class Queue:\n    def __init__(self):\n        self.items = []\n    def enqueue(self, item: int) -> None:\n        self.items.append(item)\n    def dequeue(self) -> int:\n        return self.items.pop(0)\n    def is_empty(self) -> bool:\n        return len(self.items) == 0"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_string_transform() {
+    assert!(transpile_ok(
+        "def transform(text: str) -> str:\n    words = text.split()\n    result = []\n    for w in words:\n        result.append(w.upper())\n    return \" \".join(result)"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_dict_invert() {
+    assert!(transpile_ok(
+        "def invert_dict(d: dict) -> dict:\n    result = {}\n    for k, v in d.items():\n        result[v] = k\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_nested_try_finally() {
+    assert!(transpile_ok(
+        "def safe_process(data: str) -> int:\n    result = 0\n    try:\n        result = int(data)\n    except:\n        result = -1\n    finally:\n        pass\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_try_with_multiple_except() {
+    assert!(transpile_ok(
+        "def convert(s: str) -> int:\n    try:\n        return int(s)\n    except ValueError:\n        return -1\n    except TypeError:\n        return -2"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_with_open_readlines() {
+    assert!(transpile_ok(
+        "def read_lines(path: str) -> list:\n    with open(path) as f:\n        lines = f.readlines()\n    return lines"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_complex_comprehension() {
+    assert!(transpile_ok(
+        "def process(data: list) -> list:\n    return [x * 2 for x in data if x > 0]"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_generator_sum() {
+    assert!(transpile_ok(
+        "def total(items: list) -> int:\n    return sum(x for x in items if x > 0)"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_lambda_filter() {
+    assert!(transpile_ok(
+        "def evens(nums: list) -> list:\n    return list(filter(lambda x: x % 2 == 0, nums))"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_lambda_map() {
+    assert!(transpile_ok(
+        "def squares(nums: list) -> list:\n    return list(map(lambda x: x ** 2, nums))"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_lambda_sorted() {
+    assert!(transpile_ok(
+        "def sort_pairs(pairs: list) -> list:\n    return sorted(pairs, key=lambda p: p[1])"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_set_operations() {
+    assert!(transpile_ok(
+        "def unique(items: list) -> list:\n    seen = set()\n    result = []\n    for item in items:\n        if item not in seen:\n            seen.add(item)\n            result.append(item)\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_nested_dict() {
+    assert!(transpile_ok(
+        "def group_by_first_letter(words: list) -> dict:\n    groups = {}\n    for w in words:\n        key = w[0]\n        if key not in groups:\n            groups[key] = []\n        groups[key].append(w)\n    return groups"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_list_reverse() {
+    assert!(transpile_ok(
+        "def reverse_list(items: list) -> list:\n    result = []\n    for i in range(len(items) - 1, -1, -1):\n        result.append(items[i])\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_string_fstring() {
+    assert!(transpile_ok(
+        "def format_name(first: str, last: str) -> str:\n    return f\"{first} {last}\""
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_math_operations() {
+    assert!(transpile_ok(
+        "def math_ops(a: int, b: int) -> dict:\n    result = {}\n    result[\"sum\"] = a + b\n    result[\"diff\"] = a - b\n    result[\"prod\"] = a * b\n    if b != 0:\n        result[\"quot\"] = a // b\n        result[\"rem\"] = a % b\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_class_with_property() {
+    assert!(transpile_ok(
+        "class Rectangle:\n    def __init__(self, width: int, height: int):\n        self.width = width\n        self.height = height\n    def area(self) -> int:\n        return self.width * self.height\n    def perimeter(self) -> int:\n        return 2 * (self.width + self.height)"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_class_with_string_field() {
+    assert!(transpile_ok(
+        "class Person:\n    def __init__(self, name: str, age: int):\n        self.name = name\n        self.age = age\n    def greet(self) -> str:\n        return \"Hello, \" + self.name"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_fibonacci_memoized() {
+    assert!(transpile_ok(
+        "def fib(n: int) -> int:\n    memo = {}\n    if n in memo:\n        return memo[n]\n    if n <= 1:\n        return n\n    result = fib(n - 1) + fib(n - 2)\n    memo[n] = result\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_multiple_return_types() {
+    assert!(transpile_ok(
+        "def analyze(text: str) -> tuple:\n    words = text.split()\n    count = len(words)\n    avg_len = sum(len(w) for w in words) // max(count, 1)\n    return count, avg_len"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_ternary_chain() {
+    assert!(transpile_ok(
+        "def sign(x: int) -> int:\n    return 1 if x > 0 else -1 if x < 0 else 0"
+    ));
+}
+
+#[test]
+fn test_s9b6_pipeline_chained_methods() {
+    assert!(transpile_ok(
+        "def clean(text: str) -> list:\n    return text.strip().lower().split()"
+    ));
+}

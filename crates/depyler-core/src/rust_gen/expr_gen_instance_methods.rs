@@ -16006,4 +16006,359 @@ def sort_pairs(pairs: list) -> list:
         let rust = transpile(code);
         assert!(rust.contains("fn sort_pairs"), "output: {}", rust);
     }
+
+    // ========================================================================
+    // S9B6 COVERAGE TESTS - Specific uncovered paths
+    // ========================================================================
+
+    #[test]
+    fn test_s9b6_list_append_on_class_field() {
+        let code = r#"
+class Container:
+    def __init__(self):
+        self.items = []
+
+    def add(self, x: int):
+        self.items.append(x)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("push") || rust.contains("append"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_set_pop() {
+        let code = r#"
+def pop_from_set() -> int:
+    s = {1, 2, 3}
+    return s.pop()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("pop") || rust.contains("take"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_pop() {
+        let code = r#"
+def pop_from_dict() -> int:
+    d = {'a': 1, 'b': 2}
+    return d.pop('a')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("remove") || rust.contains("pop"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_typed_list_append_coercion() {
+        let code = r#"
+def append_float_list():
+    items: list[float] = []
+    items.append(42)
+    return items
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("push") || rust.contains("f64"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_get_with_default() {
+        let code = r#"
+def get_with_default(d: dict, key: str) -> int:
+    return d.get(key, 0)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("get") || rust.contains("unwrap_or"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_method_on_dict_value() {
+        let code = r#"
+def upper_value(d: dict) -> str:
+    return d['key'].upper()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("to_uppercase") || rust.contains("upper"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_counter_iteration() {
+        let code = r#"
+from collections import Counter
+
+def count_chars(text: str) -> dict:
+    result = {}
+    for ch, count in Counter(text).items():
+        result[ch] = count
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for") && rust.contains("items"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_hashset_add_multiple() {
+        let code = r#"
+def make_set() -> set:
+    s = set()
+    s.add(1)
+    s.add(2)
+    s.add(3)
+    return s
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("insert") || rust.contains("add"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_list_extend_other() {
+        let code = r#"
+def extend_lists():
+    items = [1, 2, 3]
+    other = [4, 5, 6]
+    items.extend(other)
+    return items
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("extend"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_list_insert_at_zero() {
+        let code = r#"
+def insert_front():
+    items = [2, 3, 4]
+    items.insert(0, 1)
+    return items
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("insert"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_split_with_maxsplit() {
+        let code = r#"
+def split_once(s: str) -> list:
+    return s.split(',', 1)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("split") || rust.contains("splitn"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_join() {
+        let code = r#"
+def join_items(items: list) -> str:
+    return ','.join(items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("join"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_replace() {
+        let code = r#"
+def replace_text(s: str) -> str:
+    return s.replace('old', 'new')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("replace"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_startswith() {
+        let code = r#"
+def check_prefix(s: str) -> bool:
+    return s.startswith('pre')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("starts_with"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_endswith() {
+        let code = r#"
+def check_suffix(s: str) -> bool:
+    return s.endswith('post')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("ends_with"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_strip() {
+        let code = r#"
+def trim_text(s: str) -> str:
+    return s.strip()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("trim"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_lstrip() {
+        let code = r#"
+def trim_left(s: str) -> str:
+    return s.lstrip()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("trim_start") || rust.contains("trim_left"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_rstrip() {
+        let code = r#"
+def trim_right(s: str) -> str:
+    return s.rstrip()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("trim_end") || rust.contains("trim_right"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_items_loop() {
+        let code = r#"
+def iterate_dict(d: dict):
+    for k, v in d.items():
+        print(k, v)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for") && rust.contains("iter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_keys_loop() {
+        let code = r#"
+def iterate_keys(d: dict):
+    for k in d.keys():
+        print(k)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for") && rust.contains("keys"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_values_loop() {
+        let code = r#"
+def iterate_values(d: dict):
+    for v in d.values():
+        print(v)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for") && rust.contains("values"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_update() {
+        let code = r#"
+def update_dict():
+    d = {'a': 1}
+    other = {'b': 2}
+    d.update(other)
+    return d
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("extend") || rust.contains("update") || rust.contains("insert"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_dict_setdefault() {
+        let code = r#"
+def ensure_key(d: dict, key: str):
+    return d.setdefault(key, [])
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("entry") || rust.contains("or_insert"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_list_sort_with_key() {
+        let code = r#"
+def sort_pairs(pairs: list):
+    pairs.sort(key=lambda x: x[1])
+    return pairs
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("sort"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_list_reverse() {
+        let code = r#"
+def reverse_list():
+    items = [1, 2, 3]
+    items.reverse()
+    return items
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("reverse"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_find() {
+        let code = r#"
+def find_substring(s: str) -> int:
+    return s.find('sub')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("find") || rust.contains("position"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_index() {
+        let code = r#"
+def index_substring(s: str) -> int:
+    return s.index('sub')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("find") || rust.contains("position") || rust.contains("unwrap"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_count() {
+        let code = r#"
+def count_occurrences(s: str) -> int:
+    return s.count('a')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("matches") || rust.contains("count"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_isdigit() {
+        let code = r#"
+def check_digit(s: str) -> bool:
+    return s.isdigit()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_numeric") || rust.contains("chars") || rust.contains("all"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_string_isalpha() {
+        let code = r#"
+def check_alpha(s: str) -> bool:
+    return s.isalpha()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_alphabetic") || rust.contains("chars") || rust.contains("all"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_list_comp_with_method() {
+        let code = r#"
+def strip_lines(lines: list) -> list:
+    return [x.strip() for x in lines]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("trim") || rust.contains("map") || rust.contains("collect"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b6_chained_string_methods() {
+        let code = r#"
+def process_text(s: str) -> list:
+    return s.strip().lower().split(',')
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("trim") && rust.contains("to_lowercase") && rust.contains("split"), "output: {}", rust);
+    }
 }
