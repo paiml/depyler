@@ -2882,4 +2882,309 @@ def outer(x: int) -> int:
         let rust = transpile(code);
         assert!(rust.contains("fn outer"));
     }
+
+    // === Additional transpile-based coverage tests ===
+
+    #[test]
+    fn test_transpile_try_bare_except() {
+        let code = r#"
+def risky() -> str:
+    try:
+        return "ok"
+    except:
+        return "error"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn risky"));
+    }
+
+    #[test]
+    fn test_transpile_try_else_clause() {
+        let code = r#"
+def try_else(x: int) -> str:
+    try:
+        result = x + 1
+    except ValueError:
+        return "error"
+    else:
+        return "ok"
+    return "done"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn try_else"));
+    }
+
+    #[test]
+    fn test_transpile_try_exception_variable() {
+        let code = r#"
+def catch_named(s: str) -> str:
+    try:
+        return s
+    except ValueError as e:
+        return "caught"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn catch_named"));
+    }
+
+    #[test]
+    fn test_transpile_try_reraise() {
+        let code = r#"
+def reraise(x: int) -> int:
+    try:
+        return x
+    except ValueError:
+        raise
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn reraise"));
+    }
+
+    #[test]
+    fn test_transpile_nested_try() {
+        let code = r#"
+def nested_try() -> str:
+    try:
+        try:
+            return "inner"
+        except TypeError:
+            return "inner error"
+    except ValueError:
+        return "outer error"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn nested_try"));
+    }
+
+    #[test]
+    fn test_transpile_try_with_return_in_finally() {
+        let code = r#"
+def finally_return() -> str:
+    try:
+        result = "ok"
+    except ValueError:
+        result = "error"
+    finally:
+        return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn finally_return"));
+    }
+
+    #[test]
+    fn test_transpile_nested_function_no_capture() {
+        let code = r#"
+def outer() -> int:
+    def inner(x: int) -> int:
+        return x * 2
+    return inner(5)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"));
+    }
+
+    #[test]
+    fn test_transpile_nested_function_multiple() {
+        let code = r#"
+def parent() -> int:
+    def add(a: int, b: int) -> int:
+        return a + b
+    def mul(a: int, b: int) -> int:
+        return a * b
+    return add(2, 3) + mul(4, 5)
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("fn parent"),
+            "Should contain parent function: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_try_with_assignment() {
+        let code = r#"
+def parse_int(s: str) -> int:
+    try:
+        n = int(s)
+        return n
+    except ValueError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_int"));
+    }
+
+    // === captures_outer_scope additional tests ===
+
+    #[test]
+    fn test_captures_outer_scope_in_for_body() {
+        let params = vec![HirParam::new("x".to_string(), Type::Int)];
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("outer_list".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        }];
+        let outer_vars: HashSet<String> = ["outer_list".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_param_shadows_outer() {
+        let params = vec![HirParam::new("y".to_string(), Type::Int)];
+        let body = vec![HirStmt::Return(Some(HirExpr::Var("y".to_string())))];
+        let outer_vars: HashSet<String> = ["y".to_string()].into_iter().collect();
+        // y is a param, so it shadows the outer var - not a capture
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_if_condition() {
+        let params = vec![];
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Var("threshold".to_string()),
+            then_body: vec![],
+            else_body: None,
+        }];
+        let outer_vars: HashSet<String> = ["threshold".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_while_condition() {
+        let params = vec![];
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Var("running".to_string()),
+            body: vec![],
+        }];
+        let outer_vars: HashSet<String> = ["running".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    // === extract_fields_from_expr additional tests ===
+
+    #[test]
+    fn test_extract_fields_in_comparison() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::Gt,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "threshold".to_string(),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("threshold"));
+    }
+
+    #[test]
+    fn test_extract_fields_nested_attribute_no_match() {
+        // Nested attributes (args.config.name) - only direct args.X is extracted
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "config".to_string(),
+            }),
+            attr: "name".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        // Only direct args.X patterns are captured
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_in_method_args() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "process".to_string(),
+            args: vec![HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "input".to_string(),
+            }],
+            kwargs: vec![],
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("input"));
+    }
+
+    // === extract_fields_recursive additional tests ===
+
+    #[test]
+    fn test_extract_fields_recursive_return_stmt_not_handled() {
+        // Return statements are handled by the catch-all `_ => {}` in extract_fields_recursive
+        // so fields in return expressions are not extracted
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::Return(Some(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "result".to_string(),
+        }))];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_return_none() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::Return(None)];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_if_no_else() {
+        let mut fields = HashSet::new();
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "only_then".to_string(),
+            })],
+            else_body: None,
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("only_then"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_multiple_stmts() {
+        let mut fields = HashSet::new();
+        let stmts = vec![
+            HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "first".to_string(),
+            }),
+            HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "second".to_string(),
+            }),
+        ];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("first"));
+        assert!(fields.contains("second"));
+    }
+
+    // === is_subcommand_check additional tests ===
+
+    #[test]
+    fn test_is_subcommand_check_non_binary() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Var("something".to_string());
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_is_subcommand_check_non_attribute_left() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::String("test".to_string()))),
+        };
+        let result = is_subcommand_check(&expr, "command", &ctx);
+        assert_eq!(result, None);
+    }
 }
