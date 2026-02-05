@@ -1005,4 +1005,639 @@ mod tests {
         assert!(is_var_used_in_expr("a", &expr));
         assert!(is_var_used_in_expr("b", &expr));
     }
+
+    #[test]
+    fn test_var_in_unary() {
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Var("x".to_string())),
+        };
+        assert!(is_var_used_in_expr("x", &expr));
+        assert!(!is_var_used_in_expr("y", &expr));
+    }
+
+    #[test]
+    fn test_var_in_call_args() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Var("msg".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_var_used_in_expr("msg", &expr));
+        assert!(!is_var_used_in_expr("other", &expr));
+    }
+
+    #[test]
+    fn test_var_in_index_expr() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("idx".to_string())),
+        };
+        assert!(is_var_used_in_expr("arr", &expr));
+        assert!(is_var_used_in_expr("idx", &expr));
+    }
+
+    #[test]
+    fn test_var_in_attribute_expr() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        assert!(is_var_used_in_expr("obj", &expr));
+        assert!(!is_var_used_in_expr("field", &expr));
+    }
+
+    #[test]
+    fn test_var_in_list_expr() {
+        let expr = HirExpr::List(vec![HirExpr::Var("a".to_string()), lit_int(1)]);
+        assert!(is_var_used_in_expr("a", &expr));
+        assert!(!is_var_used_in_expr("b", &expr));
+    }
+
+    #[test]
+    fn test_var_in_tuple_expr() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Var("y".to_string()),
+        ]);
+        assert!(is_var_used_in_expr("x", &expr));
+        assert!(is_var_used_in_expr("y", &expr));
+    }
+
+    #[test]
+    fn test_var_in_set_expr() {
+        let expr = HirExpr::Set(vec![HirExpr::Var("item".to_string())]);
+        assert!(is_var_used_in_expr("item", &expr));
+    }
+
+    #[test]
+    fn test_var_in_dict_expr() {
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Var("key".to_string()),
+            HirExpr::Var("val".to_string()),
+        )]);
+        assert!(is_var_used_in_expr("key", &expr));
+        assert!(is_var_used_in_expr("val", &expr));
+        assert!(!is_var_used_in_expr("other", &expr));
+    }
+
+    #[test]
+    fn test_var_not_in_literal() {
+        assert!(!is_var_used_in_expr("x", &lit_int(42)));
+        assert!(!is_var_used_in_expr(
+            "x",
+            &HirExpr::Literal(Literal::String("hello".to_string()))
+        ));
+    }
+
+    #[test]
+    fn test_var_used_in_while_condition() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Var("flag".to_string()),
+            body: vec![],
+        };
+        assert!(is_var_used_anywhere("flag", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_while_body() {
+        let stmt = HirStmt::While {
+            condition: lit_bool(true),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        };
+        assert!(is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_for_body() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::List(vec![]),
+            body: vec![HirStmt::Expr(HirExpr::Var("total".to_string()))],
+        };
+        assert!(is_var_used_anywhere("total", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_assert_test() {
+        let stmt = HirStmt::Assert {
+            test: HirExpr::Var("check".to_string()),
+            msg: None,
+        };
+        assert!(is_var_used_anywhere("check", &stmt));
+        assert!(!is_var_used_anywhere("other", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_assert_msg() {
+        let stmt = HirStmt::Assert {
+            test: lit_bool(true),
+            msg: Some(HirExpr::Var("msg".to_string())),
+        };
+        assert!(is_var_used_anywhere("msg", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_raise() {
+        let stmt = HirStmt::Raise {
+            exception: Some(HirExpr::Var("err".to_string())),
+            cause: None,
+        };
+        assert!(is_var_used_anywhere("err", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_raise_none() {
+        let stmt = HirStmt::Raise {
+            exception: None,
+            cause: None,
+        };
+        assert!(!is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_try_body() {
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+            handlers: vec![],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_try_handler() {
+        let stmt = HirStmt::Try {
+            body: vec![],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("Exception".to_string()),
+                name: Some("e".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+            }],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_try_orelse() {
+        let stmt = HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: Some(vec![HirStmt::Expr(HirExpr::Var("y".to_string()))]),
+            finalbody: None,
+        };
+        assert!(is_var_used_anywhere("y", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_try_finalbody() {
+        let stmt = HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Expr(HirExpr::Var("z".to_string()))]),
+        };
+        assert!(is_var_used_anywhere("z", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_with_body() {
+        let stmt = HirStmt::With {
+            context: HirExpr::Var("ctx".to_string()),
+            target: Some("f".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::Var("data".to_string()))],
+            is_async: false,
+        };
+        assert!(is_var_used_anywhere("data", &stmt));
+        // Note: is_var_used_anywhere for With only checks body, not context
+        assert!(!is_var_used_anywhere("not_there", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_if_else() {
+        let stmt = HirStmt::If {
+            condition: lit_bool(true),
+            then_body: vec![],
+            else_body: Some(vec![HirStmt::Expr(HirExpr::Var("x".to_string()))]),
+        };
+        assert!(is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_not_used_in_return_none() {
+        let stmt = HirStmt::Return(None);
+        assert!(!is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_not_used_in_break() {
+        let stmt = HirStmt::Break { label: None };
+        assert!(!is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_not_used_in_continue() {
+        let stmt = HirStmt::Continue { label: None };
+        assert!(!is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_not_used_in_pass() {
+        let stmt = HirStmt::Pass;
+        assert!(!is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_index_target() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Index {
+                base: Box::new(HirExpr::Var("arr".to_string())),
+                index: Box::new(HirExpr::Var("idx".to_string())),
+            },
+            value: lit_int(42),
+            type_annotation: None,
+        };
+        assert!(is_var_used_anywhere("arr", &stmt));
+        assert!(is_var_used_anywhere("idx", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_attribute_target() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Attribute {
+                value: Box::new(HirExpr::Var("self_obj".to_string())),
+                attr: "field".to_string(),
+            },
+            value: lit_int(1),
+            type_annotation: None,
+        };
+        assert!(is_var_used_anywhere("self_obj", &stmt));
+    }
+
+    #[test]
+    fn test_var_used_in_tuple_target() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![lit_int(1), lit_int(2)]),
+            type_annotation: None,
+        };
+        assert!(is_var_used_anywhere("a", &stmt));
+        assert!(is_var_used_anywhere("b", &stmt));
+    }
+
+    #[test]
+    fn test_collect_nested_in_while() {
+        let stmts = vec![HirStmt::While {
+            condition: lit_bool(true),
+            body: vec![HirStmt::FunctionDef {
+                name: "while_func".to_string(),
+                params: Box::new(smallvec::smallvec![]),
+                ret_type: crate::hir::Type::None,
+                body: vec![],
+                docstring: None,
+            }],
+        }];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert_eq!(names, vec!["while_func"]);
+    }
+
+    #[test]
+    fn test_collect_nested_in_with() {
+        let stmts = vec![HirStmt::With {
+            context: HirExpr::Var("ctx".to_string()),
+            target: Some("f".to_string()),
+            body: vec![HirStmt::FunctionDef {
+                name: "with_func".to_string(),
+                params: Box::new(smallvec::smallvec![]),
+                ret_type: crate::hir::Type::None,
+                body: vec![],
+                docstring: None,
+            }],
+            is_async: false,
+        }];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert_eq!(names, vec!["with_func"]);
+    }
+
+    #[test]
+    fn test_collect_nested_in_try_all_branches() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![HirStmt::FunctionDef {
+                name: "try_func".to_string(),
+                params: Box::new(smallvec::smallvec![]),
+                ret_type: crate::hir::Type::None,
+                body: vec![],
+                docstring: None,
+            }],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("Exception".to_string()),
+                name: Some("e".to_string()),
+                body: vec![HirStmt::FunctionDef {
+                    name: "handler_func".to_string(),
+                    params: Box::new(smallvec::smallvec![]),
+                    ret_type: crate::hir::Type::None,
+                    body: vec![],
+                    docstring: None,
+                }],
+            }],
+            orelse: Some(vec![HirStmt::FunctionDef {
+                name: "orelse_func".to_string(),
+                params: Box::new(smallvec::smallvec![]),
+                ret_type: crate::hir::Type::None,
+                body: vec![],
+                docstring: None,
+            }]),
+            finalbody: Some(vec![HirStmt::FunctionDef {
+                name: "finally_func".to_string(),
+                params: Box::new(smallvec::smallvec![]),
+                ret_type: crate::hir::Type::None,
+                body: vec![],
+                docstring: None,
+            }]),
+        }];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert!(names.contains(&"try_func".to_string()));
+        assert!(names.contains(&"handler_func".to_string()));
+        assert!(names.contains(&"orelse_func".to_string()));
+        assert!(names.contains(&"finally_func".to_string()));
+    }
+
+    #[test]
+    fn test_collect_nested_deeply_nested() {
+        let stmts = vec![HirStmt::FunctionDef {
+            name: "outer".to_string(),
+            params: Box::new(smallvec::smallvec![]),
+            ret_type: crate::hir::Type::None,
+            body: vec![HirStmt::FunctionDef {
+                name: "inner".to_string(),
+                params: Box::new(smallvec::smallvec![]),
+                ret_type: crate::hir::Type::None,
+                body: vec![],
+                docstring: None,
+            }],
+            docstring: None,
+        }];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert!(names.contains(&"outer".to_string()));
+        assert!(names.contains(&"inner".to_string()));
+    }
+
+    #[test]
+    fn test_if_escaping_from_nested_for() {
+        // Variable assigned in if inside for, used after the if within the for body
+        let stmts = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::List(vec![]),
+            body: vec![
+                HirStmt::If {
+                    condition: lit_bool(true),
+                    then_body: vec![HirStmt::Assign {
+                        target: AssignTarget::Symbol("found".to_string()),
+                        value: lit_bool(true),
+                        type_annotation: None,
+                    }],
+                    else_body: None,
+                },
+                HirStmt::Expr(HirExpr::Var("found".to_string())),
+            ],
+        }];
+        let escaping = collect_if_escaping_variables(&stmts);
+        assert!(escaping.contains("found"));
+    }
+
+    #[test]
+    fn test_if_escaping_from_try() {
+        // Variable assigned in if inside try, used after the if within the try body
+        let stmts = vec![HirStmt::Try {
+            body: vec![
+                HirStmt::If {
+                    condition: lit_bool(true),
+                    then_body: vec![HirStmt::Assign {
+                        target: AssignTarget::Symbol("result".to_string()),
+                        value: lit_int(1),
+                        type_annotation: None,
+                    }],
+                    else_body: None,
+                },
+                HirStmt::Expr(HirExpr::Var("result".to_string())),
+            ],
+            handlers: vec![],
+            orelse: None,
+            finalbody: None,
+        }];
+        let escaping = collect_if_escaping_variables(&stmts);
+        assert!(escaping.contains("result"));
+    }
+
+    #[test]
+    fn test_loop_escaping_from_while() {
+        let stmts = vec![
+            HirStmt::While {
+                condition: lit_bool(true),
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("count".to_string()),
+                    value: lit_int(0),
+                    type_annotation: None,
+                }],
+            },
+            HirStmt::Return(Some(HirExpr::Var("count".to_string()))),
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.contains("count"));
+    }
+
+    #[test]
+    fn test_loop_escaping_nested_in_if() {
+        // For loop inside if body, var assigned in loop used after the If
+        let stmts = vec![
+            HirStmt::If {
+                condition: lit_bool(true),
+                then_body: vec![
+                    HirStmt::For {
+                        target: AssignTarget::Symbol("i".to_string()),
+                        iter: HirExpr::List(vec![]),
+                        body: vec![HirStmt::Assign {
+                            target: AssignTarget::Symbol("acc".to_string()),
+                            value: lit_int(0),
+                            type_annotation: None,
+                        }],
+                    },
+                    HirStmt::Expr(HirExpr::Var("acc".to_string())),
+                ],
+                else_body: None,
+            },
+            HirStmt::Return(Some(HirExpr::Var("acc".to_string()))),
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.contains("acc"));
+    }
+
+    #[test]
+    fn test_loop_escaping_nested_in_try() {
+        // For loop inside try, var assigned in loop used after the Try
+        let stmts = vec![
+            HirStmt::Try {
+                body: vec![
+                    HirStmt::For {
+                        target: AssignTarget::Symbol("i".to_string()),
+                        iter: HirExpr::List(vec![]),
+                        body: vec![HirStmt::Assign {
+                            target: AssignTarget::Symbol("val".to_string()),
+                            value: lit_int(1),
+                            type_annotation: None,
+                        }],
+                    },
+                    HirStmt::Expr(HirExpr::Var("val".to_string())),
+                ],
+                handlers: vec![],
+                orelse: None,
+                finalbody: None,
+            },
+            HirStmt::Return(Some(HirExpr::Var("val".to_string()))),
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.contains("val"));
+    }
+
+    #[test]
+    fn test_collect_from_while_body() {
+        let stmts = vec![HirStmt::While {
+            condition: lit_bool(true),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("counter".to_string()),
+                value: lit_int(0),
+                type_annotation: None,
+            }],
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("counter"));
+    }
+
+    #[test]
+    fn test_collect_from_try_finalbody() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("cleaned".to_string()),
+                value: lit_bool(true),
+                type_annotation: None,
+            }]),
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("cleaned"));
+    }
+
+    #[test]
+    fn test_collect_non_assign_stmts() {
+        let stmts = vec![
+            HirStmt::Pass,
+            HirStmt::Break { label: None },
+            HirStmt::Continue { label: None },
+            HirStmt::Return(None),
+        ];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn test_toplevel_tuple_assign() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![lit_int(1), lit_int(2)]),
+            type_annotation: None,
+        }];
+        let vars = extract_toplevel_assigned_symbols(&stmts);
+        assert!(vars.contains("a"));
+        assert!(vars.contains("b"));
+    }
+
+    #[test]
+    fn test_toplevel_from_try() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: lit_int(1),
+                type_annotation: None,
+            }],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("Exception".to_string()),
+                name: Some("e".to_string()),
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: lit_int(2),
+                    type_annotation: None,
+                }],
+            }],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("z".to_string()),
+                value: lit_int(3),
+                type_annotation: None,
+            }]),
+        }];
+        let vars = extract_toplevel_assigned_symbols(&stmts);
+        assert!(vars.contains("x"));
+        assert!(vars.contains("y"));
+        assert!(vars.contains("z"));
+    }
+
+    #[test]
+    fn test_var_used_in_remaining_multiple() {
+        let stmts = vec![
+            HirStmt::Expr(lit_int(1)),
+            HirStmt::Expr(HirExpr::Var("x".to_string())),
+        ];
+        assert!(is_var_used_in_remaining_stmts("x", &stmts));
+    }
+
+    #[test]
+    fn test_var_not_used_in_remaining_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        assert!(!is_var_used_in_remaining_stmts("x", &stmts));
+    }
+
+    #[test]
+    fn test_try_no_orelse_still_returns() {
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Return(Some(lit_int(1)))],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("Exception".to_string()),
+                name: Some("e".to_string()),
+                body: vec![HirStmt::Return(Some(lit_int(2)))],
+            }],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_try_handler_no_return() {
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Return(Some(lit_int(1)))],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("Exception".to_string()),
+                name: Some("e".to_string()),
+                body: vec![HirStmt::Expr(lit_int(0))],
+            }],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(!stmt_always_returns(&stmt));
+    }
 }
