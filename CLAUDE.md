@@ -9,6 +9,37 @@ Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code g
 ## Python Packaging Protocol
 **MANDATORY: Use `uv` for ALL Python operations** (`uv add`, `uv run pytest`, `uv run <script.py>`)
 
+## Code Search (pmat query)
+
+**NEVER use grep or rg for code discovery.** Use `pmat query` instead -- it returns quality-annotated, ranked results with TDG scores and fault annotations.
+
+```bash
+# Find functions by intent
+pmat query "python ast conversion" --limit 10
+
+# Find high-quality code
+pmat query "type inference" --min-grade A --exclude-tests
+
+# Find with fault annotations (unwrap, panic, unsafe, etc.)
+pmat query "transpilation pass" --faults
+
+# Filter by complexity
+pmat query "code generation" --max-complexity 10
+
+# Cross-project search
+pmat query "rust codegen" --include-project ../trueno
+
+# Git history search (find code by commit intent via RRF fusion)
+pmat query "fix type mapping" -G
+pmat query "ast visitor" --git-history
+
+# Enrichment flags (combine freely)
+pmat query "ast visitor" --churn              # git volatility (commit count, churn score)
+pmat query "pattern matcher" --duplicates           # code clone detection (MinHash+LSH)
+pmat query "code emitter" --entropy           # pattern diversity (repetitive vs unique)
+pmat query "transpilation" --churn --duplicates --entropy --faults -G  # full audit
+```
+
 ## Build Environment
 - **Cargo Target**: `/Volumes/LambdaCache/cargo-target` (256GB APFS disk image, 16 jobs, incremental)
 - **DO NOT** create additional RAM disks or use /tmp for transpiler output
