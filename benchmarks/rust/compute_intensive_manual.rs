@@ -1,4 +1,3 @@
-#!/usr/bin/env rust
 //! Compute-intensive benchmark: Fibonacci calculation and sum operations.
 //!
 //! Manual Rust implementation matching benchmarks/python/compute_intensive.py

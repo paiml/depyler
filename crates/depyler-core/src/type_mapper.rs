@@ -4,6 +4,7 @@ use crate::hir::{ConstGeneric, Type as PythonType};
 use crate::trace_decision;
 use serde::{Deserialize, Serialize};
 
+/// Integer width preference for transpiled Rust code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntWidth {
     I32,
@@ -11,6 +12,7 @@ pub enum IntWidth {
     ISize,
 }
 
+/// Strategy for mapping Python `str` to Rust string types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StringStrategy {
     AlwaysOwned,    // String everywhere (safe, simple)
@@ -18,6 +20,7 @@ pub enum StringStrategy {
     CowByDefault,   // Cow<'static, str> (V1.2)
 }
 
+/// Maps Python types to Rust types with configurable integer width and string strategy.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeMapper {
     pub width_preference: IntWidth,
@@ -33,6 +36,7 @@ fn default_nasa_mode() -> bool {
     true
 }
 
+/// Rust type representation used during code generation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RustType {
     Primitive(PrimitiveType),
@@ -86,6 +90,7 @@ pub enum RustConstGeneric {
     Expression(String),
 }
 
+/// Rust primitive numeric and boolean types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrimitiveType {
     Bool,

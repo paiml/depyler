@@ -3108,13 +3108,14 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_python_files(directory: &str) -> Vec<String> {
-    let path = std::path::PathBuf::from(&directory);
-    vec![std::path::PathBuf::from(&format!("{}/{}", path.display(), "*.py"))
-        .unwrap()
-        .filter_map(|e| e.ok())
-        .collect::<Vec<_>>()
+    let path = std::path::PathBuf::from(directory);
+    std::fs::read_dir(&path)
         .into_iter()
-        .map(|p| (p).to_string())
+        .flatten()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |ext| ext == "py"))
+        .map(|p| p.display().to_string())
         .collect::<Vec<_>>()
 }
 #[doc = "Create a nested path from parts"]
