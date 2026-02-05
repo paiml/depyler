@@ -29,7 +29,8 @@ def length(s: str) -> int:
 "#,
     );
     assert!(
-        code.contains("fn length") && (code.contains("&") || code.contains("str") || code.contains("String")),
+        code.contains("fn length")
+            && (code.contains("&") || code.contains("str") || code.contains("String")),
         "Should handle borrowing for read-only param: {code}"
     );
 }
@@ -95,7 +96,10 @@ def f() -> int:
 "#,
     );
     assert!(
-        code.contains("5") || code.contains("20") || code.contains("2 + 3") || code.contains("x * 4"),
+        code.contains("5")
+            || code.contains("20")
+            || code.contains("2 + 3")
+            || code.contains("x * 4"),
         "Should generate constant arithmetic: {code}"
     );
 }

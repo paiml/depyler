@@ -238,7 +238,10 @@ def squares(n: int) -> int:
 "#,
     );
     assert!(
-        code.contains("Iterator") || code.contains("iter") || code.contains("next") || code.contains("*"),
+        code.contains("Iterator")
+            || code.contains("iter")
+            || code.contains("next")
+            || code.contains("*"),
         "Should generate range-based generator: {code}"
     );
 }

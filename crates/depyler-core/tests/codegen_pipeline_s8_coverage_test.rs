@@ -180,7 +180,10 @@ def circle_area(r: float) -> float:
 "#,
     );
     assert!(
-        code.contains("PI") || code.contains("std::f64::consts") || code.contains("pi") || code.contains("3.14"),
+        code.contains("PI")
+            || code.contains("std::f64::consts")
+            || code.contains("pi")
+            || code.contains("3.14"),
         "Should map math module: {code}"
     );
 }
@@ -562,10 +565,7 @@ def f(data: dict) -> str:
     return j.dumps(data)
 "#,
     );
-    assert!(
-        code.contains("fn f"),
-        "Should handle import alias: {code}"
-    );
+    assert!(code.contains("fn f"), "Should handle import alias: {code}");
 }
 
 // ── Pattern matching (Python 3.10+) ─────────────────────────────
