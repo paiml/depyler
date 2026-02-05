@@ -219,3 +219,8 @@ benchmarks/rust/*.exe
 
 # Compilation test artifacts
 .compile_test_tmp/
+
+# PMAT
+.pmat/context.idx/
+.pmat/workspace.idx/
+.pmat/deps-cache.json
