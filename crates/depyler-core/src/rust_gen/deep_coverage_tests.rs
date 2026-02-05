@@ -1133,3 +1133,278 @@ fn test_file_readline() {
         "def foo(path: str) -> str:\n    with open(path) as f:\n        return f.readline()"
     ));
 }
+
+// ============================================================================
+// Session 9 Batch 5: Targeted deep coverage tests
+// ============================================================================
+
+// --- Nested function patterns ---
+
+#[test]
+fn test_s9_nested_fn_filter_pattern() {
+    assert!(transpile_ok(
+        "def filter_items(items: list) -> list:\n    def is_valid(x: int) -> bool:\n        return x > 0\n    return [x for x in items if is_valid(x)]"
+    ));
+}
+
+#[test]
+fn test_s9_nested_fn_recursive_factorial() {
+    assert!(transpile_ok(
+        "def compute(n: int) -> int:\n    def fact(x: int) -> int:\n        if x <= 1:\n            return 1\n        return x * fact(x - 1)\n    return fact(n)"
+    ));
+}
+
+#[test]
+fn test_s9_nested_fn_with_closure_capture() {
+    assert!(transpile_ok(
+        "def outer(base: int) -> int:\n    def adder(x: int) -> int:\n        return base + x\n    return adder(10)"
+    ));
+}
+
+#[test]
+fn test_s9_nested_fn_multiple_siblings() {
+    assert!(transpile_ok(
+        "def run() -> int:\n    def add(a: int, b: int) -> int:\n        return a + b\n    def sub(a: int, b: int) -> int:\n        return a - b\n    return add(5, 3) + sub(10, 2)"
+    ));
+}
+
+// --- try/except patterns ---
+
+#[test]
+fn test_s9_try_except_parse_with_negative_fallback() {
+    assert!(transpile_ok(
+        "def parse_num(s: str) -> int:\n    try:\n        return int(s)\n    except ValueError:\n        return -1"
+    ));
+}
+
+#[test]
+fn test_s9_try_except_with_finally_and_cleanup() {
+    assert!(transpile_ok(
+        "def run_with_cleanup() -> str:\n    result = \"\"\n    try:\n        result = \"ok\"\n    except ValueError:\n        result = \"error\"\n    finally:\n        print(\"done\")\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9_try_except_variable_hoisting() {
+    assert!(transpile_ok(
+        "def hoisted(s: str) -> int:\n    try:\n        x = int(s)\n    except ValueError:\n        x = 0\n    return x"
+    ));
+}
+
+#[test]
+fn test_s9_try_except_multiple_handlers_bind() {
+    assert!(transpile_ok(
+        "def multi_catch(s: str) -> str:\n    try:\n        return str(int(s))\n    except ValueError as e:\n        return \"value\"\n    except TypeError as e:\n        return \"type\""
+    ));
+}
+
+#[test]
+fn test_s9_nested_try_except() {
+    assert!(transpile_ok(
+        "def nested_err() -> int:\n    try:\n        try:\n            return 1\n        except TypeError:\n            return 2\n    except ValueError:\n        return 3"
+    ));
+}
+
+// --- Complex expression patterns ---
+
+#[test]
+fn test_s9_dict_comprehension_with_method() {
+    assert!(transpile_ok(
+        "def word_lengths(words: list) -> dict:\n    return {w: len(w) for w in words}"
+    ));
+}
+
+#[test]
+fn test_s9_set_comprehension_with_condition() {
+    assert!(transpile_ok(
+        "def even_squares(n: int) -> set:\n    return {x * x for x in range(n) if x % 2 == 0}"
+    ));
+}
+
+#[test]
+fn test_s9_generator_expression_in_sum() {
+    assert!(transpile_ok(
+        "def sum_cubes(n: int) -> int:\n    return sum(x ** 3 for x in range(n))"
+    ));
+}
+
+#[test]
+fn test_s9_lambda_in_filter() {
+    assert!(transpile_ok(
+        "def only_positive(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))"
+    ));
+}
+
+#[test]
+fn test_s9_lambda_in_map() {
+    assert!(transpile_ok(
+        "def double(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))"
+    ));
+}
+
+#[test]
+fn test_s9_nested_list_comprehension() {
+    assert!(transpile_ok(
+        "def flatten(matrix: list) -> list:\n    return [x for row in matrix for x in row]"
+    ));
+}
+
+// --- Complex algorithm patterns ---
+
+#[test]
+fn test_s9_merge_sort_algorithm() {
+    assert!(transpile_ok(
+        "def merge(a: list, b: list) -> list:\n    result = []\n    i = 0\n    j = 0\n    while i < len(a) and j < len(b):\n        if a[i] <= b[j]:\n            result.append(a[i])\n            i += 1\n        else:\n            result.append(b[j])\n            j += 1\n    while i < len(a):\n        result.append(a[i])\n        i += 1\n    while j < len(b):\n        result.append(b[j])\n        j += 1\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9_matrix_multiply_pattern() {
+    assert!(transpile_ok(
+        "def dot_product(a: list, b: list) -> int:\n    total = 0\n    for i in range(len(a)):\n        total += a[i] * b[i]\n    return total"
+    ));
+}
+
+#[test]
+fn test_s9_quicksort_partition() {
+    assert!(transpile_ok(
+        "def partition(arr: list, low: int, high: int) -> int:\n    pivot = arr[high]\n    i = low - 1\n    for j in range(low, high):\n        if arr[j] <= pivot:\n            i += 1\n    return i + 1"
+    ));
+}
+
+// --- Class patterns ---
+
+#[test]
+fn test_s9_class_with_property() {
+    assert!(transpile_ok(
+        "class Point:\n    def __init__(self, x: int, y: int):\n        self.x = x\n        self.y = y\n    def distance(self) -> float:\n        return (self.x ** 2 + self.y ** 2) ** 0.5"
+    ));
+}
+
+#[test]
+fn test_s9_class_with_str_method() {
+    assert!(transpile_ok(
+        "class Counter:\n    def __init__(self):\n        self.count = 0\n    def increment(self) -> None:\n        self.count += 1\n    def __str__(self) -> str:\n        return str(self.count)"
+    ));
+}
+
+// --- Edge case patterns ---
+
+#[test]
+fn test_s9_multiple_return_values() {
+    assert!(transpile_ok(
+        "def swap(a: int, b: int) -> tuple:\n    return (b, a)"
+    ));
+}
+
+#[test]
+fn test_s9_string_formatting_fstring() {
+    assert!(transpile_ok(
+        "def greet(name: str) -> str:\n    return f\"Hello, {name}!\""
+    ));
+}
+
+#[test]
+fn test_s9_string_format_method() {
+    assert!(transpile_ok(
+        "def template(x: int) -> str:\n    return \"Value: {}\".format(x)"
+    ));
+}
+
+#[test]
+fn test_s9_chained_comparisons() {
+    assert!(transpile_ok(
+        "def in_range(x: int, lo: int, hi: int) -> bool:\n    return lo <= x <= hi"
+    ));
+}
+
+#[test]
+fn test_s9_walrus_in_if() {
+    assert!(transpile_ok(
+        "def check(items: list) -> int:\n    if (n := len(items)) > 0:\n        return n\n    return 0"
+    ));
+}
+
+#[test]
+fn test_s9_assert_with_message() {
+    assert!(transpile_ok(
+        "def validate(x: int) -> int:\n    assert x >= 0, \"must be non-negative\"\n    return x"
+    ));
+}
+
+#[test]
+fn test_s9_del_variable() {
+    assert!(transpile_ok(
+        "def cleanup() -> None:\n    x = 10\n    del x"
+    ));
+}
+
+#[test]
+fn test_s9_global_constant_usage() {
+    assert!(transpile_ok(
+        "MAX = 100\n\ndef check(n: int) -> bool:\n    return n < MAX"
+    ));
+}
+
+#[test]
+fn test_s9_import_and_use() {
+    assert!(transpile_ok(
+        "import os\n\ndef get_path() -> str:\n    return os.getcwd()"
+    ));
+}
+
+#[test]
+fn test_s9_from_import() {
+    assert!(transpile_ok(
+        "from pathlib import Path\n\ndef exists(p: str) -> bool:\n    return Path(p).exists()"
+    ));
+}
+
+#[test]
+fn test_s9_empty_function_pass() {
+    assert!(transpile_ok(
+        "def noop() -> None:\n    pass"
+    ));
+}
+
+#[test]
+fn test_s9_type_annotation_optional() {
+    assert!(transpile_ok(
+        "def maybe(x: int) -> int:\n    if x > 0:\n        return x\n    return 0"
+    ));
+}
+
+#[test]
+fn test_s9_complex_dict_ops() {
+    assert!(transpile_ok(
+        "def merge_dicts(a: dict, b: dict) -> dict:\n    result = {}\n    for k, v in a.items():\n        result[k] = v\n    for k, v in b.items():\n        result[k] = v\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9_list_comprehension_nested_if() {
+    assert!(transpile_ok(
+        "def filter_even_positive(nums: list) -> list:\n    return [x for x in nums if x > 0 if x % 2 == 0]"
+    ));
+}
+
+#[test]
+fn test_s9_string_methods_chain() {
+    assert!(transpile_ok(
+        "def normalize(s: str) -> str:\n    return s.strip().lower().replace(\" \", \"_\")"
+    ));
+}
+
+#[test]
+fn test_s9_enumerate_pattern() {
+    assert!(transpile_ok(
+        "def indexed_list(items: list) -> list:\n    result = []\n    for i, item in enumerate(items):\n        result.append(i)\n    return result"
+    ));
+}
+
+#[test]
+fn test_s9_zip_pattern() {
+    assert!(transpile_ok(
+        "def pair_up(a: list, b: list) -> list:\n    result = []\n    for x, y in zip(a, b):\n        result.append(x + y)\n    return result"
+    ));
+}
