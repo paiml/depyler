@@ -1,20 +1,50 @@
 {
   "direct_count": 0,
   "transitive_count": 343,
-  "timestamp": "2026-02-05T01:00:00.000000+00:00",
+  "timestamp": "2026-02-05T05:31:05.028239+00:00",
   "previous": {
     "direct_count": 0,
-    "transitive_count": 354,
-    "timestamp": "2026-02-05T00:30:00.000000+00:00",
+    "transitive_count": 343,
+    "timestamp": "2026-02-05T05:27:41.565298+00:00",
     "previous": {
       "direct_count": 0,
-      "transitive_count": 397,
-      "timestamp": "2026-02-04T23:00:12.758306+00:00",
+      "transitive_count": 343,
+      "timestamp": "2026-02-05T05:21:08.621476+00:00",
       "previous": {
         "direct_count": 0,
-        "transitive_count": 731,
-        "timestamp": "2026-02-04T21:57:14.452597+00:00",
-        "previous": null
+        "transitive_count": 343,
+        "timestamp": "2026-02-05T05:15:34.869937+00:00",
+        "previous": {
+          "direct_count": 0,
+          "transitive_count": 343,
+          "timestamp": "2026-02-04T23:27:08.071552+00:00",
+          "previous": {
+            "direct_count": 0,
+            "transitive_count": 343,
+            "timestamp": "2026-02-04T23:27:01.443378+00:00",
+            "previous": {
+              "direct_count": 0,
+              "transitive_count": 343,
+              "timestamp": "2026-02-05T01:00:00.000000+00:00",
+              "previous": {
+                "direct_count": 0,
+                "transitive_count": 354,
+                "timestamp": "2026-02-05T00:30:00.000000+00:00",
+                "previous": {
+                  "direct_count": 0,
+                  "transitive_count": 397,
+                  "timestamp": "2026-02-04T23:00:12.758306+00:00",
+                  "previous": {
+                    "direct_count": 0,
+                    "transitive_count": 731,
+                    "timestamp": "2026-02-04T21:57:14.452597+00:00",
+                    "previous": null
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

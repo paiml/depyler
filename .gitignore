@@ -138,6 +138,7 @@ None
 
 # PMAT
 .pmat/backup/
+.pmat/context.idx/
 .pmat-qa/
 
 # Nix
