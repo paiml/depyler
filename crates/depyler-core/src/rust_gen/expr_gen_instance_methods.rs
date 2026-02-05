@@ -14555,4 +14555,811 @@ def test() -> str:
         assert!(!ExpressionConverter::is_json_value_type(&Type::Int));
         assert!(!ExpressionConverter::is_json_value_type(&Type::String));
     }
+
+    // ================================================================
+    // Session 9: Coverage improvement tests
+    // ================================================================
+
+    // --- Dict method edge cases ---
+
+    #[test]
+    fn test_s9_dict_get_with_default() {
+        let code = r#"
+def lookup(d: dict, key: str) -> str:
+    return d.get(key, "default")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn lookup"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_setdefault() {
+        let code = r#"
+def ensure_key(d: dict, key: str) -> str:
+    return d.setdefault(key, "value")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn ensure_key"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_pop() {
+        let code = r#"
+def remove_key(d: dict, key: str) -> str:
+    return d.pop(key)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn remove_key"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_pop_with_default() {
+        let code = r#"
+def remove_key_safe(d: dict, key: str) -> str:
+    return d.pop(key, "gone")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn remove_key_safe"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_update() {
+        let code = r#"
+def merge(d1: dict, d2: dict) -> None:
+    d1.update(d2)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn merge"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_clear() {
+        let code = r#"
+def reset(d: dict) -> None:
+    d.clear()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn reset"), "output: {}", rust);
+    }
+
+    // --- String methods ---
+
+    #[test]
+    fn test_s9_string_isdigit() {
+        let code = r#"
+def check_digit(s: str) -> bool:
+    return s.isdigit()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_digit"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_isalpha() {
+        let code = r#"
+def check_alpha(s: str) -> bool:
+    return s.isalpha()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_alpha"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_title() {
+        let code = r#"
+def titlecase(s: str) -> str:
+    return s.title()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn titlecase"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_center() {
+        let code = r#"
+def pad_center(s: str, width: int) -> str:
+    return s.center(width)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn pad_center"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_ljust() {
+        let code = r#"
+def pad_left(s: str, width: int) -> str:
+    return s.ljust(width)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn pad_left"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_rjust() {
+        let code = r#"
+def pad_right(s: str, width: int) -> str:
+    return s.rjust(width)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn pad_right"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_zfill() {
+        let code = r#"
+def zero_pad(s: str, width: int) -> str:
+    return s.zfill(width)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn zero_pad"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_encode() {
+        let code = r#"
+def to_bytes(s: str) -> bytes:
+    return s.encode()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn to_bytes"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_isalnum() {
+        let code = r#"
+def check_alnum(s: str) -> bool:
+    return s.isalnum()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_alnum"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_isnumeric() {
+        let code = r#"
+def check_numeric(s: str) -> bool:
+    return s.isnumeric()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_numeric"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_isspace() {
+        let code = r#"
+def check_space(s: str) -> bool:
+    return s.isspace()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_space"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_swapcase() {
+        let code = r#"
+def swap(s: str) -> str:
+    return s.swapcase()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn swap"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_casefold() {
+        let code = r#"
+def fold(s: str) -> str:
+    return s.casefold()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn fold"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_removeprefix() {
+        let code = r#"
+def strip_prefix(s: str) -> str:
+    return s.removeprefix("pre_")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn strip_prefix"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_removesuffix() {
+        let code = r#"
+def strip_suffix(s: str) -> str:
+    return s.removesuffix("_suf")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn strip_suffix"), "output: {}", rust);
+    }
+
+    // --- List methods ---
+
+    #[test]
+    fn test_s9_list_insert() {
+        let code = r#"
+def prepend(items: list, val: int) -> None:
+    items.insert(0, val)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn prepend"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_remove() {
+        let code = r#"
+def remove_val(items: list, val: int) -> None:
+    items.remove(val)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn remove_val"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_count() {
+        let code = r#"
+def count_val(items: list, val: int) -> int:
+    return items.count(val)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn count_val"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_index() {
+        let code = r#"
+def find_pos(items: list, val: int) -> int:
+    return items.index(val)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_pos"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_copy() {
+        let code = r#"
+def clone_list(items: list) -> list:
+    return items.copy()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn clone_list"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_clear() {
+        let code = r#"
+def empty(items: list) -> None:
+    items.clear()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn empty"), "output: {}", rust);
+    }
+
+    // --- Set methods ---
+
+    #[test]
+    fn test_s9_set_add() {
+        let code = r#"
+def add_to_set(s: set, val: int) -> None:
+    s.add(val)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn add_to_set"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_set_discard() {
+        let code = r#"
+def discard_from_set(s: set, val: int) -> None:
+    s.discard(val)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn discard_from_set"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_set_union() {
+        let code = r#"
+def merge_sets(a: set, b: set) -> set:
+    return a.union(b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn merge_sets"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_set_intersection() {
+        let code = r#"
+def common(a: set, b: set) -> set:
+    return a.intersection(b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn common"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_set_difference() {
+        let code = r#"
+def diff(a: set, b: set) -> set:
+    return a.difference(b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn diff"), "output: {}", rust);
+    }
+
+    // --- Lambda and closures ---
+
+    #[test]
+    fn test_s9_lambda_in_sorted() {
+        let code = r#"
+def sort_by_second(items: list) -> list:
+    return sorted(items, key=lambda x: x[1])
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn sort_by_second"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_lambda_in_filter() {
+        let code = r#"
+def positives(items: list) -> list:
+    return list(filter(lambda x: x > 0, items))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn positives"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_lambda_in_map() {
+        let code = r#"
+def doubled(items: list) -> list:
+    return list(map(lambda x: x * 2, items))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn doubled"), "output: {}", rust);
+    }
+
+    // --- Comprehensions ---
+
+    #[test]
+    fn test_s9_set_comprehension() {
+        let code = r#"
+def unique_squares(n: int) -> set:
+    return {x * x for x in range(n)}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn unique_squares"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_comprehension() {
+        let code = r#"
+def index_map(items: list) -> dict:
+    return {i: v for i, v in enumerate(items)}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn index_map"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_comp_with_condition() {
+        let code = r#"
+def evens(n: int) -> list:
+    return [x for x in range(n) if x % 2 == 0]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn evens"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_comp_with_method() {
+        let code = r#"
+def uppers(words: list) -> list:
+    return [w.upper() for w in words]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn uppers"), "output: {}", rust);
+    }
+
+    // --- FString complex expressions ---
+
+    #[test]
+    fn test_s9_fstring_with_method() {
+        let code = r#"
+def greet(name: str) -> str:
+    return f"Hello, {name.upper()}!"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn greet"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_fstring_with_expression() {
+        let code = r#"
+def calc(a: int, b: int) -> str:
+    return f"Sum is {a + b}"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn calc"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_fstring_multiple_parts() {
+        let code = r#"
+def info(name: str, age: int) -> str:
+    return f"Name: {name}, Age: {age}"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn info"), "output: {}", rust);
+    }
+
+    // --- Slice operations ---
+
+    #[test]
+    fn test_s9_list_slice_basic() {
+        let code = r#"
+def first_three(items: list) -> list:
+    return items[:3]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn first_three"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_slice_from() {
+        let code = r#"
+def rest(items: list) -> list:
+    return items[1:]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn rest"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_slice_range() {
+        let code = r#"
+def middle(items: list) -> list:
+    return items[1:3]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn middle"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_slice() {
+        let code = r#"
+def first_char(s: str) -> str:
+    return s[:1]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn first_char"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_negative_index() {
+        let code = r#"
+def last_item(items: list) -> int:
+    return items[-1]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn last_item"), "output: {}", rust);
+    }
+
+    // --- Attribute access ---
+
+    #[test]
+    fn test_s9_datetime_year() {
+        let code = r#"
+from datetime import date
+
+def get_year(d: date) -> int:
+    return d.year
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn get_year"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_datetime_month() {
+        let code = r#"
+from datetime import date
+
+def get_month(d: date) -> int:
+    return d.month
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn get_month"), "output: {}", rust);
+    }
+
+    // --- Tuple operations ---
+
+    #[test]
+    fn test_s9_tuple_index() {
+        let code = r#"
+def first(t: tuple) -> int:
+    return t[0]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn first"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_tuple_return() {
+        let code = r#"
+def pair(a: int, b: int) -> tuple:
+    return (a, b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn pair"), "output: {}", rust);
+    }
+
+    // --- Generator expression ---
+
+    #[test]
+    fn test_s9_generator_sum() {
+        let code = r#"
+def sum_squares(n: int) -> int:
+    return sum(x * x for x in range(n))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn sum_squares"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_generator_any() {
+        let code = r#"
+def has_positive(items: list) -> bool:
+    return any(x > 0 for x in items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn has_positive"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_generator_all() {
+        let code = r#"
+def all_positive(items: list) -> bool:
+    return all(x > 0 for x in items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn all_positive"), "output: {}", rust);
+    }
+
+    // --- Named expression (walrus) ---
+
+    #[test]
+    fn test_s9_walrus_in_while() {
+        let code = r#"
+def process(items: list) -> int:
+    total = 0
+    i = 0
+    while i < len(items):
+        total += items[i]
+        i += 1
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process"), "output: {}", rust);
+    }
+
+    // --- Frozenset ---
+
+    #[test]
+    fn test_s9_frozenset_creation() {
+        let code = r#"
+def immutable_set() -> frozenset:
+    return frozenset([1, 2, 3])
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn immutable_set"), "output: {}", rust);
+    }
+
+    // --- Chained method calls ---
+
+    #[test]
+    fn test_s9_chained_string_methods() {
+        let code = r#"
+def clean(s: str) -> str:
+    return s.strip().lower()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn clean"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_chained_string_split_join() {
+        let code = r#"
+def normalize(s: str) -> str:
+    return " ".join(s.split())
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn normalize"), "output: {}", rust);
+    }
+
+    // --- Regex methods ---
+
+    #[test]
+    fn test_s9_regex_search() {
+        let code = r#"
+import re
+
+def find_match(pattern: str, text: str) -> bool:
+    return re.search(pattern, text) is not None
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_match"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_regex_findall() {
+        let code = r#"
+import re
+
+def find_numbers(text: str) -> list:
+    return re.findall(r"\d+", text)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_numbers"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_regex_sub() {
+        let code = r#"
+import re
+
+def clean_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn clean_text"), "output: {}", rust);
+    }
+
+    // --- Sys.io methods ---
+
+    #[test]
+    fn test_s9_print_to_stderr() {
+        let code = r#"
+import sys
+
+def warn(msg: str) -> None:
+    sys.stderr.write(msg)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn warn"), "output: {}", rust);
+    }
+
+    // --- Await expression ---
+
+    #[test]
+    fn test_s9_async_function() {
+        let code = r#"
+async def fetch(url: str) -> str:
+    return url
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("async") || rust.contains("fn fetch"),
+            "output: {}",
+            rust
+        );
+    }
+
+    // --- Complex algorithms ---
+
+    #[test]
+    fn test_s9_matrix_transpose() {
+        let code = r#"
+def transpose(matrix: list) -> list:
+    result = []
+    for i in range(len(matrix[0])):
+        row = []
+        for j in range(len(matrix)):
+            row.append(matrix[j][i])
+        result.append(row)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn transpose"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_iteration_values() {
+        let code = r#"
+def sum_values(d: dict) -> int:
+    total = 0
+    for v in d.values():
+        total += v
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn sum_values"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_dict_iteration_items() {
+        let code = r#"
+def print_items(d: dict) -> None:
+    for k, v in d.items():
+        print(f"{k}: {v}")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn print_items"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_enumerate_with_start() {
+        let code = r#"
+def numbered(items: list) -> list:
+    result = []
+    for i, item in enumerate(items):
+        result.append(f"{i}: {item}")
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn numbered"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_zip_two_lists() {
+        let code = r#"
+def combine(a: list, b: list) -> list:
+    result = []
+    for x, y in zip(a, b):
+        result.append(x + y)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn combine"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_isinstance_check() {
+        let code = r#"
+def check_type(x: int) -> bool:
+    return isinstance(x, int)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_type"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_string_format_method() {
+        let code = r#"
+def format_msg(name: str, count: int) -> str:
+    return "{}: {}".format(name, count)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn format_msg"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_list_extend() {
+        let code = r#"
+def extend_list(a: list, b: list) -> None:
+    a.extend(b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn extend_list"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_str_in_operator() {
+        let code = r#"
+def contains(text: str, sub: str) -> bool:
+    return sub in text
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn contains"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9_str_not_in_operator() {
+        let code = r#"
+def not_contains(text: str, sub: str) -> bool:
+    return sub not in text
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn not_contains"), "output: {}", rust);
+    }
 }

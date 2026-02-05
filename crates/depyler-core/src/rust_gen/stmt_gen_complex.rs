@@ -3187,4 +3187,1452 @@ def parse_int(s: str) -> int:
         let result = is_subcommand_check(&expr, "command", &ctx);
         assert_eq!(result, None);
     }
+
+    // ================================================================
+    // Transpile-based tests for with statement / context managers
+    // ================================================================
+
+    #[test]
+    fn test_transpile_with_open_file() {
+        let code = r#"
+def read_file(path: str) -> str:
+    with open(path) as f:
+        return f.read()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn read_file"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_with_open_file_write() {
+        let code = r#"
+def write_file(path: str, data: str) -> None:
+    with open(path, "w") as f:
+        f.write(data)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn write_file"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_with_no_target() {
+        let code = r#"
+def process() -> None:
+    with open("test.txt"):
+        print("processing")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for raise statements
+    // ================================================================
+
+    #[test]
+    fn test_transpile_raise_value_error() {
+        let code = r#"
+def validate(x: int) -> int:
+    if x < 0:
+        raise ValueError("must be positive")
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn validate"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_raise_runtime_error() {
+        let code = r#"
+def fail_fast() -> None:
+    raise RuntimeError("not implemented")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn fail_fast"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_raise_bare() {
+        let code = r#"
+def reraise_bare() -> int:
+    try:
+        return 1
+    except ValueError:
+        raise
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn reraise_bare"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for assert statements
+    // ================================================================
+
+    #[test]
+    fn test_transpile_assert_simple() {
+        let code = r#"
+def check(x: int) -> None:
+    assert x > 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("assert"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_assert_with_message() {
+        let code = r#"
+def check_msg(x: int) -> None:
+    assert x > 0, "x must be positive"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_msg"), "output: {}", rust);
+        assert!(
+            rust.contains("assert") || rust.contains("panic"),
+            "output: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_assert_equality() {
+        let code = r#"
+def check_eq(a: int, b: int) -> None:
+    assert a == b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_eq"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_assert_not_equal() {
+        let code = r#"
+def check_ne(a: int, b: int) -> None:
+    assert a != b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check_ne"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for augmented assignments
+    // ================================================================
+
+    #[test]
+    fn test_transpile_augmented_add() {
+        let code = r#"
+def accumulate(n: int) -> int:
+    total = 0
+    total += n
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn accumulate"), "output: {}", rust);
+        assert!(rust.contains("+="), "Should contain += operator: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_augmented_sub() {
+        let code = r#"
+def decrement(n: int) -> int:
+    value = 10
+    value -= n
+    return value
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn decrement"), "output: {}", rust);
+        assert!(rust.contains("-="), "Should contain -= operator: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_augmented_mul() {
+        let code = r#"
+def scale(n: int) -> int:
+    result = 1
+    result *= n
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn scale"), "output: {}", rust);
+        // Transpiler may use `*=`, expand to `result * n`, or use `py_mul` helper
+        assert!(
+            rust.contains("*=") || rust.contains("py_mul") || rust.contains("* n"),
+            "Should contain multiplication: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_augmented_mod() {
+        let code = r#"
+def modulo_assign(n: int) -> int:
+    value = 100
+    value %= n
+    return value
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn modulo_assign"), "output: {}", rust);
+        // Transpiler may use py_mod() helper for Python-compatible modulo
+        assert!(
+            rust.contains("%=") || rust.contains("py_mod") || rust.contains("mod"),
+            "Should contain modulo operation: {}",
+            rust
+        );
+    }
+
+    // ================================================================
+    // Transpile-based tests for break and continue
+    // ================================================================
+
+    #[test]
+    fn test_transpile_break_in_loop() {
+        let code = r#"
+def find_first(n: int) -> int:
+    i = 0
+    while i < n:
+        if i == 5:
+            break
+        i += 1
+    return i
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_first"), "output: {}", rust);
+        assert!(rust.contains("break"), "Should contain break: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_continue_in_loop() {
+        let code = r#"
+def skip_evens(n: int) -> int:
+    total = 0
+    for i in range(n):
+        if i % 2 == 0:
+            continue
+        total += i
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn skip_evens"), "output: {}", rust);
+        assert!(
+            rust.contains("continue"),
+            "Should contain continue: {}",
+            rust
+        );
+    }
+
+    // ================================================================
+    // Transpile-based tests for pass statement
+    // ================================================================
+
+    #[test]
+    fn test_transpile_pass_in_function() {
+        let code = r#"
+def noop() -> None:
+    pass
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn noop"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_pass_in_if() {
+        let code = r#"
+def conditional(x: int) -> int:
+    if x > 0:
+        pass
+    else:
+        return -1
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn conditional"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for multi-target / chained assignment
+    // ================================================================
+
+    #[test]
+    fn test_transpile_chained_assignment() {
+        let code = r#"
+def chain() -> int:
+    a = b = 0
+    return a + b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn chain"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for class definitions
+    // ================================================================
+
+    #[test]
+    fn test_transpile_class_basic() {
+        let code = r#"
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+"#;
+        let rust = transpile(code);
+        // Should produce some struct or impl output
+        assert!(
+            rust.contains("struct") || rust.contains("Point") || rust.contains("impl"),
+            "Class should generate struct/impl: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_class_with_method() {
+        let code = r#"
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+    def increment(self) -> None:
+        self.count += 1
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Counter") || rust.contains("struct"),
+            "Class with method should generate code: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_class_with_return_method() {
+        let code = r#"
+class Box:
+    def __init__(self, value: int):
+        self.value = value
+
+    def get_value(self) -> int:
+        return self.value
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Box") || rust.contains("struct") || rust.contains("fn get_value"),
+            "Class method should generate fn: {}",
+            rust
+        );
+    }
+
+    // ================================================================
+    // Transpile-based tests for nested try/except patterns
+    // ================================================================
+
+    #[test]
+    fn test_transpile_try_except_with_exception_as_var() {
+        let code = r#"
+def handle_error(s: str) -> str:
+    try:
+        return s
+    except Exception as e:
+        return "error"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn handle_error"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_nested_try_with_finally() {
+        let code = r#"
+def nested_cleanup() -> str:
+    result = ""
+    try:
+        try:
+            result = "inner"
+        except ValueError:
+            result = "inner_error"
+        finally:
+            result = result + "_inner_done"
+    except RuntimeError:
+        result = "outer_error"
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn nested_cleanup"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_only_finally() {
+        let code = r#"
+def with_finally() -> int:
+    x = 0
+    try:
+        x = 42
+    finally:
+        x = x + 1
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn with_finally"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for nested functions (additional coverage)
+    // ================================================================
+
+    #[test]
+    fn test_transpile_nested_function_recursive() {
+        let code = r#"
+def outer() -> int:
+    def factorial(n: int) -> int:
+        if n <= 1:
+            return 1
+        return n * factorial(n - 1)
+    return factorial(5)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+        assert!(
+            rust.contains("factorial"),
+            "Should contain factorial: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_nested_function_unknown_return() {
+        let code = r#"
+def outer():
+    def helper():
+        return 42
+    return helper()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("outer"), "output: {}", rust);
+        assert!(rust.contains("helper"), "Should contain helper: {}", rust);
+    }
+
+    // ================================================================
+    // Transpile-based tests for complex expression patterns
+    // ================================================================
+
+    #[test]
+    fn test_transpile_string_concatenation_augmented() {
+        let code = r#"
+def build_str() -> str:
+    result = ""
+    result += "hello"
+    result += " world"
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn build_str"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_for_with_break() {
+        let code = r#"
+def search(items: list, target: int) -> int:
+    for i in range(len(items)):
+        if items[i] == target:
+            return i
+    return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn search"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_while_true_break() {
+        let code = r#"
+def read_until_done() -> int:
+    count = 0
+    while True:
+        count += 1
+        if count >= 10:
+            break
+    return count
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("fn read_until_done"),
+            "output: {}",
+            rust
+        );
+        assert!(rust.contains("loop") || rust.contains("while"), "output: {}", rust);
+        assert!(rust.contains("break"), "Should contain break: {}", rust);
+    }
+
+    // ================================================================
+    // captures_outer_scope additional edge case tests
+    // ================================================================
+
+    #[test]
+    fn test_captures_outer_scope_in_with_context() {
+        let params = vec![];
+        let body = vec![HirStmt::With {
+            context: HirExpr::Var("outer_ctx".to_string()),
+            target: Some("f".to_string()),
+            body: vec![],
+            is_async: false,
+        }];
+        let outer_vars: HashSet<String> = ["outer_ctx".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_try_handler() {
+        let params = vec![];
+        let body = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Expr(HirExpr::Var("outer_val".to_string()))],
+            }],
+            orelse: None,
+            finalbody: None,
+        }];
+        let outer_vars: HashSet<String> = ["outer_val".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_try_orelse() {
+        let params = vec![];
+        let body = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: Some(vec![HirStmt::Expr(HirExpr::Var(
+                "else_var".to_string(),
+            ))]),
+            finalbody: None,
+        }];
+        let outer_vars: HashSet<String> = ["else_var".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_try_finalbody() {
+        let params = vec![];
+        let body = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Expr(HirExpr::Var(
+                "fin_var".to_string(),
+            ))]),
+        }];
+        let outer_vars: HashSet<String> = ["fin_var".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_method_call() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("outer_obj".to_string())),
+            method: "do_thing".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        let outer_vars: HashSet<String> = ["outer_obj".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_attribute() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("outer_ref".to_string())),
+            attr: "field".to_string(),
+        })];
+        let outer_vars: HashSet<String> = ["outer_ref".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_index() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Index {
+            base: Box::new(HirExpr::Var("outer_list".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        })];
+        let outer_vars: HashSet<String> = ["outer_list".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_if_expr() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::IfExpr {
+            test: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            body: Box::new(HirExpr::Var("outer_val".to_string())),
+            orelse: Box::new(HirExpr::Literal(Literal::Int(0))),
+        })];
+        let outer_vars: HashSet<String> = ["outer_val".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_unary() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("flag".to_string())),
+        })];
+        let outer_vars: HashSet<String> = ["flag".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_list_literal() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::List(vec![HirExpr::Var(
+            "outer_elem".to_string(),
+        )]))];
+        let outer_vars: HashSet<String> = ["outer_elem".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_dict_literal() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("k".to_string())),
+            HirExpr::Var("outer_val".to_string()),
+        )]))];
+        let outer_vars: HashSet<String> = ["outer_val".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_assert() {
+        let params = vec![];
+        let body = vec![HirStmt::Assert {
+            test: HirExpr::Var("invariant".to_string()),
+            msg: None,
+        }];
+        let outer_vars: HashSet<String> = ["invariant".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_assert_msg() {
+        let params = vec![];
+        let body = vec![HirStmt::Assert {
+            test: HirExpr::Literal(Literal::Bool(true)),
+            msg: Some(HirExpr::Var("outer_msg".to_string())),
+        }];
+        let outer_vars: HashSet<String> = ["outer_msg".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_raise() {
+        let params = vec![];
+        let body = vec![HirStmt::Raise {
+            exception: Some(HirExpr::Var("outer_exc".to_string())),
+            cause: None,
+        }];
+        let outer_vars: HashSet<String> = ["outer_exc".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_raise_cause() {
+        let params = vec![];
+        let body = vec![HirStmt::Raise {
+            exception: Some(HirExpr::Literal(Literal::String("err".to_string()))),
+            cause: Some(HirExpr::Var("outer_cause".to_string())),
+        }];
+        let outer_vars: HashSet<String> = ["outer_cause".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_nested_function_def() {
+        let params = vec![];
+        let body = vec![HirStmt::FunctionDef {
+            name: "nested".to_string(),
+            params: Box::new(smallvec::smallvec![]),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var(
+                "outer_val".to_string(),
+            )))],
+            docstring: None,
+        }];
+        let outer_vars: HashSet<String> = ["outer_val".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_block() {
+        let params = vec![];
+        let body = vec![HirStmt::Block(vec![HirStmt::Expr(HirExpr::Var(
+            "outer_block".to_string(),
+        ))])];
+        let outer_vars: HashSet<String> = ["outer_block".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_call_outer_func() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "outer_func".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        let outer_vars: HashSet<String> = ["outer_func".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_call_kwarg() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![("end".to_string(), HirExpr::Var("outer_kw".to_string()))],
+        })];
+        let outer_vars: HashSet<String> = ["outer_kw".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_no_capture_pass() {
+        let params = vec![];
+        let body = vec![HirStmt::Pass];
+        let outer_vars: HashSet<String> = ["anything".to_string()].into_iter().collect();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_no_capture_return_none() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(None)];
+        let outer_vars: HashSet<String> = ["anything".to_string()].into_iter().collect();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_no_capture_break() {
+        let params = vec![];
+        let body = vec![HirStmt::Break { label: None }];
+        let outer_vars: HashSet<String> = ["anything".to_string()].into_iter().collect();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_no_capture_continue() {
+        let params = vec![];
+        let body = vec![HirStmt::Continue { label: None }];
+        let outer_vars: HashSet<String> = ["anything".to_string()].into_iter().collect();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    // ================================================================
+    // Transpile-based tests for complex try/except patterns
+    // ================================================================
+
+    #[test]
+    fn test_transpile_try_parse_int_with_negative_fallback() {
+        let code = r#"
+def safe_parse(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_parse"), "output: {}", rust);
+        assert!(
+            rust.contains("parse") || rust.contains("unwrap_or"),
+            "Should use parse pattern: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_try_parse_int_with_zero_fallback() {
+        let code = r#"
+def parse_or_zero(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_or_zero"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_handler_with_print() {
+        let code = r#"
+def safe_op() -> str:
+    try:
+        return "ok"
+    except ValueError:
+        print("error occurred")
+        return "error"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_op"), "output: {}", rust);
+    }
+
+    // ================================================================
+    // Additional extract_fields_from_expr tests for edge cases
+    // ================================================================
+
+    #[test]
+    fn test_extract_fields_multiple_in_same_call() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Call {
+            func: "combine".to_string(),
+            args: vec![
+                HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "first".to_string(),
+                },
+                HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "second".to_string(),
+                },
+            ],
+            kwargs: vec![],
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("first"));
+        assert!(fields.contains("second"));
+        assert_eq!(fields.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_fields_from_dict_key() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "key_field".to_string(),
+            },
+            HirExpr::Literal(Literal::Int(42)),
+        )]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("key_field"));
+    }
+
+    #[test]
+    fn test_extract_fields_var_no_match() {
+        let mut fields = HashSet::new();
+        let expr = HirExpr::Var("something".to_string());
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    // ================================================================
+    // extract_parse_from_tokens tests
+    // ================================================================
+
+    #[test]
+    fn test_extract_parse_from_tokens_empty() {
+        let result = extract_parse_from_tokens(&[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_parse_from_tokens_non_parse_stmt() {
+        let tokens: proc_macro2::TokenStream =
+            "let x = 42 ;".parse().unwrap();
+        let result = extract_parse_from_tokens(&[tokens]);
+        assert!(result.is_none());
+    }
+
+    // ================================================================
+    // Session 9: Coverage improvement tests for uncovered paths
+    // ================================================================
+
+    #[test]
+    fn test_transpile_try_except_with_variable_hoisting() {
+        let code = r#"
+def process(s: str) -> str:
+    try:
+        result = s.upper()
+    except ValueError:
+        result = "error"
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process"), "output: {}", rust);
+        assert!(
+            rust.contains("result") && rust.contains("mut"),
+            "Should hoist result variable: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_try_with_floor_div_zerodiv() {
+        let code = r#"
+def safe_floor_div(a: int, b: int) -> int:
+    try:
+        return a // b
+    except ZeroDivisionError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_floor_div"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_exception_with_binding_and_return() {
+        let code = r#"
+def catch_with_msg(s: str) -> str:
+    try:
+        n = int(s)
+        return str(n)
+    except ValueError as e:
+        return "bad input"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn catch_with_msg"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_in_loop() {
+        let code = r#"
+def parse_all(items: list) -> int:
+    count = 0
+    for item in items:
+        try:
+            n = int(item)
+            count += n
+        except ValueError:
+            pass
+    return count
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_all"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_with_bool_return_handler() {
+        let code = r#"
+def is_valid(s: str) -> bool:
+    try:
+        n = int(s)
+        return True
+    except ValueError:
+        return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn is_valid"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_negative_fallback() {
+        let code = r#"
+def parse_or_neg(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_or_neg"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_float_fallback() {
+        let code = r#"
+def parse_float_safe(s: str) -> float:
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_float_safe"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_string_fallback() {
+        let code = r#"
+def safe_upper(s: str) -> str:
+    try:
+        return s.upper()
+    except ValueError:
+        return ""
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_upper"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_nested_function_with_capture_list() {
+        let code = r#"
+def outer() -> list:
+    items = [1, 2, 3]
+    def inner() -> int:
+        return len(items)
+    return [inner()]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_nested_function_with_string_capture() {
+        let code = r#"
+def make_greeter(name: str) -> str:
+    def greet() -> str:
+        return "Hello " + name
+    return greet()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_greeter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_nested_function_no_params_no_capture() {
+        let code = r#"
+def wrapper() -> int:
+    def constant() -> int:
+        return 42
+    return constant()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn wrapper"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_nested_function_shadowed_param() {
+        let code = r#"
+def outer(x: int) -> int:
+    y = 20
+    def inner(x: int) -> int:
+        return x + y
+    return inner(5)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_os_error() {
+        let code = r#"
+def safe_read(path: str) -> str:
+    try:
+        with open(path) as f:
+            return f.read()
+    except OSError:
+        return ""
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_read"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_index_error() {
+        let code = r#"
+def safe_first(items: list) -> int:
+    try:
+        return items[0]
+    except IndexError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_first"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_key_error() {
+        let code = r#"
+def safe_lookup(d: dict, key: str) -> str:
+    try:
+        return d[key]
+    except KeyError:
+        return "missing"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_lookup"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_with_print_handler() {
+        let code = r#"
+def log_error(s: str) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        print("invalid")
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn log_error"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_multiple_stmts_body() {
+        let code = r#"
+def multi_try(a: str, b: str) -> int:
+    try:
+        x = int(a)
+        y = int(b)
+        return x + y
+    except ValueError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn multi_try"), "output: {}", rust);
+    }
+
+    // === captures_outer_scope additional coverage ===
+
+    #[test]
+    fn test_captures_outer_scope_in_assign_value() {
+        let params = vec![];
+        let body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("outer_val".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            type_annotation: None,
+        }];
+        let outer_vars: HashSet<String> = ["outer_val".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_call_args() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Var("captured".to_string())],
+            kwargs: vec![],
+        })];
+        let outer_vars: HashSet<String> = ["captured".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_method_call_object() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("outer_list".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        let outer_vars: HashSet<String> = ["outer_list".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_comprehension() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::ListComp {
+            element: Box::new(HirExpr::Binary {
+                op: BinOp::Mul,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Var("multiplier".to_string())),
+            }),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(HirExpr::List(vec![])),
+                conditions: vec![],
+            }],
+        }))];
+        let outer_vars: HashSet<String> = ["multiplier".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_fstring() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::FString {
+            parts: vec![FStringPart::Expr(Box::new(HirExpr::Var(
+                "name".to_string(),
+            )))],
+        }))];
+        let outer_vars: HashSet<String> = ["name".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_s9_index() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::Index {
+            base: Box::new(HirExpr::Var("data".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        }))];
+        let outer_vars: HashSet<String> = ["data".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_s9_attribute() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "name".to_string(),
+        }))];
+        let outer_vars: HashSet<String> = ["obj".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_s9_if_expr() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::IfExpr {
+            test: Box::new(HirExpr::Var("flag".to_string())),
+            body: Box::new(HirExpr::Literal(Literal::Int(1))),
+            orelse: Box::new(HirExpr::Literal(Literal::Int(0))),
+        }))];
+        let outer_vars: HashSet<String> = ["flag".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_try_body() {
+        let params = vec![];
+        let body = vec![HirStmt::Try {
+            body: vec![HirStmt::Expr(HirExpr::Var("resource".to_string()))],
+            handlers: vec![],
+            orelse: None,
+            finalbody: None,
+        }];
+        let outer_vars: HashSet<String> = ["resource".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_s9_with_context() {
+        let params = vec![];
+        let body = vec![HirStmt::With {
+            context: HirExpr::Var("manager".to_string()),
+            target: Some("m".to_string()),
+            body: vec![],
+            is_async: false,
+        }];
+        let outer_vars: HashSet<String> = ["manager".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_dict_comp() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::DictComp {
+            key: Box::new(HirExpr::Var("k".to_string())),
+            value: Box::new(HirExpr::Var("default_val".to_string())),
+            generators: vec![HirComprehension {
+                target: "k".to_string(),
+                iter: Box::new(HirExpr::List(vec![])),
+                conditions: vec![],
+            }],
+        }))];
+        let outer_vars: HashSet<String> = ["default_val".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_set_comp() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::SetComp {
+            element: Box::new(HirExpr::Var("transform".to_string())),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(HirExpr::List(vec![])),
+                conditions: vec![],
+            }],
+        }))];
+        let outer_vars: HashSet<String> = ["transform".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_generator_exp() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::GeneratorExp {
+            element: Box::new(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Var("offset".to_string())),
+            }),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(HirExpr::List(vec![])),
+                conditions: vec![],
+            }],
+        }))];
+        let outer_vars: HashSet<String> = ["offset".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_compare() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::Binary {
+            op: BinOp::Gt,
+            left: Box::new(HirExpr::Var("threshold".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(0))),
+        }))];
+        let outer_vars: HashSet<String> = ["threshold".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_in_lambda() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::Lambda {
+            params: vec![],
+            body: Box::new(HirExpr::Var("captured".to_string())),
+        }))];
+        let outer_vars: HashSet<String> = ["captured".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_yield() {
+        let params = vec![];
+        let body = vec![HirStmt::Expr(HirExpr::Yield {
+            value: Some(Box::new(HirExpr::Var("yielded".to_string()))),
+        })];
+        let outer_vars: HashSet<String> = ["yielded".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_named_expr() {
+        let params = vec![];
+        let body = vec![HirStmt::Return(Some(HirExpr::NamedExpr {
+            target: "x".to_string(),
+            value: Box::new(HirExpr::Var("source".to_string())),
+        }))];
+        let outer_vars: HashSet<String> = ["source".to_string()].into_iter().collect();
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    // === Transpile-based tests for more complex patterns ===
+
+    #[test]
+    fn test_transpile_try_with_variable_escape() {
+        let code = r#"
+def escape_var(s: str) -> str:
+    try:
+        result = s.strip()
+        n = int(result)
+    except ValueError:
+        n = 0
+    return str(n)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn escape_var"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_nested_fn_recursive() {
+        let code = r#"
+def counter() -> int:
+    count = 0
+    def increment() -> int:
+        return count + 1
+    return increment()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn counter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_with_type_error() {
+        let code = r#"
+def type_safe(x: int) -> str:
+    try:
+        return str(x)
+    except TypeError:
+        return "type error"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn type_safe"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_with_attribute_error() {
+        let code = r#"
+def attr_safe(s: str) -> str:
+    try:
+        return s.upper()
+    except AttributeError:
+        return ""
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn attr_safe"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_all_except_types() {
+        let code = r#"
+def robust(x: int) -> int:
+    try:
+        return x + 1
+    except (ValueError, TypeError, IndexError):
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn robust"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_del_statement() {
+        let code = r#"
+def cleanup() -> None:
+    x = 10
+    del x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn cleanup"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_global_statement() {
+        let code = r#"
+counter = 0
+
+def increment() -> int:
+    global counter
+    counter += 1
+    return counter
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("fn increment") || rust.contains("counter"),
+            "output: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_transpile_nested_fn_with_default_param() {
+        let code = r#"
+def outer() -> int:
+    base = 10
+    def inner(x: int = 5) -> int:
+        return x + base
+    return inner()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_transpile_try_except_with_list_ops_in_handler() {
+        let code = r#"
+def collect_errors() -> list:
+    errors = []
+    try:
+        x = int("bad")
+    except ValueError:
+        errors.append("parse error")
+    return errors
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn collect_errors"), "output: {}", rust);
+    }
 }
