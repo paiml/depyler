@@ -895,4 +895,749 @@ mod tests {
         assert_ne!(inject, before_ret);
         assert_ne!(before_ret, add_arm);
     }
+
+    #[test]
+    fn test_default_enabled_returns_true() {
+        assert!(default_enabled());
+    }
+
+    #[test]
+    fn test_apr_file_default() {
+        let apr = AprFile::default();
+        assert_eq!(apr.version, "1.0");
+        assert!(apr.patches.is_empty());
+        assert!(!apr.created.is_empty());
+    }
+
+    #[test]
+    fn test_transpiler_patcher_new() {
+        let patcher = TranspilerPatcher::new("/tmp/test");
+        assert_eq!(patcher.core_path, PathBuf::from("/tmp/test"));
+        assert!(patcher.patches.is_empty());
+        assert!(patcher.applied.is_empty());
+        assert!(patcher.create_backups);
+    }
+
+    #[test]
+    fn test_patch_count_empty() {
+        let patcher = TranspilerPatcher::new("/tmp/test");
+        assert_eq!(patcher.patch_count(), 0);
+    }
+
+    #[test]
+    fn test_patch_count_with_defaults() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        patcher.load_defaults();
+        let count = patcher.patch_count();
+        assert!(count > 0, "Should have loaded default patches");
+    }
+
+    #[test]
+    fn test_applied_patches_empty() {
+        let patcher = TranspilerPatcher::new("/tmp/test");
+        assert_eq!(patcher.applied_patches().len(), 0);
+    }
+
+    #[test]
+    fn test_find_patches_unknown_error_code() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        patcher.load_defaults();
+        let patches = patcher.find_patches("E9999", "unknown error", &[]);
+        assert!(
+            patches.is_empty(),
+            "Should return empty for unknown error code"
+        );
+    }
+
+    #[test]
+    fn test_find_patches_case_insensitive() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        patcher.load_defaults();
+        let patches = patcher.find_patches("E0308", "VEC type mismatch", &[]);
+        assert!(!patches.is_empty(), "Should match case-insensitively");
+    }
+
+    #[test]
+    fn test_find_patches_context_keywords_case_insensitive() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        patcher.load_defaults();
+        let context = vec!["VEC".to_string(), "LIST".to_string()];
+        let patches = patcher.find_patches("E0308", "mismatched types", &context);
+        assert!(
+            !patches.is_empty(),
+            "Should match context keywords case-insensitively"
+        );
+    }
+
+    #[test]
+    fn test_load_apr_file_not_found() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        let result = patcher.load_apr("/nonexistent/file.toml");
+        assert!(result.is_err(), "Should fail when file doesn't exist");
+    }
+
+    #[test]
+    fn test_save_and_load_apr() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let apr_path = temp_dir.path().join("test.toml");
+
+        let patch = PatchRecord {
+            id: "test-save-load".to_string(),
+            target_file: "test.rs".to_string(),
+            target_function: "test_fn".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "// test code".to_string(),
+            confidence: 0.95,
+            enabled: true,
+        };
+
+        save_apr(&[patch.clone()], &apr_path)?;
+        assert!(apr_path.exists(), "APR file should be created");
+
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        let count = patcher.load_apr(&apr_path)?;
+        assert_eq!(count, 1, "Should load one patch");
+        assert_eq!(patcher.patch_count(), 1, "Patch count should be 1");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_apr_disabled_patch() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let apr_path = temp_dir.path().join("disabled.toml");
+
+        let patch = PatchRecord {
+            id: "disabled-patch".to_string(),
+            target_file: "test.rs".to_string(),
+            target_function: "test_fn".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "// disabled".to_string(),
+            confidence: 0.5,
+            enabled: false,
+        };
+
+        save_apr(&[patch], &apr_path)?;
+
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        let count = patcher.load_apr(&apr_path)?;
+        assert_eq!(count, 1, "Should count disabled patch");
+        assert_eq!(
+            patcher.patch_count(),
+            0,
+            "Disabled patch should not be loaded"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_load_apr_invalid_toml() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let apr_path = temp_dir.path().join("invalid.toml");
+        std::fs::write(&apr_path, "invalid toml content {{")?;
+
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        let result = patcher.load_apr(&apr_path);
+        assert!(result.is_err(), "Should fail on invalid TOML");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_apply_patch_file_not_found() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+
+        let patch = PatchRecord {
+            id: "missing-file".to_string(),
+            target_file: "nonexistent.rs".to_string(),
+            target_function: "test_fn".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "// test".to_string(),
+            confidence: 0.8,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(
+            !result.success,
+            "Should fail when target file doesn't exist"
+        );
+        assert!(result.description.contains("not found"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_inject_at_function_start_simple() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("test.rs");
+
+        let source = r#"
+pub fn test_function(x: i32) -> i32 {
+    x + 1
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "inject-start".to_string(),
+            target_file: "test.rs".to_string(),
+            target_function: "test_function".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "    let injected = true;".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Patch should succeed");
+        assert!(result.backup_path.is_some(), "Should create backup");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(
+            modified.contains("let injected = true;"),
+            "Should inject code"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_inject_at_function_start_impl_block() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("impl_test.rs");
+
+        let source = r#"
+pub struct TestStruct;
+
+impl TestStruct {
+    pub fn method_name(&self) -> i32 {
+        42
+    }
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "inject-impl".to_string(),
+            target_file: "impl_test.rs".to_string(),
+            target_function: "method_name".to_string(),
+            impl_block: Some("TestStruct".to_string()),
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "        let impl_injected = true;".to_string(),
+            confidence: 0.85,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Impl patch should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(
+            modified.contains("let impl_injected = true;"),
+            "Should inject in impl method"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_inject_before_return() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("return_test.rs");
+
+        let source = r#"
+pub fn calculate(x: i32) -> i32 {
+    let result = x * 2;
+    return result;
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "before-return".to_string(),
+            target_file: "return_test.rs".to_string(),
+            target_function: "calculate".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectBeforeReturn,
+            code_template: "    let before_ret = 1;".to_string(),
+            confidence: 0.8,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Before return patch should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(
+            modified.contains("let before_ret = 1;"),
+            "Should inject before return"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_match_arm() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("match_test.rs");
+
+        let source = r#"
+pub fn match_test(val: &str) -> i32 {
+    match val {
+        existing => 1,
+        _ => 0,
+    }
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "add-arm".to_string(),
+            target_file: "match_test.rs".to_string(),
+            target_function: "match_test".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::AddMatchArm {
+                before_pattern: "existing".to_string(),
+            },
+            code_template: "new => 2,".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Add match arm should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(modified.contains("new => 2,"), "Should add new match arm");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_replace_match_arm() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("replace_match.rs");
+
+        let source = r#"
+pub fn replace_test(val: i32) -> i32 {
+    match val {
+        42 => { 1 },
+        _ => { 0 },
+    }
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "replace-arm".to_string(),
+            target_file: "replace_match.rs".to_string(),
+            target_function: "replace_test".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::ReplaceMatchArm {
+                pattern: "42".to_string(),
+            },
+            code_template: "{ 99 }".to_string(),
+            confidence: 0.85,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Replace match arm should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(
+            modified.contains("42 => { 99 }"),
+            "Should replace match arm body"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_wrap_function_body() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("wrap_test.rs");
+
+        let source = r#"
+pub fn wrap_me() -> i32 {
+    42
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "wrap-body".to_string(),
+            target_file: "wrap_test.rs".to_string(),
+            target_function: "wrap_me".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::WrapBody,
+            code_template: "{\n    println!(\"wrapped\");\n    {BODY}\n}".to_string(),
+            confidence: 0.75,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Wrap body should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(
+            modified.contains("println!(\"wrapped\")"),
+            "Should wrap body"
+        );
+        assert!(modified.contains("42"), "Should preserve original body");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_import_with_existing_use() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("import_test.rs");
+
+        let source = r#"use std::collections::HashMap;
+
+pub fn test() {}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "add-import".to_string(),
+            target_file: "import_test.rs".to_string(),
+            target_function: "test".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::AddImport,
+            code_template: "use std::vec::Vec;".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Add import should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(modified.contains("use std::vec::Vec;"), "Should add import");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_import_no_existing_use() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("no_import.rs");
+
+        let source = r#"pub fn test() {}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "first-import".to_string(),
+            target_file: "no_import.rs".to_string(),
+            target_function: "test".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::AddImport,
+            code_template: "use std::collections::HashMap;".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Add first import should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(
+            modified.contains("use std::collections::HashMap;"),
+            "Should add import at top"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_modify_type() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("type_test.rs");
+
+        let source = r#"
+pub fn old_type(x: OldType) -> OldType {
+    x
+}
+"#;
+        std::fs::write(&test_file, source)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "modify-type".to_string(),
+            target_file: "type_test.rs".to_string(),
+            target_function: "old_type".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::ModifyType {
+                from: "OldType".to_string(),
+                to: "NewType".to_string(),
+            },
+            code_template: "".to_string(),
+            confidence: 0.8,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success, "Modify type should succeed");
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(modified.contains("NewType"), "Should replace type name");
+        assert!(!modified.contains("OldType"), "Should remove old type name");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_rollback_with_backup() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("rollback_test.rs");
+
+        let original = "pub fn original() {}";
+        std::fs::write(&test_file, original)?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "rollback-test".to_string(),
+            target_file: "rollback_test.rs".to_string(),
+            target_function: "original".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "    let added = true;".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch)?;
+        assert!(result.success);
+
+        let modified = std::fs::read_to_string(&test_file)?;
+        assert!(modified.contains("let added = true;"));
+
+        patcher.rollback(&result)?;
+        let restored = std::fs::read_to_string(&test_file)?;
+        assert_eq!(restored, original, "Should restore original content");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_rollback_without_backup() -> Result<()> {
+        let patcher = TranspilerPatcher::new("/tmp/test");
+        let result = PatchResult {
+            patch_id: "no-backup".to_string(),
+            file_modified: PathBuf::from("/tmp/test.rs"),
+            success: true,
+            description: "Test".to_string(),
+            backup_path: None,
+        };
+
+        let rollback_result = patcher.rollback(&result);
+        assert!(
+            rollback_result.is_ok(),
+            "Rollback without backup should not error"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_applied_patches_tracking() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("tracking.rs");
+
+        std::fs::write(&test_file, "pub fn test() {}")?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        assert_eq!(patcher.applied_patches().len(), 0);
+
+        let patch = PatchRecord {
+            id: "track-me".to_string(),
+            target_file: "tracking.rs".to_string(),
+            target_function: "test".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "    let x = 1;".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        patcher.apply_patch(&patch)?;
+        assert_eq!(patcher.applied_patches().len(), 1);
+        assert_eq!(patcher.applied_patches()[0].patch_id, "track-me");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_patch_result_structure() {
+        let result = PatchResult {
+            patch_id: "test-id".to_string(),
+            file_modified: PathBuf::from("/test/file.rs"),
+            success: true,
+            description: "Test description".to_string(),
+            backup_path: Some(PathBuf::from("/test/file.rs.bak")),
+        };
+
+        assert_eq!(result.patch_id, "test-id");
+        assert!(result.success);
+        assert!(result.backup_path.is_some());
+    }
+
+    #[test]
+    fn test_multiple_error_codes() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        patcher.load_defaults();
+
+        assert!(patcher.patches.contains_key("E0308"));
+        assert!(patcher.patches.contains_key("E0599"));
+        assert!(patcher.patches.contains_key("E0277"));
+    }
+
+    #[test]
+    fn test_patch_confidence_levels() {
+        let mut patcher = TranspilerPatcher::new("/tmp/test");
+        patcher.load_defaults();
+
+        let patches = patcher.find_patches("E0308", "list element type", &[]);
+        for patch in patches {
+            assert!(patch.confidence > 0.0 && patch.confidence <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_inject_function_not_found() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("missing_func.rs");
+
+        std::fs::write(&test_file, "pub fn other_function() {}")?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "not-found".to_string(),
+            target_file: "missing_func.rs".to_string(),
+            target_function: "nonexistent_function".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::InjectAtStart,
+            code_template: "    let x = 1;".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch);
+        assert!(result.is_err(), "Should fail when function not found");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_match_arm_pattern_not_found() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let src_dir = temp_dir.path().join("src");
+        std::fs::create_dir(&src_dir)?;
+        let test_file = src_dir.join("no_pattern.rs");
+
+        std::fs::write(
+            &test_file,
+            r#"
+pub fn test() {
+    match x {
+        "foo" => 1,
+        _ => 0,
+    }
+}
+"#,
+        )?;
+
+        let mut patcher = TranspilerPatcher::new(temp_dir.path());
+        let patch = PatchRecord {
+            id: "pattern-not-found".to_string(),
+            target_file: "no_pattern.rs".to_string(),
+            target_function: "test".to_string(),
+            impl_block: None,
+            error_pattern: "E0308".to_string(),
+            error_keywords: vec!["test".to_string()],
+            patch_type: PatchType::AddMatchArm {
+                before_pattern: "\"nonexistent\" => 99".to_string(),
+            },
+            code_template: "\"new\" => 2,".to_string(),
+            confidence: 0.9,
+            enabled: true,
+        };
+
+        let result = patcher.apply_patch(&patch);
+        assert!(result.is_err(), "Should fail when pattern not found");
+
+        Ok(())
+    }
 }

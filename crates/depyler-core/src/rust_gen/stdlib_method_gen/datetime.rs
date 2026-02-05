@@ -676,4 +676,399 @@ mod tests {
         let result = convert_instance_strftime(&[], false, &mut ctx);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_datetime_today_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_today(true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_datetime);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDateTime"));
+    }
+
+    #[test]
+    fn test_datetime_today_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_today(false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("date_naive"));
+    }
+
+    #[test]
+    fn test_datetime_fromisoformat_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "2024-01-01T12:00:00" };
+        let result = convert_datetime_fromisoformat(&[s], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_datetime);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDateTime"));
+    }
+
+    #[test]
+    fn test_datetime_fromisoformat_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "2024-01-01T12:00:00" };
+        let result = convert_datetime_fromisoformat(&[s], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("parse_from_str"));
+    }
+
+    #[test]
+    fn test_datetime_fromtimestamp_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let ts: syn::Expr = parse_quote! { 1609459200 };
+        let result = convert_datetime_fromtimestamp(&[ts], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_datetime);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDateTime"));
+    }
+
+    #[test]
+    fn test_datetime_fromtimestamp_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let ts: syn::Expr = parse_quote! { 1609459200 };
+        let result = convert_datetime_fromtimestamp(&[ts], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("from_timestamp"));
+    }
+
+    #[test]
+    fn test_datetime_combine_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let date: syn::Expr = parse_quote! { date };
+        let time: syn::Expr = parse_quote! { time };
+        let result = convert_datetime_combine(&[date, time], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_datetime);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDateTime"));
+    }
+
+    #[test]
+    fn test_datetime_combine_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let date: syn::Expr = parse_quote! { date };
+        let time: syn::Expr = parse_quote! { time };
+        let result = convert_datetime_combine(&[date, time], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("NaiveDateTime"));
+    }
+
+    #[test]
+    fn test_datetime_strptime_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "2024-01-01" };
+        let fmt: syn::Expr = parse_quote! { "%Y-%m-%d" };
+        let result = convert_datetime_strptime(&[], &[s, fmt], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_datetime);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDateTime"));
+    }
+
+    #[test]
+    fn test_datetime_strptime_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "2024-01-01" };
+        let fmt: syn::Expr = parse_quote! { "%Y-%m-%d" };
+        let result = convert_datetime_strptime(&[], &[s, fmt], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("parse_from_str"));
+    }
+
+    #[test]
+    fn test_date_fromisoformat_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "2024-01-01" };
+        let result = convert_date_fromisoformat(&[s], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_date);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDate"));
+    }
+
+    #[test]
+    fn test_date_fromisoformat_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "2024-01-01" };
+        let result = convert_date_fromisoformat(&[s], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("NaiveDate"));
+    }
+
+    #[test]
+    fn test_date_fromisoformat_requires_argument() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_date_fromisoformat(&[], false, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_date_fromtimestamp_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let ts: syn::Expr = parse_quote! { 1609459200 };
+        let result = convert_date_fromtimestamp(&[ts], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_date);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerDate"));
+    }
+
+    #[test]
+    fn test_date_fromtimestamp_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let ts: syn::Expr = parse_quote! { 1609459200 };
+        let result = convert_date_fromtimestamp(&[ts], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("from_timestamp"));
+    }
+
+    #[test]
+    fn test_date_fromtimestamp_requires_argument() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_date_fromtimestamp(&[], false, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_time_fromisoformat_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "12:30:45" };
+        let result = convert_time_fromisoformat(&[s], true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("split"));
+    }
+
+    #[test]
+    fn test_time_fromisoformat_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let s: syn::Expr = parse_quote! { "12:30:45" };
+        let result = convert_time_fromisoformat(&[s], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("NaiveTime"));
+    }
+
+    #[test]
+    fn test_time_fromisoformat_requires_argument() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_time_fromisoformat(&[], false, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_timedelta_new_nasa_mode_empty() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_timedelta_new(&[], &[], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_timedelta);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerTimeDelta"));
+    }
+
+    #[test]
+    fn test_timedelta_new_nasa_mode_days() {
+        let mut ctx = CodeGenContext::default();
+        let days: syn::Expr = parse_quote! { 7 };
+        let result = convert_timedelta_new(&[], &[days], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_timedelta);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("from_days"));
+    }
+
+    #[test]
+    fn test_timedelta_new_nasa_mode_days_seconds() {
+        let mut ctx = CodeGenContext::default();
+        let days: syn::Expr = parse_quote! { 7 };
+        let seconds: syn::Expr = parse_quote! { 3600 };
+        let result = convert_timedelta_new(&[], &[days, seconds], true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_timedelta);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("DepylerTimeDelta"));
+    }
+
+    #[test]
+    fn test_timedelta_new_chrono_days_seconds() {
+        let mut ctx = CodeGenContext::default();
+        let days: syn::Expr = parse_quote! { 7 };
+        let seconds: syn::Expr = parse_quote! { 3600 };
+        let result = convert_timedelta_new(&[], &[days, seconds], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Duration"));
+    }
+
+    #[test]
+    fn test_instance_date_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_date(true, &mut ctx).unwrap();
+        assert!(ctx.needs_depyler_date);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("date"));
+    }
+
+    #[test]
+    fn test_instance_date_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_date(false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("date"));
+    }
+
+    #[test]
+    fn test_instance_time_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_time(true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("time"));
+    }
+
+    #[test]
+    fn test_instance_time_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_time(false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("time"));
+    }
+
+    #[test]
+    fn test_instance_timestamp_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_timestamp(true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("timestamp"));
+    }
+
+    #[test]
+    fn test_instance_timestamp_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_timestamp(false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("timestamp"));
+    }
+
+    #[test]
+    fn test_instance_isoformat_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_isoformat(true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("isoformat"));
+    }
+
+    #[test]
+    fn test_instance_isoformat_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_isoformat(false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("format"));
+    }
+
+    #[test]
+    fn test_instance_strftime_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let fmt: syn::Expr = parse_quote! { "%Y-%m-%d" };
+        let result = convert_instance_strftime(&[fmt], true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("strftime"));
+    }
+
+    #[test]
+    fn test_instance_strftime_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let fmt: syn::Expr = parse_quote! { "%Y-%m-%d" };
+        let result = convert_instance_strftime(&[fmt], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("format"));
+    }
+
+    #[test]
+    fn test_instance_replace_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_replace(&[], &[], true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("replace"));
+    }
+
+    #[test]
+    fn test_instance_replace_chrono_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_replace(&[], &[], false, &mut ctx).unwrap();
+        assert!(ctx.needs_chrono);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("clone"));
+    }
+
+    #[test]
+    fn test_instance_weekday_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_weekday(true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("weekday"));
+    }
+
+    #[test]
+    fn test_instance_isoweekday_nasa_mode() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_isoweekday(true, &mut ctx).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("isoweekday"));
+    }
+
+    #[test]
+    fn test_instance_component_unknown() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_instance_component("unknown", false, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_datetime_instance_method_dispatch() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_instance_method("date", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_convert_datetime_instance_method_unsupported() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_instance_method("unsupported_method", &[], &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_datetime_method_date_class() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_method("date", "today", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_convert_datetime_method_time_class() {
+        let mut ctx = CodeGenContext::default();
+        let hir_expr = HirExpr::Literal(crate::hir::Literal::String("12:00:00".to_string()));
+        let result =
+            convert_datetime_method("time", "fromisoformat", &[hir_expr], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_convert_datetime_method_timedelta_new() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_method("timedelta", "new", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_convert_datetime_method_timedelta_init() {
+        let mut ctx = CodeGenContext::default();
+        let result = convert_datetime_method("timedelta", "__init__", &[], &mut ctx).unwrap();
+        assert!(result.is_some());
+    }
 }
