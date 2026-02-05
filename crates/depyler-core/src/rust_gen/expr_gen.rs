@@ -12109,4 +12109,460 @@ mod tests {
 
         assert!(elem_type.is_none());
     }
+
+    // ===== is_int_expr tests =====
+
+    #[test]
+    fn test_is_int_expr_literal() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_int_expr(&HirExpr::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_is_int_expr_typed_var() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("x".to_string(), Type::Int);
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_int_expr(&HirExpr::Var("x".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_expr_untyped_var() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.is_int_expr(&HirExpr::Var("x".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_expr_float_literal() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.is_int_expr(&HirExpr::Literal(Literal::Float(1.5))));
+    }
+
+    #[test]
+    fn test_is_int_expr_binary_add_ints() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(converter.is_int_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_int_expr_binary_div_not_int() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::Div,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(!converter.is_int_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_int_expr_unary_neg() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        assert!(converter.is_int_expr(&expr));
+    }
+
+    // ===== is_int_var tests =====
+
+    #[test]
+    fn test_is_int_var_typed_int() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("count".to_string(), Type::Int);
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_int_var(&HirExpr::Var("count".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_var_custom_i32() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("idx".to_string(), Type::Custom("i32".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_int_var(&HirExpr::Var("idx".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_var_custom_usize() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("len".to_string(), Type::Custom("usize".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_int_var(&HirExpr::Var("len".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_var_not_var() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.is_int_var(&HirExpr::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_is_int_var_float_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("x".to_string(), Type::Float);
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.is_int_var(&HirExpr::Var("x".to_string())));
+    }
+
+    // ===== is_float_var tests =====
+
+    #[test]
+    fn test_is_float_var_typed_float() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("rate".to_string(), Type::Float);
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_float_var(&HirExpr::Var("rate".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_var_custom_f64() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("val".to_string(), Type::Custom("f64".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_float_var(&HirExpr::Var("val".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_var_heuristic_beta() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_float_var(&HirExpr::Var("beta1".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_var_heuristic_lr() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_float_var(&HirExpr::Var("learning_rate".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_var_not_var() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.is_float_var(&HirExpr::Literal(Literal::Float(1.0))));
+    }
+
+    // ===== needs_debug_format tests =====
+
+    #[test]
+    fn test_needs_debug_format_list_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.needs_debug_format(&HirExpr::Var("items".to_string())));
+    }
+
+    #[test]
+    fn test_needs_debug_format_dict_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+        );
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.needs_debug_format(&HirExpr::Var("data".to_string())));
+    }
+
+    #[test]
+    fn test_needs_debug_format_set_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("s".to_string(), Type::Set(Box::new(Type::Int)));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.needs_debug_format(&HirExpr::Var("s".to_string())));
+    }
+
+    #[test]
+    fn test_needs_debug_format_optional_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("maybe".to_string(), Type::Optional(Box::new(Type::String)));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.needs_debug_format(&HirExpr::Var("maybe".to_string())));
+    }
+
+    #[test]
+    fn test_needs_debug_format_value_heuristic() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.needs_debug_format(&HirExpr::Var("value".to_string())));
+    }
+
+    #[test]
+    fn test_needs_debug_format_string_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("name".to_string(), Type::String);
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.needs_debug_format(&HirExpr::Var("name".to_string())));
+    }
+
+    #[test]
+    fn test_needs_debug_format_list_literal() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]);
+        assert!(converter.needs_debug_format(&expr));
+    }
+
+    #[test]
+    fn test_needs_debug_format_dict_literal() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("k".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
+        assert!(converter.needs_debug_format(&expr));
+    }
+
+    #[test]
+    fn test_needs_debug_format_call_false() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!converter.needs_debug_format(&expr));
+    }
+
+    // ===== is_pathbuf_expr tests =====
+
+    #[test]
+    fn test_is_pathbuf_expr_typed_var() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("p".to_string(), Type::Custom("PathBuf".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_pathbuf_expr(&HirExpr::Var("p".to_string())));
+    }
+
+    #[test]
+    fn test_is_pathbuf_expr_path_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("p".to_string(), Type::Custom("Path".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(converter.is_pathbuf_expr(&HirExpr::Var("p".to_string())));
+    }
+
+    #[test]
+    fn test_is_pathbuf_expr_not_pathbuf() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("s".to_string(), Type::String);
+        let converter = ExpressionConverter::new(&mut ctx);
+        assert!(!converter.is_pathbuf_expr(&HirExpr::Var("s".to_string())));
+    }
+
+    #[test]
+    fn test_is_pathbuf_expr_parent_method() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("p".to_string())),
+            method: "parent".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(converter.is_pathbuf_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_pathbuf_expr_join_on_pathbuf() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("base".to_string(), Type::Custom("PathBuf".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("base".to_string())),
+            method: "join".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("sub".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(converter.is_pathbuf_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_pathbuf_expr_join_on_string() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("sep".to_string(), Type::String);
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("sep".to_string())),
+            method: "join".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!converter.is_pathbuf_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_pathbuf_expr_parent_attribute() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("p".to_string(), Type::Custom("PathBuf".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("p".to_string())),
+            attr: "parent".to_string(),
+        };
+        assert!(converter.is_pathbuf_expr(&expr));
+    }
+
+    // ===== infer_numeric_type_token tests =====
+
+    #[test]
+    fn test_infer_numeric_type_token_int_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Int);
+        let converter = ExpressionConverter::new(&mut ctx);
+        let token = converter.infer_numeric_type_token();
+        assert!(
+            token.to_string().contains("i32"),
+            "Should be i32: {}",
+            token
+        );
+    }
+
+    #[test]
+    fn test_infer_numeric_type_token_float_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Float);
+        let converter = ExpressionConverter::new(&mut ctx);
+        let token = converter.infer_numeric_type_token();
+        assert!(
+            token.to_string().contains("f64"),
+            "Should be f64: {}",
+            token
+        );
+    }
+
+    #[test]
+    fn test_infer_numeric_type_token_default() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let token = converter.infer_numeric_type_token();
+        assert!(
+            token.to_string().contains("i32"),
+            "Default should be i32: {}",
+            token
+        );
+    }
+
+    #[test]
+    fn test_infer_numeric_type_token_string_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::String);
+        let converter = ExpressionConverter::new(&mut ctx);
+        let token = converter.infer_numeric_type_token();
+        assert!(
+            token.to_string().contains("i32"),
+            "Non-numeric return should default to i32: {}",
+            token
+        );
+    }
+
+    // ===== deref_if_borrowed_param tests =====
+
+    #[test]
+    fn test_deref_if_borrowed_param_ref_param() {
+        let mut ctx = CodeGenContext::default();
+        ctx.ref_params.insert("data".to_string());
+        let converter = ExpressionConverter::new(&mut ctx);
+        let rust_expr: syn::Expr = parse_quote! { data };
+        let result =
+            converter.deref_if_borrowed_param(&HirExpr::Var("data".to_string()), rust_expr);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("*"), "Should deref borrowed param: {}", code);
+    }
+
+    #[test]
+    fn test_deref_if_borrowed_param_not_ref() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let rust_expr: syn::Expr = parse_quote! { data };
+        let result =
+            converter.deref_if_borrowed_param(&HirExpr::Var("data".to_string()), rust_expr);
+        let code = quote::quote!(#result).to_string();
+        assert!(
+            !code.contains("*"),
+            "Should not deref non-borrowed: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_deref_if_borrowed_param_non_var() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let rust_expr: syn::Expr = parse_quote! { 42 };
+        let result =
+            converter.deref_if_borrowed_param(&HirExpr::Literal(Literal::Int(42)), rust_expr);
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("42"), "Should pass through literal: {}", code);
+    }
+
+    // ===== infer_iterable_element_type additional tests =====
+
+    #[test]
+    fn test_infer_element_type_from_set_var() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("nums".to_string(), Type::Set(Box::new(Type::Int)));
+        let converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::Var("nums".to_string());
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+        assert!(matches!(elem_type, Some(Type::Int)));
+    }
+
+    #[test]
+    fn test_infer_element_type_from_string_list() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::List(vec![
+            HirExpr::Literal(Literal::String("a".to_string())),
+            HirExpr::Literal(Literal::String("b".to_string())),
+        ]);
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+        assert!(matches!(elem_type, Some(Type::String)));
+    }
+
+    #[test]
+    fn test_infer_element_type_from_empty_list() {
+        let mut ctx = CodeGenContext::default();
+        let converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::List(vec![]);
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+        assert!(elem_type.is_none());
+    }
+
+    #[test]
+    fn test_infer_element_type_custom_vec_f64() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types
+            .insert("data".to_string(), Type::Custom("Vec<f64>".to_string()));
+        let converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::Var("data".to_string());
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+        assert!(matches!(elem_type, Some(Type::Float)));
+    }
 }
