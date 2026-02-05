@@ -438,4 +438,131 @@ mod tests {
             code_str
         );
     }
+
+    #[test]
+    fn test_generate_abs() {
+        let call = NumpyCall::Abs { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        let code_str = code.to_string();
+        assert!(code_str.contains("abs"));
+        assert!(code_str.contains("expect"));
+    }
+
+    #[test]
+    fn test_generate_min() {
+        let call = NumpyCall::Min { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("min"));
+    }
+
+    #[test]
+    fn test_generate_max() {
+        let call = NumpyCall::Max { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("max"));
+    }
+
+    #[test]
+    fn test_generate_exp() {
+        let call = NumpyCall::Exp { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("exp"));
+    }
+
+    #[test]
+    fn test_generate_log() {
+        let call = NumpyCall::Log { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("ln"));
+    }
+
+    #[test]
+    fn test_generate_sin() {
+        let call = NumpyCall::Sin { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("sin"));
+    }
+
+    #[test]
+    fn test_generate_cos() {
+        let call = NumpyCall::Cos { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("cos"));
+    }
+
+    #[test]
+    fn test_generate_argmin() {
+        let call = NumpyCall::ArgMin { arr: quote!(arr) };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("argmin"));
+    }
+
+    #[test]
+    fn test_parse_numpy_function_exhaustive() {
+        assert_eq!(parse_numpy_function("abs"), Some("Abs"));
+        assert_eq!(parse_numpy_function("exp"), Some("Exp"));
+        assert_eq!(parse_numpy_function("log"), Some("Log"));
+        assert_eq!(parse_numpy_function("sin"), Some("Sin"));
+        assert_eq!(parse_numpy_function("cos"), Some("Cos"));
+        assert_eq!(parse_numpy_function("clip"), Some("Clip"));
+        assert_eq!(parse_numpy_function("argmax"), Some("ArgMax"));
+        assert_eq!(parse_numpy_function("argmin"), Some("ArgMin"));
+        assert_eq!(parse_numpy_function("std"), Some("Std"));
+        assert_eq!(parse_numpy_function("var"), Some("Var"));
+        assert_eq!(parse_numpy_function("zeros"), Some("Zeros"));
+        assert_eq!(parse_numpy_function("ones"), Some("Ones"));
+        assert_eq!(parse_numpy_function("norm"), Some("Norm"));
+    }
+
+    #[test]
+    fn test_is_numpy_module_edge_cases() {
+        assert!(!is_numpy_module(""));
+        assert!(!is_numpy_module("Numpy"));
+        assert!(!is_numpy_module("NP"));
+        assert!(!is_numpy_module("scipy"));
+    }
+
+    #[test]
+    fn test_generate_norm_uses_norm_l2() {
+        let call = NumpyCall::Norm {
+            arr: quote!(a + b),
+        };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("norm_l2"));
+    }
+
+    #[test]
+    fn test_generate_array_empty() {
+        let call = NumpyCall::Array { elements: vec![] };
+        let code = generate_trueno_code(&call);
+        assert!(code.to_string().contains("Vector :: from_slice"));
+    }
+
+    #[test]
+    fn test_generate_dot_with_expressions() {
+        let call = NumpyCall::Dot {
+            a: quote!(vec1),
+            b: quote!(vec2),
+        };
+        let code = generate_trueno_code(&call);
+        let s = code.to_string();
+        assert!(s.contains("vec1"));
+        assert!(s.contains("vec2"));
+    }
+
+    #[test]
+    fn test_numpy_call_debug() {
+        let call = NumpyCall::Sum { arr: quote!(x) };
+        let debug = format!("{:?}", call);
+        assert!(debug.contains("Sum"));
+    }
+
+    #[test]
+    fn test_numpy_call_clone() {
+        let call = NumpyCall::Zeros { size: quote!(10) };
+        let cloned = call.clone();
+        let code1 = generate_trueno_code(&call).to_string();
+        let code2 = generate_trueno_code(&cloned).to_string();
+        assert_eq!(code1, code2);
+    }
 }

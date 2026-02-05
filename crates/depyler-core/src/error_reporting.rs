@@ -983,4 +983,448 @@ mod tests {
         );
         assert!(get_source_line(source, 2).is_none());
     }
+
+    #[test]
+    fn test_error_reporter_display_errors_single() {
+        let mut reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.report_error(ErrorKind::UnsupportedFeature("async".to_string()));
+        reporter.display_errors();
+        assert!(reporter.has_errors());
+    }
+
+    #[test]
+    fn test_error_reporter_display_errors_multiple() {
+        let mut reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.report_error(ErrorKind::UnsupportedFeature("async".to_string()));
+        reporter.report_error(ErrorKind::ParseError);
+        reporter.report_error(ErrorKind::TypeInferenceError("test".to_string()));
+        reporter.display_errors();
+        assert_eq!(reporter.errors.len(), 3);
+    }
+
+    #[test]
+    fn test_error_reporter_display_errors_empty() {
+        let reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.display_errors();
+        assert!(!reporter.has_errors());
+    }
+
+    #[test]
+    fn test_enhanced_error_format_location_info_complete() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_location("test.py", 10, 20);
+        let display = format!("{}", error);
+        assert!(display.contains("-->"));
+        assert!(display.contains("test.py:10:20"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_location_info_incomplete() {
+        let mut error = EnhancedError::new(ErrorKind::ParseError);
+        error.file_path = Some("test.py".to_string());
+        error.line = Some(10);
+        let display = format!("{}", error);
+        assert!(!display.contains("-->"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_source_context_complete() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_location("test.py", 5, 10)
+            .with_source_line("    x = 10");
+        let display = format!("{}", error);
+        assert!(display.contains("x = 10"));
+        assert!(display.contains("|"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_source_context_incomplete() {
+        let mut error = EnhancedError::new(ErrorKind::ParseError);
+        error.source_line = Some("x = 10".to_string());
+        error.line = Some(5);
+        let display = format!("{}", error);
+        assert!(!display.contains("|"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_suggestion_present() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_suggestion("Try using a different syntax");
+        let display = format!("{}", error);
+        assert!(display.contains("suggestion"));
+        assert!(display.contains("Try using a different syntax"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_suggestion_absent() {
+        let error = EnhancedError::new(ErrorKind::ParseError);
+        let display = format!("{}", error);
+        assert!(!display.contains("suggestion"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_notes_present() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .add_note("First note")
+            .add_note("Second note");
+        let display = format!("{}", error);
+        assert!(display.contains("note:"));
+        assert!(display.contains("First note"));
+        assert!(display.contains("Second note"));
+    }
+
+    #[test]
+    fn test_enhanced_error_format_notes_absent() {
+        let error = EnhancedError::new(ErrorKind::ParseError);
+        let display = format!("{}", error);
+        let note_count = display.matches("note:").count();
+        assert_eq!(note_count, 0);
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_multiple_patterns() {
+        let result1 = generate_type_mismatch_suggestion("String", "&str", "context");
+        assert!(result1.is_some());
+
+        let result2 = generate_type_mismatch_suggestion("f64", "i32", "context");
+        assert!(result2.is_some());
+
+        let result3 = generate_type_mismatch_suggestion("Option<T>", "None", "context");
+        assert!(result3.is_some());
+
+        let result4 = generate_type_mismatch_suggestion("&String", "String", "context");
+        assert!(result4.is_some());
+
+        let result5 = generate_type_mismatch_suggestion("Vec<i32>", "list", "context");
+        assert!(result5.is_some());
+    }
+
+    #[test]
+    fn test_suggest_division_mismatch_with_various_int_types() {
+        assert!(suggest_division_mismatch("f64", "i8").is_some());
+        assert!(suggest_division_mismatch("f64", "i16").is_some());
+        assert!(suggest_division_mismatch("f64", "i32").is_some());
+        assert!(suggest_division_mismatch("f64", "i64").is_some());
+        assert!(suggest_division_mismatch("f32", "i32").is_none());
+    }
+
+    #[test]
+    fn test_get_line_column_multiline_with_various_offsets() {
+        let source = "abc\ndef\nghi";
+        assert_eq!(get_line_column(source, 0), (1, 1));
+        assert_eq!(get_line_column(source, 1), (1, 2));
+        assert_eq!(get_line_column(source, 2), (1, 3));
+        assert_eq!(get_line_column(source, 3), (1, 4));
+        assert_eq!(get_line_column(source, 4), (2, 1));
+        assert_eq!(get_line_column(source, 5), (2, 2));
+    }
+
+    #[test]
+    fn test_get_source_line_with_multiple_lines() {
+        let source = "first\nsecond\nthird\nfourth";
+        assert_eq!(get_source_line(source, 1), Some("first".to_string()));
+        assert_eq!(get_source_line(source, 2), Some("second".to_string()));
+        assert_eq!(get_source_line(source, 3), Some("third".to_string()));
+        assert_eq!(get_source_line(source, 4), Some("fourth".to_string()));
+    }
+
+    #[test]
+    fn test_enhanced_error_multiple_notes() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .add_note("Note 1")
+            .add_note("Note 2")
+            .add_note("Note 3");
+        assert_eq!(error.notes.len(), 3);
+        let display = format!("{}", error);
+        assert!(display.contains("Note 1"));
+        assert!(display.contains("Note 2"));
+        assert!(display.contains("Note 3"));
+    }
+
+    #[test]
+    fn test_error_reporter_multiple_operations() {
+        let mut reporter = ErrorReporter::new("code\nmore code".to_string(), "file.py".to_string());
+        assert!(!reporter.has_errors());
+
+        reporter.report_error(ErrorKind::ParseError);
+        assert!(reporter.has_errors());
+
+        reporter.report_error(ErrorKind::UnsupportedFeature("test".to_string()));
+        assert_eq!(reporter.errors.len(), 2);
+    }
+
+    #[test]
+    fn test_add_automatic_suggestions_type_mismatch() {
+        let error = EnhancedError::new(ErrorKind::TypeMismatch {
+            expected: "String".to_string(),
+            found: "&str".to_string(),
+            context: "test".to_string(),
+        });
+        let enhanced = add_automatic_suggestions(error);
+        assert!(enhanced.suggestion.is_some());
+        assert!(!enhanced.notes.is_empty());
+    }
+
+    #[test]
+    fn test_add_automatic_suggestions_unsupported_feature_non_yield() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("walrus".to_string()));
+        let enhanced = add_automatic_suggestions(error);
+        assert!(enhanced.suggestion.is_some());
+        assert!(enhanced.suggestion.unwrap().contains("walrus"));
+    }
+
+    #[test]
+    fn test_enhanced_error_display_with_column_edge_cases() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_location("test.py", 1, 1)
+            .with_source_line("x");
+        let display = format!("{}", error);
+        assert!(display.contains("^"));
+    }
+
+    #[test]
+    fn test_enhanced_error_display_with_large_column() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_location("test.py", 1, 100)
+            .with_source_line("short line");
+        let display = format!("{}", error);
+        assert!(display.contains("^"));
+    }
+
+    #[test]
+    fn test_get_line_column_unicode() {
+        let source = "hello\n世界\ntest";
+        assert_eq!(get_line_column(source, 0), (1, 1));
+        assert_eq!(get_line_column(source, 6), (2, 1));
+        assert_eq!(get_line_column(source, 7), (2, 2));
+    }
+
+    #[test]
+    fn test_suggest_ownership_mismatch_with_ampersand() {
+        let result = suggest_ownership_mismatch("&Vec<i32>", "Vec<i32>");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("Ownership mismatch"));
+        assert!(notes.iter().any(|n| n.contains("borrowed")));
+    }
+
+    #[test]
+    fn test_suggest_generic_mismatch_with_return_context() {
+        let result = suggest_generic_mismatch("A", "B", "return value");
+        assert!(result.is_some());
+        let (suggestion, _) = result.unwrap();
+        assert!(suggestion.contains("Return type mismatch"));
+    }
+
+    #[test]
+    fn test_error_reporter_into_result_with_value() {
+        let reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        let result = reporter.into_result("success");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "success");
+    }
+
+    #[test]
+    fn test_error_reporter_into_result_with_errors() {
+        let mut reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.report_error(ErrorKind::ParseError);
+        let result = reporter.into_result::<&str>("value");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("1 error"));
+    }
+
+    #[test]
+    fn test_enhanced_error_debug_output() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_location("test.py", 1, 1);
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("EnhancedError"));
+    }
+
+    #[test]
+    fn test_suggest_annotation_fix_with_borrow_keyword() {
+        let result = suggest_annotation_fix("cannot borrow as mutable");
+        assert!(result.is_some());
+        let (suggestion, _) = result.unwrap();
+        assert!(suggestion.contains(".clone()"));
+    }
+
+    #[test]
+    fn test_suggest_type_inference_fix_no_match() {
+        let result = suggest_type_inference_fix("some other error");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_enhanced_error_all_fields_populated() {
+        let error = EnhancedError::new(ErrorKind::TypeMismatch {
+            expected: "i32".to_string(),
+            found: "str".to_string(),
+            context: "assignment".to_string(),
+        })
+        .with_location("file.py", 42, 17)
+        .with_source_line("    result = \"text\"")
+        .with_suggestion("Convert to the correct type")
+        .add_note("First note")
+        .add_note("Second note");
+
+        assert!(error.file_path.is_some());
+        assert!(error.line.is_some());
+        assert!(error.column.is_some());
+        assert!(error.source_line.is_some());
+        assert!(error.suggestion.is_some());
+        assert_eq!(error.notes.len(), 2);
+    }
+
+    #[test]
+    fn test_error_reporter_with_empty_source() {
+        let reporter = ErrorReporter::new(String::new(), "empty.py".to_string());
+        assert!(!reporter.has_errors());
+        assert_eq!(reporter.source, "");
+    }
+
+    #[test]
+    fn test_get_source_line_zero_line() {
+        let source = "line1\nline2\nline3";
+        let result = get_source_line(source, 0);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_enhanced_error_partial_fields() {
+        let mut error = EnhancedError::new(ErrorKind::ParseError);
+        error.file_path = Some("test.py".to_string());
+        error.column = Some(5);
+        let display = format!("{}", error);
+        assert!(!display.contains("-->"));
+    }
+
+    #[test]
+    fn test_from_ast_node_with_simple_source() {
+        use rustpython_ast::Suite;
+        use rustpython_parser::Parse;
+
+        let source = "x = 1\ny = 2\nz = 3";
+        let parsed = Suite::parse(source, "<test>").unwrap();
+
+        if let Some(stmt) = parsed.first() {
+            let error = EnhancedError::from_ast_node(
+                ErrorKind::UnsupportedFeature("test".to_string()),
+                stmt,
+                source,
+            );
+
+            assert_eq!(error.file_path, Some("<input>".to_string()));
+            assert!(error.line.is_some());
+            assert!(error.column.is_some());
+            assert!(error.source_line.is_some());
+        }
+    }
+
+    #[test]
+    fn test_from_ast_node_with_multiline_source() {
+        use rustpython_ast::Suite;
+        use rustpython_parser::Parse;
+
+        let source = "def foo():\n    pass\n\nclass Bar:\n    pass";
+        let parsed = Suite::parse(source, "<test>").unwrap();
+
+        if let Some(stmt) = parsed.get(1) {
+            let error = EnhancedError::from_ast_node(
+                ErrorKind::TypeMismatch {
+                    expected: "int".to_string(),
+                    found: "str".to_string(),
+                    context: "test".to_string(),
+                },
+                stmt,
+                source,
+            );
+
+            assert!(error.line.is_some());
+            assert!(error.column.is_some());
+        }
+    }
+
+    #[test]
+    fn test_report_error_at_with_ast_node() {
+        use rustpython_ast::Suite;
+        use rustpython_parser::Parse;
+
+        let source = "x = 1 + 2";
+        let parsed = Suite::parse(source, "<test>").unwrap();
+
+        let mut reporter = ErrorReporter::new(source.to_string(), "test.py".to_string());
+
+        if let Some(stmt) = parsed.first() {
+            reporter.report_error_at(ErrorKind::UnsupportedFeature("addition".to_string()), stmt);
+            assert!(reporter.has_errors());
+            assert_eq!(reporter.errors.len(), 1);
+        }
+    }
+
+    #[test]
+    fn test_error_reporter_multiple_report_error_at() {
+        use rustpython_ast::Suite;
+        use rustpython_parser::Parse;
+
+        let source = "x = 1\ny = 2\nz = 3";
+        let parsed = Suite::parse(source, "<test>").unwrap();
+
+        let mut reporter = ErrorReporter::new(source.to_string(), "multi.py".to_string());
+
+        for stmt in &parsed {
+            reporter.report_error_at(ErrorKind::ParseError, stmt);
+        }
+
+        assert_eq!(reporter.errors.len(), 3);
+    }
+
+    #[test]
+    fn test_enhanced_error_column_saturation() {
+        let error = EnhancedError::new(ErrorKind::ParseError)
+            .with_location("test.py", 1, 0)
+            .with_source_line("test");
+        let display = format!("{}", error);
+        assert!(display.contains("^"));
+    }
+
+    #[test]
+    fn test_get_line_column_at_newline() {
+        let source = "line1\nline2";
+        assert_eq!(get_line_column(source, 5), (1, 6));
+    }
+
+    #[test]
+    fn test_error_kinds_with_automatic_suggestions() {
+        let error1 = EnhancedError::new(ErrorKind::CodeGenerationError("test".to_string()));
+        let enhanced1 = add_automatic_suggestions(error1);
+        assert!(enhanced1.suggestion.is_none());
+
+        let error2 = EnhancedError::new(ErrorKind::VerificationError("test".to_string()));
+        let enhanced2 = add_automatic_suggestions(error2);
+        assert!(enhanced2.suggestion.is_none());
+    }
+
+    #[test]
+    fn test_enhanced_error_display_minimal() {
+        let error = EnhancedError::new(ErrorKind::InternalError("minimal".to_string()));
+        let display = format!("{}", error);
+        assert!(display.contains("error"));
+        assert!(display.contains("Internal error"));
+    }
+
+    #[test]
+    fn test_format_methods_edge_cases() {
+        let mut error = EnhancedError::new(ErrorKind::ParseError);
+        error.file_path = Some("test.py".to_string());
+        error.line = None;
+        error.column = Some(10);
+        let display = format!("{}", error);
+        assert!(!display.contains("-->"));
+
+        error.line = Some(5);
+        error.column = None;
+        let display2 = format!("{}", error);
+        assert!(!display2.contains("-->"));
+    }
 }
