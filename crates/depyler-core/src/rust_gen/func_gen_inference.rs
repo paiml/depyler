@@ -1883,4 +1883,332 @@ async def fetch_data(url: str) -> str:
         assert!(rust.contains("async"));
         assert!(rust.contains("fn fetch_data"));
     }
+
+    // === detect_returns_nested_function tests ===
+
+    fn make_function(
+        name: &str,
+        params: Vec<HirParam>,
+        ret_type: Type,
+        body: Vec<HirStmt>,
+    ) -> HirFunction {
+        HirFunction {
+            name: name.to_string(),
+            params: params.into_iter().collect(),
+            ret_type,
+            body,
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        }
+    }
+
+    #[test]
+    fn test_detect_nested_no_nested_functions() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "simple",
+            vec![],
+            Type::Int,
+            vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_detect_nested_with_explicit_return() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "make_adder",
+            vec![HirParam {
+                name: "n".to_string(),
+                ty: Type::Int,
+                default: None,
+                is_vararg: false,
+            }],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "adder".to_string(),
+                    params: Box::new(smallvec::smallvec![HirParam {
+                        name: "x".to_string(),
+                        ty: Type::Int,
+                        default: None,
+                        is_vararg: false,
+                    }]),
+                    ret_type: Type::Int,
+                    body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("n".to_string())),
+                        op: BinOp::Add,
+                        right: Box::new(HirExpr::Var("x".to_string())),
+                    }))],
+                    docstring: None,
+                },
+                HirStmt::Return(Some(HirExpr::Var("adder".to_string()))),
+            ],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_some());
+        let (name, params, ret_type) = result.unwrap();
+        assert_eq!(name, "adder");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].name, "x");
+        assert!(matches!(ret_type, Type::Int));
+    }
+
+    #[test]
+    fn test_detect_nested_with_implicit_return() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "make_fn",
+            vec![],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "inner".to_string(),
+                    params: Box::new(smallvec::smallvec![]),
+                    ret_type: Type::String,
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
+                        "hello".to_string(),
+                    ))))],
+                    docstring: None,
+                },
+                HirStmt::Expr(HirExpr::Var("inner".to_string())),
+            ],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_some());
+        let (name, _, ret_type) = result.unwrap();
+        assert_eq!(name, "inner");
+        assert!(matches!(ret_type, Type::String));
+    }
+
+    #[test]
+    fn test_detect_nested_returns_wrong_name() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "make_fn",
+            vec![],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "inner".to_string(),
+                    params: Box::new(smallvec::smallvec![]),
+                    ret_type: Type::Int,
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                    docstring: None,
+                },
+                HirStmt::Return(Some(HirExpr::Var("other_fn".to_string()))),
+            ],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_detect_nested_stores_params_in_ctx() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "factory",
+            vec![],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "product".to_string(),
+                    params: Box::new(smallvec::smallvec![
+                        HirParam {
+                            name: "a".to_string(),
+                            ty: Type::Int,
+                            default: None,
+                            is_vararg: false,
+                        },
+                        HirParam {
+                            name: "b".to_string(),
+                            ty: Type::Float,
+                            default: None,
+                            is_vararg: false,
+                        },
+                    ]),
+                    ret_type: Type::Float,
+                    body: vec![],
+                    docstring: None,
+                },
+                HirStmt::Return(Some(HirExpr::Var("product".to_string()))),
+            ],
+        );
+        let _ = detect_returns_nested_function(&func, &mut ctx);
+        assert!(ctx.nested_function_params.contains_key("product"));
+        let params = ctx.nested_function_params.get("product").unwrap();
+        assert_eq!(params.len(), 2);
+    }
+
+    #[test]
+    fn test_detect_nested_unknown_param_inference() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "make_fn",
+            vec![],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "inner".to_string(),
+                    params: Box::new(smallvec::smallvec![HirParam {
+                        name: "x".to_string(),
+                        ty: Type::Unknown,
+                        default: None,
+                        is_vararg: false,
+                    }]),
+                    ret_type: Type::Unknown,
+                    body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("x".to_string())),
+                        op: BinOp::Add,
+                        right: Box::new(HirExpr::Literal(Literal::Int(1))),
+                    }))],
+                    docstring: None,
+                },
+                HirStmt::Return(Some(HirExpr::Var("inner".to_string()))),
+            ],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_detect_nested_optional_unknown_param() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "make_fn",
+            vec![],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "inner".to_string(),
+                    params: Box::new(smallvec::smallvec![HirParam {
+                        name: "val".to_string(),
+                        ty: Type::Optional(Box::new(Type::Unknown)),
+                        default: None,
+                        is_vararg: false,
+                    }]),
+                    ret_type: Type::Int,
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
+                    docstring: None,
+                },
+                HirStmt::Return(Some(HirExpr::Var("inner".to_string()))),
+            ],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_detect_nested_empty_body() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function("empty", vec![], Type::Unknown, vec![]);
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_detect_nested_non_var_return() {
+        let mut ctx = CodeGenContext::default();
+        let func = make_function(
+            "make_fn",
+            vec![],
+            Type::Unknown,
+            vec![
+                HirStmt::FunctionDef {
+                    name: "inner".to_string(),
+                    params: Box::new(smallvec::smallvec![]),
+                    ret_type: Type::Int,
+                    body: vec![],
+                    docstring: None,
+                },
+                HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42)))),
+            ],
+        );
+        let result = detect_returns_nested_function(&func, &mut ctx);
+        assert!(result.is_none()); // Returns literal, not nested fn name
+    }
+
+    // === Transpile-based tests for nested function patterns ===
+
+    #[test]
+    fn test_transpile_closure_returning_function() {
+        let code = r#"
+def make_multiplier(factor: int):
+    def multiply(x: int) -> int:
+        return x * factor
+    return multiply
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_multiplier"));
+    }
+
+    #[test]
+    fn test_transpile_function_with_default_params() {
+        let code = r#"
+def greet(name: str, greeting: str = "Hello") -> str:
+    return greeting + " " + name
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn greet"));
+    }
+
+    #[test]
+    fn test_transpile_function_returning_bool() {
+        let code = r#"
+def is_even(n: int) -> bool:
+    return n % 2 == 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn is_even"));
+        assert!(rust.contains("bool"));
+    }
+
+    #[test]
+    fn test_transpile_function_returning_list() {
+        let code = r#"
+def make_list(n: int) -> list:
+    result = []
+    for i in range(n):
+        result.append(i)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_list"));
+        assert!(rust.contains("Vec"));
+    }
+
+    #[test]
+    fn test_transpile_function_returning_optional() {
+        let code = r#"
+def find_item(items: list, target: int):
+    for item in items:
+        if item == target:
+            return item
+    return None
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_item"));
+        assert!(rust.contains("Option") || rust.contains("None"));
+    }
+
+    #[test]
+    fn test_transpile_function_with_multiple_returns() {
+        let code = r#"
+def classify(x: int) -> str:
+    if x > 0:
+        return "positive"
+    elif x < 0:
+        return "negative"
+    else:
+        return "zero"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn classify"));
+        assert!(rust.contains("positive"));
+        assert!(rust.contains("negative"));
+        assert!(rust.contains("zero"));
+    }
 }

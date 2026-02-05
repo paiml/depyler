@@ -513,4 +513,394 @@ mod tests {
         assert_ne!(FixType::TranspilerPatch, FixType::None);
         assert_ne!(FixType::GeneratedRust, FixType::None);
     }
+
+    // === apply_fix tests ===
+
+    fn make_classification(code: &str, message: &str, line: usize) -> ErrorClassification {
+        ErrorClassification {
+            error: CompilationError {
+                code: code.to_string(),
+                message: message.to_string(),
+                file: PathBuf::from("test.rs"),
+                line,
+                column: 1,
+                ..Default::default()
+            },
+            category: super::super::classifier::ErrorCategory::TranspilerGap,
+            subcategory: "test".to_string(),
+            confidence: 0.9,
+            suggested_fix: None,
+        }
+    }
+
+    #[test]
+    fn test_apply_fix_no_matching_transform() {
+        let fixer = GeneratedRustFixer::new();
+        let classification = make_classification("E9999", "unknown error", 1);
+        let result = fixer.apply_fix(&classification, "fn test() {}").unwrap();
+        assert!(!result.applied);
+        assert!(result.modified_source.is_none());
+        assert_eq!(result.fix_type, FixType::None);
+        assert_eq!(result.confidence, 0.0);
+    }
+
+    #[test]
+    fn test_apply_fix_e0599_value_keys() {
+        let fixer = GeneratedRustFixer::new();
+        let classification =
+            make_classification("E0599", "no method named `keys` found for enum `Value`", 1);
+        let source = "let keys = data.keys();";
+        let result = fixer.apply_fix(&classification, source).unwrap();
+        assert!(result.applied);
+        assert!(result.modified_source.is_some());
+        assert_eq!(result.fix_type, FixType::GeneratedRust);
+        let modified = result.modified_source.unwrap();
+        assert!(modified.contains("as_object()"));
+    }
+
+    #[test]
+    fn test_apply_fix_e0599_value_items() {
+        let fixer = GeneratedRustFixer::new();
+        let classification =
+            make_classification("E0599", "no method named `items` found for enum `Value`", 1);
+        let source = "for (k, v) in data.items() {";
+        let result = fixer.apply_fix(&classification, source).unwrap();
+        assert!(result.applied);
+        let modified = result.modified_source.unwrap();
+        assert!(modified.contains("as_object()"));
+        assert!(modified.contains("iter()"));
+    }
+
+    #[test]
+    fn test_apply_fix_description_format() {
+        let fixer = GeneratedRustFixer::new();
+        let classification =
+            make_classification("E0599", "no method named `keys` found for enum `Value`", 5);
+        let source = "let keys = data.keys();";
+        let result = fixer.apply_fix(&classification, source).unwrap();
+        assert!(result.description.contains("E0599"));
+        assert!(result.description.contains("line 5"));
+    }
+
+    #[test]
+    fn test_apply_fix_no_fix_description() {
+        let fixer = GeneratedRustFixer::new();
+        let classification = make_classification("E0308", "some unrecognized message", 10);
+        let result = fixer.apply_fix(&classification, "fn test() {}").unwrap();
+        assert!(!result.applied);
+        assert!(result.description.contains("No fix available"));
+        assert!(result.description.contains("E0308"));
+    }
+
+    // === add_into_conversion tests ===
+
+    #[test]
+    fn test_add_into_conversion_returns_source_unchanged() {
+        let source = "let x: i32 = 42;";
+        let re = regex::Regex::new(r"test").unwrap();
+        let caps = re.captures("test").unwrap();
+        let result = add_into_conversion(source, &caps);
+        assert_eq!(result, source);
+    }
+
+    // === fix_precompute_is_some tests ===
+
+    #[test]
+    fn test_fix_precompute_is_some_returns_source_unchanged() {
+        let source = "if val.is_some() { consume(val); }";
+        let re = regex::Regex::new(r"test").unwrap();
+        let caps = re.captures("test").unwrap();
+        let result = fix_precompute_is_some(source, &caps);
+        assert_eq!(result, source);
+    }
+
+    // === try_transforms tests ===
+
+    #[test]
+    fn test_try_transforms_unknown_code_returns_none() {
+        let fixer = GeneratedRustFixer::new();
+        let error = CompilationError {
+            code: "E9999".to_string(),
+            message: "unknown error".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+            ..Default::default()
+        };
+        let result = fixer.try_transforms(&error, "fn test() {}");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_try_transforms_no_pattern_match() {
+        let fixer = GeneratedRustFixer::new();
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "some unrelated message".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+            ..Default::default()
+        };
+        let result = fixer.try_transforms(&error, "fn test() {}");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_try_transforms_regex_replacement() {
+        let fixer = GeneratedRustFixer::new();
+        let source = "let x = value";
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "expected `String`, found `&str`".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+            ..Default::default()
+        };
+        let result = fixer.try_transforms(&error, source);
+        assert!(result.is_some());
+        let (modified, name, confidence) = result.unwrap();
+        assert!(modified.contains(".to_string()"));
+        assert_eq!(name, "add_to_string");
+        assert!(confidence > 0.0);
+    }
+
+    #[test]
+    fn test_try_transforms_invalid_line_number() {
+        let fixer = GeneratedRustFixer::new();
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "expected `String`, found `&str`".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 0, // Invalid line number
+            column: 1,
+            ..Default::default()
+        };
+        let result = fixer.try_transforms(&error, "let x = value");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_try_transforms_line_beyond_source() {
+        let fixer = GeneratedRustFixer::new();
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "expected `String`, found `&str`".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 100, // Beyond source lines
+            column: 1,
+            ..Default::default()
+        };
+        let result = fixer.try_transforms(&error, "let x = value");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_try_transforms_function_replacement_value_keys() {
+        let fixer = GeneratedRustFixer::new();
+        let error = CompilationError {
+            code: "E0599".to_string(),
+            message: "no method named `keys` found for enum `Value`".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+            ..Default::default()
+        };
+        let source = "let k = data.keys();";
+        let result = fixer.try_transforms(&error, source);
+        assert!(result.is_some());
+        let (modified, name, _) = result.unwrap();
+        assert!(modified.contains("as_object()"));
+        assert_eq!(name, "value_keys");
+    }
+
+    // === CompositeFixApplicator tests ===
+
+    #[test]
+    fn test_composite_with_applicator() {
+        let applicator =
+            CompositeFixApplicator::new().with_applicator(Box::new(GeneratedRustFixer::new()));
+        assert_eq!(applicator.applicators.len(), 2); // default + added
+    }
+
+    #[test]
+    fn test_composite_default() {
+        let applicator = CompositeFixApplicator::default();
+        assert_eq!(applicator.applicators.len(), 1);
+    }
+
+    #[test]
+    fn test_apply_batch_empty() {
+        let applicator = CompositeFixApplicator::new();
+        let source_files: HashMap<PathBuf, String> = HashMap::new();
+        let results = applicator.apply_batch(&[], &source_files);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_apply_batch_file_not_found() {
+        let applicator = CompositeFixApplicator::new();
+        let classification = make_classification("E0308", "type mismatch", 1);
+        let source_files: HashMap<PathBuf, String> = HashMap::new();
+        let results = applicator.apply_batch(&[classification], &source_files);
+        assert!(results.is_empty()); // No source found for file
+    }
+
+    #[test]
+    fn test_apply_batch_with_matching_source() {
+        let applicator = CompositeFixApplicator::new();
+        let classification =
+            make_classification("E0599", "no method named `keys` found for enum `Value`", 1);
+        let mut source_files = HashMap::new();
+        source_files.insert(PathBuf::from("test.rs"), "let k = data.keys();".to_string());
+        let results = applicator.apply_batch(&[classification], &source_files);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].applied);
+    }
+
+    #[test]
+    fn test_apply_batch_unhandled_error() {
+        let applicator = CompositeFixApplicator::new();
+        let classification = make_classification("E9999", "unknown", 1);
+        let mut source_files = HashMap::new();
+        source_files.insert(PathBuf::from("test.rs"), "fn test() {}".to_string());
+        let results = applicator.apply_batch(&[classification], &source_files);
+        assert!(results.is_empty()); // No applicator can_handle E9999
+    }
+
+    #[test]
+    fn test_apply_batch_multiple_classifications() {
+        let applicator = CompositeFixApplicator::new();
+        let c1 = make_classification("E0599", "no method named `keys` found for enum `Value`", 1);
+        let c2 = make_classification("E0599", "no method named `items` found for enum `Value`", 2);
+        let mut source_files = HashMap::new();
+        source_files.insert(
+            PathBuf::from("test.rs"),
+            "let k = data.keys();\nfor (k, v) in data.items() {".to_string(),
+        );
+        let results = applicator.apply_batch(&[c1, c2], &source_files);
+        assert_eq!(results.len(), 2);
+    }
+
+    // === GeneratedRustFixer Default trait ===
+
+    #[test]
+    fn test_generated_rust_fixer_default() {
+        let fixer = GeneratedRustFixer::default();
+        assert!(fixer.transforms.contains_key("E0308"));
+    }
+
+    // === FixApplicationResult struct tests ===
+
+    #[test]
+    fn test_fix_application_result_applied() {
+        let result = FixApplicationResult {
+            applied: true,
+            modified_source: Some("modified".to_string()),
+            description: "Applied fix".to_string(),
+            confidence: 0.95,
+            fix_type: FixType::GeneratedRust,
+        };
+        assert!(result.applied);
+        assert_eq!(result.confidence, 0.95);
+        assert_eq!(result.fix_type, FixType::GeneratedRust);
+    }
+
+    #[test]
+    fn test_fix_application_result_clone() {
+        let result = FixApplicationResult {
+            applied: true,
+            modified_source: Some("code".to_string()),
+            description: "test".to_string(),
+            confidence: 0.8,
+            fix_type: FixType::TranspilerPatch,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.applied, result.applied);
+        assert_eq!(cloned.fix_type, result.fix_type);
+    }
+
+    #[test]
+    fn test_fix_application_result_debug() {
+        let result = FixApplicationResult {
+            applied: false,
+            modified_source: None,
+            description: "debug test".to_string(),
+            confidence: 0.0,
+            fix_type: FixType::None,
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("debug test"));
+    }
+
+    #[test]
+    fn test_fix_type_copy() {
+        let ft = FixType::GeneratedRust;
+        let copied = ft;
+        assert_eq!(ft, copied);
+    }
+
+    #[test]
+    fn test_fix_type_debug() {
+        let ft = FixType::TranspilerPatch;
+        let debug = format!("{:?}", ft);
+        assert!(debug.contains("TranspilerPatch"));
+    }
+
+    #[test]
+    fn test_e0277_clone_transform_exists() {
+        let fixer = GeneratedRustFixer::new();
+        assert!(fixer.transforms.contains_key("E0277"));
+        let transforms = fixer.transforms.get("E0277").unwrap();
+        assert!(!transforms.is_empty());
+    }
+
+    #[test]
+    fn test_e0382_transform_exists() {
+        let fixer = GeneratedRustFixer::new();
+        assert!(fixer.transforms.contains_key("E0382"));
+    }
+
+    #[test]
+    fn test_try_transforms_e0277_clone() {
+        let fixer = GeneratedRustFixer::new();
+        let error = CompilationError {
+            code: "E0277".to_string(),
+            message: "the trait `Clone` is not implemented".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+            ..Default::default()
+        };
+        let source = "let x = data";
+        let result = fixer.try_transforms(&error, source);
+        assert!(result.is_some());
+        let (modified, name, _) = result.unwrap();
+        assert!(modified.contains(".clone()"));
+        assert_eq!(name, "add_clone");
+    }
+
+    #[test]
+    fn test_fix_value_keys_multiple_occurrences() {
+        let source = "let a = d1.keys(); let b = d2.keys();";
+        let re = regex::Regex::new(r"keys").unwrap();
+        let caps = re.captures("keys").unwrap();
+        let result = fix_value_keys(source, &caps);
+        // Both .keys() occurrences should be replaced with the as_object pattern
+        assert!(result.contains("as_object()"));
+        // The direct .keys() call at top level should be gone
+        assert!(!result.contains("d1.keys()"));
+        assert!(!result.contains("d2.keys()"));
+    }
+
+    #[test]
+    fn test_fix_value_items_no_match() {
+        let source = "let x = data.values();";
+        let re = regex::Regex::new(r"items").unwrap();
+        let caps = re.captures("items").unwrap();
+        let result = fix_value_items(source, &caps);
+        // No .items() to replace, should be unchanged
+        assert_eq!(result, source);
+    }
 }
