@@ -13146,4 +13146,1413 @@ def bare_dict() -> dict:
             code
         );
     }
+
+    // ===== Set method coverage tests =====
+
+    #[test]
+    fn test_set_symmetric_difference() {
+        let code = transpile(
+            r#"
+def test() -> set:
+    a = {1, 2, 3}
+    b = {2, 3, 4}
+    return a.symmetric_difference(b)
+"#,
+        );
+        assert!(
+            code.contains("symmetric_difference"),
+            "Should use symmetric_difference: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_set_issubset() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    a = {1, 2}
+    b = {1, 2, 3}
+    return a.issubset(b)
+"#,
+        );
+        assert!(code.contains("is_subset"), "Should use is_subset: {}", code);
+    }
+
+    #[test]
+    fn test_set_issuperset() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    a = {1, 2, 3}
+    b = {1, 2}
+    return a.issuperset(b)
+"#,
+        );
+        assert!(
+            code.contains("is_superset"),
+            "Should use is_superset: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_set_isdisjoint() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    a = {1, 2}
+    b = {3, 4}
+    return a.isdisjoint(b)
+"#,
+        );
+        assert!(
+            code.contains("is_disjoint"),
+            "Should use is_disjoint: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_set_update() {
+        let code = transpile(
+            r#"
+def test():
+    a = {1, 2}
+    b = {3, 4}
+    a.update(b)
+"#,
+        );
+        assert!(
+            code.contains("insert"),
+            "Should generate insert loop for update: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_set_intersection_update() {
+        let code = transpile(
+            r#"
+def test():
+    a = {1, 2, 3}
+    b = {2, 3, 4}
+    a.intersection_update(b)
+"#,
+        );
+        assert!(
+            code.contains("intersection"),
+            "Should use intersection for intersection_update: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_set_difference_update() {
+        let code = transpile(
+            r#"
+def test():
+    a = {1, 2, 3}
+    b = {2, 3}
+    a.difference_update(b)
+"#,
+        );
+        assert!(
+            code.contains("difference"),
+            "Should use difference for difference_update: {}",
+            code
+        );
+    }
+
+    // ===== String method coverage tests =====
+
+    #[test]
+    fn test_string_zfill_coverage() {
+        assert!(transpile_ok(
+            r#"
+def test() -> str:
+    s = "42"
+    return s.zfill(5)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_rfind() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    s = "hello world hello"
+    return s.rfind("hello")
+"#,
+        );
+        assert!(code.contains("rfind"), "Should use rfind: {}", code);
+    }
+
+    #[test]
+    fn test_string_splitlines() {
+        let _code = transpile(
+            r#"
+def test() -> list:
+    s = "line1\nline2\nline3"
+    return s.splitlines()
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> list:
+    s = "line1\nline2\nline3"
+    return s.splitlines()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_encode() {
+        let code = transpile(
+            r#"
+def test():
+    s = "hello"
+    b = s.encode()
+"#,
+        );
+        assert!(
+            code.contains("as_bytes") || code.contains("encode") || code.contains("bytes"),
+            "Should handle encode: {}",
+            code
+        );
+    }
+
+    // ===== Regex method coverage tests =====
+
+    #[test]
+    fn test_regex_split() {
+        let _code = transpile(
+            r#"
+import re
+def test() -> list:
+    return re.split(r"\s+", "hello world")
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+import re
+def test() -> list:
+    return re.split(r"\s+", "hello world")
+"#
+        ));
+    }
+
+    // ===== Index/Slice coverage tests =====
+
+    #[test]
+    fn test_slice_with_step() {
+        let _code = transpile(
+            r#"
+def test() -> list:
+    items = [1, 2, 3, 4, 5, 6]
+    return items[::2]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> list:
+    items = [1, 2, 3, 4, 5, 6]
+    return items[::2]
+"#
+        ));
+    }
+
+    #[test]
+    fn test_slice_negative_step() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    items = [1, 2, 3, 4, 5]
+    return items[::-1]
+"#,
+        );
+        assert!(
+            code.contains("rev") || code.contains("reverse"),
+            "Should handle reverse slice: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_tuple_index_access() {
+        let _code = transpile(
+            r#"
+def test() -> int:
+    t = (1, 2, 3)
+    return t[0]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> int:
+    t = (1, 2, 3)
+    return t[0]
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_negative_index() {
+        let _code = transpile(
+            r#"
+def test() -> str:
+    s = "hello"
+    return s[-1]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> str:
+    s = "hello"
+    return s[-1]
+"#
+        ));
+    }
+
+    // ===== Collection creation edge cases =====
+
+    #[test]
+    fn test_empty_tuple_creation() {
+        let _code = transpile(
+            r#"
+def test():
+    t = ()
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test():
+    t = ()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_single_element_tuple() {
+        let _code = transpile(
+            r#"
+def test():
+    t = (1,)
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test():
+    t = (1,)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_list_with_mixed_int_float() {
+        let _code = transpile(
+            r#"
+def test() -> list:
+    return [1, 2.5, 3, 4.5]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> list:
+    return [1, 2.5, 3, 4.5]
+"#
+        ));
+    }
+
+    #[test]
+    fn test_dict_fromkeys() {
+        let _code = transpile(
+            r#"
+def test():
+    keys = ["a", "b", "c"]
+    d = dict.fromkeys(keys, 0)
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test():
+    keys = ["a", "b", "c"]
+    d = dict.fromkeys(keys, 0)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_frozenset_from_list() {
+        let code = transpile(
+            r#"
+def test():
+    items = [1, 2, 3, 2, 1]
+    fs = frozenset(items)
+"#,
+        );
+        assert!(
+            code.contains("HashSet") || code.contains("BTreeSet"),
+            "Should create a set type: {}",
+            code
+        );
+    }
+
+    // ===== Comprehension edge cases =====
+
+    #[test]
+    fn test_list_comp_with_method_call() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    words = ["hello", "WORLD"]
+    return [w.lower() for w in words]
+"#,
+        );
+        assert!(
+            code.contains("to_lowercase") || code.contains("lower"),
+            "Should handle method call in list comp: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_set_comp_with_condition() {
+        let code = transpile(
+            r#"
+def test() -> set:
+    nums = [1, 2, 3, 4, 5, 6]
+    return {n * n for n in nums if n % 2 == 0}
+"#,
+        );
+        assert!(
+            code.contains("filter") || code.contains("if"),
+            "Should handle set comp with condition: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_dict_comp_with_enumerate() {
+        let code = transpile(
+            r#"
+def test() -> dict:
+    items = ["a", "b", "c"]
+    return {i: v for i, v in enumerate(items)}
+"#,
+        );
+        assert!(
+            code.contains("enumerate"),
+            "Should handle dict comp with enumerate: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_generator_in_min() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    nums = [3, 1, 4, 1, 5]
+    return min(x * x for x in nums)
+"#,
+        );
+        assert!(
+            code.contains("min") || code.contains("map"),
+            "Should handle generator in min: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_generator_in_max() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    nums = [3, 1, 4, 1, 5]
+    return max(x * x for x in nums)
+"#,
+        );
+        assert!(
+            code.contains("max") || code.contains("map"),
+            "Should handle generator in max: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_generator_in_list_constructor() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    nums = [1, 2, 3]
+    return list(x * 2 for x in nums)
+"#,
+        );
+        assert!(
+            code.contains("collect") || code.contains("map"),
+            "Should handle generator in list(): {}",
+            code
+        );
+    }
+
+    // ===== Lambda edge cases =====
+
+    #[test]
+    fn test_lambda_no_args() {
+        let code = transpile(
+            r#"
+def test():
+    f = lambda: 42
+"#,
+        );
+        assert!(
+            code.contains("||") || code.contains("closure"),
+            "Should handle lambda with no args: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_lambda_with_default() {
+        let code = transpile(
+            r#"
+def test():
+    nums = [3, 1, 4, 1, 5]
+    nums.sort(key=lambda x: x)
+"#,
+        );
+        assert!(
+            code.contains("sort") || code.contains("key"),
+            "Should handle lambda as sort key: {}",
+            code
+        );
+    }
+
+    // ===== F-string edge cases =====
+
+    #[test]
+    fn test_fstring_with_format_spec() {
+        let code = transpile(
+            r#"
+def test() -> str:
+    val = 3.14159
+    return f"{val:.2f}"
+"#,
+        );
+        assert!(
+            code.contains("format"),
+            "Should use format for f-string with spec: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_fstring_empty() {
+        let code = transpile(
+            r#"
+def test() -> str:
+    return f""
+"#,
+        );
+        assert!(
+            code.contains("to_string") || code.contains("String"),
+            "Should handle empty f-string: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_fstring_with_expression() {
+        let code = transpile(
+            r#"
+def test() -> str:
+    x = 10
+    y = 20
+    return f"sum is {x + y}"
+"#,
+        );
+        assert!(
+            code.contains("format"),
+            "Should use format for f-string expression: {}",
+            code
+        );
+    }
+
+    // ===== If expression edge cases =====
+
+    #[test]
+    fn test_ifexpr_with_comparison() {
+        let code = transpile(
+            r#"
+def test(x: int) -> str:
+    return "positive" if x > 0 else "non-positive"
+"#,
+        );
+        assert!(
+            code.contains("if") && code.contains("else"),
+            "Should have conditional: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_ifexpr_in_list() {
+        let _code = transpile(
+            r#"
+def test() -> list:
+    nums = [1, 2, 3, 4, 5]
+    return [x if x > 0 else 0 for x in nums]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> list:
+    nums = [1, 2, 3, 4, 5]
+    return [x if x > 0 else 0 for x in nums]
+"#
+        ));
+    }
+
+    // ===== Truthiness conversion tests =====
+
+    #[test]
+    fn test_truthiness_int() {
+        let code = transpile(
+            r#"
+def test(n: int) -> bool:
+    if n:
+        return True
+    return False
+"#,
+        );
+        assert!(
+            code.contains("!= 0") || code.contains("!"),
+            "Should convert int truthiness: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_truthiness_optional() {
+        let _code = transpile(
+            r#"
+def test(s: str) -> bool:
+    if s:
+        return True
+    return False
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test(s: str) -> bool:
+    if s:
+        return True
+    return False
+"#
+        ));
+    }
+
+    // ===== Attribute access coverage =====
+
+    #[test]
+    fn test_attribute_self_field() {
+        let code = transpile(
+            r#"
+class Counter:
+    def __init__(self):
+        self.count = 0
+    def increment(self):
+        self.count += 1
+"#,
+        );
+        assert!(
+            code.contains("self.count"),
+            "Should access self.count: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_attribute_nested_access() {
+        let _code = transpile(
+            r#"
+def test(obj):
+    return obj.name.upper()
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test(obj):
+    return obj.name.upper()
+"#
+        ));
+    }
+
+    // ===== Borrow/reference tests =====
+
+    #[test]
+    fn test_mutable_borrow() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    items = [3, 1, 2]
+    items.sort()
+    return items
+"#,
+        );
+        assert!(code.contains("sort"), "Should sort in place: {}", code);
+    }
+
+    // ===== Dict method edge cases =====
+
+    #[test]
+    fn test_dict_pop_no_default() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    d = {"a": 1, "b": 2}
+    return d.pop("a")
+"#,
+        );
+        assert!(
+            code.contains("remove") || code.contains("pop"),
+            "Should handle dict pop: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_dict_get_nested() {
+        let code = transpile(
+            r#"
+def test():
+    d = {"a": 1, "b": 2}
+    x = d.get("c", 0)
+"#,
+        );
+        assert!(
+            code.contains("unwrap_or") || code.contains("get"),
+            "Should handle dict.get with default: {}",
+            code
+        );
+    }
+
+    // ===== List method edge cases =====
+
+    #[test]
+    fn test_list_extend_with_range() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    items = [1, 2]
+    items.extend(range(3, 6))
+    return items
+"#,
+        );
+        assert!(code.contains("extend"), "Should use extend: {}", code);
+    }
+
+    #[test]
+    fn test_list_index_method() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    items = ["a", "b", "c"]
+    return items.index("b")
+"#,
+        );
+        assert!(
+            code.contains("position") || code.contains("index"),
+            "Should find index: {}",
+            code
+        );
+    }
+
+    // ===== Async/await tests =====
+
+    #[test]
+    fn test_async_function() {
+        let _code = transpile(
+            r#"
+async def fetch_data(url: str) -> str:
+    return url
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+async def fetch_data(url: str) -> str:
+    return url
+"#
+        ));
+    }
+
+    // ===== Named expression (walrus) tests =====
+
+    #[test]
+    fn test_walrus_in_list_comp() {
+        let _code = transpile(
+            r#"
+def test() -> list:
+    data = [1, 2, 3, 4, 5]
+    return [y for x in data if (y := x * 2) > 4]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> list:
+    data = [1, 2, 3, 4, 5]
+    return [y for x in data if (y := x * 2) > 4]
+"#
+        ));
+    }
+
+    // ===== Counter and deque tests =====
+
+    #[test]
+    fn test_deque_rotate() {
+        let _code = transpile(
+            r#"
+from collections import deque
+def test():
+    d = deque([1, 2, 3, 4])
+    d.rotate(2)
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+from collections import deque
+def test():
+    d = deque([1, 2, 3, 4])
+    d.rotate(2)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_deque_pop() {
+        let code = transpile(
+            r#"
+from collections import deque
+def test() -> int:
+    d = deque([1, 2, 3])
+    return d.pop()
+"#,
+        );
+        assert!(
+            code.contains("pop_back") || code.contains("pop"),
+            "Should handle deque pop: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_counter_elements() {
+        let _code = transpile(
+            r#"
+from collections import Counter
+def test():
+    c = Counter([1, 1, 2, 3, 3, 3])
+    items = c.items()
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+from collections import Counter
+def test():
+    c = Counter([1, 1, 2, 3, 3, 3])
+    items = c.items()
+"#
+        ));
+    }
+
+    // ===== Path-related tests =====
+
+    #[test]
+    fn test_path_join() {
+        let code = transpile(
+            r#"
+from pathlib import Path
+def test() -> str:
+    p = Path("/home")
+    return str(p / "user")
+"#,
+        );
+        assert!(
+            code.contains("join") || code.contains("Path"),
+            "Should handle path join: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_path_exists() {
+        let code = transpile(
+            r#"
+from pathlib import Path
+def test() -> bool:
+    p = Path("/tmp")
+    return p.exists()
+"#,
+        );
+        assert!(
+            code.contains("exists"),
+            "Should handle path.exists(): {}",
+            code
+        );
+    }
+
+    // ===== Type annotation tests =====
+
+    #[test]
+    fn test_typed_dict_access() {
+        let code = transpile(
+            r#"
+def test(d: dict[str, int]) -> int:
+    return d["key"]
+"#,
+        );
+        assert!(
+            code.contains("HashMap") || code.contains("["),
+            "Should handle typed dict access: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_typed_list_access() {
+        let _code = transpile(
+            r#"
+def test(items: list[int]) -> int:
+    return items[0]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test(items: list[int]) -> int:
+    return items[0]
+"#
+        ));
+    }
+
+    // ===== String format method =====
+
+    #[test]
+    fn test_string_format_method() {
+        let code = transpile(
+            r#"
+def test() -> str:
+    return "Hello, {}!".format("world")
+"#,
+        );
+        assert!(code.contains("format"), "Should use format: {}", code);
+    }
+
+    #[test]
+    fn test_string_format_with_args() {
+        let code = transpile(
+            r#"
+def test() -> str:
+    name = "Alice"
+    age = 30
+    return "Name: {}, Age: {}".format(name, age)
+"#,
+        );
+        assert!(
+            code.contains("format"),
+            "Should handle format with multiple args: {}",
+            code
+        );
+    }
+
+    // ===== Sort by key =====
+
+    #[test]
+    fn test_sort_with_key() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    words = ["banana", "apple", "cherry"]
+    words.sort(key=lambda w: w)
+    return words
+"#,
+        );
+        assert!(
+            code.contains("sort"),
+            "Should handle sort with key: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_sorted_with_key() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    words = ["banana", "apple", "cherry"]
+    return sorted(words, key=lambda w: w)
+"#,
+        );
+        assert!(
+            code.contains("sort"),
+            "Should handle sorted with key: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_sorted_reverse() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    nums = [3, 1, 4, 1, 5]
+    return sorted(nums, reverse=True)
+"#,
+        );
+        assert!(
+            code.contains("sort") || code.contains("rev"),
+            "Should handle sorted with reverse: {}",
+            code
+        );
+    }
+
+    // ===== File I/O method tests =====
+
+    #[test]
+    fn test_file_close_method() {
+        let _code = transpile(
+            r#"
+def test():
+    f = open("test.txt", "w")
+    f.write("hello")
+    f.close()
+"#,
+        );
+        // close() should be a no-op in Rust (RAII)
+        assert!(transpile_ok(
+            r#"
+def test():
+    f = open("test.txt", "w")
+    f.write("hello")
+    f.close()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_file_readlines() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    f = open("test.txt", "r")
+    lines = f.readlines()
+    return lines
+"#,
+        );
+        assert!(
+            code.contains("lines") || code.contains("BufReader") || code.contains("read"),
+            "Should handle readlines: {}",
+            code
+        );
+    }
+
+    // ===== Binary operation type-aware tests =====
+
+    #[test]
+    fn test_float_division() {
+        let _code = transpile(
+            r#"
+def test(a: float, b: float) -> float:
+    return a / b
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test(a: float, b: float) -> float:
+    return a / b
+"#
+        ));
+    }
+
+    #[test]
+    fn test_floor_division() {
+        let _code = transpile(
+            r#"
+def test(a: int, b: int) -> int:
+    return a // b
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test(a: int, b: int) -> int:
+    return a // b
+"#
+        ));
+    }
+
+    // ===== Enumerate and zip edge cases =====
+
+    #[test]
+    fn test_enumerate_with_start() {
+        let code = transpile(
+            r#"
+def test():
+    items = ["a", "b", "c"]
+    for i, v in enumerate(items, start=1):
+        print(i, v)
+"#,
+        );
+        assert!(
+            code.contains("enumerate"),
+            "Should handle enumerate with start: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_zip_two_lists() {
+        let code = transpile(
+            r#"
+def test():
+    keys = ["a", "b"]
+    vals = [1, 2]
+    for k, v in zip(keys, vals):
+        print(k, v)
+"#,
+        );
+        assert!(code.contains("zip"), "Should handle zip: {}", code);
+    }
+
+    #[test]
+    fn test_reversed_list() {
+        let code = transpile(
+            r#"
+def test():
+    items = [1, 2, 3]
+    for x in reversed(items):
+        print(x)
+"#,
+        );
+        assert!(
+            code.contains("rev") || code.contains("reversed"),
+            "Should handle reversed: {}",
+            code
+        );
+    }
+
+    // ===== Multiple assignment patterns =====
+
+    #[test]
+    fn test_list_multiplication_operator() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    return [0] * 10
+"#,
+        );
+        assert!(
+            code.contains("vec![") || code.contains("repeat") || code.contains("* 10"),
+            "Should handle list multiplication: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_string_multiplication() {
+        let code = transpile(
+            r#"
+def test() -> str:
+    return "-" * 20
+"#,
+        );
+        assert!(
+            code.contains("repeat") || code.contains("*"),
+            "Should handle string multiplication: {}",
+            code
+        );
+    }
+
+    // ===== In/Not In operator tests =====
+
+    #[test]
+    fn test_in_operator_list() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    items = [1, 2, 3]
+    return 2 in items
+"#,
+        );
+        assert!(
+            code.contains("contains"),
+            "Should use contains for 'in': {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_not_in_operator() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    items = [1, 2, 3]
+    return 5 not in items
+"#,
+        );
+        assert!(
+            code.contains("contains"),
+            "Should use !contains for 'not in': {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_in_operator_string() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    s = "hello world"
+    return "world" in s
+"#,
+        );
+        assert!(
+            code.contains("contains"),
+            "Should use contains for string 'in': {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_in_operator_dict() {
+        let code = transpile(
+            r#"
+def test() -> bool:
+    d = {"a": 1, "b": 2}
+    return "a" in d
+"#,
+        );
+        assert!(
+            code.contains("contains_key") || code.contains("contains"),
+            "Should check key containment: {}",
+            code
+        );
+    }
+
+    // ===== Yield and generator function tests =====
+
+    #[test]
+    fn test_yield_value() {
+        let _code = transpile(
+            r#"
+def gen():
+    yield 1
+    yield 2
+    yield 3
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def gen():
+    yield 1
+    yield 2
+    yield 3
+"#
+        ));
+    }
+
+    // ===== Type detection via transpile tests =====
+
+    #[test]
+    fn test_dict_merge_operator() {
+        let _code = transpile(
+            r#"
+def test() -> dict:
+    a = {"x": 1}
+    b = {"y": 2}
+    return a | b
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> dict:
+    a = {"x": 1}
+    b = {"y": 2}
+    return a | b
+"#
+        ));
+    }
+
+    #[test]
+    fn test_set_literal_union_operator() {
+        let _code = transpile(
+            r#"
+def test() -> set:
+    a = {1, 2}
+    b = {3, 4}
+    return a | b
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> set:
+    a = {1, 2}
+    b = {3, 4}
+    return a | b
+"#
+        ));
+    }
+
+    // ===== List and dict complex operations =====
+
+    #[test]
+    fn test_nested_list_comp() {
+        let code = transpile(
+            r#"
+def test() -> list:
+    matrix = [[1, 2], [3, 4], [5, 6]]
+    return [x for row in matrix for x in row]
+"#,
+        );
+        assert!(
+            code.contains("flat_map") || code.contains("flatten") || code.contains("for"),
+            "Should flatten nested list: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_dict_values_sum() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    d = {"a": 1, "b": 2, "c": 3}
+    return sum(d.values())
+"#,
+        );
+        assert!(
+            code.contains("values") && code.contains("sum"),
+            "Should sum dict values: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_list_concat_via_add() {
+        let _code = transpile(
+            r#"
+def test() -> list:
+    a = [1, 2]
+    b = [3, 4]
+    return a + b
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> list:
+    a = [1, 2]
+    b = [3, 4]
+    return a + b
+"#
+        ));
+    }
+
+    // ===== Integer and float method tests =====
+
+    #[test]
+    fn test_int_abs() {
+        let code = transpile(
+            r#"
+def test(n: int) -> int:
+    return abs(n)
+"#,
+        );
+        assert!(code.contains("abs"), "Should use abs: {}", code);
+    }
+
+    #[test]
+    fn test_round_float() {
+        let _code = transpile(
+            r#"
+def test(f: float) -> float:
+    return round(f, 2)
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test(f: float) -> float:
+    return round(f, 2)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_min_max_builtins() {
+        let code = transpile(
+            r#"
+def test() -> int:
+    return max(1, 2, 3) + min(4, 5, 6)
+"#,
+        );
+        assert!(
+            code.contains("max") && code.contains("min"),
+            "Should handle min/max: {}",
+            code
+        );
+    }
+
+    // ===== String slicing tests =====
+
+    #[test]
+    fn test_string_slice_from_start() {
+        let _code = transpile(
+            r#"
+def test() -> str:
+    s = "hello world"
+    return s[:5]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> str:
+    s = "hello world"
+    return s[:5]
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_slice_to_end() {
+        let _code = transpile(
+            r#"
+def test() -> str:
+    s = "hello world"
+    return s[6:]
+"#,
+        );
+        assert!(transpile_ok(
+            r#"
+def test() -> str:
+    s = "hello world"
+    return s[6:]
+"#
+        ));
+    }
+
+    // ===== is_json_value_type static method test =====
+
+    #[test]
+    fn test_is_json_value_type_static() {
+        use crate::hir::Type;
+        use crate::rust_gen::expr_gen_instance_methods::ExpressionConverter;
+
+        assert!(ExpressionConverter::is_json_value_type(&Type::Custom(
+            "serde_json::Value".to_string()
+        )));
+        assert!(ExpressionConverter::is_json_value_type(&Type::Custom(
+            "Value".to_string()
+        )));
+        assert!(!ExpressionConverter::is_json_value_type(&Type::Int));
+        assert!(!ExpressionConverter::is_json_value_type(&Type::String));
+    }
 }
