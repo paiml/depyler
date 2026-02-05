@@ -2603,18 +2603,18 @@ p.args_var.as_ref().is_some_and(|av| av == args_param)
 
 **Verification**: All 11 `test_analyze_subcommand_field_access` tests pass. Zero clippy warnings.
 
-### 9.8 Current Quality Metrics (2026-02-04)
+### 9.8 Current Quality Metrics (2026-02-05)
 
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
 | Clippy Warnings | 0 | 0 | ✅ PASS |
 | TDG Score | 93.8 (A) | 95+ (A+) | ⚠️ 1.2 points gap |
-| Test Coverage (core) | 85.57% | 95% | ⚠️ 9.43 pp gap (improving) |
-| Function Coverage | 93.06% | 95% | ⚠️ 1.94 pp gap (improving) |
-| Branch Coverage | 86.13% | 90% | ⚠️ 3.87 pp gap (improving) |
+| Test Coverage (workspace) | 86.23% | 95% | ⚠️ 8.77 pp gap (improving) |
+| Function Coverage | 92.60% | 95% | ⚠️ 2.40 pp gap (improving) |
+| Line Coverage | 86.96% | 95% | ⚠️ 8.04 pp gap (improving) |
 | SATD Violations | 87 | 0 | ⚠️ False positives (doc comments) |
 | Max Cyclomatic | 257 | ≤10 | ❌ Long-term refactor |
-| Total Tests | 11,900+ | - | ✅ All passing |
+| Total Tests | 11,800+ | - | ✅ All passing |
 
 **Coverage Breakdown** (depyler-core, lib + 99-mode integration tests):
 - Lines: 85.57% (200,530 total, 28,938 uncovered) [+0.47pp from 85.10%]
@@ -2807,13 +2807,18 @@ Session 8 Batch 3 (157 tests, 2026-02-05):
 109. `advanced_patterns_s8_coverage_test.rs` - 40 tests (borrowing/escape analysis, optimization paths, generic inference, class patterns, dict/string ops, builtins)
 110. `codegen_pipeline_s8_coverage_test.rs` - 35 tests (deep nesting, scope shadowing, union types, cargo dep detection, complex types, lambda/closure, imports)
 
+Session 8 Batch 4 (179 tests, 2026-02-05):
+111. `escape_analysis_s8_deep_coverage_test.rs` - 72 direct API tests (UseAfterMoveAnalysis, StrategicCloneAnalysis, analyze_ownership; all HirExpr/HirStmt variants, branch/loop merge, nested captures, FString, comprehensions, lambda, yield, await, named expr)
+112. `optimization_s8_deep_coverage_test.rs` - 39 direct API tests (PerformanceOptimizer: conservative/standard/aggressive levels, constant folding int/float add/sub/mul/recursive, DCE, strength reduction, loop unrolling, all 5 PerformanceHints, bounds checking, optimize_module)
+113. `instance_methods_s8b4_coverage_test.rs` - 68 transpile tests (list: append/extend/pop/insert/remove/sort/reverse/clear/copy/count/index; dict: get/keys/values/items/update/pop/clear/setdefault; str: upper/lower/strip/split/join/replace/find/startswith/endswith/isdigit/isalpha/title/capitalize/count/zfill/encode/format; set: add/discard; builtins: abs/min/max/sum/sorted/reversed/enumerate/zip/range)
+
 Documentation improvements (Session 8):
 - Added doc comments to 30+ public types in `hir.rs` and `type_mapper.rs`
 - Fixed parse errors in `examples/test_pathlib.rs` and `benchmarks/rust/compute_intensive_manual.rs`
 - TDG Score: `crates/` directory scores 93.8/100 (A) with Documentation 10.0/10
 
-**Grand Total**: 3,691 tests across 110 test files (Sessions 1-8)
-**Session 8 Total**: 345 new tests across 7 new test files
+**Grand Total**: 3,870 tests across 113 test files (Sessions 1-8)
+**Session 8 Total**: 524 new tests across 10 new test files
 **Modules Covered**: 100+ source modules totaling 160,000+ lines
 
 ### 9.9 CI Health (2026-02-05)
@@ -2824,6 +2829,6 @@ Documentation improvements (Session 8):
 | cargo clippy | PASS | Zero warnings (--workspace mode) |
 | cargo test | PASS | All tests green |
 | Golden Trace | PASS | Numerical equivalence validated |
-| Coverage Threshold | 86% | Raised from 85% |
+| Coverage Threshold | 86.23% | Region coverage (workspace) |
 | TDG Score (root) | 87.8 (A-) | Python corpus files drag score |
 | TDG Score (crates/) | 93.8 (A) | Core Rust code quality |
