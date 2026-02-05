@@ -1318,17 +1318,15 @@ mod tests {
     fn test_analyze_for_loop() {
         let func = make_function(
             "test",
-            vec![
-                HirStmt::For {
-                    target: AssignTarget::Symbol("item".to_string()),
-                    iter: HirExpr::List(vec![make_literal_int(1), make_literal_int(2)]),
-                    body: vec![HirStmt::Expr(HirExpr::Call {
-                        func: "print".to_string(),
-                        args: vec![make_var("item")],
-                        kwargs: vec![],
-                    })],
-                },
-            ],
+            vec![HirStmt::For {
+                target: AssignTarget::Symbol("item".to_string()),
+                iter: HirExpr::List(vec![make_literal_int(1), make_literal_int(2)]),
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "print".to_string(),
+                    args: vec![make_var("item")],
+                    kwargs: vec![],
+                })],
+            }],
         );
         let mut analysis = UseAfterMoveAnalysis::new();
         let errors = analysis.analyze_function(&func);
@@ -1575,8 +1573,14 @@ mod tests {
         let func = make_function(
             "test",
             vec![
-                HirStmt::Expr(HirExpr::List(vec![make_literal_int(1), make_literal_int(2)])),
-                HirStmt::Expr(HirExpr::Tuple(vec![make_literal_int(3), make_literal_int(4)])),
+                HirStmt::Expr(HirExpr::List(vec![
+                    make_literal_int(1),
+                    make_literal_int(2),
+                ])),
+                HirStmt::Expr(HirExpr::Tuple(vec![
+                    make_literal_int(3),
+                    make_literal_int(4),
+                ])),
                 HirStmt::Expr(HirExpr::Set(vec![make_literal_int(5)])),
                 HirStmt::Expr(HirExpr::Dict(vec![(
                     HirExpr::Literal(crate::hir::Literal::String("k".to_string())),
@@ -1730,9 +1734,7 @@ mod tests {
                 HirStmt::Expr(HirExpr::Yield {
                     value: Some(Box::new(make_literal_int(42))),
                 }),
-                HirStmt::Expr(HirExpr::Yield {
-                    value: None,
-                }),
+                HirStmt::Expr(HirExpr::Yield { value: None }),
             ],
         );
         let mut analysis = UseAfterMoveAnalysis::new();
@@ -1763,10 +1765,7 @@ mod tests {
 
         let before = analysis.move_states.clone();
         let mut after_then = before.clone();
-        after_then.insert(
-            "x".to_string(),
-            MoveState::Moved(SourceSpan::default()),
-        );
+        after_then.insert("x".to_string(), MoveState::Moved(SourceSpan::default()));
         let after_else = before.clone();
 
         analysis.merge_branch_states(&before, &after_then, &after_else);
@@ -1964,7 +1963,10 @@ mod tests {
                 func: "create".to_string(),
                 args: vec![make_literal_int(1)],
                 kwargs: vec![
-                    ("name".to_string(), HirExpr::Literal(crate::hir::Literal::String("test".to_string()))),
+                    (
+                        "name".to_string(),
+                        HirExpr::Literal(crate::hir::Literal::String("test".to_string())),
+                    ),
                     ("value".to_string(), make_literal_int(42)),
                 ],
             })],

@@ -485,7 +485,12 @@ impl TypeInference {
         for param in &func.params {
             match &param.ty {
                 Type::Custom(type_var)
-                    if type_var.len() == 1 && type_var.chars().next().expect("non-empty string").is_uppercase() =>
+                    if type_var.len() == 1
+                        && type_var
+                            .chars()
+                            .next()
+                            .expect("non-empty string")
+                            .is_uppercase() =>
                 {
                     // This is a type variable, analyze its usage
                     self.analyze_param_usage(&param.name, type_var, &func.body)?;

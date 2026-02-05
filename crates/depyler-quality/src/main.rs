@@ -71,7 +71,9 @@ fn main() {
 
     match matches.subcommand() {
         Some(("analyze", sub_matches)) => {
-            let path = sub_matches.get_one::<String>("path").expect("required argument");
+            let path = sub_matches
+                .get_one::<String>("path")
+                .expect("required argument");
             let format = sub_matches
                 .get_one::<String>("format")
                 .expect("required argument");
@@ -83,8 +85,12 @@ fn main() {
             }
         }
         Some(("enforce", sub_matches)) => {
-            let path = sub_matches.get_one::<String>("path").expect("required argument");
-            let max_tdg = *sub_matches.get_one::<f64>("max-tdg").expect("required argument");
+            let path = sub_matches
+                .get_one::<String>("path")
+                .expect("required argument");
+            let max_tdg = *sub_matches
+                .get_one::<f64>("max-tdg")
+                .expect("required argument");
             let min_coverage = *sub_matches
                 .get_one::<f64>("min-coverage")
                 .expect("required argument");

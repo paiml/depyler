@@ -209,7 +209,9 @@ fn convert_search(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr
                 .find(#text)
         })
     } else {
-        Ok(parse_quote! { regex::Regex::new(#pattern).expect("regex operation failed").find(#text) })
+        Ok(
+            parse_quote! { regex::Regex::new(#pattern).expect("regex operation failed").find(#text) },
+        )
     }
 }
 

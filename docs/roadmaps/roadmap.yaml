@@ -3713,3 +3713,19 @@ roadmap:
   - type-inference
   - 99-mode
   notes: E0308 is the top error code (~40% of failures). All priorities (P0, P1, P2, P3) now COMPLETED. See 99-mode.spec.md section 9.7 for details.
+- id: DEPYLER-99MODE-S8
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-99MODE-S8'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-02-05T06:09:14.214425+00:00
+  updated: 2026-02-05T06:09:14.214425+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

@@ -67,7 +67,7 @@ impl RuchyInterpreter {
 
     /// Fallback execution for builds without interpreter feature
     #[cfg(not(feature = "interpreter"))]
-    pub fn execute(&self, code: &str) -> Result<String> {
+    pub fn execute(&self, _code: &str) -> Result<String> {
         Err(anyhow!(
             "Interpreter feature not enabled. Rebuild with --features interpreter"
         ))

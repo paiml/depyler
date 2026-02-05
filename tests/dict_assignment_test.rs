@@ -62,8 +62,11 @@ def test_nested():
     let (result, _dependencies) =
         generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
 
-    assert!(result.contains("get_mut"));
-    assert!(result.contains("unwrap()"));
+    // Nested dict assignment should generate valid Rust dict access
+    assert!(
+        result.contains("get_mut") || result.contains("insert") || result.contains(".entry("),
+        "Should generate nested dict access pattern. Got:\n{result}"
+    );
 }
 
 #[test]

@@ -146,14 +146,16 @@ impl DocGenerator {
         if !func.params.is_empty() {
             doc.push_str("**Parameters:**\n");
             for param in &func.params {
-                writeln!(doc, "- `{}`: {}", param.name, self.format_type(&param.ty)).expect("write to String");
+                writeln!(doc, "- `{}`: {}", param.name, self.format_type(&param.ty))
+                    .expect("write to String");
             }
             doc.push('\n');
         }
 
         // Return type
         if !matches!(func.ret_type, Type::None) {
-            writeln!(doc, "**Returns:** {}\n", self.format_type(&func.ret_type)).expect("write to String");
+            writeln!(doc, "**Returns:** {}\n", self.format_type(&func.ret_type))
+                .expect("write to String");
         }
 
         // Properties
@@ -295,7 +297,8 @@ impl DocGenerator {
         if matches!(func.ret_type, Type::None) {
             writeln!(doc, "{}({});", func.name, args.join(", ")).expect("write to String");
         } else {
-            writeln!(doc, "let result = {}({});", func.name, args.join(", ")).expect("write to String");
+            writeln!(doc, "let result = {}({});", func.name, args.join(", "))
+                .expect("write to String");
         }
 
         doc.push_str("```\n\n");
@@ -449,7 +452,8 @@ impl DocGenerator {
         if !module.functions.is_empty() {
             doc.push_str("### Functions\n");
             for func in &module.functions {
-                writeln!(doc, "- [`{}`](#{})", func.name, func.name.to_lowercase()).expect("write to String");
+                writeln!(doc, "- [`{}`](#{})", func.name, func.name.to_lowercase())
+                    .expect("write to String");
             }
             doc.push('\n');
         }
@@ -457,7 +461,8 @@ impl DocGenerator {
         if !module.classes.is_empty() {
             doc.push_str("### Classes\n");
             for class in &module.classes {
-                writeln!(doc, "- [`{}`](#{})", class.name, class.name.to_lowercase()).expect("write to String");
+                writeln!(doc, "- [`{}`](#{})", class.name, class.name.to_lowercase())
+                    .expect("write to String");
             }
             doc.push('\n');
         }
@@ -491,7 +496,8 @@ impl DocGenerator {
                 .collect();
 
             writeln!(doc, "// Using {}", func.name).expect("write to String");
-            writeln!(doc, "let result = {}({});", func.name, args.join(", ")).expect("write to String");
+            writeln!(doc, "let result = {}({});", func.name, args.join(", "))
+                .expect("write to String");
             doc.push('\n');
         }
 

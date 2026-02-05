@@ -35,10 +35,7 @@ fn get_oracle() -> Option<&'static Oracle> {
                 // Without training feature, try loading from disk only
                 let path = Oracle::default_model_path();
                 if path.exists() {
-                    match Oracle::load(&path) {
-                        Ok(oracle) => Some(oracle),
-                        Err(_) => None,
-                    }
+                    Oracle::load(&path).ok()
                 } else {
                     None
                 }

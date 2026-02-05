@@ -2372,7 +2372,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             match method {
                 // path.stat() → std::fs::metadata(&path).unwrap()
                 "stat" if arg_exprs.is_empty() => {
-                    return Ok(parse_quote! { std::fs::metadata(&#object_expr).expect("operation failed") });
+                    return Ok(
+                        parse_quote! { std::fs::metadata(&#object_expr).expect("operation failed") },
+                    );
                 }
                 // path.absolute() or path.resolve() → path.canonicalize().unwrap()
                 "absolute" | "resolve" if arg_exprs.is_empty() => {
@@ -3352,7 +3354,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "get" => {
                         if args.is_empty() {
                             // dict.get() with no args - shouldn't happen for dict but handle gracefully
-                            return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").get() });
+                            return Ok(
+                                parse_quote! { #var_ident.as_ref().expect("value is None").get() },
+                            );
                         }
                         let key_expr = args[0].to_rust_expr(self.ctx)?;
                         // Check if we need default value (2-arg form)
@@ -3377,16 +3381,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
                     "keys" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").keys() });
+                        return Ok(
+                            parse_quote! { #var_ident.as_ref().expect("value is None").keys() },
+                        );
                     }
                     "values" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").values() });
+                        return Ok(
+                            parse_quote! { #var_ident.as_ref().expect("value is None").values() },
+                        );
                     }
                     "items" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").iter() });
+                        return Ok(
+                            parse_quote! { #var_ident.as_ref().expect("value is None").iter() },
+                        );
                     }
                     "len" if args.is_empty() => {
-                        return Ok(parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 });
+                        return Ok(
+                            parse_quote! { #var_ident.as_ref().expect("value is None").len() as i32 },
+                        );
                     }
                     _ => {} // Fall through to other handlers
                 }

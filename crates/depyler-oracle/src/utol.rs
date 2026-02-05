@@ -934,7 +934,8 @@ impl TypeConstraintLearner {
         Self {
             constraints: Vec::new(),
             // Pattern: "expected `Type1`, found `Type2`"
-            e0308_pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`").expect("static regex"),
+            e0308_pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`")
+                .expect("static regex"),
             // Pattern: "--> file.rs:123:45"
             location_pattern: regex::Regex::new(r"--> ([^:]+):(\d+):\d+").expect("static regex"),
         }

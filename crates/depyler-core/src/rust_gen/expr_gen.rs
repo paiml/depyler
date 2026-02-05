@@ -2853,9 +2853,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             return if is_max {
-                Some(Ok(parse_quote! { *#iter_expr.iter().max().expect("empty collection") }))
+                Some(Ok(
+                    parse_quote! { *#iter_expr.iter().max().expect("empty collection") },
+                ))
             } else {
-                Some(Ok(parse_quote! { *#iter_expr.iter().min().expect("empty collection") }))
+                Some(Ok(
+                    parse_quote! { *#iter_expr.iter().min().expect("empty collection") },
+                ))
             };
         }
 

@@ -104,14 +104,16 @@ impl GeneratedRustFixer {
                 // Add .into() for type conversion
                 RustTransform {
                     name: "add_into".to_string(),
-                    pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`").expect("static regex"),
+                    pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`")
+                        .expect("static regex"),
                     replacement: ReplaceStrategy::Function(add_into_conversion),
                     confidence: 0.7,
                 },
                 // Add .to_string() for &str → String
                 RustTransform {
                     name: "add_to_string".to_string(),
-                    pattern: regex::Regex::new(r"expected `String`, found `&str`").expect("static regex"),
+                    pattern: regex::Regex::new(r"expected `String`, found `&str`")
+                        .expect("static regex"),
                     replacement: ReplaceStrategy::Regex(".to_string()".to_string()),
                     confidence: 0.85,
                 },
@@ -148,7 +150,8 @@ impl GeneratedRustFixer {
                 // Add .clone() for Clone bound
                 RustTransform {
                     name: "add_clone".to_string(),
-                    pattern: regex::Regex::new(r"the trait `Clone` is not implemented").expect("static regex"),
+                    pattern: regex::Regex::new(r"the trait `Clone` is not implemented")
+                        .expect("static regex"),
                     replacement: ReplaceStrategy::Regex(".clone()".to_string()),
                     confidence: 0.6,
                 },
@@ -162,7 +165,8 @@ impl GeneratedRustFixer {
                 // Pre-compute .is_some() before move
                 RustTransform {
                     name: "precompute_is_some".to_string(),
-                    pattern: regex::Regex::new(r"borrow of moved value.*\.is_some\(\)").expect("static regex"),
+                    pattern: regex::Regex::new(r"borrow of moved value.*\.is_some\(\)")
+                        .expect("static regex"),
                     replacement: ReplaceStrategy::Function(fix_precompute_is_some),
                     confidence: 0.8,
                 },
