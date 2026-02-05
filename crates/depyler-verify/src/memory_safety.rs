@@ -964,4 +964,167 @@ mod tests {
         // Current implementation returns false
         assert!(!analyzer.is_shared_mutable("x"));
     }
+
+    // ===== Session 11: Additional coverage tests =====
+
+    #[test]
+    fn test_s11_check_stmt_for_races_assign() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+        // is_shared_mutable returns false, so no race detected
+        let violation = analyzer.check_stmt_for_races(&stmt);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_s11_check_stmt_for_races_non_assign() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        let violation = analyzer.check_stmt_for_races(&stmt);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_s11_check_stmt_for_races_tuple_target() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ]),
+            type_annotation: None,
+        };
+        let violation = analyzer.check_stmt_for_races(&stmt);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_s11_check_data_races_with_assigns() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let func = HirFunction {
+            name: "multi_assign".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                },
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: HirExpr::Literal(Literal::Int(2)),
+                    type_annotation: None,
+                },
+            ],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.check_data_races(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_s11_analyze_statement_pass() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+        let stmt = HirStmt::Pass;
+        let violation = analyzer.analyze_statement(&stmt, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_s11_analyze_statement_return_none() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+        let stmt = HirStmt::Return(None);
+        let violation = analyzer.analyze_statement(&stmt, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_s11_analyze_statement_return_with_expr() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        let violation = analyzer.analyze_statement(&stmt, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_s11_analyze_function_with_violations() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        // Pre-move a variable
+        analyzer.moved_values.insert("x".to_string());
+
+        let func = HirFunction {
+            name: "use_moved".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let result = analyzer.analyze_function(&func);
+        assert!(matches!(result.status, PropertyStatus::Violated(_)));
+    }
+
+    #[test]
+    fn test_s11_check_null_safety_with_null_attr_access() {
+        let func = HirFunction {
+            name: "null_access".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Literal(Literal::None)),
+                attr: "method".to_string(),
+            })],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let violations = check_null_safety(&func);
+        assert_eq!(violations.len(), 1);
+        assert!(matches!(
+            violations[0],
+            MemorySafetyViolation::NullPointerDereference { .. }
+        ));
+    }
+
+    #[test]
+    fn test_s11_violations_to_test_cases_empty() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let test_cases = analyzer.violations_to_test_cases(&[]);
+        assert!(test_cases.is_empty());
+    }
+
+    #[test]
+    fn test_s11_analyze_if_with_moved_in_condition() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+        analyzer.moved_values.insert("flag".to_string());
+
+        let violation = analyzer.analyze_if(
+            &HirExpr::Var("flag".to_string()),
+            &[],
+            &None,
+            &annotations,
+        );
+        assert!(matches!(
+            violation,
+            Some(MemorySafetyViolation::UseAfterMove { .. })
+        ));
+    }
 }

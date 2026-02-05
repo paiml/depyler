@@ -855,4 +855,93 @@ mod tests {
         assert_eq!(cloned.components.len(), report.components.len());
         assert_eq!(cloned.path_b_progress, report.path_b_progress);
     }
+
+    // ===== Session 11: Coverage for untested code paths =====
+
+    #[test]
+    fn test_s11_dashboard_command_json_format() {
+        let result = dashboard_command("json", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_dashboard_command_json_filter_component() {
+        let result = dashboard_command("json", Some("aprender"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_dashboard_command_json_filter_replaces() {
+        let result = dashboard_command("json", Some("sklearn"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_dashboard_command_json_filter_nonexistent() {
+        let result = dashboard_command("json", Some("nonexistent"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_dashboard_command_text_format() {
+        let result = dashboard_command("text", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_dashboard_command_unknown_format() {
+        // Unknown format falls through to text
+        let result = dashboard_command("yaml", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_display_text_with_compile_rate() {
+        let mut report = generate_dashboard();
+        report.compile_rate = Some(85.0);
+        report.corpus_files = Some(100);
+        display_text(&report);
+    }
+
+    #[test]
+    fn test_s11_display_text_compile_rate_low() {
+        let mut report = generate_dashboard();
+        report.compile_rate = Some(30.0);
+        report.corpus_files = None;
+        display_text(&report);
+    }
+
+    #[test]
+    fn test_s11_display_text_compile_rate_medium() {
+        let mut report = generate_dashboard();
+        report.compile_rate = Some(65.0);
+        report.corpus_files = Some(50);
+        display_text(&report);
+    }
+
+    #[test]
+    fn test_s11_display_text_no_compile_rate() {
+        let mut report = generate_dashboard();
+        report.compile_rate = None;
+        report.corpus_files = None;
+        display_text(&report);
+    }
+
+    #[test]
+    fn test_s11_create_progress_bar_zero() {
+        let bar = create_progress_bar(0.0, 20);
+        assert!(!bar.is_empty());
+    }
+
+    #[test]
+    fn test_s11_create_progress_bar_100() {
+        let bar = create_progress_bar(100.0, 20);
+        assert!(!bar.is_empty());
+    }
+
+    #[test]
+    fn test_s11_create_progress_bar_width_1() {
+        let bar = create_progress_bar(50.0, 1);
+        assert!(!bar.is_empty());
+    }
 }

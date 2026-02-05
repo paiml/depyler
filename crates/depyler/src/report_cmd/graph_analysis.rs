@@ -669,4 +669,362 @@ mod tests {
         assert_eq!(node.file_count(), 2);
         assert_eq!(node.domain, SemanticDomain::External);
     }
+
+    // ===== Session 11: Coverage for untested code paths =====
+
+    #[test]
+    fn test_s11_co_occurrence_edges() {
+        // Two different errors in the same file should create an edge
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "shared.py".to_string(),
+                    success: false,
+                    error_code: Some("E0308".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "shared.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.edge_count(), 1);
+    }
+
+    #[test]
+    fn test_s11_co_occurrence_weight() {
+        // Same error pair in multiple files = higher weight
+        let results = vec![
+            make_result("a.py", false, Some("E0308")),
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "a.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            make_result("b.py", false, Some("E0308")),
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "b.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        assert_eq!(graph.edge_count(), 1);
+        assert!((graph.edges[0].weight - 2.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s11_three_errors_same_file() {
+        // Three errors in same file should produce 3 co-occurrence edges
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "complex.py".to_string(),
+                    success: false,
+                    error_code: Some("E0308".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "complex.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "complex.py".to_string(),
+                    success: false,
+                    error_code: Some("E0277".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        assert_eq!(graph.node_count(), 3);
+        assert_eq!(graph.edge_count(), 3); // C(3,2) = 3 pairs
+    }
+
+    #[test]
+    fn test_s11_connected_community() {
+        // Errors co-occurring should form a single community
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "file.py".to_string(),
+                    success: false,
+                    error_code: Some("E0308".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "file.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        let communities = graph.find_communities();
+        assert_eq!(communities.len(), 1);
+        assert_eq!(communities[0].error_codes.len(), 2);
+    }
+
+    #[test]
+    fn test_s11_disconnected_communities() {
+        // Errors in separate files with no co-occurrence = separate communities
+        let results = vec![
+            make_result("a.py", false, Some("E0308")),
+            make_result("b.py", false, Some("E0425")),
+            make_result("c.py", false, Some("E0277")),
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        let communities = graph.find_communities();
+        assert_eq!(communities.len(), 3);
+    }
+
+    #[test]
+    fn test_s11_community_name_trait_bounds() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E0277".to_string(),
+            files: vec!["a.py".to_string()],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E0277".to_string()], &nodes, &[0]);
+        assert!(name.contains("Trait Bounds"));
+    }
+
+    #[test]
+    fn test_s11_community_name_ownership() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E0382".to_string(),
+            files: vec![],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E0382".to_string()], &nodes, &[0]);
+        assert!(name.contains("Ownership"));
+    }
+
+    #[test]
+    fn test_s11_community_name_borrowing() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E0502".to_string(),
+            files: vec![],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E0502".to_string()], &nodes, &[0]);
+        assert!(name.contains("Borrowing"));
+    }
+
+    #[test]
+    fn test_s11_community_name_lifetime() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E0106".to_string(),
+            files: vec![],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E0106".to_string()], &nodes, &[0]);
+        assert!(name.contains("Lifetime"));
+    }
+
+    #[test]
+    fn test_s11_community_name_method_resolution() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E0599".to_string(),
+            files: vec![],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E0599".to_string()], &nodes, &[0]);
+        assert!(name.contains("Method Resolution"));
+    }
+
+    #[test]
+    fn test_s11_community_name_module_import() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E0433".to_string(),
+            files: vec![],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E0433".to_string()], &nodes, &[0]);
+        assert!(name.contains("Module Import"));
+    }
+
+    #[test]
+    fn test_s11_community_name_unknown() {
+        let nodes = vec![ErrorNode {
+            id: 0,
+            error_code: "E9999".to_string(),
+            files: vec![],
+            centrality: 1.0,
+            domain: SemanticDomain::CoreLanguage,
+        }];
+        let name = generate_community_name(&["E9999".to_string()], &nodes, &[0]);
+        assert!(name.contains("Compilation"));
+    }
+
+    #[test]
+    fn test_s11_centrality_convergence() {
+        let results = vec![
+            make_result("a.py", false, Some("E0308")),
+            make_result("b.py", false, Some("E0308")),
+            make_result("c.py", false, Some("E0308")),
+            make_result("d.py", false, Some("E0425")),
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        // All centrality values should be >= 0
+        for node in &graph.nodes {
+            assert!(node.centrality >= 0.0);
+        }
+        // Sum should be close to 1.0
+        let total: f64 = graph.nodes.iter().map(|n| n.centrality).sum();
+        assert!((total - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s11_graph_analysis_with_edges() {
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "same.py".to_string(),
+                    success: false,
+                    error_code: Some("E0308".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "same.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+        ];
+        let analysis = GraphAnalysis::from_results(&results);
+        assert!(analysis.density > 0.0);
+        assert_eq!(analysis.community_count(), 1);
+    }
+
+    #[test]
+    fn test_s11_top_central_more_than_nodes() {
+        let results = vec![make_result("a.py", false, Some("E0308"))];
+        let graph = ErrorGraph::from_results(&results);
+        let top = graph.top_central(10);
+        assert_eq!(top.len(), 1);
+    }
+
+    #[test]
+    fn test_s11_community_total_files() {
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "file.py".to_string(),
+                    success: false,
+                    error_code: Some("E0308".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "file.py".to_string(),
+                    success: false,
+                    error_code: Some("E0425".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        let communities = graph.find_communities();
+        assert_eq!(communities.len(), 1);
+        assert_eq!(communities[0].total_files, 2); // 1 file per node
+    }
+
+    #[test]
+    fn test_s11_community_centrality_sum() {
+        let results = vec![
+            make_result("a.py", false, Some("E0308")),
+            make_result("b.py", false, Some("E0425")),
+        ];
+        let graph = ErrorGraph::from_results(&results);
+        let communities = graph.find_communities();
+        let total_centrality: f64 = communities.iter().map(|c| c.centrality_sum).sum();
+        assert!((total_centrality - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s11_serialization_roundtrip() {
+        let results = vec![make_result("a.py", false, Some("E0308"))];
+        let analysis = GraphAnalysis::from_results(&results);
+        let json = serde_json::to_string(&analysis).unwrap();
+        let deserialized: GraphAnalysis = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.graph.node_count(), 1);
+    }
 }

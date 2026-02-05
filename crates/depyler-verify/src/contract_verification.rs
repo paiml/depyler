@@ -1841,4 +1841,477 @@ mod tests {
             assert!((f - (-3.15)).abs() < 0.001);
         }
     }
+
+    // ===== Session 11: Coverage for untested code paths =====
+
+    fn make_hir_function(name: &str, params: Vec<(&str, Type)>, body: Vec<HirStmt>) -> HirFunction {
+        use depyler_core::hir::HirParam;
+        use smallvec::SmallVec;
+        HirFunction {
+            name: name.to_string(),
+            params: SmallVec::from_iter(params.into_iter().map(|(n, t)| HirParam {
+                name: n.to_string(),
+                ty: t,
+                default: None,
+                is_vararg: false,
+            })),
+            ret_type: Type::Int,
+            body,
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        }
+    }
+
+    #[test]
+    fn test_s11_validate_preconditions_no_rules() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function("foo", vec![("x", Type::Int)], vec![]);
+        let result = checker.validate_preconditions(&func);
+        assert!(result.success);
+        assert!(result.violations.is_empty());
+    }
+
+    #[test]
+    fn test_s11_validate_preconditions_list_param_triggers_type_check() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function(
+            "process",
+            vec![("items", Type::List(Box::new(Type::Int)))],
+            vec![],
+        );
+        let result = checker.validate_preconditions(&func);
+        // has_null_check returns false, so List param triggers violation
+        assert!(!result.success);
+        assert_eq!(result.violations.len(), 1);
+        assert!(result.violations[0].condition.contains("items"));
+    }
+
+    #[test]
+    fn test_s11_validate_preconditions_dict_param_triggers_type_check() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function(
+            "lookup",
+            vec![("data", Type::Dict(Box::new(Type::String), Box::new(Type::Int)))],
+            vec![],
+        );
+        let result = checker.validate_preconditions(&func);
+        assert!(!result.success);
+        assert_eq!(result.violations.len(), 1);
+        assert!(result.violations[0].condition.contains("data"));
+    }
+
+    #[test]
+    fn test_s11_validate_preconditions_int_param_no_violation() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function("add", vec![("x", Type::Int), ("y", Type::Int)], vec![]);
+        let result = checker.validate_preconditions(&func);
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_s11_validate_preconditions_with_matching_rule() {
+        let mut checker = PreconditionChecker::new();
+        checker.add_rule(PreconditionRule {
+            name: "x_positive".to_string(),
+            predicate: Predicate::Compare {
+                var: "x".to_string(),
+                op: CompareOp::Gt,
+                value: Value::Int(0),
+            },
+            params: vec!["x".to_string()],
+            description: "x must be positive".to_string(),
+        });
+        let func = make_hir_function("foo", vec![("x", Type::Int)], vec![]);
+        let result = checker.validate_preconditions(&func);
+        // verify_predicate returns Unknown for Compare
+        assert!(result.success);
+        assert_eq!(result.unproven_conditions.len(), 1);
+        assert_eq!(result.warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_s11_validate_preconditions_rule_not_matching_param() {
+        let mut checker = PreconditionChecker::new();
+        checker.add_rule(PreconditionRule {
+            name: "y_positive".to_string(),
+            predicate: Predicate::Compare {
+                var: "y".to_string(),
+                op: CompareOp::Gt,
+                value: Value::Int(0),
+            },
+            params: vec!["y".to_string()],
+            description: "y must be positive".to_string(),
+        });
+        let func = make_hir_function("foo", vec![("x", Type::Int)], vec![]);
+        let result = checker.validate_preconditions(&func);
+        // Rule doesn't match param "x", so no warnings
+        assert!(result.success);
+        assert!(result.unproven_conditions.is_empty());
+    }
+
+    #[test]
+    fn test_s11_verify_predicate_not_null() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function("foo", vec![], vec![]);
+        let result = checker.verify_predicate(&Predicate::NotNull("x".to_string()), &func);
+        assert!(matches!(result, PredicateResult::Unknown));
+    }
+
+    #[test]
+    fn test_s11_verify_predicate_and() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function("foo", vec![], vec![]);
+        let pred = Predicate::And(
+            Box::new(Predicate::NotNull("x".to_string())),
+            Box::new(Predicate::NotNull("y".to_string())),
+        );
+        let result = checker.verify_predicate(&pred, &func);
+        assert!(matches!(result, PredicateResult::Unknown));
+    }
+
+    #[test]
+    fn test_s11_verify_predicate_custom_returns_unknown() {
+        let checker = PreconditionChecker::new();
+        let func = make_hir_function("foo", vec![], vec![]);
+        let pred = Predicate::Custom {
+            name: "is_valid".to_string(),
+            args: vec!["x".to_string()],
+        };
+        let result = checker.verify_predicate(&pred, &func);
+        assert!(matches!(result, PredicateResult::Unknown));
+    }
+
+    #[test]
+    fn test_s11_capture_pre_state() {
+        let mut verifier = PostconditionVerifier::new();
+        let func = make_hir_function(
+            "foo",
+            vec![("x", Type::Int), ("name", Type::String)],
+            vec![],
+        );
+        verifier.capture_pre_state(&func);
+        assert_eq!(verifier.pre_state.len(), 2);
+        assert!(verifier.pre_state.contains_key("x"));
+        assert!(verifier.pre_state.contains_key("name"));
+        let x_state = &verifier.pre_state["x"];
+        assert!(x_state.is_initialized);
+        assert!(!x_state.is_mutable);
+    }
+
+    #[test]
+    fn test_s11_verify_postconditions() {
+        let verifier = PostconditionVerifier::new();
+        let func = make_hir_function("foo", vec![], vec![]);
+        let contract = Contract {
+            preconditions: vec![],
+            postconditions: vec![
+                Condition {
+                    name: "result_positive".to_string(),
+                    expression: "result > 0".to_string(),
+                    description: "Result must be positive".to_string(),
+                },
+                Condition {
+                    name: "result_bounded".to_string(),
+                    expression: "result < 100".to_string(),
+                    description: "Result bounded".to_string(),
+                },
+            ],
+            invariants: vec![],
+        };
+        let result = verifier.verify_postconditions(&func, &contract);
+        assert!(result.success);
+        assert_eq!(result.unproven_conditions.len(), 2);
+    }
+
+    #[test]
+    fn test_s11_check_invariants_empty() {
+        let checker = InvariantChecker::new();
+        let func = make_hir_function("foo", vec![], vec![]);
+        let violations = checker.check_invariants(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_s11_check_invariants_with_while_loop() {
+        let checker = InvariantChecker::new();
+        use depyler_core::hir::HirExpr;
+        let func = make_hir_function(
+            "foo",
+            vec![],
+            vec![HirStmt::While {
+                condition: HirExpr::Literal(depyler_core::hir::Literal::Bool(true)),
+                body: vec![],
+            }],
+        );
+        let violations = checker.check_invariants(&func);
+        assert!(violations.is_empty()); // placeholder doesn't produce violations
+    }
+
+    #[test]
+    fn test_s11_check_invariants_with_for_loop() {
+        let checker = InvariantChecker::new();
+        use depyler_core::hir::{AssignTarget, HirExpr};
+        let func = make_hir_function(
+            "foo",
+            vec![],
+            vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Call {
+                    func: "range".to_string(),
+                    args: vec![HirExpr::Literal(depyler_core::hir::Literal::Int(10))],
+                    kwargs: vec![],
+                },
+                body: vec![],
+            }],
+        );
+        let violations = checker.check_invariants(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_s11_apply_refinement() {
+        let mut inheritance = ContractInheritance::new();
+
+        let base_contract = Contract {
+            preconditions: vec![
+                Condition {
+                    name: "x_positive".to_string(),
+                    expression: "x > 0".to_string(),
+                    description: "x must be positive".to_string(),
+                },
+                Condition {
+                    name: "y_valid".to_string(),
+                    expression: "y != None".to_string(),
+                    description: "y must not be null".to_string(),
+                },
+            ],
+            postconditions: vec![Condition {
+                name: "result_ok".to_string(),
+                expression: "result >= 0".to_string(),
+                description: "Result non-negative".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        let refinement = ContractRefinement {
+            weakened_preconditions: vec![Condition {
+                name: "x_positive".to_string(),
+                expression: "x >= 0".to_string(),
+                description: "x must be non-negative".to_string(),
+            }],
+            strengthened_postconditions: vec![Condition {
+                name: "result_bounded".to_string(),
+                expression: "result < 100".to_string(),
+                description: "Result bounded".to_string(),
+            }],
+            additional_invariants: vec![Condition {
+                name: "balance_check".to_string(),
+                expression: "balance >= 0".to_string(),
+                description: "Balance non-negative".to_string(),
+            }],
+        };
+
+        inheritance.register_base_contract("base".to_string(), base_contract);
+        inheritance.add_inheritance("derived".to_string(), "base".to_string());
+        inheritance.refinements.insert("derived".to_string(), refinement);
+
+        let inherited = inheritance.get_inherited_contract("derived");
+        assert!(inherited.is_some());
+        let contract = inherited.unwrap();
+        // Original "x_positive" replaced with weakened version
+        assert!(contract.preconditions.iter().any(|p| p.expression == "x >= 0"));
+        // "y_valid" retained
+        assert!(contract.preconditions.iter().any(|p| p.name == "y_valid"));
+        // Strengthened postcondition added
+        assert_eq!(contract.postconditions.len(), 2);
+        // Additional invariant added
+        assert_eq!(contract.invariants.len(), 1);
+    }
+
+    #[test]
+    fn test_s11_is_weaker_than_same() {
+        let inheritance = ContractInheritance::new();
+        assert!(inheritance.is_weaker_than("x > 0", "x > 0"));
+    }
+
+    #[test]
+    fn test_s11_is_weaker_than_ge_vs_gt() {
+        let inheritance = ContractInheritance::new();
+        assert!(inheritance.is_weaker_than("x >= 0", "x > 0"));
+    }
+
+    #[test]
+    fn test_s11_is_weaker_than_le_vs_lt() {
+        let inheritance = ContractInheritance::new();
+        assert!(inheritance.is_weaker_than("x <= 100", "x < 100"));
+    }
+
+    #[test]
+    fn test_s11_is_weaker_than_different() {
+        let inheritance = ContractInheritance::new();
+        assert!(!inheritance.is_weaker_than("x > 0", "y > 0"));
+    }
+
+    #[test]
+    fn test_s11_is_stronger_than_same() {
+        let inheritance = ContractInheritance::new();
+        assert!(inheritance.is_stronger_than("x > 0", "x > 0"));
+    }
+
+    #[test]
+    fn test_s11_is_stronger_than_both_lt() {
+        let inheritance = ContractInheritance::new();
+        assert!(inheritance.is_stronger_than("x < 50", "x < 100"));
+    }
+
+    #[test]
+    fn test_s11_is_stronger_than_different() {
+        let inheritance = ContractInheritance::new();
+        assert!(!inheritance.is_stronger_than("x > 0", "y >= 0"));
+    }
+
+    #[test]
+    fn test_s11_lsp_violation_strengthened_precondition() {
+        let mut inheritance = ContractInheritance::new();
+
+        let base = Contract {
+            preconditions: vec![Condition {
+                name: "x_check".to_string(),
+                expression: "x >= 0".to_string(),
+                description: "x non-negative".to_string(),
+            }],
+            postconditions: vec![Condition {
+                name: "r_check".to_string(),
+                expression: "result > 0".to_string(),
+                description: "result positive".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        // Derived strengthens precondition (violates LSP)
+        let derived = Contract {
+            preconditions: vec![Condition {
+                name: "x_check".to_string(),
+                expression: "x > 10".to_string(), // Stronger (not weaker)
+                description: "x must be > 10".to_string(),
+            }],
+            postconditions: vec![Condition {
+                name: "r_check".to_string(),
+                expression: "result > 0".to_string(),
+                description: "result positive".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        inheritance.register_base_contract("base".to_string(), base);
+        inheritance.register_base_contract("derived".to_string(), derived);
+
+        let result = inheritance.verify_lsp("derived", "base");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("strengthened"));
+    }
+
+    #[test]
+    fn test_s11_lsp_violation_weakened_postcondition() {
+        let mut inheritance = ContractInheritance::new();
+
+        let base = Contract {
+            preconditions: vec![Condition {
+                name: "x_check".to_string(),
+                expression: "x >= 0".to_string(),
+                description: "x non-negative".to_string(),
+            }],
+            postconditions: vec![Condition {
+                name: "r_check".to_string(),
+                expression: "result < 50".to_string(),
+                description: "result bounded".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        // Derived weakens postcondition (violates LSP)
+        let derived = Contract {
+            preconditions: vec![Condition {
+                name: "x_check".to_string(),
+                expression: "x >= 0".to_string(),
+                description: "x non-negative".to_string(),
+            }],
+            postconditions: vec![Condition {
+                name: "r_check".to_string(),
+                expression: "result > 0".to_string(), // Different (not stronger)
+                description: "result positive".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        inheritance.register_base_contract("base".to_string(), base);
+        inheritance.register_base_contract("derived".to_string(), derived);
+
+        let result = inheritance.verify_lsp("derived", "base");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("weakened"));
+    }
+
+    #[test]
+    fn test_s11_lsp_missing_derived() {
+        let mut inheritance = ContractInheritance::new();
+        inheritance.register_base_contract(
+            "base".to_string(),
+            Contract {
+                preconditions: vec![],
+                postconditions: vec![],
+                invariants: vec![],
+            },
+        );
+        let result = inheritance.verify_lsp("nonexistent", "base");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Derived contract"));
+    }
+
+    #[test]
+    fn test_s11_postcondition_parse_old_state() {
+        let verifier = PostconditionVerifier::new();
+        // old() predicates return None (placeholder)
+        let result = verifier.parse_old_state_predicate("result == old(x) + 1");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s11_postcondition_parse_invalid_result() {
+        let verifier = PostconditionVerifier::new();
+        // Only "result" keyword, not enough parts
+        let result = verifier.parse_result_predicate("result");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s11_postcondition_parse_invalid_op() {
+        let verifier = PostconditionVerifier::new();
+        // Invalid operator
+        let result = verifier.parse_result_predicate("result LIKE 42");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s11_check_type_precondition_string_param() {
+        let checker = PreconditionChecker::new();
+        let result = checker.check_type_precondition("name", &Type::String);
+        assert!(result.is_none()); // String type doesn't trigger null check
+    }
+
+    #[test]
+    fn test_s11_check_type_precondition_set_param() {
+        let checker = PreconditionChecker::new();
+        let result = checker.check_type_precondition("items", &Type::Set(Box::new(Type::Int)));
+        assert!(result.is_none()); // Set not matched in type check
+    }
+
+    #[test]
+    fn test_s11_parse_postcondition_regular_predicate() {
+        let mut verifier = PostconditionVerifier::new();
+        // Non-result, non-old predicate goes through parse_simple_predicate
+        let preds = verifier.parse_ensures_annotations("@ensures x > 0");
+        assert_eq!(preds.len(), 1);
+    }
 }
