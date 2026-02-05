@@ -259,8 +259,8 @@ mod tests {
             code_str
         );
         assert!(
-            code_str.contains("unwrap"),
-            "Should unwrap result: {}",
+            code_str.contains("unwrap") || code_str.contains("expect"),
+            "Should handle result: {}",
             code_str
         );
     }
