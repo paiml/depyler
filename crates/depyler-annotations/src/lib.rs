@@ -2865,4 +2865,265 @@ def full_function():
         let result = e.extract_class_annotations("", "anything");
         assert!(result.is_none());
     }
+
+    // ========================================================================
+    // S9B7: Coverage tests for annotations
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_annotation_error_display_invalid_syntax() {
+        let err = AnnotationError::InvalidSyntax("bad format".to_string());
+        assert_eq!(err.to_string(), "Invalid annotation syntax: bad format");
+    }
+
+    #[test]
+    fn test_s9b7_annotation_error_display_unknown_key() {
+        let err = AnnotationError::UnknownKey("foobar".to_string());
+        assert_eq!(err.to_string(), "Unknown annotation key: foobar");
+    }
+
+    #[test]
+    fn test_s9b7_annotation_error_display_invalid_value() {
+        let err = AnnotationError::InvalidValue {
+            key: "type_strategy".to_string(),
+            value: "bad_val".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("type_strategy"));
+        assert!(msg.contains("bad_val"));
+    }
+
+    #[test]
+    fn test_s9b7_annotation_error_debug() {
+        let err = AnnotationError::UnknownKey("x".to_string());
+        let debug = format!("{err:?}");
+        assert!(debug.contains("UnknownKey"));
+    }
+
+    #[test]
+    fn test_s9b7_validator_no_conflicts_default() {
+        let validator = AnnotationValidator::new();
+        let annotations = TranspilationAnnotations::default();
+        assert!(validator.validate(&annotations).is_ok());
+    }
+
+    #[test]
+    fn test_s9b7_validator_thread_safety_refcell_conflict() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.thread_safety = ThreadSafety::Required;
+        annotations.interior_mutability = InteriorMutability::RefCell;
+        let result = validator.validate(&annotations);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("RefCell")));
+    }
+
+    #[test]
+    fn test_s9b7_validator_panic_error_conflict() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.panic_behavior = PanicBehavior::ReturnError;
+        annotations.error_strategy = ErrorStrategy::Panic;
+        let result = validator.validate(&annotations);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("Conflicting panic")));
+    }
+
+    #[test]
+    fn test_s9b7_validator_aggressive_opt_bounds_conflict() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.optimization_level = OptimizationLevel::Aggressive;
+        annotations.bounds_checking = BoundsChecking::Explicit;
+        let result = validator.validate(&annotations);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("bounds checking")));
+    }
+
+    #[test]
+    fn test_s9b7_suggest_improvements_performance_critical() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations
+            .performance_hints
+            .push(PerformanceHint::PerformanceCritical);
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(suggestions.iter().any(|s| s.contains("aggressive")));
+    }
+
+    #[test]
+    fn test_s9b7_suggest_improvements_thread_safety_shared() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.thread_safety = ThreadSafety::Required;
+        annotations.ownership_model = OwnershipModel::Owned;
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(suggestions.iter().any(|s| s.contains("shared")));
+    }
+
+    #[test]
+    fn test_s9b7_suggest_improvements_web_api_latency() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.service_type = Some(ServiceType::WebApi);
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(suggestions.iter().any(|s| s.contains("latency")));
+    }
+
+    #[test]
+    fn test_s9b7_suggest_improvements_no_suggestions() {
+        let validator = AnnotationValidator::new();
+        let annotations = TranspilationAnnotations::default();
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_lambda_annotations_default() {
+        let la = LambdaAnnotations::default();
+        assert!(matches!(la.runtime, LambdaRuntime::ProvidedAl2));
+        assert!(la.event_type.is_none());
+        assert!(la.cold_start_optimize);
+        assert_eq!(la.memory_size, 128);
+        assert!(matches!(la.architecture, Architecture::Arm64));
+        assert!(!la.custom_serialization);
+        assert!(!la.batch_failure_reporting);
+        assert!(la.timeout.is_none());
+        assert!(!la.tracing_enabled);
+        assert!(la.environment_variables.is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_parse_termination_bounded_loop() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = bounded_100\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.termination, Termination::BoundedLoop(100));
+    }
+
+    #[test]
+    fn test_s9b7_parse_termination_invalid() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: termination = bounded_abc\n";
+        let result = parser.parse_annotations(source);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s9b7_parse_invariant() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: invariant = x_greater_zero\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert!(annotations.invariants.contains(&"x_greater_zero".to_string()));
+    }
+
+    #[test]
+    fn test_s9b7_parse_verify_bounds_true() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: verify_bounds = true\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert!(annotations.verify_bounds);
+    }
+
+    #[test]
+    fn test_s9b7_parse_verify_bounds_false() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: verify_bounds = false\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert!(!annotations.verify_bounds);
+    }
+
+    #[test]
+    fn test_s9b7_parse_pattern() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: pattern = singleton\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.pattern, Some("singleton".to_string()));
+    }
+
+    #[test]
+    fn test_s9b7_parse_custom_attribute() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: custom_attribute = my_attr\n# @depyler: custom_attribute = another\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.custom_attributes.len(), 2);
+        assert!(annotations.custom_attributes.contains(&"my_attr".to_string()));
+        assert!(annotations.custom_attributes.contains(&"another".to_string()));
+    }
+
+    #[test]
+    fn test_s9b7_parse_global_strategy_lazy_static() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: global_strategy = lazy_static\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.global_strategy, GlobalStrategy::LazyStatic);
+    }
+
+    #[test]
+    fn test_s9b7_parse_global_strategy_once_cell() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: global_strategy = once_cell\n";
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.global_strategy, GlobalStrategy::OnceCell);
+    }
+
+    #[test]
+    fn test_s9b7_parse_function_annotations_delegates() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: ownership = borrowed\n";
+        let annotations = parser.parse_function_annotations(source).unwrap();
+        assert_eq!(annotations.ownership_model, OwnershipModel::Borrowed);
+    }
+
+    #[test]
+    fn test_s9b7_extractor_no_annotation_above_function() {
+        let e = AnnotationExtractor::new();
+        let source = "# just a comment\ndef my_func():\n    pass";
+        let result = e.extract_function_annotations(source, "my_func");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s9b7_extractor_no_matching_function() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: ownership = owned\ndef other():\n    pass";
+        let result = e.extract_function_annotations(source, "nonexistent");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s9b7_extractor_class_no_annotation() {
+        let e = AnnotationExtractor::new();
+        let source = "# just a comment\nclass MyClass:\n    pass";
+        let result = e.extract_class_annotations(source, "MyClass");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s9b7_extractor_class_no_match() {
+        let e = AnnotationExtractor::new();
+        let source = "# @depyler: ownership = shared\nclass Other:\n    pass";
+        let result = e.extract_class_annotations(source, "NotHere");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s9b7_annotation_validator_default() {
+        let v = AnnotationValidator::default();
+        let debug = format!("{:?}", v);
+        assert!(debug.contains("AnnotationValidator"));
+    }
+
+    #[test]
+    fn test_s9b7_lambda_event_type_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(LambdaEventType::Auto);
+        set.insert(LambdaEventType::S3Event);
+        set.insert(LambdaEventType::SqsEvent);
+        assert_eq!(set.len(), 3);
+    }
 }

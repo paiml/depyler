@@ -374,6 +374,85 @@ mod tests {
         assert_eq!(files.len(), 2);
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for harvester
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_harvest_result_multiple_sources_no_stubs() {
+        let result = HarvestResult {
+            package: "pkg".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![],
+            source_files: vec![
+                PathBuf::from("a.py"),
+                PathBuf::from("b.py"),
+                PathBuf::from("c.py"),
+            ],
+            has_types_package: false,
+        };
+        assert!(!result.has_stubs());
+        assert_eq!(result.all_files().len(), 3);
+    }
+
+    #[test]
+    fn test_s9b7_harvest_result_both_stubs_and_sources() {
+        let result = HarvestResult {
+            package: "dual".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![PathBuf::from("x.pyi"), PathBuf::from("y.pyi")],
+            source_files: vec![PathBuf::from("x.py"), PathBuf::from("y.py")],
+            has_types_package: true,
+        };
+        assert!(result.has_stubs());
+        // Should prefer stubs
+        let files = result.all_files();
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().all(|f| f.extension().unwrap() == "pyi"));
+    }
+
+    #[test]
+    fn test_s9b7_harvester_target_dir_path() {
+        let temp = TempDir::new().unwrap();
+        let nested = temp.path().join("deep").join("path");
+        let harvester = Harvester::new(&nested).unwrap();
+        assert_eq!(harvester.target_dir(), nested.as_path());
+    }
+
+    #[test]
+    fn test_s9b7_harvest_result_has_types_package_true() {
+        let result = HarvestResult {
+            package: "requests".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![PathBuf::from("__init__.pyi")],
+            source_files: vec![],
+            has_types_package: true,
+        };
+        assert!(result.has_types_package);
+        assert!(result.has_stubs());
+    }
+
+    #[test]
+    fn test_s9b7_find_files_no_matching_extension() {
+        let temp = TempDir::new().unwrap();
+        std::fs::write(temp.path().join("file.rs"), "").unwrap();
+        std::fs::write(temp.path().join("file.txt"), "").unwrap();
+        let harvester = Harvester::new(temp.path()).unwrap();
+        let pyi_files = harvester.find_files_by_extension(temp.path(), "pyi");
+        assert!(pyi_files.is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_cleanup_already_removed() {
+        let temp = TempDir::new().unwrap();
+        let target = temp.path().join("to_clean");
+        let harvester = Harvester::new(&target).unwrap();
+        // Remove first
+        std::fs::remove_dir_all(&target).unwrap();
+        // Second cleanup should be fine
+        assert!(harvester.cleanup().is_ok());
+    }
+
     #[test]
     fn test_harvester_find_files_empty_dir() {
         let temp = TempDir::new().unwrap();

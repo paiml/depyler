@@ -1012,6 +1012,156 @@ def main():
         assert_eq!(out[0].0.id, "compute");
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for builder
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_offset_to_line_empty_source() {
+        let mut builder = GraphBuilder::new();
+        builder.source = String::new();
+        assert_eq!(builder.offset_to_line(0), 1);
+        assert_eq!(builder.offset_to_line(100), 1);
+    }
+
+    #[test]
+    fn test_s9b7_offset_to_column_empty_source() {
+        let mut builder = GraphBuilder::new();
+        builder.source = String::new();
+        assert_eq!(builder.offset_to_column(0), 1);
+    }
+
+    #[test]
+    fn test_s9b7_calls_in_if_else() {
+        let python = r#"
+def branch_a():
+    return 1
+
+def branch_b():
+    return 2
+
+def main():
+    if True:
+        branch_a()
+    else:
+        branch_b()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert_eq!(out.len(), 2);
+        let names: Vec<&str> = out.iter().map(|(n, _)| n.id.as_str()).collect();
+        assert!(names.contains(&"branch_a"));
+        assert!(names.contains(&"branch_b"));
+    }
+
+    #[test]
+    fn test_s9b7_calls_in_return_stmt() {
+        let python = r#"
+def helper():
+    return 42
+
+def main():
+    return helper()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0.id, "helper");
+    }
+
+    #[test]
+    fn test_s9b7_calls_via_binop() {
+        let python = r#"
+def left():
+    return 1
+
+def right():
+    return 2
+
+def main():
+    return left() + right()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert_eq!(out.len(), 2);
+    }
+
+    #[test]
+    fn test_s9b7_method_calls_method() {
+        let python = r#"
+class Foo:
+    def helper(self):
+        return 1
+
+    def caller(self):
+        return self.helper()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        // class + 2 methods
+        assert_eq!(graph.node_count(), 3);
+    }
+
+    #[test]
+    fn test_s9b7_node_ids_empty_graph() {
+        let graph = DependencyGraph::new();
+        assert!(graph.node_ids().is_empty());
+    }
+
+    #[test]
+    fn test_s9b7_add_node_returns_index() {
+        let mut graph = DependencyGraph::new();
+        let node = GraphNode {
+            id: "test_node".to_string(),
+            kind: NodeKind::Function,
+            file: std::path::PathBuf::new(),
+            line: 1,
+            column: 1,
+            error_count: 0,
+            impact_score: 0.0,
+        };
+        let idx = graph.add_node(node);
+        assert_eq!(graph.node_count(), 1);
+        assert_eq!(graph.graph[idx].id, "test_node");
+    }
+
+    #[test]
+    fn test_s9b7_calls_nested_in_args() {
+        let python = r#"
+def inner():
+    return 1
+
+def outer(x):
+    return x
+
+def main():
+    return outer(inner())
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.len() >= 2);
+    }
+
+    #[test]
+    fn test_s9b7_class_calling_function() {
+        let python = r#"
+def utility():
+    return 42
+
+class MyClass:
+    def method(self):
+        utility()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("MyClass.method");
+        assert!(out.iter().any(|(n, _)| n.id == "utility"));
+    }
+
     #[test]
     fn test_multiple_inheritance_edges() {
         let python = r#"

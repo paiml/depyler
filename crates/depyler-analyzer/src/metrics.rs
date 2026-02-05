@@ -492,6 +492,140 @@ mod tests {
         assert!((profile.memory_peak_mb - 50.0).abs() < 0.01);
     }
 
+    // ========================================================================
+    // S9B7: Additional coverage tests for metrics edge cases
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_complexity_distribution_all_low() {
+        let mut dist = ComplexityDistribution::new();
+        for _ in 0..10 {
+            dist.add(1);
+        }
+        assert_eq!(dist.low, 10);
+        assert_eq!(dist.medium, 0);
+        assert_eq!(dist.high, 0);
+        assert_eq!(dist.very_high, 0);
+        assert_eq!(dist.total(), 10);
+        assert!((dist.average() - 3.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s9b7_complexity_distribution_all_very_high() {
+        let mut dist = ComplexityDistribution::new();
+        for _ in 0..5 {
+            dist.add(50);
+        }
+        assert_eq!(dist.very_high, 5);
+        assert_eq!(dist.total(), 5);
+        assert!((dist.average() - 25.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s9b7_performance_profile_tiny_source() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_nanos(1),
+            analysis_time: Duration::from_nanos(1),
+            transpilation_time: Duration::from_nanos(1),
+            total_time: Duration::from_nanos(3),
+            source_size_bytes: 1,
+            output_size_bytes: 1,
+            functions_transpiled: 1,
+            direct_transpilation_rate: 1.0,
+            mcp_fallback_count: 0,
+        };
+        let profile = PerformanceProfile::calculate(&metrics, 0);
+        assert!(profile.parsing_throughput_mbps > 0.0);
+        assert!((profile.memory_peak_mb - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_s9b7_performance_profile_only_parse_nonzero() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_millis(50),
+            analysis_time: Duration::from_millis(0),
+            transpilation_time: Duration::from_millis(0),
+            total_time: Duration::from_millis(50),
+            source_size_bytes: 1024 * 1024,
+            output_size_bytes: 512,
+            functions_transpiled: 1,
+            direct_transpilation_rate: 1.0,
+            mcp_fallback_count: 0,
+        };
+        let profile = PerformanceProfile::calculate(&metrics, 1024 * 1024);
+        assert!(profile.parsing_throughput_mbps > 0.0);
+        assert_eq!(profile.hir_generation_throughput_mbps, 0.0);
+        assert_eq!(profile.transpilation_throughput_mbps, 0.0);
+    }
+
+    #[test]
+    fn test_s9b7_complexity_distribution_single_medium() {
+        let mut dist = ComplexityDistribution::new();
+        dist.add(7);
+        assert_eq!(dist.low, 0);
+        assert_eq!(dist.medium, 1);
+        assert_eq!(dist.total(), 1);
+        assert!((dist.average() - 8.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s9b7_complexity_distribution_single_high() {
+        let mut dist = ComplexityDistribution::new();
+        dist.add(14);
+        assert_eq!(dist.high, 1);
+        assert_eq!(dist.total(), 1);
+        assert!((dist.average() - 15.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_s9b7_transpilation_metrics_zero_functions() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_millis(1),
+            analysis_time: Duration::from_millis(1),
+            transpilation_time: Duration::from_millis(1),
+            total_time: Duration::from_millis(3),
+            source_size_bytes: 0,
+            output_size_bytes: 0,
+            functions_transpiled: 0,
+            direct_transpilation_rate: 0.0,
+            mcp_fallback_count: 0,
+        };
+        assert_eq!(metrics.functions_transpiled, 0);
+        assert_eq!(metrics.source_size_bytes, 0);
+    }
+
+    #[test]
+    fn test_s9b7_quality_metrics_all_zeros() {
+        let qm = QualityMetrics {
+            cyclomatic_distribution: ComplexityDistribution::new(),
+            cognitive_distribution: ComplexityDistribution::new(),
+            type_coverage: 0.0,
+            panic_free_functions: 0,
+            terminating_functions: 0,
+            pure_functions: 0,
+        };
+        assert_eq!(qm.type_coverage, 0.0);
+        assert_eq!(qm.panic_free_functions, 0);
+        assert_eq!(qm.cyclomatic_distribution.total(), 0);
+    }
+
+    #[test]
+    fn test_s9b7_performance_profile_zero_memory() {
+        let metrics = TranspilationMetrics {
+            parse_time: Duration::from_millis(10),
+            analysis_time: Duration::from_millis(10),
+            transpilation_time: Duration::from_millis(10),
+            total_time: Duration::from_millis(30),
+            source_size_bytes: 1024,
+            output_size_bytes: 512,
+            functions_transpiled: 1,
+            direct_transpilation_rate: 1.0,
+            mcp_fallback_count: 0,
+        };
+        let profile = PerformanceProfile::calculate(&metrics, 0);
+        assert_eq!(profile.memory_peak_mb, 0.0);
+    }
+
     #[test]
     fn test_weighted_average_calculation() {
         let mut dist = ComplexityDistribution::new();

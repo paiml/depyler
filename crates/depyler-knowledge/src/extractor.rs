@@ -777,6 +777,148 @@ def connect() -> http.client.HTTPConnection: ...
         assert_eq!(facts[0].return_type, "http.client.HTTPConnection");
     }
 
+    // ========================================================================
+    // S9B7: Coverage tests for extractor
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_extract_posonly_args() {
+        let source = r#"
+def func(a: int, b: int, /, c: int) -> int: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        // Should contain the / separator
+        assert!(facts[0].signature.contains("/"));
+    }
+
+    #[test]
+    fn test_s9b7_extract_kwonly_args() {
+        let source = r#"
+def func(*, key: str) -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("key: str"));
+    }
+
+    #[test]
+    fn test_s9b7_extract_constant_type_in_annotation() {
+        let source = r#"
+def func() -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts[0].return_type, "None");
+    }
+
+    #[test]
+    fn test_s9b7_extract_list_type_annotation() {
+        let source = r#"
+def func() -> [int, str]: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "[int, str]");
+    }
+
+    #[test]
+    fn test_s9b7_extract_class_private_attribute_excluded() {
+        let source = r#"
+class MyClass:
+    _private: int
+    public: str
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        // class + public attribute only
+        assert_eq!(facts.len(), 2);
+        assert!(!facts.iter().any(|f| f.symbol.contains("_private")));
+    }
+
+    #[test]
+    fn test_s9b7_extract_class_private_attribute_included() {
+        let source = r#"
+class MyClass:
+    _private: int
+    public: str
+"#;
+        let extractor = Extractor::new().with_private();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        // class + both attributes
+        assert_eq!(facts.len(), 3);
+    }
+
+    #[test]
+    fn test_s9b7_extract_async_method_in_class() {
+        let source = r#"
+class Service:
+    async def process(self, data: bytes) -> str: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "svc", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 2); // class + method
+        let method = facts.iter().find(|f| f.kind == TypeFactKind::Method).unwrap();
+        assert!(method.signature.starts_with("async "));
+        assert_eq!(method.return_type, "str");
+    }
+
+    #[test]
+    fn test_s9b7_extract_function_with_typed_default() {
+        let source = r#"
+def func(x: int = ..., y: str = ...) -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("x: int = ..."));
+        assert!(facts[0].signature.contains("y: str = ..."));
+    }
+
+    #[test]
+    fn test_s9b7_extractor_with_private_flag() {
+        let extractor = Extractor::new().with_private();
+        let source = "_hidden_func = 1\n";
+        // This is not a function, just ensure private filter works on annotated assigns too
+        let _ = extractor.extract_source(source, "test", "test.pyi");
+    }
+
+    #[test]
+    fn test_s9b7_extract_multiple_classes() {
+        let source = r#"
+class A:
+    def method_a(self) -> int: ...
+
+class B:
+    def method_b(self) -> str: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        // 2 classes + 2 methods
+        assert_eq!(facts.len(), 4);
+    }
+
     #[test]
     fn test_extract_private_class_excluded() {
         let source = r#"

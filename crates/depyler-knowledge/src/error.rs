@@ -122,4 +122,76 @@ mod tests {
         let result: Result<i32> = Err(KnowledgeError::DatabaseError("fail".to_string()));
         assert!(result.is_err());
     }
+
+    // ========================================================================
+    // S9B7: Coverage tests for error types
+    // ========================================================================
+
+    #[test]
+    fn test_s9b7_uv_command_failed_debug() {
+        let err = KnowledgeError::UvCommandFailed("timeout".to_string());
+        let debug = format!("{err:?}");
+        assert!(debug.contains("UvCommandFailed"));
+        assert!(debug.contains("timeout"));
+    }
+
+    #[test]
+    fn test_s9b7_package_not_found_debug() {
+        let err = KnowledgeError::PackageNotFound("fake-pkg".to_string());
+        let debug = format!("{err:?}");
+        assert!(debug.contains("PackageNotFound"));
+    }
+
+    #[test]
+    fn test_s9b7_stub_parse_error_fields() {
+        let err = KnowledgeError::StubParseError {
+            file: "test.pyi".to_string(),
+            message: "unexpected token".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("test.pyi"));
+        assert!(display.contains("unexpected token"));
+    }
+
+    #[test]
+    fn test_s9b7_symbol_not_found_fields() {
+        let err = KnowledgeError::SymbolNotFound {
+            module: "collections".to_string(),
+            symbol: "OrderedDict".to_string(),
+        };
+        assert_eq!(err.to_string(), "symbol not found: collections.OrderedDict");
+    }
+
+    #[test]
+    fn test_s9b7_storage_error_debug() {
+        let err = KnowledgeError::Storage("corruption detected".to_string());
+        let debug = format!("{err:?}");
+        assert!(debug.contains("Storage"));
+        assert!(debug.contains("corruption detected"));
+    }
+
+    #[test]
+    fn test_s9b7_io_error_kind_preserved() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+        let knowledge_err = KnowledgeError::from(io_err);
+        match knowledge_err {
+            KnowledgeError::Io(ref e) => {
+                assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied);
+            }
+            _ => panic!("expected Io variant"),
+        }
+    }
+
+    #[test]
+    fn test_s9b7_result_type_with_complex_value() {
+        let result: Result<Vec<String>> = Ok(vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(result.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_s9b7_error_is_std_error() {
+        let err: Box<dyn std::error::Error> =
+            Box::new(KnowledgeError::InvalidKind("bad".to_string()));
+        assert!(err.to_string().contains("bad"));
+    }
 }
