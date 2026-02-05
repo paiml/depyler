@@ -1313,4 +1313,464 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert!(result.contains(&1));
     }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: Coverage tests for String impl methods
+    // ============================================================================
+
+    #[test]
+    fn test_string_impl_lower() {
+        assert_eq!(String::from("HELLO WORLD").lower(), "hello world");
+    }
+
+    #[test]
+    fn test_string_impl_upper() {
+        assert_eq!(String::from("hello world").upper(), "HELLO WORLD");
+    }
+
+    #[test]
+    fn test_string_impl_strip() {
+        assert_eq!(String::from("  spaces  ").strip(), "spaces");
+    }
+
+    #[test]
+    fn test_string_impl_lstrip() {
+        assert_eq!(String::from("  left").lstrip(), "left");
+    }
+
+    #[test]
+    fn test_string_impl_rstrip() {
+        assert_eq!(String::from("right  ").rstrip(), "right");
+    }
+
+    #[test]
+    fn test_string_impl_split_py() {
+        assert_eq!(String::from("a b c").split_py(), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_string_impl_split_on() {
+        assert_eq!(
+            String::from("a,b,c").split_on(","),
+            vec!["a", "b", "c"]
+        );
+    }
+
+    #[test]
+    fn test_string_impl_startswith() {
+        assert!(String::from("hello").startswith("hel"));
+        assert!(!String::from("hello").startswith("bye"));
+    }
+
+    #[test]
+    fn test_string_impl_endswith() {
+        assert!(String::from("hello").endswith("llo"));
+        assert!(!String::from("hello").endswith("bye"));
+    }
+
+    #[test]
+    fn test_string_impl_replace_py() {
+        assert_eq!(
+            String::from("hello world").replace_py("world", "rust"),
+            "hello rust"
+        );
+    }
+
+    #[test]
+    fn test_string_impl_find() {
+        assert_eq!(String::from("hello").find("ll"), 2);
+        assert_eq!(String::from("hello").find("x"), -1);
+    }
+
+    #[test]
+    fn test_string_impl_count_py() {
+        assert_eq!(String::from("banana").count_py("an"), 2);
+        assert_eq!(String::from("hello").count_py("x"), 0);
+    }
+
+    #[test]
+    fn test_string_impl_isalpha() {
+        assert!(String::from("abc").isalpha());
+        assert!(!String::from("abc1").isalpha());
+        assert!(!String::from("").isalpha());
+    }
+
+    #[test]
+    fn test_string_impl_isdigit() {
+        assert!(String::from("123").isdigit());
+        assert!(!String::from("12a").isdigit());
+        assert!(!String::from("").isdigit());
+    }
+
+    #[test]
+    fn test_string_impl_isalnum() {
+        assert!(String::from("abc123").isalnum());
+        assert!(!String::from("abc 123").isalnum());
+        assert!(!String::from("").isalnum());
+    }
+
+    #[test]
+    fn test_string_impl_isspace() {
+        assert!(String::from("   ").isspace());
+        assert!(!String::from(" a ").isspace());
+        assert!(!String::from("").isspace());
+    }
+
+    #[test]
+    fn test_string_impl_islower() {
+        assert!(String::from("hello").islower());
+        assert!(!String::from("Hello").islower());
+        assert!(!String::from("123").islower());
+    }
+
+    #[test]
+    fn test_string_impl_isupper() {
+        assert!(String::from("HELLO").isupper());
+        assert!(!String::from("Hello").isupper());
+        assert!(!String::from("123").isupper());
+    }
+
+    #[test]
+    fn test_string_impl_capitalize() {
+        assert_eq!(String::from("hello world").capitalize(), "Hello world");
+        assert_eq!(String::from("").capitalize(), "");
+    }
+
+    #[test]
+    fn test_string_impl_title() {
+        assert_eq!(String::from("hello world").title(), "Hello World");
+    }
+
+    #[test]
+    fn test_string_impl_swapcase() {
+        assert_eq!(String::from("Hello").swapcase(), "hELLO");
+    }
+
+    #[test]
+    fn test_string_impl_center() {
+        assert_eq!(String::from("hi").center(6), "  hi  ");
+        assert_eq!(String::from("hello").center(3), "hello"); // wider than width
+    }
+
+    #[test]
+    fn test_string_impl_ljust() {
+        assert_eq!(String::from("hi").ljust(5), "hi   ");
+        assert_eq!(String::from("hello").ljust(3), "hello"); // wider than width
+    }
+
+    #[test]
+    fn test_string_impl_rjust() {
+        assert_eq!(String::from("hi").rjust(5), "   hi");
+        assert_eq!(String::from("hello").rjust(3), "hello"); // wider than width
+    }
+
+    #[test]
+    fn test_string_impl_zfill() {
+        assert_eq!(String::from("42").zfill(5), "00042");
+        assert_eq!(String::from("-42").zfill(5), "-0042");
+        assert_eq!(String::from("+42").zfill(5), "+0042");
+        assert_eq!(String::from("12345").zfill(3), "12345"); // wider than width
+    }
+
+    #[test]
+    fn test_string_impl_join_py() {
+        assert_eq!(
+            String::from(", ").join_py(vec!["a", "b", "c"]),
+            "a, b, c"
+        );
+    }
+
+    #[test]
+    fn test_string_impl_encode() {
+        assert_eq!(String::from("hi").encode(), vec![104, 105]);
+    }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: Edge cases for &str padding methods
+    // ============================================================================
+
+    #[test]
+    fn test_str_center_wider_than_width() {
+        assert_eq!("hello".center(3), "hello");
+    }
+
+    #[test]
+    fn test_str_ljust_wider_than_width() {
+        assert_eq!("hello".ljust(3), "hello");
+    }
+
+    #[test]
+    fn test_str_rjust_wider_than_width() {
+        assert_eq!("hello".rjust(3), "hello");
+    }
+
+    #[test]
+    fn test_str_zfill_wider_than_width() {
+        assert_eq!("12345".zfill(3), "12345");
+    }
+
+    #[test]
+    fn test_str_zfill_plus_sign() {
+        assert_eq!("+42".zfill(5), "+0042");
+    }
+
+    #[test]
+    fn test_str_capitalize_empty() {
+        assert_eq!("".capitalize(), "");
+    }
+
+    #[test]
+    fn test_str_empty_string_checks() {
+        assert!(!String::from("").isalpha());
+        assert!(!String::from("").isdigit());
+        assert!(!String::from("").isalnum());
+        assert!(!String::from("").isspace());
+    }
+
+    #[test]
+    fn test_str_islower_no_cased() {
+        assert!(!"123".islower());
+    }
+
+    #[test]
+    fn test_str_isupper_no_cased() {
+        assert!(!"123".isupper());
+    }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: Additional numeric type tests
+    // ============================================================================
+
+    #[test]
+    fn test_i64_bit_length() {
+        assert_eq!(0i64.bit_length(), 0);
+        assert_eq!(1i64.bit_length(), 1);
+        assert_eq!(255i64.bit_length(), 8);
+        assert_eq!((-1i64).bit_length(), 1);
+    }
+
+    #[test]
+    fn test_i64_bit_count() {
+        assert_eq!(7i64.bit_count(), 3);
+        assert_eq!((-7i64).bit_count(), 3);
+    }
+
+    #[test]
+    fn test_i64_to_bytes() {
+        assert_eq!(256i64.to_bytes_py(2, "big"), vec![1, 0]);
+        assert_eq!(256i64.to_bytes_py(2, "little"), vec![0, 1]);
+    }
+
+    #[test]
+    fn test_u64_bit_length() {
+        assert_eq!(0u64.bit_length(), 0);
+        assert_eq!(1u64.bit_length(), 1);
+        assert_eq!(255u64.bit_length(), 8);
+    }
+
+    #[test]
+    fn test_u64_bit_count() {
+        assert_eq!(7u64.bit_count(), 3);
+        assert_eq!(255u64.bit_count(), 8);
+    }
+
+    #[test]
+    fn test_u64_to_bytes() {
+        assert_eq!(256u64.to_bytes_py(2, "big"), vec![1, 0]);
+        assert_eq!(256u64.to_bytes_py(2, "little"), vec![0, 1]);
+    }
+
+    #[test]
+    fn test_i32_to_bytes_padding() {
+        // Test sign extension for negative numbers
+        assert_eq!((-1i32).to_bytes_py(6, "big")[0], 0xFF);
+        assert_eq!((-1i32).to_bytes_py(6, "little").last(), Some(&0xFF));
+    }
+
+    #[test]
+    fn test_i32_to_bytes_truncation() {
+        assert_eq!(1024i32.to_bytes_py(1, "big"), vec![0]);
+        assert_eq!(1024i32.to_bytes_py(1, "little"), vec![0]);
+    }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: List ops edge cases
+    // ============================================================================
+
+    #[test]
+    fn test_list_clear_py() {
+        let mut v = vec![1, 2, 3];
+        v.clear_py();
+        assert!(v.is_empty());
+    }
+
+    #[test]
+    fn test_list_pop_at_out_of_bounds() {
+        let mut v = vec![1, 2, 3];
+        assert_eq!(v.pop_at(10), None);
+    }
+
+    #[test]
+    fn test_list_pop_empty() {
+        let mut v: Vec<i32> = vec![];
+        assert_eq!(v.pop_py(), None);
+    }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: PyAdd for String
+    // ============================================================================
+
+    #[test]
+    fn test_string_py_add_string() {
+        let a = String::from("hello ");
+        let b = String::from("world");
+        assert_eq!(a.py_add(b), "hello world");
+    }
+
+    #[test]
+    fn test_string_py_add_str() {
+        let a = String::from("hello ");
+        assert_eq!(a.py_add("world"), "hello world");
+    }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: PyOps for additional Vec types
+    // ============================================================================
+
+    #[test]
+    fn test_vec_i32_elementwise_add() {
+        let a = vec![1i32, 2, 3];
+        let b = vec![4i32, 5, 6];
+        assert_eq!(a.py_add(b), vec![5, 7, 9]);
+    }
+
+    #[test]
+    fn test_vec_i32_elementwise_sub() {
+        let a = vec![5i32, 7, 9];
+        let b = vec![1i32, 2, 3];
+        assert_eq!(a.py_sub(b), vec![4, 5, 6]);
+    }
+
+    #[test]
+    fn test_vec_i32_elementwise_mul() {
+        let a = vec![1i32, 2, 3];
+        let b = vec![4i32, 5, 6];
+        assert_eq!(a.py_mul(b), vec![4, 10, 18]);
+    }
+
+    #[test]
+    fn test_vec_i32_elementwise_div() {
+        let a = vec![4i32, 10, 18];
+        let b = vec![2i32, 5, 6];
+        assert_eq!(a.py_div(b), vec![2, 2, 3]);
+    }
+
+    #[test]
+    fn test_vec_i32_scalar_add() {
+        assert_eq!(vec![1i32, 2, 3].py_add(10i32), vec![11, 12, 13]);
+    }
+
+    #[test]
+    fn test_vec_i32_scalar_sub() {
+        assert_eq!(vec![10i32, 20, 30].py_sub(5i32), vec![5, 15, 25]);
+    }
+
+    #[test]
+    fn test_vec_i32_scalar_mul() {
+        assert_eq!(vec![1i32, 2, 3].py_mul(2i32), vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn test_vec_i32_scalar_div() {
+        assert_eq!(vec![10i32, 20, 30].py_div(5i32), vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn test_vec_f32_elementwise_add() {
+        let a = vec![1.0f32, 2.0, 3.0];
+        let b = vec![4.0f32, 5.0, 6.0];
+        assert_eq!(a.py_add(b), vec![5.0, 7.0, 9.0]);
+    }
+
+    #[test]
+    fn test_vec_f32_scalar_mul() {
+        assert_eq!(vec![1.0f32, 2.0, 3.0].py_mul(2.0f32), vec![2.0, 4.0, 6.0]);
+    }
+
+    #[test]
+    fn test_vec_i64_elementwise_add() {
+        let a = vec![1i64, 2, 3];
+        let b = vec![4i64, 5, 6];
+        assert_eq!(a.py_add(b), vec![5, 7, 9]);
+    }
+
+    #[test]
+    fn test_vec_i64_scalar_mul() {
+        assert_eq!(vec![1i64, 2, 3].py_mul(2i64), vec![2, 4, 6]);
+    }
+
+    // ============================================================================
+    // DEPYLER-99MODE-S8B6: PyOps numeric edge cases
+    // ============================================================================
+
+    #[test]
+    fn test_pyops_f32_add() {
+        assert_eq!(1.5f32.py_add(2.5f32), 4.0);
+    }
+
+    #[test]
+    fn test_pyops_f32_sub() {
+        assert_eq!(5.0f32.py_sub(3.0f32), 2.0);
+    }
+
+    #[test]
+    fn test_pyops_f32_mul() {
+        assert_eq!(2.0f32.py_mul(3.0f32), 6.0);
+    }
+
+    #[test]
+    fn test_pyops_f32_div() {
+        assert_eq!(10.0f32.py_div(4.0f32), 2.5);
+    }
+
+    #[test]
+    fn test_pyops_f32_mod() {
+        assert_eq!(10.0f32.py_mod(3.0f32), 1.0);
+    }
+
+    #[test]
+    fn test_pyops_f32_pow() {
+        assert_eq!(2.0f32.py_pow(3.0f32), 8.0);
+    }
+
+    #[test]
+    fn test_pyops_f32_floordiv() {
+        assert_eq!(7.0f32.py_floordiv(3.0f32), 2.0);
+    }
+
+    #[test]
+    fn test_pyops_i64_add() {
+        assert_eq!(5i64.py_add(3i64), 8);
+    }
+
+    #[test]
+    fn test_pyops_i64_floordiv() {
+        assert_eq!((-7i64).py_floordiv(3i64), -3);
+        assert_eq!(7i64.py_floordiv(3i64), 2);
+    }
+
+    #[test]
+    fn test_pyops_i64_mod() {
+        assert_eq!(10i64.py_mod(3i64), 1);
+    }
+
+    #[test]
+    fn test_pyops_i64_pow() {
+        assert_eq!(2i64.py_pow(10u32), 1024);
+    }
+
+    #[test]
+    fn test_str_replace_py() {
+        assert_eq!("hello world".replace_py("world", "rust"), "hello rust");
+    }
 }
