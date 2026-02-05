@@ -12996,4 +12996,348 @@ def double_abs(n: int) -> int:
         let rust = transpile(code);
         assert!(rust.contains("fn double_abs"), "output: {}", rust);
     }
+
+    // === S9 Batch 3: Expression coverage ===
+
+    #[test]
+    fn test_s9b3_comparison_chain() {
+        let code = r#"
+def in_range(x: int) -> bool:
+    return 0 < x < 100
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn in_range"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_boolean_and_or() {
+        let code = r#"
+def check(a: bool, b: bool) -> bool:
+    return a and b or not a
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn check"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_string_multiply() {
+        let code = r#"
+def repeat(s: str, n: int) -> str:
+    return s * n
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn repeat"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_list_multiply() {
+        let code = r#"
+def zeros(n: int) -> list:
+    return [0] * n
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn zeros"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_complex_ternary() {
+        let code = r#"
+def sign(x: int) -> int:
+    return 1 if x > 0 else -1 if x < 0 else 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn sign"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_builtin_isinstance() {
+        let code = r#"
+def is_int(x: int) -> bool:
+    return isinstance(x, int)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn is_int"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_builtin_enumerate() {
+        let code = r#"
+def indexed(items: list) -> list:
+    result = []
+    for i, v in enumerate(items):
+        result.append(i)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn indexed"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_builtin_zip() {
+        let code = r#"
+def combine(a: list, b: list) -> list:
+    result = []
+    for x, y in zip(a, b):
+        result.append(x + y)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn combine"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_global_constant() {
+        let code = r#"
+MAX_SIZE = 100
+
+def check_size(n: int) -> bool:
+    return n <= MAX_SIZE
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("MAX_SIZE") || rust.contains("100"),
+            "output: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_s9b3_multiple_assignment() {
+        let code = r#"
+def swap(a: int, b: int) -> tuple:
+    a, b = b, a
+    return (a, b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn swap"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_augmented_str_concat() {
+        let code = r#"
+def build_string(items: list) -> str:
+    result = ""
+    for item in items:
+        result += str(item)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn build_string"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_nested_if_in_loop() {
+        let code = r#"
+def count_positive(items: list) -> int:
+    count = 0
+    for x in items:
+        if x > 0:
+            count += 1
+    return count
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn count_positive"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_early_return() {
+        let code = r#"
+def find_index(items: list, target: int) -> int:
+    for i in range(len(items)):
+        if items[i] == target:
+            return i
+    return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn find_index"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_nested_loops() {
+        let code = r#"
+def matrix_sum(matrix: list) -> int:
+    total = 0
+    for row in matrix:
+        for val in row:
+            total += val
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn matrix_sum"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_list_of_lists() {
+        let code = r#"
+def make_grid(n: int) -> list:
+    grid = []
+    for i in range(n):
+        row = []
+        for j in range(n):
+            row.append(i * n + j)
+        grid.append(row)
+    return grid
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_grid"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_string_format_f() {
+        let code = r#"
+def format_number(n: int) -> str:
+    return f"Value: {n}"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn format_number"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_empty_list_literal() {
+        let code = r#"
+def make_empty() -> list:
+    return []
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_empty"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_empty_dict_literal() {
+        let code = r#"
+def make_empty_dict() -> dict:
+    return {}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_empty_dict"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_empty_set() {
+        let code = r#"
+def make_empty_set() -> set:
+    return set()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn make_empty_set"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_bitwise_operations() {
+        let code = r#"
+def bitwise(a: int, b: int) -> int:
+    return (a & b) | (a ^ b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn bitwise"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_shift_operations() {
+        let code = r#"
+def shift(n: int) -> int:
+    return (n << 2) >> 1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn shift"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_floor_div_and_mod() {
+        let code = r#"
+def div_and_mod(a: int, b: int) -> tuple:
+    return (a // b, a % b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn div_and_mod"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_power_operator() {
+        let code = r#"
+def power(base: int, exp: int) -> int:
+    return base ** exp
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn power"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_unary_not() {
+        let code = r#"
+def negate(b: bool) -> bool:
+    return not b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn negate"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_class_with_init_and_methods() {
+        let code = r#"
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def push(self, item: int) -> None:
+        self.items.append(item)
+
+    def pop(self) -> int:
+        return self.items.pop()
+
+    def is_empty(self) -> bool:
+        return len(self.items) == 0
+"#;
+        let rust = transpile(code);
+        assert!(
+            rust.contains("Stack") || rust.contains("struct"),
+            "output: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn test_s9b3_import_and_use() {
+        let code = r#"
+import os
+
+def get_cwd() -> str:
+    return os.getcwd()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn get_cwd"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_from_import() {
+        let code = r#"
+from pathlib import Path
+
+def exists(p: str) -> bool:
+    return Path(p).exists()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn exists") || rust.contains("Path"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_assert_with_message() {
+        let code = r#"
+def validate(x: int) -> int:
+    assert x >= 0, "must be non-negative"
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn validate"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_s9b3_del_dict_key() {
+        let code = r#"
+def remove(d: dict, key: str) -> None:
+    del d[key]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn remove"), "output: {}", rust);
+    }
 }
