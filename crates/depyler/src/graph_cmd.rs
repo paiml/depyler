@@ -395,4 +395,153 @@ mod tests {
         assert_eq!(summary.node_id, "test_func");
         assert_eq!(summary.impact_score, 0.85);
     }
+
+    #[test]
+    fn test_patient_zero_summary_all_fields() {
+        let pz = PatientZero {
+            node_id: "complex_func".to_string(),
+            impact_score: 0.42,
+            direct_errors: 7,
+            downstream_affected: 25,
+            fix_priority: 2,
+            estimated_fix_impact: 12,
+        };
+        let summary = PatientZeroSummary::from(&pz);
+        assert_eq!(summary.direct_errors, 7);
+        assert_eq!(summary.downstream_affected, 25);
+        assert_eq!(summary.fix_priority, 2);
+        assert_eq!(summary.estimated_fix_impact, 12);
+    }
+
+    #[test]
+    fn test_patient_zero_summary_clone() {
+        let summary = PatientZeroSummary {
+            node_id: "func".to_string(),
+            impact_score: 0.5,
+            direct_errors: 1,
+            downstream_affected: 2,
+            fix_priority: 3,
+            estimated_fix_impact: 4,
+        };
+        let cloned = summary.clone();
+        assert_eq!(summary.node_id, cloned.node_id);
+        assert_eq!(summary.impact_score, cloned.impact_score);
+    }
+
+    #[test]
+    fn test_corpus_analysis_serialize() {
+        let analysis = CorpusAnalysis {
+            files_analyzed: 10,
+            files_with_errors: 3,
+            total_errors: 7,
+            patient_zeros: vec![],
+            error_distribution: std::collections::HashMap::from([
+                ("E0308".to_string(), 4),
+                ("E0425".to_string(), 3),
+            ]),
+        };
+        let json = serde_json::to_string(&analysis).unwrap();
+        assert!(json.contains("\"files_analyzed\":10"));
+        assert!(json.contains("\"total_errors\":7"));
+        assert!(json.contains("E0308"));
+    }
+
+    #[test]
+    fn test_corpus_analysis_with_patient_zeros() {
+        let analysis = CorpusAnalysis {
+            files_analyzed: 50,
+            files_with_errors: 20,
+            total_errors: 100,
+            patient_zeros: vec![PatientZeroSummary {
+                node_id: "root_cause".to_string(),
+                impact_score: 0.95,
+                direct_errors: 10,
+                downstream_affected: 50,
+                fix_priority: 1,
+                estimated_fix_impact: 30,
+            }],
+            error_distribution: std::collections::HashMap::new(),
+        };
+        let json = serde_json::to_string_pretty(&analysis).unwrap();
+        assert!(json.contains("root_cause"));
+        assert!(json.contains("0.95"));
+    }
+
+    #[test]
+    fn test_check_rust_compilation_empty_code() {
+        let errors = check_rust_compilation("");
+        // Empty code is valid Rust (empty crate), should compile fine
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_check_rust_compilation_lib_code() {
+        let code = "pub fn add(a: i32, b: i32) -> i32 { a + b }";
+        let errors = check_rust_compilation(code);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_check_rust_compilation_e0425() {
+        let code = "fn main() { let x = undefined_var; }";
+        let errors = check_rust_compilation(code);
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|(code, _, _)| code == "E0425"));
+    }
+
+    #[test]
+    fn test_check_rust_compilation_multiple_errors() {
+        let code = r#"fn main() { let x: i32 = "bad"; let y: f64 = true; }"#;
+        let errors = check_rust_compilation(code);
+        assert!(errors.len() >= 2);
+    }
+
+    #[test]
+    fn test_transpile_isolated_valid() {
+        let result = transpile_isolated("def add(a: int, b: int) -> int:\n    return a + b\n");
+        assert!(result.is_some());
+        let code = result.unwrap();
+        assert!(code.contains("fn add"));
+    }
+
+    #[test]
+    fn test_transpile_isolated_invalid_syntax() {
+        let result = transpile_isolated("def @@@@invalid syntax");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_transpile_isolated_empty() {
+        let result = transpile_isolated("");
+        // Empty Python is valid, should produce empty module
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_patient_zero_summary_debug() {
+        let summary = PatientZeroSummary {
+            node_id: "test".to_string(),
+            impact_score: 0.0,
+            direct_errors: 0,
+            downstream_affected: 0,
+            fix_priority: 1,
+            estimated_fix_impact: 0,
+        };
+        let debug = format!("{:?}", summary);
+        assert!(debug.contains("PatientZeroSummary"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_corpus_analysis_debug() {
+        let analysis = CorpusAnalysis {
+            files_analyzed: 0,
+            files_with_errors: 0,
+            total_errors: 0,
+            patient_zeros: vec![],
+            error_distribution: std::collections::HashMap::new(),
+        };
+        let debug = format!("{:?}", analysis);
+        assert!(debug.contains("CorpusAnalysis"));
+    }
 }

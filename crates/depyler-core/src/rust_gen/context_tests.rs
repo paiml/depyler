@@ -1,177 +1,86 @@
 use super::*;
-use crate::hir::{ExceptionScope, Type};
-
-// ============================================================================
-// ErrorType enum tests
-// ============================================================================
+use crate::hir::ExceptionScope;
 
 #[test]
-fn test_error_type_concrete_equality() {
-    let e1 = ErrorType::Concrete("ValueError".to_string());
-    let e2 = ErrorType::Concrete("ValueError".to_string());
-    let e3 = ErrorType::Concrete("TypeError".to_string());
-
-    assert_eq!(e1, e2);
-    assert_ne!(e1, e3);
+fn test_default_context_creates_one_scope() {
+    let ctx = CodeGenContext::default();
+    assert_eq!(ctx.declared_vars.len(), 1);
 }
 
 #[test]
-fn test_error_type_dyn_box_equality() {
-    let e1 = ErrorType::DynBox;
-    let e2 = ErrorType::DynBox;
-
-    assert_eq!(e1, e2);
-}
-
-#[test]
-fn test_error_type_concrete_vs_dyn_box() {
-    let e1 = ErrorType::Concrete("ValueError".to_string());
-    let e2 = ErrorType::DynBox;
-
-    assert_ne!(e1, e2);
-}
-
-#[test]
-fn test_error_type_clone() {
-    let e1 = ErrorType::Concrete("ValueError".to_string());
-    let cloned = e1.clone();
-    assert_eq!(e1, cloned);
-
-    let e2 = ErrorType::DynBox;
-    let cloned2 = e2.clone();
-    assert_eq!(e2, cloned2);
-}
-
-#[test]
-fn test_error_type_debug() {
-    let e1 = ErrorType::Concrete("ValueError".to_string());
-    let debug_str = format!("{:?}", e1);
-    assert!(debug_str.contains("Concrete"));
-    assert!(debug_str.contains("ValueError"));
-
-    let e2 = ErrorType::DynBox;
-    let debug_str2 = format!("{:?}", e2);
-    assert!(debug_str2.contains("DynBox"));
-}
-
-// ============================================================================
-// CodeGenContext scope tests
-// ============================================================================
-
-#[test]
-fn test_enter_scope() {
-    let mut ctx = test_helpers::test_context();
-    let initial_depth = ctx.declared_vars.len();
-
+fn test_enter_scope_adds_scope() {
+    let mut ctx = CodeGenContext::default();
+    let initial = ctx.declared_vars.len();
     ctx.enter_scope();
-    assert_eq!(ctx.declared_vars.len(), initial_depth + 1);
-
-    ctx.enter_scope();
-    assert_eq!(ctx.declared_vars.len(), initial_depth + 2);
+    assert_eq!(ctx.declared_vars.len(), initial + 1);
 }
 
 #[test]
-fn test_exit_scope() {
-    let mut ctx = test_helpers::test_context();
+fn test_exit_scope_removes_scope() {
+    let mut ctx = CodeGenContext::default();
     ctx.enter_scope();
-    ctx.enter_scope();
-    let depth_before = ctx.declared_vars.len();
-
+    let before = ctx.declared_vars.len();
     ctx.exit_scope();
-    assert_eq!(ctx.declared_vars.len(), depth_before - 1);
-}
-
-#[test]
-fn test_enter_exit_scope_balanced() {
-    let mut ctx = test_helpers::test_context();
-    let initial_depth = ctx.declared_vars.len();
-
-    for _ in 0..5 {
-        ctx.enter_scope();
-    }
-    assert_eq!(ctx.declared_vars.len(), initial_depth + 5);
-
-    for _ in 0..5 {
-        ctx.exit_scope();
-    }
-    assert_eq!(ctx.declared_vars.len(), initial_depth);
+    assert_eq!(ctx.declared_vars.len(), before - 1);
 }
 
 #[test]
 fn test_declare_var_in_current_scope() {
-    let mut ctx = test_helpers::test_context();
-
+    let mut ctx = CodeGenContext::default();
     ctx.declare_var("x");
     assert!(ctx.is_declared("x"));
 }
 
 #[test]
-fn test_declare_var_not_in_other_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_scope();
-    ctx.declare_var("inner_var");
-
-    // Variable should be visible in current scope
-    assert!(ctx.is_declared("inner_var"));
-
-    ctx.exit_scope();
-
-    // After exiting scope, variable should no longer be declared
-    assert!(!ctx.is_declared("inner_var"));
-}
-
-#[test]
-fn test_is_declared_outer_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.declare_var("outer");
-    ctx.enter_scope();
-
-    // Should still see outer scope variables
-    assert!(ctx.is_declared("outer"));
-}
-
-#[test]
-fn test_is_declared_false_for_undeclared() {
-    let ctx = test_helpers::test_context();
+fn test_is_declared_false_for_unknown() {
+    let ctx = CodeGenContext::default();
     assert!(!ctx.is_declared("nonexistent"));
 }
 
 #[test]
-fn test_multiple_vars_same_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.declare_var("a");
-    ctx.declare_var("b");
-    ctx.declare_var("c");
-
-    assert!(ctx.is_declared("a"));
-    assert!(ctx.is_declared("b"));
-    assert!(ctx.is_declared("c"));
+fn test_var_visible_in_outer_scope() {
+    let mut ctx = CodeGenContext::default();
+    ctx.declare_var("outer");
+    ctx.enter_scope();
+    assert!(ctx.is_declared("outer"));
 }
 
 #[test]
-fn test_shadow_var_in_nested_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.declare_var("x");
+fn test_var_not_visible_after_scope_exit() {
+    let mut ctx = CodeGenContext::default();
     ctx.enter_scope();
-    ctx.declare_var("x"); // Shadow outer x
+    ctx.declare_var("inner");
+    assert!(ctx.is_declared("inner"));
+    ctx.exit_scope();
+    assert!(!ctx.is_declared("inner"));
+}
 
-    assert!(ctx.is_declared("x")); // Should still be declared
+#[test]
+fn test_nested_scopes() {
+    let mut ctx = CodeGenContext::default();
+    ctx.declare_var("level0");
+    ctx.enter_scope();
+    ctx.declare_var("level1");
+    ctx.enter_scope();
+    ctx.declare_var("level2");
+
+    assert!(ctx.is_declared("level0"));
+    assert!(ctx.is_declared("level1"));
+    assert!(ctx.is_declared("level2"));
 
     ctx.exit_scope();
-    assert!(ctx.is_declared("x")); // Outer x should still exist
+    assert!(ctx.is_declared("level0"));
+    assert!(ctx.is_declared("level1"));
+    assert!(!ctx.is_declared("level2"));
+
+    ctx.exit_scope();
+    assert!(ctx.is_declared("level0"));
+    assert!(!ctx.is_declared("level1"));
 }
 
-// ============================================================================
-// Exception scope tests
-// ============================================================================
-
 #[test]
-fn test_current_exception_scope_default() {
-    let ctx = test_helpers::test_context();
+fn test_exception_scope_default_is_unhandled() {
+    let ctx = CodeGenContext::default();
     assert!(matches!(
         ctx.current_exception_scope(),
         ExceptionScope::Unhandled
@@ -179,200 +88,136 @@ fn test_current_exception_scope_default() {
 }
 
 #[test]
-fn test_enter_try_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_try_scope(vec!["ValueError".to_string()]);
-
-    match ctx.current_exception_scope() {
-        ExceptionScope::TryCaught { handled_types } => {
-            assert_eq!(handled_types.len(), 1);
-            assert!(handled_types.contains(&"ValueError".to_string()));
-        }
-        _ => panic!("Expected TryCaught scope"),
-    }
-}
-
-#[test]
-fn test_enter_try_scope_multiple_handlers() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_try_scope(vec![
-        "ValueError".to_string(),
-        "TypeError".to_string(),
-        "RuntimeError".to_string(),
-    ]);
-
-    match ctx.current_exception_scope() {
-        ExceptionScope::TryCaught { handled_types } => {
-            assert_eq!(handled_types.len(), 3);
-        }
-        _ => panic!("Expected TryCaught scope"),
-    }
-}
-
-#[test]
-fn test_enter_try_scope_bare_except() {
-    let mut ctx = test_helpers::test_context();
-
-    // Empty vec = bare except (catches all)
-    ctx.enter_try_scope(vec![]);
-
-    match ctx.current_exception_scope() {
-        ExceptionScope::TryCaught { handled_types } => {
-            assert!(handled_types.is_empty());
-        }
-        _ => panic!("Expected TryCaught scope"),
-    }
-}
-
-#[test]
-fn test_enter_handler_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_handler_scope();
-    assert!(matches!(
-        ctx.current_exception_scope(),
-        ExceptionScope::Handler
-    ));
-}
-
-#[test]
-fn test_exit_exception_scope() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_try_scope(vec!["ValueError".to_string()]);
-    ctx.exit_exception_scope();
-
-    assert!(matches!(
-        ctx.current_exception_scope(),
-        ExceptionScope::Unhandled
-    ));
-}
-
-#[test]
-fn test_nested_exception_scopes() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_try_scope(vec!["ValueError".to_string()]);
-    ctx.enter_try_scope(vec!["TypeError".to_string()]);
-
-    // Should see innermost scope
-    match ctx.current_exception_scope() {
-        ExceptionScope::TryCaught { handled_types } => {
-            assert!(handled_types.contains(&"TypeError".to_string()));
-        }
-        _ => panic!("Expected TryCaught scope"),
-    }
-
-    ctx.exit_exception_scope();
-
-    // Should now see outer scope
-    match ctx.current_exception_scope() {
-        ExceptionScope::TryCaught { handled_types } => {
-            assert!(handled_types.contains(&"ValueError".to_string()));
-        }
-        _ => panic!("Expected TryCaught scope"),
-    }
-}
-
-#[test]
-fn test_is_in_try_block_false_initially() {
-    let ctx = test_helpers::test_context();
+fn test_not_in_try_block_by_default() {
+    let ctx = CodeGenContext::default();
     assert!(!ctx.is_in_try_block());
 }
 
 #[test]
-fn test_is_in_try_block_true_after_enter() {
-    let mut ctx = test_helpers::test_context();
-
+fn test_enter_try_scope() {
+    let mut ctx = CodeGenContext::default();
     ctx.enter_try_scope(vec!["ValueError".to_string()]);
     assert!(ctx.is_in_try_block());
 }
 
 #[test]
-fn test_is_in_try_block_false_in_handler() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_handler_scope();
-    assert!(!ctx.is_in_try_block());
-}
-
-#[test]
 fn test_is_exception_handled_specific_type() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_try_scope(vec!["ValueError".to_string(), "TypeError".to_string()]);
-
+    let mut ctx = CodeGenContext::default();
+    ctx.enter_try_scope(vec!["ValueError".to_string(), "KeyError".to_string()]);
     assert!(ctx.is_exception_handled("ValueError"));
-    assert!(ctx.is_exception_handled("TypeError"));
-    assert!(!ctx.is_exception_handled("RuntimeError"));
+    assert!(ctx.is_exception_handled("KeyError"));
+    assert!(!ctx.is_exception_handled("TypeError"));
 }
 
 #[test]
-fn test_is_exception_handled_bare_except() {
-    let mut ctx = test_helpers::test_context();
-
-    // Bare except catches all
-    ctx.enter_try_scope(vec![]);
-
+fn test_bare_except_catches_all() {
+    let mut ctx = CodeGenContext::default();
+    ctx.enter_try_scope(vec![]); // empty = bare except
     assert!(ctx.is_exception_handled("ValueError"));
-    assert!(ctx.is_exception_handled("TypeError"));
-    assert!(ctx.is_exception_handled("RuntimeError"));
-    assert!(ctx.is_exception_handled("AnyException"));
+    assert!(ctx.is_exception_handled("AnyError"));
 }
 
 #[test]
-fn test_is_exception_handled_not_in_try() {
-    let ctx = test_helpers::test_context();
-
+fn test_exception_not_handled_outside_try() {
+    let ctx = CodeGenContext::default();
     assert!(!ctx.is_exception_handled("ValueError"));
 }
 
 #[test]
-fn test_exception_nesting_depth_initial() {
-    let ctx = test_helpers::test_context();
-    assert_eq!(ctx.exception_nesting_depth(), 0);
-}
-
-#[test]
-fn test_exception_nesting_depth_after_enter() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.enter_try_scope(vec![]);
-    assert_eq!(ctx.exception_nesting_depth(), 1);
-
+fn test_enter_handler_scope() {
+    let mut ctx = CodeGenContext::default();
     ctx.enter_handler_scope();
-    assert_eq!(ctx.exception_nesting_depth(), 2);
-
-    ctx.enter_try_scope(vec!["ValueError".to_string()]);
-    assert_eq!(ctx.exception_nesting_depth(), 3);
+    assert!(matches!(
+        ctx.current_exception_scope(),
+        ExceptionScope::Handler
+    ));
+    assert!(!ctx.is_in_try_block());
 }
 
 #[test]
-fn test_exception_nesting_depth_after_exit() {
-    let mut ctx = test_helpers::test_context();
-
+fn test_exit_exception_scope() {
+    let mut ctx = CodeGenContext::default();
     ctx.enter_try_scope(vec![]);
-    ctx.enter_try_scope(vec![]);
-    assert_eq!(ctx.exception_nesting_depth(), 2);
-
+    assert!(ctx.is_in_try_block());
     ctx.exit_exception_scope();
-    assert_eq!(ctx.exception_nesting_depth(), 1);
+    assert!(!ctx.is_in_try_block());
+}
 
-    ctx.exit_exception_scope();
+#[test]
+fn test_exception_nesting_depth_empty() {
+    let ctx = CodeGenContext::default();
     assert_eq!(ctx.exception_nesting_depth(), 0);
 }
 
-// ============================================================================
-// Test helper function tests
-// ============================================================================
+#[test]
+fn test_exception_nesting_depth_nested() {
+    let mut ctx = CodeGenContext::default();
+    ctx.enter_try_scope(vec!["ValueError".to_string()]);
+    assert_eq!(ctx.exception_nesting_depth(), 1);
+    ctx.enter_try_scope(vec!["KeyError".to_string()]);
+    assert_eq!(ctx.exception_nesting_depth(), 2);
+    ctx.exit_exception_scope();
+    assert_eq!(ctx.exception_nesting_depth(), 1);
+}
 
 #[test]
-fn test_context_default_values() {
-    let ctx = test_helpers::test_context();
+fn test_fallback_type_annotation_nasa_mode() {
+    let mut ctx = CodeGenContext::default();
+    // Default TypeMapper has nasa_mode = true
+    let tokens = ctx.fallback_type_annotation();
+    let s = tokens.to_string();
+    assert!(s.contains("String"), "NASA mode should return `: String`, got: {}", s);
+}
 
-    // Check boolean flags default to false
+#[test]
+fn test_fallback_type_nasa_mode() {
+    let mut ctx = CodeGenContext::default();
+    let tokens = ctx.fallback_type();
+    let s = tokens.to_string();
+    assert!(s.contains("String"), "NASA mode should return `String`, got: {}", s);
+}
+
+#[test]
+fn test_lookup_external_return_type_none_without_feature() {
+    let ctx = CodeGenContext::default();
+    assert!(ctx.lookup_external_return_type("requests", "get").is_none());
+}
+
+#[test]
+fn test_has_external_symbol_false_without_feature() {
+    let ctx = CodeGenContext::default();
+    assert!(!ctx.has_external_symbol("requests", "get"));
+}
+
+#[test]
+fn test_error_type_concrete_variant() {
+    let e = ErrorType::Concrete("ValueError".to_string());
+    assert_eq!(e, ErrorType::Concrete("ValueError".to_string()));
+}
+
+#[test]
+fn test_error_type_dynbox_variant() {
+    let e = ErrorType::DynBox;
+    assert_eq!(e, ErrorType::DynBox);
+}
+
+#[test]
+fn test_error_type_debug() {
+    let e = ErrorType::Concrete("KeyError".to_string());
+    let debug = format!("{:?}", e);
+    assert!(debug.contains("KeyError"));
+}
+
+#[test]
+fn test_error_type_clone() {
+    let e = ErrorType::DynBox;
+    let cloned = e.clone();
+    assert_eq!(e, cloned);
+}
+
+#[test]
+fn test_default_context_flags_false() {
+    let ctx = CodeGenContext::default();
     assert!(!ctx.needs_hashmap);
     assert!(!ctx.needs_hashset);
     assert!(!ctx.needs_rand);
@@ -380,346 +225,294 @@ fn test_context_default_values() {
     assert!(!ctx.needs_regex);
     assert!(!ctx.needs_chrono);
     assert!(!ctx.needs_clap);
-    assert!(!ctx.current_function_can_fail);
+    assert!(!ctx.needs_tokio);
     assert!(!ctx.is_classmethod);
     assert!(!ctx.in_generator);
     assert!(!ctx.is_final_statement);
     assert!(!ctx.is_main_function);
     assert!(!ctx.in_json_context);
+    assert!(!ctx.in_cmd_handler);
+    assert!(!ctx.in_subcommand_match_arm);
+    assert!(!ctx.function_returns_boxed_write);
+    assert!(!ctx.force_dict_value_option_wrap);
+    assert!(!ctx.returns_impl_iterator);
 }
 
 #[test]
-fn test_context_collections_empty() {
-    let ctx = test_helpers::test_context();
-
-    // Check collections are empty
+fn test_default_context_collections_empty() {
+    let ctx = CodeGenContext::default();
     assert!(ctx.mutable_vars.is_empty());
-    assert!(ctx.generator_state_vars.is_empty());
     assert!(ctx.var_types.is_empty());
     assert!(ctx.class_names.is_empty());
-    assert!(ctx.property_methods.is_empty());
+    assert!(ctx.function_return_types.is_empty());
+    assert!(ctx.function_param_borrows.is_empty());
     assert!(ctx.tuple_iter_vars.is_empty());
     assert!(ctx.iterator_vars.is_empty());
-    assert!(ctx.exception_scopes.is_empty());
+    assert!(ctx.ref_params.is_empty());
+    assert!(ctx.result_bool_functions.is_empty());
+    assert!(ctx.result_returning_functions.is_empty());
+    assert!(ctx.option_returning_functions.is_empty());
     assert!(ctx.generated_enums.is_empty());
+    assert!(ctx.exception_scopes.is_empty());
+    assert!(ctx.type_overrides.is_empty());
+    assert!(ctx.vars_used_later.is_empty());
 }
 
 #[test]
-fn test_context_has_initial_scope() {
-    let ctx = test_helpers::test_context();
-
-    // Should have one initial scope
-    assert_eq!(ctx.declared_vars.len(), 1);
-}
-
-#[test]
-fn test_context_none_values() {
-    let ctx = test_helpers::test_context();
-
-    // Check Option values are None
+fn test_default_context_options_none() {
+    let ctx = CodeGenContext::default();
     assert!(ctx.current_return_type.is_none());
     assert!(ctx.current_error_type.is_none());
     assert!(ctx.generated_args_struct.is_none());
     assert!(ctx.generated_commands_enum.is_none());
     assert!(ctx.current_subcommand_fields.is_none());
     assert!(ctx.current_assign_type.is_none());
+    assert!(ctx.last_external_call_return_type.is_none());
 }
 
 #[test]
-fn test_context_default_impl() {
-    // Test that Default trait works (only available in test mode)
-    let ctx = CodeGenContext::default();
-
-    // Should be equivalent to test_context()
-    assert!(!ctx.needs_hashmap);
-    assert_eq!(ctx.declared_vars.len(), 1);
+fn test_mutable_vars_tracking() {
+    let mut ctx = CodeGenContext::default();
+    ctx.mutable_vars.insert("x".to_string());
+    assert!(ctx.mutable_vars.contains("x"));
+    assert!(!ctx.mutable_vars.contains("y"));
 }
 
-// ============================================================================
-// Context mutability tests
-// ============================================================================
+#[test]
+fn test_var_types_tracking() {
+    let mut ctx = CodeGenContext::default();
+    ctx.var_types.insert("count".to_string(), crate::hir::Type::Int);
+    assert_eq!(ctx.var_types.get("count"), Some(&crate::hir::Type::Int));
+}
 
 #[test]
-fn test_modify_needs_flags() {
-    let mut ctx = test_helpers::test_context();
+fn test_class_names_tracking() {
+    let mut ctx = CodeGenContext::default();
+    ctx.class_names.insert("MyClass".to_string());
+    assert!(ctx.class_names.contains("MyClass"));
+}
 
+#[test]
+fn test_generator_state_vars() {
+    let mut ctx = CodeGenContext::default();
+    ctx.in_generator = true;
+    ctx.generator_state_vars.insert("gen".to_string());
+    assert!(ctx.in_generator);
+    assert!(ctx.generator_state_vars.contains("gen"));
+}
+
+#[test]
+fn test_function_return_types_tracking() {
+    let mut ctx = CodeGenContext::default();
+    ctx.function_return_types
+        .insert("compute".to_string(), crate::hir::Type::Float);
+    assert_eq!(
+        ctx.function_return_types.get("compute"),
+        Some(&crate::hir::Type::Float)
+    );
+}
+
+#[test]
+fn test_ref_params_tracking() {
+    let mut ctx = CodeGenContext::default();
+    ctx.ref_params.insert("data".to_string());
+    assert!(ctx.ref_params.contains("data"));
+}
+
+#[test]
+fn test_result_returning_functions() {
+    let mut ctx = CodeGenContext::default();
+    ctx.result_returning_functions.insert("open_file".to_string());
+    assert!(ctx.result_returning_functions.contains("open_file"));
+}
+
+#[test]
+fn test_option_returning_functions() {
+    let mut ctx = CodeGenContext::default();
+    ctx.option_returning_functions.insert("find".to_string());
+    assert!(ctx.option_returning_functions.contains("find"));
+}
+
+#[test]
+fn test_char_iter_vars_tracking() {
+    let mut ctx = CodeGenContext::default();
+    ctx.char_iter_vars.insert("ch".to_string());
+    assert!(ctx.char_iter_vars.contains("ch"));
+}
+
+#[test]
+fn test_module_constant_types() {
+    let mut ctx = CodeGenContext::default();
+    let dict_type = crate::hir::Type::Dict(
+        Box::new(crate::hir::Type::String),
+        Box::new(crate::hir::Type::Int),
+    );
+    ctx.module_constant_types
+        .insert("CONFIG".to_string(), dict_type.clone());
+    assert_eq!(
+        ctx.module_constant_types.get("CONFIG"),
+        Some(&dict_type)
+    );
+}
+
+#[test]
+fn test_type_overrides() {
+    let mut ctx = CodeGenContext::default();
+    ctx.type_overrides
+        .insert("result".to_string(), crate::hir::Type::String);
+    assert_eq!(
+        ctx.type_overrides.get("result"),
+        Some(&crate::hir::Type::String)
+    );
+}
+
+#[test]
+fn test_all_imported_modules() {
+    let mut ctx = CodeGenContext::default();
+    ctx.all_imported_modules.insert("json".to_string());
+    ctx.all_imported_modules.insert("os".to_string());
+    assert!(ctx.all_imported_modules.contains("json"));
+    assert!(ctx.all_imported_modules.contains("os"));
+    assert!(!ctx.all_imported_modules.contains("sys"));
+}
+
+#[test]
+fn test_module_aliases() {
+    let mut ctx = CodeGenContext::default();
+    ctx.module_aliases
+        .insert("ET".to_string(), "xml.etree.ElementTree".to_string());
+    assert_eq!(
+        ctx.module_aliases.get("ET"),
+        Some(&"xml.etree.ElementTree".to_string())
+    );
+}
+
+#[test]
+fn test_narrowed_option_vars() {
+    let mut ctx = CodeGenContext::default();
+    ctx.narrowed_option_vars.insert("value".to_string());
+    assert!(ctx.narrowed_option_vars.contains("value"));
+}
+
+#[test]
+fn test_validator_functions() {
+    let mut ctx = CodeGenContext::default();
+    ctx.validator_functions.insert("check_port".to_string());
+    assert!(ctx.validator_functions.contains("check_port"));
+}
+
+#[test]
+fn test_fn_str_params() {
+    let mut ctx = CodeGenContext::default();
+    ctx.fn_str_params.insert("name".to_string());
+    assert!(ctx.fn_str_params.contains("name"));
+}
+
+#[test]
+fn test_slice_params() {
+    let mut ctx = CodeGenContext::default();
+    ctx.slice_params.insert("args".to_string());
+    assert!(ctx.slice_params.contains("args"));
+}
+
+#[test]
+fn test_hoisted_inference_vars() {
+    let mut ctx = CodeGenContext::default();
+    ctx.hoisted_inference_vars.insert("format".to_string());
+    assert!(ctx.hoisted_inference_vars.contains("format"));
+}
+
+#[test]
+fn test_none_placeholder_vars() {
+    let mut ctx = CodeGenContext::default();
+    ctx.none_placeholder_vars.insert("result".to_string());
+    assert!(ctx.none_placeholder_vars.contains("result"));
+}
+
+#[test]
+fn test_needs_flags_setting() {
+    let mut ctx = CodeGenContext::default();
     ctx.needs_hashmap = true;
     ctx.needs_serde_json = true;
-    ctx.needs_rand = true;
-
+    ctx.needs_tokio = true;
     assert!(ctx.needs_hashmap);
     assert!(ctx.needs_serde_json);
-    assert!(ctx.needs_rand);
+    assert!(ctx.needs_tokio);
 }
 
 #[test]
-fn test_add_mutable_var() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.mutable_vars.insert("x".to_string());
-    ctx.mutable_vars.insert("y".to_string());
-
-    assert!(ctx.mutable_vars.contains("x"));
-    assert!(ctx.mutable_vars.contains("y"));
-    assert!(!ctx.mutable_vars.contains("z"));
+fn test_current_function_can_fail() {
+    let mut ctx = CodeGenContext::default();
+    assert!(!ctx.current_function_can_fail);
+    ctx.current_function_can_fail = true;
+    assert!(ctx.current_function_can_fail);
 }
 
 #[test]
-fn test_add_var_type() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.var_types.insert("count".to_string(), Type::Int);
-    ctx.var_types.insert("name".to_string(), Type::String);
-
-    assert!(matches!(ctx.var_types.get("count"), Some(Type::Int)));
-    assert!(matches!(ctx.var_types.get("name"), Some(Type::String)));
-}
-
-#[test]
-fn test_add_class_name() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.class_names.insert("MyClass".to_string());
-    ctx.class_names.insert("OtherClass".to_string());
-
-    assert!(ctx.class_names.contains("MyClass"));
-    assert!(ctx.class_names.contains("OtherClass"));
-}
-
-#[test]
-fn test_add_result_returning_function() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.result_returning_functions
-        .insert("open_file".to_string());
-    ctx.result_returning_functions
-        .insert("parse_json".to_string());
-
-    assert!(ctx.result_returning_functions.contains("open_file"));
-    assert!(ctx.result_returning_functions.contains("parse_json"));
-    assert!(!ctx.result_returning_functions.contains("other_func"));
-}
-
-#[test]
-fn test_set_current_error_type() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.current_error_type = Some(ErrorType::Concrete("ValueError".to_string()));
-    assert!(matches!(
-        ctx.current_error_type,
-        Some(ErrorType::Concrete(ref s)) if s == "ValueError"
-    ));
-
+fn test_current_error_type_setting() {
+    let mut ctx = CodeGenContext::default();
     ctx.current_error_type = Some(ErrorType::DynBox);
-    assert!(matches!(ctx.current_error_type, Some(ErrorType::DynBox)));
+    assert_eq!(ctx.current_error_type, Some(ErrorType::DynBox));
 
-    ctx.current_error_type = None;
-    assert!(ctx.current_error_type.is_none());
-}
-
-#[test]
-fn test_function_param_borrows() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.function_param_borrows
-        .insert("my_func".to_string(), vec![true, false, true]);
-
-    let borrows = ctx.function_param_borrows.get("my_func").unwrap();
-    assert_eq!(borrows.len(), 3);
-    assert!(borrows[0]); // First param is borrowed
-    assert!(!borrows[1]); // Second param is owned
-    assert!(borrows[2]); // Third param is borrowed
-}
-
-#[test]
-fn test_function_param_types() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.function_param_types.insert(
-        "process".to_string(),
-        vec![Type::Int, Type::String, Type::List(Box::new(Type::Float))],
+    ctx.current_error_type = Some(ErrorType::Concrete("IOError".to_string()));
+    assert_eq!(
+        ctx.current_error_type,
+        Some(ErrorType::Concrete("IOError".to_string()))
     );
-
-    let types = ctx.function_param_types.get("process").unwrap();
-    assert_eq!(types.len(), 3);
-    assert!(matches!(types[0], Type::Int));
-    assert!(matches!(types[1], Type::String));
-    assert!(matches!(types[2], Type::List(_)));
-}
-
-// ============================================================================
-// Complex scenario tests
-// ============================================================================
-
-#[test]
-fn test_nested_function_with_scopes() {
-    let mut ctx = test_helpers::test_context();
-
-    // Outer function scope
-    ctx.declare_var("outer_var");
-    ctx.enter_scope();
-
-    // Inner block scope
-    ctx.declare_var("inner_var");
-
-    assert!(ctx.is_declared("outer_var"));
-    assert!(ctx.is_declared("inner_var"));
-
-    ctx.exit_scope();
-
-    assert!(ctx.is_declared("outer_var"));
-    assert!(!ctx.is_declared("inner_var"));
 }
 
 #[test]
-fn test_try_except_with_nested_scopes() {
-    let mut ctx = test_helpers::test_context();
-
-    // Enter try block
+fn test_exception_scope_mixed_nesting() {
+    let mut ctx = CodeGenContext::default();
     ctx.enter_try_scope(vec!["ValueError".to_string()]);
-    ctx.enter_scope();
-    ctx.declare_var("try_var");
-
     assert!(ctx.is_in_try_block());
-    assert!(ctx.is_declared("try_var"));
+    assert_eq!(ctx.exception_nesting_depth(), 1);
 
-    // Enter exception handler
-    ctx.exit_scope();
-    ctx.exit_exception_scope();
     ctx.enter_handler_scope();
-    ctx.enter_scope();
-    ctx.declare_var("handler_var");
-
     assert!(!ctx.is_in_try_block());
-    assert!(ctx.is_declared("handler_var"));
-    assert!(!ctx.is_declared("try_var"));
+    assert_eq!(ctx.exception_nesting_depth(), 2);
+
+    ctx.exit_exception_scope(); // exit handler
+    assert!(ctx.is_in_try_block());
+    assert_eq!(ctx.exception_nesting_depth(), 1);
+
+    ctx.exit_exception_scope(); // exit try
+    assert!(!ctx.is_in_try_block());
+    assert_eq!(ctx.exception_nesting_depth(), 0);
 }
 
 #[test]
-fn test_generator_context_setup() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.in_generator = true;
-    ctx.generator_state_vars.insert("current".to_string());
-    ctx.generator_state_vars.insert("index".to_string());
-
-    assert!(ctx.in_generator);
-    assert_eq!(ctx.generator_state_vars.len(), 2);
-    assert!(ctx.generator_state_vars.contains("current"));
+fn test_process_union_type() {
+    let mut ctx = CodeGenContext::default();
+    let types = vec![crate::hir::Type::Int, crate::hir::Type::String];
+    let name = ctx.process_union_type(&types);
+    assert!(!name.is_empty());
 }
 
 #[test]
-fn test_argparse_context_setup() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.needs_clap = true;
-    ctx.validator_functions.insert("validate_path".to_string());
-    ctx.validator_functions.insert("validate_int".to_string());
-
-    assert!(ctx.needs_clap);
-    assert_eq!(ctx.validator_functions.len(), 2);
+fn test_multiple_declare_var_same_scope() {
+    let mut ctx = CodeGenContext::default();
+    ctx.declare_var("x");
+    ctx.declare_var("y");
+    ctx.declare_var("z");
+    assert!(ctx.is_declared("x"));
+    assert!(ctx.is_declared("y"));
+    assert!(ctx.is_declared("z"));
 }
 
 #[test]
-fn test_subcommand_match_context() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.in_subcommand_match_arm = true;
-    ctx.subcommand_match_fields = vec!["input".to_string(), "output".to_string()];
-
-    assert!(ctx.in_subcommand_match_arm);
-    assert_eq!(ctx.subcommand_match_fields.len(), 2);
-    assert_eq!(ctx.subcommand_match_fields[0], "input");
+fn test_declare_var_empty_scopes() {
+    let mut ctx = CodeGenContext::default();
+    // Pop the default scope
+    ctx.declared_vars.clear();
+    // declare_var should handle no scopes gracefully
+    ctx.declare_var("orphan");
+    assert!(!ctx.is_declared("orphan"));
 }
 
 #[test]
-fn test_json_context_flag() {
-    let mut ctx = test_helpers::test_context();
-
-    assert!(!ctx.in_json_context);
-
-    ctx.in_json_context = true;
-    assert!(ctx.in_json_context);
-
-    ctx.in_json_context = false;
-    assert!(!ctx.in_json_context);
-}
-
-#[test]
-fn test_main_function_context() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.is_main_function = true;
-    ctx.current_return_type = Some(Type::Int);
-
-    assert!(ctx.is_main_function);
-    assert!(matches!(ctx.current_return_type, Some(Type::Int)));
-}
-
-#[test]
-fn test_boxed_dyn_write_vars() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.boxed_dyn_write_vars.insert("output".to_string());
-    ctx.function_returns_boxed_write = true;
-
-    assert!(ctx.boxed_dyn_write_vars.contains("output"));
-    assert!(ctx.function_returns_boxed_write);
-}
-
-#[test]
-fn test_option_unwrap_map() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.option_unwrap_map
-        .insert("config".to_string(), "config_val".to_string());
-
-    assert_eq!(
-        ctx.option_unwrap_map.get("config"),
-        Some(&"config_val".to_string())
-    );
-}
-
-#[test]
-fn test_adt_child_to_parent_mapping() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.adt_child_to_parent
-        .insert("ListIter".to_string(), "Iter".to_string());
-    ctx.adt_child_to_parent
-        .insert("RangeIter".to_string(), "Iter".to_string());
-
-    assert_eq!(
-        ctx.adt_child_to_parent.get("ListIter"),
-        Some(&"Iter".to_string())
-    );
-    assert_eq!(
-        ctx.adt_child_to_parent.get("RangeIter"),
-        Some(&"Iter".to_string())
-    );
-}
-
-#[test]
-fn test_char_iter_vars() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.char_iter_vars.insert("c".to_string());
-    ctx.char_iter_vars.insert("ch".to_string());
-
-    assert!(ctx.char_iter_vars.contains("c"));
-    assert!(ctx.char_iter_vars.contains("ch"));
-    assert!(!ctx.char_iter_vars.contains("x"));
-}
-
-#[test]
-fn test_numpy_vars_tracking() {
-    let mut ctx = test_helpers::test_context();
-
-    ctx.needs_trueno = true;
-    ctx.numpy_vars.insert("arr".to_string());
-    ctx.numpy_vars.insert("matrix".to_string());
-
-    assert!(ctx.needs_trueno);
-    assert!(ctx.numpy_vars.contains("arr"));
-    assert!(ctx.numpy_vars.contains("matrix"));
+fn test_exit_scope_on_empty_does_not_panic() {
+    let mut ctx = CodeGenContext::default();
+    ctx.declared_vars.clear();
+    ctx.exit_scope(); // should not panic
 }

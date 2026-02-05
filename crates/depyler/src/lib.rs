@@ -20,6 +20,7 @@ pub mod lint_cmd;
 pub mod report_cmd;
 pub mod report_shim;
 pub mod transpile_shim;
+pub mod score_cmd;
 pub mod utol_cmd;
 
 // DEPYLER-1202: Trait Bridge for Python method compatibility
