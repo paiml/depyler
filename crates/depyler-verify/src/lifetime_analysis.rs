@@ -1484,4 +1484,614 @@ mod tests {
         let violations = analyzer.analyze_function(&func);
         let _ = violations;
     }
+
+    // ========================================================================
+    // Session 11 - Deep Coverage Tests for Untested Code Paths
+    // ========================================================================
+
+    #[test]
+    fn test_conflicting_borrow_shared_then_mutable() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "conflict".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
+            ret_type: Type::None,
+            body: vec![
+                // First: shared borrow of x
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("x".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // Then: attempt mutable borrow of x → conflict
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("z".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("x".to_string())),
+                        mutable: true,
+                    },
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(!violations.is_empty());
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::ConflictingBorrows));
+    }
+
+    #[test]
+    fn test_conflicting_borrow_mutable_then_shared() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "conflict2".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
+            ret_type: Type::None,
+            body: vec![
+                // First: mutable borrow
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("x".to_string())),
+                        mutable: true,
+                    },
+                    type_annotation: None,
+                },
+                // Then: shared borrow → conflict (Mutable, _)
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("z".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("x".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(!violations.is_empty());
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::ConflictingBorrows));
+    }
+
+    #[test]
+    fn test_check_var_borrow_mutably_borrowed() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "var_borrow_conflict".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
+            ret_type: Type::None,
+            body: vec![
+                // Mutable borrow of x
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("x".to_string())),
+                        mutable: true,
+                    },
+                    type_annotation: None,
+                },
+                // Access x while mutably borrowed → conflict via check_var_borrow
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("z".to_string()),
+                    value: HirExpr::Var("x".to_string()),
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::ConflictingBorrows
+                && v.location == "variable access"));
+    }
+
+    #[test]
+    fn test_return_escaping_reference_from_loop() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "escape_loop".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("item".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![
+                    // Return borrow of loop var (scope_depth > 0) → EscapingReference
+                    HirStmt::Return(Some(HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("item".to_string())),
+                        mutable: false,
+                    })),
+                ],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::EscapingReference
+                && v.variable == "item"
+                && v.location == "return statement"));
+    }
+
+    #[test]
+    fn test_loop_borrow_invalidation() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "loop_invalidate".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
+            ret_type: Type::None,
+            body: vec![
+                // Create a shared borrow first
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("ref_x".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("x".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // While loop with assignment → check_loop_borrows sees active borrows
+                HirStmt::While {
+                    condition: HirExpr::Literal(Literal::Bool(true)),
+                    body: vec![HirStmt::Assign {
+                        target: AssignTarget::Symbol("y".to_string()),
+                        value: HirExpr::Literal(Literal::Int(1)),
+                        type_annotation: None,
+                    }],
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::LifetimeTooshort
+                && v.location == "loop body"));
+    }
+
+    #[test]
+    fn test_escaping_reference_from_inner_scope() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "escape_scope".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("item".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![
+                    // Pass loop var to function via Assign → marks as escaping
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("result".to_string()),
+                        value: HirExpr::Call {
+                            func: "process".to_string(),
+                            args: vec![HirExpr::Var("item".to_string())],
+                            kwargs: vec![],
+                        },
+                        type_annotation: None,
+                    },
+                ],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::EscapingReference
+                && v.variable == "item"
+                && v.location == "function scope"));
+    }
+
+    #[test]
+    fn test_index_on_borrowed_variable() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "index_borrow".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::Int,
+            body: vec![
+                // Borrow items
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("ref_items".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("items".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // Index into items while borrowed → conflict
+                HirStmt::Return(Some(HirExpr::Index {
+                    base: Box::new(HirExpr::Var("items".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::Int(0))),
+                })),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::ConflictingBorrows
+                && v.location == "indexing operation"));
+    }
+
+    #[test]
+    fn test_method_call_on_borrowed_variable() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "method_borrow".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![
+                // Borrow items
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("ref_items".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("items".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // Call mutating method on items while borrowed → conflict
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("_res".to_string()),
+                    value: HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("items".to_string())),
+                        method: "push".to_string(),
+                        args: vec![HirExpr::Literal(Literal::Int(1))],
+                        kwargs: vec![],
+                    },
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::ConflictingBorrows
+                && v.location.contains("method call")));
+    }
+
+    #[test]
+    fn test_mutating_call_on_borrowed_variable() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "mutating_call".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![
+                // Borrow items
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("ref_items".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("items".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // Call push with items as first arg → check_mutating_call
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("_res".to_string()),
+                    value: HirExpr::Call {
+                        func: "push".to_string(),
+                        args: vec![
+                            HirExpr::Var("items".to_string()),
+                            HirExpr::Literal(Literal::Int(42)),
+                        ],
+                        kwargs: vec![],
+                    },
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::ConflictingBorrows
+                && v.location.contains("method call: push")));
+    }
+
+    #[test]
+    fn test_use_after_move_in_assign() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "use_after_move".to_string(),
+            params: vec![HirParam::new(
+                "data".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![
+                // Pass data to function → marks as escaping (moved)
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("_consumed".to_string()),
+                    value: HirExpr::Call {
+                        func: "consume".to_string(),
+                        args: vec![HirExpr::Var("data".to_string())],
+                        kwargs: vec![],
+                    },
+                    type_annotation: None,
+                },
+                // Assign to moved variable → UseAfterMove
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("data".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::UseAfterMove && v.variable == "data"));
+    }
+
+    #[test]
+    fn test_can_borrow_shared_shared_ok() {
+        let analyzer = LifetimeAnalyzer {
+            active_borrows: vec![BorrowSet {
+                borrowed: {
+                    let mut m = HashMap::new();
+                    m.insert("x".to_string(), BorrowKind::Shared);
+                    m
+                },
+                scope_depth: 0,
+            }],
+            ..Default::default()
+        };
+        // Two shared borrows should be fine
+        assert!(analyzer.can_borrow("x", &BorrowKind::Shared));
+    }
+
+    #[test]
+    fn test_can_borrow_mutable_blocks_any() {
+        let analyzer = LifetimeAnalyzer {
+            active_borrows: vec![BorrowSet {
+                borrowed: {
+                    let mut m = HashMap::new();
+                    m.insert("x".to_string(), BorrowKind::Mutable);
+                    m
+                },
+                scope_depth: 0,
+            }],
+            ..Default::default()
+        };
+        assert!(!analyzer.can_borrow("x", &BorrowKind::Shared));
+        assert!(!analyzer.can_borrow("x", &BorrowKind::Mutable));
+    }
+
+    #[test]
+    fn test_can_borrow_unborrowed_always_ok() {
+        let analyzer = LifetimeAnalyzer {
+            active_borrows: vec![BorrowSet {
+                borrowed: HashMap::new(),
+                scope_depth: 0,
+            }],
+            ..Default::default()
+        };
+        assert!(analyzer.can_borrow("x", &BorrowKind::Shared));
+        assert!(analyzer.can_borrow("x", &BorrowKind::Mutable));
+    }
+
+    #[test]
+    fn test_multiple_violations_compound() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "compound".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![
+                // Borrow items
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("r".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("items".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // Index while borrowed → conflict
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("_idx".to_string()),
+                    value: HirExpr::Index {
+                        base: Box::new(HirExpr::Var("items".to_string())),
+                        index: Box::new(HirExpr::Literal(Literal::Int(0))),
+                    },
+                    type_annotation: None,
+                },
+                // Also try mutable borrow → conflict
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("m".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("items".to_string())),
+                        mutable: true,
+                    },
+                    type_annotation: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        // Should have multiple violations
+        assert!(violations.len() >= 2);
+    }
+
+    #[test]
+    fn test_for_iterator_invalidation_with_clear() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "iter_invalidate_clear".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("item".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "clear".to_string(),
+                    args: vec![HirExpr::Var("items".to_string())],
+                    kwargs: vec![],
+                })],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::DanglingReference));
+    }
+
+    #[test]
+    fn test_for_iterator_no_invalidation_with_read() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "iter_no_invalidate".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("item".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("items".to_string())],
+                    kwargs: vec![],
+                })],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        // len() doesn't invalidate the iterator
+        assert!(!violations
+            .iter()
+            .any(|v| v.kind == ViolationKind::DanglingReference));
+    }
+
+    #[test]
+    fn test_non_mutating_method_no_conflict() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "non_mutating".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![
+                // Borrow items
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("r".to_string()),
+                    value: HirExpr::Borrow {
+                        expr: Box::new(HirExpr::Var("items".to_string())),
+                        mutable: false,
+                    },
+                    type_annotation: None,
+                },
+                // Call non-mutating method → no conflict
+                HirStmt::Expr(HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("items".to_string())),
+                    method: "get".to_string(),
+                    args: vec![HirExpr::Literal(Literal::Int(0))],
+                    kwargs: vec![],
+                }),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        // "get" is not a mutating method, so no conflict from method_call
+        assert!(!violations
+            .iter()
+            .any(|v| v.location.contains("method call: get")));
+    }
+
+    #[test]
+    fn test_borrow_non_var_expr() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "borrow_literal".to_string(),
+            params: vec![].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Borrow {
+                expr: Box::new(HirExpr::Literal(Literal::Int(42))),
+                mutable: false,
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        // Borrowing a literal doesn't go through var-based borrow checking
+        assert!(violations.is_empty());
+    }
 }

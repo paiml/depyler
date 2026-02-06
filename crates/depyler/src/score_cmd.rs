@@ -1039,6 +1039,189 @@ use rand::Rng;
         );
         assert!(result.is_err());
     }
+
+    // ========================================================================
+    // Session 11 cont - Deep Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_cargo_errors_no_closing_bracket() {
+        // Malformed error code without closing bracket
+        let output = "error[E0308 some text without bracket";
+        let errors = parse_cargo_errors(output);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_unicode() {
+        let output = "error[E0308]: 不匹配的类型";
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E0308");
+    }
+
+    #[test]
+    fn test_format_human_perfect_scores() {
+        let report = CorpusScoreReport {
+            aggregate_score: 100.0,
+            grade: Grade::A,
+            results: vec![SingleShotResult {
+                file_path: PathBuf::from("perfect.py"),
+                score: SingleShotScore {
+                    total: 100,
+                    compilation: 40,
+                    type_inference: 25,
+                    test_coverage: 15,
+                    code_quality: 10,
+                    semantic_equivalence: 10,
+                    gateway_passed: true,
+                    mode: ScoringMode::Full,
+                },
+                category_breakdown: CategoryBreakdown {
+                    a1_parse: 10,
+                    a2_type_check: 15,
+                    a3_cargo_build: 15,
+                    b1_no_e0308: 10,
+                    b2_no_e0599: 10,
+                    b3_no_e0425: 5,
+                    c1_doctest: 5,
+                    c2_unit_test: 5,
+                    c3_property_test: 5,
+                    d1_clippy: 5,
+                    d2_tdg: 3,
+                    d3_complexity: 2,
+                    e1_trace_match: 5,
+                    e2_output_equiv: 5,
+                },
+                error_details: vec![],
+                transpiler_decisions: vec![],
+            }],
+            category_averages: CategoryBreakdown {
+                a1_parse: 10,
+                a2_type_check: 15,
+                a3_cargo_build: 15,
+                b1_no_e0308: 10,
+                b2_no_e0599: 10,
+                b3_no_e0425: 5,
+                c1_doctest: 5,
+                c2_unit_test: 5,
+                c3_property_test: 5,
+                d1_clippy: 5,
+                d2_tdg: 3,
+                d3_complexity: 2,
+                e1_trace_match: 5,
+                e2_output_equiv: 5,
+            },
+            top_blockers: vec![],
+        };
+        let output = format_human(&report);
+        assert!(output.contains("100.0"));
+        assert!(output.contains("Gateway passed: 1/1"));
+    }
+
+    #[test]
+    fn test_format_json_grade_variants() {
+        for (score, grade) in [
+            (95.0, Grade::A),
+            (85.0, Grade::B),
+            (70.0, Grade::C),
+            (50.0, Grade::D),
+            (20.0, Grade::F),
+        ] {
+            let report = CorpusScoreReport {
+                aggregate_score: score,
+                grade,
+                results: vec![],
+                category_averages: CategoryBreakdown {
+                    a1_parse: 0,
+                    a2_type_check: 0,
+                    a3_cargo_build: 0,
+                    b1_no_e0308: 0,
+                    b2_no_e0599: 0,
+                    b3_no_e0425: 0,
+                    c1_doctest: 0,
+                    c2_unit_test: 0,
+                    c3_property_test: 0,
+                    d1_clippy: 0,
+                    d2_tdg: 0,
+                    d3_complexity: 0,
+                    e1_trace_match: 0,
+                    e2_output_equiv: 0,
+                },
+                top_blockers: vec![],
+            };
+            let json_str = format_json(&report).unwrap();
+            let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+            assert!(parsed["grade"].is_string());
+        }
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_serde_without_json() {
+        let code = "use serde::Serialize;";
+        let toml = generate_cargo_toml_for_code(code);
+        assert!(toml.contains("serde"));
+        assert!(!toml.contains("serde_json"));
+    }
+
+    #[test]
+    fn test_parse_cargo_errors_multiline_output() {
+        let output = r#"
+   Compiling score_test v0.1.0 (/tmp/test)
+error[E0308]: mismatched types
+ --> src/lib.rs:3:10
+  |
+3 |     x + y
+  |     ^^^^^ expected `String`, found `i32`
+
+error[E0599]: no method named `bar` found for type `Foo` in the current scope
+ --> src/lib.rs:10:5
+  |
+10 |    foo.bar()
+  |        ^^^
+
+warning: unused import: `std::io`
+ --> src/lib.rs:1:5
+  |
+1 | use std::io;
+  |     ^^^^^^^
+
+error: aborting due to 2 previous errors
+"#;
+        let errors = parse_cargo_errors(output);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[0].code, "E0308");
+        assert_eq!(errors[1].code, "E0599");
+    }
+
+    #[test]
+    fn test_format_markdown_no_results() {
+        let report = CorpusScoreReport {
+            aggregate_score: 0.0,
+            grade: Grade::F,
+            results: vec![],
+            category_averages: CategoryBreakdown {
+                a1_parse: 0,
+                a2_type_check: 0,
+                a3_cargo_build: 0,
+                b1_no_e0308: 0,
+                b2_no_e0599: 0,
+                b3_no_e0425: 0,
+                c1_doctest: 0,
+                c2_unit_test: 0,
+                c3_property_test: 0,
+                d1_clippy: 0,
+                d2_tdg: 0,
+                d3_complexity: 0,
+                e1_trace_match: 0,
+                e2_output_equiv: 0,
+            },
+            top_blockers: vec![],
+        };
+        let md = format_markdown(&report);
+        assert!(md.contains("| A. Compilation |"));
+        assert!(md.contains("**Gateway passed**: 0/0"));
+    }
 }
 
 /// Handle the score command

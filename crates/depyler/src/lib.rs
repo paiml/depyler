@@ -914,4 +914,71 @@ mod tests {
             panic!("Expected Cache Warm");
         }
     }
+
+    // ========================================================================
+    // Session 11 - Deep Coverage Tests
+    // ========================================================================
+
+    #[test]
+    fn test_complexity_rating_infinity() {
+        let rating = complexity_rating(f64::INFINITY);
+        assert!(rating.to_string().contains("High"));
+    }
+
+    #[test]
+    fn test_complexity_rating_large() {
+        let rating = complexity_rating(1e10);
+        assert!(rating.to_string().contains("High"));
+    }
+
+    #[test]
+    fn test_complexity_rating_nan() {
+        // NaN < 10.0 is false, NaN < 20.0 is false, falls through to High
+        let rating = complexity_rating(f64::NAN);
+        assert!(rating.to_string().contains("High"));
+    }
+
+    #[test]
+    fn test_transpile_command_with_cargo_toml() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("lib_test.py");
+        fs::write(
+            &py_file,
+            "def add(a: int, b: int) -> int:\n    return a + b\n",
+        )
+        .unwrap();
+
+        let output = temp.path().join("lib_test.rs");
+        let result = transpile_command(py_file, Some(output.clone()), false, false, false, false);
+        assert!(result.is_ok());
+        assert!(output.exists());
+        // Cargo.toml should be generated alongside the output
+        let cargo_toml = temp.path().join("Cargo.toml");
+        assert!(cargo_toml.exists());
+    }
+
+    #[test]
+    fn test_check_command_invalid_syntax() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad_syntax.py");
+        fs::write(&py_file, "def @@@invalid syntax!!!").unwrap();
+
+        let result = check_command(py_file);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_analyze_command_unknown_format() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("analyze.py");
+        fs::write(
+            &py_file,
+            "def add(a: int, b: int) -> int:\n    return a + b\n",
+        )
+        .unwrap();
+
+        // Unknown format falls through to debug print
+        let result = analyze_command(py_file, "xml".to_string());
+        assert!(result.is_ok());
+    }
 }
