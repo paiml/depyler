@@ -1360,4 +1360,191 @@ def main():
         assert_eq!(builder.offset_to_line(4), 3); // 'c'
         assert_eq!(builder.offset_to_line(8), 5); // 'e'
     }
+
+    // ========================================================================
+    // S12: Deep coverage tests for builder
+    // ========================================================================
+
+    #[test]
+    fn test_s12_calls_in_dict_keys_and_values() {
+        let python = r#"
+def key_fn():
+    return "k"
+
+def val_fn():
+    return 42
+
+def main():
+    d = {key_fn(): val_fn()}
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        let names: Vec<&str> = out.iter().map(|(n, _)| n.id.as_str()).collect();
+        assert!(names.contains(&"key_fn"), "Missing key_fn edge");
+        assert!(names.contains(&"val_fn"), "Missing val_fn edge");
+    }
+
+    #[test]
+    fn test_s12_calls_in_list_multiple() {
+        let python = r#"
+def a():
+    return 1
+def b():
+    return 2
+def main():
+    items = [a(), b(), 3]
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "a"));
+        assert!(out.iter().any(|(n, _)| n.id == "b"));
+    }
+
+    #[test]
+    fn test_s12_calls_in_compare_multiple_comparators() {
+        // a < b() < c() -- multiple comparators
+        let python = r#"
+def lower():
+    return 1
+def upper():
+    return 10
+def main():
+    if lower() < 5 < upper():
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        let names: Vec<&str> = out.iter().map(|(n, _)| n.id.as_str()).collect();
+        assert!(names.contains(&"lower"));
+        assert!(names.contains(&"upper"));
+    }
+
+    #[test]
+    fn test_s12_attribute_call_detection() {
+        // self.method() style calls
+        let python = r#"
+class Foo:
+    def helper(self):
+        return 1
+
+    def caller(self):
+        x = self.helper()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        // Verify class and methods are parsed
+        assert!(graph.get_node("Foo").is_some());
+        assert!(graph.get_node("Foo.helper").is_some());
+        assert!(graph.get_node("Foo.caller").is_some());
+    }
+
+    #[test]
+    fn test_s12_empty_class_body() {
+        let python = r#"
+class Empty:
+    pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        assert!(graph.get_node("Empty").is_some());
+        assert_eq!(graph.get_node("Empty").unwrap().kind, NodeKind::Class);
+    }
+
+    #[test]
+    fn test_s12_class_no_bases() {
+        let python = r#"
+class Standalone:
+    def method(self):
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        // No inheritance edges
+        let edges = graph.outgoing_edges("Standalone");
+        assert!(edges.iter().all(|(_, e)| e.kind != EdgeKind::Inherits));
+    }
+
+    #[test]
+    fn test_s12_from_import_not_tracked() {
+        // from-imports (ImportFrom) are not currently tracked as module nodes
+        // Only `import X` creates module nodes
+        let python = "from os import path\n\ndef foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        // from-import falls into _ => {} catch-all, so no import node
+        assert!(graph.get_node("import:os").is_none());
+        // But function should still be tracked
+        assert!(graph.get_node("foo").is_some());
+    }
+
+    #[test]
+    fn test_s12_graph_node_serde() {
+        let node = GraphNode {
+            id: "test".to_string(),
+            kind: NodeKind::Variable,
+            file: std::path::PathBuf::from("file.py"),
+            line: 42,
+            column: 8,
+            error_count: 3,
+            impact_score: 1.5,
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let back: GraphNode = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.kind, NodeKind::Variable);
+        assert_eq!(back.line, 42);
+        assert_eq!(back.error_count, 3);
+    }
+
+    #[test]
+    fn test_s12_edge_kind_all_variants_serde() {
+        for kind in [
+            EdgeKind::Calls,
+            EdgeKind::Imports,
+            EdgeKind::Inherits,
+            EdgeKind::Accesses,
+            EdgeKind::References,
+        ] {
+            let json = serde_json::to_string(&kind).unwrap();
+            let back: EdgeKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(kind, back);
+        }
+    }
+
+    #[test]
+    fn test_s12_node_kind_all_variants_serde() {
+        for kind in [
+            NodeKind::Function,
+            NodeKind::Class,
+            NodeKind::Method,
+            NodeKind::Module,
+            NodeKind::Variable,
+        ] {
+            let json = serde_json::to_string(&kind).unwrap();
+            let back: NodeKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(kind, back);
+        }
+    }
+
+    #[test]
+    fn test_s12_deeply_nested_call_chain() {
+        let python = r#"
+def d():
+    return 1
+def c():
+    return d()
+def b():
+    return c()
+def a():
+    return b()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        assert_eq!(graph.edge_count(), 3); // a->b, b->c, c->d
+        let d_incoming = graph.incoming_edges("d");
+        assert_eq!(d_incoming.len(), 1);
+        assert_eq!(d_incoming[0].0.id, "c");
+    }
 }

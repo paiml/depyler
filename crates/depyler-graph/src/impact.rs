@@ -690,4 +690,285 @@ def c():
         let c_pr = scores.iter().find(|s| s.node_id == "c").unwrap().pagerank_score;
         assert!(c_pr >= a_pr, "c should have higher pagerank than a");
     }
+
+    // ========================================================================
+    // S12: Deep coverage tests for impact scoring
+    // ========================================================================
+
+    #[test]
+    fn test_s12_pagerank_with_cycle() {
+        // a -> b -> a (cyclic dependency)
+        let python = r#"
+def a():
+    return b()
+
+def b():
+    return a()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors).with_iterations(50);
+        let scores = scorer.calculate_impact();
+
+        // Both nodes should have valid (non-NaN, non-negative) scores
+        for score in &scores {
+            assert!(!score.pagerank_score.is_nan(), "NaN pagerank for {}", score.node_id);
+            assert!(score.pagerank_score >= 0.0, "Negative pagerank for {}", score.node_id);
+        }
+    }
+
+    #[test]
+    fn test_s12_pagerank_zero_damping() {
+        // With damping=0, all nodes should get equal scores = 1/n
+        let python = r#"
+def a():
+    return b()
+def b():
+    return 1
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors)
+            .with_damping(0.0)
+            .with_iterations(20);
+        let scores = scorer.calculate_impact();
+
+        // With damping=0, pagerank = (1-0)/n = 1/n for all nodes
+        let n = scores.len() as f64;
+        for score in &scores {
+            let expected = 1.0 / n;
+            assert!(
+                (score.pagerank_score - expected).abs() < 0.01,
+                "Node {} expected pagerank ~{}, got {}",
+                score.node_id, expected, score.pagerank_score
+            );
+        }
+    }
+
+    #[test]
+    fn test_s12_pagerank_max_damping() {
+        let python = r#"
+def source():
+    return sink()
+def sink():
+    return 1
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors)
+            .with_damping(1.0)
+            .with_iterations(50);
+        let scores = scorer.calculate_impact();
+
+        for score in &scores {
+            assert!(!score.pagerank_score.is_nan());
+            assert!(score.pagerank_score >= 0.0);
+        }
+    }
+
+    #[test]
+    fn test_s12_sink_node_pagerank() {
+        // Sink node has no outgoing edges; should converge correctly
+        let python = r#"
+def caller():
+    return sink()
+def sink():
+    return 42
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors).with_iterations(100);
+        let scores = scorer.calculate_impact();
+
+        let sink_score = scores.iter().find(|s| s.node_id == "sink").unwrap();
+        assert!(sink_score.pagerank_score > 0.0, "Sink node should have positive pagerank");
+    }
+
+    #[test]
+    fn test_s12_self_referencing_node() {
+        // Recursive function: a calls itself
+        let python = r#"
+def recursive():
+    return recursive()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors: Vec<OverlaidError> = vec![];
+        let scorer = ImpactScorer::new(&graph, &errors).with_iterations(20);
+        let scores = scorer.calculate_impact();
+
+        assert_eq!(scores.len(), 1);
+        assert!(!scores[0].pagerank_score.is_nan());
+        assert!(scores[0].pagerank_score > 0.0);
+    }
+
+    #[test]
+    fn test_s12_downstream_errors_multiple_callers() {
+        let python = r#"
+def target():
+    return 1
+
+def caller_a():
+    return target()
+
+def caller_b():
+    return target()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        // Both callers have errors
+        let overlaid = vec![
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "a".to_string(),
+                rust_line: 1,
+                python_line_estimate: 4,
+                node_id: Some("caller_a".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "b".to_string(),
+                rust_line: 2,
+                python_line_estimate: 7,
+                node_id: Some("caller_b".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+        ];
+
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+
+        // target has both callers as incoming, each with 1 error -> downstream = 2
+        let target_score = scores.iter().find(|s| s.node_id == "target").unwrap();
+        assert_eq!(target_score.downstream_errors, 2);
+    }
+
+    #[test]
+    fn test_s12_patient_zero_top_n_zero() {
+        let python = "def a():\n    return 1\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlaid = vec![OverlaidError {
+            code: "E0308".to_string(),
+            message: "e".to_string(),
+            rust_line: 1,
+            python_line_estimate: 1,
+            node_id: Some("a".to_string()),
+            association_confidence: 0.9,
+            upstream_suspects: vec![],
+        }];
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        let pzs = scorer.identify_patient_zeros(&scores, 0);
+        assert!(pzs.is_empty());
+    }
+
+    #[test]
+    fn test_s12_patient_zero_top_n_exceeds_nodes() {
+        let python = "def single():\n    return 1\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlaid = vec![OverlaidError {
+            code: "E0308".to_string(),
+            message: "e".to_string(),
+            rust_line: 1,
+            python_line_estimate: 1,
+            node_id: Some("single".to_string()),
+            association_confidence: 0.9,
+            upstream_suspects: vec![],
+        }];
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        // Request 100 patient zeros but only 1 node with positive impact
+        let pzs = scorer.identify_patient_zeros(&scores, 100);
+        assert!(pzs.len() <= scores.len());
+    }
+
+    #[test]
+    fn test_s12_impact_total_formula() {
+        // total = direct + 0.5 * downstream + 10 * pagerank * max(direct, 1)
+        let python = "def only():\n    return 1\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlaid = vec![
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "e1".to_string(),
+                rust_line: 1,
+                python_line_estimate: 1,
+                node_id: Some("only".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "e2".to_string(),
+                rust_line: 2,
+                python_line_estimate: 1,
+                node_id: Some("only".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+        ];
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        let only = scores.iter().find(|s| s.node_id == "only").unwrap();
+        assert_eq!(only.direct_errors, 2);
+        // total = 2 + 0.5*0 + 10 * pagerank * max(2, 1) = 2 + 20*pagerank
+        let expected = 2.0 + 10.0 * only.pagerank_score * 2.0;
+        assert!((only.total_impact - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_s12_patient_zero_estimated_fix_impact() {
+        let python = r#"
+def root():
+    return 1
+def user():
+    return root()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlaid = vec![
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "e1".to_string(),
+                rust_line: 1,
+                python_line_estimate: 2,
+                node_id: Some("root".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "e2".to_string(),
+                rust_line: 2,
+                python_line_estimate: 4,
+                node_id: Some("user".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+        ];
+        let scorer = ImpactScorer::new(&graph, &overlaid);
+        let scores = scorer.calculate_impact();
+        let pzs = scorer.identify_patient_zeros(&scores, 5);
+        for pz in &pzs {
+            // estimated_fix_impact = direct_errors + downstream_errors
+            let score = scores.iter().find(|s| s.node_id == pz.node_id).unwrap();
+            assert_eq!(pz.estimated_fix_impact, score.direct_errors + score.downstream_errors);
+        }
+    }
 }
