@@ -570,4 +570,61 @@ mod tests {
         // all_files returns stubs when available
         assert_eq!(result.all_files().len(), 2);
     }
+
+    // ===== Session 12 Batch 30: Additional harvester tests =====
+
+    #[test]
+    fn test_s12_harvest_result_no_stubs() {
+        let result = HarvestResult {
+            package: "simple".to_string(),
+            root: PathBuf::from("/tmp/simple"),
+            stub_files: vec![],
+            source_files: vec![
+                PathBuf::from("simple/__init__.py"),
+                PathBuf::from("simple/core.py"),
+            ],
+            has_types_package: false,
+        };
+        assert!(!result.has_stubs());
+        // all_files falls back to source files
+        assert_eq!(result.all_files().len(), 2);
+    }
+
+    #[test]
+    fn test_s12_harvest_result_empty() {
+        let result = HarvestResult {
+            package: "empty".to_string(),
+            root: PathBuf::from("/tmp/empty"),
+            stub_files: vec![],
+            source_files: vec![],
+            has_types_package: false,
+        };
+        assert!(!result.has_stubs());
+        assert!(result.all_files().is_empty());
+    }
+
+    #[test]
+    fn test_s12_harvester_new() {
+        let dir = tempfile::tempdir().unwrap();
+        let harvester = Harvester::new(dir.path());
+        assert!(harvester.is_ok());
+        assert_eq!(harvester.unwrap().target_dir(), dir.path());
+    }
+
+    #[test]
+    fn test_s12_harvester_temp() {
+        let harvester = Harvester::temp();
+        assert!(harvester.is_ok());
+        let h = harvester.unwrap();
+        assert!(h.target_dir().exists());
+    }
+
+    #[test]
+    fn test_s12_harvester_cleanup() {
+        let harvester = Harvester::temp().unwrap();
+        let dir = harvester.target_dir().to_path_buf();
+        assert!(dir.exists());
+        harvester.cleanup();
+        assert!(!dir.exists());
+    }
 }
