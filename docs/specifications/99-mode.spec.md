@@ -3216,27 +3216,59 @@ Session 12 Batch 2 (86 tests, 2026-02-06):
   - Enumerate: basic, with start
   - Zip: two lists
 
-**Session 12 Total**: 267 new tests across 6 files (4 integration + 2 inline in 2 crates)
-**Grand Total**: 5,983+ tests across 142+ test files (Sessions 1-12)
+Session 12 Batch 3 (71 tests, 2026-02-06):
+- `crates/depyler-core/tests/string_methods_s12_test.rs` - 61 tests targeting the 354-line
+  uncovered block in expr_gen_instance_methods.rs (lines 1396-1750): 33 string methods,
+  12 set operations, dict/list patterns, Counter, file I/O, bytes decode
+- `crates/depyler-annotations/src/lib.rs` - 10 inline tests for AnnotationExtractor
+  (extract_function_annotations/extract_class_annotations: found/not_found/wrong_name/
+  multiple/parent class scenarios)
+
+Session 12 Batch 4 (91 tests, 2026-02-06):
+- `crates/depyler-graph/src/impact.rs` - 10 inline: cyclic PageRank, zero/max damping,
+  sink nodes, self-reference, formula validation, top_n edge cases
+- `crates/depyler-graph/src/builder.rs` - 11 inline: dict key/value calls, multi-comparator,
+  attribute calls, empty class, from-import tracking, serde roundtrips
+- `crates/depyler-graph/src/error_overlay.rs` - 6 inline: confidence boundary, equidistant
+  nodes, inheritance suspects, line estimate preservation
+- `crates/depyler-graph/src/vectorize.rs` - 8 inline: node_id graph context, error
+  classification priority, NDJSON roundtrip, multiple mixed errors
+- `crates/depyler-graph/src/lib.rs` - 6 inline: imports-only analysis, large error count,
+  inheritance chain, full serde roundtrip, error source trait
+- `crates/depyler-knowledge/src/extractor.rs` - 8 inline: no-params function, no-return-type,
+  self exclusion, class attribute FQN, generic subscript, private filtering
+- `crates/depyler-core/tests/rust_gen_constants_s12_test.rs` - 42 transpile: module constants
+  (int/float/string/bool/negative/list/dict/set/tuple), async functions, try/except,
+  generators, nested functions, complex programs
+
+Session 12 Batch 5 (91 tests, 2026-02-06):
+- `crates/depyler-core/tests/direct_rules_deep_s12_test.rs` - 91 transpile: string methods
+  (13 via catch-all), float floor division, in/not-in operators (5 container types),
+  bitwise ops (6), augmented bitwise assignments (8), complex slices (4), chained
+  comparisons (2), dict ops (7), list ops (7), set ops (5), type conversions (4),
+  math builtins (8), string formatting (3), comprehensions (8), power/unary ops (5)
+
+**Session 12 Total**: 520 new tests across 12 files (7 integration + 5 inline in 4 crates)
+**Grand Total**: 6,236+ tests across 148+ test files (Sessions 1-12)
 
 ### 12.4 Coverage Impact
 
-| Metric | Pre-S12 | Post-S12 (projected) |
+| Metric | Pre-S12 | Post-S12 (estimated) |
 |--------|---------|---------------------|
-| Region Coverage | 89.27% | ~90%+ |
+| Region Coverage | 89.27% | ~90-91%+ |
 | Branch Coverage | 94.84% | ~95%+ |
-| Line Coverage | 89.98% | ~90%+ |
-| Lib Tests | 13,195+ | 13,462+ |
-| Workspace Tests | 16,693+ | 16,960+ |
+| Line Coverage | 89.98% | ~91%+ |
+| Lib Tests | 13,195+ | 13,715+ |
+| Workspace Tests | 16,693+ | 17,213+ |
 
 ### 12.5 CI Health (2026-02-06)
 
 | Check | Status | Notes |
 |-------|--------|-------|
 | cargo clippy | PASS | Zero warnings |
-| cargo test | PASS | 13,462+ lib tests, zero failures |
-| Integration tests | PASS | 267 new S12 tests all passing |
-| Coverage | 89.27%+ | Region coverage (pre-S12 baseline) |
+| cargo test | PASS | 13,715+ lib tests, zero failures |
+| Integration tests | PASS | 520 new S12 tests all passing |
+| Coverage | 89.27%+ | Region coverage (pre-S12 baseline, measurement pending) |
 | Branch Coverage | 94.84%+ | Branch coverage |
 | Line Coverage | 89.98%+ | Line coverage |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
