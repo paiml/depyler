@@ -3195,4 +3195,139 @@ def full_function():
         let lambda = result.lambda_annotations.unwrap();
         assert!(lambda.custom_serialization);
     }
+
+    // === Session 12: AnnotationExtractor tests ===
+
+    #[test]
+    fn test_s12_extract_function_annotations_found() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+# @depyler: ownership = "borrowed"
+def my_func(x: int) -> int:
+    return x + 1
+"#;
+        let result = extractor.extract_function_annotations(source, "my_func");
+        assert!(result.is_some(), "Expected to find annotations for my_func");
+        assert!(result.unwrap().contains("@depyler: ownership"));
+    }
+
+    #[test]
+    fn test_s12_extract_function_annotations_not_found() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+def my_func(x: int) -> int:
+    return x + 1
+"#;
+        let result = extractor.extract_function_annotations(source, "my_func");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s12_extract_function_annotations_wrong_name() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+# @depyler: ownership = "borrowed"
+def other_func(x: int) -> int:
+    return x + 1
+"#;
+        let result = extractor.extract_function_annotations(source, "my_func");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s12_extract_function_annotations_multiple() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+# @depyler: ownership = "borrowed"
+# @depyler: string_strategy = "zero_copy"
+def my_func(x: int) -> int:
+    return x + 1
+"#;
+        let result = extractor.extract_function_annotations(source, "my_func");
+        assert!(result.is_some());
+        let anno = result.unwrap();
+        assert!(anno.contains("ownership"));
+        assert!(anno.contains("string_strategy"));
+    }
+
+    #[test]
+    fn test_s12_extract_class_annotations_found() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+# @depyler: ownership = "owned"
+class MyClass:
+    def __init__(self):
+        pass
+"#;
+        let result = extractor.extract_class_annotations(source, "MyClass");
+        assert!(result.is_some(), "Expected to find annotations for MyClass");
+        assert!(result.unwrap().contains("@depyler: ownership"));
+    }
+
+    #[test]
+    fn test_s12_extract_class_annotations_not_found() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+class MyClass:
+    pass
+"#;
+        let result = extractor.extract_class_annotations(source, "MyClass");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s12_extract_class_annotations_with_parent() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+# @depyler: ownership = "borrowed"
+class Child(Parent):
+    pass
+"#;
+        let result = extractor.extract_class_annotations(source, "Child");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s12_extract_function_at_start_of_file() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"# @depyler: ownership = "borrowed"
+def first_func():
+    pass
+"#;
+        let result = extractor.extract_function_annotations(source, "first_func");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s12_extractor_default() {
+        let extractor = AnnotationExtractor::default();
+        let source = "def foo():\n    pass\n";
+        let result = extractor.extract_function_annotations(source, "foo");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s12_extract_function_among_many() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"
+def func_a():
+    pass
+
+# @depyler: bounds_checking = "explicit"
+def func_b():
+    pass
+
+def func_c():
+    pass
+"#;
+        let result = extractor.extract_function_annotations(source, "func_b");
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("bounds_checking"));
+
+        let result_a = extractor.extract_function_annotations(source, "func_a");
+        assert!(result_a.is_none());
+
+        let result_c = extractor.extract_function_annotations(source, "func_c");
+        assert!(result_c.is_none());
+    }
 }
