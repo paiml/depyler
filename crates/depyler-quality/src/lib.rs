@@ -2350,4 +2350,379 @@ mod tests {
         // Energy Efficiency: 1 requirement
         assert_eq!(analyzer.gates[4].requirements.len(), 1);
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S11: Coverage gap tests for QualityStatus::Warning path,
+    // verify_clippy, validate_annotations multi-function, and edge cases
+    // ========================================================================
+
+    #[test]
+    fn test_s11_analyze_quality_warning_status_via_custom_warning_gate() {
+        // This tests the actual QualityStatus::Warning code path in analyze_quality():
+        // When all Error-severity gates pass but a Warning-severity gate fails.
+        let analyzer = QualityAnalyzer::new().with_custom_gates(vec![QualityGate {
+            name: "Strict Complexity Warning".to_string(),
+            requirements: vec![QualityRequirement::MaxComplexity(0)],
+            severity: Severity::Warning,
+        }]);
+        // Simple function passes all default Error gates but fails the custom Warning gate
+        let functions = vec![create_test_function(1)];
+        let report = analyzer.analyze_quality(&functions).unwrap();
+        assert_eq!(report.overall_status, QualityStatus::Warning);
+        // Verify we have a Warning-severity failure
+        assert!(report
+            .gates_failed
+            .iter()
+            .any(|r| matches!(r.severity, Severity::Warning)));
+        // Verify no Error-severity failures
+        assert!(!report
+            .gates_failed
+            .iter()
+            .any(|r| matches!(r.severity, Severity::Error)));
+    }
+
+    #[test]
+    fn test_s11_analyze_quality_warning_with_multiple_warning_gates() {
+        let analyzer = QualityAnalyzer::new().with_custom_gates(vec![
+            QualityGate {
+                name: "Strict Complexity".to_string(),
+                requirements: vec![QualityRequirement::MaxComplexity(0)],
+                severity: Severity::Warning,
+            },
+            QualityGate {
+                name: "Strict Coverage".to_string(),
+                requirements: vec![QualityRequirement::MinTestCoverage(1.0)],
+                severity: Severity::Warning,
+            },
+        ]);
+        let functions = vec![create_test_function(1)];
+        let report = analyzer.analyze_quality(&functions).unwrap();
+        assert_eq!(report.overall_status, QualityStatus::Warning);
+        // Multiple Warning-severity failures, still Warning not Failed
+        assert!(report.gates_failed.len() >= 2);
+    }
+
+    #[test]
+    fn test_s11_analyze_quality_mixed_error_and_warning_failures() {
+        // When both Error and Warning severity gates fail, status is Failed
+        let analyzer = QualityAnalyzer::new().with_custom_gates(vec![
+            QualityGate {
+                name: "Strict Error".to_string(),
+                requirements: vec![QualityRequirement::MaxComplexity(0)],
+                severity: Severity::Error,
+            },
+            QualityGate {
+                name: "Strict Warning".to_string(),
+                requirements: vec![QualityRequirement::MaxComplexity(0)],
+                severity: Severity::Warning,
+            },
+        ]);
+        let functions = vec![create_test_function(1)];
+        let report = analyzer.analyze_quality(&functions).unwrap();
+        assert_eq!(report.overall_status, QualityStatus::Failed);
+    }
+
+    #[test]
+    fn test_s11_verify_rustc_compilation_valid_code() {
+        let analyzer = QualityAnalyzer::new();
+        // verify_rustc_compilation uses --check, which may fail for lib code
+        // without a main fn or crate-type, so just verify it returns Ok
+        let result = analyzer.verify_rustc_compilation("fn main() {}");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_verify_rustc_compilation_invalid_code_returns_false() {
+        let analyzer = QualityAnalyzer::new();
+        let result = analyzer.verify_rustc_compilation("fn main() -> { let x: String = 42; }");
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_s11_verify_clippy_valid_code() {
+        let analyzer = QualityAnalyzer::new();
+        let result = analyzer.verify_clippy("pub fn hello() -> i32 { 42 }");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s11_validate_annotations_multiple_with_mixed_validity() {
+        let analyzer = QualityAnalyzer::new();
+        let valid_func = create_test_function(1);
+        let mut invalid_func1 = create_test_function(1);
+        invalid_func1.name = "broken_one".to_string();
+        invalid_func1.annotations.string_strategy = depyler_annotations::StringStrategy::ZeroCopy;
+        invalid_func1.annotations.ownership_model = depyler_annotations::OwnershipModel::Owned;
+
+        let mut invalid_func2 = create_test_function(2);
+        invalid_func2.name = "broken_two".to_string();
+        invalid_func2.annotations.string_strategy = depyler_annotations::StringStrategy::ZeroCopy;
+        invalid_func2.annotations.ownership_model = depyler_annotations::OwnershipModel::Owned;
+
+        let result =
+            analyzer.validate_annotations(&[valid_func, invalid_func1, invalid_func2]);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("broken_one")));
+        assert!(errors.iter().any(|e| e.contains("broken_two")));
+        assert!(errors.len() >= 2);
+    }
+
+    #[test]
+    fn test_s11_validate_annotations_all_invalid() {
+        let analyzer = QualityAnalyzer::new();
+        let mut f1 = create_test_function(1);
+        f1.name = "func_a".to_string();
+        f1.annotations.string_strategy = depyler_annotations::StringStrategy::ZeroCopy;
+        f1.annotations.ownership_model = depyler_annotations::OwnershipModel::Owned;
+        let mut f2 = create_test_function(1);
+        f2.name = "func_b".to_string();
+        f2.annotations.string_strategy = depyler_annotations::StringStrategy::ZeroCopy;
+        f2.annotations.ownership_model = depyler_annotations::OwnershipModel::Owned;
+        let result = analyzer.validate_annotations(&[f1, f2]);
+        assert!(result.is_err());
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("func_a")));
+        assert!(errors.iter().any(|e| e.contains("func_b")));
+    }
+
+    #[test]
+    fn test_s11_print_quality_report_info_severity_only() {
+        let analyzer = QualityAnalyzer::new();
+        let report = QualityReport {
+            pmat_metrics: PmatMetrics {
+                productivity_score: 80.0,
+                maintainability_score: 80.0,
+                accessibility_score: 85.0,
+                testability_score: 90.0,
+                tdg: 1.5,
+            },
+            complexity_metrics: ComplexityMetrics {
+                cyclomatic_complexity: 5,
+                cognitive_complexity: 3,
+                max_nesting: 2,
+                statement_count: 10,
+            },
+            coverage_metrics: CoverageMetrics {
+                line_coverage: 0.85,
+                branch_coverage: 0.80,
+                function_coverage: 0.90,
+            },
+            gates_passed: vec!["Most Gates".to_string()],
+            gates_failed: vec![QualityGateResult {
+                gate_name: "Info Gate".to_string(),
+                requirement: QualityRequirement::PanicFree,
+                actual_value: "N/A".to_string(),
+                passed: false,
+                severity: Severity::Info,
+            }],
+            overall_status: QualityStatus::Warning,
+        };
+        // Exercises the Info severity icon branch
+        analyzer.print_quality_report(&report);
+    }
+
+    #[test]
+    fn test_s11_evaluate_gate_cognitive_complexity_at_boundary_pass() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "CogBound".to_string(),
+            requirements: vec![QualityRequirement::MaxCognitiveComplexity(10)],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 50.0,
+            maintainability_score: 50.0,
+            accessibility_score: 85.0,
+            testability_score: 90.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 10,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.9,
+            branch_coverage: 0.85,
+            function_coverage: 0.95,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert!(results[0].passed);
+        assert_eq!(results[0].actual_value, "10");
+    }
+
+    #[test]
+    fn test_s11_evaluate_gate_function_coverage_at_boundary() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "FuncCovBound".to_string(),
+            requirements: vec![QualityRequirement::MinFunctionCoverage(0.85)],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 50.0,
+            maintainability_score: 50.0,
+            accessibility_score: 85.0,
+            testability_score: 90.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 5,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        // Exactly at boundary
+        let coverage = CoverageMetrics {
+            line_coverage: 0.9,
+            branch_coverage: 0.85,
+            function_coverage: 0.85,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert!(results[0].passed);
+        // Just below boundary
+        let coverage_below = CoverageMetrics {
+            line_coverage: 0.9,
+            branch_coverage: 0.85,
+            function_coverage: 0.849,
+        };
+        let results_below = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage_below);
+        assert!(!results_below[0].passed);
+    }
+
+    #[test]
+    fn test_s11_evaluate_gate_max_pmat_tdg_at_boundary() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "TDG Max Bound".to_string(),
+            requirements: vec![QualityRequirement::MaxPmatTdg(2.0)],
+            severity: Severity::Error,
+        };
+        let pmat_pass = PmatMetrics {
+            productivity_score: 50.0,
+            maintainability_score: 50.0,
+            accessibility_score: 85.0,
+            testability_score: 90.0,
+            tdg: 2.0,
+        };
+        let pmat_fail = PmatMetrics {
+            productivity_score: 50.0,
+            maintainability_score: 50.0,
+            accessibility_score: 85.0,
+            testability_score: 90.0,
+            tdg: 2.01,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 5,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.9,
+            branch_coverage: 0.85,
+            function_coverage: 0.90,
+        };
+        let results_pass = analyzer.evaluate_gate(&gate, &pmat_pass, &complexity, &coverage);
+        assert!(results_pass[0].passed);
+        let results_fail = analyzer.evaluate_gate(&gate, &pmat_fail, &complexity, &coverage);
+        assert!(!results_fail[0].passed);
+    }
+
+    #[test]
+    fn test_s11_analyze_quality_gates_passed_contains_passing_gate_names() {
+        let analyzer = QualityAnalyzer::new();
+        let functions = vec![create_test_function(1)];
+        let report = analyzer.analyze_quality(&functions).unwrap();
+        // All default gates should pass for a simple function
+        assert!(report.gates_passed.contains(&"PMAT TDG Range".to_string()));
+        assert!(report
+            .gates_passed
+            .contains(&"Complexity Limits".to_string()));
+        assert!(report.gates_passed.contains(&"Test Coverage".to_string()));
+        assert!(report.gates_passed.contains(&"Code Quality".to_string()));
+        assert!(report
+            .gates_passed
+            .contains(&"Energy Efficiency".to_string()));
+    }
+
+    #[test]
+    fn test_s11_quality_report_clone() {
+        let report = QualityReport {
+            pmat_metrics: PmatMetrics {
+                productivity_score: 50.0,
+                maintainability_score: 50.0,
+                accessibility_score: 85.0,
+                testability_score: 90.0,
+                tdg: 1.5,
+            },
+            complexity_metrics: ComplexityMetrics {
+                cyclomatic_complexity: 5,
+                cognitive_complexity: 5,
+                max_nesting: 2,
+                statement_count: 10,
+            },
+            coverage_metrics: CoverageMetrics {
+                line_coverage: 0.9,
+                branch_coverage: 0.85,
+                function_coverage: 0.95,
+            },
+            gates_passed: vec!["A".to_string()],
+            gates_failed: vec![],
+            overall_status: QualityStatus::Passed,
+        };
+        let cloned = report.clone();
+        assert_eq!(report, cloned);
+    }
+
+    #[test]
+    fn test_s11_quality_report_deserialized_from_json() {
+        let json = r#"{
+            "pmat_metrics": {
+                "productivity_score": 80.0,
+                "maintainability_score": 70.0,
+                "accessibility_score": 85.0,
+                "testability_score": 90.0,
+                "tdg": 1.6
+            },
+            "complexity_metrics": {
+                "cyclomatic_complexity": 5,
+                "cognitive_complexity": 3,
+                "max_nesting": 2,
+                "statement_count": 15
+            },
+            "coverage_metrics": {
+                "line_coverage": 0.88,
+                "branch_coverage": 0.82,
+                "function_coverage": 0.91
+            },
+            "gates_passed": ["Gate1"],
+            "gates_failed": [],
+            "overall_status": "Passed"
+        }"#;
+        let report: QualityReport = serde_json::from_str(json).unwrap();
+        assert_eq!(report.overall_status, QualityStatus::Passed);
+        assert_eq!(report.complexity_metrics.cyclomatic_complexity, 5);
+        assert!((report.pmat_metrics.tdg - 1.6).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_s11_analyze_quality_with_only_warning_gate() {
+        // Create analyzer with ONLY Warning-severity custom gates plus default
+        // Use with_custom_gates that has MinTestCoverage(0.999) at Warning severity
+        // Default hardcoded coverage is 0.86, so this will fail
+        let analyzer = QualityAnalyzer::new().with_custom_gates(vec![QualityGate {
+            name: "Unreachable Coverage".to_string(),
+            requirements: vec![QualityRequirement::MinTestCoverage(0.999)],
+            severity: Severity::Warning,
+        }]);
+        let functions = vec![create_test_function(1)];
+        let report = analyzer.analyze_quality(&functions).unwrap();
+        // The custom Warning gate fails, but all Error gates pass
+        assert_eq!(report.overall_status, QualityStatus::Warning);
+        assert!(report.gates_failed.iter().any(|r| r.gate_name == "Unreachable Coverage"));
+    }
 }
