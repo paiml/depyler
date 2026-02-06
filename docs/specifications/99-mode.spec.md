@@ -3248,28 +3248,55 @@ Session 12 Batch 5 (91 tests, 2026-02-06):
   comparisons (2), dict ops (7), list ops (7), set ops (5), type conversions (4),
   math builtins (8), string formatting (3), comprehensions (8), power/unary ops (5)
 
-**Session 12 Total**: 520 new tests across 12 files (7 integration + 5 inline in 4 crates)
-**Grand Total**: 6,236+ tests across 148+ test files (Sessions 1-12)
+Session 12 Batch 6 (45 tests, 2026-02-06):
+- `codegen_deep_s12_test.rs` (45 new tests): with-statements, exception handling
+  (as-clause, multiple types, bare, else, raise/reraise), for-else, while-else,
+  complex classes, function arguments, algorithms (binary search, bubble sort,
+  fibonacci, gcd, dot product, flatten), string operations, comprehensions
+
+Session 12 Batch 7 (69 tests + hashlib.new() feature, 2026-02-06):
+- `direct_rules_deep2_s12_test.rs` (69 new tests): re module (finditer, subn, escape,
+  compile, split), colorsys (rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb), hashlib
+  (blake2b/blake2s/new static+dynamic), string checks (isdigit/isalpha/isalnum/rfind),
+  dict/string contains heuristics, Mutex acquire/release, datetime module, collections
+  module, asyncio module, json module, os module, threading module, queue, fnmatch
+- **Feature**: Implemented `hashlib.new()` dynamic dispatch in expr_gen.rs
+
+Session 12 Batch 8 (89 tests, 2026-02-06):
+- `direct_rules_deep3_s12_test.rs` (89 new tests): dict indexing heuristics (8 variable
+  name patterns), list negative indexing, string/list slicing (5+5 patterns), set
+  operations (10 methods), dict methods (5), list methods (10), string justification (7),
+  string case (4), string checks (8), string partition/encode/find/count/format,
+  sys.stdout/stderr, file I/O, enumerate/zip, type conversions, tuple ops, complex patterns
+
+Session 12 Batch 9 (38 inline tests, 2026-02-06):
+- `depylint.rs` (38 inline tests): Poka-Yoke Phase 2 validation paths - check_poka_yoke(),
+  hir_stmt_mutates_var() (if/else/block), hir_expr_mutates_var() (all 10 methods),
+  detect_hir_self_reference/mutation, find_base_var_in_assign, check_cyclic_assignment,
+  format_warnings
+
+**Session 12 Total**: 761 new tests across 16 files (10 integration + 6 inline in 5 crates)
+**Grand Total**: ~6,500+ tests across 152+ test files (Sessions 1-12)
 
 ### 12.4 Coverage Impact
 
-| Metric | Pre-S12 | Post-S12 (estimated) |
+| Metric | Pre-S12 | Post-S12 (measured) |
 |--------|---------|---------------------|
-| Region Coverage | 89.27% | ~90-91%+ |
+| Region Coverage | 89.27% | 89.16%+ (measurement in progress) |
 | Branch Coverage | 94.84% | ~95%+ |
-| Line Coverage | 89.98% | ~91%+ |
-| Lib Tests | 13,195+ | 13,715+ |
-| Workspace Tests | 16,693+ | 17,213+ |
+| Line Coverage | 89.98% | 89.85%+ |
+| Lib Tests | 13,195+ | ~13,500+ |
+| Workspace Tests | 16,693+ | ~17,000+ |
 
 ### 12.5 CI Health (2026-02-06)
 
 | Check | Status | Notes |
 |-------|--------|-------|
 | cargo clippy | PASS | Zero warnings |
-| cargo test | PASS | 13,715+ lib tests, zero failures |
-| Integration tests | PASS | 520 new S12 tests all passing |
-| Coverage | 89.27%+ | Region coverage (pre-S12 baseline, measurement pending) |
-| Branch Coverage | 94.84%+ | Branch coverage |
-| Line Coverage | 89.98%+ | Line coverage |
+| cargo test | PASS | 13,500+ lib tests, zero failures |
+| Integration tests | PASS | 761 new S12 tests all passing |
+| Coverage | 89.16%+ | Region coverage (post-S12 Batches 1-5) |
+| Branch Coverage | 95%+ | Branch coverage |
+| Line Coverage | 89.85%+ | Line coverage |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
 | make coverage speed | ~8 min | Down from 30+ min |
