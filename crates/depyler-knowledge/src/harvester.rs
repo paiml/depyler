@@ -460,4 +460,114 @@ mod tests {
         let files = harvester.find_files_by_extension(temp.path(), "pyi");
         assert!(files.is_empty());
     }
+
+    #[test]
+    fn test_s12_harvester_temp_creates_dir() {
+        let harvester = Harvester::temp().unwrap();
+        assert!(harvester.target_dir().exists());
+        // cleanup
+        harvester.cleanup().unwrap();
+    }
+
+    #[test]
+    fn test_s12_harvester_temp_target_path_contains_depyler() {
+        let harvester = Harvester::temp().unwrap();
+        let path_str = harvester.target_dir().to_string_lossy().to_string();
+        assert!(
+            path_str.contains("depyler-harvest"),
+            "Expected path to contain 'depyler-harvest', got: {}",
+            path_str
+        );
+        harvester.cleanup().unwrap();
+    }
+
+    #[test]
+    fn test_s12_harvest_result_display_package_name() {
+        let result = HarvestResult {
+            package: "requests".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![],
+            source_files: vec![],
+            has_types_package: false,
+        };
+        assert_eq!(result.package, "requests");
+    }
+
+    #[test]
+    fn test_s12_harvest_result_root_path() {
+        let result = HarvestResult {
+            package: "test".to_string(),
+            root: PathBuf::from("/custom/path"),
+            stub_files: vec![],
+            source_files: vec![],
+            has_types_package: false,
+        };
+        assert_eq!(result.root, PathBuf::from("/custom/path"));
+    }
+
+    #[test]
+    fn test_s12_harvester_new_nested_dir() {
+        let temp = TempDir::new().unwrap();
+        let nested = temp.path().join("a").join("b").join("c");
+        let harvester = Harvester::new(&nested).unwrap();
+        assert!(harvester.target_dir().exists());
+        assert_eq!(harvester.target_dir(), &nested);
+    }
+
+    #[test]
+    fn test_s12_harvester_find_multiple_extensions() {
+        let temp = TempDir::new().unwrap();
+        let harvester = Harvester::new(temp.path()).unwrap();
+
+        // Create files with different extensions
+        std::fs::write(temp.path().join("a.pyi"), "# stub").unwrap();
+        std::fs::write(temp.path().join("b.pyi"), "# stub2").unwrap();
+        std::fs::write(temp.path().join("c.py"), "# source").unwrap();
+        std::fs::write(temp.path().join("d.txt"), "text").unwrap();
+
+        let pyi_files = harvester.find_files_by_extension(temp.path(), "pyi");
+        assert_eq!(pyi_files.len(), 2);
+        let py_files = harvester.find_files_by_extension(temp.path(), "py");
+        assert_eq!(py_files.len(), 1);
+        let txt_files = harvester.find_files_by_extension(temp.path(), "txt");
+        assert_eq!(txt_files.len(), 1);
+    }
+
+    #[test]
+    fn test_s12_harvester_cleanup_then_recreate() {
+        let temp = TempDir::new().unwrap();
+        let dir = temp.path().join("harvest-dir");
+        let harvester = Harvester::new(&dir).unwrap();
+        assert!(harvester.target_dir().exists());
+
+        harvester.cleanup().unwrap();
+        assert!(!dir.exists());
+
+        // Can recreate
+        let harvester2 = Harvester::new(&dir).unwrap();
+        assert!(harvester2.target_dir().exists());
+    }
+
+    #[test]
+    fn test_s12_harvest_result_stubs_and_sources_counts() {
+        let result = HarvestResult {
+            package: "numpy".to_string(),
+            root: PathBuf::from("/tmp"),
+            stub_files: vec![
+                PathBuf::from("numpy/__init__.pyi"),
+                PathBuf::from("numpy/core.pyi"),
+            ],
+            source_files: vec![
+                PathBuf::from("numpy/__init__.py"),
+                PathBuf::from("numpy/core.py"),
+                PathBuf::from("numpy/linalg.py"),
+            ],
+            has_types_package: true,
+        };
+        assert!(result.has_stubs());
+        assert_eq!(result.stub_files.len(), 2);
+        assert_eq!(result.source_files.len(), 3);
+        // all_files returns stubs when available
+        assert_eq!(result.all_files().len(), 2);
+    }
 }
