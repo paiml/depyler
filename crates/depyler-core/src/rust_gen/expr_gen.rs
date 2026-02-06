@@ -7321,8 +7321,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-S12: hashlib.new(algo, data) → dynamic dispatch by algorithm name
+            "new" => {
+                if arg_exprs.is_empty() {
+                    bail!("hashlib.new() requires algorithm name argument");
+                }
+                // Check if algorithm name is a string literal for static dispatch
+                if let HirExpr::Literal(Literal::String(alg_name)) = &args[0] {
+                    let alg_lower = alg_name.to_lowercase();
+                    let data_args: Vec<HirExpr> = if args.len() > 1 {
+                        args[1..].to_vec()
+                    } else {
+                        vec![]
+                    };
+                    // Recursively dispatch to the correct algorithm handler
+                    return self.try_convert_hashlib_method(&alg_lower, &data_args);
+                }
+                // Dynamic dispatch: algorithm not known at compile time, default to sha256
+                self.ctx.needs_sha2 = true;
+                self.ctx.needs_digest = true;
+                parse_quote! {
+                    {
+                        use sha2::Digest;
+                        use digest::DynDigest;
+                        Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
+                    }
+                }
+            }
+
             _ => {
-                bail!("hashlib.{} not implemented yet (try: md5, sha1, sha224, sha256, sha384, sha512, blake2b, blake2s)", method);
+                bail!("hashlib.{} not implemented yet (try: md5, sha1, sha224, sha256, sha384, sha512, blake2b, blake2s, new)", method);
             }
         };
 
