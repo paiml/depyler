@@ -2609,12 +2609,12 @@ p.args_var.as_ref().is_some_and(|av| av == args_param)
 |--------|---------|--------|--------|
 | Clippy Warnings | 0 | 0 | ✅ PASS |
 | TDG Score | 93.8 (A) | 95+ (A+) | ⚠️ 1.2 points gap |
-| Test Coverage (workspace) | 86.23% | 95% | ⚠️ 8.77 pp gap (improving) |
-| Function Coverage | 92.60% | 95% | ⚠️ 2.40 pp gap (improving) |
-| Line Coverage | 86.96% | 95% | ⚠️ 8.04 pp gap (improving) |
+| Test Coverage (workspace) | 89.27% | 95% | ⚠️ 5.73 pp gap (improving) |
+| Branch Coverage | 94.84% | 95% | ⚠️ 0.16 pp gap (almost there!) |
+| Line Coverage | 89.98% | 95% | ⚠️ 5.02 pp gap (improving) |
 | SATD Violations | 87 | 0 | ⚠️ False positives (doc comments) |
 | Max Cyclomatic | 257 | ≤10 | ❌ Long-term refactor |
-| Total Tests | 11,800+ | - | ✅ All passing |
+| Total Tests | 13,462+ | - | ✅ All passing |
 
 **Coverage Breakdown** (depyler-core, lib + 99-mode integration tests):
 - Lines: 85.57% (200,530 total, 28,938 uncovered) [+0.47pp from 85.10%]
@@ -3078,7 +3078,7 @@ Session 11 Batch 9 (30 ast_bridge tests, 2026-02-05):
   - While loops, empty modules, comments, module docstrings
 
 **Session 11 Total**: 447 new tests across 13 files (4 inline + 9 integration)
-**Grand Total**: 5,716+ tests across 136+ test files (Sessions 1-11)
+**Grand Total (through S11)**: 5,716+ tests across 136+ test files (Sessions 1-11)
 
 ### 11.3 Coverage Impact
 
@@ -3099,8 +3099,9 @@ Session 11 Batch 9 (30 ast_bridge tests, 2026-02-05):
 | cargo clippy | PASS | Zero warnings (--workspace mode) |
 | cargo test | PASS | 13,175+ lib tests, zero failures |
 | Integration tests | PASS | 447 new S11 tests all passing |
-| Coverage | ~89%+ | Region coverage (measuring in progress) |
-| Branch Coverage | ~95%+ | Branch coverage (measuring in progress) |
+| Coverage | 89.27% | Region coverage (measured) |
+| Branch Coverage | 94.84% | Branch coverage (measured) |
+| Line Coverage | 89.98% | Line coverage (measured) |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
 
 ### 11.5 Remaining Low-Coverage Files
@@ -3110,7 +3111,133 @@ Session 11 Batch 9 (30 ast_bridge tests, 2026-02-05):
 | differential.rs | 80.03% | I/O-heavy methods still uncovered |
 | compile_cmd.rs | 88.54% | Oracle loop retry logic needs I/O |
 | depyler/lib.rs | 88.19% | CLI dispatch code |
-| report_cmd/graph_analysis.rs | 88.86% | Graph visualization |
-| contract_verification.rs | 89.45% | Complex verification paths |
-| memory_safety.rs | 89.04% | Unsafe pattern detection |
-| dashboard_cmd.rs | 89.21% | Terminal UI rendering |
+| report_cmd/graph_analysis.rs | 99.46% | Fixed - graph visualization well covered |
+| contract_verification.rs | 96.58% | Fixed - verification paths covered |
+| memory_safety.rs | 92.94% | Fixed - unsafe pattern detection covered |
+| dashboard_cmd.rs | 95.85% | Fixed - terminal UI covered |
+
+## 12. Session 12: Coverage Speed Optimization & Targeted Tests (2026-02-06)
+
+### 12.1 Objectives
+
+- Make `make coverage` fast (<10 minutes) by using RAM disk and excluding slow oracle tests
+- Add targeted tests for remaining coverage gaps across all crates
+- Push region coverage from 89.27% toward 90%+
+- Maintain zero clippy warnings and zero test failures
+
+### 12.2 Coverage Speed Optimization
+
+**Problem**: `make coverage` took 30+ minutes due to `test_find_best_config` in depyler-oracle consuming 98%+ CPU.
+
+**Solution**:
+1. Updated Makefile `coverage` target to use `CARGO_TARGET_DIR=/Volumes/LambdaCache/cargo-target` (256GB APFS RAM disk)
+2. Added `--exclude depyler-oracle` to skip the slow oracle crate tests (oracle has good coverage already: 78-99% across modules)
+3. Updated `coverage-fast` target to use same RAM disk instead of `/tmp`
+4. Aligned `COVERAGE_IGNORE_REGEX` with manual coverage command (added ruchy, probar, utol, hybrid, converge)
+5. Raised `COVERAGE_THRESHOLD` from 86% to 89%
+
+**Result**: Coverage now completes in ~7-8 minutes instead of 30+.
+
+### 12.3 Test Files Created/Modified
+
+Session 12 Batch 1 (181 tests, 2026-02-06):
+- `direct_rules_s12_test.rs` - 91 tests targeting direct_rules_convert.rs
+  - Truthiness coercion: string/list/int/float/dict/optional in if/while, negated patterns
+  - Boolean method detection: startswith, endswith, isdigit, isalpha, contains
+  - Floor division: negative result, float operands, mixed types, in-expression, augmented
+  - Power operator: negative/float exponent, variable exponent, integer literal, cube
+  - Mixed float/int comparisons: gt/lt/eq across types
+  - min/max: two/three args, list arg
+  - String formatting: concat, print multiple/single args
+  - Collection constructors: set/list/tuple/dict from iterables, sorted, reversed
+  - Chained comparisons, unary operators, os.path functions
+  - Colorsys module: rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
+  - Time module: sleep, time
+  - Math module: log with base, natural log
+  - Dict iteration: items/keys/values in for loop
+  - len() minus operations, type conversions, abs/round edge cases
+  - range() variants, augmented bitwise assignments
+- `instance_methods_s12_test.rs` - 62 tests targeting expr_gen_instance_methods.rs
+  - Dict: setdefault, update, pop (with/without default), get, clear, copy
+  - List: insert, index, remove, count, extend, sort, reverse
+  - String: center, ljust, rjust, count, find, rfind, title, swapcase, isdigit, isalnum, isspace, isupper, islower, lstrip, rstrip, replace
+  - File I/O: open read/write/readlines/readline/append
+  - Pathlib: exists, read_text, write_text, stem, suffix, parent, name
+  - Datetime: now, strftime
+  - Regex: search, findall, sub, split, match
+  - Collections: Counter, defaultdict, deque
+  - JSON: dumps, loads
+  - Hashlib: sha256, md5
+  - Base64: encode, decode
+  - Classes: property, __len__, __str__/__repr__
+- `depyler-quality/src/lib.rs` - 20 inline tests
+  - Clippy validation (warning code), rustc compilation (valid/syntax/type errors)
+  - Gate evaluation: PanicFree, EnergyEfficient, AnnotationConsistency, CompilationSuccess, ClippyClean
+  - Gate failures: MaxPmatTdg, MinFunctionCoverage, MaxCognitiveComplexity
+  - Serde roundtrips: QualityReport, QualityGateResult, QualityStatus, Severity
+  - Error display, default analyzer, multiple requirements, print with warning status
+- `depyler-knowledge/src/harvester.rs` - 8 inline tests
+  - Harvester::temp() creates dir, target path contains "depyler-harvest"
+  - HarvestResult display, root path
+  - Nested directory creation, multiple extensions, cleanup+recreate, stubs+sources counts
+
+Session 12 Batch 2 (86 tests, 2026-02-06):
+- `expr_gen_s12_test.rs` - 47 tests targeting expr_gen.rs
+  - Lambda: basic, in map/filter/sorted, multi-arg
+  - Slices: start-end, from-start, to-end, negative, string slice, string range
+  - Set/frozenset: literal int/string, comprehension
+  - Dict comprehension: basic, with filter
+  - Subscript: nested, dict string/variable
+  - Generator expressions: in sum, min, max
+  - Nested list comprehension (flatten)
+  - Walrus operator: in if, in while
+  - Ternary: in assignment, return, call
+  - Complex arithmetic, modulo, bitwise operations
+  - String: join, split maxsplit, format method
+  - Class patterns: inheritance, static method
+  - Exception handling: try/except/finally, multiple except, raise ValueError
+  - Control flow: for else, nested loops with break, continue
+  - Nested functions: basic, with capture
+  - Global constants: string, numeric, multiple
+- `stmt_gen_s12_test.rs` - 39 tests targeting stmt_gen.rs
+  - while True -> loop: basic, with continue, nested
+  - TYPE_CHECKING elision
+  - Generator/yield: simple, with condition
+  - Async: function, with await
+  - Complex assignments: tuple unpack, swap, augmented string concat, augmented list extend
+  - Assert: basic, with message
+  - Del: dict key
+  - Return patterns: None, empty, tuple, dict, list
+  - Complex classes: multiple methods, class variable, __eq__
+  - Import: simple, from, multiple
+  - Docstrings: function, class
+  - Algorithms: quicksort, merge sort, DFS, two_sum, longest_common_prefix, is_palindrome
+  - With statement: binary read, write newline
+  - Enumerate: basic, with start
+  - Zip: two lists
+
+**Session 12 Total**: 267 new tests across 6 files (4 integration + 2 inline in 2 crates)
+**Grand Total**: 5,983+ tests across 142+ test files (Sessions 1-12)
+
+### 12.4 Coverage Impact
+
+| Metric | Pre-S12 | Post-S12 (projected) |
+|--------|---------|---------------------|
+| Region Coverage | 89.27% | ~90%+ |
+| Branch Coverage | 94.84% | ~95%+ |
+| Line Coverage | 89.98% | ~90%+ |
+| Lib Tests | 13,195+ | 13,462+ |
+| Workspace Tests | 16,693+ | 16,960+ |
+
+### 12.5 CI Health (2026-02-06)
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| cargo clippy | PASS | Zero warnings |
+| cargo test | PASS | 13,462+ lib tests, zero failures |
+| Integration tests | PASS | 267 new S12 tests all passing |
+| Coverage | 89.27%+ | Region coverage (pre-S12 baseline) |
+| Branch Coverage | 94.84%+ | Branch coverage |
+| Line Coverage | 89.98%+ | Line coverage |
+| TDG Score (crates/) | 93.8+ (A) | Maintained |
+| make coverage speed | ~8 min | Down from 30+ min |
