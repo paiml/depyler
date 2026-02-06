@@ -3330,4 +3330,202 @@ def func_c():
         let result_c = extractor.extract_function_annotations(source, "func_c");
         assert!(result_c.is_none());
     }
+
+    // ===== Session 12 Batch 29: Coverage gap tests =====
+
+    #[test]
+    fn test_s12_extract_class_annotations_multiple() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"# @depyler: ownership = "shared"
+# @depyler: thread_safety = "required"
+class MyService:
+    pass
+"#;
+        let result = extractor.extract_class_annotations(source, "MyService");
+        assert!(result.is_some(), "Expected annotations");
+        let annotations = result.unwrap();
+        assert!(annotations.contains("ownership"));
+        assert!(annotations.contains("thread_safety"));
+    }
+
+    #[test]
+    fn test_s12_extract_class_annotations_wrong_name() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"# @depyler: ownership = "shared"
+class MyService:
+    pass
+"#;
+        let result = extractor.extract_class_annotations(source, "OtherService");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_s12_extract_class_annotations_with_base_class() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"# @depyler: thread_safety = "required"
+class MyService(BaseService):
+    pass
+"#;
+        let result = extractor.extract_class_annotations(source, "MyService");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s12_suggest_improvements_multiple_triggers() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations
+            .performance_hints
+            .push(PerformanceHint::PerformanceCritical);
+        annotations.optimization_level = OptimizationLevel::Standard;
+        annotations.thread_safety = ThreadSafety::Required;
+        annotations.ownership_model = OwnershipModel::Owned;
+        annotations.service_type = Some(ServiceType::WebApi);
+
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(
+            suggestions.len() >= 2,
+            "Expected at least 2 suggestions, got {}",
+            suggestions.len()
+        );
+    }
+
+    #[test]
+    fn test_s12_suggest_improvements_perf_with_aggressive() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations
+            .performance_hints
+            .push(PerformanceHint::PerformanceCritical);
+        annotations.optimization_level = OptimizationLevel::Aggressive;
+
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(
+            !suggestions
+                .iter()
+                .any(|s: &String| s.contains("optimization_level")),
+            "Should not suggest optimization_level when already aggressive"
+        );
+    }
+
+    #[test]
+    fn test_s12_suggest_improvements_thread_with_shared() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.thread_safety = ThreadSafety::Required;
+        annotations.ownership_model = OwnershipModel::Shared;
+
+        let suggestions = validator.suggest_improvements(&annotations);
+        assert!(
+            !suggestions
+                .iter()
+                .any(|s: &String| s.contains("ownership")),
+            "Should not suggest ownership when already shared"
+        );
+    }
+
+    #[test]
+    fn test_s12_parse_annotations_empty_source() {
+        let parser = AnnotationParser::new();
+        let result = parser.parse_annotations("");
+        assert!(result.is_ok());
+        let annotations = result.unwrap();
+        assert_eq!(annotations.optimization_level, OptimizationLevel::Standard);
+    }
+
+    #[test]
+    fn test_s12_parse_annotations_no_depyler_comments() {
+        let parser = AnnotationParser::new();
+        let source = "# This is a regular comment\ndef foo():\n    pass\n";
+        let result = parser.parse_annotations(source);
+        assert!(result.is_ok());
+        let annotations = result.unwrap();
+        assert_eq!(annotations.optimization_level, OptimizationLevel::Standard);
+    }
+
+    #[test]
+    fn test_s12_parse_annotations_full() {
+        let parser = AnnotationParser::new();
+        let source = r#"# @depyler: optimization_level = "aggressive"
+# @depyler: ownership = "shared"
+# @depyler: thread_safety = "required"
+# @depyler: optimization_hint = "latency"
+def serve():
+    pass
+"#;
+        let result = parser.parse_annotations(source);
+        assert!(result.is_ok());
+        let annotations = result.unwrap();
+        assert_eq!(annotations.optimization_level, OptimizationLevel::Aggressive);
+        assert_eq!(annotations.ownership_model, OwnershipModel::Shared);
+        assert_eq!(annotations.thread_safety, ThreadSafety::Required);
+    }
+
+    #[test]
+    fn test_s12_parse_annotations_unknown_key() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: unknown_key = \"value\"\n";
+        let result = parser.parse_annotations(source);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s12_parse_annotations_lambda_runtime() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: lambda_runtime = \"provided.al2\"\n";
+        let result = parser.parse_annotations(source);
+        assert!(result.is_ok());
+        let annotations = result.unwrap();
+        assert!(annotations.lambda_annotations.is_some());
+    }
+
+    #[test]
+    fn test_s12_validate_annotations_valid() {
+        let validator = AnnotationValidator::new();
+        let annotations = TranspilationAnnotations::default();
+        let result = validator.validate(&annotations);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s12_validate_annotations_unsafe_with_bounds() {
+        let validator = AnnotationValidator::new();
+        let mut annotations = TranspilationAnnotations::default();
+        annotations.safety_level = SafetyLevel::UnsafeAllowed;
+        annotations.bounds_checking = BoundsChecking::Explicit;
+        // This combination may or may not be valid
+        let _ = validator.validate(&annotations);
+    }
+
+    #[test]
+    fn test_s12_extract_func_annotations_with_gap() {
+        let extractor = AnnotationExtractor::new();
+        let source = r#"# @depyler: optimization_level = "aggressive"
+
+def process(data):
+    return data
+"#;
+        let _ = extractor.extract_function_annotations(source, "process");
+    }
+
+    #[test]
+    fn test_s12_parse_function_annotations() {
+        let parser = AnnotationParser::new();
+        let source = r#"# @depyler: optimization_level = "aggressive"
+def process(data):
+    return data
+"#;
+        let result = parser.parse_function_annotations(source);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s12_parse_function_annotations_missing() {
+        let parser = AnnotationParser::new();
+        let source = r#"def process(data):
+    return data
+"#;
+        let result = parser.parse_function_annotations(source);
+        assert!(result.is_ok());
+    }
 }

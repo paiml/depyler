@@ -647,4 +647,89 @@ mod tests {
         // Expected: (2*3 + 3*8 + 1*15 + 1*25) / 7 = (6 + 24 + 15 + 25) / 7 = 70/7 = 10
         assert!((dist.average() - 10.0).abs() < 0.01);
     }
+
+    // ===== Session 12 Batch 29: PerformanceProfile edge cases =====
+
+    fn make_metrics(
+        source_bytes: usize,
+        parse: Duration,
+        analysis: Duration,
+        transpile: Duration,
+    ) -> TranspilationMetrics {
+        TranspilationMetrics {
+            source_size_bytes: source_bytes,
+            parse_time: parse,
+            analysis_time: analysis,
+            transpilation_time: transpile,
+            total_time: parse + analysis + transpile,
+            output_size_bytes: source_bytes,
+            functions_transpiled: 1,
+            direct_transpilation_rate: 1.0,
+            mcp_fallback_count: 0,
+        }
+    }
+
+    #[test]
+    fn test_s12_perf_profile_very_small_file() {
+        let metrics = make_metrics(
+            100,
+            Duration::from_micros(50),
+            Duration::from_micros(100),
+            Duration::from_micros(200),
+        );
+        let profile = PerformanceProfile::calculate(&metrics, 1024);
+        assert!(profile.parsing_throughput_mbps > 0.0);
+        assert!(profile.memory_peak_mb > 0.0);
+    }
+
+    #[test]
+    fn test_s12_perf_profile_large_file() {
+        let metrics = make_metrics(
+            10_000_000,
+            Duration::from_millis(500),
+            Duration::from_millis(300),
+            Duration::from_millis(800),
+        );
+        let profile = PerformanceProfile::calculate(&metrics, 100_000_000);
+        assert!(profile.parsing_throughput_mbps > 0.0);
+        assert!(profile.memory_peak_mb > 50.0);
+    }
+
+    #[test]
+    fn test_s12_perf_profile_zero_memory() {
+        let metrics = make_metrics(
+            1000,
+            Duration::from_millis(10),
+            Duration::from_millis(5),
+            Duration::from_millis(20),
+        );
+        let profile = PerformanceProfile::calculate(&metrics, 0);
+        assert!((profile.memory_peak_mb).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_s12_perf_profile_mixed_zero_times() {
+        let metrics = make_metrics(
+            5000,
+            Duration::from_millis(10),
+            Duration::ZERO,
+            Duration::from_millis(5),
+        );
+        let profile = PerformanceProfile::calculate(&metrics, 4096);
+        assert!(profile.parsing_throughput_mbps > 0.0);
+        assert!((profile.hir_generation_throughput_mbps).abs() < f64::EPSILON);
+        assert!(profile.transpilation_throughput_mbps > 0.0);
+    }
+
+    #[test]
+    fn test_s12_perf_profile_fast_parse() {
+        let metrics = make_metrics(
+            1_000_000,
+            Duration::from_nanos(100),
+            Duration::from_nanos(100),
+            Duration::from_nanos(100),
+        );
+        let profile = PerformanceProfile::calculate(&metrics, 2_000_000);
+        assert!(profile.parsing_throughput_mbps > 1000.0);
+    }
 }

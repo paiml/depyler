@@ -3187,4 +3187,94 @@ pub fn check(x: Option<i32>) -> Option<i32> {
         // Just verify it doesn't panic
         analyzer.print_quality_report(&report);
     }
+
+    // ===== Session 12 Batch 29: Quality analyzer edge cases =====
+
+    #[test]
+    fn test_s12_quality_analyzer_empty_functions() {
+        let analyzer = QualityAnalyzer::new();
+        let result = analyzer.analyze_quality(&[]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s12_quality_with_custom_gates_multiple() {
+        let gate1 = QualityGate {
+            name: "test_gate_1".to_string(),
+            requirements: vec![QualityRequirement::MinTestCoverage(0.9)],
+            severity: Severity::Error,
+        };
+        let gate2 = QualityGate {
+            name: "test_gate_2".to_string(),
+            requirements: vec![QualityRequirement::MaxComplexity(10)],
+            severity: Severity::Warning,
+        };
+        let analyzer = QualityAnalyzer::new().with_custom_gates(vec![gate1, gate2]);
+        let result = analyzer.analyze_quality(&[]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s12_quality_report_all_passed() {
+        let analyzer = QualityAnalyzer::new();
+        let report = QualityReport {
+            pmat_metrics: PmatMetrics {
+                productivity_score: 95.0,
+                maintainability_score: 90.0,
+                accessibility_score: 85.0,
+                testability_score: 92.0,
+                tdg: 1.2,
+            },
+            complexity_metrics: ComplexityMetrics {
+                cyclomatic_complexity: 5,
+                cognitive_complexity: 4,
+                max_nesting: 2,
+                statement_count: 20,
+            },
+            coverage_metrics: CoverageMetrics {
+                line_coverage: 0.95,
+                branch_coverage: 0.90,
+                function_coverage: 0.98,
+            },
+            gates_passed: vec!["Gate1".to_string(), "Gate2".to_string()],
+            gates_failed: vec![],
+            overall_status: QualityStatus::Passed,
+        };
+        analyzer.print_quality_report(&report);
+    }
+
+    #[test]
+    fn test_s12_quality_report_with_failures() {
+        let analyzer = QualityAnalyzer::new();
+        let report = QualityReport {
+            pmat_metrics: PmatMetrics {
+                productivity_score: 60.0,
+                maintainability_score: 50.0,
+                accessibility_score: 45.0,
+                testability_score: 55.0,
+                tdg: 3.5,
+            },
+            complexity_metrics: ComplexityMetrics {
+                cyclomatic_complexity: 25,
+                cognitive_complexity: 30,
+                max_nesting: 8,
+                statement_count: 200,
+            },
+            coverage_metrics: CoverageMetrics {
+                line_coverage: 0.40,
+                branch_coverage: 0.30,
+                function_coverage: 0.50,
+            },
+            gates_passed: vec![],
+            gates_failed: vec![QualityGateResult {
+                gate_name: "Complexity".to_string(),
+                requirement: QualityRequirement::MaxComplexity(10),
+                actual_value: "25".to_string(),
+                passed: false,
+                severity: Severity::Error,
+            }],
+            overall_status: QualityStatus::Failed,
+        };
+        analyzer.print_quality_report(&report);
+    }
 }
