@@ -538,4 +538,90 @@ class Standalone:
         assert_send::<GraphError>();
         assert_sync::<GraphError>();
     }
+
+    // ========================================================================
+    // S12: Deep coverage tests for graph lib
+    // ========================================================================
+
+    #[test]
+    fn test_s12_analyze_only_imports() {
+        let python = "import os\nimport sys\n";
+        let errors: Vec<(String, String, usize)> = vec![];
+        let result = analyze_with_graph(python, &errors).unwrap();
+        assert_eq!(result.node_count, 2);
+        assert_eq!(result.total_errors, 0);
+    }
+
+    #[test]
+    fn test_s12_analyze_large_error_count() {
+        let python = "def foo():\n    return 42\n";
+        let errors: Vec<(String, String, usize)> = (0..50)
+            .map(|i| ("E0308".to_string(), format!("error {i}"), i * 10))
+            .collect();
+        let result = analyze_with_graph(python, &errors).unwrap();
+        assert_eq!(result.total_errors, 50);
+    }
+
+    #[test]
+    fn test_s12_analyze_with_inheritance_chain() {
+        let python = r#"
+class A:
+    def m(self):
+        pass
+class B(A):
+    def m(self):
+        pass
+class C(B):
+    def m(self):
+        pass
+"#;
+        let errors = vec![("E0308".to_string(), "err".to_string(), 20)];
+        let result = analyze_with_graph(python, &errors).unwrap();
+        // 3 classes + 3 methods = 6 nodes minimum
+        assert!(result.node_count >= 6);
+    }
+
+    #[test]
+    fn test_s12_graph_analysis_full_serde() {
+        let python = r#"
+def a():
+    return b()
+def b():
+    return 1
+"#;
+        let errors = vec![("E0308".to_string(), "mismatch".to_string(), 10)];
+        let analysis = analyze_with_graph(python, &errors).unwrap();
+        let json = serde_json::to_string(&analysis).unwrap();
+        let back: GraphAnalysis = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.node_count, analysis.node_count);
+        assert_eq!(back.total_errors, 1);
+    }
+
+    #[test]
+    fn test_s12_error_distribution_multiple_nodes() {
+        let python = r#"
+def foo():
+    return 1
+def bar():
+    return 2
+"#;
+        // Two errors: one near foo, one near bar
+        let errors = vec![
+            ("E0308".to_string(), "e1".to_string(), 10),  // py_line=1, near foo
+            ("E0308".to_string(), "e2".to_string(), 50),  // py_line=5, near bar
+        ];
+        let result = analyze_with_graph(python, &errors).unwrap();
+        assert_eq!(result.total_errors, 2);
+        // At least some errors should be distributed
+        let total_dist: usize = result.error_distribution.values().sum();
+        assert!(total_dist > 0);
+    }
+
+    #[test]
+    fn test_s12_graph_error_source_trait() {
+        // GraphError implements std::error::Error (via thiserror)
+        let err = GraphError::ParseError("test".to_string());
+        let e: &dyn std::error::Error = &err;
+        assert!(e.source().is_none()); // Simple string errors have no source
+    }
 }

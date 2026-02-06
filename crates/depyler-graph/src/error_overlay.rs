@@ -461,4 +461,130 @@ def caller():
         // Near the node should be higher confidence
         assert!(conf_close >= conf_far);
     }
+
+    // ========================================================================
+    // S12: Deep coverage tests for error_overlay
+    // ========================================================================
+
+    #[test]
+    fn test_s12_find_associated_node_confidence_boundary() {
+        // Confidence = 1/(1 + dist/10). At dist=23, conf ~= 0.303 (just barely above 0.3)
+        // At dist=24, conf ~= 0.294 (below 0.3)
+        let python = "def foo():\n    pass\n"; // foo at line 1
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+
+        // Very far away: confidence drops below 0.3
+        let (node, conf) = overlay.find_associated_node(100);
+        // At distance 99, conf = 1/(1 + 99/10) = 1/10.9 ≈ 0.092 < 0.3 -> None
+        assert!(node.is_none(), "Expected None for far distance, got {:?}, conf={}", node, conf);
+        assert_eq!(conf, 0.0);
+    }
+
+    #[test]
+    fn test_s12_find_associated_node_equidistant() {
+        // Two nodes at equal distance - should pick one consistently
+        let python = r#"
+def first():
+    pass
+
+
+
+def second():
+    pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+
+        // Line 4 is equidistant between first(line 2) and second(line 7)
+        let (node, conf) = overlay.find_associated_node(4);
+        assert!(node.is_some());
+        assert!(conf > 0.3);
+    }
+
+    #[test]
+    fn test_s12_upstream_suspects_with_inheritance() {
+        let python = r#"
+class Animal:
+    def speak(self):
+        pass
+
+class Dog(Animal):
+    def speak(self):
+        pass
+
+class Cat(Animal):
+    def speak(self):
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+
+        // Dog.speak is a Method node; Dog inherits from Animal
+        let suspects = overlay.find_upstream_suspects("Dog.speak");
+        assert!(suspects.contains(&"Animal".to_string()));
+    }
+
+    #[test]
+    fn test_s12_upstream_suspects_function_not_method() {
+        // Functions (not methods) should not check inheritance
+        let python = r#"
+def standalone():
+    return 1
+def caller():
+    return standalone()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+
+        let suspects = overlay.find_upstream_suspects("standalone");
+        // Should have caller as suspect, but no inheritance check
+        assert!(suspects.contains(&"caller".to_string()));
+    }
+
+    #[test]
+    fn test_s12_overlay_preserves_line_estimate() {
+        let python = "def foo():\n    pass\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+
+        // Various Rust lines -> Python line estimates
+        let errors = vec![
+            ("E0308".to_string(), "e".to_string(), 10),
+            ("E0308".to_string(), "e".to_string(), 100),
+            ("E0308".to_string(), "e".to_string(), 0),
+        ];
+        let overlaid = overlay.overlay_errors(&errors);
+        assert_eq!(overlaid[0].python_line_estimate, 1); // 10/10 = 1
+        assert_eq!(overlaid[1].python_line_estimate, 10); // 100/10 = 10
+        assert_eq!(overlaid[2].python_line_estimate, 1); // 0/10 = 0 -> max(1) = 1
+    }
+
+    #[test]
+    fn test_s12_overlay_multiple_nodes_closest() {
+        let python = r#"
+def alpha():
+    pass
+
+def beta():
+    pass
+
+def gamma():
+    pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let overlay = ErrorOverlay::new(&graph);
+
+        // Error near beta (line ~5)
+        let errors = vec![("E0308".to_string(), "e".to_string(), 50)]; // py_line = 5
+        let overlaid = overlay.overlay_errors(&errors);
+        // Should associate with the closest node
+        assert!(overlaid[0].node_id.is_some());
+    }
 }

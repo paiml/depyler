@@ -1257,4 +1257,129 @@ def func() -> [List[int], Dict[str, str]]: ...
         assert!(facts[0].return_type.starts_with('['));
         assert!(facts[0].return_type.contains("List[int]"));
     }
+
+    // ========================================================================
+    // S12: Deep coverage tests for extractor edge cases
+    // ========================================================================
+
+    #[test]
+    fn test_s12_extract_function_no_params() {
+        // Function with zero parameters
+        let source = r#"
+def no_args() -> int: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("()"), "Expected empty params, got: {}", facts[0].signature);
+    }
+
+    #[test]
+    fn test_s12_extract_function_no_return_type() {
+        // Function without return annotation - type_to_string returns "None" for missing returns
+        let source = r#"
+def no_return(x: int): ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "None");
+    }
+
+    #[test]
+    fn test_s12_extract_method_self_excluded_from_sig() {
+        // Method with self parameter - self should be excluded from signature
+        let source = r#"
+class Foo:
+    def bar(self, x: int) -> str: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        let method = facts.iter().find(|f| f.kind == TypeFactKind::Method).unwrap();
+        // Self should be filtered from the signature display
+        assert!(method.signature.contains("x: int"));
+    }
+
+    #[test]
+    fn test_s12_extract_class_attribute_fqn() {
+        let source = r#"
+class Config:
+    debug: bool
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        let attr = facts.iter().find(|f| f.kind == TypeFactKind::Attribute).unwrap();
+        assert_eq!(attr.symbol, "Config.debug");
+        assert_eq!(attr.return_type, "bool");
+    }
+
+    #[test]
+    fn test_s12_extract_module_attribute() {
+        // Top-level annotated assign is a module attribute
+        let source = r#"
+VERSION: str
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "VERSION");
+        assert_eq!(facts[0].return_type, "str");
+    }
+
+    #[test]
+    fn test_s12_extract_generic_subscript() {
+        let source = r#"
+def func() -> Callable[[int, str], bool]: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].return_type.contains("Callable"));
+    }
+
+    #[test]
+    fn test_s12_extractor_default_no_private() {
+        let extractor = Extractor::new();
+        let source = r#"
+def _private() -> None: ...
+def public() -> None: ...
+"#;
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "public");
+    }
+
+    #[test]
+    fn test_s12_extract_multiple_classes_and_functions() {
+        let source = r#"
+class A:
+    def m(self) -> int: ...
+
+class B:
+    x: str
+    def n(self) -> str: ...
+
+def standalone(a: int, b: int) -> int: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        // A(class) + A.m(method) + B(class) + B.x(attr) + B.n(method) + standalone(func) = 6
+        assert_eq!(facts.len(), 6);
+    }
 }

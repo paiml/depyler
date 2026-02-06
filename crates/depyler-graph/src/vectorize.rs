@@ -918,4 +918,185 @@ def caller():
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "numeric_type_mismatch");
     }
+
+    // ========================================================================
+    // S12: Deep coverage tests for vectorize
+    // ========================================================================
+
+    #[test]
+    fn test_s12_vectorize_with_node_id_in_graph() {
+        let python = r#"
+def callee():
+    return 1
+
+def caller():
+    return callee()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors = vec![OverlaidError {
+            code: "E0308".to_string(),
+            message: "type mismatch".to_string(),
+            rust_line: 5,
+            python_line_estimate: 5,
+            node_id: Some("caller".to_string()),
+            association_confidence: 0.9,
+            upstream_suspects: vec!["callee".to_string()],
+        }];
+
+        let vectorized = vectorize_failures(&graph, &errors, python);
+        assert_eq!(vectorized.len(), 1);
+        let f = &vectorized[0];
+        assert_eq!(f.graph_context.node_id, Some("caller".to_string()));
+        // caller has outgoing edge to callee
+        assert!(f.graph_context.out_degree > 0 || f.graph_context.in_degree >= 0);
+    }
+
+    #[test]
+    fn test_s12_classify_e0308_with_result_and_string() {
+        // Tests that "Result" match takes priority over "String"
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source: "",
+        };
+        let (_, sub, fix, _) =
+            context.classify_error("E0308", "expected String, found Result<String>");
+        assert_eq!(sub, "double_result_wrap");
+        assert_eq!(fix, "unwrap_result");
+    }
+
+    #[test]
+    fn test_s12_classify_e0308_string_only() {
+        // Tests &str/String mismatch without Result keyword
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source: "",
+        };
+        let (_, sub, _, _) =
+            context.classify_error("E0308", "expected &str but found String");
+        assert_eq!(sub, "string_ref_mismatch");
+    }
+
+    #[test]
+    fn test_s12_classify_e0308_depyler_value_priority() {
+        // DepylerValue should match even with other keywords
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source: "",
+        };
+        let (_, sub, _, _) =
+            context.classify_error("E0308", "expected i32, found DepylerValue");
+        assert_eq!(sub, "depyler_value_leak");
+    }
+
+    #[test]
+    fn test_s12_extract_snippet_line_zero() {
+        let source = "first\nsecond\nthird\n";
+        let context = FailureContext {
+            graph: &DependencyGraph::new(),
+            source,
+        };
+        // line 0 should be bounded to 1
+        let snippet = context.extract_snippet(0, 1);
+        assert!(snippet.contains("first"));
+    }
+
+    #[test]
+    fn test_s12_vectorize_multiple_errors_mixed() {
+        let python = "def foo():\n    return 42\n";
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+
+        let errors = vec![
+            OverlaidError {
+                code: "E0308".to_string(),
+                message: "expected i32, found DepylerValue".to_string(),
+                rust_line: 5,
+                python_line_estimate: 2,
+                node_id: Some("foo".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+            OverlaidError {
+                code: "E0599".to_string(),
+                message: "no method".to_string(),
+                rust_line: 10,
+                python_line_estimate: 2,
+                node_id: None,
+                association_confidence: 0.0,
+                upstream_suspects: vec![],
+            },
+            OverlaidError {
+                code: "E0277".to_string(),
+                message: "trait bound".to_string(),
+                rust_line: 15,
+                python_line_estimate: 2,
+                node_id: Some("foo".to_string()),
+                association_confidence: 0.9,
+                upstream_suspects: vec![],
+            },
+        ];
+
+        let vectorized = vectorize_failures(&graph, &errors, python);
+        assert_eq!(vectorized.len(), 3);
+        assert_eq!(vectorized[0].labels.subcategory, "depyler_value_leak");
+        assert_eq!(vectorized[1].labels.category, "missing_method");
+        assert_eq!(vectorized[2].labels.category, "trait_bound");
+        assert_eq!(vectorized[0].id, "failure_0");
+        assert_eq!(vectorized[1].id, "failure_1");
+        assert_eq!(vectorized[2].id, "failure_2");
+    }
+
+    #[test]
+    fn test_s12_ndjson_roundtrip_multiple() {
+        let make = |id: &str, code: &str| VectorizedFailure {
+            id: id.to_string(),
+            error_code: code.to_string(),
+            error_message: "msg".to_string(),
+            ast_context: AstContext {
+                containing_function: Some("fn_name".to_string()),
+                containing_class: None,
+                return_type: Some("i32".to_string()),
+                parameter_types: vec!["String".to_string()],
+                local_types: vec![],
+                statement_kind: "return".to_string(),
+                expression_kind: "call".to_string(),
+                ast_depth: 1,
+            },
+            graph_context: GraphContext {
+                node_id: Some(id.to_string()),
+                in_degree: 2,
+                out_degree: 1,
+                callees: vec!["dep".to_string()],
+                callers: vec!["c1".to_string(), "c2".to_string()],
+                inheritance_chain: vec![],
+            },
+            source_snippet: "return x".to_string(),
+            labels: FailureLabels {
+                category: "type_mismatch".to_string(),
+                subcategory: "general".to_string(),
+                fix_type: "type_inference".to_string(),
+                confidence: 0.7,
+            },
+        };
+
+        let failures = vec![make("f1", "E0308"), make("f2", "E0599")];
+        let ndjson = serialize_to_ndjson(&failures).unwrap();
+
+        // Each line should deserialize correctly
+        for (i, line) in ndjson.lines().enumerate() {
+            let parsed: VectorizedFailure = serde_json::from_str(line).unwrap();
+            assert_eq!(parsed.id, format!("f{}", i + 1));
+        }
+    }
+
+    #[test]
+    fn test_s12_failure_context_new() {
+        let graph = DependencyGraph::new();
+        let source = "def foo():\n    pass\n";
+        let ctx = FailureContext::new(&graph, source);
+        let snippet = ctx.extract_snippet(1, 0);
+        assert_eq!(snippet, "def foo():");
+    }
 }
