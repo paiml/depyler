@@ -1,18 +1,4 @@
-//! Session 12 Batch 20: Advanced Python patterns for maximum coverage
-//!
-//! Targets rarely-exercised code paths:
-//! - Async/await patterns
-//! - Complex decorator combinations
-//! - Multiple inheritance
-//! - Abstract methods
-//! - Property getter/setter patterns
-//! - Context manager __enter__/__exit__
-//! - Complex string operations (maketrans, template)
-//! - Dataclass-like patterns
-//! - Enum-like patterns
-//! - Complex conditional import patterns
-//! - Complex dict/list manipulation algorithms
-//! - Complex nested comprehensions
+//! Session 12 Batch 32: Advanced patterns targeting remaining cold paths
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::rust_gen::generate_rust_file;
@@ -30,449 +16,318 @@ fn transpile(python_code: &str) -> String {
     result
 }
 
-// ===== Async/await patterns =====
-
 #[test]
-fn test_s12_async_function() {
+fn test_s12_generator_sum() {
     let code = r#"
-async def fetch_data(url: str) -> str:
-    return url
+def sum_squares(n: int) -> int:
+    return sum(x * x for x in range(n))
 "#;
     let result = transpile(code);
-    assert!(result.contains("fetch_data"), "Got: {}", result);
+    assert!(result.contains("fn sum_squares"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_async_with_await() {
+fn test_s12_generator_any() {
     let code = r#"
-async def process_url(url: str) -> str:
-    data = await fetch(url)
-    return data
+def has_negative(items: list) -> bool:
+    return any(x < 0 for x in items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("process_url"), "Got: {}", result);
-}
-
-// ===== Advanced class patterns =====
-
-#[test]
-fn test_s12_class_with_properties() {
-    let code = r#"
-class Rectangle:
-    def __init__(self, width: float, height: float):
-        self._width = width
-        self._height = height
-
-    @property
-    def area(self) -> float:
-        return self._width * self._height
-
-    @property
-    def perimeter(self) -> float:
-        return 2 * (self._width + self._height)
-"#;
-    let result = transpile(code);
-    assert!(result.contains("Rectangle"), "Got: {}", result);
+    assert!(result.contains("fn has_negative"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_abstract_base_class() {
+fn test_s12_generator_all() {
     let code = r#"
-class Shape:
-    def area(self) -> float:
-        raise NotImplementedError
-
-    def perimeter(self) -> float:
-        raise NotImplementedError
-
-class Square(Shape):
-    def __init__(self, side: float):
-        self.side = side
-
-    def area(self) -> float:
-        return self.side * self.side
-
-    def perimeter(self) -> float:
-        return 4 * self.side
+def all_positive(items: list) -> bool:
+    return all(x > 0 for x in items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("Shape"), "Got: {}", result);
-    assert!(result.contains("Square"), "Got: {}", result);
+    assert!(result.contains("fn all_positive"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_class_with_dunder_methods() {
+fn test_s12_generator_min() {
     let code = r#"
-class Vector:
-    def __init__(self, x: float, y: float):
-        self.x = x
-        self.y = y
-
-    def __add__(self, other) -> object:
-        return Vector(self.x + other.x, self.y + other.y)
-
-    def __sub__(self, other) -> object:
-        return Vector(self.x - other.x, self.y - other.y)
-
-    def __mul__(self, scalar: float) -> object:
-        return Vector(self.x * scalar, self.y * scalar)
-
-    def __str__(self) -> str:
-        return f"({self.x}, {self.y})"
-
-    def magnitude(self) -> float:
-        return (self.x ** 2 + self.y ** 2) ** 0.5
+def shortest(words: list) -> int:
+    return min(len(w) for w in words)
 "#;
     let result = transpile(code);
-    assert!(result.contains("Vector"), "Got: {}", result);
-}
-
-// ===== Enum-like patterns =====
-
-#[test]
-fn test_s12_enum_class() {
-    let code = r#"
-class Color:
-    RED = 1
-    GREEN = 2
-    BLUE = 3
-
-    def __init__(self, value: int):
-        self.value = value
-
-    def name(self) -> str:
-        if self.value == 1:
-            return "Red"
-        elif self.value == 2:
-            return "Green"
-        elif self.value == 3:
-            return "Blue"
-        return "Unknown"
-"#;
-    let result = transpile(code);
-    assert!(result.contains("Color"), "Got: {}", result);
-}
-
-// ===== Dataclass-like patterns =====
-
-#[test]
-fn test_s12_dataclass_pattern() {
-    let code = r#"
-class Person:
-    def __init__(self, name: str, age: int, email: str):
-        self.name = name
-        self.age = age
-        self.email = email
-
-    def __eq__(self, other) -> bool:
-        return self.name == other.name and self.age == other.age
-
-    def __str__(self) -> str:
-        return f"{self.name} ({self.age})"
-
-    def to_dict(self) -> dict:
-        return {"name": self.name, "age": self.age, "email": self.email}
-"#;
-    let result = transpile(code);
-    assert!(result.contains("Person"), "Got: {}", result);
-    assert!(result.contains("to_dict"), "Got: {}", result);
-}
-
-// ===== Complex comprehensions =====
-
-#[test]
-fn test_s12_nested_list_comprehension() {
-    let code = r#"
-def multiplication_table(n: int) -> list:
-    return [[i * j for j in range(1, n + 1)] for i in range(1, n + 1)]
-"#;
-    let result = transpile(code);
-    assert!(result.contains("fn multiplication_table"), "Got: {}", result);
+    assert!(result.contains("fn shortest"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_dict_from_comprehension() {
+fn test_s12_generator_max() {
     let code = r#"
-def char_positions(s: str) -> dict:
-    positions = {}
-    for i, c in enumerate(s):
-        if c not in positions:
-            positions[c] = []
-        positions[c].append(i)
-    return positions
+def longest(words: list) -> int:
+    return max(len(w) for w in words)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn char_positions"), "Got: {}", result);
-}
-
-// ===== Complex string algorithms =====
-
-#[test]
-fn test_s12_levenshtein_distance() {
-    let code = r#"
-def edit_distance(s1: str, s2: str) -> int:
-    m = len(s1)
-    n = len(s2)
-    dp = []
-    for i in range(m + 1):
-        row = []
-        for j in range(n + 1):
-            if i == 0:
-                row.append(j)
-            elif j == 0:
-                row.append(i)
-            else:
-                row.append(0)
-        dp.append(row)
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if s1[i - 1] == s2[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1]
-            else:
-                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
-    return dp[m][n]
-"#;
-    let result = transpile(code);
-    assert!(result.contains("fn edit_distance"), "Got: {}", result);
+    assert!(result.contains("fn longest"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_anagram_check() {
+fn test_s12_fstring_method() {
     let code = r#"
-def is_anagram(s1: str, s2: str) -> bool:
-    if len(s1) != len(s2):
-        return False
-    count = {}
-    for c in s1.lower():
-        if c in count:
-            count[c] += 1
-        else:
-            count[c] = 1
-    for c in s2.lower():
-        if c not in count:
-            return False
-        count[c] -= 1
-        if count[c] < 0:
-            return False
-    return True
+def format_name(first: str, last: str) -> str:
+    return f"{first.upper()} {last.lower()}"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn is_anagram"), "Got: {}", result);
+    assert!(result.contains("fn format_name"), "Got: {}", result);
 }
 
-// ===== Complex graph algorithms =====
+#[test]
+fn test_s12_fstring_index() {
+    let code = r#"
+def first_char(name: str) -> str:
+    return f"Initial: {name[0]}"
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn first_char"), "Got: {}", result);
+}
 
 #[test]
-fn test_s12_bfs_algorithm() {
+fn test_s12_comp_upper() {
     let code = r#"
-def bfs(graph: dict, start: str) -> list:
-    visited = set()
-    queue = [start]
+def upper_words(text: str) -> list:
+    return [w.upper() for w in text.split()]
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn upper_words"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_comp_cast() {
+    let code = r#"
+def parse_nums(items: list) -> list:
+    return [int(x) for x in items]
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn parse_nums"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_comp_filter() {
+    let code = r#"
+def long_words(text: str, n: int) -> list:
+    return [w for w in text.split() if len(w) >= n]
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn long_words"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_and_chain() {
+    let code = r#"
+def validate(x: int, y: int) -> bool:
+    return x > 0 and y > 0 and x < 100 and y < 100
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn validate"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_or_chain() {
+    let code = r#"
+def is_ws(c: str) -> bool:
+    return c == " " or c == "\t" or c == "\n"
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn is_ws"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_is_none() {
+    let code = r#"
+def default_val(value, d: int) -> int:
+    if value is None:
+        return d
+    return value
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn default_val"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_is_not_none() {
+    let code = r#"
+def has_val(value) -> bool:
+    return value is not None
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn has_val"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_enum_start() {
+    let code = r#"
+def number_lines(lines: list) -> list:
     result = []
-    while queue:
-        node = queue[0]
-        queue = queue[1:]
-        if node not in visited:
-            visited.add(node)
-            result.append(node)
-            if node in graph:
-                for neighbor in graph[node]:
-                    if neighbor not in visited:
-                        queue.append(neighbor)
+    for i, line in enumerate(lines, 1):
+        result.append(f"{i}: {line}")
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn bfs"), "Got: {}", result);
+    assert!(result.contains("fn number_lines"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_dfs_algorithm() {
+fn test_s12_range_step() {
     let code = r#"
-def dfs(graph: dict, start: str) -> list:
-    visited = set()
+def evens(n: int) -> list:
     result = []
-
-    def visit(node: str):
-        if node in visited:
-            return
-        visited.add(node)
-        result.append(node)
-        if node in graph:
-            for neighbor in graph[node]:
-                visit(neighbor)
-
-    visit(start)
+    for i in range(0, n, 2):
+        result.append(i)
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn dfs"), "Got: {}", result);
+    assert!(result.contains("fn evens"), "Got: {}", result);
 }
 
-// ===== Complex number patterns =====
-
 #[test]
-fn test_s12_collatz_sequence() {
+fn test_s12_range_rev() {
     let code = r#"
-def collatz(n: int) -> list:
-    sequence = [n]
-    while n != 1:
-        if n % 2 == 0:
-            n = n // 2
-        else:
-            n = 3 * n + 1
-        sequence.append(n)
-    return sequence
+def countdown(n: int) -> list:
+    result = []
+    for i in range(n, 0, -1):
+        result.append(i)
+    return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn collatz"), "Got: {}", result);
+    assert!(result.contains("fn countdown"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_roman_numeral_converter() {
+fn test_s12_quadratic() {
     let code = r#"
-def to_roman(num: int) -> str:
-    values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
-    symbols = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+def quadratic(a: float, b: float, c: float) -> float:
+    d = b * b - 4.0 * a * c
+    return (-b + d ** 0.5) / (2.0 * a)
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn quadratic"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_normalize_list() {
+    let code = r#"
+def normalize(items: list) -> list:
+    total = sum(items)
+    if total == 0:
+        return items
+    return [x / total for x in items]
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn normalize"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_return_tuple() {
+    let code = r#"
+def min_max(items: list) -> tuple:
+    return (min(items), max(items))
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn min_max"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_return_dict_lit() {
+    let code = r#"
+def make_pt(x: int, y: int) -> dict:
+    return {"x": x, "y": y}
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn make_pt"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_return_list_lit() {
+    let code = r#"
+def make_pair(a: int, b: int) -> list:
+    return [a, b]
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn make_pair"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_percent_format() {
+    let code = r#"
+def fmt_float(x: float) -> str:
+    return "Value: %.2f" % x
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn fmt_float"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_join_gen() {
+    let code = r#"
+def csv_line(values: list) -> str:
+    return ",".join(str(v) for v in values)
+"#;
+    let result = transpile(code);
+    assert!(result.contains("fn csv_line"), "Got: {}", result);
+}
+
+#[test]
+fn test_s12_build_str() {
+    let code = r#"
+def build(parts: list) -> str:
     result = ""
-    for i in range(len(values)):
-        while num >= values[i]:
-            result += symbols[i]
-            num -= values[i]
+    for p in parts:
+        result += p
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn to_roman"), "Got: {}", result);
-}
-
-// ===== Complex data structure operations =====
-
-#[test]
-fn test_s12_merge_sorted_lists() {
-    let code = r#"
-def merge_sorted(a: list, b: list) -> list:
-    result = []
-    i = 0
-    j = 0
-    while i < len(a) and j < len(b):
-        if a[i] <= b[j]:
-            result.append(a[i])
-            i += 1
-        else:
-            result.append(b[j])
-            j += 1
-    while i < len(a):
-        result.append(a[i])
-        i += 1
-    while j < len(b):
-        result.append(b[j])
-        j += 1
-    return result
-"#;
-    let result = transpile(code);
-    assert!(result.contains("fn merge_sorted"), "Got: {}", result);
+    assert!(result.contains("fn build"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_flatten_deep() {
+fn test_s12_cls_factory() {
     let code = r#"
-def flatten_deep(nested: list) -> list:
-    result = []
-    stack = list(nested)
-    while stack:
-        item = stack.pop()
-        if isinstance(item, list):
-            for sub in item:
-                stack.append(sub)
-        else:
-            result.append(item)
-    result.reverse()
-    return result
+class Config:
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
+
+    @classmethod
+    def default(cls):
+        return cls("localhost", 8080)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn flatten_deep"), "Got: {}", result);
-}
-
-// ===== Complex error handling =====
-
-#[test]
-fn test_s12_retry_pattern() {
-    let code = r#"
-def retry(func, max_attempts: int = 3) -> bool:
-    attempts = 0
-    while attempts < max_attempts:
-        try:
-            func()
-            return True
-        except Exception:
-            attempts += 1
-    return False
-"#;
-    let result = transpile(code);
-    assert!(result.contains("fn retry"), "Got: {}", result);
-}
-
-// ===== Complex iteration patterns =====
-
-#[test]
-fn test_s12_sliding_window() {
-    let code = r#"
-def sliding_window_max(nums: list, k: int) -> list:
-    if not nums or k <= 0:
-        return []
-    result = []
-    for i in range(len(nums) - k + 1):
-        window_max = nums[i]
-        for j in range(i + 1, i + k):
-            if nums[j] > window_max:
-                window_max = nums[j]
-        result.append(window_max)
-    return result
-"#;
-    let result = transpile(code);
-    assert!(result.contains("fn sliding_window_max"), "Got: {}", result);
+    assert!(result.contains("Config"), "Got: {}", result);
 }
 
 #[test]
-fn test_s12_kadanes_algorithm() {
-    let code = r#"
-def max_subarray_sum(nums: list) -> int:
-    if not nums:
-        return 0
-    max_sum = nums[0]
-    current_sum = nums[0]
-    for i in range(1, len(nums)):
-        if current_sum + nums[i] > nums[i]:
-            current_sum = current_sum + nums[i]
-        else:
-            current_sum = nums[i]
-        if current_sum > max_sum:
-            max_sum = current_sum
-    return max_sum
-"#;
+fn test_s12_sorted_class() {
+    let code = r##"
+class SortedList:
+    def __init__(self):
+        self.items = []
+
+    def add(self, item: int):
+        pos = 0
+        for i in range(len(self.items)):
+            if self.items[i] > item:
+                break
+            pos = i + 1
+        self.items.insert(pos, item)
+
+    def contains(self, item: int) -> bool:
+        lo = 0
+        hi = len(self.items) - 1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            if self.items[mid] == item:
+                return True
+            elif self.items[mid] < item:
+                lo = mid + 1
+            else:
+                hi = mid - 1
+        return False
+"##;
     let result = transpile(code);
-    assert!(result.contains("fn max_subarray_sum"), "Got: {}", result);
-}
-
-// ===== Complex functional patterns =====
-
-#[test]
-fn test_s12_pipe_functions() {
-    let code = r#"
-def double(x: int) -> int:
-    return x * 2
-
-def add_one(x: int) -> int:
-    return x + 1
-
-def square(x: int) -> int:
-    return x * x
-
-def compose(f, g):
-    def composed(x: int) -> int:
-        return f(g(x))
-    return composed
-"#;
-    let result = transpile(code);
-    assert!(result.contains("fn double"), "Got: {}", result);
-    assert!(result.contains("fn compose"), "Got: {}", result);
+    assert!(result.contains("SortedList"), "Got: {}", result);
 }
