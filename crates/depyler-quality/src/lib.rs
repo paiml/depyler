@@ -2725,4 +2725,466 @@ mod tests {
         assert_eq!(report.overall_status, QualityStatus::Warning);
         assert!(report.gates_failed.iter().any(|r| r.gate_name == "Unreachable Coverage"));
     }
+
+    // === Session 12 tests ===
+
+    #[test]
+    fn test_s12_verify_clippy_with_clippy_warning_code() {
+        let analyzer = QualityAnalyzer::new();
+        // Code that triggers clippy warnings (e.g., manual map)
+        let code = r#"
+pub fn check(x: Option<i32>) -> Option<i32> {
+    match x {
+        Some(v) => Some(v + 1),
+        None => None,
+    }
+}
+"#;
+        let result = analyzer.verify_clippy(code);
+        // clippy should flag this as map-able, so result should be false
+        assert!(result.is_ok());
+        // The pedantic flag makes this fail
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_s12_verify_rustc_compilation_valid_lib() {
+        let analyzer = QualityAnalyzer::new();
+        let result = analyzer.verify_rustc_compilation("pub fn add(a: i32, b: i32) -> i32 { a + b }");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s12_verify_rustc_compilation_syntax_error() {
+        let analyzer = QualityAnalyzer::new();
+        let result = analyzer.verify_rustc_compilation("fn foo(");
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_s12_verify_rustc_compilation_type_error() {
+        let analyzer = QualityAnalyzer::new();
+        let result = analyzer.verify_rustc_compilation("fn foo() -> i32 { \"hello\" }");
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_panic_free() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Safety".to_string(),
+            requirements: vec![QualityRequirement::PanicFree],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert_eq!(results[0].actual_value, "PANIC-FREE");
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_energy_efficient() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Energy".to_string(),
+            requirements: vec![QualityRequirement::EnergyEfficient(0.75)],
+            severity: Severity::Warning,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert_eq!(results[0].actual_value, "78% reduction");
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_annotation_consistency() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Annotations".to_string(),
+            requirements: vec![QualityRequirement::AnnotationConsistency],
+            severity: Severity::Info,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert_eq!(results[0].actual_value, "CONSISTENT");
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_max_pmat_tdg_fail() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "TDG".to_string(),
+            requirements: vec![QualityRequirement::MaxPmatTdg(1.0)],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 2.5, // exceeds max of 1.0
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_min_function_coverage_fail() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Coverage".to_string(),
+            requirements: vec![QualityRequirement::MinFunctionCoverage(0.95)],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.80, // below 0.95
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+        assert!(results[0].actual_value.contains("80.0"));
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_max_cognitive_complexity_fail() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Cognitive".to_string(),
+            requirements: vec![QualityRequirement::MaxCognitiveComplexity(5)],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 10, // exceeds max of 5
+            max_nesting: 4,
+            statement_count: 30,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+        assert_eq!(results[0].actual_value, "10");
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_compilation_success() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Compile".to_string(),
+            requirements: vec![QualityRequirement::CompilationSuccess],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert_eq!(results[0].actual_value, "PASS");
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_clippy_clean() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Clippy".to_string(),
+            requirements: vec![QualityRequirement::ClippyClean],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert_eq!(results[0].actual_value, "CLEAN");
+    }
+
+    #[test]
+    fn test_s12_quality_error_display() {
+        let err = QualityError::GateFailed {
+            gate_name: "Test Gate".to_string(),
+        };
+        assert!(err.to_string().contains("Test Gate"));
+
+        let err2 = QualityError::MetricCalculationFailed {
+            metric: "coverage".to_string(),
+        };
+        assert!(err2.to_string().contains("coverage"));
+
+        let err3 = QualityError::CoverageUnavailable;
+        assert!(err3.to_string().contains("unavailable"));
+    }
+
+    #[test]
+    fn test_s12_quality_report_serde_roundtrip() {
+        let report = QualityReport {
+            pmat_metrics: PmatMetrics {
+                productivity_score: 90.0,
+                maintainability_score: 85.0,
+                accessibility_score: 88.0,
+                testability_score: 92.0,
+                tdg: 1.3,
+            },
+            complexity_metrics: ComplexityMetrics {
+                cyclomatic_complexity: 4,
+                cognitive_complexity: 2,
+                max_nesting: 1,
+                statement_count: 5,
+            },
+            coverage_metrics: CoverageMetrics {
+                line_coverage: 0.95,
+                branch_coverage: 0.90,
+                function_coverage: 0.93,
+            },
+            gates_passed: vec!["Gate1".to_string(), "Gate2".to_string()],
+            gates_failed: vec![],
+            overall_status: QualityStatus::Passed,
+        };
+
+        let json = serde_json::to_string(&report).unwrap();
+        let deserialized: QualityReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.overall_status, QualityStatus::Passed);
+        assert_eq!(deserialized.gates_passed.len(), 2);
+        assert!((deserialized.pmat_metrics.tdg - 1.3).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_s12_quality_gate_result_serde() {
+        let result = QualityGateResult {
+            gate_name: "Test".to_string(),
+            requirement: QualityRequirement::MaxComplexity(10),
+            actual_value: "5".to_string(),
+            passed: true,
+            severity: Severity::Error,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: QualityGateResult = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.passed);
+        assert_eq!(deserialized.gate_name, "Test");
+    }
+
+    #[test]
+    fn test_s12_quality_status_serde() {
+        for status in [QualityStatus::Passed, QualityStatus::Failed, QualityStatus::Warning] {
+            let json = serde_json::to_string(&status).unwrap();
+            let deserialized: QualityStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, status);
+        }
+    }
+
+    #[test]
+    fn test_s12_severity_serde() {
+        for sev in [Severity::Error, Severity::Warning, Severity::Info] {
+            let json = serde_json::to_string(&sev).unwrap();
+            let deserialized: Severity = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, sev);
+        }
+    }
+
+    #[test]
+    fn test_s12_evaluate_gate_multiple_requirements() {
+        let analyzer = QualityAnalyzer::new();
+        let gate = QualityGate {
+            name: "Combined".to_string(),
+            requirements: vec![
+                QualityRequirement::MaxComplexity(10),
+                QualityRequirement::MaxCognitiveComplexity(8),
+                QualityRequirement::MinTestCoverage(0.80),
+                QualityRequirement::MinFunctionCoverage(0.85),
+            ],
+            severity: Severity::Error,
+        };
+        let pmat = PmatMetrics {
+            productivity_score: 80.0,
+            maintainability_score: 80.0,
+            accessibility_score: 80.0,
+            testability_score: 80.0,
+            tdg: 1.5,
+        };
+        let complexity = ComplexityMetrics {
+            cyclomatic_complexity: 5,
+            cognitive_complexity: 3,
+            max_nesting: 2,
+            statement_count: 10,
+        };
+        let coverage = CoverageMetrics {
+            line_coverage: 0.90,
+            branch_coverage: 0.85,
+            function_coverage: 0.92,
+        };
+        let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
+        assert_eq!(results.len(), 4);
+        assert!(results.iter().all(|r| r.passed));
+    }
+
+    #[test]
+    fn test_s12_default_analyzer() {
+        let analyzer = QualityAnalyzer::default();
+        let functions = vec![create_test_function(1)];
+        let report = analyzer.analyze_quality(&functions).unwrap();
+        // Default analyzer should have reasonable default gates
+        assert!(!report.gates_passed.is_empty());
+    }
+
+    #[test]
+    fn test_s12_print_quality_report_warning_status() {
+        let analyzer = QualityAnalyzer::new();
+        let report = QualityReport {
+            pmat_metrics: PmatMetrics {
+                productivity_score: 80.0,
+                maintainability_score: 80.0,
+                accessibility_score: 80.0,
+                testability_score: 80.0,
+                tdg: 1.5,
+            },
+            complexity_metrics: ComplexityMetrics {
+                cyclomatic_complexity: 5,
+                cognitive_complexity: 3,
+                max_nesting: 2,
+                statement_count: 10,
+            },
+            coverage_metrics: CoverageMetrics {
+                line_coverage: 0.90,
+                branch_coverage: 0.85,
+                function_coverage: 0.92,
+            },
+            gates_passed: vec!["Gate1".to_string()],
+            gates_failed: vec![QualityGateResult {
+                gate_name: "Warn Gate".to_string(),
+                requirement: QualityRequirement::EnergyEfficient(0.99),
+                actual_value: "78%".to_string(),
+                passed: false,
+                severity: Severity::Warning,
+            }],
+            overall_status: QualityStatus::Warning,
+        };
+        // Just verify it doesn't panic
+        analyzer.print_quality_report(&report);
+    }
 }
