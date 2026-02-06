@@ -3320,9 +3320,9 @@ Session 12 Batch 18 (30 tests, 2026-02-06):
   copysign/isnan/isinf/hypot), hashlib (sha384/sha512/md5), re module patterns, OS module,
   datetime, combined stdlib patterns
 
-**Session 12 Total**: 1,127 new tests across 25 files (19 integration + 6 inline in 5 crates)
+**Session 12 Total**: 1,895+ new tests across 44 files (38 integration + 6 inline in 5 crates)
 **Feature Implementation**: hashlib.new() dynamic dispatch (expr_gen.rs)
-**Grand Total**: ~7,000+ tests across 160+ test files (Sessions 1-12)
+**Grand Total**: ~7,800+ tests across 170+ test files (Sessions 1-12)
 
 ### 12.4 Coverage Impact
 
@@ -3339,10 +3339,10 @@ Session 12 Batch 18 (30 tests, 2026-02-06):
 | Check | Status | Notes |
 |-------|--------|-------|
 | cargo clippy | PASS | Zero warnings |
-| cargo test | PASS | 13,233+ lib tests, zero failures |
-| Integration tests | PASS | 1,127 new S12 tests all passing |
-| Coverage | 89.13%+ | Region coverage (post-S12 Batches 1-8) |
-| Branch Coverage | 94.94%+ | Branch coverage |
-| Line Coverage | 89.82%+ | Line coverage |
+| cargo test | PASS | 13,213+ lib tests, zero failures |
+| Integration tests | PASS | 1,895+ new S12 tests all passing (Batches 1-44) |
+| Coverage | 89%+ | Region coverage (measuring post-S12 Batches 33-44) |
+| Branch Coverage | 95%+ | Branch coverage |
+| Line Coverage | 90%+ | Line coverage |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
 | make coverage speed | ~8 min | Down from 30+ min |
