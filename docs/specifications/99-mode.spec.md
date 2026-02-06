@@ -3324,7 +3324,7 @@ Session 12 Batch 18 (30 tests, 2026-02-06):
 **Feature Implementation**: hashlib.new() dynamic dispatch (expr_gen.rs)
 **Grand Total**: ~8,000+ tests across 190+ test files (Sessions 1-12)
 
-Session 12 Batches 46-61 (Continuation, 2026-02-06):
+Session 12 Batches 46-67 (Continuation 1, 2026-02-06):
 - Batch 46: 20 module-level constant inference tests
 - Batch 47: 29 statement generation cold path tests (assert, raise, with, try)
 - Batch 48: 29 function generation cold path tests (param/return inference)
@@ -3341,26 +3341,81 @@ Session 12 Batches 46-61 (Continuation, 2026-02-06):
 - Batch 59: 25 instance method deep tests (string/list/dict/set)
 - Batch 60: 10 complex real-world program tests
 - Batch 61: 22 edge case pattern tests (unpacking, lambdas, booleans)
+- Batch 62: 17 advanced codegen (default params, builders, iterators)
+- Batch 63: 19 regex/json/os/math/hashlib stdlib combinations
+- Batch 64: 17 type system cold paths (generics, optional, callable)
+- Batch 65: 13 mixed feature interaction tests
+- Batch 66: 12 exception handling deep paths
+- Batch 67: 15 f-string and string formatting patterns
+
+Session 12 Batches 68-100 (Continuation 2, 2026-02-06):
+- Batch 68: 12 lambda/closure codegen paths
+- Batch 69: 8 complex algorithm patterns (quicksort, dijkstra, knapsack, LCS)
+- Batch 70: 16 tuple unpacking and assignment cold paths
+- Batch 71: 20 type coercion and mixed-type expression paths
+- Batch 72: 20 subscript and slice cold paths
+- Batch 73: 18 complex comprehension and generator paths
+- Batch 74: 20 collection method interaction tests
+- Batch 75: 13 advanced class patterns (OOP, special methods)
+- Batch 76: 24 direct rules convert deep (type conversions, builtins, sorting)
+- Batch 77: 25 expression gen deep (walrus, boolean, bitwise, ternary)
+- Batch 78: 10 real-world programs (URL parser, CSV, statistics, linked list)
+- Batch 79: 20 instance method deep paths (string/list/dict/set contexts)
+- Batch 80: 19 statement pattern deep paths (assert, with, augmented assign)
+- Batch 81: 22 function generation deep (param inference, defaults, generators)
+- Batch 82: 19 stdlib module deep (math, re, json, os, hashlib)
+- Batch 83: 15 rust_gen module deep (constants, module structure)
+- Batch 84: 19 type inference deep (annotations, generics, callable)
+- Batch 85: 14 decorator and special method patterns
+- Batch 86: 10 error handling and recovery patterns
+- Batch 87: 8 data structure implementations (stack, queue, BST, trie)
+- Batch 88: 15 iteration and loop pattern cold paths
+- Batch 89: 8 multi-function module cross-reference tests
+- Batch 90: 15 type conversion edge cases
+- Batch 91: 18 built-in function deep tests
+- Batch 92: 20 direct_rules_convert deep (attribute/index assign, augmented ops)
+- Batch 93: 20 expression gen deep (calls, kwargs, comparisons, boolean)
+- Batch 94: 16 instance method deep (chains, receivers, arguments)
+- Batch 95: 12 complex expression combination patterns
+- Batch 96: 8 argparse and CLI patterns
+- Batch 97: 15 array initialization and list construction
+- Batch 98: 12 global patterns, module structure, edge cases
+- Batch 99: 12 pathological and stress patterns
+- Batch 100: 8 final coverage push (calculator, graph, sorting, functional)
 
 ### 12.4 Coverage Impact
 
-| Metric | Pre-S12 | Post-S12 (Batches 1-8 measured) | Post-S12 (Batches 1-61) |
+| Metric | Pre-S12 | Post-S12 (Batches 1-8) | Post-S12 (Batches 1-100) |
 |--------|---------|---------------------|---------------------|
 | Region Coverage | 89.27% | 89.13% | 87.61% (depyler-core) |
 | Branch Coverage | 94.84% | 94.94% | 94.42% |
 | Line Coverage | 89.98% | 89.82% | 88.34% |
-| Lib Tests | 13,195+ | 13,233+ | 13,500+ |
-| Workspace Tests | 16,693+ | ~17,200+ | ~18,000+ |
+| Lib Tests | 13,195+ | 13,233+ | 13,213+ |
+| S12 Test Files | - | 18 | 98 |
+| S12 Tests (est.) | - | 750+ | 2,800+ |
 
 ### 12.5 CI Health (2026-02-06)
 
 | Check | Status | Notes |
 |-------|--------|-------|
 | cargo clippy | PASS | Zero warnings |
-| cargo test | PASS | 13,500+ lib tests, zero failures |
-| Integration tests | PASS | 2,121+ new S12 tests all passing (Batches 1-61) |
+| cargo test | PASS | 13,213+ lib tests, zero failures |
+| Integration tests | PASS | 2,800+ S12 tests all passing (100 batches) |
 | Coverage | 88%+ | Region coverage depyler-core |
 | Branch Coverage | 94%+ | Branch coverage |
 | Line Coverage | 88%+ | Line coverage |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
 | make coverage speed | ~8 min | Down from 30+ min |
+
+### 12.6 Coverage Plateau Analysis
+
+Transpile-based integration tests are showing diminishing returns at ~88% line coverage.
+The remaining ~12% consists of:
+1. **DepylerValue/NASA mode paths** - only exercised when `nasa_mode` enabled
+2. **Sovereign type database loading** - feature-gated behind `sovereign-types`
+3. **Error paths requiring mocked context** - unreachable from valid Python transpilation
+4. **Rare type inference branches** - require specific internal state combinations
+5. **Argparse transform edge cases** - complex CLI patterns with many fallbacks
+
+To push beyond 90%, need inline unit tests directly in source files targeting
+these internal code paths that are unreachable via the transpile() test pattern.
