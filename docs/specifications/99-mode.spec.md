@@ -3320,29 +3320,47 @@ Session 12 Batch 18 (30 tests, 2026-02-06):
   copysign/isnan/isinf/hypot), hashlib (sha384/sha512/md5), re module patterns, OS module,
   datetime, combined stdlib patterns
 
-**Session 12 Total**: 1,895+ new tests across 44 files (38 integration + 6 inline in 5 crates)
+**Session 12 Total**: 2,121+ new tests across 61 files (55 integration + 6 inline in 5 crates)
 **Feature Implementation**: hashlib.new() dynamic dispatch (expr_gen.rs)
-**Grand Total**: ~7,800+ tests across 170+ test files (Sessions 1-12)
+**Grand Total**: ~8,000+ tests across 190+ test files (Sessions 1-12)
+
+Session 12 Batches 46-61 (Continuation, 2026-02-06):
+- Batch 46: 20 module-level constant inference tests
+- Batch 47: 29 statement generation cold path tests (assert, raise, with, try)
+- Batch 48: 29 function generation cold path tests (param/return inference)
+- Batch 49: 36 expression generation cold path tests (slices, bitwise, generators)
+- Batch 50: 14 class generation cold path tests (inheritance, fields, methods)
+- Batch 51: 18 import pattern tests (typing, stdlib, complex modules)
+- Batch 52: 22 comprehension/iterator cold path tests
+- Batch 53: 30 string operation cold path tests
+- Batch 54: 24 numeric operation tests (int/float ops, math module)
+- Batch 55: 23 dict operation tests (methods, iteration, algorithms)
+- Batch 56: 28 list/set/tuple operation tests
+- Batch 57: 18 control flow tests (while, recursion, nested loops)
+- Batch 58: 23 direct_rules_convert deep tests (builtins, conversions)
+- Batch 59: 25 instance method deep tests (string/list/dict/set)
+- Batch 60: 10 complex real-world program tests
+- Batch 61: 22 edge case pattern tests (unpacking, lambdas, booleans)
 
 ### 12.4 Coverage Impact
 
-| Metric | Pre-S12 | Post-S12 (Batches 1-8 measured) | Post-S12 (Batches 1-18 est.) |
+| Metric | Pre-S12 | Post-S12 (Batches 1-8 measured) | Post-S12 (Batches 1-61) |
 |--------|---------|---------------------|---------------------|
-| Region Coverage | 89.27% | 89.13% | ~90%+ |
-| Branch Coverage | 94.84% | 94.94% | ~95%+ |
-| Line Coverage | 89.98% | 89.82% | ~90%+ |
-| Lib Tests | 13,195+ | 13,233+ | ~13,500+ |
-| Workspace Tests | 16,693+ | ~17,200+ | ~17,500+ |
+| Region Coverage | 89.27% | 89.13% | 87.61% (depyler-core) |
+| Branch Coverage | 94.84% | 94.94% | 94.42% |
+| Line Coverage | 89.98% | 89.82% | 88.34% |
+| Lib Tests | 13,195+ | 13,233+ | 13,500+ |
+| Workspace Tests | 16,693+ | ~17,200+ | ~18,000+ |
 
 ### 12.5 CI Health (2026-02-06)
 
 | Check | Status | Notes |
 |-------|--------|-------|
 | cargo clippy | PASS | Zero warnings |
-| cargo test | PASS | 13,213+ lib tests, zero failures |
-| Integration tests | PASS | 1,895+ new S12 tests all passing (Batches 1-44) |
-| Coverage | 89%+ | Region coverage (measuring post-S12 Batches 33-44) |
-| Branch Coverage | 95%+ | Branch coverage |
-| Line Coverage | 90%+ | Line coverage |
+| cargo test | PASS | 13,500+ lib tests, zero failures |
+| Integration tests | PASS | 2,121+ new S12 tests all passing (Batches 1-61) |
+| Coverage | 88%+ | Region coverage depyler-core |
+| Branch Coverage | 94%+ | Branch coverage |
+| Line Coverage | 88%+ | Line coverage |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
 | make coverage speed | ~8 min | Down from 30+ min |
