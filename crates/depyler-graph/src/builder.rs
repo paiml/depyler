@@ -1188,4 +1188,176 @@ class C(A, B):
             assert_eq!(edge.kind, EdgeKind::Inherits);
         }
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S11: Coverage tests for untested extract_calls branches
+    // ========================================================================
+
+    #[test]
+    fn test_s11_calls_in_dict_values() {
+        let python = r#"
+def val_func():
+    return 42
+
+def main():
+    d = {1: val_func()}
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "val_func"));
+    }
+
+    #[test]
+    fn test_s11_calls_in_list_elements() {
+        let python = r#"
+def elem_func():
+    return 1
+
+def main():
+    items = [elem_func(), 2, 3]
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "elem_func"));
+    }
+
+    #[test]
+    fn test_s11_calls_in_compare_expr() {
+        let python = r#"
+def check():
+    return 5
+
+def main():
+    if check() > 3:
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "check"));
+    }
+
+    #[test]
+    fn test_s11_calls_in_compare_comparators() {
+        let python = r#"
+def threshold():
+    return 10
+
+def main():
+    if 5 > threshold():
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "threshold"));
+    }
+
+    #[test]
+    fn test_s11_calls_via_expr_stmt() {
+        // Covers extract_calls_from_stmt for Stmt::Expr
+        let python = r#"
+def side_effect():
+    pass
+
+def main():
+    side_effect()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0.id, "side_effect");
+    }
+
+    #[test]
+    fn test_s11_calls_in_for_body() {
+        let python = r#"
+def process(x):
+    return x
+
+def main():
+    for i in [1, 2]:
+        process(i)
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "process"));
+    }
+
+    #[test]
+    fn test_s11_calls_in_while_body() {
+        let python = r#"
+def tick():
+    pass
+
+def main():
+    while True:
+        tick()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "tick"));
+    }
+
+    #[test]
+    fn test_s11_calls_with_class_constructor() {
+        // Calling a class is like calling its __init__
+        let python = r#"
+class Widget:
+    def render(self):
+        pass
+
+def main():
+    w = Widget()
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        // Widget is a known class, so edge should exist
+        assert!(out.iter().any(|(n, _)| n.id == "Widget"));
+    }
+
+    #[test]
+    fn test_s11_no_edge_for_external_function() {
+        let python = r#"
+def main():
+    print("hello")
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        // print is not a known function, so no edge
+        let out = graph.outgoing_edges("main");
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn test_s11_calls_in_for_iter_expr() {
+        let python = r#"
+def get_items():
+    return [1, 2, 3]
+
+def main():
+    for x in get_items():
+        pass
+"#;
+        let mut builder = GraphBuilder::new();
+        let graph = builder.build_from_source(python).unwrap();
+        let out = graph.outgoing_edges("main");
+        assert!(out.iter().any(|(n, _)| n.id == "get_items"));
+    }
+
+    #[test]
+    fn test_s11_offset_to_line_multiline() {
+        let mut builder = GraphBuilder::new();
+        builder.source = "a\nb\nc\nd\ne".to_string();
+        assert_eq!(builder.offset_to_line(0), 1); // 'a'
+        assert_eq!(builder.offset_to_line(2), 2); // 'b'
+        assert_eq!(builder.offset_to_line(4), 3); // 'c'
+        assert_eq!(builder.offset_to_line(8), 5); // 'e'
+    }
 }

@@ -933,4 +933,328 @@ class Public: ...
         assert_eq!(facts.len(), 1);
         assert_eq!(facts[0].symbol, "Public");
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S11: Coverage tests for expr_to_string branches,
+    // build_signature edge cases, and annotation extraction
+    // ========================================================================
+
+    #[test]
+    fn test_s11_expr_to_string_constant_int_in_annotation() {
+        // Python allows integer literals in type annotations (e.g., Literal[42])
+        let source = r#"
+x: 42
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "42");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_constant_float_in_annotation() {
+        // Use a value that won't be parsed as int (e.g. 3.5)
+        let source = r#"
+x: 3.5
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "3.5");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_constant_bool_true() {
+        let source = r#"
+x: True
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "true");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_constant_bool_false() {
+        let source = r#"
+x: False
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "false");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_constant_ellipsis() {
+        let source = r#"
+x: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "...");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_constant_string_literal() {
+        let source = "x: \"hello\"\n";
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "\"hello\"");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_constant_none() {
+        let source = r#"
+x: None
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "None");
+    }
+
+    #[test]
+    fn test_s11_expr_to_string_non_bitor_binop() {
+        // Using + operator in annotation should produce "Unknown"
+        let source = r#"
+x: int + str
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "Unknown");
+    }
+
+    #[test]
+    fn test_s11_extract_tuple_return_type() {
+        let source = r#"
+def func() -> (int, str, float): ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "int, str, float");
+    }
+
+    #[test]
+    fn test_s11_extract_deeply_nested_subscript() {
+        let source = r#"
+def func() -> Dict[str, List[Optional[int]]]: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "Dict[str, List[Optional[int]]]");
+    }
+
+    #[test]
+    fn test_s11_extract_attribute_type_nested() {
+        let source = r#"
+x: collections.abc.Mapping
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].return_type, "collections.abc.Mapping");
+    }
+
+    #[test]
+    fn test_s11_extract_union_pipe_chained() {
+        let source = r#"
+def func() -> int | str | None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        // Should chain: (int | str) | None
+        assert!(facts[0].return_type.contains("int | str | None"));
+    }
+
+    #[test]
+    fn test_s11_extract_posonly_with_kwonly_combined() {
+        let source = r#"
+def func(a: int, b: int, /, c: int, *, d: str) -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        let sig = &facts[0].signature;
+        assert!(sig.contains("a: int"));
+        assert!(sig.contains("/"));
+        assert!(sig.contains("c: int"));
+        assert!(sig.contains("d: str"));
+    }
+
+    #[test]
+    fn test_s11_extract_class_with_async_private_method_included() {
+        let source = r#"
+class Service:
+    async def _internal(self) -> None: ...
+    async def public(self) -> str: ...
+"#;
+        let extractor = Extractor::new().with_private();
+        let facts = extractor
+            .extract_source(source, "svc", "test.pyi")
+            .unwrap();
+        // class + 2 methods (both included with private flag)
+        assert_eq!(facts.len(), 3);
+        assert!(facts.iter().any(|f| f.symbol == "Service._internal"));
+        assert!(facts.iter().any(|f| f.symbol == "Service.public"));
+    }
+
+    #[test]
+    fn test_s11_extract_annotated_assign_private_excluded() {
+        let source = r#"
+_PRIVATE_CONST: int
+PUBLIC_CONST: str
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "config", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "PUBLIC_CONST");
+    }
+
+    #[test]
+    fn test_s11_extract_annotated_assign_private_included() {
+        let source = r#"
+_PRIVATE_CONST: int
+PUBLIC_CONST: str
+"#;
+        let extractor = Extractor::new().with_private();
+        let facts = extractor
+            .extract_source(source, "config", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 2);
+    }
+
+    #[test]
+    fn test_s11_extract_function_only_varargs() {
+        let source = r#"
+def func(*args: int, **kwargs: str) -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        let sig = &facts[0].signature;
+        assert!(sig.contains("*args: int"));
+        assert!(sig.contains("**kwargs: str"));
+    }
+
+    #[test]
+    fn test_s11_extract_function_untyped_vararg() {
+        let source = r#"
+def func(*args) -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("*args"));
+    }
+
+    #[test]
+    fn test_s11_extract_function_untyped_kwarg() {
+        let source = r#"
+def func(**kw) -> None: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].signature.contains("**kw"));
+    }
+
+    #[test]
+    fn test_s11_extract_class_with_mixed_statement_types() {
+        // Class with methods, async methods, attributes, and ignored statements
+        let source = r#"
+class MyClass:
+    name: str
+    async def fetch(self) -> bytes: ...
+    def process(self) -> int: ...
+    x = 42
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        // class + name attr + fetch method + process method = 4
+        // x = 42 is a plain Assign, not AnnAssign, so it's in the _ => {} branch
+        assert_eq!(facts.len(), 4);
+    }
+
+    #[test]
+    fn test_s11_extract_source_with_ignored_statement_types() {
+        // Import statements and other non-function/class/annassign stmts are ignored
+        let source = r#"
+import os
+from typing import List
+def real_func() -> int: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "real_func");
+    }
+
+    #[test]
+    fn test_s11_extract_file_nonexistent_path() {
+        let extractor = Extractor::new();
+        let result = extractor.extract_file(
+            Path::new("/nonexistent/path/to/file.pyi"),
+            "nonexistent",
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s11_extract_list_type_with_nested_elements() {
+        let source = r#"
+def func() -> [List[int], Dict[str, str]]: ...
+"#;
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert!(facts[0].return_type.starts_with('['));
+        assert!(facts[0].return_type.contains("List[int]"));
+    }
 }

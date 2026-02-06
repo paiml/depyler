@@ -3126,4 +3126,73 @@ def full_function():
         set.insert(LambdaEventType::SqsEvent);
         assert_eq!(set.len(), 3);
     }
+
+    // ========================================================================
+    // DEPYLER-99MODE-S11: Coverage tests for untested annotation paths
+    // ========================================================================
+
+    #[test]
+    fn test_s11_parse_optimization_hint_async_ready() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: optimization_hint = \"async_ready\"";
+        let result = parser.parse_annotations(source);
+        // async_ready is experimental - it prints a warning but does NOT error
+        assert!(result.is_ok());
+        // No performance hints should be added (async_ready just warns)
+        let annotations = result.unwrap();
+        assert!(!annotations
+            .performance_hints
+            .contains(&PerformanceHint::Vectorize));
+    }
+
+    #[test]
+    fn test_s11_parse_optimization_hint_vectorize() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: optimization_hint = \"vectorize\"";
+        let result = parser.parse_annotations(source).unwrap();
+        assert!(result
+            .performance_hints
+            .contains(&PerformanceHint::Vectorize));
+    }
+
+    #[test]
+    fn test_s11_parse_custom_attribute_serde_roundtrip() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: custom_attribute = \"#[derive(Clone)]\"";
+        let result = parser.parse_annotations(source).unwrap();
+        assert!(result
+            .custom_attributes
+            .contains(&"#[derive(Clone)]".to_string()));
+
+        let json = serde_json::to_string(&result).unwrap();
+        let deserialized: TranspilationAnnotations = serde_json::from_str(&json).unwrap();
+        assert_eq!(result.custom_attributes, deserialized.custom_attributes);
+    }
+
+    #[test]
+    fn test_s11_parse_invariant_annotation() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: invariant = \"x > 0\"";
+        let result = parser.parse_annotations(source).unwrap();
+        assert_eq!(result.invariants.len(), 1);
+        assert!(result.invariants.contains(&"x > 0".to_string()));
+    }
+
+    #[test]
+    fn test_s11_parse_batch_failure_reporting() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: batch_failure_reporting = \"true\"";
+        let result = parser.parse_annotations(source).unwrap();
+        let lambda = result.lambda_annotations.unwrap();
+        assert!(lambda.batch_failure_reporting);
+    }
+
+    #[test]
+    fn test_s11_parse_custom_serialization() {
+        let parser = AnnotationParser::new();
+        let source = "# @depyler: custom_serialization = \"true\"";
+        let result = parser.parse_annotations(source).unwrap();
+        let lambda = result.lambda_annotations.unwrap();
+        assert!(lambda.custom_serialization);
+    }
 }
