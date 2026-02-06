@@ -1186,4 +1186,180 @@ mod tests {
         assert_eq!(deser_err, Severity::Error);
         assert_eq!(deser_warn, Severity::Warning);
     }
+
+    // ========================================================================
+    // Session 11 cont - Deep Coverage Tests for Untested Paths
+    // ========================================================================
+
+    #[test]
+    fn test_lint_multiple_inheritance_with_generics() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("ok.py");
+        // Dict[str, int] should not count as multiple inheritance
+        fs::write(
+            &py_file,
+            "class MyDict(Dict[str, int]):\n    pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP008));
+    }
+
+    #[test]
+    fn test_lint_multiple_inheritance_mixed_generic() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        // Animal is non-generic, Generic[T] is filtered → only 1 base
+        fs::write(
+            &py_file,
+            "from typing import Generic, TypeVar\nT = TypeVar('T')\nclass Hybrid(Animal, Generic[T]):\n    pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        // Animal counts, Generic[T] is filtered → only 1 non-generic base
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP008));
+    }
+
+    #[test]
+    fn test_lint_triple_inheritance() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(
+            &py_file,
+            "class Franken(Base1, Base2, Base3):\n    pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP008));
+    }
+
+    #[test]
+    fn test_get_source_line_single_line() {
+        assert_eq!(get_source_line("only_line", 1), Some("only_line".to_string()));
+    }
+
+    #[test]
+    fn test_get_source_line_trailing_newline() {
+        let source = "line1\nline2\n";
+        assert_eq!(get_source_line(source, 2), Some("line2".to_string()));
+        // Rust's lines() drops trailing empty line, so line 3 is None
+        assert_eq!(get_source_line(source, 3), None);
+    }
+
+    #[test]
+    fn test_contains_function_call_after_dot() {
+        // After dot should still match (not alphanumeric/_)
+        assert!(contains_function_call("os.exec('cmd')", "exec"));
+    }
+
+    #[test]
+    fn test_contains_function_call_after_paren() {
+        assert!(contains_function_call("print(eval('x'))", "eval"));
+    }
+
+    #[test]
+    fn test_lint_getattr_detection() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "x = getattr(obj, 'attr')\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP005));
+    }
+
+    #[test]
+    fn test_lint_dunder_getattr_detection() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(
+            &py_file,
+            "class Foo:\n    def __getattr__(self, name):\n        pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP009));
+    }
+
+    #[test]
+    fn test_lint_dunder_setattr_detection() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(
+            &py_file,
+            "class Foo:\n    def __setattr__(self, name, value):\n        pass\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP010));
+    }
+
+    #[test]
+    fn test_lint_globals_locals_detection() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "x = globals()\ny = locals()\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP013));
+        assert!(report.violations.iter().any(|v| v.code == codes::DP014));
+    }
+
+    #[test]
+    fn test_lint_dynamic_import() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("bad.py");
+        fs::write(&py_file, "mod = __import__('os')\n").unwrap();
+
+        let report = lint_file(&py_file, false).unwrap();
+        assert!(report.violations.iter().any(|v| v.code == codes::DP015));
+    }
+
+    #[test]
+    fn test_lint_class_no_parens() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("ok.py");
+        // Class without inheritance parens
+        fs::write(
+            &py_file,
+            "class Simple:\n    x: int = 0\n",
+        )
+        .unwrap();
+
+        let report = lint_file(&py_file, true).unwrap();
+        assert!(!report.violations.iter().any(|v| v.code == codes::DP008));
+    }
+
+    #[test]
+    fn test_lint_corpus_mixed_compliance() {
+        let temp = TempDir::new().unwrap();
+        fs::write(
+            temp.path().join("good.py"),
+            "def add(x: int, y: int) -> int:\n    return x + y\n",
+        )
+        .unwrap();
+        fs::write(temp.path().join("bad.py"), "x = eval('1')\n").unwrap();
+
+        let report = lint_corpus(temp.path(), false).unwrap();
+        assert_eq!(report.total_files, 2);
+        assert_eq!(report.compliant_files, 1);
+        assert!((report.compliance_rate - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_find_pattern_column_multiple_occurrences() {
+        // Should find the FIRST occurrence
+        assert_eq!(find_pattern_column("eval eval eval", "eval"), 1);
+    }
+
+    #[test]
+    fn test_find_function_line_multiple_functions() {
+        let source = "def foo():\n    pass\ndef bar():\n    pass\n";
+        assert_eq!(find_function_line(source, "foo"), 1);
+        assert_eq!(find_function_line(source, "bar"), 3);
+    }
 }
