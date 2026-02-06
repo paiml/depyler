@@ -406,6 +406,242 @@ mod tests {
         assert_eq!(result.confidence, 1.0);
         assert!(result.counterexamples.is_empty());
     }
+
+    // ========================================================================
+    // Session 11 - Deep Coverage Tests for Untested Paths
+    // ========================================================================
+
+    #[test]
+    fn test_verify_thread_safety_violated_shared_no_sync() {
+        let verifier = PropertyVerifier::new();
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "unsafe_shared".to_string(),
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations {
+                thread_safety: ThreadSafety::Required,
+                ownership_model: OwnershipModel::Shared,
+                interior_mutability: InteriorMutability::None,
+                ..Default::default()
+            },
+            docstring: None,
+        };
+
+        let results = verifier.verify_function(&func);
+        let thread_result = results.iter().find(|r| r.property == "thread_safety");
+        assert!(thread_result.is_some());
+        assert!(matches!(
+            thread_result.unwrap().status,
+            PropertyStatus::Violated(_)
+        ));
+    }
+
+    #[test]
+    fn test_verify_thread_safety_proven_with_arc_mutex() {
+        let verifier = PropertyVerifier::new();
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "safe_shared".to_string(),
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations {
+                thread_safety: ThreadSafety::Required,
+                ownership_model: OwnershipModel::Shared,
+                interior_mutability: InteriorMutability::ArcMutex,
+                ..Default::default()
+            },
+            docstring: None,
+        };
+
+        let results = verifier.verify_function(&func);
+        let thread_result = results.iter().find(|r| r.property == "thread_safety");
+        assert!(thread_result.is_some());
+        assert!(matches!(
+            thread_result.unwrap().status,
+            PropertyStatus::Proven
+        ));
+    }
+
+    #[test]
+    fn test_verify_function_no_pure_no_terminates() {
+        let verifier = PropertyVerifier::new();
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "impure".to_string(),
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: depyler_core::hir::FunctionProperties {
+                is_pure: false,
+                always_terminates: false,
+                panic_free: false,
+                ..Default::default()
+            },
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let results = verifier.verify_function(&func);
+        // Should NOT have purity, termination, or panic_free results
+        assert!(!results.iter().any(|r| r.property == "pure"));
+        assert!(!results.iter().any(|r| r.property == "termination"));
+        assert!(!results.iter().any(|r| r.property == "panic_free"));
+    }
+
+    #[test]
+    fn test_verify_type_preservation_unknown_param() {
+        let verifier = PropertyVerifier::new();
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "untyped_param".to_string(),
+            params: smallvec![depyler_core::hir::HirParam::new(
+                "x".to_string(),
+                Type::Unknown
+            )],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let results = verifier.verify_function(&func);
+        let type_result = results
+            .iter()
+            .find(|r| r.property == "type_preservation")
+            .unwrap();
+        assert!(matches!(type_result.status, PropertyStatus::Unknown));
+        assert_eq!(type_result.confidence, 0.0);
+    }
+
+    #[test]
+    fn test_detect_shared_state_owned() {
+        let verifier = PropertyVerifier::new();
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "owned".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations {
+                ownership_model: OwnershipModel::Owned,
+                ..Default::default()
+            },
+            docstring: None,
+        };
+        assert!(!verifier.detect_shared_state(&func));
+    }
+
+    #[test]
+    fn test_detect_shared_state_shared() {
+        let verifier = PropertyVerifier::new();
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "shared".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations {
+                ownership_model: OwnershipModel::Shared,
+                ..Default::default()
+            },
+            docstring: None,
+        };
+        assert!(verifier.detect_shared_state(&func));
+    }
+
+    #[test]
+    fn test_generate_property_tests() {
+        let verifier = PropertyVerifier::new().with_iterations(100);
+        use smallvec::smallvec;
+        let func = HirFunction {
+            name: "add".to_string(),
+            params: smallvec![
+                depyler_core::hir::HirParam::new("a".to_string(), Type::Int),
+                depyler_core::hir::HirParam::new("b".to_string(), Type::Int),
+            ],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("a".to_string())))],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let test_code = verifier.generate_property_tests(&func);
+        assert!(test_code.is_ok());
+        let code = test_code.unwrap();
+        assert!(!code.is_empty());
+        assert!(code.contains("add"));
+    }
+
+    #[test]
+    fn test_verification_method_serialization() {
+        use serde_json;
+        let methods = vec![
+            VerificationMethod::Exhaustive,
+            VerificationMethod::PropertyTesting,
+            VerificationMethod::StaticAnalysis,
+            VerificationMethod::StructuralInduction,
+            VerificationMethod::Heuristic,
+        ];
+
+        for method in methods {
+            let serialized = serde_json::to_string(&method).unwrap();
+            let deserialized: VerificationMethod = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(
+                std::mem::discriminant(&method),
+                std::mem::discriminant(&deserialized)
+            );
+        }
+    }
+
+    #[test]
+    fn test_test_case_serialization() {
+        use serde_json;
+        let test_case = TestCase {
+            inputs: vec![serde_json::json!(42), serde_json::json!("hello")],
+            expected_output: Some(serde_json::json!(42)),
+            actual_output: Some(serde_json::json!(43)),
+            error: Some("mismatch".to_string()),
+        };
+
+        let serialized = serde_json::to_string(&test_case).unwrap();
+        let deserialized: TestCase = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized.inputs.len(), 2);
+        assert!(deserialized.error.is_some());
+    }
+
+    #[test]
+    fn test_test_case_empty() {
+        use serde_json;
+        let test_case = TestCase {
+            inputs: vec![],
+            expected_output: None,
+            actual_output: None,
+            error: None,
+        };
+
+        let serialized = serde_json::to_string(&test_case).unwrap();
+        let deserialized: TestCase = serde_json::from_str(&serialized).unwrap();
+        assert!(deserialized.inputs.is_empty());
+        assert!(deserialized.expected_output.is_none());
+    }
+
+    #[test]
+    fn test_property_verifier_default_eq_new() {
+        let v1 = PropertyVerifier::new();
+        let v2 = PropertyVerifier::default();
+        assert_eq!(v1.enable_quickcheck, v2.enable_quickcheck);
+        assert_eq!(v1.enable_contracts, v2.enable_contracts);
+        assert_eq!(v1.test_iterations, v2.test_iterations);
+    }
 }
 
 /// Doctests for public API
