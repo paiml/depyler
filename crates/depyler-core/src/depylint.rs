@@ -1426,4 +1426,598 @@ class Foo:
         let warnings = analyzer.analyze("x = 1\neval('2')");
         assert!(warnings[0].offset > 0);
     }
+
+    // ===== Poka-Yoke Phase 2 tests =====
+
+    #[test]
+    fn test_s12_poka_yoke_violation_debug() {
+        let v = PokaYokeViolation {
+            code: "DPL100".to_string(),
+            description: "test".to_string(),
+            offset: 42,
+            suggestion: "fix it".to_string(),
+        };
+        let debug = format!("{:?}", v);
+        assert!(debug.contains("DPL100"));
+    }
+
+    #[test]
+    fn test_s12_poka_yoke_violation_clone() {
+        let v = PokaYokeViolation {
+            code: "DPL101".to_string(),
+            description: "desc".to_string(),
+            offset: 0,
+            suggestion: "suggest".to_string(),
+        };
+        let cloned = v.clone();
+        assert_eq!(cloned.code, "DPL101");
+        assert_eq!(cloned.description, "desc");
+    }
+
+    fn make_test_func(name: &str, body: Vec<crate::hir::HirStmt>) -> crate::hir::HirFunction {
+        use crate::hir::{FunctionProperties, HirFunction, Type};
+        use depyler_annotations::TranspilationAnnotations;
+        use smallvec::smallvec;
+
+        HirFunction {
+            name: name.to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }
+    }
+
+    #[test]
+    fn test_s12_check_poka_yoke_clean_function() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let func = make_test_func(
+            "clean",
+            vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+        );
+        let result = check_poka_yoke(&func);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_s12_check_poka_yoke_mutation_while_iterating() {
+        use crate::hir::{AssignTarget, HirExpr, HirStmt};
+
+        let func = make_test_func(
+            "bad_loop",
+            vec![HirStmt::For {
+                target: AssignTarget::Symbol("x".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("items".to_string())),
+                    method: "append".to_string(),
+                    args: vec![HirExpr::Var("x".to_string())],
+                    kwargs: vec![],
+                })],
+            }],
+        );
+        let result = check_poka_yoke(&func);
+        assert!(result.is_err());
+        let violation = result.unwrap_err();
+        assert_eq!(violation.code, "DPL100");
+        assert!(violation.description.contains("items"));
+    }
+
+    #[test]
+    fn test_s12_check_poka_yoke_self_reference_assign() {
+        use crate::hir::{AssignTarget, HirExpr, HirStmt, Literal};
+
+        let func = make_test_func(
+            "self_ref",
+            vec![HirStmt::Assign {
+                target: AssignTarget::Index {
+                    base: Box::new(HirExpr::Var("d".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+                },
+                value: HirExpr::Var("d".to_string()),
+                type_annotation: None,
+            }],
+        );
+        let result = check_poka_yoke(&func);
+        assert!(result.is_err());
+        let violation = result.unwrap_err();
+        assert_eq!(violation.code, "DPL101");
+    }
+
+    #[test]
+    fn test_s12_check_poka_yoke_self_append() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let func = make_test_func(
+            "self_append",
+            vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("lst".to_string())),
+                method: "append".to_string(),
+                args: vec![HirExpr::Var("lst".to_string())],
+                kwargs: vec![],
+            })],
+        );
+        let result = check_poka_yoke(&func);
+        assert!(result.is_err());
+        let violation = result.unwrap_err();
+        assert_eq!(violation.code, "DPL101");
+        assert!(violation.description.contains("lst"));
+    }
+
+    #[test]
+    fn test_s12_hir_stmt_mutates_var_if_branch() {
+        use crate::hir::{HirExpr, HirStmt, Literal};
+
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("items".to_string())),
+                method: "pop".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })],
+            else_body: None,
+        };
+        assert!(hir_stmt_mutates_var(&stmt, "items"));
+    }
+
+    #[test]
+    fn test_s12_hir_stmt_mutates_var_else_branch() {
+        use crate::hir::{HirExpr, HirStmt, Literal};
+
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(false)),
+            then_body: vec![],
+            else_body: Some(vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("items".to_string())),
+                method: "clear".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })]),
+        };
+        assert!(hir_stmt_mutates_var(&stmt, "items"));
+    }
+
+    #[test]
+    fn test_s12_hir_stmt_mutates_var_block() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::Block(vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "add".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        })]);
+        assert!(hir_stmt_mutates_var(&stmt, "s"));
+    }
+
+    #[test]
+    fn test_s12_hir_stmt_mutates_var_no_mutation() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("items".to_string())),
+            method: "len".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        });
+        assert!(!hir_stmt_mutates_var(&stmt, "items"));
+    }
+
+    #[test]
+    fn test_s12_hir_stmt_mutates_var_different_var() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("other".to_string())),
+            method: "append".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        });
+        assert!(!hir_stmt_mutates_var(&stmt, "items"));
+    }
+
+    #[test]
+    fn test_s12_hir_expr_mutates_all_methods() {
+        use crate::hir::HirExpr;
+
+        let methods = [
+            "append", "extend", "insert", "remove", "pop", "clear", "add", "discard", "update",
+            "setdefault",
+        ];
+        for method in methods {
+            let expr = HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("x".to_string())),
+                method: method.to_string(),
+                args: vec![],
+                kwargs: vec![],
+            };
+            assert!(
+                hir_expr_mutates_var(&expr, "x"),
+                "Method '{}' should be detected as mutation",
+                method
+            );
+        }
+    }
+
+    #[test]
+    fn test_s12_hir_expr_non_mutating_method() {
+        use crate::hir::HirExpr;
+
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("x".to_string())),
+            method: "get".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!hir_expr_mutates_var(&expr, "x"));
+    }
+
+    #[test]
+    fn test_s12_hir_expr_non_method_call() {
+        use crate::hir::HirExpr;
+
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!hir_expr_mutates_var(&expr, "x"));
+    }
+
+    #[test]
+    fn test_s12_find_base_var_symbol() {
+        use crate::hir::AssignTarget;
+
+        let target = AssignTarget::Symbol("x".to_string());
+        assert_eq!(find_base_var_in_assign(&target), Some("x"));
+    }
+
+    #[test]
+    fn test_s12_find_base_var_index() {
+        use crate::hir::{AssignTarget, HirExpr, Literal};
+
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Var("d".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+        };
+        assert_eq!(find_base_var_in_assign(&target), Some("d"));
+    }
+
+    #[test]
+    fn test_s12_find_base_var_attribute() {
+        use crate::hir::{AssignTarget, HirExpr};
+
+        let target = AssignTarget::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        assert_eq!(find_base_var_in_assign(&target), Some("obj"));
+    }
+
+    #[test]
+    fn test_s12_find_base_var_tuple() {
+        use crate::hir::AssignTarget;
+
+        let target = AssignTarget::Tuple(vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ]);
+        assert_eq!(find_base_var_in_assign(&target), None);
+    }
+
+    #[test]
+    fn test_s12_find_base_var_index_non_var() {
+        use crate::hir::{AssignTarget, HirExpr, Literal};
+
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Literal(Literal::Int(0))),
+            index: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert_eq!(find_base_var_in_assign(&target), None);
+    }
+
+    #[test]
+    fn test_s12_find_base_var_attribute_non_var() {
+        use crate::hir::{AssignTarget, HirExpr, Literal};
+
+        let target = AssignTarget::Attribute {
+            value: Box::new(HirExpr::Literal(Literal::Int(0))),
+            attr: "field".to_string(),
+        };
+        assert_eq!(find_base_var_in_assign(&target), None);
+    }
+
+    #[test]
+    fn test_s12_detect_hir_self_reference_no_match() {
+        use crate::hir::{HirExpr, HirStmt, Literal};
+
+        let stmt = HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("a".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Var("b".to_string())],
+            kwargs: vec![],
+        });
+        assert!(detect_hir_self_reference(&stmt).is_none());
+    }
+
+    #[test]
+    fn test_s12_detect_hir_self_reference_extend() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("lst".to_string())),
+            method: "extend".to_string(),
+            args: vec![HirExpr::Var("lst".to_string())],
+            kwargs: vec![],
+        });
+        let result = detect_hir_self_reference(&stmt);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().code, "DPL101");
+    }
+
+    #[test]
+    fn test_s12_detect_hir_self_reference_add() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "add".to_string(),
+            args: vec![HirExpr::Var("s".to_string())],
+            kwargs: vec![],
+        });
+        let result = detect_hir_self_reference(&stmt);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_s12_detect_hir_mutation_no_iter() {
+        use crate::hir::{HirExpr, HirStmt, Literal};
+
+        // For loop iterating over a literal (not a variable) - should not trigger
+        let stmt = HirStmt::For {
+            target: crate::hir::AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::Literal(Literal::Int(10)),
+            body: vec![],
+};
+        assert!(detect_hir_mutation_while_iterating(&stmt).is_none());
+    }
+
+    #[test]
+    fn test_s12_detect_hir_mutation_safe_loop() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::For {
+            target: crate::hir::AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("result".to_string())),
+                method: "append".to_string(),
+                args: vec![HirExpr::Var("x".to_string())],
+                kwargs: vec![],
+            })],
+};
+        // Mutating 'result', not 'items' - should be safe
+        assert!(detect_hir_mutation_while_iterating(&stmt).is_none());
+    }
+
+    #[test]
+    fn test_s12_detect_hir_mutation_not_for_stmt() {
+        use crate::hir::{HirExpr, HirStmt};
+
+        let stmt = HirStmt::Expr(HirExpr::Var("x".to_string()));
+        assert!(detect_hir_mutation_while_iterating(&stmt).is_none());
+    }
+
+    #[test]
+    fn test_s12_check_cyclic_assignment_basic() {
+        let source = r#"
+class Node:
+    pass
+
+a = Node()
+b = Node()
+a.next = b
+b.next = a
+"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        // Parse to get statements
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            let stmts: Vec<&Stmt> = module.body.iter().collect();
+            analyzer.check_cyclic_assignment(&stmts);
+            assert!(
+                !analyzer.warnings.is_empty(),
+                "Should detect cycle: a.next=b, b.next=a"
+            );
+            assert_eq!(analyzer.warnings[0].code, "DPL102");
+        }
+    }
+
+    #[test]
+    fn test_s12_check_cyclic_assignment_no_cycle() {
+        let source = r#"
+a = 1
+b = 2
+"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            let stmts: Vec<&Stmt> = module.body.iter().collect();
+            analyzer.check_cyclic_assignment(&stmts);
+            assert!(
+                analyzer.warnings.is_empty(),
+                "Should not detect cycle in simple assignments"
+            );
+        }
+    }
+
+    #[test]
+    fn test_s12_format_warnings() {
+        let warnings = vec![
+            LintWarning {
+                offset: 0,
+                code: "DPL001".to_string(),
+                message: "eval detected".to_string(),
+                severity: Severity::Error,
+                suggestion: Some("Use literal".to_string()),
+            },
+            LintWarning {
+                offset: 10,
+                code: "DPL002".to_string(),
+                message: "exec detected".to_string(),
+                severity: Severity::Warning,
+                suggestion: None,
+            },
+        ];
+        let output = format_warnings(&warnings, "eval('1')\nexec('x')", "test.py");
+        assert!(output.contains("test.py"));
+        assert!(output.contains("DPL001"));
+        assert!(output.contains("DPL002"));
+        assert!(output.contains("suggestion: Use literal"));
+    }
+
+    #[test]
+    fn test_s12_format_warnings_empty() {
+        let output = format_warnings(&[], "x = 1", "test.py");
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_s12_check_mutation_while_iterating_ast() {
+        let source = r#"
+for x in items:
+    items.append(x * 2)
+"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                if let Stmt::For(for_stmt) = stmt {
+                    analyzer.check_mutation_while_iterating(for_stmt);
+                }
+            }
+            assert!(!analyzer.warnings.is_empty());
+            assert_eq!(analyzer.warnings[0].code, "DPL100");
+        }
+    }
+
+    #[test]
+    fn test_s12_check_mutation_while_iterating_safe() {
+        let source = r#"
+for x in items:
+    result.append(x)
+"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                if let Stmt::For(for_stmt) = stmt {
+                    analyzer.check_mutation_while_iterating(for_stmt);
+                }
+            }
+            assert!(analyzer.warnings.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_s12_check_self_reference_dict() {
+        let source = r#"d["key"] = d"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                analyzer.check_self_reference(stmt);
+            }
+            assert!(!analyzer.warnings.is_empty());
+            assert_eq!(analyzer.warnings[0].code, "DPL101");
+        }
+    }
+
+    #[test]
+    fn test_s12_check_self_reference_list_append() {
+        let source = r#"lst.append(lst)"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                analyzer.check_self_reference(stmt);
+            }
+            assert!(!analyzer.warnings.is_empty());
+            assert_eq!(analyzer.warnings[0].code, "DPL101");
+        }
+    }
+
+    #[test]
+    fn test_s12_check_self_reference_no_match() {
+        let source = r#"a.append(b)"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                analyzer.check_self_reference(stmt);
+            }
+            assert!(analyzer.warnings.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_s12_check_self_reference_other_stmt() {
+        let source = r#"x = 1"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                analyzer.check_self_reference(stmt);
+            }
+            assert!(analyzer.warnings.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_s12_mutation_in_if_branch() {
+        let source = r#"
+for x in items:
+    if x > 0:
+        items.remove(x)
+"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                if let Stmt::For(for_stmt) = stmt {
+                    analyzer.check_mutation_while_iterating(for_stmt);
+                }
+            }
+            assert!(!analyzer.warnings.is_empty());
+            assert_eq!(analyzer.warnings[0].code, "DPL100");
+        }
+    }
+
+    #[test]
+    fn test_s12_mutation_non_name_iter() {
+        let source = r#"
+for x in get_items():
+    pass
+"#;
+        let mut analyzer = DepylintAnalyzer::new();
+        let ast = rustpython_parser::parse(source, rustpython_parser::Mode::Module, "<test>")
+            .expect("parse");
+        if let rustpython_parser::ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                if let Stmt::For(for_stmt) = stmt {
+                    analyzer.check_mutation_while_iterating(for_stmt);
+                }
+            }
+            assert!(analyzer.warnings.is_empty());
+        }
+    }
 }
