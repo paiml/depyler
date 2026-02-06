@@ -3275,28 +3275,74 @@ Session 12 Batch 9 (38 inline tests, 2026-02-06):
   detect_hir_self_reference/mutation, find_base_var_in_assign, check_cyclic_assignment,
   format_warnings
 
-**Session 12 Total**: 761 new tests across 16 files (10 integration + 6 inline in 5 crates)
-**Grand Total**: ~6,500+ tests across 152+ test files (Sessions 1-12)
+Session 12 Batch 10 (39 tests, 2026-02-06):
+- instance_methods_deep_s12_test.rs: Dict iteration, string methods, class patterns,
+  datetime, math module, algorithms, string chains, ternary expressions, comprehensions
+
+Session 12 Batch 11 (39 tests, 2026-02-06):
+- direct_rules_deep4_s12_test.rs: Boolean expressions, augmented assignments, f-strings,
+  lambdas, class patterns (inheritance/classmethod/staticmethod), builtins (sorted/reversed/
+  min/max/sum/any/all/abs/round/map/filter), complex slices, algorithms
+
+Session 12 Batch 12 (54 tests, 2026-02-06):
+- expr_gen_deep_s12_test.rs: Unary ops (+/~/not), bitwise ops, walrus operator, set literals,
+  complex slicing, generators/yield, power operator, type conversions, string methods,
+  dict methods, assert/raise, context managers, nested functions, closures
+
+Session 12 Batch 13 (41 tests, 2026-02-06):
+- stmt_gen_deep_s12_test.rs: Assert with message, delete statement, global declaration,
+  pass statement, try/except/else/finally, nested try, with statement, raise patterns,
+  tuple unpacking, enumerate, complex returns, nested dicts, OS/JSON/collections modules
+
+Session 12 Batch 14 (38 tests, 2026-02-06):
+- direct_rules_modules_s12_test.rs: os.path methods, os module, sys module, functools,
+  typing annotations, int with base (hex/bin/oct), builtins (hex/oct/bin/ord/chr/isinstance),
+  complex comprehensions, algorithms (word_count/caesar_cipher/matrix_transpose)
+
+Session 12 Batch 15 (51 tests, 2026-02-06):
+- instance_methods_deep2_s12_test.rs: String justification (center/ljust/rjust/zfill),
+  string checks (isdigit/isalpha/isalnum/isupper/islower/isspace), string transforms,
+  partition/rpartition, list/dict/set methods (insert/extend/clear/copy/remove/index),
+  deque (appendleft/popleft/rotate), bytes decode, method chains
+
+Session 12 Batch 16 (41 tests, 2026-02-06):
+- edge_cases_s12_test.rs: Empty functions, default params, star args/kwargs, empty
+  collections, boolean edge cases, None patterns, nested loops, algorithms (bubble sort/
+  gcd/sieve/binary search), complex classes, math constants, error recovery
+
+Session 12 Batch 17 (32 tests, 2026-02-06):
+- codegen_helpers_s12_test.rs: Unary/binary op edge cases, type coercion, f-string
+  patterns, import patterns, generators, augmented bitwise ops, algorithms (fibonacci dp/
+  knapsack dp/longest common prefix), complex classes
+
+Session 12 Batch 18 (30 tests, 2026-02-06):
+- stdlib_methods_s12_test.rs: Math advanced (atan/atan2/degrees/radians/exp/log2/log10/
+  copysign/isnan/isinf/hypot), hashlib (sha384/sha512/md5), re module patterns, OS module,
+  datetime, combined stdlib patterns
+
+**Session 12 Total**: 1,127 new tests across 25 files (19 integration + 6 inline in 5 crates)
+**Feature Implementation**: hashlib.new() dynamic dispatch (expr_gen.rs)
+**Grand Total**: ~7,000+ tests across 160+ test files (Sessions 1-12)
 
 ### 12.4 Coverage Impact
 
-| Metric | Pre-S12 | Post-S12 (measured) |
-|--------|---------|---------------------|
-| Region Coverage | 89.27% | 89.16%+ (measurement in progress) |
-| Branch Coverage | 94.84% | ~95%+ |
-| Line Coverage | 89.98% | 89.85%+ |
-| Lib Tests | 13,195+ | ~13,500+ |
-| Workspace Tests | 16,693+ | ~17,000+ |
+| Metric | Pre-S12 | Post-S12 (Batches 1-8 measured) | Post-S12 (Batches 1-18 est.) |
+|--------|---------|---------------------|---------------------|
+| Region Coverage | 89.27% | 89.13% | ~90%+ |
+| Branch Coverage | 94.84% | 94.94% | ~95%+ |
+| Line Coverage | 89.98% | 89.82% | ~90%+ |
+| Lib Tests | 13,195+ | 13,233+ | ~13,500+ |
+| Workspace Tests | 16,693+ | ~17,200+ | ~17,500+ |
 
 ### 12.5 CI Health (2026-02-06)
 
 | Check | Status | Notes |
 |-------|--------|-------|
 | cargo clippy | PASS | Zero warnings |
-| cargo test | PASS | 13,500+ lib tests, zero failures |
-| Integration tests | PASS | 761 new S12 tests all passing |
-| Coverage | 89.16%+ | Region coverage (post-S12 Batches 1-5) |
-| Branch Coverage | 95%+ | Branch coverage |
-| Line Coverage | 89.85%+ | Line coverage |
+| cargo test | PASS | 13,233+ lib tests, zero failures |
+| Integration tests | PASS | 1,127 new S12 tests all passing |
+| Coverage | 89.13%+ | Region coverage (post-S12 Batches 1-8) |
+| Branch Coverage | 94.94%+ | Branch coverage |
+| Line Coverage | 89.82%+ | Line coverage |
 | TDG Score (crates/) | 93.8+ (A) | Maintained |
 | make coverage speed | ~8 min | Down from 30+ min |
