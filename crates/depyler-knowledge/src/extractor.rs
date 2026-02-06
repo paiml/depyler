@@ -1382,4 +1382,122 @@ def standalone(a: int, b: int) -> int: ...
         // A(class) + A.m(method) + B(class) + B.x(attr) + B.n(method) + standalone(func) = 6
         assert_eq!(facts.len(), 6);
     }
+
+    // ===== Session 12 Batch 30: Additional extractor tests =====
+
+    #[test]
+    fn test_s12_extract_file_valid() {
+        let dir = tempfile::tempdir().unwrap();
+        let stub_path = dir.path().join("test.pyi");
+        std::fs::write(&stub_path, "def greet(name: str) -> str: ...\n").unwrap();
+
+        let extractor = Extractor::new();
+        let facts = extractor.extract_file(&stub_path, "test").unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "greet");
+    }
+
+    #[test]
+    fn test_s12_extract_file_missing() {
+        let extractor = Extractor::new();
+        let result = extractor.extract_file(Path::new("/nonexistent/file.pyi"), "test");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_s12_extract_file_with_class() {
+        let dir = tempfile::tempdir().unwrap();
+        let stub_path = dir.path().join("mymodule.pyi");
+        std::fs::write(
+            &stub_path,
+            r#"class MyClass:
+    def method(self, x: int) -> str: ...
+    name: str
+"#,
+        )
+        .unwrap();
+
+        let extractor = Extractor::new();
+        let facts = extractor.extract_file(&stub_path, "mymodule").unwrap();
+        // MyClass(class) + method(method) + name(attr) = 3
+        assert_eq!(facts.len(), 3);
+    }
+
+    #[test]
+    fn test_s12_extract_source_empty() {
+        let extractor = Extractor::new();
+        let facts = extractor.extract_source("", "empty", "empty.pyi").unwrap();
+        assert!(facts.is_empty());
+    }
+
+    #[test]
+    fn test_s12_extract_source_comments_only() {
+        let extractor = Extractor::new();
+        let facts = extractor
+            .extract_source("# Just a comment\n", "comments", "comments.pyi")
+            .unwrap();
+        assert!(facts.is_empty());
+    }
+
+    #[test]
+    fn test_s12_extract_source_private_excluded() {
+        let extractor = Extractor::new();
+        let source = "def _private() -> None: ...\ndef public() -> int: ...\n";
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        assert_eq!(facts[0].symbol, "public");
+    }
+
+    #[test]
+    fn test_s12_extract_source_private_included() {
+        let extractor = Extractor::new().with_private();
+        let source = "def _private() -> None: ...\ndef public() -> int: ...\n";
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 2);
+    }
+
+    #[test]
+    fn test_s12_extract_source_nested_class() {
+        let extractor = Extractor::new();
+        let source = r#"class Outer:
+    class Inner:
+        def inner_method(self) -> int: ...
+    def outer_method(self) -> str: ...
+"#;
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
+        assert!(facts.len() >= 2);
+    }
+
+    #[test]
+    fn test_s12_extract_source_complex_signatures() {
+        let extractor = Extractor::new();
+        let source = r#"
+def foo(a: int, b: str, c: float = 0.0) -> bool: ...
+def bar(items: list, key: str) -> dict: ...
+def baz(*args, **kwargs) -> None: ...
+"#;
+        let facts = extractor
+            .extract_source(source, "sigs", "sigs.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 3);
+    }
+
+    #[test]
+    fn test_s12_extract_source_module_path() {
+        let extractor = Extractor::new();
+        let source = "def greet(name: str) -> str: ...\n";
+        let facts = extractor
+            .extract_source(source, "my.nested.module", "module.pyi")
+            .unwrap();
+        assert_eq!(facts.len(), 1);
+        // Check that fqn includes the module path
+        let fqn = facts[0].fqn();
+        assert!(fqn.contains("my.nested.module"));
+    }
 }
