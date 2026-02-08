@@ -112,6 +112,12 @@ mod coverage_wave4_funcgen_tests;
 mod coverage_wave4_direct_rules_tests;
 #[cfg(test)]
 mod coverage_wave4_analysis_tests;
+#[cfg(test)]
+mod coverage_wave5_stmtgen_tests;
+#[cfg(test)]
+mod coverage_wave5_exprmethods_tests;
+#[cfg(test)]
+mod coverage_wave5_funcgen_tests;
 
 // Internal imports
 #[cfg(test)]
