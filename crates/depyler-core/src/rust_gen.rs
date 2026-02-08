@@ -96,6 +96,12 @@ mod coverage_boost_stmt_tests;
 mod coverage_boost_zero_cov_tests;
 #[cfg(test)]
 mod coverage_boost_deep_tests;
+#[cfg(test)]
+mod coverage_wave3_advanced_tests;
+#[cfg(test)]
+mod coverage_wave3_stdlib_tests;
+#[cfg(test)]
+mod coverage_wave3_types_tests;
 
 // Internal imports
 #[cfg(test)]
