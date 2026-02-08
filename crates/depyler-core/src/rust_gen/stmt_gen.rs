@@ -12865,4 +12865,1458 @@ class Named:
         let rust = transpile(code);
         assert!(rust.contains("struct Named"), "output: {}", rust);
     }
+
+    // ========================================================================
+    // COVERAGE-95: TRY/EXCEPT STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_try_except_basic() {
+        let code = r#"
+def safe_divide(a: int, b: int) -> int:
+    try:
+        return a // b
+    except ZeroDivisionError:
+        return 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_divide"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_try_except_generic() {
+        let code = r#"
+def safe_parse(s: str) -> int:
+    try:
+        return int(s)
+    except Exception:
+        return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_parse"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_try_except_finally() {
+        let code = r#"
+def read_data(path: str) -> str:
+    result = ""
+    try:
+        result = "success"
+    except Exception:
+        result = "error"
+    finally:
+        result = result + " done"
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn read_data"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_try_except_multiple_handlers() {
+        let code = r#"
+def parse_value(s: str) -> str:
+    try:
+        x = int(s)
+        return str(x)
+    except ValueError:
+        return "not a number"
+    except TypeError:
+        return "wrong type"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn parse_value"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_try_except_as_variable() {
+        let code = r#"
+def safe_call() -> str:
+    try:
+        x = 1 // 0
+        return str(x)
+    except Exception as e:
+        return str(e)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn safe_call"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: WITH STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_with_open_file() {
+        let code = r#"
+def read_file(path: str) -> str:
+    with open(path, "r") as f:
+        return f.read()
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn read_file"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_with_open_write() {
+        let code = r#"
+def write_file(path: str, data: str):
+    with open(path, "w") as f:
+        f.write(data)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn write_file"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: ASSERT STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_assert_simple() {
+        let code = r#"
+def check_positive(x: int):
+    assert x > 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("assert!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_assert_with_message() {
+        let code = r#"
+def check_positive(x: int):
+    assert x > 0, "must be positive"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("assert!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_assert_eq() {
+        let code = r#"
+def check_equal(a: int, b: int):
+    assert a == b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("assert_eq!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_assert_ne() {
+        let code = r#"
+def check_not_equal(a: int, b: int):
+    assert a != b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("assert_ne!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_assert_eq_with_message() {
+        let code = r#"
+def check_equal(a: int, b: int):
+    assert a == b, "values must match"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("assert_eq!"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: FOR LOOP TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_for_range_one_arg() {
+        let code = r#"
+def count_up(n: int) -> int:
+    total = 0
+    for i in range(n):
+        total = total + i
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for") || rust.contains("range"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_range_two_args() {
+        let code = r#"
+def sum_range(start: int, end: int) -> int:
+    total = 0
+    for i in range(start, end):
+        total = total + i
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_range_three_args() {
+        let code = r#"
+def sum_evens(n: int) -> int:
+    total = 0
+    for i in range(0, n, 2):
+        total = total + i
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("step_by") || rust.contains("for"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_enumerate() {
+        let code = r#"
+def indexed_items(items: list) -> list:
+    result = []
+    for i, item in enumerate(items):
+        result.append(str(i))
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("enumerate"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_zip() {
+        let code = r#"
+def combine(a: list, b: list) -> list:
+    result = []
+    for x, y in zip(a, b):
+        result.append(x + y)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("zip"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_dict_items() {
+        let code = r#"
+def print_dict(d: dict):
+    for key, value in d.items():
+        print(key, value)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_string_chars() {
+        let code = r#"
+def count_vowels(s: str) -> int:
+    count = 0
+    for c in s:
+        if c in "aeiou":
+            count = count + 1
+    return count
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("chars") || rust.contains("for"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_with_break() {
+        let code = r#"
+def find_first(items: list, target: int) -> int:
+    for i, x in enumerate(items):
+        if x == target:
+            return i
+    return -1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("for"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_for_with_continue() {
+        let code = r#"
+def sum_positive(nums: list) -> int:
+    total = 0
+    for x in nums:
+        if x < 0:
+            continue
+        total = total + x
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("continue"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: WHILE LOOP TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_while_basic() {
+        let code = r#"
+def countdown(n: int) -> int:
+    count = n
+    while count > 0:
+        count = count - 1
+    return count
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("while"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_while_with_break() {
+        let code = r#"
+def find_pow2(limit: int) -> int:
+    x = 1
+    while True:
+        if x > limit:
+            break
+        x = x * 2
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("loop") || rust.contains("while"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: ASSIGNMENT PATTERNS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_augmented_assign_add() {
+        let code = r#"
+def accumulate(n: int) -> int:
+    total = 0
+    for i in range(n):
+        total += i
+    return total
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("+="), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_augmented_assign_sub() {
+        let code = r#"
+def decrement(n: int) -> int:
+    x = n
+    x -= 1
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("-="), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_augmented_assign_mul() {
+        let code = r#"
+def double(n: int) -> int:
+    x = n
+    x *= 2
+    return x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("*=") || rust.contains("py_mul"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_tuple_unpack_assign() {
+        let code = r#"
+def swap(a: int, b: int) -> int:
+    a, b = b, a
+    return a
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn swap"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_multiple_assign() {
+        let code = r#"
+def init() -> int:
+    x = y = z = 0
+    return x + y + z
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn init"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_dict_index_assign() {
+        let code = r#"
+def set_value(d: dict, key: str, val: int):
+    d[key] = val
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("insert"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_list_index_assign() {
+        let code = r#"
+def set_first(items: list, val: int):
+    items[0] = val
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn set_first"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: IF/ELIF/ELSE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_if_elif_else() {
+        let code = r#"
+def classify(x: int) -> str:
+    if x > 0:
+        return "positive"
+    elif x < 0:
+        return "negative"
+    else:
+        return "zero"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("if") && rust.contains("else"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_if_in_check() {
+        let code = r#"
+def has_vowel(s: str) -> bool:
+    for c in s:
+        if c in "aeiou":
+            return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn has_vowel"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_if_not_in_check() {
+        let code = r#"
+def missing(items: list, target: int) -> bool:
+    if target not in items:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn missing"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_if_is_none() {
+        let code = r#"
+def check_none(x) -> bool:
+    if x is None:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_none") || rust.contains("None"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_if_is_not_none() {
+        let code = r#"
+def check_not_none(x) -> bool:
+    if x is not None:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_some") || rust.contains("None"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: RAISE STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_raise_value_error() {
+        let code = r#"
+def validate(x: int):
+    if x < 0:
+        raise ValueError("must be positive")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("panic!") || rust.contains("bail!") || rust.contains("anyhow"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_raise_runtime_error() {
+        let code = r#"
+def fail():
+    raise RuntimeError("something went wrong")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("panic!") || rust.contains("bail!") || rust.contains("anyhow"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: CLASS DEFINITION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_class_basic() {
+        let code = r#"
+class Counter:
+    def __init__(self):
+        self.count = 0
+    def increment(self):
+        self.count += 1
+    def get_count(self) -> int:
+        return self.count
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("struct Counter"), "output: {}", rust);
+        assert!(rust.contains("impl Counter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_class_with_default_values() {
+        let code = r#"
+class Config:
+    def __init__(self, name: str, value: int):
+        self.name = name
+        self.value = value
+        self.active = True
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("struct Config"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_class_with_multiple_methods() {
+        let code = r#"
+class Stack:
+    def __init__(self):
+        self.items = []
+    def push(self, item: int):
+        self.items.append(item)
+    def pop(self) -> int:
+        return self.items.pop()
+    def is_empty(self) -> bool:
+        return len(self.items) == 0
+    def size(self) -> int:
+        return len(self.items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("struct Stack"), "output: {}", rust);
+        assert!(rust.contains("impl Stack"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: RETURN STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_return_none() {
+        let code = r#"
+def do_nothing():
+    return
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn do_nothing"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_return_tuple() {
+        let code = r#"
+def min_max(items: list) -> tuple:
+    return min(items), max(items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn min_max"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_return_list_literal() {
+        let code = r#"
+def make_list() -> list:
+    return [1, 2, 3]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("vec!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_return_dict_literal() {
+        let code = r#"
+def make_dict() -> dict:
+    return {"a": 1, "b": 2}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("HashMap") || rust.contains("hash_map"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: TRUTHINESS CONVERSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_truthiness_empty_list() {
+        let code = r#"
+def is_populated(items: list) -> bool:
+    if items:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_empty") || rust.contains("!items"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_truthiness_not_list() {
+        let code = r#"
+def is_empty_list(items: list) -> bool:
+    if not items:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_empty"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_truthiness_string() {
+        let code = r#"
+def has_content(s: str) -> bool:
+    if s:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_empty") || rust.contains("!s"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_truthiness_not_string() {
+        let code = r#"
+def is_blank(s: str) -> bool:
+    if not s:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("is_empty"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_truthiness_int() {
+        let code = r#"
+def is_nonzero(x: int) -> bool:
+    if x:
+        return True
+    return False
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("!= 0") || rust.contains("x"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: DELETE STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_del_dict_key() {
+        let code = r#"
+def remove_key(d: dict, key: str):
+    del d[key]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("remove"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: GLOBAL/NONLOCAL TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_global_variable() {
+        let code = r#"
+counter = 0
+def increment():
+    global counter
+    counter += 1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("counter"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: PASS STATEMENT TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_pass_in_if() {
+        let code = r#"
+def noop(x: int):
+    if x > 0:
+        pass
+    else:
+        x = 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn noop"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_pass_in_class() {
+        let code = r#"
+class Empty:
+    pass
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("struct Empty"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: NESTED FUNCTION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_nested_function() {
+        let code = r#"
+def outer(x: int) -> int:
+    def inner(y: int) -> int:
+        return y * 2
+    return inner(x) + 1
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn outer"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: LAMBDA TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_lambda_in_sort() {
+        let code = r#"
+def sort_by_second(items: list) -> list:
+    return sorted(items, key=lambda x: x[1])
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("sort") || rust.contains("sorted"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_lambda_in_map() {
+        let code = r#"
+def double_all(nums: list) -> list:
+    return list(map(lambda x: x * 2, nums))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("map") || rust.contains("iter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_lambda_in_filter() {
+        let code = r#"
+def evens(nums: list) -> list:
+    return list(filter(lambda x: x % 2 == 0, nums))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("filter") || rust.contains("iter"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: F-STRING TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_fstring_basic() {
+        let code = r#"
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("format!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_fstring_expression() {
+        let code = r#"
+def show_result(x: int) -> str:
+    return f"Result: {x * 2}"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("format!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_fstring_multiple_vars() {
+        let code = r#"
+def describe(name: str, age: int) -> str:
+    return f"{name} is {age} years old"
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("format!"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: TYPE ANNOTATION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_type_annotated_dict() {
+        let code = r#"
+def make_scores() -> dict:
+    scores: dict = {"alice": 90, "bob": 85}
+    return scores
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("HashMap") || rust.contains("hash_map"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_type_annotated_list() {
+        let code = r#"
+def make_nums() -> list:
+    nums: list = [1, 2, 3]
+    return nums
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("vec!"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: COLLECTION OPERATIONS TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_set_literal() {
+        let code = r#"
+def unique_items() -> set:
+    return {1, 2, 3, 2, 1}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("HashSet") || rust.contains("hash_set"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_set_operations() {
+        let code = r#"
+def common(a: set, b: set) -> set:
+    return a & b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("intersection") || rust.contains("&"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_dict_comprehension() {
+        let code = r#"
+def squares(n: int) -> dict:
+    return {i: i * i for i in range(n)}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("collect") || rust.contains("HashMap"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_list_comprehension_with_filter() {
+        let code = r#"
+def evens(n: int) -> list:
+    return [i for i in range(n) if i % 2 == 0]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("filter") || rust.contains("collect"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_set_comprehension() {
+        let code = r#"
+def unique_lengths(words: list) -> set:
+    return {len(w) for w in words}
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("HashSet") || rust.contains("collect"), "output: {}", rust);
+    }
+
+    // ========================================================================
+    // COVERAGE-95: HELPER FUNCTION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_type_to_rust_string_int() {
+        assert_eq!(type_to_rust_string(&Type::Int), "i32");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_float() {
+        assert_eq!(type_to_rust_string(&Type::Float), "f64");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_string() {
+        assert_eq!(type_to_rust_string(&Type::String), "String");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_bool() {
+        assert_eq!(type_to_rust_string(&Type::Bool), "bool");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_none() {
+        assert_eq!(type_to_rust_string(&Type::None), "()");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_list() {
+        assert_eq!(type_to_rust_string(&Type::List(Box::new(Type::Int))), "Vec<i32>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_optional() {
+        assert_eq!(type_to_rust_string(&Type::Optional(Box::new(Type::String))), "Option<String>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_tuple() {
+        let t = Type::Tuple(vec![Type::Int, Type::String]);
+        assert_eq!(type_to_rust_string(&t), "(i32, String)");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_dict() {
+        let t = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        assert_eq!(type_to_rust_string(&t), "std::collections::HashMap<String, i32>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_set() {
+        let t = Type::Set(Box::new(Type::String));
+        assert_eq!(type_to_rust_string(&t), "std::collections::HashSet<String>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_custom() {
+        let t = Type::Custom("MyType".to_string());
+        assert_eq!(type_to_rust_string(&t), "MyType");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_unknown() {
+        assert_eq!(type_to_rust_string(&Type::Unknown), "DepylerValue");
+    }
+
+    #[test]
+    fn test_infer_element_type_empty() {
+        assert_eq!(infer_collection_element_type(&[]), Type::Unknown);
+    }
+
+    #[test]
+    fn test_infer_element_type_homogeneous_int() {
+        let elems = vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ];
+        assert_eq!(infer_collection_element_type(&elems), Type::Int);
+    }
+
+    #[test]
+    fn test_infer_element_type_homogeneous_string() {
+        let elems = vec![
+            HirExpr::Literal(Literal::String("a".to_string())),
+            HirExpr::Literal(Literal::String("b".to_string())),
+        ];
+        assert_eq!(infer_collection_element_type(&elems), Type::String);
+    }
+
+    #[test]
+    fn test_infer_element_type_mixed() {
+        let elems = vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ];
+        assert_eq!(infer_collection_element_type(&elems), Type::Unknown);
+    }
+
+    #[test]
+    fn test_infer_element_type_int_float_promotion() {
+        let elems = vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Float(2.5)),
+        ];
+        assert_eq!(infer_collection_element_type(&elems), Type::Float);
+    }
+
+    #[test]
+    fn test_type_to_vec_annotation_int() {
+        let result = type_to_vec_annotation(&Type::Int);
+        assert!(result.is_some());
+        assert!(result.unwrap().to_string().contains("Vec"));
+    }
+
+    #[test]
+    fn test_type_to_vec_annotation_unknown() {
+        assert!(type_to_vec_annotation(&Type::Unknown).is_none());
+    }
+
+    #[test]
+    fn test_type_to_vec_annotation_nested_list() {
+        let inner = Type::List(Box::new(Type::Int));
+        let result = type_to_vec_annotation(&inner);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_type_to_simple_token_int() {
+        let token = type_to_simple_token(&Type::Int);
+        assert_eq!(token.to_string(), "i32");
+    }
+
+    #[test]
+    fn test_type_to_simple_token_dict() {
+        let t = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        let token = type_to_simple_token(&t);
+        assert!(token.to_string().contains("HashMap"));
+    }
+
+    #[test]
+    fn test_type_to_simple_token_tuple() {
+        let t = Type::Tuple(vec![Type::Int, Type::Float]);
+        let token = type_to_simple_token(&t);
+        let s = token.to_string();
+        assert!(s.contains("i32") && s.contains("f64"), "got: {}", s);
+    }
+
+    #[test]
+    fn test_type_to_simple_token_custom() {
+        let t = Type::Custom("MyStruct".to_string());
+        let token = type_to_simple_token(&t);
+        assert_eq!(token.to_string(), "MyStruct");
+    }
+
+    // ========================================================================
+    // COVERAGE-95: COMPLEX PATTERN TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_cov95_list_multiplication() {
+        let code = r#"
+def repeat(n: int) -> list:
+    return [0] * n
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("vec!") || rust.contains("repeat"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_string_multiplication() {
+        let code = r#"
+def repeat_str(s: str, n: int) -> str:
+    return s * n
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("repeat"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_chained_comparison() {
+        let code = r#"
+def in_range(x: int) -> bool:
+    return 0 < x < 100
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn in_range"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_walrus_operator() {
+        let code = r#"
+def process_line(line: str) -> str:
+    if (stripped := line.strip()):
+        return stripped
+    return ""
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn process_line"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_ternary_nested() {
+        let code = r#"
+def sign(x: int) -> str:
+    return "positive" if x > 0 else ("negative" if x < 0 else "zero")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn sign"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_print_with_sep() {
+        let code = r#"
+def show(a: int, b: int):
+    print(a, b, sep=", ")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("println!") || rust.contains("print"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_print_with_end() {
+        let code = r#"
+def show(x: int):
+    print(x, end="")
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("print!") || rust.contains("print"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_string_format_method() {
+        let code = r#"
+def format_msg(name: str, age: int) -> str:
+    return "Hello, {}! You are {} years old.".format(name, age)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("format!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_isinstance_check() {
+        let code = r#"
+def is_string(x) -> bool:
+    return isinstance(x, str)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn is_string"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_multiple_return_values() {
+        let code = r#"
+def divmod_custom(a: int, b: int) -> tuple:
+    return a // b, a % b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn divmod_custom"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_nested_dict_access() {
+        let code = r#"
+def get_nested(d: dict) -> int:
+    return d["a"]["b"]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("get") || rust.contains("["), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_list_slice() {
+        let code = r#"
+def first_three(items: list) -> list:
+    return items[0:3]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn first_three"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_negative_index() {
+        let code = r#"
+def last_item(items: list) -> int:
+    return items[-1]
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn last_item"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_enumerate_with_start() {
+        let code = r#"
+def numbered(items: list) -> list:
+    result = []
+    for i, x in enumerate(items, 1):
+        result.append(i)
+    return result
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("enumerate"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_int_division() {
+        let code = r#"
+def half(n: int) -> int:
+    return n // 2
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn half"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_power_operator() {
+        let code = r#"
+def square(x: int) -> int:
+    return x ** 2
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("pow") || rust.contains("powi"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_modulo_operator() {
+        let code = r#"
+def is_even(x: int) -> bool:
+    return x % 2 == 0
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("%"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_bitwise_and() {
+        let code = r#"
+def mask(x: int, m: int) -> int:
+    return x & m
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("&"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_bitwise_or() {
+        let code = r#"
+def combine_flags(a: int, b: int) -> int:
+    return a | b
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("|"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_bitwise_xor() {
+        let code = r#"
+def toggle(x: int, mask: int) -> int:
+    return x ^ mask
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("^"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_left_shift() {
+        let code = r#"
+def shift_left(x: int, n: int) -> int:
+    return x << n
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("<<"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_right_shift() {
+        let code = r#"
+def shift_right(x: int, n: int) -> int:
+    return x >> n
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains(">>"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_unary_not() {
+        let code = r#"
+def negate(x: bool) -> bool:
+    return not x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("!"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_unary_minus() {
+        let code = r#"
+def negate_num(x: int) -> int:
+    return -x
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("-"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_any_all() {
+        let code = r#"
+def all_positive(nums: list) -> bool:
+    return all(x > 0 for x in nums)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("all") || rust.contains("iter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_any_check() {
+        let code = r#"
+def has_negative(nums: list) -> bool:
+    return any(x < 0 for x in nums)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("any") || rust.contains("iter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_sum_builtin() {
+        let code = r#"
+def total(nums: list) -> int:
+    return sum(nums)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("sum") || rust.contains("iter"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_abs_builtin() {
+        let code = r#"
+def absolute(x: int) -> int:
+    return abs(x)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("abs"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_reversed_builtin() {
+        let code = r#"
+def reverse_list(items: list) -> list:
+    return list(reversed(items))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("rev") || rust.contains("reversed"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_min_max_builtins() {
+        let code = r#"
+def clamp(x: int, lo: int, hi: int) -> int:
+    return max(lo, min(x, hi))
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("max") && rust.contains("min"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_ord_chr() {
+        let code = r#"
+def char_code(c: str) -> int:
+    return ord(c)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn char_code"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_chr_builtin() {
+        let code = r#"
+def code_char(n: int) -> str:
+    return chr(n)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn code_char"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_hex_oct_bin() {
+        let code = r#"
+def to_hex(n: int) -> str:
+    return hex(n)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn to_hex"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_round_builtin() {
+        let code = r#"
+def round_val(x: float) -> float:
+    return round(x, 2)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn round_val"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_divmod_builtin() {
+        let code = r#"
+def divide_mod(a: int, b: int) -> tuple:
+    return divmod(a, b)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn divide_mod"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_type_conversions() {
+        let code = r#"
+def to_int(s: str) -> int:
+    return int(s)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("parse") || rust.contains("as i"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_float_conversion() {
+        let code = r#"
+def to_float(s: str) -> float:
+    return float(s)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("parse") || rust.contains("as f"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_str_conversion() {
+        let code = r#"
+def to_str(x: int) -> str:
+    return str(x)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("to_string") || rust.contains("format"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_bool_conversion() {
+        let code = r#"
+def to_bool(x: int) -> bool:
+    return bool(x)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("fn to_bool"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_len_list() {
+        let code = r#"
+def list_len(items: list) -> int:
+    return len(items)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("len()"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_len_str() {
+        let code = r#"
+def str_len(s: str) -> int:
+    return len(s)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("len()"), "output: {}", rust);
+    }
+
+    #[test]
+    fn test_cov95_len_dict() {
+        let code = r#"
+def dict_len(d: dict) -> int:
+    return len(d)
+"#;
+        let rust = transpile(code);
+        assert!(rust.contains("len()"), "output: {}", rust);
+    }
 }

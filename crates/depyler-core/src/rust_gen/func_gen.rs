@@ -3517,13 +3517,13 @@ fn literal_to_type(lit: &Literal) -> Type {
 
 // ========== Phase 3b: Return Type Generation ==========
 
-/// GH-70: Infer parameter type from usage patterns in function body
-/// Detects patterns:
-/// - `a, b, c = param` → param is 3-tuple of strings
-/// - `print(param)` → param needs Display trait → String
-/// - `re.match(param, ...)` → param is String
-/// - Other usage patterns
-pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type> {
+// Re-export from depyler-analysis crate
+pub use crate::param_type_inference::infer_param_type_from_body;
+
+// Local copy retained under cfg(test) since infer_type_from_expr_usage is non-pub
+#[cfg(test)]
+#[allow(dead_code)]
+fn infer_param_type_from_body_local(param_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
         // Pattern 1: Tuple unpacking - `a, b, c = param`
         if let HirStmt::Assign {
@@ -3647,6 +3647,8 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
 }
 
 /// GH-70: Helper to infer type from expression usage
+#[cfg(test)]
+#[allow(dead_code)]
 fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> {
     match expr {
         // Pattern: print(param) or println(param) → param needs Display → String

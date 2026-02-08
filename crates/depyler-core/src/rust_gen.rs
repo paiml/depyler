@@ -102,6 +102,16 @@ mod coverage_wave3_advanced_tests;
 mod coverage_wave3_stdlib_tests;
 #[cfg(test)]
 mod coverage_wave3_types_tests;
+#[cfg(test)]
+mod coverage_wave4_expr_tests;
+#[cfg(test)]
+mod coverage_wave4_instance_tests;
+#[cfg(test)]
+mod coverage_wave4_funcgen_tests;
+#[cfg(test)]
+mod coverage_wave4_direct_rules_tests;
+#[cfg(test)]
+mod coverage_wave4_analysis_tests;
 
 // Internal imports
 #[cfg(test)]
