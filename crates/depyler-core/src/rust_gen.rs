@@ -118,6 +118,8 @@ mod coverage_wave5_stmtgen_tests;
 mod coverage_wave5_exprmethods_tests;
 #[cfg(test)]
 mod coverage_wave5_funcgen_tests;
+#[cfg(test)]
+mod coverage_wave6_instance_tests;
 
 // Internal imports
 #[cfg(test)]
