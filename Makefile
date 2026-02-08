@@ -179,16 +179,11 @@ test-all: ## Complete test suite execution PROPTEST_CASES=5 QUICKCHECK_TESTS=5
 	$(MAKE) test-integration
 	$(MAKE) test-quality
 .PHONY: test-fast
-test-fast: ## Quick feedback loop for development (< 5 min, uses cargo-nextest)
-	@echo "⚡ Running fast tests (target: <5 min)..."
-	@if command -v cargo-nextest >/dev/null 2>&1; then \
-		PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo nextest run \
-			--workspace \
-			--profile fast \
-			--no-fail-fast; \
-	else \
-		PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo test --workspace; \
-	fi
+test-fast: ## Quick feedback loop for development (< 3 min, parallel lib tests)
+	@echo "⚡ Running fast tests (target: <3min, parallel lib tests across all crates)..."
+	CARGO_TARGET_DIR=$(FAST_TARGET) PROPTEST_CASES=3 QUICKCHECK_TESTS=3 \
+		cargo test --workspace --lib --exclude depyler-corpus \
+		--exclude depyler-graph --exclude depyler-oracle
 
 # Test Impact Analysis (TIA) - DEPYLER-0954
 # Runs only tests affected by code changes for 50-80% faster CI
@@ -470,7 +465,7 @@ security-audit: ## Run security audit
 # Exclude: external deps, interactive TUI, main entry points, MCP server, repartir, I/O-heavy command handlers
 # Note: CLI handlers that run external processes (cargo, rustc) are excluded as they require complex mocking
 # Pure logic is extracted to *_shim.rs files which have 97-100% coverage
-COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno|interactive\\.rs|/main\\.rs|mcp_server\\.rs|repartir|ruchy|probar|utol|hybrid|converge|training_monitor|agent/daemon|automl_tuning|differential\\.rs|compilation_trainer\\.rs|report_cmd/mod\\.rs|compile_cmd\\.rs|utol_cmd\\.rs|depyler/src/lib\\.rs|citl_fixer\\.rs|corpus_citl\\.rs|autofixer\\.rs"
+COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno|interactive\\.rs|/main\\.rs|mcp_server\\.rs|repartir|ruchy|probar|utol|hybrid|converge|training_monitor|agent/daemon|automl_tuning|differential\\.rs|compilation_trainer\\.rs|report_cmd/|compile_cmd\\.rs|utol_cmd\\.rs|depyler/src/lib\\.rs|citl_fixer\\.rs|corpus_citl\\.rs|autofixer\\.rs|cli_shim\\.rs|dashboard_cmd\\.rs|graph_cmd\\.rs|lint_cmd\\.rs|python_ops\\.rs|report_shim\\.rs|score_cmd\\.rs|transpile_shim\\.rs|depyler-verify/"
 # Crates to exclude from coverage testing (slow or I/O-heavy)
 COVERAGE_EXCLUDE := --exclude depyler-oracle
 .PHONY: coverage

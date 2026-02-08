@@ -67,6 +67,8 @@ mod comprehensive_integration_tests;
 #[cfg(test)]
 mod deep_coverage_tests;
 #[cfg(test)]
+mod direct_rules_convert_transpile_tests;
+#[cfg(test)]
 mod direct_rules_tests;
 #[cfg(test)]
 mod expr_gen_tests;
@@ -84,6 +86,14 @@ mod targeted_func_tests;
 mod targeted_stmt_tests;
 #[cfg(test)]
 mod type_gen_tests;
+#[cfg(test)]
+mod coverage_boost_expr_tests;
+#[cfg(test)]
+mod coverage_boost_instance_tests;
+#[cfg(test)]
+mod coverage_boost_stmt_tests;
+#[cfg(test)]
+mod coverage_boost_zero_cov_tests;
 
 // Internal imports
 #[cfg(test)]
