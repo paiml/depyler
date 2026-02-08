@@ -130,6 +130,12 @@ mod coverage_wave7_rustgen_tests;
 mod coverage_wave8_deep_codegen_tests;
 #[cfg(test)]
 mod coverage_wave8_argparse_string_tests;
+#[cfg(test)]
+mod coverage_wave9_direct_rules_tests;
+#[cfg(test)]
+mod coverage_wave9_stdlib_expr_tests;
+#[cfg(test)]
+mod coverage_wave9_fix_inference_tests;
 
 // Internal imports
 #[cfg(test)]
