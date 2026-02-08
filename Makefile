@@ -465,7 +465,7 @@ security-audit: ## Run security audit
 # Exclude: external deps, interactive TUI, main entry points, MCP server, repartir, I/O-heavy command handlers
 # Note: CLI handlers that run external processes (cargo, rustc) are excluded as they require complex mocking
 # Pure logic is extracted to *_shim.rs files which have 97-100% coverage
-COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno|interactive\\.rs|/main\\.rs|mcp_server\\.rs|repartir|ruchy|probar|utol|hybrid|converge|training_monitor|agent/daemon|automl_tuning|differential\\.rs|compilation_trainer\\.rs|report_cmd/|compile_cmd\\.rs|utol_cmd\\.rs|depyler/src/lib\\.rs|citl_fixer\\.rs|corpus_citl\\.rs|autofixer\\.rs|cli_shim\\.rs|dashboard_cmd\\.rs|graph_cmd\\.rs|lint_cmd\\.rs|python_ops\\.rs|report_shim\\.rs|score_cmd\\.rs|transpile_shim\\.rs|depyler-verify/"
+COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno|interactive\\.rs|/main\\.rs|mcp_server\\.rs|repartir|ruchy|probar|utol|hybrid|converge|training_monitor|agent/daemon|automl_tuning|differential\\.rs|compilation_trainer\\.rs|report_cmd/|compile_cmd\\.rs|utol_cmd\\.rs|depyler/src/lib\\.rs|citl_fixer\\.rs|corpus_citl\\.rs|autofixer\\.rs|cli_shim\\.rs|dashboard_cmd\\.rs|graph_cmd\\.rs|lint_cmd\\.rs|python_ops\\.rs|report_shim\\.rs|score_cmd\\.rs|transpile_shim\\.rs|depyler-verify/|depyler-oracle/"
 # Crates to exclude from coverage testing (slow or I/O-heavy)
 COVERAGE_EXCLUDE := --exclude depyler-oracle
 .PHONY: coverage
