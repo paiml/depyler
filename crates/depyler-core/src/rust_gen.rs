@@ -126,6 +126,10 @@ mod coverage_wave7_slicing_tests;
 mod coverage_wave7_stmtgen_complex_tests;
 #[cfg(test)]
 mod coverage_wave7_rustgen_tests;
+#[cfg(test)]
+mod coverage_wave8_deep_codegen_tests;
+#[cfg(test)]
+mod coverage_wave8_argparse_string_tests;
 
 // Internal imports
 #[cfg(test)]
