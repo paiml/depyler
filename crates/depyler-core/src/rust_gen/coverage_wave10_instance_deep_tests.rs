@@ -884,7 +884,7 @@ lst.sort(reverse=True)
     }
 
     #[test]
-    fn test_w10id_list_sort_reverse() {
+    fn test_w10id_list_sort_reverse_unsorted() {
         let py = r#"
 lst = [3, 1, 2]
 lst.sort(reverse=True)
