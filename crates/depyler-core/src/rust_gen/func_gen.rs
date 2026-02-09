@@ -728,7 +728,15 @@ pub(crate) fn codegen_function_body(
     // DEPYLER-0690: Build var_types from local variable assignments BEFORE codegen
     // This enables type-aware string concatenation detection (format! vs +)
     // and other type-based code generation decisions
-    build_var_type_env(&func.body, &mut ctx.var_types);
+    // DEPYLER-99MODE-S9: Use full version with function_return_types so class
+    // constructor calls (e.g., c = Config("test")) get the correct Custom type
+    // instead of falling back to Unknown → HashMap<DepylerValue, DepylerValue>
+    build_var_type_env_full(
+        &func.body,
+        &mut ctx.var_types,
+        &ctx.function_return_types,
+        &ctx.class_method_return_types,
+    );
 
     // DEPYLER-1134: Propagate return type annotation to returned variables
     // This enables Constraint-Aware Coercion - if function returns List[List[str]],

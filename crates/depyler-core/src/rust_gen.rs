@@ -3091,6 +3091,9 @@ fn generate_rust_file_internal(
         // This enables type inference for expressions like `p = Point(3, 4)`
         ctx.function_return_types
             .insert(class.name.clone(), Type::Custom(class.name.clone()));
+        // DEPYLER-99MODE-S9: Register class name so NASA mode type annotations
+        // use the struct type instead of HashMap<DepylerValue, DepylerValue>
+        ctx.class_names.insert(class.name.clone());
 
         for method in &class.methods {
             // Skip __init__ and __new__ which don't have meaningful return types for inference
