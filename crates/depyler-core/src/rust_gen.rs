@@ -10371,7 +10371,17 @@ fn fix_immutable_ref_to_mut(code: &str) -> String {
         let mut line_str = line.to_string();
         for (fname, positions) in &mut_params {
             let pat = format!("{}(", fname);
-            if !line_str.contains(&pat) {
+            // DEPYLER-99MODE-S9: Use word boundary check to avoid substring matches
+            // e.g., "set(" must not match inside "abs_set(" or "reset("
+            if let Some(pos) = line_str.find(&pat) {
+                // Check that char before the match is not alphanumeric or underscore
+                if pos > 0 {
+                    let prev_char = line_str.as_bytes()[pos - 1] as char;
+                    if prev_char.is_alphanumeric() || prev_char == '_' {
+                        continue;
+                    }
+                }
+            } else {
                 continue;
             }
             line_str = fix_mut_args_in_call(&line_str, fname, positions);
@@ -10444,7 +10454,16 @@ fn extract_mut_param_positions(sig: &str) -> Option<(String, Vec<usize>)> {
 fn fix_mut_args_in_call(line: &str, fname: &str, positions: &[usize]) -> String {
     let pat = format!("{}(", fname);
     let call_pos = match line.find(&pat) {
-        Some(p) => p,
+        Some(p) => {
+            // DEPYLER-99MODE-S9: Word boundary check — don't match substrings
+            if p > 0 {
+                let prev = line.as_bytes()[p - 1] as char;
+                if prev.is_alphanumeric() || prev == '_' {
+                    return line.to_string();
+                }
+            }
+            p
+        }
         None => return line.to_string(),
     };
     let args_start = call_pos + pat.len();

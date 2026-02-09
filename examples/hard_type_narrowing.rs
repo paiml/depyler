@@ -3459,7 +3459,7 @@ pub fn test_index_above_threshold() -> Result<i32, Box<dyn std::error::Error>> {
     let d: std::collections::HashMap<i32, i32> = index_above_threshold(&data, 10)?;
     total = 0;
     for k in d.keys().cloned() {
-        total = ((total).py_add(d.get(&k).cloned().unwrap_or_default())) as i32;
+        total = ((total).py_add(d.get(&(k)).cloned().unwrap_or_default())) as i32;
     }
     Ok(total)
 }
