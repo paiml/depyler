@@ -173,11 +173,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0270: Check if return type explicitly specifies a concrete list element type
         // If so, trust the annotation and skip mixed-type fallback
+        // DEPYLER-99MODE-S9: Also match nested List/Dict/Set/Tuple types as concrete
         let has_concrete_return_type = matches!(
             &self.ctx.current_return_type,
             Some(Type::List(elem_type)) if matches!(
                 elem_type.as_ref(),
                 Type::Int | Type::Float | Type::String | Type::Bool
+                    | Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
+            )
+        ) || matches!(
+            &self.ctx.current_assign_type,
+            Some(Type::List(elem_type)) if matches!(
+                elem_type.as_ref(),
+                Type::Int | Type::Float | Type::String | Type::Bool
+                    | Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
             )
         );
 
