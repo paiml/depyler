@@ -72,18 +72,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(sym) => {
                 // DEPYLER-0449: First check actual variable type if known
                 if let Some(var_type) = self.ctx.var_types.get(sym) {
-                    // If variable is typed as String, it's a string index
-                    if matches!(var_type, Type::String) {
-                        return true;
-                    }
+                    // DEPYLER-99MODE-S9: If we have concrete type info, USE IT.
+                    // Don't fall through to heuristics when type is known.
+                    // e.g., `k: Int` from `for k in range(n)` must NOT match "k" heuristic.
+                    return matches!(var_type, Type::String);
                 }
 
-                // Fallback to heuristics
+                // Fallback to heuristics ONLY when type is truly unknown
                 let name = sym.as_str();
-                // DEPYLER-0449: Expanded to include common loop variables like "k"
-                // Heuristic: variable names like "key", "name", "id", "word", etc.
                 name == "key"
-                    || name == "k" // Common loop variable for keys
+                    || name == "k"
                     || name == "name"
                     || name == "id"
                     || name == "word"
@@ -131,8 +129,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::Literal(Literal::Int(_)) => true,
             HirExpr::Var(sym) => {
+                // DEPYLER-99MODE-S9: Check var_types first before name heuristic
+                if let Some(var_type) = self.ctx.var_types.get(sym) {
+                    return matches!(var_type, Type::Int | Type::Float | Type::Bool);
+                }
                 let name = sym.as_str();
-                // Common numeric index names
+                // Heuristic fallback only when type unknown
                 name == "i"
                     || name == "j"
                     || name == "k"
@@ -719,7 +721,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if let Some(var_type) = self.ctx.module_constant_types.get(name.as_str()) {
                     matches!(var_type, Type::Dict(_, _))
                 } else {
-                    false
+                    // DEPYLER-99MODE: Heuristic fallback for common dict variable names
+                    let n = name.as_str();
+                    n.contains("dict")
+                        || n.contains("map")
+                        || n.contains("hash")
+                        || n == "memo"
+                        || n == "seen"
+                        || n == "visited"
+                        || n == "counts"
+                        || n == "freq"
+                        || n == "frequency"
+                        || n == "lookup"
+                        || n == "graph"
+                        || n == "adj"
+                        || n == "dp"
+                        || n == "cache"
+                        || n == "config"
+                        || n == "settings"
+                        || n == "params"
+                        || n == "options"
+                        || n == "env"
+                        || n.ends_with("_map")
+                        || n.ends_with("_dict")
+                        || n.ends_with("_cache")
+                        || n.ends_with("_index")
+                        || n.ends_with("_lookup")
                 }
             }
             // DEPYLER-1044: Handle attribute access (e.g., self.config)
