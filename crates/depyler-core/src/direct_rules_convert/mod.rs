@@ -114,6 +114,28 @@ pub(crate) fn convert_condition_expr(
     Ok(converter.apply_truthiness_coercion(expr, rust_expr))
 }
 
+/// DEPYLER-99MODE: Convert condition expression with class field types and truthiness coercion
+/// Same as convert_condition_expr but also has access to class field types for accurate
+/// truthiness checks on self.* attributes (e.g., `if self.items:` → `if !self.items.is_empty()`)
+pub(crate) fn convert_condition_expr_with_class_fields(
+    expr: &HirExpr,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    class_field_types: &std::collections::HashMap<String, Type>,
+) -> Result<syn::Expr> {
+    let converter = ExprConverter::with_class_fields(
+        type_mapper,
+        is_classmethod,
+        vararg_functions,
+        param_types.clone(),
+        class_field_types.clone(),
+    );
+    let rust_expr = converter.convert(expr)?;
+    Ok(converter.apply_truthiness_coercion(expr, rust_expr))
+}
+
 /// Expression converter using strategy pattern to reduce complexity
 pub(crate) struct ExprConverter<'a> {
     #[allow(dead_code)]

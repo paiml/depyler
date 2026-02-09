@@ -10,7 +10,7 @@ use syn::parse_quote;
 
 use super::body_convert::*;
 use super::stmt_convert::*;
-use super::{convert_expr_with_class_fields, ExprConverter};
+use super::{convert_condition_expr_with_class_fields, convert_expr_with_class_fields, ExprConverter};
 
 /// DEPYLER-0720: Convert method body block with class field type awareness
 /// This is used for class methods where we know the field types
@@ -176,7 +176,8 @@ pub(crate) fn convert_method_stmt(
             then_body,
             else_body,
         } => {
-            let cond = convert_expr_with_class_fields(
+            // DEPYLER-99MODE: Use truthiness-aware conversion for if conditions
+            let cond = convert_condition_expr_with_class_fields(
                 condition,
                 type_mapper,
                 is_classmethod,
@@ -216,7 +217,8 @@ pub(crate) fn convert_method_stmt(
             Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
         }
         HirStmt::While { condition, body } => {
-            let cond = convert_expr_with_class_fields(
+            // DEPYLER-99MODE: Use truthiness-aware conversion for while conditions
+            let cond = convert_condition_expr_with_class_fields(
                 condition,
                 type_mapper,
                 is_classmethod,
