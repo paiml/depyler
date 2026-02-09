@@ -4808,20 +4808,12 @@ pub(crate) fn codegen_assign_stmt(
         let class_constructor_override: Option<proc_macro2::TokenStream> =
             if let HirExpr::Call { func, .. } = value {
                 if ctx.class_names.contains(func) {
-                    let has_unification_var = matches!(
-                        actual_type,
-                        Type::Set(elem) if matches!(**elem, Type::UnificationVar(_))
-                    ) || matches!(
-                        actual_type,
-                        Type::List(elem) if matches!(**elem, Type::UnificationVar(_))
-                    ) || matches!(actual_type, Type::UnificationVar(_));
-
-                    if has_unification_var {
-                        let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-                        Some(quote! { : #class_ident })
-                    } else {
-                        None
-                    }
+                    // DEPYLER-99MODE-S9: If the value is a known class constructor,
+                    // always use the class type regardless of HM inference.
+                    // HM inference often gives wrong types for class constructors
+                    // (Dict, Set, List with UnificationVars).
+                    let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+                    Some(quote! { : #class_ident })
                 } else {
                     None
                 }

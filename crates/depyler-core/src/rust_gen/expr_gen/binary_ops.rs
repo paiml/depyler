@@ -1098,21 +1098,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-STRING-CONCAT: String variable detection for concatenation
         // Check if either operand is a String-typed variable
-        let is_string_var = match (left, right) {
-            (HirExpr::Var(name), _) => self
-                .ctx
+        let left_is_str_var = if let HirExpr::Var(name) = left {
+            self.ctx
                 .var_types
                 .get(name)
-                .map(|t| matches!(t, Type::String))
-                .unwrap_or(false),
-            (_, HirExpr::Var(name)) => self
-                .ctx
-                .var_types
-                .get(name)
-                .map(|t| matches!(t, Type::String))
-                .unwrap_or(false),
-            _ => false,
+                .is_some_and(|t| matches!(t, Type::String))
+        } else {
+            false
         };
+        let right_is_str_var = if let HirExpr::Var(name) = right {
+            self.ctx
+                .var_types
+                .get(name)
+                .is_some_and(|t| matches!(t, Type::String))
+        } else {
+            false
+        };
+        let is_string_var = left_is_str_var || right_is_str_var;
 
         // DEPYLER-STRING-CONCAT: Check for str() calls, .to_string(), and string indexing
         let is_str_producing_expr = |expr: &HirExpr| -> bool {
@@ -1147,6 +1149,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         };
 
+        // DEPYLER-99MODE-S9: Detect char iteration variables in string concat
+        // When iterating over string chars, the loop var is `char` type.
+        // char + String or String + char is string concatenation.
+        let left_is_char_iter = if let HirExpr::Var(name) = left {
+            self.ctx.char_iter_vars.contains(name)
+        } else {
+            false
+        };
+        let right_is_char_iter = if let HirExpr::Var(name) = right {
+            self.ctx.char_iter_vars.contains(name)
+        } else {
+            false
+        };
+        let is_char_string_concat =
+            (left_is_char_iter && (is_string_var || is_str_producing_expr(right)))
+                || (right_is_char_iter && (is_string_var || is_str_producing_expr(left)))
+                || (left_is_char_iter
+                    && matches!(right, HirExpr::Literal(Literal::String(_))))
+                || (right_is_char_iter
+                    && matches!(left, HirExpr::Literal(Literal::String(_))));
+
         // String detection - includes literals, variable types, str() calls, string indexing
         // NOTE: Do NOT use current_return_type here - just because a function returns String
         // doesn't mean all + operations are string concatenation (e.g., loop counter: i = i + 1)
@@ -1154,7 +1177,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             || matches!(right, HirExpr::Literal(Literal::String(_)))
             || is_string_var
             || is_str_producing_expr(left)
-            || is_str_producing_expr(right);
+            || is_str_producing_expr(right)
+            || is_char_string_concat;
 
         // DEPYLER-0672: Additional heuristic - check generated expressions for string patterns
         // Detect CSE temp vars from format!() and .unwrap_or_default() patterns
