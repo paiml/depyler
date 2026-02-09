@@ -191,6 +191,24 @@ mod coverage_wave17_instance_deep_tests;
 // Wave 17: 200 import/class/format/error generation coverage tests
 #[cfg(test)]
 mod coverage_wave17_import_class_tests;
+// Wave 18: 200 direct_rules_convert/expr_methods.rs coverage tests
+#[cfg(test)]
+mod coverage_wave18_direct_expr_tests;
+// Wave 18: 200 call_generic/codegen_assign_stmt coverage tests
+#[cfg(test)]
+mod coverage_wave18_call_assign_tests;
+// Wave 18: 200 string_methods/instance_dispatch coverage tests
+#[cfg(test)]
+mod coverage_wave18_string_instance_tests;
+// Wave 18 Deep: 200 deep string method code path coverage tests
+#[cfg(test)]
+mod coverage_wave18_string_deep_tests;
+// Wave 18: 200 dict/list/set collection deep method coverage tests
+#[cfg(test)]
+mod coverage_wave18_collection_deep_tests;
+// Wave 18: 200 stmt_gen/func_gen/type code path coverage tests
+#[cfg(test)]
+mod coverage_wave18_stmt_func_tests;
 
 // Internal imports
 #[cfg(test)]
