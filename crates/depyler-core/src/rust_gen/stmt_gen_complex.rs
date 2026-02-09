@@ -1817,7 +1817,24 @@ fn codegen_nested_function_def(
     // DEPYLER-0766: Analyze mutability for nested function body
     // Without this, variables reassigned inside closures don't get `let mut`,
     // causing E0384 "cannot assign twice to immutable variable" errors.
+    // DEPYLER-99MODE-S9: Save outer function's mutable_vars before analyzing nested function.
+    // analyze_mutable_vars clears ctx.mutable_vars, which would wipe the outer function's
+    // analysis. Variables declared AFTER nested functions would lose their `mut`.
+    let saved_mutable_vars = ctx.mutable_vars.clone();
     crate::rust_gen::analyze_mutable_vars(body, ctx, &effective_params);
+
+    // DEPYLER-99MODE-S9: Detect FnMut closures — closures that mutate captured variables.
+    // After analyze_mutable_vars, ctx.mutable_vars contains variables mutated in the closure.
+    // If any of these are NOT closure params/locals, they are captured mutations → FnMut.
+    let closure_param_names: std::collections::HashSet<String> =
+        effective_params.iter().map(|p| p.name.clone()).collect();
+    let closure_is_fn_mut = ctx.mutable_vars.iter().any(|var| {
+        !closure_param_names.contains(var)
+            && !body.iter().any(|stmt| {
+                // Check if var is locally declared in the closure body
+                matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(n), .. } if n == var)
+            })
+    });
 
     // DEPYLER-1160: Propagate return type annotation to returned variables
     // This enables target-typed inference for empty lists in nested functions
@@ -1832,6 +1849,12 @@ fn codegen_nested_function_def(
 
     // Exit scope before restoring context
     ctx.exit_scope();
+
+    // DEPYLER-99MODE-S9: Restore outer function's mutable_vars after nested function codegen.
+    // The nested function's analyze_mutable_vars cleared and repopulated mutable_vars for
+    // its own body. We must restore the outer function's analysis so that variables
+    // declared after nested functions correctly get `let mut`.
+    ctx.mutable_vars = saved_mutable_vars;
 
     // Restore can_fail flag
     ctx.current_function_can_fail = saved_can_fail;
@@ -1899,6 +1922,13 @@ fn codegen_nested_function_def(
     // 2. For Copy types (i32, bool), move just copies - no harm
     // 3. For non-Copy types, move is required if captured and returned
     // Using `move` universally is safe and fixes the common closure capture issue
+    //
+    // DEPYLER-99MODE-S9: Use `let mut` for FnMut closures (those that mutate captured variables)
+    let mutability = if closure_is_fn_mut {
+        quote! { mut }
+    } else {
+        quote! {}
+    };
     Ok(if matches!(ret_type, Type::Unknown) {
         if is_declared {
             quote! {
@@ -1908,7 +1938,7 @@ fn codegen_nested_function_def(
             }
         } else {
             quote! {
-                let #fn_name = move |#(#param_tokens),*| {
+                let #mutability #fn_name = move |#(#param_tokens),*| {
                     #(#body_tokens)*
                 };
             }
@@ -1921,7 +1951,7 @@ fn codegen_nested_function_def(
         }
     } else {
         quote! {
-            let #fn_name = move |#(#param_tokens),*| -> #return_type {
+            let #mutability #fn_name = move |#(#param_tokens),*| -> #return_type {
                 #(#body_tokens)*
             };
         }
