@@ -182,6 +182,15 @@ mod coverage_wave16_method_edge_tests;
 // Wave 16: 200 slice/index/comprehension/attribute coverage tests
 #[cfg(test)]
 mod coverage_wave16_slice_comp_tests;
+// Wave 17: 200 augmented-assign/comparison/tuple/variable/expression coverage tests
+#[cfg(test)]
+mod coverage_wave17_rules_expr_tests;
+// Wave 17: 200 instance dispatch/method routing/stdlib/numeric deep tests
+#[cfg(test)]
+mod coverage_wave17_instance_deep_tests;
+// Wave 17: 200 import/class/format/error generation coverage tests
+#[cfg(test)]
+mod coverage_wave17_import_class_tests;
 
 // Internal imports
 #[cfg(test)]
