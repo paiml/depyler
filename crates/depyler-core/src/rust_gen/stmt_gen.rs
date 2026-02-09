@@ -882,7 +882,12 @@ pub(crate) fn codegen_return_stmt(
             // intermediate types because PyOps traits have multiple impls (i32+i32, i32+f64, etc.)
             // Also handles Ok(...) wrapped expressions where inner type is Int/Float.
             // Fix: Wrap in type assertion block { let _r: <type> = expr; _r }
-            if ctx.type_mapper.nasa_mode && has_chained_pyops(e) {
+            // DEPYLER-99MODE-S9: Skip type assertion for Result-returning function calls.
+            // The function's return type is already known, and wrapping in {let _r: T = call(); _r}
+            // would assign Result<T> to T. The PyOps in arguments are resolved at arg level.
+            let is_result_call = matches!(e, HirExpr::Call { func, .. }
+                if ctx.result_returning_functions.contains(func));
+            if ctx.type_mapper.nasa_mode && has_chained_pyops(e) && !is_result_call {
                 // Check if target_type is Result/Option and extract inner type
                 let effective_type = get_inner_optional_type(target_type).unwrap_or(target_type);
                 let type_tokens: Option<syn::Type> = match effective_type {
