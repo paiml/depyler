@@ -168,6 +168,11 @@ mod coverage_wave14_slice_index_tests;
 mod coverage_wave14_comp_lambda_tests;
 #[cfg(test)]
 mod coverage_wave14_methods_dispatch_tests;
+// Wave 15: 200 class/async/error/function coverage tests
+#[cfg(test)]
+mod coverage_wave15_class_async_tests;
+#[cfg(test)]
+mod coverage_wave15_rules_type_tests;
 
 // Internal imports
 #[cfg(test)]
