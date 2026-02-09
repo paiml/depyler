@@ -50,13 +50,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("upper() takes no arguments");
                 }
-                Ok(parse_quote! { #obj.to_uppercase() })
+                // DEPYLER-99MODE-S9: char.to_uppercase() returns ToUppercase iterator,
+                // needs .to_string() to produce String. String.to_uppercase() returns String.
+                let is_char = if let HirExpr::Var(name) = hir_object {
+                    self.ctx.char_iter_vars.contains(name.as_str())
+                } else {
+                    false
+                };
+                if is_char {
+                    Ok(parse_quote! { #obj.to_uppercase().to_string() })
+                } else {
+                    Ok(parse_quote! { #obj.to_uppercase() })
+                }
             }
             "lower" => {
                 if !arg_exprs.is_empty() {
                     bail!("lower() takes no arguments");
                 }
-                Ok(parse_quote! { #obj.to_lowercase() })
+                // DEPYLER-99MODE-S9: char.to_lowercase() returns ToLowercase iterator
+                let is_char = if let HirExpr::Var(name) = hir_object {
+                    self.ctx.char_iter_vars.contains(name.as_str())
+                } else {
+                    false
+                };
+                if is_char {
+                    Ok(parse_quote! { #obj.to_lowercase().to_string() })
+                } else {
+                    Ok(parse_quote! { #obj.to_lowercase() })
+                }
             }
             "strip" => {
                 // DEPYLER-0595: str.strip([chars]) → trim_matches

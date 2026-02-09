@@ -148,6 +148,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let is_str_literal =
                         matches!(&hir_args[0], HirExpr::Literal(Literal::String(_)));
 
+                    // DEPYLER-99MODE-S9: Check if argument is a char iteration variable
+                    // When iterating over string chars and pushing to Vec<String>,
+                    // the char needs .to_string() conversion
+                    let is_char_iter_var = if let HirExpr::Var(name) = &hir_args[0] {
+                        self.ctx.char_iter_vars.contains(name)
+                    } else {
+                        false
+                    };
+
                     // Check if object is a Vec<String> by examining variable type
                     let is_vec_string = if let HirExpr::Var(var_name) = object {
                         matches!(
@@ -158,7 +167,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         false
                     };
 
-                    is_str_literal && is_vec_string
+                    (is_str_literal || is_char_iter_var) && is_vec_string
                 } else {
                     false
                 };
@@ -432,7 +441,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if arg is already a String or needs conversion
                 let is_str_literal = !hir_args.is_empty()
                     && matches!(&hir_args[0], HirExpr::Literal(Literal::String(_)));
-                if is_str_literal {
+                // DEPYLER-99MODE-S9: Check if arg is a char iteration variable
+                // `for char in text.chars()` → char is Rust `char`, needs .to_string()
+                let is_char_iter = if let Some(HirExpr::Var(name)) = hir_args.first() {
+                    self.ctx.char_iter_vars.contains(name)
+                } else {
+                    false
+                };
+                if is_str_literal || is_char_iter {
                     Ok(parse_quote! { #object_expr.push(#arg.to_string()) })
                 } else {
                     // Assume arg is already String type

@@ -7914,8 +7914,10 @@ fn fix_negation_on_non_bool(code: &str) -> String {
             if let Some(pos) = fixed.find(&neg_pattern) {
                 let after_pos = pos + neg_pattern.len();
                 let next_char = fixed[after_pos..].chars().next();
+                // DEPYLER-99MODE-S9: Don't replace `!var.method()` - that's boolean negation
+                // of the method result, NOT truthiness of the variable.
                 let is_word_boundary = next_char
-                    .map(|c| !c.is_alphanumeric() && c != '_')
+                    .map(|c| !c.is_alphanumeric() && c != '_' && c != '.')
                     .unwrap_or(true);
                 if is_word_boundary {
                     let empty_check = format!("{}.is_empty()", var);
