@@ -5981,6 +5981,52 @@ pub(crate) fn codegen_assign_symbol(
     }
 }
 
+/// DEPYLER-99MODE-S9: Walk HIR subscript chain to find the root variable name.
+/// E.g., `times[node][1]` → walks Index{Index{Var("times"), node}, 1} → returns "times"
+fn find_root_var_in_chain(expr: &HirExpr) -> Option<String> {
+    let mut current = expr;
+    loop {
+        match current {
+            HirExpr::Index { base, .. } => current = base,
+            HirExpr::Var(name) => return Some(name.clone()),
+            _ => return None,
+        }
+    }
+}
+
+/// DEPYLER-99MODE-S9: Build per-level type chain for nested subscript assignments.
+/// Returns Vec<bool> where `true` = list (numeric index), `false` = dict (key-based).
+/// E.g., Dict[int, List[int]] with depth 2 → [false, true]
+fn build_nested_type_chain(
+    ctx: &CodeGenContext,
+    root_var: &str,
+    depth: usize,
+) -> Vec<bool> {
+    let mut chain = Vec::with_capacity(depth);
+    let root_type = match ctx.var_types.get(root_var) {
+        Some(t) => t.clone(),
+        None => return chain,
+    };
+    let mut current = root_type;
+    for _ in 0..depth {
+        match current {
+            Type::List(elem) => {
+                chain.push(true);
+                current = *elem;
+            }
+            Type::Dict(_, val) => {
+                chain.push(false);
+                current = *val;
+            }
+            _ => {
+                // Unknown type at this level, stop
+                break;
+            }
+        }
+    }
+    chain
+}
+
 /// Generate code for index (dictionary/list subscript) assignment
 /// DEPYLER-1203: Added hir_value parameter for type-based DepylerValue wrapping
 #[inline]
@@ -6086,7 +6132,42 @@ pub(crate) fn codegen_assign_index(
             }
         }
     } else {
-        // Base is not a simple variable - use heuristic
+        // DEPYLER-99MODE-S9: Base is not a simple variable (likely nested subscript)
+        // Try to resolve root variable type chain for reliable detection
+        let root_name = find_root_var_in_chain(base);
+        if let Some(ref name) = root_name {
+            if let Some(root_type) = ctx.var_types.get(name) {
+                // Walk the type chain to find what type the outermost index accesses
+                let mut current = root_type.clone();
+                let depth = {
+                    let mut d = 0;
+                    let mut tmp = base;
+                    while let HirExpr::Index { base: inner, .. } = tmp {
+                        d += 1;
+                        tmp = inner;
+                    }
+                    d
+                };
+                // Walk `depth` levels into the type to find the type at the final level
+                for _ in 0..depth {
+                    match current {
+                        Type::List(elem) => { current = *elem; }
+                        Type::Dict(_, val) => { current = *val; }
+                        _ => break,
+                    }
+                }
+                // Now `current` is the type at the level being indexed by `index`
+                let resolved = matches!(current, Type::List(_));
+                // Return early with resolved type
+                resolved
+            } else {
+                // No type info — fall through to heuristic
+                match index {
+                    HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                    _ => false,
+                }
+            }
+        } else {
         // DEPYLER-0449: Check if index looks like a string key before assuming numeric
         match index {
             HirExpr::Var(name) => {
@@ -6113,6 +6194,7 @@ pub(crate) fn codegen_assign_index(
             HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
             _ => false,
         }
+        } // close: else (no root_name)
     };
 
     // Extract the base and all intermediate indices
@@ -6400,15 +6482,26 @@ pub(crate) fn codegen_assign_index(
             }
         }
     } else {
-        // Nested assignment: build chain of get_mut/index calls
+        // DEPYLER-99MODE-S9: Per-level type-aware nested indexing
+        // Walk the base variable's type chain to determine dict vs list at each level
+        // E.g., Dict[int, List[int]]: level 0 = dict (get_mut), level 1 = list (as usize)
+        let root_var_name = find_root_var_in_chain(base);
+        let type_chain = if let Some(ref name) = root_var_name {
+            build_nested_type_chain(ctx, name, indices.len() + 1)
+        } else {
+            vec![]
+        };
+
         let mut chain = quote! { #base_expr };
-        for idx in &indices {
-            if is_numeric_index {
-                // DEPYLER-99MODE-S9: Vec nested access uses direct indexing
-                // dp[i][j] = x → dp[i as usize][j as usize] = x
+        for (i, idx) in indices.iter().enumerate() {
+            let level_is_list = type_chain
+                .get(i)
+                .copied()
+                .unwrap_or(is_numeric_index);
+            if level_is_list {
                 chain = quote! { #chain[#idx as usize] };
             } else {
-                // Dict nested access uses get_mut
+                // Dict access uses get_mut with reference key
                 let idx_str = quote! { #idx }.to_string();
                 let first_char = idx_str.trim_start().chars().next();
                 let is_str_lit = first_char == Some('"');
@@ -6420,21 +6513,17 @@ pub(crate) fn codegen_assign_index(
             }
         }
 
-        if is_numeric_index {
-            // DEPYLER-1170: Nested list index assignment uses index operator, NOT insert()
-            // Python: nested[i][j] = x → replaces element at index j
-            // Rust: nested[i][j] = x → replaces element at index j
-            // WRONG: nested.get_mut(i).insert(j, x) → inserts NEW element (causes bugs!)
+        let final_is_list = type_chain
+            .get(indices.len())
+            .copied()
+            .unwrap_or(is_numeric_index);
+        if final_is_list {
             Ok(quote! { #chain[(#final_index) as usize] = #final_value_expr; })
         } else if needs_as_object_mut {
-            // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
-            // DEPYLER-0473: Clone key to avoid move-after-use errors
             Ok(
                 quote! { #chain.as_object_mut().expect("JSON value is not an object").insert((#final_index).clone(), #final_value_expr); },
             )
         } else {
-            // HashMap.insert(key, value)
-            // DEPYLER-0661: Clone variable keys to avoid move-after-use errors
             let needs_clone = matches!(index, HirExpr::Var(_));
             if needs_clone {
                 Ok(quote! { #chain.insert(#final_index.clone(), #final_value_expr); })
