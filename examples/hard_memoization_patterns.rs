@@ -6,23 +6,6 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
-pub struct ZeroDivisionError {
-    message: String,
-}
-impl std::fmt::Display for ZeroDivisionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "division by zero: {}", self.message)
-    }
-}
-impl std::error::Error for ZeroDivisionError {}
-impl ZeroDivisionError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
-#[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
 }
@@ -3195,38 +3178,218 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = "Bubble sort implementation."]
+#[doc = "Minimum coins needed for amount using memoized recursion.\n\n    Passes memo dict mutably to recursive calls. Tests &mut HashMap<i64,i64>\n    parameter threading through recursion with dict mutation in callee.\n    "]
+pub fn coin_change_memo<'b, 'a>(
+    amount: i32,
+    coins: &'a Vec<i32>,
+    memo: &'b mut std::collections::HashMap<i32, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut min_coins: i32 = Default::default();
+    let _cse_temp_0 = amount == 0;
+    if _cse_temp_0 {
+        return Ok(0);
+    }
+    let _cse_temp_1 = amount < 0;
+    if _cse_temp_1 {
+        return Ok(-1);
+    }
+    let _cse_temp_2 = memo.get(&amount).is_some();
+    if _cse_temp_2 {
+        return Ok(memo.get(&amount).cloned().unwrap_or_default());
+    }
+    min_coins = ((amount).py_add(1i32)) as i32;
+    for coin in coins.iter().cloned() {
+        let sub: i32 = coin_change_memo((amount) - (coin), &coins, memo)?;
+        if (sub >= 0) && ((sub).py_add(1i32) < min_coins) {
+            min_coins = ((sub).py_add(1i32)) as i32;
+        }
+    }
+    let result: i32 = if min_coins <= amount { min_coins } else { -1 };
+    memo.insert(amount.clone(), result);
+    Ok(result)
+}
+#[doc = "Find pair of indices summing to target using complement lookup.\n\n    Tests typed dict[int,int] creation, complement computation, dict\n    containment check, and dict value retrieval all in one loop body.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn bubble_sort(arr: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = arr.len() as i32;
+pub fn two_sum_indices(
+    nums: &Vec<i32>,
+    target: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut seen: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    for i in 0..(nums.len() as i32) {
+        let complement: i32 = ((target) - (
+            nums.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        )) as i32;
+        if seen.get(&complement).is_some() {
+            return Ok(vec![seen.get(&complement).cloned().unwrap_or_default(), i]);
+        }
+        seen.insert(
+            nums.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            i,
+        );
+    }
+    Ok(vec![-1, -1])
+}
+#[doc = "Count triplets summing to target using nested loops with dict lookup.\n\n    Tests O(n^2) loop with inner dict probe. The pair_sums dict maps\n    sum-values to their count, requiring dict mutation with += on existing keys.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn three_sum_count(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut count: i32 = Default::default();
+    let _cse_temp_0 = nums.len() as i32;
     let n: i32 = _cse_temp_0;
-    let mut result: Vec<i32> = arr.clone();
+    count = 0;
+    let mut pair_sums: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
     for i in 0..(n) {
-        for j in (0)..(((n) - (i) as i32) - (1i32)) {
-            if result
+        for j in ((i).py_add(1i32))..(n) {
+            let s: i32 = ((nums
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_add(
+                nums.get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            )) as i32;
+            if pair_sums.get(&s).is_some() {
+                {
+                    let _key = s.clone();
+                    let _old_val = pair_sums.get(&_key).cloned().unwrap_or_default();
+                    pair_sums.insert(_key, _old_val + 1);
+                }
+            } else {
+                pair_sums.insert(s.clone(), 1);
+            }
+        }
+    }
+    for k in 0..(n) {
+        let need: i32 = ((target) - (nums.get(&k).cloned().unwrap_or_default())) as i32;
+        if pair_sums.get(&need).is_some() {
+            count = ((count).py_add(pair_sums.get(&need).cloned().unwrap_or_default())) as i32;
+        }
+    }
+    Ok(count)
+}
+#[doc = "Longest increasing subsequence length via bottom-up DP.\n\n    Tests list-of-int DP table with nested loop access using computed\n    indices and conditional max tracking across the table.\n    "]
+pub fn longest_increasing_subseq(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut best: i32 = Default::default();
+    let _cse_temp_0 = nums.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let _cse_temp_1 = n == 0;
+    if _cse_temp_1 {
+        return Ok(0);
+    }
+    let mut dp: Vec<i32> = vec![];
+    for _i in 0..(n) {
+        dp.push(1);
+    }
+    for i in (1)..(n) {
+        for j in 0..(i) {
+            if nums
                 .get(j as usize)
                 .cloned()
                 .expect("IndexError: list index out of range")
-                > {
-                    let base = &result;
-                    let idx: i32 = (j).py_add(1i32);
-                    let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.get(actual_idx)
-                        .cloned()
-                        .expect("IndexError: list index out of range")
-                }
+                < nums
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
             {
-                let temp: i32 = result
+                let candidate: i32 = ((dp
                     .get(j as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range");
-                result[(j) as usize] = {
-                    let base = &result;
-                    let idx: i32 = (j).py_add(1i32);
+                    .expect("IndexError: list index out of range"))
+                .py_add(1i32)) as i32;
+                if candidate
+                    > dp.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                {
+                    dp[(i) as usize] = candidate;
+                }
+            }
+        }
+    }
+    best = 0;
+    for val in dp.iter().cloned() {
+        if val > best {
+            best = val;
+        }
+    }
+    Ok(best)
+}
+#[doc = "Levenshtein edit distance using 2D DP table.\n\n    Tests list[list[int]] creation, nested indexing dp[i][j],\n    row initialization via inner loop, and min-of-three computation\n    across adjacent cells in the matrix.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn edit_distance_dp<'a, 'b>(
+    word1: &'a str,
+    word2: &'b str,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut best: i32 = Default::default();
+    let _cse_temp_0 = word1.len() as i32;
+    let m: i32 = _cse_temp_0;
+    let _cse_temp_1 = word2.len() as i32;
+    let n: i32 = _cse_temp_1;
+    let mut dp: Vec<Vec<i32>> = vec![];
+    for _i in 0..((m).py_add(1i32)) {
+        let mut row: Vec<i32> = vec![];
+        for _j in 0..((n).py_add(1i32)) {
+            row.push(0);
+        }
+        dp.push(row);
+    }
+    for i in 0..((m).py_add(1i32)) {
+        dp.get_mut(&i).expect("key not found in dict")[(0) as usize] = i;
+    }
+    for j in 0..((n).py_add(1i32)) {
+        dp.get_mut(&0).expect("key not found in dict")[(j) as usize] = j;
+    }
+    for i in (1)..((m).py_add(1i32)) {
+        for j in (1)..((n).py_add(1i32)) {
+            if {
+                let base = &word1;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.chars().count().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            } == {
+                let base = &word2;
+                let idx: i32 = (j) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.chars().count().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            } {
+                dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = {
+                    let base = &{
+                        let base = &dp;
+                        let idx: i32 = (i) - (1i32);
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                    };
+                    let idx: i32 = (j) - (1i32);
                     let actual_idx = if idx < 0 {
                         base.len().saturating_sub(idx.abs() as usize)
                     } else {
@@ -3236,332 +3399,1074 @@ pub fn bubble_sort(arr: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error
                         .cloned()
                         .expect("IndexError: list index out of range")
                 };
-                result[((j).py_add(1i32)) as usize] = temp;
+            } else {
+                let replace_cost: i32 = (({
+                    let base = &{
+                        let base = &dp;
+                        let idx: i32 = (i) - (1i32);
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                    };
+                    let idx: i32 = (j) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                })
+                .py_add(1i32)) as i32;
+                let delete_cost: i32 = (({
+                    let base = &dp;
+                    let idx: i32 = (i) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                }
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+                .py_add(1i32)) as i32;
+                let insert_cost: i32 = (({
+                    let base = &dp
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range");
+                    let idx: i32 = (j) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                })
+                .py_add(1i32)) as i32;
+                best = replace_cost;
+                if delete_cost < best {
+                    best = delete_cost;
+                }
+                if insert_cost < best {
+                    best = insert_cost;
+                }
+                dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = best;
             }
         }
     }
-    Ok(result)
+    Ok(dp
+        .get(m as usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(n as usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
 }
-#[doc = "Binary search returning index or -1."]
-pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut left: i32 = 0;
-    let _cse_temp_0 = arr.len() as i32;
-    let mut right: i32 = ((_cse_temp_0) - (1i32)) as i32;
-    while left <= right {
-        let mid: i32 = {
-            let a = (left).py_add(right);
-            let b = 2;
-            let q = a / b;
-            let r = a % b;
-            let r_negative = r < 0;
-            let b_negative = b < 0;
-            let r_nonzero = r != 0;
-            let signs_differ = r_negative != b_negative;
-            let needs_adjustment = r_nonzero && signs_differ;
-            if needs_adjustment {
-                q - 1
-            } else {
-                q
+#[doc = "0/1 knapsack via bottom-up 2D DP table.\n\n    Tests list[list[int]] with(n+1)x(capacity+1) dimensions,\n    conditional cell updates referencing previous row, and nested\n    max comparisons across the DP table.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn knapsack_01<'b, 'a>(
+    weights: &'a Vec<i32>,
+    values: &'b Vec<i32>,
+    capacity: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = weights.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut dp: Vec<Vec<i32>> = vec![];
+    for _i in 0..((n).py_add(1i32)) {
+        let mut row: Vec<i32> = vec![];
+        for _w in 0..((capacity).py_add(1i32)) {
+            row.push(0);
+        }
+        dp.push(row);
+    }
+    for i in (1)..((n).py_add(1i32)) {
+        for w in (1)..((capacity).py_add(1i32)) {
+            dp.get_mut(&i).expect("key not found in dict")[(w) as usize] = {
+                let base = &dp;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
             }
+            .get(w as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+            if {
+                let base = &weights;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            } <= w
+            {
+                let with_item: i32 = (({
+                    let base = &{
+                        let base = &dp;
+                        let idx: i32 = (i) - (1i32);
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                    };
+                    let idx: i32 = (w) - ({
+                        let base = &weights;
+                        let idx: i32 = (i) - (1i32);
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                    });
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                })
+                .py_add({
+                    let base = &values;
+                    let idx: i32 = (i) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                })) as i32;
+                if with_item
+                    > dp.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(w as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                {
+                    dp.get_mut(&i).expect("key not found in dict")[(w) as usize] = with_item;
+                }
+            }
+        }
+    }
+    Ok(dp
+        .get(n as usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(capacity as usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Minimum scalar multiplications for matrix chain via interval DP.\n\n    Tests 2D DP table indexed by interval endpoints, triple-nested loop\n    with computed split point, and min-tracking across partition choices.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn matrix_chain_order(dims: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = dims.len() as i32;
+    let n: i32 = ((_cse_temp_0) - (1i32)) as i32;
+    let mut dp: Vec<Vec<i32>> = vec![];
+    for _i in 0..(n) {
+        let mut row: Vec<i32> = vec![];
+        for _j in 0..(n) {
+            row.push(0);
+        }
+        dp.push(row);
+    }
+    for length in (2)..((n).py_add(1i32)) {
+        for i in 0..(((n) - (length) as i32).py_add(1i32)) {
+            let j: i32 = (((i).py_add(length) as i32) - (1i32)) as i32;
+            dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = 999999999;
+            for k in (i)..(j) {
+                let cost: i32 = (((dp
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(&k)
+                    .cloned()
+                    .unwrap_or_default())
+                .py_add(
+                    {
+                        let base = &dp;
+                        let idx: i32 = (k).py_add(1i32);
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                    }
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+                ) as i32)
+                    .py_add(
+                        ((dims
+                            .get(i as usize)
+                            .cloned()
+                            .expect("IndexError: list index out of range"))
+                        .py_mul({
+                            let base = &dims;
+                            let idx: i32 = (k).py_add(1i32);
+                            let actual_idx = if idx < 0 {
+                                base.len().saturating_sub(idx.abs() as usize)
+                            } else {
+                                idx as usize
+                            };
+                            base.get(actual_idx)
+                                .cloned()
+                                .expect("IndexError: list index out of range")
+                        }) as i32)
+                            .py_mul({
+                                let base = &dims;
+                                let idx: i32 = (j).py_add(1i32);
+                                let actual_idx = if idx < 0 {
+                                    base.len().saturating_sub(idx.abs() as usize)
+                                } else {
+                                    idx as usize
+                                };
+                                base.get(actual_idx)
+                                    .cloned()
+                                    .expect("IndexError: list index out of range")
+                            }),
+                    )) as i32;
+                if cost
+                    < dp.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                {
+                    dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = cost;
+                }
+            }
+        }
+    }
+    Ok({
+        let base = &dp
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let idx: i32 = (n) - (1i32);
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
         };
-        if arr
-            .get(mid as usize)
+        base.get(actual_idx)
             .cloned()
             .expect("IndexError: list index out of range")
-            == target
-        {
-            return Ok(mid);
-        } else {
-            if arr
-                .get(mid as usize)
-                .cloned()
-                .expect("IndexError: list index out of range")
-                < target
-            {
-                left = ((mid).py_add(1i32)) as i32;
-            } else {
-                right = ((mid) - (1i32)) as i32;
+    })
+}
+#[doc = "BFS shortest path in unweighted graph using adjacency dict.\n\n    Tests Dict[int, List[int]] adjacency list, dict containment,\n    list-valued dict access, queue-based BFS with visited set tracking.\n    "]
+pub fn bfs_shortest_path(
+    adj: &std::collections::HashMap<i32, Vec<i32>>,
+    start: i32,
+    end: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = start == end;
+    if _cse_temp_0 {
+        return Ok(0);
+    }
+    let mut visited: std::collections::HashMap<i32, bool> = {
+        let map: HashMap<i32, bool> = HashMap::new();
+        map
+    };
+    let mut dist: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    let mut queue: Vec<i32> = vec![start];
+    visited.insert(start.clone(), true);
+    dist.insert(start.clone(), 0);
+    let mut head: i32 = 0;
+    while head < queue.len() as i32 {
+        let node: i32 = queue
+            .get(head as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        head = ((head).py_add(1i32)) as i32;
+        if adj.get(&node).is_some() {
+            let neighbors: Vec<i32> = adj.get(&node).cloned().unwrap_or_default();
+            for neighbor in neighbors.iter().cloned() {
+                if visited.get(&neighbor).is_none() {
+                    visited.insert(neighbor.clone(), true);
+                    dist.insert(
+                        neighbor.clone(),
+                        (dist.get(&node).cloned().unwrap_or_default()).py_add(1i32),
+                    );
+                    if neighbor == end {
+                        return Ok(dist.get(&neighbor).cloned().unwrap_or_default());
+                    }
+                    queue.push(neighbor);
+                }
             }
         }
     }
     Ok(-1)
 }
-#[doc = "Merge sort implementation."]
-#[doc = " Depyler: proven to terminate"]
-pub fn merge_sort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = arr.len() as i32;
-    let _cse_temp_1 = _cse_temp_0 <= 1;
-    if _cse_temp_1 {
-        return Ok(arr);
-    }
-    let _cse_temp_2 = {
-        let a = _cse_temp_0;
-        let b = 2;
-        let q = a / b;
-        let r = a % b;
-        let r_negative = r < 0;
-        let b_negative = b < 0;
-        let r_nonzero = r != 0;
-        let signs_differ = r_negative != b_negative;
-        let needs_adjustment = r_nonzero && signs_differ;
-        if needs_adjustment {
-            q - 1
-        } else {
-            q
-        }
-    };
-    let mid: i32 = _cse_temp_2;
-    let left: Vec<i32> = merge_sort({
-        let base = &*arr;
-        let stop_idx = (mid) as isize;
-        let stop = if stop_idx < 0 {
-            (base.len() as isize + stop_idx).max(0) as usize
-        } else {
-            stop_idx as usize
-        };
-        base[..stop.min(base.len())].to_vec()
-    })?;
-    let right: Vec<i32> = merge_sort({
-        let base = &*arr;
-        let start_idx = (mid) as isize;
-        let start = if start_idx < 0 {
-            (base.len() as isize + start_idx).max(0) as usize
-        } else {
-            start_idx as usize
-        };
-        if start < base.len() {
-            base[start..].to_vec()
-        } else {
-            Vec::new()
-        }
-    })?;
-    Ok(merge(&left, &right)?)
-}
-#[doc = "Merge two sorted lists."]
-pub fn merge<'a, 'b>(
-    left: &'a Vec<i32>,
-    right: &'b Vec<i32>,
-) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut i: i32 = Default::default();
-    let mut j: i32 = Default::default();
-    let mut result: Vec<i32> = vec![];
-    i = 0;
-    j = 0;
-    while (i < left.len() as i32) && (j < right.len() as i32) {
-        if left
-            .get(i as usize)
-            .cloned()
-            .expect("IndexError: list index out of range")
-            <= right
-                .get(j as usize)
-                .cloned()
-                .expect("IndexError: list index out of range")
-        {
-            result.push(
-                left.get(i as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-            i = ((i).py_add(1i32)) as i32;
-        } else {
-            result.push(
-                right
-                    .get(j as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-            j = ((j).py_add(1i32)) as i32;
-        }
-    }
-    while i < left.len() as i32 {
-        result.push(
-            left.get(i as usize)
-                .cloned()
-                .expect("IndexError: list index out of range"),
-        );
-        i = ((i).py_add(1i32)) as i32;
-    }
-    while j < right.len() as i32 {
-        result.push(
-            right
-                .get(j as usize)
-                .cloned()
-                .expect("IndexError: list index out of range"),
-        );
-        j = ((j).py_add(1i32)) as i32;
-    }
-    Ok(result)
-}
-#[doc = "Fibonacci with memoization."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn fibonacci_memo(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let memo: std::collections::HashMap<i32, i32> = {
-        let map: HashMap<i32, i32> = HashMap::new();
-        map
-    };
-    Ok(fib_helper(n, &memo)?)
-}
-#[doc = "Helper for memoized fibonacci."]
-#[doc = " Depyler: proven to terminate"]
-pub fn fib_helper(
+#[doc = "Count connected components via iterative DFS.\n\n    Tests building Dict[int, List[int]] from edge list, then iterative\n    DFS with stack, visited tracking via dict[int, bool], and component\n    counting across multiple DFS launches.\n    "]
+pub fn dfs_count_components(
     n: i32,
-    memo: &mut std::collections::HashMap<i32, i32>,
+    edges: &Vec<Vec<i32>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = n <= 1;
-    if _cse_temp_0 {
-        return Ok(n);
-    }
-    let _cse_temp_1 = memo.get(&n).is_some();
-    if _cse_temp_1 {
-        return Ok(memo.get(&n).cloned().unwrap_or_default());
-    }
-    let _cse_temp_2 =
-        (fib_helper((n) - (1i32), memo)?).py_add(fib_helper((n) - (2i32), memo)?);
-    let result: i32 = _cse_temp_2;
-    memo.insert(n.clone(), result);
-    Ok(result)
-}
-#[doc = "Find two indices that sum to target."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn two_sum(nums: &Vec<i32>, target: i32) -> Vec<i32> {
-    let mut seen: std::collections::HashMap<i32, i32> = {
-        let map: HashMap<i32, i32> = HashMap::new();
+    let mut components: i32 = Default::default();
+    let mut adj: std::collections::HashMap<i32, Vec<i32>> = {
+        let map: HashMap<i32, Vec<i32>> = HashMap::new();
         map
     };
-    for (i, num) in nums.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) {
-        let i = i as i32;
-        let complement: i32 = ((target) - (num)) as i32;
-        if seen.get(&complement).is_some() {
-            return vec![seen.get(&complement).cloned().unwrap_or_default(), i];
-        }
-        seen.insert(num.clone(), i);
+    for i in 0..(n) {
+        adj.insert(i.clone(), vec![]);
     }
-    vec![]
+    for edge in edges.iter().cloned() {
+        let u: i32 = edge
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let v: i32 = edge
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        adj.get(&u).cloned().unwrap_or_default().push(v);
+        adj.get(&v).cloned().unwrap_or_default().push(u);
+    }
+    let mut visited: std::collections::HashMap<i32, bool> = {
+        let map: HashMap<i32, bool> = HashMap::new();
+        map
+    };
+    components = 0;
+    for node in 0..(n) {
+        if visited.get(&node).is_none() {
+            components = ((components).py_add(1i32)) as i32;
+            let mut stack: Vec<i32> = vec![node];
+            while stack.len() as i32 > 0 {
+                let current: i32 = stack.pop().unwrap_or_default();
+                if visited.get(&current).is_none() {
+                    visited.insert(current.clone(), true);
+                    if adj.get(&current).is_some() {
+                        for neighbor in adj.get(&current).cloned().unwrap_or_default() {
+                            if visited.get(&neighbor).is_none() {
+                                stack.push(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(components)
 }
-#[doc = "Maximum subarray sum(Kadane's algorithm)."]
+#[doc = "Count windows of size k with all distinct elements.\n\n    Tests dict[int, int] as frequency counter with increment on add,\n    decrement on remove, key deletion when count reaches zero, and\n    window-size tracking against dict length.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn max_subarray(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut max_sum: i32 = Default::default();
-    let mut current: i32 = Default::default();
-    if nums.is_empty() {
+pub fn sliding_window_distinct(nums: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut distinct_count: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    let _cse_temp_0 = nums.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let _cse_temp_1 = k > n;
+    let _cse_temp_2 = k <= 0;
+    let _cse_temp_3 = (_cse_temp_1) || (_cse_temp_2);
+    if _cse_temp_3 {
         return Ok(0);
     }
-    max_sum = nums
-        .get(0usize)
-        .cloned()
-        .expect("IndexError: list index out of range");
-    current = nums
-        .get(0usize)
-        .cloned()
-        .expect("IndexError: list index out of range");
-    for i in (1)..(nums.len() as i32) {
-        if (current).py_add(
+    let mut freq: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    distinct_count = 0;
+    result = 0;
+    for i in 0..(k) {
+        let val: i32 = nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        if freq.get(&val).is_some() {
+            {
+                let _key = val.clone();
+                let _old_val = freq.get(&_key).cloned().unwrap_or_default();
+                freq.insert(_key, _old_val + 1);
+            }
+        } else {
+            freq.insert(val.clone(), 1);
+            distinct_count = ((distinct_count).py_add(1i32)) as i32;
+        }
+    }
+    let _cse_temp_4 = distinct_count == k;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    for i in (k)..(n) {
+        let new_val: i32 = nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        if freq.get(&new_val).is_some() {
+            {
+                let _key = new_val.clone();
+                let _old_val = freq.get(&_key).cloned().unwrap_or_default();
+                freq.insert(_key, _old_val + 1);
+            }
+        } else {
+            freq.insert(new_val.clone(), 1);
+            distinct_count = ((distinct_count).py_add(1i32)) as i32;
+        }
+        let old_val: i32 = {
+            let base = &nums;
+            let idx: i32 = (i) - (k);
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        };
+        {
+            let _key = old_val.clone();
+            let _old_val = freq.get(&_key).cloned().unwrap_or_default();
+            freq.insert(_key, _old_val - 1);
+        }
+        if freq.get(&old_val).cloned().unwrap_or_default() == 0 {
+            distinct_count = ((distinct_count) - (1i32)) as i32;
+        }
+        if distinct_count == k {
+            result = ((result).py_add(1i32)) as i32;
+        }
+    }
+    Ok(result)
+}
+#[doc = "Maximum sum of any contiguous subarray of size k.\n\n    Tests sliding window with running sum, element removal by index\n    offset, and max tracking across window positions.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn max_sum_subarray_of_size_k(
+    nums: &Vec<i32>,
+    k: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut window_sum: i32 = Default::default();
+    let mut max_sum: i32 = Default::default();
+    let _cse_temp_0 = nums.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let _cse_temp_1 = k > n;
+    let _cse_temp_2 = k <= 0;
+    let _cse_temp_3 = (_cse_temp_1) || (_cse_temp_2);
+    if _cse_temp_3 {
+        return Ok(0);
+    }
+    window_sum = 0;
+    for i in 0..(k) {
+        window_sum = ((window_sum).py_add(
             nums.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        ) > nums
-            .get(i as usize)
-            .cloned()
-            .expect("IndexError: list index out of range")
-        {
-            current = ((current).py_add(
-                nums.get(i as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            )) as i32;
-        } else {
-            current = nums
+        )) as i32;
+    }
+    max_sum = window_sum;
+    for i in (k)..(n) {
+        window_sum = ((window_sum).py_add(
+            (nums
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range");
-        }
-        if current > max_sum {
-            max_sum = current;
+                .expect("IndexError: list index out of range"))
+             - ({
+                let base = &nums;
+                let idx: i32 = (i) - (k);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }),
+        )) as i32;
+        if window_sum > max_sum {
+            max_sum = window_sum;
         }
     }
     Ok(max_sum)
 }
-#[doc = "Check if number is prime."]
-pub fn is_prime(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = n < 2;
-    if _cse_temp_0 {
-        return Ok(false);
-    }
-    let _cse_temp_1 = n < 4;
-    if _cse_temp_1 {
-        return Ok(true);
-    }
-    let _cse_temp_2 = ((n).py_mod(2i32)) as i32;
-    let _cse_temp_3 = _cse_temp_2 == 0;
-    let _cse_temp_4 = ((n).py_mod(3i32)) as i32;
-    let _cse_temp_5 = _cse_temp_4 == 0;
-    let _cse_temp_6 = (_cse_temp_3) || (_cse_temp_5);
-    if _cse_temp_6 {
-        return Ok(false);
-    }
-    let mut i: i32 = 5;
-    while (i).py_mul(i) <= n {
-        if ((n).py_mod(i) == 0) || ((n).py_mod((i).py_add(2i32)) == 0) {
-            return Ok(false);
+#[doc = "Count distinct anagram groups using sorted-key dict lookup.\n\n    Tests string sorting as dict key, dict[str, int] group counting,\n    and string manipulation within a collection iteration.\n    "]
+pub fn group_anagrams_count(words: &Vec<String>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut count: i32 = Default::default();
+    let mut groups: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    for word in words.iter().cloned() {
+        let mut chars: Vec<String> = vec![];
+        for ch in word.chars() {
+            chars.push(ch.to_string());
         }
-        i = ((i).py_add(6i32)) as i32;
+        chars.sort();
+        let key: String = chars.join("");
+        if groups.get(&key).is_some() {
+            {
+                let _key = key.clone();
+                let _old_val = groups.get(&_key).cloned().unwrap_or_default();
+                groups.insert(_key, _old_val + 1);
+            }
+        } else {
+            groups.insert(key.to_string().clone(), 1);
+        }
     }
-    Ok(true)
-}
-#[doc = "Greatest common divisor."]
-pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    while b != 0 {
-        let temp: i32 = b;
-        b = ((a).py_mod(b)) as i32;
-        a = temp;
+    count = 0;
+    for _key in groups.keys().cloned() {
+        count = ((count).py_add(1i32)) as i32;
     }
-    Ok(a)
+    Ok(count)
 }
-#[doc = "Matrix multiplication."]
+#[doc = "Count ways to climb n stairs(1 or 2 steps) with memoization.\n\n    Tests dict[int,int] memo parameter passed mutably through recursion,\n    with base case returns and memo lookup/store in recursive case.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'b, 'a>(
-    a: &'a Vec<Vec<i32>>,
-    b: &'b Vec<Vec<i32>>,
-) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = a.len() as i32;
-    let rows_a: i32 = _cse_temp_0;
-    let _cse_temp_1 = b
+pub fn climb_stairs_memo(
+    n: i32,
+    memo: &mut std::collections::HashMap<i32, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return Ok(0);
+    }
+    let _cse_temp_1 = n == 1;
+    if _cse_temp_1 {
+        return Ok(1);
+    }
+    let _cse_temp_2 = n == 2;
+    if _cse_temp_2 {
+        return Ok(2);
+    }
+    let _cse_temp_3 = memo.get(&n).is_some();
+    if _cse_temp_3 {
+        return Ok(memo.get(&n).cloned().unwrap_or_default());
+    }
+    let _cse_temp_4 = (climb_stairs_memo((n) - (1i32), memo)?)
+        .py_add(climb_stairs_memo((n) - (2i32), memo)?);
+    let result: i32 = _cse_temp_4;
+    memo.insert(n.clone(), result);
+    Ok(result)
+}
+#[doc = "House robber: max sum of non-adjacent elements via DP.\n\n    Tests DP with two running variables updated each iteration,\n    conditional max selection, and edge-case handling for small inputs.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn rob_houses_dp(houses: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut prev1: i32 = Default::default();
+    let mut current: i32 = Default::default();
+    let _cse_temp_0 = houses.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let _cse_temp_1 = n == 0;
+    if _cse_temp_1 {
+        return Ok(0);
+    }
+    let _cse_temp_2 = n == 1;
+    if _cse_temp_2 {
+        return Ok(houses
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range"));
+    }
+    let mut prev2: i32 = houses
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    prev1 = houses
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    let _cse_temp_3 = houses
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        > houses
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+    if _cse_temp_3 {
+        prev1 = houses
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+    }
+    for i in (2)..(n) {
+        let take: i32 = ((prev2).py_add(
+            houses
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        )) as i32;
+        let skip: i32 = prev1;
+        current = take;
+        if skip > take {
+            current = skip;
+        }
+        prev2 = prev1;
+        prev1 = current;
+    }
+    Ok(prev1)
+}
+#[doc = "Longest common subsequence length via 2D DP.\n\n    Tests list[list[int]] DP table with string character comparison\n    at computed indices, max-of-two cell references, and diagonal\n    cell propagation.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn lcs_length<'b, 'a>(s1: &'a str, s2: &'b str) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = s1.len() as i32;
+    let m: i32 = _cse_temp_0;
+    let _cse_temp_1 = s2.len() as i32;
+    let n: i32 = _cse_temp_1;
+    let mut dp: Vec<Vec<i32>> = vec![];
+    for _i in 0..((m).py_add(1i32)) {
+        let mut row: Vec<i32> = vec![];
+        for _j in 0..((n).py_add(1i32)) {
+            row.push(0);
+        }
+        dp.push(row);
+    }
+    for i in (1)..((m).py_add(1i32)) {
+        for j in (1)..((n).py_add(1i32)) {
+            if {
+                let base = &s1;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.chars().count().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            } == {
+                let base = &s2;
+                let idx: i32 = (j) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.chars().count().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            } {
+                dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = ({
+                    let base = &{
+                        let base = &dp;
+                        let idx: i32 = (i) - (1i32);
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                    };
+                    let idx: i32 = (j) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                })
+                .py_add(1i32);
+            } else {
+                let above: i32 = {
+                    let base = &dp;
+                    let idx: i32 = (i) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                }
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+                let left: i32 = {
+                    let base = &dp
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range");
+                    let idx: i32 = (j) - (1i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                };
+                if above > left {
+                    dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = above;
+                } else {
+                    dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = left;
+                }
+            }
+        }
+    }
+    Ok(dp
+        .get(m as usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(n as usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Topological sort using Kahn's algorithm(BFS-based).\n\n    Tests Dict[int, List[int]] adjacency list construction, dict[int,int]\n    in-degree tracking, queue-based processing with dict mutation,\n    and degree decrement with zero-check triggering queue insertion.\n    "]
+pub fn topological_sort_kahn(
+    n: i32,
+    edges: &Vec<Vec<i32>>,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut adj: std::collections::HashMap<i32, Vec<i32>> = {
+        let map: HashMap<i32, Vec<i32>> = HashMap::new();
+        map
+    };
+    let mut in_degree: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    for i in 0..(n) {
+        adj.insert(i.clone(), vec![]);
+        in_degree.insert(i.clone(), 0);
+    }
+    for edge in edges.iter().cloned() {
+        let src: i32 = edge
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let dst: i32 = edge
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        adj.get(&src).cloned().unwrap_or_default().push(dst);
+        {
+            let _key = dst.clone();
+            let _old_val = in_degree.get(&_key).cloned().unwrap_or_default();
+            in_degree.insert(_key, _old_val + 1);
+        }
+    }
+    let mut queue: Vec<i32> = vec![];
+    for i in 0..(n) {
+        if in_degree.get(&i).cloned().unwrap_or_default() == 0 {
+            queue.push(i);
+        }
+    }
+    let mut result: Vec<i32> = vec![];
+    let mut head: i32 = 0;
+    while head < queue.len() as i32 {
+        let node: i32 = queue
+            .get(head as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        head = ((head).py_add(1i32)) as i32;
+        result.push(node);
+        if adj.get(&node).is_some() {
+            for neighbor in adj.get(&node).cloned().unwrap_or_default() {
+                {
+                    let _key = neighbor.clone();
+                    let _old_val = in_degree.get(&_key).cloned().unwrap_or_default();
+                    in_degree.insert(_key, _old_val - 1);
+                }
+                if in_degree.get(&neighbor).cloned().unwrap_or_default() == 0 {
+                    queue.push(neighbor);
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+#[doc = "Minimum path sum from top-left to bottom-right in a grid.\n\n    Tests 2D list indexing with dp[i][j] referencing dp[i-1][j] and\n    dp[i][j-1], row/column boundary initialization, and min-of-two\n    path comparisons at each interior cell.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn min_path_sum_grid(grid: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = grid.len() as i32;
+    let m: i32 = _cse_temp_0;
+    let _cse_temp_1 = m == 0;
+    if _cse_temp_1 {
+        return Ok(0);
+    }
+    let _cse_temp_2 = grid
         .get(0usize)
         .cloned()
         .expect("IndexError: list index out of range")
         .len() as i32;
-    let cols_b: i32 = _cse_temp_1;
-    let cols_a: i32 = _cse_temp_1;
-    let mut result: Vec<Vec<i32>> = vec![];
-    for i in 0..(rows_a) {
+    let n: i32 = _cse_temp_2;
+    let mut dp: Vec<Vec<i32>> = vec![];
+    for _i in 0..(m) {
         let mut row: Vec<i32> = vec![];
-        for j in 0..(cols_b) {
-            let mut total: i32 = 0;
-            for k in 0..(cols_a) {
-                total = ((total).py_add(
-                    (a.get(i as usize)
+        for _j in 0..(n) {
+            row.push(0);
+        }
+        dp.push(row);
+    }
+    dp.get_mut(&0).expect("key not found in dict")[(0) as usize] = grid
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    for i in (1)..(m) {
+        dp.get_mut(&i).expect("key not found in dict")[(0) as usize] = ({
+            let base = &dp;
+            let idx: i32 = (i) - (1i32);
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        }
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+        .py_add(
+            grid.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(0usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+    }
+    for j in (1)..(n) {
+        dp.get_mut(&0).expect("key not found in dict")[(j) as usize] = ({
+            let base = &dp
+                .get(0usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            let idx: i32 = (j) - (1i32);
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        })
+        .py_add(
+            grid.get(0usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+    }
+    for i in (1)..(m) {
+        for j in (1)..(n) {
+            let from_above: i32 = {
+                let base = &dp;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }
+            .get(j as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+            let from_left: i32 = {
+                let base = &dp
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                let idx: i32 = (j) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            };
+            if from_above < from_left {
+                dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = (from_above).py_add(
+                    grid.get(i as usize)
                         .cloned()
                         .expect("IndexError: list index out of range")
-                        .get(&k)
+                        .get(j as usize)
                         .cloned()
-                        .unwrap_or_default())
-                    .py_mul(
-                        b.get(&k)
-                            .cloned()
-                            .unwrap_or_default()
+                        .expect("IndexError: list index out of range"),
+                );
+            } else {
+                dp.get_mut(&i).expect("key not found in dict")[(j) as usize] = (from_left).py_add(
+                    grid.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                );
+            }
+        }
+    }
+    Ok({
+        let base = &{
+            let base = &dp;
+            let idx: i32 = (m) - (1i32);
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        };
+        let idx: i32 = (n) - (1i32);
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx)
+            .cloned()
+            .expect("IndexError: list index out of range")
+    })
+}
+#[doc = "Score based on frequency-sorted elements.\n\n    Tests dict[int,int] frequency building, sorting values by frequency\n    using the dict, and score accumulation weighted by position.\n    "]
+pub fn frequency_sort_score(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut score: i32 = Default::default();
+    let mut freq: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    for num in nums.iter().cloned() {
+        if freq.get(&num).is_some() {
+            {
+                let _key = num.clone();
+                let _old_val = freq.get(&_key).cloned().unwrap_or_default();
+                freq.insert(_key, _old_val + 1);
+            }
+        } else {
+            freq.insert(num.clone(), 1);
+        }
+    }
+    let mut unique: Vec<i32> = vec![];
+    for key in freq.keys().cloned() {
+        unique.push(key);
+    }
+    for i in 0..(unique.len() as i32) {
+        for j in ((i).py_add(1i32))..(unique.len() as i32) {
+            if freq
+                .get(
+                    &unique
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                )
+                .cloned()
+                .unwrap_or_default()
+                > freq
+                    .get(
+                        &unique
                             .get(j as usize)
                             .cloned()
                             .expect("IndexError: list index out of range"),
-                    ),
-                )) as i32;
+                    )
+                    .cloned()
+                    .unwrap_or_default()
+            {
+                let temp: i32 = unique
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                unique[(i) as usize] = unique
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                unique[(j) as usize] = temp;
+            } else {
+                if (freq
+                    .get(
+                        &unique
+                            .get(i as usize)
+                            .cloned()
+                            .expect("IndexError: list index out of range"),
+                    )
+                    .cloned()
+                    .unwrap_or_default()
+                    == freq
+                        .get(
+                            &unique
+                                .get(j as usize)
+                                .cloned()
+                                .expect("IndexError: list index out of range"),
+                        )
+                        .cloned()
+                        .unwrap_or_default())
+                    && (unique
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        > unique
+                            .get(j as usize)
+                            .cloned()
+                            .expect("IndexError: list index out of range"))
+                {
+                    let temp2: i32 = unique
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range");
+                    unique[(i) as usize] = unique
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range");
+                    unique[(j) as usize] = temp2;
+                }
             }
-            row.push(total);
         }
-        result.push(row);
     }
-    Ok(result)
+    score = 0;
+    let mut position: i32 = 1;
+    for val in unique.iter().cloned() {
+        let count: i32 = freq.get(&val).cloned().unwrap_or_default();
+        score = ((score).py_add(((val).py_mul(count) as i32).py_mul(position))) as i32;
+        position = ((position).py_add(1i32)) as i32;
+    }
+    Ok(score)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
@@ -3573,22 +4478,67 @@ mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
-    fn quickcheck_bubble_sort() {
-        fn prop(arr: Vec<i32>) -> TestResult {
-            let input_len = arr.len();
-            let result = bubble_sort(&arr);
-            if result.len() != input_len {
-                return TestResult::failed();
-            }
-            let result = bubble_sort(&arr);
+    fn test_longest_increasing_subseq_examples() {
+        assert_eq!(longest_increasing_subseq(&vec![]), 0);
+        assert_eq!(longest_increasing_subseq(&vec![1]), 1);
+        assert_eq!(longest_increasing_subseq(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_matrix_chain_order_examples() {
+        assert_eq!(matrix_chain_order(&vec![]), 0);
+        assert_eq!(matrix_chain_order(&vec![1]), 1);
+        assert_eq!(matrix_chain_order(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_group_anagrams_count_examples() {
+        assert_eq!(group_anagrams_count(&vec![]), 0);
+        assert_eq!(group_anagrams_count(&vec![1]), 1);
+        assert_eq!(group_anagrams_count(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_rob_houses_dp_examples() {
+        assert_eq!(rob_houses_dp(&vec![]), 0);
+        assert_eq!(rob_houses_dp(&vec![1]), 1);
+        assert_eq!(rob_houses_dp(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn quickcheck_topological_sort_kahn() {
+        fn prop(n: i32, edges: Vec<Vec<i32>>) -> TestResult {
+            let result = topological_sort_kahn(n.clone(), &edges);
             for i in 1..result.len() {
                 if result[i - 1] > result[i] {
                     return TestResult::failed();
                 }
             }
-            let mut input_sorted = arr.clone();
+            let mut input_sorted = n.clone();
             input_sorted.sort();
-            let mut result = bubble_sort(&arr);
+            let mut result = topological_sort_kahn(n.clone());
+            result.sort();
+            if input_sorted != result {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(i32, Vec<Vec<i32>>) -> TestResult);
+    }
+    #[test]
+    fn test_min_path_sum_grid_examples() {
+        assert_eq!(min_path_sum_grid(&vec![]), 0);
+        assert_eq!(min_path_sum_grid(&vec![1]), 1);
+        assert_eq!(min_path_sum_grid(&vec![1, 2, 3]), 6);
+    }
+    #[test]
+    fn quickcheck_frequency_sort_score() {
+        fn prop(nums: Vec<i32>) -> TestResult {
+            let result = frequency_sort_score(&nums);
+            for i in 1..result.len() {
+                if result[i - 1] > result[i] {
+                    return TestResult::failed();
+                }
+            }
+            let mut input_sorted = nums.clone();
+            input_sorted.sort();
+            let mut result = frequency_sort_score(&nums);
             result.sort();
             if input_sorted != result {
                 return TestResult::failed();
@@ -3598,60 +4548,9 @@ mod tests {
         quickcheck(prop as fn(Vec<i32>) -> TestResult);
     }
     #[test]
-    fn test_bubble_sort_examples() {
-        assert_eq!(bubble_sort(vec![]), vec![]);
-        assert_eq!(bubble_sort(vec![1]), vec![1]);
-    }
-    #[test]
-    fn quickcheck_merge_sort() {
-        fn prop(arr: Vec<i32>) -> TestResult {
-            let input_len = arr.len();
-            let result = merge_sort(&arr);
-            if result.len() != input_len {
-                return TestResult::failed();
-            }
-            let result = merge_sort(&arr);
-            for i in 1..result.len() {
-                if result[i - 1] > result[i] {
-                    return TestResult::failed();
-                }
-            }
-            let mut input_sorted = arr.clone();
-            input_sorted.sort();
-            let mut result = merge_sort(&arr);
-            result.sort();
-            if input_sorted != result {
-                return TestResult::failed();
-            }
-            TestResult::passed()
-        }
-        quickcheck(prop as fn(Vec<i32>) -> TestResult);
-    }
-    #[test]
-    fn test_merge_sort_examples() {
-        assert_eq!(merge_sort(vec![]), vec![]);
-        assert_eq!(merge_sort(vec![1]), vec![1]);
-    }
-    #[test]
-    fn test_fibonacci_memo_examples() {
-        assert_eq!(fibonacci_memo(0), 0);
-        assert_eq!(fibonacci_memo(1), 1);
-        assert_eq!(fibonacci_memo(-1), -1);
-    }
-    #[test]
-    fn test_max_subarray_examples() {
-        assert_eq!(max_subarray(&vec![]), 0);
-        assert_eq!(max_subarray(&vec![1]), 1);
-        assert_eq!(max_subarray(&vec![1, 2, 3]), 3);
-    }
-    #[test]
-    fn test_is_prime_examples() {
-        let _ = is_prime(Default::default());
-    }
-    #[test]
-    fn test_gcd_examples() {
-        assert_eq!(gcd(0, 0), 0);
-        assert_eq!(gcd(1, 2), 3);
-        assert_eq!(gcd(-1, 1), 0);
+    fn test_frequency_sort_score_examples() {
+        assert_eq!(frequency_sort_score(&vec![]), 0);
+        assert_eq!(frequency_sort_score(&vec![1]), 1);
+        assert_eq!(frequency_sort_score(&vec![1, 2, 3]), 3);
     }
 }
