@@ -161,6 +161,13 @@ mod coverage_wave13_func_gen_tests;
 mod coverage_wave13_stmt_gen_tests;
 #[cfg(all(test, not(coverage)))]
 mod coverage_wave13_call_stdlib_tests;
+// Wave 14: 450 targeted coverage tests (included in coverage measurement)
+#[cfg(test)]
+mod coverage_wave14_slice_index_tests;
+#[cfg(test)]
+mod coverage_wave14_comp_lambda_tests;
+#[cfg(test)]
+mod coverage_wave14_methods_dispatch_tests;
 
 // Internal imports
 #[cfg(test)]
