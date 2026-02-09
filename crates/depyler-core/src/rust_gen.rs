@@ -8103,6 +8103,13 @@ fn find_and_replace_field_negation(line: &str) -> Option<String> {
                 i = j;
                 continue;
             }
+            // DEPYLER-99MODE-S9: Skip numeric tuple indices (e.g., `!bf_result.1`)
+            // Tuple field access like `.0`, `.1` returns the element type (often bool),
+            // not a collection. Applying `.is_empty()` to a bool is E0599.
+            if field.chars().all(|c| c.is_ascii_digit()) {
+                i = j;
+                continue;
+            }
             // Skip known bool-returning or bool-typed fields
             if is_likely_bool_field(field) {
                 i = j;
