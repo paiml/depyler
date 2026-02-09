@@ -236,6 +236,18 @@ mod coverage_wave20_stmt_string_tests;
 // Wave 20: 200 call_generic/method_call_routing/instance_dispatch coverage tests
 #[cfg(test)]
 mod coverage_wave20_call_dispatch_tests;
+// Wave 21: 200 import/constant/class handling deep coverage tests
+#[cfg(test)]
+mod coverage_wave21_import_const_tests;
+// Wave 21: 200 function generation, expression generation, and type inference coverage tests
+#[cfg(test)]
+mod coverage_wave21_func_expr_tests;
+// Wave 21: 200 direct_rules convert_method_call + argparse transform coverage tests
+#[cfg(test)]
+mod coverage_wave21_rules_argparse_tests;
+// Wave 21: 200 collection edge case coverage tests (list/dict/set/tuple methods)
+#[cfg(test)]
+mod coverage_wave21_collection_edge_tests;
 
 // Internal imports
 #[cfg(test)]
