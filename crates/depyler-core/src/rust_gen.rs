@@ -3202,15 +3202,33 @@ fn generate_rust_file_internal(
     // when accessed from within functions (e.g., val = d[1])
     // Uses module_constant_types (not var_types) because var_types is cleared per-function
     for constant in &module.constants {
+        // DEPYLER-99MODE-S9: Track ALL constant types, not just collections
+        // Scalar constants (PI: float, MAX_SIZE: int) need tracking too so
+        // call_generic doesn't misidentify them as DepylerValue
         let const_type = match &constant.value {
             HirExpr::Dict(_) => Some(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))),
             HirExpr::List(_) => Some(Type::List(Box::new(Type::Unknown))),
             HirExpr::Set(_) => Some(Type::Set(Box::new(Type::Unknown))),
-            _ => None,
+            HirExpr::Literal(Literal::Int(_)) => Some(Type::Int),
+            HirExpr::Literal(Literal::Float(_)) => Some(Type::Float),
+            HirExpr::Literal(Literal::String(_)) => Some(Type::String),
+            HirExpr::Literal(Literal::Bool(_)) => Some(Type::Bool),
+            _ => {
+                // Use the constant's type annotation if available
+                if let Some(ty) = &constant.type_annotation {
+                    if !matches!(ty, Type::Unknown) {
+                        Some(ty.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
         };
         if let Some(t) = const_type {
             ctx.module_constant_types
-                .insert(constant.name.clone(), t.clone());
+                .insert(constant.name.clone(), t);
         }
     }
 

@@ -2367,6 +2367,19 @@ pub(crate) fn codegen_if_stmt(
         }
     }
 
+    // DEPYLER-99MODE-S9: Auto-unwrap Result-returning calls in truthiness contexts
+    // When `if func_call(...)` where func returns Result<Option<T>>,
+    // need `func_call()?` to unwrap Result before .is_some() is applied
+    if let HirExpr::Call { func, .. } = condition {
+        if ctx.type_mapper.nasa_mode
+            && ctx.result_returning_functions.contains(func)
+            && ctx.current_function_can_fail
+            && !ctx.result_bool_functions.contains(func)
+        {
+            cond = parse_quote! { #cond? };
+        }
+    }
+
     // DEPYLER-0339: Apply Python truthiness conversion
     // Convert non-boolean expressions to boolean (e.g., `if val` where val: String)
     cond = apply_truthiness_conversion(condition, cond, ctx);

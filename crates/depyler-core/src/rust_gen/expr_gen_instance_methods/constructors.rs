@@ -267,6 +267,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if matches!(e, HirExpr::Var(_)) && has_string_literals {
                     expr = parse_quote! { #expr.to_string() };
                 }
+                // DEPYLER-99MODE-S9: Clone String/Vec/HashMap variables in list literals
+                // Python list creation never moves the original, so clone to prevent E0382
+                if let HirExpr::Var(name) = e {
+                    if !has_string_literals {
+                        // Only clone if not already handled by .to_string() above
+                        if let Some(ty) = self.ctx.var_types.get(name) {
+                            if matches!(
+                                ty,
+                                Type::String
+                                    | Type::List(_)
+                                    | Type::Dict(_, _)
+                                    | Type::Set(_)
+                                    | Type::Custom(_)
+                            ) {
+                                expr = parse_quote! { #expr.clone() };
+                            }
+                        }
+                    }
+                }
                 // DEPYLER-0572: Convert dict Value to String when mixed with f-strings
                 if needs_string_unify && self.is_dict_value_access(e) {
                     expr = parse_quote! { #expr.to_string() };

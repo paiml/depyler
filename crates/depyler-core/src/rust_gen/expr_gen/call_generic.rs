@@ -395,8 +395,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // generate appropriate extraction: x.as_i64() as i32, x.as_f64(), etc.
                     if let HirExpr::Var(var_name) = hir_arg {
                         let var_type = self.ctx.var_types.get(var_name);
-                        let is_depyler_value = matches!(var_type, Some(Type::Unknown) | None)
-                            || matches!(var_type, Some(Type::Custom(s)) if s == "DepylerValue");
+                        // DEPYLER-99MODE-S9: Also check module_constant_types - constants like PI
+                        // are already concrete types, not DepylerValue
+                        let is_known_concrete =
+                            self.ctx.module_constant_types.get(var_name).is_some();
+                        let is_depyler_value = !is_known_concrete
+                            && (matches!(var_type, Some(Type::Unknown) | None)
+                                || matches!(var_type, Some(Type::Custom(s)) if s == "DepylerValue"));
 
                         if is_depyler_value {
                             if let Some(param_types) = self.ctx.function_param_types.get(func) {
@@ -690,7 +695,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .copied()
                                 .unwrap_or(false);
 
-                            if !callee_expects_borrow {
+                            // DEPYLER-99MODE-S9: Also check function_param_types as fallback
+                            // When callee hasn't been processed yet (forward reference),
+                            // function_param_borrows won't have the entry. But if the
+                            // callee's param type is String (which maps to &str), it expects borrow.
+                            // Only use this fallback when borrows are unknown (no entry at all).
+                            let borrows_unknown = !self.ctx.function_param_borrows.contains_key(func);
+                            let callee_param_is_str = borrows_unknown
+                                && self.ctx
+                                    .function_param_types
+                                    .get(func)
+                                    .and_then(|types| types.get(param_idx))
+                                    .map(|ty| matches!(ty, Type::String))
+                                    .unwrap_or(false);
+
+                            if !callee_expects_borrow && !callee_param_is_str {
                                 return parse_quote! { #arg_expr.to_string() };
                             }
                         }
