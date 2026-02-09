@@ -173,6 +173,15 @@ mod coverage_wave14_methods_dispatch_tests;
 mod coverage_wave15_class_async_tests;
 #[cfg(test)]
 mod coverage_wave15_rules_type_tests;
+// Wave 16: 200 func_gen/stmt_gen/type-coercion coverage tests
+#[cfg(test)]
+mod coverage_wave16_func_stmt_tests;
+// Wave 16: 200 method edge case coverage tests (string, dict, list, set)
+#[cfg(test)]
+mod coverage_wave16_method_edge_tests;
+// Wave 16: 200 slice/index/comprehension/attribute coverage tests
+#[cfg(test)]
+mod coverage_wave16_slice_comp_tests;
 
 // Internal imports
 #[cfg(test)]
