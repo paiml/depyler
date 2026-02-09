@@ -4057,7 +4057,7 @@ pub fn test_y_combinator() -> i32 {
 }
 #[doc = "Lens getter: extract value at key."]
 #[doc = " Depyler: proven to terminate"]
-pub fn lens_get<'b, 'a>(
+pub fn lens_get<'a, 'b>(
     data: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4095,7 +4095,7 @@ pub fn lens_modify<'a, 'b>(
     delta: i32,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let current: i32 = lens_get(&data, key.clone())?;
-    Ok(lens_set(&data, key.to_string(), (current).py_add(delta))?)
+    lens_set(&data, key.to_string(), (current).py_add(delta))
 }
 #[doc = "Test lens-style get/set/modify on dicts."]
 #[doc = " Depyler: verified panic-free"]

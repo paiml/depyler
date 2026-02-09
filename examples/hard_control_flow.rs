@@ -5,12 +5,12 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-const STR_IDLE: &'static str = "idle";
 const STR_START: &'static str = "start";
-const STR_PAUSE: &'static str = "pause";
-const STR_RESET: &'static str = "reset";
-const STR_STOP: &'static str = "stop";
 const STR_STOPPED: &'static str = "stopped";
+const STR_STOP: &'static str = "stop";
+const STR_PAUSE: &'static str = "pause";
+const STR_IDLE: &'static str = "idle";
+const STR_RESET: &'static str = "reset";
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -3208,8 +3208,8 @@ pub fn multi_nested_break(
     matrix: &Vec<Vec<i32>>,
     target: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut found_row: i32 = Default::default();
     let mut found_col: i32 = Default::default();
+    let mut found_row: i32 = Default::default();
     found_row = -1;
     found_col = -1;
     let mut found: bool = false;
@@ -3471,7 +3471,7 @@ pub fn nested_loop_with_continue_break(n: i32) -> Result<Vec<i32>, Box<dyn std::
     Ok(results)
 }
 #[doc = "Search for multiple needles in haystack using flag variables.\n\n    For each needle, sets a found flag and searches linearly.\n    Collects indices of found needles. Tests flag variable patterns\n    with nested loops and conditional accumulation.\n    "]
-pub fn flag_controlled_search<'b, 'a>(
+pub fn flag_controlled_search<'a, 'b>(
     haystack: &'a Vec<i32>,
     needles: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -3750,7 +3750,7 @@ pub fn test_multi_nested_break_missing() -> Result<i32, Box<dyn std::error::Erro
 #[doc = " Depyler: proven to terminate"]
 pub fn test_continue_accumulator() -> Result<i32, Box<dyn std::error::Error>> {
     let nums: Vec<i32> = vec![-5, 1, 3, 6, 7, 9, 12, 15, 101, 50, 4, -2, 8];
-    Ok(continue_with_accumulator(&nums)?)
+    continue_with_accumulator(&nums)
 }
 #[doc = "Test multiple guard clause paths."]
 #[doc = " Depyler: verified panic-free"]

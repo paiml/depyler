@@ -3180,7 +3180,7 @@ impl DepylerRegexMatch {
 }
 #[doc = "Triple-nested matrix multiplication: result[i][j] += a[i][k] * b[k][j]."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'a, 'b>(
+pub fn matrix_multiply<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3421,7 +3421,7 @@ pub fn min_path_sum(grid: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Err
 #[doc = " Depyler: proven to terminate"]
 pub fn test_min_path_sum() -> Result<i32, Box<dyn std::error::Error>> {
     let grid: Vec<Vec<i32>> = vec![vec![1, 3, 1], vec![1, 5, 1], vec![4, 2, 1]];
-    Ok(min_path_sum(&grid)?)
+    min_path_sum(&grid)
 }
 #[doc = "2D prefix sum: prefix[i][j] = prefix[i-1][j] + prefix[i][j-1] - prefix[i-1][j-1] + grid[i][j]."]
 #[doc = " Depyler: proven to terminate"]
@@ -4023,7 +4023,7 @@ pub fn test_diagonal_sums() -> Result<i32, Box<dyn std::error::Error>> {
         vec![9, 10, 11, 12],
         vec![13, 14, 15, 16],
     ];
-    Ok(diagonal_sums(&m)?)
+    diagonal_sums(&m)
 }
 #[doc = "Sort each row of 2D matrix using bubble sort: row[j], row[j+1] swap."]
 #[doc = " Depyler: proven to terminate"]
@@ -4400,16 +4400,16 @@ pub fn wave_collapse_count(
 #[doc = " Depyler: proven to terminate"]
 pub fn test_wave_collapse_count() -> Result<i32, Box<dyn std::error::Error>> {
     let grid: Vec<Vec<i32>> = vec![vec![5, 5, 5], vec![5, 1, 5], vec![5, 5, 5]];
-    Ok(wave_collapse_count(&grid, 8)?)
+    wave_collapse_count(&grid, 8)
 }
 #[doc = "Edit distance via full DP table: dp[i][j] = min (dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost)."]
 #[doc = " Depyler: proven to terminate"]
-pub fn edit_distance_table<'a, 'b>(
+pub fn edit_distance_table<'b, 'a>(
     s1: &'a Vec<i32>,
     s2: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut cost: i32 = Default::default();
     let mut best: i32 = Default::default();
+    let mut cost: i32 = Default::default();
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = s2.len() as i32;
@@ -4537,7 +4537,7 @@ pub fn edit_distance_table<'a, 'b>(
 pub fn test_edit_distance_table() -> Result<i32, Box<dyn std::error::Error>> {
     let s1: Vec<i32> = vec![1, 2, 3, 4, 5];
     let s2: Vec<i32> = vec![1, 3, 4, 5, 6];
-    Ok(edit_distance_table(&s1, &s2)?)
+    edit_distance_table(&s1, &s2)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]

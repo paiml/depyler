@@ -5,7 +5,6 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -3196,132 +3195,387 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = "Ackermann function: deeply recursive with multiple base cases.\n\n    This function grows faster than any primitive recursive function.\n    Three distinct base/recursive cases stress return-type unification.\n    "]
+#[doc = "Create a rows x cols zero matrix."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn ackermann(m: i32, n: i32) -> i32 {
-    let _cse_temp_0 = m == 0;
-    if _cse_temp_0 {
-        return (n).py_add(1i32);
-    } else {
-        let _cse_temp_1 = m > 0;
-        let _cse_temp_2 = n == 0;
-        let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
-        if _cse_temp_3 {
-            return ackermann((m) - (1i32), 1);
-        } else {
-            return ackermann((m) - (1i32), ackermann(m, (n) - (1i32)));
+pub fn mat_zeros(rows: i32, cols: i32) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for _i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for _j in 0..(cols) {
+            row.push(0);
         }
-    }
-}
-#[doc = "Flatten with recursive accumulator pattern.\n\n    Uses a mutable accumulator passed through recursive calls,\n    testing how the transpiler handles mutation through recursion.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn flatten_nested(lst: &Vec<Vec<i32>>) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for sublist in lst.iter().cloned() {
-        for item in sublist.iter().cloned() {
-            result.push(item);
-        }
+        result.push(row);
     }
     result
 }
-#[doc = "Count integer partitions using dict-based memoization.\n\n    The cache is created inside the outer function and closed over\n    by the inner recursive helper. Tests closure capture of mutable dict.\n    "]
+#[doc = "Create an n x n identity matrix."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn memoized_partition_count(n: i32) -> i32 {
-    let cache: std::collections::HashMap<String, i32> = {
-        let map: HashMap<String, i32> = HashMap::new();
-        map
-    };
-    let helper = move |remaining: i32, max_val: i32| -> i32 {
-        if remaining == 0 {
-            return 1;
-        }
-        if remaining < 0 {
-            return 0;
-        }
-        let key: String = format!(
-            "{}{}",
-            format!("{}{}", (remaining).to_string(), ","),
-            (max_val).to_string()
-        );
-        if cache.get(&key).is_some() {
-            return cache.get(&(key)).cloned().unwrap_or_default();
-        }
-        let mut total: i32 = 0;
-        for k in (1)..((max_val).py_add(1i32)) {
-            if k <= remaining {
-                total = ((total).py_add(helper((remaining) - (k), k))) as i32;
+pub fn mat_identity(n: i32) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(n) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(n) {
+            if i == j {
+                row.push(1);
+            } else {
+                row.push(0);
             }
         }
-        cache.insert(key.to_string().clone(), total);
-        return total;
-    };
-    helper(n, n)
+        result.push(row);
+    }
+    result
 }
-#[doc = "Mutual recursion: is_even calls is_odd, is_odd calls is_even.\n\n    Tests transpiler's ability to handle forward references and\n    mutually recursive function definitions.\n    "]
+#[doc = "Create a matrix from a flat list in row-major order."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_even_mutual(n: i32) -> bool {
-    let _cse_temp_0 = n == 0;
-    if _cse_temp_0 {
-        return true;
+pub fn mat_from_flat(flat: &Vec<i32>, rows: i32, cols: i32) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push({
+                let base = &flat;
+                let idx: i32 = ((i).py_mul(cols) as i32).py_add(j);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            });
+        }
+        result.push(row);
     }
-    is_odd_mutual((n) - (1i32))
+    result
 }
-#[doc = "Companion to is_even_mutual for mutual recursion test."]
+#[doc = "Create a matrix filled with a constant value."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_odd_mutual(n: i32) -> bool {
-    let _cse_temp_0 = n == 0;
-    if _cse_temp_0 {
-        return false;
+pub fn mat_constant(rows: i32, cols: i32, val: i32) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for _i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for _j in 0..(cols) {
+            row.push(val);
+        }
+        result.push(row);
     }
-    is_even_mutual((n) - (1i32))
+    result
 }
-#[doc = "Simulate a closure-based accumulator.\n\n    Returns the final accumulated value after a sequence of operations.\n    Tests the pattern of building up state through function-like composition.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn make_accumulator(initial: i32) -> i32 {
-    let mut total: i32 = Default::default();
-    total = initial;
-    let additions: Vec<i32> = vec![10, 20, 30, -5, 15];
-    for val in additions.iter().cloned() {
-        total = ((total).py_add(val)) as i32;
-    }
-    total
-}
-#[doc = "Simulate paired increment/decrement counters.\n\n    Returns [increment_result, decrement_result, final_state].\n    Tests the pattern where two closures share mutable state.\n    "]
+#[doc = "Construct a diagonal matrix from a list of diagonal entries."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn make_counter_pair() -> Vec<i32> {
-    let mut state: i32 = Default::default();
-    state = 0;
-    let mut results: Vec<i32> = vec![];
-    for __sanitized in 0..(3) {
-        state = ((state).py_add(1i32)) as i32;
+pub fn mat_diagonal(diag: &Vec<i32>) -> Vec<Vec<i32>> {
+    let _cse_temp_0 = diag.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(n) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(n) {
+            if i == j {
+                row.push(
+                    diag.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                );
+            } else {
+                row.push(0);
+            }
+        }
+        result.push(row);
     }
-    results.push(state);
-    state = ((state) - (1i32)) as i32;
-    results.push(state);
-    results.push(state);
-    results
+    result
 }
-#[doc = "Fast exponentiation via recursive squaring.\n\n    Three branches: base case, even exponent(square), odd exponent.\n    Tests complex conditional recursion with arithmetic transformations.\n    "]
+#[doc = "Element-wise addition of two matrices."]
 #[doc = " Depyler: proven to terminate"]
-pub fn recursive_power(base: i32, exp: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = exp == 0;
-    if _cse_temp_0 {
-        return Ok(1);
+pub fn mat_add<'b, 'a>(
+    a: &'a Vec<Vec<i32>>,
+    b: &'b Vec<Vec<i32>>,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push(
+                (a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_add(
+                    b.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ),
+            );
+        }
+        result.push(row);
     }
-    let _cse_temp_1 = exp < 0;
-    if _cse_temp_1 {
-        return Ok(0);
+    Ok(result)
+}
+#[doc = "Element-wise subtraction of two matrices."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_sub<'a, 'b>(
+    a: &'a Vec<Vec<i32>>,
+    b: &'b Vec<Vec<i32>>,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push(
+                (a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                 - (
+                    b.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                ),
+            );
+        }
+        result.push(row);
     }
-    let _cse_temp_2 = ((exp).py_mod(2i32)) as i32;
-    let _cse_temp_3 = _cse_temp_2 == 0;
-    if _cse_temp_3 {
-        let half: i32 = recursive_power(base, {
-            let a = exp;
+    Ok(result)
+}
+#[doc = "Multiply every element of a matrix by a scalar."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_scale(
+    a: &Vec<Vec<i32>>,
+    scalar: i32,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push(
+                (a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(scalar),
+            );
+        }
+        result.push(row);
+    }
+    Ok(result)
+}
+#[doc = "Hadamard(element-wise) product of two matrices."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_hadamard<'a, 'b>(
+    a: &'a Vec<Vec<i32>>,
+    b: &'b Vec<Vec<i32>>,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push(
+                (a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    b.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ),
+            );
+        }
+        result.push(row);
+    }
+    Ok(result)
+}
+#[doc = "Negate every element of a matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_negate(a: &Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push(
+                -a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+        result.push(row);
+    }
+    Ok(result)
+}
+#[doc = "Standard matrix multiplication via triple nested loop."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_mul<'a, 'b>(
+    a: &'a Vec<Vec<i32>>,
+    b: &'b Vec<Vec<i32>>,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows_a: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols_a: i32 = _cse_temp_1;
+    let cols_b: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows_a) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols_b) {
+            let mut s: i32 = 0;
+            for k in 0..(cols_a) {
+                s = ((s).py_add(
+                    (a.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(k as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"))
+                    .py_mul(
+                        b.get(k as usize)
+                            .cloned()
+                            .expect("IndexError: list index out of range")
+                            .get(j as usize)
+                            .cloned()
+                            .expect("IndexError: list index out of range"),
+                    ),
+                )) as i32;
+            }
+            row.push(s);
+        }
+        result.push(row);
+    }
+    Ok(result)
+}
+#[doc = "Multiply a matrix by a column vector."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_vec_mul<'a, 'b>(
+    a: &'a Vec<Vec<i32>>,
+    v: &'b Vec<i32>,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(rows) {
+        let mut s: i32 = 0;
+        for j in 0..(cols) {
+            s = ((s).py_add(
+                (a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    v.get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ),
+            )) as i32;
+        }
+        result.push(s);
+    }
+    Ok(result)
+}
+#[doc = "Raise a square matrix to the n-th power by repeated squaring."]
+pub fn mat_power(a: &Vec<Vec<i32>>, n: i32) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let mut result: Vec<Vec<i32>> = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let size: i32 = _cse_temp_0;
+    result = mat_identity(size);
+    let mut base: Vec<Vec<i32>> = vec![];
+    for i in 0..(size) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(size) {
+            row.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+        base.push(row);
+    }
+    let mut p: i32 = n.clone();
+    while p > 0 {
+        if (p).py_mod(2i32) == 1 {
+            result = mat_mul(&result, &base)?;
+        }
+        base = mat_mul(&base, &base)?;
+        p = {
+            let a = p;
             let b = 2;
             let q = a / b;
             let r = a % b;
@@ -3335,73 +3589,660 @@ pub fn recursive_power(base: i32, exp: i32) -> Result<i32, Box<dyn std::error::E
             } else {
                 q
             }
-        })?;
-        return Ok((half).py_mul(half));
-    } else {
-        return Ok((base).py_mul(recursive_power(base, (exp) - (1i32))?));
+        };
     }
+    Ok(result)
 }
-#[doc = "Depth-first traversal of a tree represented as adjacency list.\n\n    Uses recursive DFS with a visited set and accumulator list.\n    Tests dict lookup, set membership, list mutation, and recursion together.\n    "]
+#[doc = "Transpose a matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_transpose(a: &Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for j in 0..(cols) {
+        let mut row: Vec<i32> = vec![];
+        for i in 0..(rows) {
+            row.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+        result.push(row);
+    }
+    Ok(result)
+}
+#[doc = "Compute the trace(sum of diagonal elements) of a square matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_trace(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    s = 0;
+    for i in 0..(n) {
+        s = ((s).py_add(
+            a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        )) as i32;
+    }
+    Ok(s)
+}
+#[doc = "Extract the main diagonal of a square matrix."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn tree_depth_first(adj: &std::collections::HashMap<i32, Vec<i32>>, root: i32) -> Vec<i32> {
-    let visited: std::collections::HashSet<i32> = std::collections::HashSet::<i32>::new();
-    let order: Vec<i32> = vec![];
-    let dfs = move |node: i32| -> () {
-        if visited.contains(&node) {
-            return;
-        }
-        visited.insert(node);
-        order.push(node);
-        if adj.get(&node).is_some() {
-            let neighbors: Vec<i32> = adj.get(&(node)).cloned().unwrap_or_default();
-            for neighbor in neighbors.iter().cloned() {
-                dfs(neighbor);
+pub fn mat_extract_diag(a: &Vec<Vec<i32>>) -> Vec<i32> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(n) {
+        result.push(
+            a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+    }
+    result
+}
+#[doc = "Check if a square matrix is symmetric. Returns 1 if symmetric, 0 otherwise."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_is_symmetric(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    for i in 0..(n) {
+        for j in ((i).py_add(1i32))..(n) {
+            if a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                != a.get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            {
+                return Ok(0);
             }
         }
-    };
-    dfs(root);
-    order
+    }
+    Ok(1)
 }
-#[doc = "Tower of Hanoi solver recording all moves.\n\n    Recursive solution that builds a list of move descriptions.\n    Tests string formatting inside recursion with list accumulation.\n    "]
-#[doc = " Depyler: verified panic-free"]
+#[doc = "Check if a square matrix is upper triangular. Returns 1 or 0."]
 #[doc = " Depyler: proven to terminate"]
-pub fn tower_of_hanoi(n: i32) -> Vec<String> {
-    let moves: Vec<String> = vec![];
-    let hanoi = move |disks: i32, source: &str, target: &str, auxiliary: &str| -> () {
-        if disks == 1 {
-            moves.push(format!("{}{}", format!("{}{}", source, " -> "), target));
-            return;
-        }
-        hanoi((disks) - (1i32), &source, &auxiliary, &target);
-        moves.push(format!("{}{}", format!("{}{}", source, " -> "), target));
-        hanoi((disks) - (1i32), &auxiliary, &target, &source);
-    };
-    hanoi(n, "A", "C", "B");
-    moves
-}
-#[doc = "Sum all elements in a nested list structure.\n\n    Combines flattening and accumulation in one recursive pass.\n    Tests how transpiler handles list-of-lists with recursive processing.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn recursive_flatten_sum(nested: &Vec<Vec<i32>>) -> i32 {
-    let mut total: i32 = Default::default();
-    total = 0;
-    for sublist in nested.iter().cloned() {
-        for val in sublist.iter().cloned() {
-            total = ((total).py_add(val)) as i32;
+pub fn mat_is_upper_triangular(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    for i in (1)..(n) {
+        for j in (0)..(i) {
+            if a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                != 0
+            {
+                return Ok(0);
+            }
         }
     }
-    total
+    Ok(1)
 }
-#[doc = "Generate full Collatz sequence from n to 1.\n\n    While-loop based recursion simulation with conditional branching.\n    The chain length is unpredictable, testing dynamic list growth.\n    "]
-pub fn collatz_chain(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
-    let mut chain: Vec<i32> = vec![n];
-    current = n;
-    while current != 1 {
-        if (current).py_mod(2i32) == 0 {
-            current = {
-                let a = current;
-                let b = 2;
+#[doc = "Check if a square matrix is lower triangular. Returns 1 or 0."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_is_lower_triangular(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    for i in (0)..(n) {
+        for j in ((i).py_add(1i32))..(n) {
+            if a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                != 0
+            {
+                return Ok(0);
+            }
+        }
+    }
+    Ok(1)
+}
+#[doc = "Extract the upper triangular part of a matrix(zero out below diagonal)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_extract_upper(a: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(n) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(n) {
+            if j >= i {
+                row.push(
+                    a.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                );
+            } else {
+                row.push(0);
+            }
+        }
+        result.push(row);
+    }
+    result
+}
+#[doc = "Extract the lower triangular part of a matrix(zero out above diagonal)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_extract_lower(a: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(n) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(n) {
+            if j <= i {
+                row.push(
+                    a.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                );
+            } else {
+                row.push(0);
+            }
+        }
+        result.push(row);
+    }
+    result
+}
+#[doc = "Check if matrix is banded with given lower and upper bandwidth. Returns 1 or 0."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_is_banded(
+    a: &Vec<Vec<i32>>,
+    lower_bw: i32,
+    upper_bw: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    for i in 0..(n) {
+        for j in 0..(n) {
+            if (j < (i) - (lower_bw)) || (j > (i).py_add(upper_bw)) {
+                if a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    != 0
+                {
+                    return Ok(0);
+                }
+            }
+        }
+    }
+    Ok(1)
+}
+#[doc = "Dot product of two integer vectors."]
+#[doc = " Depyler: proven to terminate"]
+pub fn vec_dot<'b, 'a>(
+    a: &'a Vec<i32>,
+    b: &'b Vec<i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    s = 0;
+    for i in 0..(n) {
+        s = ((s).py_add(
+            (a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_mul(
+                b.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ),
+        )) as i32;
+    }
+    Ok(s)
+}
+#[doc = "Cross product of two 3D integer vectors."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn vec_cross<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    result.push(
+        ((a.get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_mul(
+            b.get(2usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ) as i32)
+             - (
+                (a.get(2usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    b.get(1usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                )
+            ),
+    );
+    result.push(
+        ((a.get(2usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_mul(
+            b.get(0usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ) as i32)
+             - (
+                (a.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    b.get(2usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                )
+            ),
+    );
+    result.push(
+        ((a.get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_mul(
+            b.get(1usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ) as i32)
+             - (
+                (a.get(1usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    b.get(0usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                )
+            ),
+    );
+    result
+}
+#[doc = "Squared Euclidean norm of a vector(avoids sqrt)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn vec_norm_squared(v: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    s = 0;
+    for i in 0..(v.len() as i32) {
+        s = ((s).py_add(
+            (v.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_mul(
+                v.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ),
+        )) as i32;
+    }
+    Ok(s)
+}
+#[doc = "Add two vectors element-wise."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn vec_add<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(a.len() as i32) {
+        result.push(
+            (a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_add(
+                b.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ),
+        );
+    }
+    result
+}
+#[doc = "Scale a vector by an integer scalar."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn vec_scale(v: &Vec<i32>, s: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(v.len() as i32) {
+        result.push(
+            (v.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_mul(s),
+        );
+    }
+    result
+}
+#[doc = "Extract the minor matrix by removing specified row and column."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_minor(a: &Vec<Vec<i32>>, row: i32, col: i32) -> Vec<Vec<i32>> {
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(n) {
+        if i == row {
+            continue;
+        }
+        let mut r: Vec<i32> = vec![];
+        for j in 0..(n) {
+            if j == col {
+                continue;
+            }
+            r.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+        result.push(r);
+    }
+    result
+}
+#[doc = "Extract submatrix from rows [r1, r2) and cols [c1, c2)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_submatrix(a: &Vec<Vec<i32>>, r1: i32, r2: i32, c1: i32, c2: i32) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in (r1)..(r2) {
+        let mut row: Vec<i32> = vec![];
+        for j in (c1)..(c2) {
+            row.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+        result.push(row);
+    }
+    result
+}
+#[doc = "Determinant of a 2x2 matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn det2(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok({
+        let _r: i32 = ((a
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_mul(
+            a.get(1usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(1usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ) as i32)
+             - (
+                (a.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(1usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    a.get(1usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(0usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                )
+            );
+        _r
+    })
+}
+#[doc = "Determinant of a 3x3 matrix via cofactor expansion along first row."]
+#[doc = " Depyler: proven to terminate"]
+pub fn det3(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    s = 0;
+    for j in 0..(3) {
+        let minor: Vec<Vec<i32>> = mat_minor(&a, 0, j);
+        let cofactor: i32 = det2(&minor)?;
+        if (j).py_mod(2i32) == 0 {
+            s = ((s).py_add(
+                (a.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(cofactor),
+            )) as i32;
+        } else {
+            s = ((s) - (
+                (a.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(cofactor)
+            )) as i32;
+        }
+    }
+    Ok(s)
+}
+#[doc = "Determinant of an n x n matrix via recursive cofactor expansion."]
+#[doc = " Depyler: proven to terminate"]
+pub fn det_recursive(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let _cse_temp_1 = n == 1;
+    if _cse_temp_1 {
+        return Ok(a
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range"));
+    }
+    let _cse_temp_2 = n == 2;
+    if _cse_temp_2 {
+        return det2(&a);
+    }
+    s = 0;
+    for j in 0..(n) {
+        let minor: Vec<Vec<i32>> = mat_minor(&a, 0, j);
+        let cofactor: i32 = det_recursive(&minor)?;
+        if (j).py_mod(2i32) == 0 {
+            s = ((s).py_add(
+                (a.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(cofactor),
+            )) as i32;
+        } else {
+            s = ((s) - (
+                (a.get(0usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(cofactor)
+            )) as i32;
+        }
+    }
+    Ok(s)
+}
+#[doc = "Maximum absolute element in the matrix(infinity-like norm)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_norm_max(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut m: i32 = Default::default();
+    let mut v: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    m = 0;
+    for i in 0..(rows) {
+        for j in 0..(cols) {
+            v = a
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            if v < 0 {
+                v = -v;
+            }
+            if v > m {
+                m = v;
+            }
+        }
+    }
+    Ok(m)
+}
+#[doc = "Sum of absolute values of all elements(Manhattan-like norm)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_norm_sum(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    let mut v: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    s = 0;
+    for i in 0..(rows) {
+        for j in 0..(cols) {
+            v = a
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            if v < 0 {
+                v = -v;
+            }
+            s = ((s).py_add(v)) as i32;
+        }
+    }
+    Ok(s)
+}
+#[doc = "Squared Frobenius norm(sum of squares of all elements)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_frobenius_sq(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    s = 0;
+    for i in 0..(rows) {
+        for j in 0..(cols) {
+            s = ((s).py_add(
+                (a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    a.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ),
+            )) as i32;
+        }
+    }
+    Ok(s)
+}
+#[doc = "Kronecker product of two matrices."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_kronecker<'a, 'b>(
+    a: &'a Vec<Vec<i32>>,
+    b: &'b Vec<Vec<i32>>,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let ra: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let ca: i32 = _cse_temp_1;
+    let _cse_temp_2 = b.len() as i32;
+    let rb: i32 = _cse_temp_2;
+    let cb: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..((ra).py_mul(rb)) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..((ca).py_mul(cb)) {
+            let ai: i32 = {
+                let a = i;
+                let b = rb;
                 let q = a / b;
                 let r = a % b;
                 let r_negative = r < 0;
@@ -3415,166 +4256,1261 @@ pub fn collatz_chain(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
                     q
                 }
             };
-        } else {
-            current = (((3i32).py_mul(current) as i32).py_add(1i32)) as i32;
+            let bi: i32 = ((i).py_mod(rb)) as i32;
+            let aj: i32 = {
+                let a = j;
+                let b = cb;
+                let q = a / b;
+                let r = a % b;
+                let r_negative = r < 0;
+                let b_negative = b < 0;
+                let r_nonzero = r != 0;
+                let signs_differ = r_negative != b_negative;
+                let needs_adjustment = r_nonzero && signs_differ;
+                if needs_adjustment {
+                    q - 1
+                } else {
+                    q
+                }
+            };
+            let bj: i32 = ((j).py_mod(cb)) as i32;
+            row.push(
+                (a.get(ai as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(aj as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_mul(
+                    b.get(bi as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(bj as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ),
+            );
         }
-        chain.push(current);
+        result.push(row);
     }
-    Ok(chain)
+    Ok(result)
 }
-#[doc = "Simulate nested callback pattern via sequential transformations.\n\n    Applies a chain of transformations: double, filter, sum.\n    Each step depends on the previous, simulating callback nesting.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn nested_callback_simulation(values: &Vec<i32>) -> i32 {
-    let mut total: i32 = Default::default();
-    let mut doubled: Vec<i32> = vec![];
-    for v in values.iter().cloned() {
-        doubled.push((v).py_mul(2i32));
-    }
-    let mut filtered: Vec<i32> = vec![];
-    for v in doubled.iter().cloned() {
-        if v > 10 {
-            filtered.push(v);
-        }
-    }
-    total = 0;
-    for v in filtered.iter().cloned() {
-        total = ((total).py_add(v)) as i32;
-    }
-    total
-}
-#[doc = "Test Ackermann function with small inputs to avoid stack overflow."]
-#[doc = " Depyler: verified panic-free"]
+#[doc = "Create a deep copy of a matrix."]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_ackermann() -> i32 {
-    let r1: i32 = ackermann(2, 3);
-    let r2: i32 = ackermann(1, 5);
-    (r1).py_add(r2)
-}
-#[doc = "Test nested list flattening."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_flatten_nested() -> i32 {
-    let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5], vec![6]];
-    let flat: Vec<i32> = flatten_nested(&data);
-    flat.len() as i32 as i32
-}
-#[doc = "Test memoized partition counting."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_memoized_partition() -> i32 {
-    memoized_partition_count(5)
-}
-#[doc = "Test mutual recursion is_even/is_odd."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_mutual_recursion() -> i32 {
-    let mut results: i32 = Default::default();
-    results = 0;
-    if is_even_mutual(10) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if is_odd_mutual(7) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if !is_even_mutual(3) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if !is_odd_mutual(4) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    results
-}
-#[doc = "Test closure-based accumulator simulation."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_accumulator() -> i32 {
-    make_accumulator(0)
-}
-#[doc = "Test paired counter closure simulation."]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_counter_pair() -> Result<i32, Box<dyn std::error::Error>> {
-    let result: Vec<i32> = make_counter_pair();
-    Ok({
-        let _r: i32 = ((result
-            .get(0usize)
-            .cloned()
-            .expect("IndexError: list index out of range"))
-        .py_add(
-            result
-                .get(1usize)
-                .cloned()
-                .expect("IndexError: list index out of range"),
-        ) as i32)
-            .py_add(
-                result
-                    .get(2usize)
+pub fn mat_copy(a: &Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(rows) {
+        let mut row: Vec<i32> = vec![];
+        for j in 0..(cols) {
+            row.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
                     .cloned()
                     .expect("IndexError: list index out of range"),
             );
-        _r
-    })
+        }
+        result.push(row);
+    }
+    Ok(result)
 }
-#[doc = "Test recursive fast exponentiation."]
+#[doc = "Swap two rows in a matrix, returning a new matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_swap_rows(
+    a: &Vec<Vec<i32>>,
+    r1: i32,
+    r2: i32,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let mut result: Vec<Vec<i32>> = mat_copy(&a)?;
+    let _cse_temp_0 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_0;
+    for j in 0..(cols) {
+        let tmp: i32 = result
+            .get(r1 as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(j as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        result[r1 as usize][(j) as usize] = result
+            .get(r2 as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(j as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        result[r2 as usize][(j) as usize] = tmp;
+    }
+    Ok(result)
+}
+#[doc = "Integer-only row echelon form using scaled elimination.\n\n    Avoids division by multiplying rows by pivot values.\n    May produce large integers but stays exact.\n    "]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_row_echelon_int(a: &Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let mut m: Vec<Vec<i32>> = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    m = mat_copy(&a)?;
+    let mut pivot_row: i32 = 0;
+    for col in 0..(cols) {
+        if pivot_row >= rows {
+            break;
+        }
+        let mut found: i32 = -1;
+        for i in (pivot_row)..(rows) {
+            if m.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(col as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                != 0
+            {
+                found = i;
+                break;
+            }
+        }
+        if found == -1 {
+            continue;
+        }
+        if found != pivot_row {
+            m = mat_swap_rows(&m, pivot_row, found)?;
+        }
+        let pivot_val: i32 = m
+            .get(pivot_row as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(col as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        for i in ((pivot_row).py_add(1i32))..(rows) {
+            if m.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(col as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                != 0
+            {
+                let factor: i32 = m
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(col as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                for j in 0..(cols) {
+                    m[i as usize][(j) as usize] = ((m
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"))
+                    .py_mul(pivot_val) as i32)
+                         - (
+                            (factor).py_mul(
+                                m.get(pivot_row as usize)
+                                    .cloned()
+                                    .expect("IndexError: list index out of range")
+                                    .get(j as usize)
+                                    .cloned()
+                                    .expect("IndexError: list index out of range"),
+                            )
+                        );
+                }
+            }
+        }
+        pivot_row = ((pivot_row).py_add(1i32)) as i32;
+    }
+    Ok(m)
+}
+#[doc = "Create a sparse matrix representation from list of [row, col, value] triples."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_recursive_power() -> Result<i32, Box<dyn std::error::Error>> {
-    let r1: i32 = recursive_power(2, 10)?;
-    let r2: i32 = recursive_power(3, 0)?;
-    let r3: i32 = recursive_power(5, 3)?;
-    let r4: i32 = recursive_power(2, -1)?;
-    Ok({
-        let _r: i32 = (((r1).py_add(r2) as i32).py_add(r3) as i32).py_add(r4);
-        _r
-    })
+pub fn sparse_create(entries: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(entries.len() as i32) {
+        let mut triple: Vec<i32> = vec![];
+        triple.push(
+            entries
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(0usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+        triple.push(
+            entries
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(1usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+        triple.push(
+            entries
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(2usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+        result.push(triple);
+    }
+    result
 }
-#[doc = "Test DFS tree traversal."]
+#[doc = "Convert sparse representation to dense matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sparse_to_dense(
+    entries: &Vec<Vec<i32>>,
+    rows: i32,
+    cols: i32,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let mut result: Vec<Vec<i32>> = mat_zeros(rows, cols);
+    for i in 0..(entries.len() as i32) {
+        let r: i32 = entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let c: i32 = entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let v: i32 = entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(2usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        result
+            .get_mut(&r)
+            .expect("key not found in dict")
+            .insert(c.to_string().clone(), v);
+    }
+    Ok(result)
+}
+#[doc = "Multiply a sparse matrix(list of triples) by a dense vector."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sparse_mat_vec_mul<'a, 'b>(
+    entries: &'a Vec<Vec<i32>>,
+    v: &'b Vec<i32>,
+    rows: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    for _i in 0..(rows) {
+        result.push(0);
+    }
+    for i in 0..(entries.len() as i32) {
+        let r: i32 = entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let c: i32 = entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let val: i32 = entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(2usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        result[(r) as usize] = (result
+            .get(r as usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_add(
+            (val).py_mul(
+                v.get(c as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ),
+        );
+    }
+    Ok(result)
+}
+#[doc = "Count the number of nonzero entries in a sparse matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sparse_count_nonzero(entries: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut count: i32 = Default::default();
+    count = 0;
+    for i in 0..(entries.len() as i32) {
+        if entries
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(2usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != 0
+        {
+            count = ((count).py_add(1i32)) as i32;
+        }
+    }
+    Ok(count)
+}
+#[doc = "Flatten a matrix into a row-major list."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_flatten(a: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(a.len() as i32) {
+        for j in 0..(a
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .len() as i32)
+        {
+            result.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+    }
+    Ok(result)
+}
+#[doc = "Check if two matrices are equal. Returns 1 or 0."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_equal<'a, 'b>(
+    a: &'a Vec<Vec<i32>>,
+    b: &'b Vec<Vec<i32>>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = a.len() as i32;
+    let _cse_temp_1 = b.len() as i32;
+    let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
+    if _cse_temp_2 {
+        return Ok(0);
+    }
+    for i in 0..(a.len() as i32) {
+        if a.get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .len() as i32
+            != b.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .len() as i32
+        {
+            return Ok(0);
+        }
+        for j in 0..(a
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .len() as i32)
+        {
+            if a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                != b.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            {
+                return Ok(0);
+            }
+        }
+    }
+    Ok(1)
+}
+#[doc = "Sum a specific column of a matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_column_sum(a: &Vec<Vec<i32>>, col: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    s = 0;
+    for i in 0..(a.len() as i32) {
+        s = ((s).py_add(
+            a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(col as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        )) as i32;
+    }
+    Ok(s)
+}
+#[doc = "Sum a specific row of a matrix."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_row_sum(a: &Vec<Vec<i32>>, row: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    s = 0;
+    for j in 0..(a
+        .get(row as usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32)
+    {
+        s = ((s).py_add(
+            a.get(row as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        )) as i32;
+    }
+    Ok(s)
+}
+#[doc = "Compute the infinity norm: max row sum of absolute values."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_max_row_sum(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut best: i32 = Default::default();
+    let mut v: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    best = 0;
+    for i in 0..(rows) {
+        let mut s: i32 = 0;
+        for j in 0..(cols) {
+            v = a
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            if v < 0 {
+                v = -v;
+            }
+            s = ((s).py_add(v)) as i32;
+        }
+        if s > best {
+            best = s;
+        }
+    }
+    Ok(best)
+}
+#[doc = "Compute the one norm: max column sum of absolute values."]
+#[doc = " Depyler: proven to terminate"]
+pub fn mat_max_col_sum(a: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut best: i32 = Default::default();
+    let mut v: i32 = Default::default();
+    let _cse_temp_0 = a.len() as i32;
+    let rows: i32 = _cse_temp_0;
+    let _cse_temp_1 = a
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let cols: i32 = _cse_temp_1;
+    best = 0;
+    for j in 0..(cols) {
+        let mut s: i32 = 0;
+        for i in 0..(rows) {
+            v = a
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            if v < 0 {
+                v = -v;
+            }
+            s = ((s).py_add(v)) as i32;
+        }
+        if s > best {
+            best = s;
+        }
+    }
+    Ok(best)
+}
+#[doc = "Test zero matrix and identity matrix creation."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_zeros_and_identity() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut s: i32 = Default::default();
+    let z: Vec<Vec<i32>> = mat_zeros(3, 3);
+    let eye: Vec<Vec<i32>> = mat_identity(3);
+    s = 0;
+    for i in 0..(3) {
+        for j in 0..(3) {
+            s = ((s).py_add(
+                z.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            )) as i32;
+        }
+    }
+    let t: i32 = mat_trace(&eye)?;
+    let _cse_temp_0 = s == 0;
+    let _cse_temp_1 = t == 3;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test matrix addition and subtraction."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_tree_dfs() -> i32 {
-    let adj: std::collections::HashMap<i32, Vec<i32>> = {
-        let mut map: HashMap<i32, Vec<i32>> = HashMap::new();
-        map.insert(0, vec![1, 2]);
-        map.insert(1, vec![3, 4]);
-        map.insert(2, vec![5]);
-        map.insert(3, vec![]);
-        map.insert(4, vec![]);
-        map.insert(5, vec![]);
-        map
-    };
-    let order: Vec<i32> = tree_depth_first(&adj, 0);
-    order.len() as i32 as i32
+pub fn test_add_sub() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4], 2, 2);
+    let b: Vec<Vec<i32>> = mat_from_flat(&vec![5, 6, 7, 8], 2, 2);
+    let c: Vec<Vec<i32>> = mat_add(&a, &b)?;
+    let d: Vec<Vec<i32>> = mat_sub(&c, &b)?;
+    let _cse_temp_0 = mat_equal(&d, &a)? == 1;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
 }
-#[doc = "Test Tower of Hanoi move generation."]
+#[doc = "Test that multiplying by identity returns the original."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_tower_of_hanoi() -> i32 {
-    let moves: Vec<String> = tower_of_hanoi(3);
-    moves.len() as i32 as i32
+pub fn test_mat_mul_identity() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
+    let eye: Vec<Vec<i32>> = mat_identity(3);
+    let b: Vec<Vec<i32>> = mat_mul(&a, &eye)?;
+    let _cse_temp_0 = mat_equal(&a, &b)? == 1;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
 }
-#[doc = "Test recursive flatten and sum."]
+#[doc = "Test that transposing twice returns the original."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_recursive_flatten_sum() -> i32 {
-    let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6, 7]];
-    recursive_flatten_sum(&nested)
+pub fn test_transpose_twice() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4, 5, 6], 2, 3);
+    let b: Vec<Vec<i32>> = mat_transpose(mat_transpose(&a))?;
+    let _cse_temp_0 = mat_equal(&a, &b)? == 1;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
 }
-#[doc = "Test Collatz sequence generation."]
+#[doc = "Test vector dot product."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_collatz_chain() -> Result<i32, Box<dyn std::error::Error>> {
-    let chain: Vec<i32> = collatz_chain(6)?;
-    Ok(chain.len() as i32 as i32)
+pub fn test_dot_product() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<i32> = vec![1, 2, 3];
+    let b: Vec<i32> = vec![4, 5, 6];
+    let d: i32 = vec_dot(&a, &b)?;
+    let _cse_temp_0 = d == 32;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
 }
-#[doc = "Test nested callback simulation."]
+#[doc = "Test 3D vector cross product."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_cross_product() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<i32> = vec![1, 0, 0];
+    let b: Vec<i32> = vec![0, 1, 0];
+    let c: Vec<i32> = vec_cross(&a, &b);
+    let _cse_temp_0 = c
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 0;
+    let _cse_temp_1 = (_cse_temp_0) && (_cse_temp_0);
+    let _cse_temp_2 = c
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 1;
+    let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
+    if _cse_temp_3 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test 2x2 determinant."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nested_callbacks() -> i32 {
-    let values: Vec<i32> = vec![1, 3, 5, 7, 9, 2, 4, 6, 8, 10];
-    nested_callback_simulation(&values)
+pub fn test_determinant_2x2() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![3, 8, 4, 6], 2, 2);
+    let d: i32 = det2(&a)?;
+    let _cse_temp_0 = d == -14;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
 }
-#[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
-#[doc = r" This file was transpiled from a Python script with executable top-level code."]
+#[doc = "Test 3x3 determinant via cofactor expansion."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_determinant_3x3() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![6, 1, 1, 4, -2, 5, 2, 8, 7], 3, 3);
+    let d: i32 = det3(&a)?;
+    let _cse_temp_0 = d == -306;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test Hadamard(element-wise) product."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_hadamard() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4], 2, 2);
+    let b: Vec<Vec<i32>> = mat_from_flat(&vec![5, 6, 7, 8], 2, 2);
+    let c: Vec<Vec<i32>> = mat_hadamard(&a, &b)?;
+    let _cse_temp_0 = c
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 5;
+    let _cse_temp_1 = c
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 12;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = c
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 21;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = c
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 32;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test Kronecker product dimensions and corner value."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_kronecker() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_identity(2);
+    let b: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4], 2, 2);
+    let k: Vec<Vec<i32>> = mat_kronecker(&a, &b)?;
+    let _cse_temp_0 = k.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 4;
+    let _cse_temp_2 = k
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .len() as i32;
+    let _cse_temp_3 = _cse_temp_2 == 4;
+    let _cse_temp_4 = (_cse_temp_1) && (_cse_temp_3);
+    let _cse_temp_5 = k
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 1;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    let _cse_temp_7 = (_cse_temp_6) && (_cse_temp_5);
+    if _cse_temp_7 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test matrix power by repeated squaring."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_mat_power() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 1, 1, 0], 2, 2);
+    let a3: Vec<Vec<i32>> = mat_power(&a, 3)?;
+    let _cse_temp_0 = a3
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    let _cse_temp_1 = a3
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 2;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = (_cse_temp_2) && (_cse_temp_1);
+    let _cse_temp_4 = a3
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 1;
+    let _cse_temp_5 = (_cse_temp_3) && (_cse_temp_4);
+    if _cse_temp_5 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test symmetric matrix check."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_symmetric() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 2, 5, 6, 3, 6, 9], 3, 3);
+    let b: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
+    let _cse_temp_0 = mat_is_symmetric(&a)? == 1;
+    let _cse_temp_1 = mat_is_symmetric(&b)? == 0;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test upper and lower triangular checks."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_triangular() -> Result<i32, Box<dyn std::error::Error>> {
+    let u: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 0, 4, 5, 0, 0, 6], 3, 3);
+    let lo: Vec<Vec<i32>> = mat_from_flat(&vec![1, 0, 0, 2, 3, 0, 4, 5, 6], 3, 3);
+    let _cse_temp_0 = mat_is_upper_triangular(&u)? == 1;
+    let _cse_temp_1 = mat_is_lower_triangular(&lo)? == 1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test matrix norms."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_norms() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, -2, 3, -4], 2, 2);
+    let mx: i32 = mat_norm_max(&a)?;
+    let sm: i32 = mat_norm_sum(&a)?;
+    let fr: i32 = mat_frobenius_sq(&a)?;
+    let _cse_temp_0 = mx == 4;
+    let _cse_temp_1 = sm == 10;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = fr == 30;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test sparse matrix-vector multiplication."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sparse_mul() -> Result<i32, Box<dyn std::error::Error>> {
+    let entries: Vec<Vec<i32>> = vec![vec![0, 0, 2], vec![0, 2, 3], vec![1, 1, 5]];
+    let v: Vec<i32> = vec![1, 2, 3];
+    let result: Vec<i32> = sparse_mat_vec_mul(&entries, &v, 2)?;
+    let _cse_temp_0 = result
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 11;
+    let _cse_temp_1 = result
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 10;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test integer row echelon form produces zeros below pivot."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_row_echelon() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![2, 1, 1, 4, 3, 3, 8, 7, 9], 3, 3);
+    let r: Vec<Vec<i32>> = mat_row_echelon_int(&a)?;
+    let _cse_temp_0 = r
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 0;
+    let _cse_temp_1 = (_cse_temp_0) && (_cse_temp_0);
+    let _cse_temp_2 = (_cse_temp_1) && (_cse_temp_0);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test minor matrix extraction."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_minor_extraction() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3, 3);
+    let m: Vec<Vec<i32>> = mat_minor(&a, 1, 1);
+    let _cse_temp_0 = m
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 1;
+    let _cse_temp_1 = m
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = m
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 7;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = m
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 9;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test band matrix detection."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_banded() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 0, 3, 4, 5, 0, 6, 7], 3, 3);
+    let _cse_temp_0 = mat_is_banded(&a, 1, 1)? == 1;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test matrix-vector multiplication."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_mat_vec_mul() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4], 2, 2);
+    let v: Vec<i32> = vec![5, 6];
+    let r: Vec<i32> = mat_vec_mul(&a, &v)?;
+    let _cse_temp_0 = r
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 17;
+    let _cse_temp_1 = r
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 39;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test diagonal matrix construction and extraction."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_diagonal() -> Result<i32, Box<dyn std::error::Error>> {
+    let d: Vec<i32> = vec![3, 5, 7];
+    let m: Vec<Vec<i32>> = mat_diagonal(&d);
+    let e: Vec<i32> = mat_extract_diag(&m);
+    let _cse_temp_0 = e
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    let _cse_temp_1 = e
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 5;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = e
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 7;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = m
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 0;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test recursive determinant for 4x4 matrix."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_det_recursive() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(
+        &vec![1, 0, 2, -1, 3, 0, 0, 5, 2, 1, 4, -3, 1, 0, 5, 0],
+        4,
+        4,
+    );
+    let d: i32 = det_recursive(&a)?;
+    let _cse_temp_0 = d == 30;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test flatten and from_flat roundtrip."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_flatten_roundtrip() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4, 5, 6], 2, 3);
+    let flat: Vec<i32> = mat_flatten(&a)?;
+    let b: Vec<Vec<i32>> = mat_from_flat(&flat, 2, 3);
+    let _cse_temp_0 = mat_equal(&a, &b)? == 1;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test scalar multiplication and negation."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_scale_and_negate() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, 2, 3, 4], 2, 2);
+    let b: Vec<Vec<i32>> = mat_scale(&a, 3)?;
+    let c: Vec<Vec<i32>> = mat_negate(&a)?;
+    let _cse_temp_0 = b
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    let _cse_temp_1 = b
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 12;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = c
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == -1;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = c
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == -4;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test infinity norm(max row sum) and one norm(max col sum)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_infinity_one_norms() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(&vec![1, -2, 3, -4, 5, -6], 2, 3);
+    let inf_norm: i32 = mat_max_row_sum(&a)?;
+    let one_norm: i32 = mat_max_col_sum(&a)?;
+    let _cse_temp_0 = inf_norm == 15;
+    let _cse_temp_1 = one_norm == 9;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test sparse to dense conversion."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sparse_to_dense() -> Result<i32, Box<dyn std::error::Error>> {
+    let entries: Vec<Vec<i32>> = vec![vec![0, 0, 5], vec![1, 2, 7], vec![2, 1, 3]];
+    let d: Vec<Vec<i32>> = sparse_to_dense(&entries, 3, 3)?;
+    let _cse_temp_0 = d
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 5;
+    let _cse_temp_1 = d
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 7;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = d
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = d
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 0;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test vector add, scale, and norm squared."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_vec_operations() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<i32> = vec![1, 2, 3];
+    let b: Vec<i32> = vec![4, 5, 6];
+    let c: Vec<i32> = vec_add(&a, &b);
+    let d: Vec<i32> = vec_scale(&a, 2);
+    let n: i32 = vec_norm_squared(&a)?;
+    let _cse_temp_0 = c
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 5;
+    let _cse_temp_1 = c
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 7;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = d
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 6;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = n == 14;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test submatrix extraction."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_submatrix() -> Result<i32, Box<dyn std::error::Error>> {
+    let a: Vec<Vec<i32>> = mat_from_flat(
+        &vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        4,
+        4,
+    );
+    let s: Vec<Vec<i32>> = mat_submatrix(&a, 1, 3, 1, 3);
+    let _cse_temp_0 = s
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 6;
+    let _cse_temp_1 = s
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 7;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = s
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 10;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    let _cse_temp_5 = s
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 11;
+    let _cse_temp_6 = (_cse_temp_4) && (_cse_temp_5);
+    if _cse_temp_6 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Run all test functions and return the sum of passing tests."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn run_all_tests() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = 0;
+    let _cse_temp_0 = ((total).py_add(test_zeros_and_identity()?)) as i32;
+    total = _cse_temp_0;
+    let _cse_temp_1 = ((total).py_add(test_add_sub()?)) as i32;
+    total = _cse_temp_1;
+    let _cse_temp_2 = ((total).py_add(test_mat_mul_identity()?)) as i32;
+    total = _cse_temp_2;
+    let _cse_temp_3 = ((total).py_add(test_transpose_twice()?)) as i32;
+    total = _cse_temp_3;
+    let _cse_temp_4 = ((total).py_add(test_dot_product()?)) as i32;
+    total = _cse_temp_4;
+    let _cse_temp_5 = ((total).py_add(test_cross_product()?)) as i32;
+    total = _cse_temp_5;
+    let _cse_temp_6 = ((total).py_add(test_determinant_2x2()?)) as i32;
+    total = _cse_temp_6;
+    let _cse_temp_7 = ((total).py_add(test_determinant_3x3()?)) as i32;
+    total = _cse_temp_7;
+    let _cse_temp_8 = ((total).py_add(test_hadamard()?)) as i32;
+    total = _cse_temp_8;
+    let _cse_temp_9 = ((total).py_add(test_kronecker()?)) as i32;
+    total = _cse_temp_9;
+    let _cse_temp_10 = ((total).py_add(test_mat_power()?)) as i32;
+    total = _cse_temp_10;
+    let _cse_temp_11 = ((total).py_add(test_symmetric()?)) as i32;
+    total = _cse_temp_11;
+    let _cse_temp_12 = ((total).py_add(test_triangular()?)) as i32;
+    total = _cse_temp_12;
+    let _cse_temp_13 = ((total).py_add(test_norms()?)) as i32;
+    total = _cse_temp_13;
+    let _cse_temp_14 = ((total).py_add(test_sparse_mul()?)) as i32;
+    total = _cse_temp_14;
+    let _cse_temp_15 = ((total).py_add(test_row_echelon()?)) as i32;
+    total = _cse_temp_15;
+    let _cse_temp_16 = ((total).py_add(test_minor_extraction()?)) as i32;
+    total = _cse_temp_16;
+    let _cse_temp_17 = ((total).py_add(test_banded()?)) as i32;
+    total = _cse_temp_17;
+    let _cse_temp_18 = ((total).py_add(test_mat_vec_mul()?)) as i32;
+    total = _cse_temp_18;
+    let _cse_temp_19 = ((total).py_add(test_diagonal()?)) as i32;
+    total = _cse_temp_19;
+    let _cse_temp_20 = ((total).py_add(test_det_recursive()?)) as i32;
+    total = _cse_temp_20;
+    let _cse_temp_21 = ((total).py_add(test_flatten_roundtrip()?)) as i32;
+    total = _cse_temp_21;
+    let _cse_temp_22 = ((total).py_add(test_scale_and_negate()?)) as i32;
+    total = _cse_temp_22;
+    let _cse_temp_23 = ((total).py_add(test_infinity_one_norms()?)) as i32;
+    total = _cse_temp_23;
+    let _cse_temp_24 = ((total).py_add(test_sparse_to_dense()?)) as i32;
+    total = _cse_temp_24;
+    let _cse_temp_25 = ((total).py_add(test_vec_operations()?)) as i32;
+    total = _cse_temp_25;
+    let _cse_temp_26 = ((total).py_add(test_submatrix()?)) as i32;
+    total = _cse_temp_26;
+    Ok(total)
+}
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let passed: i32 = run_all_tests()?;
+    let expected: i32 = 27;
+    println!(
+        "{}",
+        format!(
+            "{}{}",
+            format!(
+                "{}{}",
+                format!(
+                    "{}{}",
+                    format!("{}{}", "Passed ", (passed).to_string()),
+                    " / "
+                ),
+                (expected).to_string()
+            ),
+            " tests"
+        )
+    );
+    let _cse_temp_0 = passed != expected;
+    if _cse_temp_0 {
+        println!("{}", "FAIL: not all tests passed");
+    } else {
+        println!("{}", "ALL TESTS PASSED");
+    }
     Ok(())
 }
 #[cfg(test)]
@@ -3582,100 +5518,249 @@ mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
-    fn test_ackermann_examples() {
-        assert_eq!(ackermann(0, 0), 0);
-        assert_eq!(ackermann(1, 2), 3);
-        assert_eq!(ackermann(-1, 1), 0);
+    fn test_mat_diagonal_examples() {
+        assert_eq!(mat_diagonal(vec![]), vec![]);
+        assert_eq!(mat_diagonal(vec![1]), vec![1]);
     }
     #[test]
-    fn test_flatten_nested_examples() {
-        assert_eq!(flatten_nested(vec![]), vec![]);
-        assert_eq!(flatten_nested(vec![1]), vec![1]);
+    fn test_mat_negate_examples() {
+        assert_eq!(mat_negate(vec![]), vec![]);
+        assert_eq!(mat_negate(vec![1]), vec![1]);
     }
     #[test]
-    fn test_memoized_partition_count_examples() {
-        assert_eq!(memoized_partition_count(0), 0);
-        assert_eq!(memoized_partition_count(1), 1);
-        assert_eq!(memoized_partition_count(-1), -1);
+    fn test_mat_transpose_examples() {
+        assert_eq!(mat_transpose(vec![]), vec![]);
+        assert_eq!(mat_transpose(vec![1]), vec![1]);
     }
     #[test]
-    fn test_is_even_mutual_examples() {
-        let _ = is_even_mutual(Default::default());
+    fn test_mat_trace_examples() {
+        assert_eq!(mat_trace(&vec![]), 0);
+        assert_eq!(mat_trace(&vec![1]), 1);
+        assert_eq!(mat_trace(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_is_odd_mutual_examples() {
-        let _ = is_odd_mutual(Default::default());
+    fn test_mat_extract_diag_examples() {
+        assert_eq!(mat_extract_diag(vec![]), vec![]);
+        assert_eq!(mat_extract_diag(vec![1]), vec![1]);
     }
     #[test]
-    fn test_make_accumulator_examples() {
-        assert_eq!(make_accumulator(0), 0);
-        assert_eq!(make_accumulator(1), 1);
-        assert_eq!(make_accumulator(-1), -1);
+    fn test_mat_is_symmetric_examples() {
+        assert_eq!(mat_is_symmetric(&vec![]), 0);
+        assert_eq!(mat_is_symmetric(&vec![1]), 1);
+        assert_eq!(mat_is_symmetric(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_recursive_power_examples() {
-        assert_eq!(recursive_power(0, 0), 0);
-        assert_eq!(recursive_power(1, 2), 3);
-        assert_eq!(recursive_power(-1, 1), 0);
+    fn test_mat_is_upper_triangular_examples() {
+        assert_eq!(mat_is_upper_triangular(&vec![]), 0);
+        assert_eq!(mat_is_upper_triangular(&vec![1]), 1);
+        assert_eq!(mat_is_upper_triangular(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_recursive_flatten_sum_examples() {
-        assert_eq!(recursive_flatten_sum(&vec![]), 0);
-        assert_eq!(recursive_flatten_sum(&vec![1]), 1);
-        assert_eq!(recursive_flatten_sum(&vec![1, 2, 3]), 6);
+    fn test_mat_is_lower_triangular_examples() {
+        assert_eq!(mat_is_lower_triangular(&vec![]), 0);
+        assert_eq!(mat_is_lower_triangular(&vec![1]), 1);
+        assert_eq!(mat_is_lower_triangular(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_nested_callback_simulation_examples() {
-        assert_eq!(nested_callback_simulation(&vec![]), 0);
-        assert_eq!(nested_callback_simulation(&vec![1]), 1);
-        assert_eq!(nested_callback_simulation(&vec![1, 2, 3]), 3);
+    fn test_mat_extract_upper_examples() {
+        assert_eq!(mat_extract_upper(vec![]), vec![]);
+        assert_eq!(mat_extract_upper(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_ackermann_examples() {
-        let _ = test_ackermann();
+    fn test_mat_extract_lower_examples() {
+        assert_eq!(mat_extract_lower(vec![]), vec![]);
+        assert_eq!(mat_extract_lower(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_flatten_nested_examples() {
-        let _ = test_flatten_nested();
+    fn test_vec_norm_squared_examples() {
+        assert_eq!(vec_norm_squared(&vec![]), 0);
+        assert_eq!(vec_norm_squared(&vec![1]), 1);
+        assert_eq!(vec_norm_squared(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_memoized_partition_examples() {
-        let _ = test_memoized_partition();
+    fn test_det2_examples() {
+        assert_eq!(det2(&vec![]), 0);
+        assert_eq!(det2(&vec![1]), 1);
+        assert_eq!(det2(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_mutual_recursion_examples() {
-        let _ = test_mutual_recursion();
+    fn test_det3_examples() {
+        assert_eq!(det3(&vec![]), 0);
+        assert_eq!(det3(&vec![1]), 1);
+        assert_eq!(det3(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_accumulator_examples() {
-        let _ = test_accumulator();
+    fn test_det_recursive_examples() {
+        assert_eq!(det_recursive(&vec![]), 0);
+        assert_eq!(det_recursive(&vec![1]), 1);
+        assert_eq!(det_recursive(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_counter_pair_examples() {
-        let _ = test_counter_pair();
+    fn test_mat_norm_max_examples() {
+        assert_eq!(mat_norm_max(&vec![]), 0);
+        assert_eq!(mat_norm_max(&vec![1]), 1);
+        assert_eq!(mat_norm_max(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_recursive_power_examples() {
-        let _ = test_recursive_power();
+    fn test_mat_norm_sum_examples() {
+        assert_eq!(mat_norm_sum(&vec![]), 0);
+        assert_eq!(mat_norm_sum(&vec![1]), 1);
+        assert_eq!(mat_norm_sum(&vec![1, 2, 3]), 6);
     }
     #[test]
-    fn test_test_tree_dfs_examples() {
-        let _ = test_tree_dfs();
+    fn test_mat_frobenius_sq_examples() {
+        assert_eq!(mat_frobenius_sq(&vec![]), 0);
+        assert_eq!(mat_frobenius_sq(&vec![1]), 1);
+        assert_eq!(mat_frobenius_sq(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_tower_of_hanoi_examples() {
-        let _ = test_tower_of_hanoi();
+    fn test_mat_copy_examples() {
+        assert_eq!(mat_copy(vec![]), vec![]);
+        assert_eq!(mat_copy(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_recursive_flatten_sum_examples() {
-        let _ = test_recursive_flatten_sum();
+    fn test_mat_row_echelon_int_examples() {
+        assert_eq!(mat_row_echelon_int(vec![]), vec![]);
+        assert_eq!(mat_row_echelon_int(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_collatz_chain_examples() {
-        let _ = test_collatz_chain();
+    fn test_sparse_create_examples() {
+        assert_eq!(sparse_create(vec![]), vec![]);
+        assert_eq!(sparse_create(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_nested_callbacks_examples() {
-        let _ = test_nested_callbacks();
+    fn test_sparse_count_nonzero_examples() {
+        assert_eq!(sparse_count_nonzero(&vec![]), 0);
+        assert_eq!(sparse_count_nonzero(&vec![1]), 1);
+        assert_eq!(sparse_count_nonzero(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_mat_flatten_examples() {
+        assert_eq!(mat_flatten(vec![]), vec![]);
+        assert_eq!(mat_flatten(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_mat_max_row_sum_examples() {
+        assert_eq!(mat_max_row_sum(&vec![]), 0);
+        assert_eq!(mat_max_row_sum(&vec![1]), 1);
+        assert_eq!(mat_max_row_sum(&vec![1, 2, 3]), 6);
+    }
+    #[test]
+    fn test_mat_max_col_sum_examples() {
+        assert_eq!(mat_max_col_sum(&vec![]), 0);
+        assert_eq!(mat_max_col_sum(&vec![1]), 1);
+        assert_eq!(mat_max_col_sum(&vec![1, 2, 3]), 6);
+    }
+    #[test]
+    fn test_test_zeros_and_identity_examples() {
+        let _ = test_zeros_and_identity();
+    }
+    #[test]
+    fn test_test_add_sub_examples() {
+        let _ = test_add_sub();
+    }
+    #[test]
+    fn test_test_mat_mul_identity_examples() {
+        let _ = test_mat_mul_identity();
+    }
+    #[test]
+    fn test_test_transpose_twice_examples() {
+        let _ = test_transpose_twice();
+    }
+    #[test]
+    fn test_test_dot_product_examples() {
+        let _ = test_dot_product();
+    }
+    #[test]
+    fn test_test_cross_product_examples() {
+        let _ = test_cross_product();
+    }
+    #[test]
+    fn test_test_determinant_2x2_examples() {
+        let _ = test_determinant_2x2();
+    }
+    #[test]
+    fn test_test_determinant_3x3_examples() {
+        let _ = test_determinant_3x3();
+    }
+    #[test]
+    fn test_test_hadamard_examples() {
+        let _ = test_hadamard();
+    }
+    #[test]
+    fn test_test_kronecker_examples() {
+        let _ = test_kronecker();
+    }
+    #[test]
+    fn test_test_mat_power_examples() {
+        let _ = test_mat_power();
+    }
+    #[test]
+    fn test_test_symmetric_examples() {
+        let _ = test_symmetric();
+    }
+    #[test]
+    fn test_test_triangular_examples() {
+        let _ = test_triangular();
+    }
+    #[test]
+    fn test_test_norms_examples() {
+        let _ = test_norms();
+    }
+    #[test]
+    fn test_test_sparse_mul_examples() {
+        let _ = test_sparse_mul();
+    }
+    #[test]
+    fn test_test_row_echelon_examples() {
+        let _ = test_row_echelon();
+    }
+    #[test]
+    fn test_test_minor_extraction_examples() {
+        let _ = test_minor_extraction();
+    }
+    #[test]
+    fn test_test_banded_examples() {
+        let _ = test_banded();
+    }
+    #[test]
+    fn test_test_mat_vec_mul_examples() {
+        let _ = test_mat_vec_mul();
+    }
+    #[test]
+    fn test_test_diagonal_examples() {
+        let _ = test_diagonal();
+    }
+    #[test]
+    fn test_test_det_recursive_examples() {
+        let _ = test_det_recursive();
+    }
+    #[test]
+    fn test_test_flatten_roundtrip_examples() {
+        let _ = test_flatten_roundtrip();
+    }
+    #[test]
+    fn test_test_scale_and_negate_examples() {
+        let _ = test_scale_and_negate();
+    }
+    #[test]
+    fn test_test_infinity_one_norms_examples() {
+        let _ = test_infinity_one_norms();
+    }
+    #[test]
+    fn test_test_sparse_to_dense_examples() {
+        let _ = test_sparse_to_dense();
+    }
+    #[test]
+    fn test_test_vec_operations_examples() {
+        let _ = test_vec_operations();
+    }
+    #[test]
+    fn test_test_submatrix_examples() {
+        let _ = test_submatrix();
+    }
+    #[test]
+    fn test_run_all_tests_examples() {
+        let _ = run_all_tests();
     }
 }
