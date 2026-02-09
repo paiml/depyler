@@ -209,6 +209,24 @@ mod coverage_wave18_collection_deep_tests;
 // Wave 18: 200 stmt_gen/func_gen/type code path coverage tests
 #[cfg(test)]
 mod coverage_wave18_stmt_func_tests;
+// Wave 19: 200 stdlib deep coverage tests (sys, re, colorsys, math, json, time, random, hashlib)
+#[cfg(test)]
+mod coverage_wave19_stdlib_deep_tests;
+// Wave 19: 200 instance_dispatch/set/dict/regex/deque/dunder/file I/O coverage tests
+#[cfg(test)]
+mod coverage_wave19_instance_dispatch_tests;
+// Wave 19: 200 argparse subcommand/call/assign/constructor/variable type coverage tests
+#[cfg(test)]
+mod coverage_wave19_argparse_call_tests;
+// Wave 19 Deep: 200 direct_rules hashlib/base64/re/os/sys coverage tests
+#[cfg(test)]
+mod coverage_wave19_direct_rules_deep_tests;
+// Wave 19 Deep: 200 instance methods + string/list/dict/set deep coverage tests
+#[cfg(test)]
+mod coverage_wave19_instance_deep_tests;
+// Wave 19 Deep: 200 stmt/expr/call/class/type deep coverage tests
+#[cfg(test)]
+mod coverage_wave19_stmt_expr_deep_tests;
 
 // Internal imports
 #[cfg(test)]
