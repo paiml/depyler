@@ -547,11 +547,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0458: Add & prefix for Lazy const variables (e.g., DEFAULT_CONFIG)
                 // When passing a const (all uppercase) to a function, it's likely a Lazy<T>
                 // that needs to be borrowed (&) so Deref converts it to &T
+                // DEPYLER-99MODE-S9: Skip scalar constants (Int, Float, Bool) - these are
+                // simple `const` values, not Lazy<T>, and don't need borrowing
                 if let HirExpr::Var(var_name) = arg {
                     let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
                     if is_const {
-                        converted_args.push(parse_quote! { &#expr });
-                        continue;
+                        let is_scalar_const = self.ctx.module_constant_types.get(var_name)
+                            .map(|ty| matches!(ty, Type::Int | Type::Float | Type::Bool))
+                            .unwrap_or(false);
+                        if !is_scalar_const {
+                            converted_args.push(parse_quote! { &#expr });
+                            continue;
+                        }
                     }
                 }
                 converted_args.push(expr);
