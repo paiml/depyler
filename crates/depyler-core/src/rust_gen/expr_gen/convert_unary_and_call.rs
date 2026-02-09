@@ -119,12 +119,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 };
 
-                // DEPYLER-99MODE-S9: Check if operand is a call to a user-defined
-                // function in NASA mode. User functions return Result<T>, so we
-                // need `?` to unwrap before applying `!`.
+                // DEPYLER-99MODE-S9: Check if operand is a call to a Result-returning
+                // function in NASA mode. Only functions with can_fail=true return
+                // Result<T> and need `?` to unwrap before applying `!`.
+                // IMPORTANT: Use result_returning_functions (not function_return_types)
+                // because function_return_types includes ALL functions, even those
+                // that return plain types like bool/i32.
                 let is_result_returning_call = if self.ctx.type_mapper.nasa_mode {
                     if let HirExpr::Call { func, .. } = operand {
-                        self.ctx.function_return_types.contains_key(func)
+                        self.ctx.result_returning_functions.contains(func)
                     } else {
                         false
                     }
