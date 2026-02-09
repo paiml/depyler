@@ -10105,6 +10105,10 @@ fn fix_bitwise_and_truthiness(code: &str) -> String {
             && !trimmed.contains("==")
             && !trimmed.contains("&&")
             && !trimmed.contains("||")
+            // DEPYLER-99MODE-S9: Skip lines with borrow patterns (& var)
+            // to avoid confusing Rust borrow `& var` with bitwise AND `x & mask`
+            && !trimmed.contains("(& ")
+            && !trimmed.contains(", & ")
         {
             // Extract: "if EXPR {"
             if let Some(rest) = trimmed.strip_prefix("if ") {

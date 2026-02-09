@@ -362,10 +362,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 HirExpr::Literal(Literal::String(s)) if s.len() == 1
             );
 
+            // DEPYLER-99MODE-S9: Check if left is a char iteration variable
+            // `for ch in text:` → ch is `char`, not `String`
+            // char doesn't have .as_str(), compare with char literals instead
+            let left_is_char_iter_var = if let HirExpr::Var(name) = left {
+                self.ctx.char_iter_vars.contains(name.as_str())
+            } else {
+                false
+            };
+
+            // If comparing a char iter var with a single-char string literal,
+            // convert the string literal to a char literal (e.g., "a" → 'a')
+            if is_ordering_compare && left_is_char_iter_var && right_is_char_literal {
+                if let HirExpr::Literal(Literal::String(s)) = right {
+                    if let Some(ch) = s.chars().next() {
+                        let ch_lit = syn::LitChar::new(ch, proc_macro2::Span::call_site());
+                        right_expr = parse_quote! { #ch_lit };
+                    }
+                }
+            }
+
             // If comparing a variable with a single-char string literal in ordering comparison,
             // the variable is likely a String that needs .as_str() conversion
-            let left_needs_as_str =
-                is_ordering_compare && matches!(left, HirExpr::Var(_)) && right_is_char_literal;
+            // But NOT for char iteration variables (they're already char type)
+            let left_needs_as_str = is_ordering_compare
+                && matches!(left, HirExpr::Var(_))
+                && right_is_char_literal
+                && !left_is_char_iter_var;
 
             // For ordering comparisons with string expressions, convert to &str
             // because String doesn't implement PartialOrd<&str>
