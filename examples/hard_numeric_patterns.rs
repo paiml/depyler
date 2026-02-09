@@ -2797,7 +2797,7 @@ count
     let mut result: i32 = Default::default();
     let _cse_temp_0 = n<0;
     if _cse_temp_0 {
-    let _cse_temp_1 = n & 4294967295;
+    let _cse_temp_1 = n & - 1;
     n = _cse_temp_1;
    
 }
@@ -2958,9 +2958,9 @@ let _cse_temp_3 = b<0;
 (a).py_add(b)
 }
 #[doc = "Multiply with overflow detection."] #[doc = " Depyler: proven to terminate"] pub fn safe_multiply(a: i32, b: i32, max_val: i32) -> Result<i32, Box<dyn std::error::Error>>{
+    let mut abs_b: i32 = Default::default();
     let mut abs_a: i32 = Default::default();
     let mut sign: i32 = Default::default();
-    let mut abs_b: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     let _cse_temp_1 = b == 0;
     let _cse_temp_2  = (_cse_temp_0) ||(_cse_temp_1);
@@ -3330,7 +3330,7 @@ let _cse_temp_10 = ceiling_div(0, 1) ? == 0;
 }
 Ok(total)
 }
-#[doc = "Add two big numbers represented as digit lists(LSB first)."] pub fn bignum_add<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Add two big numbers represented as digit lists(LSB first)."] pub fn bignum_add<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let max_len: i32 = if a.len() as i32>b.len() as i32 {
     a.len() as i32
 }
@@ -3481,8 +3481,8 @@ else {
 Ok(result)
 }
 #[doc = "Compare two bignums. Returns -1, 0, or 1."] pub fn bignum_compare<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut la: i32 = Default::default();
     let mut lb: i32 = Default::default();
+    let mut la: i32 = Default::default();
     let _cse_temp_0 = a.len() as i32;
     la = _cse_temp_0;
     let _cse_temp_1 = b.len() as i32;
@@ -4005,8 +4005,8 @@ else {
 Ok(result)
 }
 #[doc = "Evaluate continued fraction, returns [numerator, denominator]."] pub fn evaluate_continued_fraction(cf: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut num: i32 = Default::default();
     let mut den: i32 = Default::default();
+    let mut num: i32 = Default::default();
     let _cse_temp_0 = cf.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4031,8 +4031,8 @@ Ok(vec! [num, den])
     evaluate_continued_fraction(& cf)
 }
 #[doc = "Test continued fraction computations."] #[doc = " Depyler: proven to terminate"] pub fn test_continued_fractions() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut total: i32 = Default::default();
     let mut diff: i32 = Default::default();
+    let mut total: i32 = Default::default();
     total = 0;
     let cf4: Vec<i32>= continued_fraction_sqrt(4, 5) ?;
     let _cse_temp_0 = cf4 == vec! [2];
@@ -4582,7 +4582,7 @@ else {
 }
 Ok(result)
 }
-#[doc = "Multiply two polynomials(index = degree)."] pub fn poly_multiply<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Multiply two polynomials(index = degree)."] pub fn poly_multiply<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut i: i32 = Default::default();
     let _cse_temp_0 = a.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -4703,9 +4703,9 @@ while b != 0 {
 Ok(a)
 }
 #[doc = "Extended GCD returning [gcd, x, y] where a*x + b*y = gcd."] pub fn extended_gcd(a: i32, b: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut old_s: i32 = Default::default();
     let mut old_t: i32 = Default::default();
     let mut old_r: i32 = Default::default();
+    let mut old_s: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     if _cse_temp_0 {
     return Ok(vec! [b, 0, 1]);
@@ -4756,8 +4756,8 @@ let _cse_temp_1 = old_r<0;
 Ok(vec! [old_r, old_s, old_t])
 }
 #[doc = "Least common multiple."] #[doc = " Depyler: proven to terminate"] pub fn lcm(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut va: i32 = Default::default();
     let mut vb: i32 = Default::default();
+    let mut va: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     let _cse_temp_1 = b == 0;
     let _cse_temp_2  = (_cse_temp_0) ||(_cse_temp_1);

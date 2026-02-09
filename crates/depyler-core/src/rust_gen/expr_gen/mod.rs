@@ -390,8 +390,29 @@ fn literal_to_rust_expr(
     let _ = ctx; // Suppress unused warning
     match lit {
         Literal::Int(n) => {
-            let lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
-            parse_quote! { #lit }
+            let val = *n;
+            if val > i64::from(i32::MAX) && val <= i64::from(u32::MAX) {
+                // DEPYLER-99MODE-S9: Value exceeds i32 but fits in u32 — bitmask pattern
+                // Generate wrapping negative equivalent for i32 compatibility
+                // e.g., 0xFFFFFFFF (4294967295) → -1 (same bit pattern as i32)
+                let wrapped = val as i32;
+                if wrapped == i32::MIN {
+                    parse_quote! { i32::MIN }
+                } else {
+                    let abs_val = wrapped.unsigned_abs();
+                    let lit_tok =
+                        syn::LitInt::new(&abs_val.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { -#lit_tok }
+                }
+            } else if val > i64::from(u32::MAX) || val < i64::from(i32::MIN) {
+                // Very large value — must use i64 suffix
+                let lit =
+                    syn::LitInt::new(&format!("{}i64", val), proc_macro2::Span::call_site());
+                parse_quote! { #lit }
+            } else {
+                let lit = syn::LitInt::new(&val.to_string(), proc_macro2::Span::call_site());
+                parse_quote! { #lit }
+            }
         }
         Literal::Float(f) => {
             // Ensure float literals always have a decimal point

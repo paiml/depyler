@@ -6108,10 +6108,15 @@ pub(crate) fn codegen_assign_index(
         let is_string_literal =
             matches!(&value_expr, syn::Expr::Lit(lit) if matches!(&lit.lit, syn::Lit::Str(_)));
 
-        // DEPYLER-1027: Always convert string literals to String when inserting into dicts
-        // This handles the common case of HashMap<String, String> which is the default for
-        // empty dict literals like `d = {}` in NASA single-shot compile mode
-        if is_string_literal {
+        // DEPYLER-99MODE-S9: Check if value_expr is an interned string constant (STR_*)
+        // These are &'static str and need .to_string() for HashMap<String, String>
+        let is_interned_const = matches!(&value_expr, syn::Expr::Path(p) if {
+            p.path.segments.len() == 1
+                && p.path.segments[0].ident.to_string().starts_with("STR_")
+        });
+
+        // DEPYLER-1027: Convert string literals/interned constants to String for dicts
+        if is_string_literal || is_interned_const {
             parse_quote! { #value_expr.to_string() }
         } else {
             value_expr

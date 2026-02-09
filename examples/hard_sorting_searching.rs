@@ -2577,8 +2577,8 @@ let _cse_temp_3 = r4 == vec! [- 5, 0, 42, 100];
 Ok(ok)
 }
 #[doc = "Merge two sorted sub-arrays within arr, return new array."] pub fn merge_two(arr: & Vec<i32>, left: i32, mid: i32, right: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut i: i32 = Default::default();
     let mut merged: Vec<i32>= vec! [];
     for val in arr.iter().cloned() {
     merged.push(val);
@@ -3356,9 +3356,9 @@ let _cse_temp_4 = exponential_search(& vec! [], 1) ? == - 1;
 Ok(ok)
 }
 #[doc = "Find index of maximum in a unimodal array using ternary search."] pub fn ternary_search_max(arr: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
+    let mut best: i32 = Default::default();
     let mut lo: i32 = Default::default();
     let mut hi: i32 = Default::default();
-    let mut best: i32 = Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = n == 0;
@@ -3525,7 +3525,7 @@ let _cse_temp_3 = quickselect(& vec! [1], 0) ? == 1;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
     let mut result: Vec<i32>= vec! [];
@@ -4078,8 +4078,8 @@ let r3: Vec<i32>= heapify(& vec! [1, 2, 3, 4, 5]) ?;
 Ok(ok)
 }
 #[doc = "Heap sort using in-place heapify then extract."] pub fn heap_sort(arr: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut largest: i32 = Default::default();
     let mut largest2: i32 = Default::default();
+    let mut largest: i32 = Default::default();
     let mut result: Vec<i32>= vec! [];
     for val in arr.iter().cloned() {
     result.push(val);
@@ -4265,8 +4265,8 @@ let _cse_temp_0 = result.len() as i32;
 Ok(result)
 }
 #[doc = " Depyler: proven to terminate"] pub fn test_topological_sort() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut ok: i32 = Default::default();
     let mut valid: bool = Default::default();
+    let mut ok: i32 = Default::default();
     ok = 0;
     let r1: Vec<i32>= topological_sort(6, & vec! [vec! [5, 2], vec! [5, 0], vec! [4, 0], vec! [4, 1], vec! [2, 3], vec! [3, 1]]) ?;
     let _cse_temp_0 = r1.len() as i32;
@@ -4323,10 +4323,10 @@ let r3: Vec<i32>= topological_sort(1, & vec! []) ?;
 }
 Ok(ok)
 }
-#[doc = "Merge and count inversions across halves."] pub fn merge_count<'b, 'a>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut inv_count: i32 = Default::default();
+#[doc = "Merge and count inversions across halves."] pub fn merge_count<'a, 'b>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
     let mut k: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut inv_count: i32 = Default::default();
     let mut j: i32 = Default::default();
     i = left;
     j  = ((mid).py_add(1i32)) as i32;
@@ -4544,7 +4544,7 @@ let empty_rt: Vec<i32>= run_length_decode(& run_length_encode(& vec! []) ?) ?;
 }
 Ok(ok)
 }
-#[doc = "Find all starting indices where pattern appears in text."] pub fn naive_pattern_match<'a, 'b>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Find all starting indices where pattern appears in text."] pub fn naive_pattern_match<'b, 'a>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut result: Vec<i32>= vec! [];
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
@@ -5755,7 +5755,7 @@ let r3: Vec<i32>= two_sum_sorted(& vec! [1, 2], 10) ?;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted arrays simulating in-place merge with gap method."] pub fn merge_in_place_sim<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted arrays simulating in-place merge with gap method."] pub fn merge_in_place_sim<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut combined: Vec<i32>= vec! [];
     for val in a.iter().cloned() {
     combined.push(val);

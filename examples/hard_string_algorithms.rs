@@ -3258,7 +3258,7 @@ pub fn kmp_failure_function(pattern: &str) -> Result<Vec<i32>, Box<dyn std::erro
     Ok(fail)
 }
 #[doc = "Find all occurrences of pattern in text using KMP algorithm."]
-pub fn kmp_search<'b, 'a>(
+pub fn kmp_search<'a, 'b>(
     text: &'a str,
     pattern: &'b str,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -3343,10 +3343,10 @@ pub fn rabin_karp_search<'b, 'a>(
     text: &'a str,
     pattern: &'b str,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut p_hash: i32 = Default::default();
     let mut h: i32 = Default::default();
-    let mut i: i32 = Default::default();
     let mut t_hash: i32 = Default::default();
+    let mut p_hash: i32 = Default::default();
+    let mut i: i32 = Default::default();
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = pattern.len() as i32;
@@ -3611,7 +3611,7 @@ pub fn longest_palindromic_substring(s: &str) -> Result<String, Box<dyn std::err
     Ok(best.to_string())
 }
 #[doc = "Check if s2 is a rotation of s1."]
-pub fn is_rotation<'b, 'a>(s1: &'a str, s2: &'b str) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn is_rotation<'a, 'b>(s1: &'a str, s2: &'b str) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = s1.len() as i32;
     let _cse_temp_1 = s2.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3704,7 +3704,7 @@ pub fn char_frequency(s: &str) -> Result<HashMap<String, i32>, Box<dyn std::erro
     Ok(freq)
 }
 #[doc = "Check if two strings are anagrams of each other."]
-pub fn are_anagrams<'a, 'b>(s1: &'a str, s2: &'b str) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn are_anagrams<'b, 'a>(s1: &'a str, s2: &'b str) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = s1.len() as i32;
     let _cse_temp_1 = s2.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3761,8 +3761,8 @@ pub fn group_anagrams(words: &Vec<String>) -> Result<Vec<Vec<String>>, Box<dyn s
 }
 #[doc = "Sort characters of a string alphabetically(selection sort)."]
 pub fn sort_string(s: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let mut i: i32 = Default::default();
     let mut result: String = Default::default();
+    let mut i: i32 = Default::default();
     let mut chars: Vec<String> = vec![];
     i = 0;
     while i < s.len() as i32 {
@@ -3829,8 +3829,8 @@ pub fn sort_string(s: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 #[doc = "Run-length encode a string: 'aaabbc' -> 'a3b2c1'."]
 pub fn run_length_encode(s: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let mut count: i32 = Default::default();
     let mut result: String = Default::default();
+    let mut count: i32 = Default::default();
     let _cse_temp_0 = s.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4332,7 +4332,7 @@ pub fn z_function(s: &str) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     Ok(z)
 }
 #[doc = "Find all occurrences of pattern in text using Z-algorithm."]
-pub fn z_search<'b, 'a>(
+pub fn z_search<'a, 'b>(
     text: &'a str,
     pattern: &'b str,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -4598,8 +4598,8 @@ pub fn manacher_odd(s: &str) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 #[doc = "Find the longest palindromic substring using Manacher's algorithm."]
 pub fn longest_palindrome_manacher(s: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut max_len: i32 = Default::default();
-    let mut t: String = Default::default();
     let mut i: i32 = Default::default();
+    let mut t: String = Default::default();
     let mut best_center: i32 = Default::default();
     let _cse_temp_0 = s.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -5329,7 +5329,7 @@ pub fn caesar_cipher_decode(text: &str, shift: i32) -> Result<String, Box<dyn st
     caesar_cipher_encode(text, (26i32) - ((shift).py_mod(26i32)))
 }
 #[doc = "Compute the Hamming distance between two equal-length strings."]
-pub fn hamming_distance<'b, 'a>(
+pub fn hamming_distance<'a, 'b>(
     s1: &'a str,
     s2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -5629,7 +5629,7 @@ pub fn repeated_string_match<'a, 'b>(
     Ok(-1)
 }
 #[doc = "Interleave two strings character by character."]
-pub fn interleave_strings<'b, 'a>(
+pub fn interleave_strings<'a, 'b>(
     s1: &'a str,
     s2: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -5860,7 +5860,7 @@ pub fn test_all() -> Result<bool, Box<dyn std::error::Error>> {
     ok = _cse_temp_17;
     let _cse_temp_18 = (ok) && (is_rotation(&"abcde", &"cdeab")?);
     ok = _cse_temp_18;
-    let _cse_temp_19 = (ok) && (!is_rotation(&"abcde", &"abced"));
+    let _cse_temp_19 = (ok) && (!is_rotation(&"abcde", &"abced")?);
     ok = _cse_temp_19;
     let _cse_temp_20 = (ok) && (are_anagrams(&"listen", &"silent")?);
     ok = _cse_temp_20;

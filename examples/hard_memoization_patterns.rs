@@ -3484,7 +3484,7 @@ pub fn edit_distance_dp<'b, 'a>(
 }
 #[doc = "0/1 knapsack via bottom-up 2D DP table.\n\n    Tests list[list[int]] with(n+1)x(capacity+1) dimensions,\n    conditional cell updates referencing previous row, and nested\n    max comparisons across the DP table.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn knapsack_01<'b, 'a>(
+pub fn knapsack_01<'a, 'b>(
     weights: &'a Vec<i32>,
     values: &'b Vec<i32>,
     capacity: i32,
@@ -3881,8 +3881,8 @@ pub fn max_sum_subarray_of_size_k(
     nums: &Vec<i32>,
     k: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut window_sum: i32 = Default::default();
     let mut max_sum: i32 = Default::default();
+    let mut window_sum: i32 = Default::default();
     let _cse_temp_0 = nums.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = k > n;
@@ -4042,7 +4042,7 @@ pub fn rob_houses_dp(houses: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error
 }
 #[doc = "Longest common subsequence length via 2D DP.\n\n    Tests list[list[int]] DP table with string character comparison\n    at computed indices, max-of-two cell references, and diagonal\n    cell propagation.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn lcs_length<'a, 'b>(s1: &'a str, s2: &'b str) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn lcs_length<'b, 'a>(s1: &'a str, s2: &'b str) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = s2.len() as i32;

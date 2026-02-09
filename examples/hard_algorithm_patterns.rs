@@ -3342,8 +3342,8 @@ pub fn merge<'a, 'b>(
     left: &'a Vec<i32>,
     right: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;

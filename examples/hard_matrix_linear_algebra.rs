@@ -3402,7 +3402,7 @@ pub fn mat_scale(
 }
 #[doc = "Hadamard(element-wise) product of two matrices."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_hadamard<'b, 'a>(
+pub fn mat_hadamard<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3835,7 +3835,7 @@ pub fn vec_dot<'a, 'b>(
 #[doc = "Cross product of two 3D integer vectors."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn vec_cross<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn vec_cross<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     result.push(
         ((a.get(1usize)
@@ -4610,7 +4610,7 @@ pub fn mat_flatten(a: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std::error::Er
 }
 #[doc = "Check if two matrices are equal. Returns 1 or 0."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_equal<'b, 'a>(
+pub fn mat_equal<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

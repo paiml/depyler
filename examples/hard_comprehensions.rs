@@ -3250,7 +3250,7 @@ pub fn test_filtered_even_positive() -> i32 {
 }
 #[doc = "Build dict from two parallel lists using dict comprehension with zip."]
 #[doc = " Depyler: proven to terminate"]
-pub fn dict_from_parallel_lists<'a, 'b>(
+pub fn dict_from_parallel_lists<'b, 'a>(
     keys: &'a Vec<String>,
     values: &'b Vec<i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -3467,8 +3467,8 @@ pub fn transpose_matrix(matrix: &Vec<Vec<i32>>, rows: i32, cols: i32) -> Vec<Vec
 }
 #[doc = "Test flatten and transpose matrix operations."]
 pub fn test_matrix_operations() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut t_sum: i32 = Default::default();
     let mut total: i32 = Default::default();
+    let mut t_sum: i32 = Default::default();
     let matrix: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6]];
     let flat: Vec<i32> = flatten_matrix(&matrix);
     let transposed: Vec<Vec<i32>> = transpose_matrix(&matrix, 2, 3);
@@ -3801,7 +3801,7 @@ pub fn test_group_by_remainder() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Element-wise operation on two lists using zip-like pattern."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_with_operation<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_with_operation<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     let length: i32 = if (a.len() as i32) < b.len() as i32 {
         a.len() as i32

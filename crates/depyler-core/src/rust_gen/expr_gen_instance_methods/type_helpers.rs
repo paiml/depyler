@@ -1096,6 +1096,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0543: Check if variable is a function param with str type
         // These become &str in Rust and should NOT have & added
         if self.ctx.fn_str_params.contains(var_name) {
+            // DEPYLER-99MODE-S9: If the param is MUTATED, it was promoted from
+            // &str to mut String (takes ownership). In that case it's no longer
+            // borrowed, so DO add & when used as dict key.
+            if self.ctx.mutable_vars.contains(var_name) {
+                return false; // promoted to owned String, needs borrowing
+            }
             return true; // already &str, don't add &
         }
 
