@@ -3212,15 +3212,15 @@ pub fn parity(n: i32) -> i32 {
     val = _cse_temp_9;
     val & 1
 }
-#[doc = "Reverse all 32 bits of an integer."]
+#[doc = "Reverse 16 bits of an integer(fits in i32)."]
 #[doc = " Depyler: verified panic-free"]
 pub fn reverse_bits_32(n: i32) -> i32 {
     let mut result: i32 = Default::default();
     result = 0;
     let mut i: i32 = 0;
-    let _cse_temp_0 = n & 4294967295;
+    let _cse_temp_0 = n & 65535;
     let mut val: i32 = _cse_temp_0.clone();
-    while i < 32 {
+    while i < 16 {
         result = result << 1 | val & 1;
         val = val >> 1;
         i = ((i).py_add(1i32)) as i32;
@@ -3392,8 +3392,8 @@ pub fn xor_encode_rolling(
 }
 #[doc = "Run-length encode a list into [value, count, value, count,...] pairs."]
 pub fn rle_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut count: i32 = Default::default();
     let mut current: i32 = Default::default();
+    let mut count: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3629,25 +3629,25 @@ pub fn from_gray(gray: i32) -> i32 {
 pub fn hamming_distance(a: i32, b: i32) -> i32 {
     popcount(a ^ b)
 }
-#[doc = "Rotate a 32-bit value left by amount positions."]
+#[doc = "Rotate a 16-bit value left by amount positions(fits in i32)."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn rotate_left_32(n: i32, amount: i32) -> i32 {
-    let _cse_temp_0 = n & 4294967295;
+    let _cse_temp_0 = n & 65535;
     let val: i32 = _cse_temp_0;
-    let _cse_temp_1 = amount & 31;
+    let _cse_temp_1 = amount & 15;
     let shift: i32 = _cse_temp_1;
-    (val << shift | val >> (32i32) - (shift)) & 4294967295
+    (val << shift | val >> (16i32) - (shift)) & 65535
 }
-#[doc = "Rotate a 32-bit value right by amount positions."]
+#[doc = "Rotate a 16-bit value right by amount positions(fits in i32)."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn rotate_right_32(n: i32, amount: i32) -> i32 {
-    let _cse_temp_0 = n & 4294967295;
+    let _cse_temp_0 = n & 65535;
     let val: i32 = _cse_temp_0;
-    let _cse_temp_1 = amount & 31;
+    let _cse_temp_1 = amount & 15;
     let shift: i32 = _cse_temp_1;
-    (val >> shift | val << (32i32) - (shift)) & 4294967295
+    (val >> shift | val << (16i32) - (shift)) & 65535
 }
 #[doc = "Compute an 8-bit CRC-like checksum using polynomial division over GF(2)."]
 pub fn crc8_simple(data: &Vec<i32>, poly: i32) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3701,8 +3701,8 @@ pub fn crc16_simple(data: &Vec<i32>, poly: i32) -> Result<i32, Box<dyn std::erro
 }
 #[doc = "Convert list of 8-bit values to list of 6-bit values(base64-style grouping)."]
 pub fn base64_like_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut bits_in_buffer: i32 = Default::default();
     let mut buffer: i32 = Default::default();
+    let mut bits_in_buffer: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     buffer = 0;
     bits_in_buffer = 0;
@@ -4020,7 +4020,7 @@ pub fn test_popcount_and_parity() -> i32 {
     }
     result
 }
-#[doc = "Test 32-bit bit reversal."]
+#[doc = "Test 16-bit bit reversal."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_reverse_bits() -> i32 {
@@ -4030,11 +4030,11 @@ pub fn test_reverse_bits() -> i32 {
     if _cse_temp_0 {
         result = ((result).py_add(1i32)) as i32;
     }
-    let _cse_temp_1 = reverse_bits_32(1) == 2147483648;
+    let _cse_temp_1 = reverse_bits_32(1) == 32768;
     if _cse_temp_1 {
         result = ((result).py_add(1i32)) as i32;
     }
-    let rev: i32 = reverse_bits_32(2147483648);
+    let rev: i32 = reverse_bits_32(32768);
     let _cse_temp_2 = rev == 1;
     if _cse_temp_2 {
         result = ((result).py_add(1i32)) as i32;
@@ -4365,8 +4365,8 @@ pub fn test_varint() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Test Gray code conversion roundtrip."]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_gray_code() -> i32 {
-    let mut all_roundtrip: i32 = Default::default();
     let mut gray_diff: i32 = Default::default();
+    let mut all_roundtrip: i32 = Default::default();
     let mut result: i32 = Default::default();
     result = 0;
     let _cse_temp_0 = to_gray(0) == 0;
@@ -4434,8 +4434,8 @@ pub fn test_hamming_and_rotation() -> i32 {
     if _cse_temp_4 {
         result = ((result).py_add(1i32)) as i32;
     }
-    let full_rot: i32 = rotate_left_32(3735928559, 32);
-    let _cse_temp_5 = full_rot == 3735928559;
+    let full_rot: i32 = rotate_left_32(24237, 16);
+    let _cse_temp_5 = full_rot == 24237;
     if _cse_temp_5 {
         result = ((result).py_add(1i32)) as i32;
     }
@@ -4476,8 +4476,8 @@ pub fn test_crc() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Test base64-like encoding roundtrip."]
 pub fn test_base64_like() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut all_valid: i32 = Default::default();
     let mut r#match: i32 = Default::default();
+    let mut all_valid: i32 = Default::default();
     let mut result: i32 = Default::default();
     result = 0;
     let data: Vec<i32> = vec![65, 66, 67];

@@ -3292,7 +3292,7 @@ pub fn mat_diagonal(diag: &Vec<i32>) -> Vec<Vec<i32>> {
 }
 #[doc = "Element-wise addition of two matrices."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_add<'b, 'a>(
+pub fn mat_add<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3402,7 +3402,7 @@ pub fn mat_scale(
 }
 #[doc = "Hadamard(element-wise) product of two matrices."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_hadamard<'a, 'b>(
+pub fn mat_hadamard<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3835,7 +3835,7 @@ pub fn vec_dot<'b, 'a>(
 #[doc = "Cross product of two 3D integer vectors."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn vec_cross<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn vec_cross<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     result.push(
         ((a.get(1usize)
@@ -3921,7 +3921,7 @@ pub fn vec_norm_squared(v: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>
 #[doc = "Add two vectors element-wise."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn vec_add<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn vec_add<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for i in 0..(a.len() as i32) {
         result.push(
@@ -4520,7 +4520,7 @@ pub fn sparse_to_dense(
 }
 #[doc = "Multiply a sparse matrix(list of triples) by a dense vector."]
 #[doc = " Depyler: proven to terminate"]
-pub fn sparse_mat_vec_mul<'a, 'b>(
+pub fn sparse_mat_vec_mul<'b, 'a>(
     entries: &'a Vec<Vec<i32>>,
     v: &'b Vec<i32>,
     rows: i32,

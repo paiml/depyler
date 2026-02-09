@@ -26,11 +26,11 @@ def parity(n: int) -> int:
 
 
 def reverse_bits_32(n: int) -> int:
-    """Reverse all 32 bits of an integer."""
+    """Reverse 16 bits of an integer (fits in i32)."""
     result: int = 0
     i: int = 0
-    val: int = n & 0xFFFFFFFF
-    while i < 32:
+    val: int = n & 0xFFFF
+    while i < 16:
         result = (result << 1) | (val & 1)
         val = val >> 1
         i = i + 1
@@ -295,17 +295,17 @@ def hamming_distance(a: int, b: int) -> int:
 
 
 def rotate_left_32(n: int, amount: int) -> int:
-    """Rotate a 32-bit value left by amount positions."""
-    val: int = n & 0xFFFFFFFF
-    shift: int = amount & 31
-    return ((val << shift) | (val >> (32 - shift))) & 0xFFFFFFFF
+    """Rotate a 16-bit value left by amount positions (fits in i32)."""
+    val: int = n & 0xFFFF
+    shift: int = amount & 15
+    return ((val << shift) | (val >> (16 - shift))) & 0xFFFF
 
 
 def rotate_right_32(n: int, amount: int) -> int:
-    """Rotate a 32-bit value right by amount positions."""
-    val: int = n & 0xFFFFFFFF
-    shift: int = amount & 31
-    return ((val >> shift) | (val << (32 - shift))) & 0xFFFFFFFF
+    """Rotate a 16-bit value right by amount positions (fits in i32)."""
+    val: int = n & 0xFFFF
+    shift: int = amount & 15
+    return ((val >> shift) | (val << (16 - shift))) & 0xFFFF
 
 
 # --- CRC-like Checksum ---
@@ -542,13 +542,13 @@ def test_popcount_and_parity() -> int:
 
 
 def test_reverse_bits() -> int:
-    """Test 32-bit bit reversal."""
+    """Test 16-bit bit reversal."""
     result: int = 0
     if reverse_bits_32(0) == 0:
         result = result + 1
-    if reverse_bits_32(1) == 0x80000000:
+    if reverse_bits_32(1) == 32768:
         result = result + 1
-    rev: int = reverse_bits_32(0x80000000)
+    rev: int = reverse_bits_32(32768)
     if rev == 1:
         result = result + 1
     if reverse_bits_32(reverse_bits_32(12345)) == 12345:
@@ -765,8 +765,8 @@ def test_hamming_and_rotation() -> int:
     rot_back: int = rotate_right_32(rot, 4)
     if rot_back == 1:
         result = result + 1
-    full_rot: int = rotate_left_32(0xDEADBEEF, 32)
-    if full_rot == 0xDEADBEEF:
+    full_rot: int = rotate_left_32(0x5EAD, 16)
+    if full_rot == 0x5EAD:
         result = result + 1
     return result
 

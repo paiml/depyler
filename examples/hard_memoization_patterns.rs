@@ -3179,7 +3179,7 @@ impl DepylerRegexMatch {
     }
 }
 #[doc = "Minimum coins needed for amount using memoized recursion.\n\n    Passes memo dict mutably to recursive calls. Tests &mut HashMap<i64,i64>\n    parameter threading through recursion with dict mutation in callee.\n    "]
-pub fn coin_change_memo<'a, 'b>(
+pub fn coin_change_memo<'b, 'a>(
     amount: i32,
     coins: &'a Vec<i32>,
     memo: &'b mut std::collections::HashMap<i32, i32>,
@@ -3333,7 +3333,7 @@ pub fn longest_increasing_subseq(nums: &Vec<i32>) -> Result<i32, Box<dyn std::er
 }
 #[doc = "Levenshtein edit distance using 2D DP table.\n\n    Tests list[list[int]] creation, nested indexing dp[i][j],\n    row initialization via inner loop, and min-of-three computation\n    across adjacent cells in the matrix.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn edit_distance_dp<'a, 'b>(
+pub fn edit_distance_dp<'b, 'a>(
     word1: &'a str,
     word2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4042,7 +4042,7 @@ pub fn rob_houses_dp(houses: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error
 }
 #[doc = "Longest common subsequence length via 2D DP.\n\n    Tests list[list[int]] DP table with string character comparison\n    at computed indices, max-of-two cell references, and diagonal\n    cell propagation.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn lcs_length<'a, 'b>(s1: &'a str, s2: &'b str) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn lcs_length<'b, 'a>(s1: &'a str, s2: &'b str) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = s2.len() as i32;

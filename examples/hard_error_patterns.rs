@@ -4642,8 +4642,8 @@ pub fn cascading_validation(a: i32, b: i32, c: i32, d: i32) -> i32 {
 #[doc = "Process list with error recovery at each step.\n    Negative = error, skip and try next. Returns sum of valid * count_valid."]
 #[doc = " Depyler: verified panic-free"]
 pub fn error_recovery_chain(values: &Vec<i32>) -> i32 {
-    let mut valid_sum: i32 = Default::default();
     let mut valid_count: i32 = Default::default();
+    let mut valid_sum: i32 = Default::default();
     valid_count = 0;
     valid_sum = 0;
     let mut consecutive_errors: i32 = 0;

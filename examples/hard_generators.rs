@@ -3573,7 +3573,7 @@ pub fn scan_with_op(nums: &Vec<i32>, initial: i32, add: bool) -> Vec<i32> {
 }
 #[doc = "Chain three lists together(like itertools.chain)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn chain_lists<'a, 'c, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> Vec<i32> {
+pub fn chain_lists<'a, 'b, 'c>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for x in a.iter().cloned() {
         result.push(x);
@@ -3705,7 +3705,7 @@ pub fn zip_sum<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
 #[doc = "Zip two lists and multiply corresponding pairs."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_product<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_product<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut min_len: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     let _cse_temp_0 = a.len() as i32;
@@ -3828,8 +3828,8 @@ pub fn chunk_list(items: &Vec<i32>, size: i32) -> Vec<Vec<i32>> {
 #[doc = "Split into chunks and sum each chunk."]
 #[doc = " Depyler: verified panic-free"]
 pub fn chunk_sum(items: &Vec<i32>, size: i32) -> Vec<i32> {
-    let mut total: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut total: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     total = 0;
     count = 0;
@@ -4292,7 +4292,7 @@ pub fn state_machine_run_lengths(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn st
 }
 #[doc = "Simulate bracket depth tracking. opens=[positions of '('], closes=[positions of ')'].\n    Returns depth at each position from 0 to max_pos."]
 #[doc = " Depyler: verified panic-free"]
-pub fn state_machine_bracket_depth<'a, 'b>(opens: &'a Vec<i32>, closes: &'b Vec<i32>) -> Vec<i32> {
+pub fn state_machine_bracket_depth<'b, 'a>(opens: &'a Vec<i32>, closes: &'b Vec<i32>) -> Vec<i32> {
     let mut max_pos: i32 = Default::default();
     max_pos = 0;
     for p in opens.iter().cloned() {
@@ -4324,7 +4324,7 @@ pub fn state_machine_bracket_depth<'a, 'b>(opens: &'a Vec<i32>, closes: &'b Vec<
 }
 #[doc = "Cartesian product flattened: [a0*b0, a0*b1,..., a1*b0,...]."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_flat<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn cartesian_product_flat<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for x in a.iter().cloned() {
         for y in b.iter().cloned() {
@@ -4335,7 +4335,7 @@ pub fn cartesian_product_flat<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i
 }
 #[doc = "Cartesian product as pairs: [[a0,b0], [a0,b1],...]."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_pairs<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<Vec<i32>> {
+pub fn cartesian_product_pairs<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<Vec<i32>> {
     let mut result: Vec<Vec<i32>> = vec![];
     for x in a.iter().cloned() {
         for y in b.iter().cloned() {
@@ -4346,7 +4346,7 @@ pub fn cartesian_product_pairs<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<
 }
 #[doc = "Triple cartesian product, returning sums of triples."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_triple_sum<'c, 'a, 'b>(
+pub fn cartesian_triple_sum<'a, 'c, 'b>(
     a: &'a Vec<i32>,
     b: &'b Vec<i32>,
     c: &'c Vec<i32>,

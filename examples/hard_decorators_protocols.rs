@@ -3349,7 +3349,7 @@ pub fn fib_with_cache(
 }
 #[doc = "Count how many keys are already present in the cache."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cache_hit_count<'a, 'b>(
+pub fn cache_hit_count<'b, 'a>(
     keys: &'a Vec<i32>,
     cache: &'b std::collections::HashMap<i32, i32>,
 ) -> i32 {
@@ -3755,9 +3755,9 @@ pub fn make_context_state() -> HashMap<String, i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn context_managed_operation(work_units: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut state: std::collections::HashMap<String, i32> = make_context_state();
-    state = context_enter(&state)?;
-    state = context_do_work(&state, work_units)?;
-    state = context_exit(&state)?;
+    state = context_enter(state.clone())?;
+    state = context_do_work(state.clone(), work_units)?;
+    state = context_exit(state.clone())?;
     Ok(state.get("work_done").cloned().unwrap_or_default())
 }
 #[doc = "Get existing value or create with default(singleton-like)."]
@@ -3872,7 +3872,7 @@ pub fn strategy_dispatch(op: &str, a: i32, b: i32) -> i32 {
     -1
 }
 #[doc = "Execute a sequence of operations, accumulating results left to right."]
-pub fn strategy_execute_sequence<'a, 'b>(
+pub fn strategy_execute_sequence<'b, 'a>(
     ops: &'a Vec<String>,
     values: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4098,7 +4098,7 @@ pub fn test_validation() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_property_pattern() -> Result<i32, Box<dyn std::error::Error>> {
     let mut p: std::collections::HashMap<String, i32> = make_point(3, 4);
-    p = set_x(&p, 5);
+    p = set_x(p.clone(), 5);
     let x: i32 = get_x(&p)?;
     let dist_sq: i32 = point_distance_squared(&p)?;
     let _cse_temp_0 = x == 5;
@@ -4131,9 +4131,9 @@ pub fn test_static_methods() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_factory_counter() -> Result<i32, Box<dyn std::error::Error>> {
     let mut ctr: std::collections::HashMap<String, i32> = make_counter(0);
-    ctr = counter_increment(&ctr)?;
-    ctr = counter_increment(&ctr)?;
-    ctr = counter_increment(&ctr)?;
+    ctr = counter_increment(ctr.clone())?;
+    ctr = counter_increment(ctr.clone())?;
+    ctr = counter_increment(ctr.clone())?;
     let val: i32 = counter_get(&ctr)?;
     let _cse_temp_0 = val == 3;
     if _cse_temp_0 {
@@ -4163,9 +4163,9 @@ pub fn test_abstract_dispatch() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_chained_builder() -> Result<i32, Box<dyn std::error::Error>> {
     let mut b: std::collections::HashMap<String, i32> = builder_new();
-    b = builder_set_width(&b, 3);
-    b = builder_set_height(&b, 4);
-    b = builder_set_depth(&b, 5);
+    b = builder_set_width(b.clone(), 3);
+    b = builder_set_height(b.clone(), 4);
+    b = builder_set_depth(b.clone(), 5);
     let vol: i32 = builder_volume(&b)?;
     let _cse_temp_0 = vol == 60;
     if _cse_temp_0 {
@@ -4245,10 +4245,10 @@ pub fn test_strategy_dispatch() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_config_builder() -> Result<i32, Box<dyn std::error::Error>> {
     let mut cfg: std::collections::HashMap<String, i32> = config_new();
-    cfg = config_set_timeout(&cfg, 30);
-    cfg = config_set_retries(&cfg, 3);
-    cfg = config_set_port(&cfg, 8080);
-    cfg = config_validate(&cfg)?;
+    cfg = config_set_timeout(cfg.clone(), 30);
+    cfg = config_set_retries(cfg.clone(), 3);
+    cfg = config_set_port(cfg.clone(), 8080);
+    cfg = config_validate(cfg.clone())?;
     let valid: i32 = config_is_valid(&cfg)?;
     let _cse_temp_0 = valid == 1;
     if _cse_temp_0 {
@@ -4261,9 +4261,9 @@ pub fn test_config_builder() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_config_invalid() -> Result<i32, Box<dyn std::error::Error>> {
     let mut cfg: std::collections::HashMap<String, i32> = config_new();
-    cfg = config_set_timeout(&cfg, 30);
-    cfg = config_set_retries(&cfg, 3);
-    cfg = config_validate(&cfg)?;
+    cfg = config_set_timeout(cfg.clone(), 30);
+    cfg = config_set_retries(cfg.clone(), 3);
+    cfg = config_validate(cfg.clone())?;
     let valid: i32 = config_is_valid(&cfg)?;
     let _cse_temp_0 = valid == 0;
     if _cse_temp_0 {
@@ -4333,9 +4333,9 @@ pub fn test_strategy_sequence() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_counter_custom_step() -> Result<i32, Box<dyn std::error::Error>> {
     let mut ctr: std::collections::HashMap<String, i32> = make_counter_with_step(10, 5);
-    ctr = counter_increment(&ctr)?;
-    ctr = counter_increment(&ctr)?;
-    ctr = counter_increment(&ctr)?;
+    ctr = counter_increment(ctr.clone())?;
+    ctr = counter_increment(ctr.clone())?;
+    ctr = counter_increment(ctr.clone())?;
     let val: i32 = counter_get(&ctr)?;
     let _cse_temp_0 = val == 25;
     if _cse_temp_0 {

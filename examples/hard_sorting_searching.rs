@@ -2577,8 +2577,8 @@ let _cse_temp_3 = r4 == vec! [- 5, 0, 42, 100];
 Ok(ok)
 }
 #[doc = "Merge two sorted sub-arrays within arr, return new array."] pub fn merge_two(arr: & Vec<i32>, left: i32, mid: i32, right: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut j: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     let mut merged: Vec<i32>= vec! [];
     for val in arr.iter().cloned() {
     merged.push(val);
@@ -3525,7 +3525,7 @@ let _cse_temp_3 = quickselect(& vec! [1], 0) ? == 1;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
     let mut result: Vec<i32>= vec! [];
@@ -4265,8 +4265,8 @@ let _cse_temp_0 = result.len() as i32;
 Ok(result)
 }
 #[doc = " Depyler: proven to terminate"] pub fn test_topological_sort() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut ok: i32 = Default::default();
     let mut valid: bool = Default::default();
+    let mut ok: i32 = Default::default();
     ok = 0;
     let r1: Vec<i32>= topological_sort(6, & vec! [vec! [5, 2], vec! [5, 0], vec! [4, 0], vec! [4, 1], vec! [2, 3], vec! [3, 1]]) ?;
     let _cse_temp_0 = r1.len() as i32;
@@ -4323,11 +4323,11 @@ let r3: Vec<i32>= topological_sort(1, & vec! []) ?;
 }
 Ok(ok)
 }
-#[doc = "Merge and count inversions across halves."] pub fn merge_count<'b, 'a>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut inv_count: i32 = Default::default();
-    let mut k: i32 = Default::default();
+#[doc = "Merge and count inversions across halves."] pub fn merge_count<'a, 'b>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
     let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut inv_count: i32 = Default::default();
+    let mut k: i32 = Default::default();
     i = left;
     j  = ((mid).py_add(1i32)) as i32;
     k = left;
@@ -4369,8 +4369,8 @@ Ok(inv_count)
 }
 #[doc = "Count inversions using iterative merge sort approach."] #[doc = " Depyler: verified panic-free"] pub fn count_inversions(arr: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
     let mut total: i32 = Default::default();
-    let mut mid: i32 = Default::default();
     let mut right: i32 = Default::default();
+    let mut mid: i32 = Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = n <= 1;
@@ -4437,8 +4437,8 @@ if _cse_temp_1 {
 Ok(ok)
 }
 #[doc = "Encode runs as [[value, count],...]."] pub fn run_length_encode(arr: & Vec<i32>) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>>{
-    let mut count: i32 = Default::default();
     let mut current: i32 = Default::default();
+    let mut count: i32 = Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4688,7 +4688,7 @@ let r4: Vec<i32>= kmp_failure(& vec! [5]) ?;
 }
 Ok(ok)
 }
-#[doc = "KMP pattern matching, returns list of match start indices."] pub fn kmp_search<'a, 'b>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "KMP pattern matching, returns list of match start indices."] pub fn kmp_search<'b, 'a>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut j: i32 = Default::default();
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
