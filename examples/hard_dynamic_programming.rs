@@ -3774,7 +3774,7 @@ pub fn min_path_sum(grid: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Err
     })
 }
 #[doc = "Levenshtein edit distance between two strings. Classic 2D DP."]
-pub fn edit_distance<'a, 'b>(
+pub fn edit_distance<'b, 'a>(
     word1: &'a str,
     word2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3931,7 +3931,7 @@ pub fn edit_distance<'a, 'b>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "Length of the longest common subsequence of two strings."]
-pub fn longest_common_subsequence<'b, 'a>(
+pub fn longest_common_subsequence<'a, 'b>(
     text1: &'a str,
     text2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4155,7 +4155,7 @@ pub fn knapsack_01<'a, 'b>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "0/1 knapsack with O(capacity) space using rolling 1D array."]
-pub fn knapsack_01_space_optimized<'a, 'b>(
+pub fn knapsack_01_space_optimized<'b, 'a>(
     weights: &'a Vec<i32>,
     values: &'b Vec<i32>,
     capacity: i32,
@@ -5024,7 +5024,7 @@ pub fn max_profit_stock_cooldown(prices: &Vec<i32>) -> Result<i32, Box<dyn std::
     Ok(last_rest)
 }
 #[doc = "Count ways to segment string s using dictionary words. 1D DP with inner scan."]
-pub fn word_break_count<'a, 'b>(
+pub fn word_break_count<'b, 'a>(
     s: &'a str,
     words: &'b Vec<String>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -5099,8 +5099,8 @@ pub fn word_break_count<'a, 'b>(
 }
 #[doc = "Max sum from grid picking at most one per row, no two from adjacent columns."]
 pub fn max_sum_non_adjacent_2d(grid: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut prev: Vec<i32> = Default::default();
     let mut result: i32 = Default::default();
+    let mut prev: Vec<i32> = Default::default();
     let mut diff: i32 = Default::default();
     let _cse_temp_0 = grid.len() as i32;
     let m: i32 = _cse_temp_0;

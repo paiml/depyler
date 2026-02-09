@@ -3466,7 +3466,7 @@ pub fn test_index_above_threshold() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Compute |(a union b) intersect c| using set operations."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn set_algebra<'b, 'c, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> i32 {
+pub fn set_algebra<'c, 'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> i32 {
     let sa: std::collections::HashSet<i32> =
         a.iter().cloned().collect::<std::collections::HashSet<_>>();
     let sb: std::collections::HashSet<i32> =

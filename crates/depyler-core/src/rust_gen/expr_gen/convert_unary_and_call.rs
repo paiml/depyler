@@ -119,12 +119,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 };
 
+                // DEPYLER-99MODE-S9: Check if operand is a call to a user-defined
+                // function in NASA mode. User functions return Result<T>, so we
+                // need `?` to unwrap before applying `!`.
+                let is_result_returning_call = if self.ctx.type_mapper.nasa_mode {
+                    if let HirExpr::Call { func, .. } = operand {
+                        self.ctx.function_return_types.contains_key(func)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
                 if is_collection {
                     Ok(parse_quote! { #operand_expr.is_empty() })
                 } else if is_optional_var || is_option_returning_call {
                     // DEPYLER-0767: For Optional type variables and Option-returning methods,
                     // use .is_none() instead of !
                     Ok(parse_quote! { #operand_expr.is_none() })
+                } else if is_result_returning_call {
+                    let unwrapped: syn::Expr = parse_quote! { #operand_expr? };
+                    Ok(parse_quote! { !#unwrapped })
                 } else {
                     Ok(parse_quote! { !#operand_expr })
                 }

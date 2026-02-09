@@ -5,12 +5,12 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-const STR_STOP: &'static str = "stop";
-const STR_PAUSE: &'static str = "pause";
-const STR_START: &'static str = "start";
 const STR_STOPPED: &'static str = "stopped";
-const STR_RESET: &'static str = "reset";
 const STR_IDLE: &'static str = "idle";
+const STR_RESET: &'static str = "reset";
+const STR_PAUSE: &'static str = "pause";
+const STR_STOP: &'static str = "stop";
+const STR_START: &'static str = "start";
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -3471,7 +3471,7 @@ pub fn nested_loop_with_continue_break(n: i32) -> Result<Vec<i32>, Box<dyn std::
     Ok(results)
 }
 #[doc = "Search for multiple needles in haystack using flag variables.\n\n    For each needle, sets a found flag and searches linearly.\n    Collects indices of found needles. Tests flag variable patterns\n    with nested loops and conditional accumulation.\n    "]
-pub fn flag_controlled_search<'a, 'b>(
+pub fn flag_controlled_search<'b, 'a>(
     haystack: &'a Vec<i32>,
     needles: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {

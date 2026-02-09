@@ -3476,10 +3476,10 @@ pub fn test_mutual_recursion() -> i32 {
     if is_odd_mutual(7) {
         results = ((results).py_add(1i32)) as i32;
     }
-    if !is_even_mutual(3) {
+    if !is_even_mutual(3)? {
         results = ((results).py_add(1i32)) as i32;
     }
-    if !is_odd_mutual(4) {
+    if !is_odd_mutual(4)? {
         results = ((results).py_add(1i32)) as i32;
     }
     results

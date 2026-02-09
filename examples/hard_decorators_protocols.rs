@@ -3349,7 +3349,7 @@ pub fn fib_with_cache(
 }
 #[doc = "Count how many keys are already present in the cache."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cache_hit_count<'a, 'b>(
+pub fn cache_hit_count<'b, 'a>(
     keys: &'a Vec<i32>,
     cache: &'b std::collections::HashMap<i32, i32>,
 ) -> i32 {
@@ -3762,7 +3762,7 @@ pub fn context_managed_operation(work_units: i32) -> Result<i32, Box<dyn std::er
 }
 #[doc = "Get existing value or create with default(singleton-like)."]
 #[doc = " Depyler: proven to terminate"]
-pub fn singleton_get_or_create<'a, 'b>(
+pub fn singleton_get_or_create<'b, 'a>(
     registry: &'a mut std::collections::HashMap<String, i32>,
     key: &'b str,
     default_val: i32,
@@ -3777,7 +3777,7 @@ pub fn singleton_get_or_create<'a, 'b>(
 #[doc = "Check if singleton key exists. Return 1 if yes, 0 if no."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn singleton_exists<'a, 'b>(
+pub fn singleton_exists<'b, 'a>(
     registry: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> i32 {

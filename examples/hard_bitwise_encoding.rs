@@ -3392,8 +3392,8 @@ pub fn xor_encode_rolling(
 }
 #[doc = "Run-length encode a list into [value, count, value, count,...] pairs."]
 pub fn rle_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut current: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3900,7 +3900,7 @@ pub fn is_prefix_of(code_a: i32, len_a: i32, code_b: i32, len_b: i32) -> i32 {
     0
 }
 #[doc = "Check if a set of codes with given bit lengths is prefix-free. Returns 1 if valid, 0 if not."]
-pub fn validate_prefix_free<'a, 'b>(
+pub fn validate_prefix_free<'b, 'a>(
     codes: &'a Vec<i32>,
     lengths: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4476,8 +4476,8 @@ pub fn test_crc() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Test base64-like encoding roundtrip."]
 pub fn test_base64_like() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut r#match: i32 = Default::default();
     let mut all_valid: i32 = Default::default();
+    let mut r#match: i32 = Default::default();
     let mut result: i32 = Default::default();
     result = 0;
     let data: Vec<i32> = vec![65, 66, 67];
