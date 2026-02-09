@@ -153,6 +153,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Case 1: Direct variable access (e.g., position[0] where position: Tuple)
                     if let Some(var_type) = self.ctx.var_types.get(var_name) {
                         matches!(var_type, Type::Tuple(_))
+                            || matches!(var_type, Type::Optional(inner) if matches!(&**inner, Type::Tuple(_)))
                     } else {
                         // Fallback heuristic: variable names suggesting tuple iteration
                         matches!(
@@ -189,6 +190,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if should_use_tuple_syntax {
             if let HirExpr::Literal(Literal::Int(idx)) = index {
                 let field_idx = syn::Index::from(*idx as usize);
+                // DEPYLER-99MODE-S9: Unwrap Option before tuple field access
+                // Pattern: isect[0] where isect: Optional[Tuple[float, float]]
+                // → isect.unwrap().0
+                if let HirExpr::Var(var_name) = base {
+                    if let Some(Type::Optional(inner)) = self.ctx.var_types.get(var_name) {
+                        if matches!(&**inner, Type::Tuple(_)) {
+                            return Ok(parse_quote! { #base_expr.unwrap().#field_idx });
+                        }
+                    }
+                }
                 return Ok(parse_quote! { #base_expr.#field_idx });
             }
         }
