@@ -133,9 +133,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // isqrt(n) → (n as f64).sqrt().floor() as i32
             // This is needed because std::f64::isqrt doesn't exist in Rust
             // Check both exact match and ends_with for robustness
+            // DEPYLER-99MODE-S9: Skip if user defined a function with same name
             if (rust_path == "std::f64::isqrt" || rust_path.ends_with("::isqrt"))
                 && func == "isqrt"
                 && args.len() == 1
+                && !self.ctx.function_return_types.contains_key(func)
             {
                 let arg = &args[0];
                 return Ok(parse_quote! { ((#arg) as f64).sqrt().floor() as i32 });
@@ -331,7 +333,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // DEPYLER-0771: Fallback handling for isqrt if not found in imported_items
             // This handles cases where the import wasn't properly tracked
-            if func == "isqrt" && args.len() == 1 {
+            // DEPYLER-99MODE-S9: Skip if user defined a function with same name
+            if func == "isqrt" && args.len() == 1
+                && !self.ctx.function_return_types.contains_key(func)
+            {
                 let arg = &args[0];
                 return Ok(parse_quote! { ((#arg) as f64).sqrt().floor() as i32 });
             }
@@ -361,6 +366,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .zip(args.iter())
                 .enumerate()
                 .map(|(param_idx, (hir_arg, arg_expr))| {
+                    // DEPYLER-99MODE-S9: Unwrap Result-returning function calls in arguments
+                    // When a Result-returning function call is passed as an argument,
+                    // add ? to unwrap it (e.g., `foo(bar(x))` → `foo(bar(x)?)`)
+                    let mut arg_expr = arg_expr.clone();
+                    if self.ctx.current_function_can_fail {
+                        if let HirExpr::Call { func: inner_func, .. } = hir_arg {
+                            if self.ctx.result_returning_functions.contains(inner_func) {
+                                arg_expr = parse_quote! { #arg_expr? };
+                            }
+                        }
+                    }
+
                     // DEPYLER-0950: Integer literal coercion at f64 call sites
                     // When calling add(1, 2.5) where add expects (f64, f64), coerce 1 to 1.0
                     if let HirExpr::Literal(Literal::Int(n)) = hir_arg {
@@ -842,6 +859,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             if used_later && is_clonable_type {
                                 return parse_quote! { #arg_expr.clone() };
                             }
+                        }
+
+                        // DEPYLER-99MODE-S9: Fallback borrow for non-Var complex expressions
+                        // When function_param_borrows says this param should be borrowed but
+                        // the expression is complex (e.g., function call with ?), add &
+                        let callee_expects_borrow = self.ctx
+                            .function_param_borrows
+                            .get(func)
+                            .and_then(|borrows| borrows.get(param_idx))
+                            .copied()
+                            .unwrap_or(false);
+                        if callee_expects_borrow && !matches!(hir_arg, HirExpr::Var(_)) {
+                            return parse_quote! { &#arg_expr };
                         }
 
                         arg_expr.clone()

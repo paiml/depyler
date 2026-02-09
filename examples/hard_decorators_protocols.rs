@@ -3349,7 +3349,7 @@ pub fn fib_with_cache(
 }
 #[doc = "Count how many keys are already present in the cache."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cache_hit_count<'b, 'a>(
+pub fn cache_hit_count<'a, 'b>(
     keys: &'a Vec<i32>,
     cache: &'b std::collections::HashMap<i32, i32>,
 ) -> i32 {
@@ -3872,7 +3872,7 @@ pub fn strategy_dispatch(op: &str, a: i32, b: i32) -> i32 {
     -1
 }
 #[doc = "Execute a sequence of operations, accumulating results left to right."]
-pub fn strategy_execute_sequence<'b, 'a>(
+pub fn strategy_execute_sequence<'a, 'b>(
     ops: &'a Vec<String>,
     values: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3889,7 +3889,7 @@ pub fn strategy_execute_sequence<'b, 'a>(
     let mut i: i32 = 0;
     while (i < ops.len() as i32) && ((i).py_add(1i32) < values.len() as i32) {
         result = strategy_dispatch(
-            ops.get(i as usize)
+            &ops.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
             result,

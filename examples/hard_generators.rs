@@ -3678,7 +3678,7 @@ pub fn roundrobin(lists: &Vec<Vec<i32>>) -> Vec<i32> {
 #[doc = "Zip two lists and sum corresponding pairs."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_sum<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_sum<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut min_len: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     let _cse_temp_0 = a.len() as i32;
@@ -3705,7 +3705,7 @@ pub fn zip_sum<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
 #[doc = "Zip two lists and multiply corresponding pairs."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_product<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_product<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut min_len: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     let _cse_temp_0 = a.len() as i32;
@@ -4346,7 +4346,7 @@ pub fn cartesian_product_pairs<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<
 }
 #[doc = "Triple cartesian product, returning sums of triples."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_triple_sum<'a, 'c, 'b>(
+pub fn cartesian_triple_sum<'b, 'c, 'a>(
     a: &'a Vec<i32>,
     b: &'b Vec<i32>,
     c: &'c Vec<i32>,
@@ -4577,8 +4577,8 @@ pub fn pascal_row(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 #[doc = "One step of the look-and-say sequence."]
 #[doc = " Depyler: proven to terminate"]
 pub fn look_and_say_step(seq: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut current: i32 = Default::default();
     if seq.is_empty() {
         return Ok(vec![]);
     }

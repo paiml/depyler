@@ -351,8 +351,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         _ => has_unknown = true, // Unknown or complex type
                     }
                 }
-                // Non-literal, non-variable: treat as unknown
-                _ => has_unknown = true,
+                // DEPYLER-99MODE-S9: Try to infer type from complex expressions
+                _ => {
+                    match self.infer_element_type_from_expr(elem) {
+                        Some(Type::Bool) => has_bool = true,
+                        Some(Type::Int) => has_int = true,
+                        Some(Type::Float) => has_float = true,
+                        Some(Type::String) => has_string = true,
+                        _ => has_unknown = true,
+                    }
+                }
             }
         }
 
@@ -366,6 +374,59 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // 1. We have more than one distinct known type, OR
         // 2. We have at least one known type AND unknown types
         distinct_types > 1 || (distinct_types > 0 && has_unknown)
+    }
+
+    /// DEPYLER-99MODE-S9: Infer type of a complex expression for mixed-type detection
+    /// Used in list_has_mixed_types to avoid false-positive mixed type detection
+    fn infer_element_type_from_expr(&self, expr: &HirExpr) -> Option<Type> {
+        match expr {
+            // Index into a typed collection: list[i] → element type
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(name) = base.as_ref() {
+                    match self.ctx.var_types.get(name) {
+                        Some(Type::List(elem)) => Some(elem.as_ref().clone()),
+                        Some(Type::Dict(_, val)) => Some(val.as_ref().clone()),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            // Call to a function with known return type
+            HirExpr::Call { func, .. } => {
+                self.ctx.function_return_types.get(func).cloned()
+            }
+            // Binary: if both sides are int, result is int; if either float, result is float
+            HirExpr::Binary { left, right, .. } => {
+                let lt = self.infer_element_type_from_expr(left);
+                let rt = self.infer_element_type_from_expr(right);
+                match (lt, rt) {
+                    (Some(Type::Float), _) | (_, Some(Type::Float)) => Some(Type::Float),
+                    (Some(Type::Int), Some(Type::Int)) => Some(Type::Int),
+                    (Some(Type::String), _) | (_, Some(Type::String)) => Some(Type::String),
+                    _ => None,
+                }
+            }
+            // Literals (shouldn't reach here but be safe)
+            HirExpr::Literal(lit) => match lit {
+                Literal::Int(_) => Some(Type::Int),
+                Literal::Float(_) => Some(Type::Float),
+                Literal::String(_) => Some(Type::String),
+                Literal::Bool(_) => Some(Type::Bool),
+                _ => None,
+            },
+            // Variables (shouldn't reach here but be safe)
+            HirExpr::Var(name) => self.ctx.var_types.get(name).cloned(),
+            // MethodCall: check if method is known to return a specific type
+            HirExpr::MethodCall { method, .. } => {
+                match method.as_str() {
+                    "len" | "count" | "index" | "find" => Some(Type::Int),
+                    "lower" | "upper" | "strip" | "replace" | "join" => Some(Type::String),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
     }
 
     /// DEPYLER-1212: Infer unified element type from list elements

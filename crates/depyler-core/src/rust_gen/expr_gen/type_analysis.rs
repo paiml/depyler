@@ -42,6 +42,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check if other operand is float-typed
         let other_is_float = self.expr_returns_float(other_hir) || self.is_float_var(other_hir);
 
+        // DEPYLER-99MODE-S9: If the other operand is a Var with KNOWN Int type, never coerce
+        // This overrides heuristic-based float detection when explicit type info is available
+        let other_is_float = if let HirExpr::Var(name) = other_hir {
+            if matches!(self.ctx.var_types.get(name), Some(Type::Int)) {
+                false
+            } else {
+                other_is_float
+            }
+        } else {
+            other_is_float
+        };
+
         // DEPYLER-1072: Coerce integer literals to float when other operand is KNOWN to be float
         // Pattern: `x <= 0` where x is a float variable
         // NOTE: Don't coerce for untyped variables - we can't assume their type

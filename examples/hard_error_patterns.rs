@@ -4078,7 +4078,7 @@ pub fn retry_until_positive(start: i32, step: i32, max_tries: i32) -> i32 {
 pub fn countdown_to_target(start: i32, target: i32, max_steps: i32) -> i32 {
     let mut current: i32 = start.clone();
     let mut steps: i32 = 0;
-    while (steps as f64) < (max_steps as f64) {
+    while steps < max_steps {
         if current <= target {
             return steps;
         }
@@ -4089,8 +4089,8 @@ pub fn countdown_to_target(start: i32, target: i32, max_steps: i32) -> i32 {
 }
 #[doc = "Halve value toward zero. Return iterations or -1."]
 pub fn converge_to_zero(value: i32, max_iters: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
     let mut iters: i32 = Default::default();
+    let mut current: i32 = Default::default();
     current = value;
     let _cse_temp_0 = current < 0;
     if _cse_temp_0 {
@@ -4379,8 +4379,8 @@ pub fn simulate_timeout(work: i32, timeout: i32) -> i32 {
 #[doc = "Simulate work with exponential backoff. Returns rounds used."]
 #[doc = " Depyler: verified panic-free"]
 pub fn work_with_backoff(total: i32, max_rounds: i32) -> i32 {
-    let mut remaining: i32 = Default::default();
     let mut rounds: i32 = Default::default();
+    let mut remaining: i32 = Default::default();
     let mut chunk: i32 = Default::default();
     remaining = total;
     rounds = 0;
@@ -4495,10 +4495,10 @@ pub fn safe_weighted_average<'a, 'b>(
     values: &'a Vec<i32>,
     weights: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total_weight: i32 = Default::default();
     let mut weighted_sum: i32 = Default::default();
-    let mut length: i32 = Default::default();
+    let mut total_weight: i32 = Default::default();
     let mut w: i32 = Default::default();
+    let mut length: i32 = Default::default();
     let _cse_temp_0 = values.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4642,8 +4642,8 @@ pub fn cascading_validation(a: i32, b: i32, c: i32, d: i32) -> i32 {
 #[doc = "Process list with error recovery at each step.\n    Negative = error, skip and try next. Returns sum of valid * count_valid."]
 #[doc = " Depyler: verified panic-free"]
 pub fn error_recovery_chain(values: &Vec<i32>) -> i32 {
-    let mut valid_count: i32 = Default::default();
     let mut valid_sum: i32 = Default::default();
+    let mut valid_count: i32 = Default::default();
     valid_count = 0;
     valid_sum = 0;
     let mut consecutive_errors: i32 = 0;
@@ -5238,7 +5238,7 @@ pub fn run_all_tests() -> Result<i32, Box<dyn std::error::Error>> {
     if _cse_temp_140 {
         passed = ((passed).py_add(1i32)) as i32;
     }
-    let _cse_temp_141 = untyped_retry(-5, 2, 10) == 1;
+    let _cse_temp_141 = untyped_retry(&-5, 2, 10) == 1;
     if _cse_temp_141 {
         passed = ((passed).py_add(1i32)) as i32;
     }
