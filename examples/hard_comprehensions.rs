@@ -3408,7 +3408,7 @@ pub fn test_enumerate_to_dict() -> Result<i32, Box<dyn std::error::Error>> {
     let d: std::collections::HashMap<i32, String> = enumerate_to_dict(&words);
     total = 0;
     for k in d.keys().cloned() {
-        total = ((total).py_add((k).py_add(d.get(&k).cloned().unwrap_or_default().len() as i32)))
+        total = ((total).py_add((k).py_add(d.get(&(k)).cloned().unwrap_or_default().len() as i32)))
             as i32;
     }
     Ok(total)
@@ -3517,7 +3517,7 @@ pub fn test_frequency_count() -> Result<i32, Box<dyn std::error::Error>> {
     let freq: std::collections::HashMap<i32, i32> = frequency_count(&data)?;
     total = 0;
     for k in freq.keys().cloned() {
-        total = ((total).py_add((k).py_mul(freq.get(&k).cloned().unwrap_or_default()))) as i32;
+        total = ((total).py_add((k).py_mul(freq.get(&(k)).cloned().unwrap_or_default()))) as i32;
     }
     Ok(total)
 }
@@ -3621,11 +3621,11 @@ pub fn deep_copy_nested_dict(
             map
         };
         let inner: std::collections::HashMap<String, i32> =
-            d.get(&outer_key).cloned().unwrap_or_default();
+            d.get(&(outer_key)).cloned().unwrap_or_default();
         for inner_key in inner.keys().cloned() {
             inner_copy.insert(
                 inner_key.to_string().clone(),
-                inner.get(&inner_key).cloned().unwrap_or_default(),
+                inner.get(&(inner_key)).cloned().unwrap_or_default(),
             );
         }
         result.insert(outer_key.to_string().clone(), inner_copy.clone());
@@ -3658,9 +3658,9 @@ pub fn test_deep_copy_nested_dict() -> Result<i32, Box<dyn std::error::Error>> {
     total = 0;
     for outer in copy.keys().cloned() {
         let inner: std::collections::HashMap<String, i32> =
-            copy.get(&outer).cloned().unwrap_or_default();
+            copy.get(&(outer)).cloned().unwrap_or_default();
         for k in inner.keys().cloned() {
-            total = ((total).py_add(inner.get(&k).cloned().unwrap_or_default())) as i32;
+            total = ((total).py_add(inner.get(&(k)).cloned().unwrap_or_default())) as i32;
         }
     }
     Ok(total)
@@ -3778,7 +3778,7 @@ pub fn group_by_remainder(
         if groups.get(&r).is_none() {
             groups.insert(r.clone(), vec![]);
         }
-        groups.get(&r).cloned().unwrap_or_default().push(x);
+        groups.get(&(r)).cloned().unwrap_or_default().push(x);
     }
     Ok(groups)
 }
@@ -3787,10 +3787,10 @@ pub fn test_group_by_remainder() -> Result<i32, Box<dyn std::error::Error>> {
     let mut sum_r1: i32 = Default::default();
     let nums: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let groups: std::collections::HashMap<i32, Vec<i32>> = group_by_remainder(&nums, 3)?;
-    let _cse_temp_0 = groups.get(&0).cloned().unwrap_or_default().len() as i32;
+    let _cse_temp_0 = groups.get(&(0)).cloned().unwrap_or_default().len() as i32;
     let count_r0: i32 = _cse_temp_0;
     sum_r1 = 0;
-    for x in groups.get(&1).cloned().unwrap_or_default() {
+    for x in groups.get(&(1)).cloned().unwrap_or_default() {
         sum_r1 = ((sum_r1).py_add(x)) as i32;
     }
     Ok({

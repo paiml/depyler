@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-const STR_RESET: &'static str = "reset";
-const STR_START: &'static str = "start";
 const STR_IDLE: &'static str = "idle";
+const STR_START: &'static str = "start";
 const STR_PAUSE: &'static str = "pause";
+const STR_RESET: &'static str = "reset";
 const STR_STOP: &'static str = "stop";
 const STR_STOPPED: &'static str = "stopped";
 use std::collections::HashSet;

@@ -3452,7 +3452,7 @@ pub fn zip_sum<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
 #[doc = "Zip two lists by multiplying corresponding elements(dot-product style)."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_product<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_product<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut length: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     let _cse_temp_0 = a.len() as i32;
@@ -4089,7 +4089,7 @@ pub fn lens_set(
 #[doc = "Lens modify: apply transformation to value at key."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn lens_modify<'b, 'a>(
+pub fn lens_modify<'a, 'b>(
     data: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
     delta: i32,
@@ -4522,9 +4522,9 @@ pub fn test_frequency() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Compute [count, sum, min, max] in single pass."]
 pub fn tally_stats(vals: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut total: i32 = Default::default();
     let mut hi: i32 = Default::default();
     let mut count: i32 = Default::default();
-    let mut total: i32 = Default::default();
     let mut lo: i32 = Default::default();
     let _cse_temp_0 = vals.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
