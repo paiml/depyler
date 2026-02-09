@@ -74,10 +74,29 @@ pub fn convert_int_cast(
 
             // Check if variable is String type
             HirExpr::Var(var_name) => {
+                // DEPYLER-99MODE-S9: Check if variable is a char from string iteration
+                // int(ch) where ch is a char should use to_digit, not parse
+                if ctx.char_iter_vars.contains(var_name) {
+                    return Ok(
+                        parse_quote! { #arg.to_digit(10).unwrap_or(0) as i32 },
+                    );
+                }
+
                 let is_known_string = ctx
                     .var_types
                     .get(var_name)
                     .is_some_and(|t| matches!(t, Type::String));
+
+                // DEPYLER-99MODE-S9: If we have concrete type info, use it
+                if let Some(var_type) = ctx.var_types.get(var_name) {
+                    if matches!(var_type, Type::String) {
+                        return Ok(
+                            parse_quote! { #arg.parse::<i32>().unwrap_or_default() },
+                        );
+                    }
+                    // Known non-string type: just cast
+                    return Ok(parse_quote! { (#arg) as i32 });
+                }
 
                 // Heuristic: variable names that look like strings
                 let name = var_name.as_str();

@@ -10734,11 +10734,26 @@ fn fix_depyler_value_str_match_arm(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<String> = Vec::with_capacity(lines.len());
     let mut i = 0;
+    // DEPYLER-99MODE-S9: Track if we're inside a DepylerValue match block
+    // Only add .into_iter() in DepylerValue match arms, not in general function returns
+    let mut in_depyler_value_match = false;
     while i < lines.len() {
         let trimmed = lines[i].trim();
+        // Detect DepylerValue match blocks
+        if trimmed.contains("DepylerValue::") && trimmed.contains("=>") {
+            in_depyler_value_match = true;
+        }
+        // Reset when we exit the match context (new function def)
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            in_depyler_value_match = false;
+        }
         // Pattern: `.collect::<Vec<_>>()` followed by `_ => Vec::new().into_iter()`
         // This means the previous match arm is missing `.into_iter(),`
-        if trimmed == ".collect::<Vec<_>>()" && i + 1 < lines.len() {
+        // DEPYLER-99MODE-S9: Only apply inside DepylerValue match arms
+        if in_depyler_value_match
+            && trimmed == ".collect::<Vec<_>>()"
+            && i + 1 < lines.len()
+        {
             let next = lines[i + 1].trim();
             if next.starts_with("_ =>") || next.starts_with("}") {
                 let indent = &lines[i][..lines[i].len() - trimmed.len()];

@@ -39,8 +39,11 @@ pub fn convert_set_constructor(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> 
                 vec![#elems].into_iter().collect::<std::collections::HashSet<_>>()
             })
         } else {
+            // DEPYLER-99MODE-S9: Use .iter().cloned() instead of .into_iter()
+            // When arg is &Vec<T>, .into_iter() yields &T not T, causing
+            // HashSet<&T> vs HashSet<T> mismatch.
             Ok(parse_quote! {
-                #arg.into_iter().collect::<std::collections::HashSet<_>>()
+                #arg.iter().cloned().collect::<std::collections::HashSet<_>>()
             })
         }
     } else {
@@ -76,8 +79,9 @@ pub fn convert_frozenset_constructor(
                 std::sync::Arc::new(vec![#elems].into_iter().collect::<std::collections::HashSet<_>>())
             })
         } else {
+            // DEPYLER-99MODE-S9: Use .iter().cloned() for reference safety
             Ok(parse_quote! {
-                std::sync::Arc::new(#arg.into_iter().collect::<std::collections::HashSet<_>>())
+                std::sync::Arc::new(#arg.iter().cloned().collect::<std::collections::HashSet<_>>())
             })
         }
     } else {
