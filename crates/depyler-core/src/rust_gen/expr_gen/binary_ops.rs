@@ -390,15 +390,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 && right_is_char_literal
                 && !left_is_char_iter_var;
 
+            // DEPYLER-99MODE-S9: Check if right is a String-typed variable (symmetric with left)
+            let right_is_string_var = if let HirExpr::Var(name) = right {
+                if let Some(ty) = self.ctx.var_types.get(name) {
+                    matches!(ty, Type::String)
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
             // For ordering comparisons with string expressions, convert to &str
             // because String doesn't implement PartialOrd<&str>
-            if is_ordering_compare
-                && (left_is_string_index || left_is_string_var || left_needs_as_str)
-            {
+            let left_converting = left_is_string_index || left_is_string_var || left_needs_as_str;
+            if is_ordering_compare && left_converting {
                 left_expr = parse_quote! { (#left_expr).as_str() };
             }
-            if is_ordering_compare && right_is_string_index {
+            // Convert right side to &str if it's a string index or string variable
+            // (when left is also converting, both sides must be &str for PartialOrd)
+            if is_ordering_compare
+                && (right_is_string_index || (right_is_string_var && left_converting))
+            {
                 right_expr = parse_quote! { (#right_expr).as_str() };
+            }
+            // DEPYLER-99MODE-S9: When left is converting to &str and right is a string literal,
+            // ensure right is also &str (bare literal) not String (.to_string())
+            // Otherwise we get &str >= String which fails
+            if is_ordering_compare && left_converting {
+                if let HirExpr::Literal(Literal::String(s)) = right {
+                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                    right_expr = parse_quote! { #lit };
+                }
             }
 
             // For equality comparisons, handle String == &String case

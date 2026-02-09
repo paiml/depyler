@@ -175,7 +175,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if needs_to_string {
                     Ok(parse_quote! { #object_expr.push(#arg.to_string()) })
                 } else {
-                    Ok(parse_quote! { #object_expr.push(#arg) })
+                    // DEPYLER-99MODE-S9: Clone non-Copy variables to prevent E0382
+                    // Python's list.append() never moves the original variable.
+                    // In Rust, push() takes ownership. Clone String/Vec/HashMap vars
+                    // to match Python semantics (especially important inside loops).
+                    let needs_clone = if let Some(HirExpr::Var(name)) = hir_args.first() {
+                        self.ctx.var_types.get(name).map(|ty| matches!(
+                            ty,
+                            Type::String | Type::List(_) | Type::Dict(_, _)
+                                | Type::Set(_) | Type::Custom(_)
+                        )).unwrap_or(false)
+                    } else {
+                        false
+                    };
+                    if needs_clone {
+                        Ok(parse_quote! { #object_expr.push(#arg.clone()) })
+                    } else {
+                        Ok(parse_quote! { #object_expr.push(#arg) })
+                    }
                 }
             }
             "extend" => {
@@ -451,8 +468,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if is_str_literal || is_char_iter {
                     Ok(parse_quote! { #object_expr.push(#arg.to_string()) })
                 } else {
-                    // Assume arg is already String type
-                    Ok(parse_quote! { #object_expr.push(#arg) })
+                    // DEPYLER-99MODE-S9: Clone String variables to prevent E0382 in loops
+                    let is_string_var = hir_args.first().map(|a| matches!(a, HirExpr::Var(_))).unwrap_or(false);
+                    if is_string_var {
+                        Ok(parse_quote! { #object_expr.push(#arg.clone()) })
+                    } else {
+                        Ok(parse_quote! { #object_expr.push(#arg) })
+                    }
                 }
             }
             // DEPYLER-1135: For Vec<int>, push directly without cast

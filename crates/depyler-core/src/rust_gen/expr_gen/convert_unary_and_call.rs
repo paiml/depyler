@@ -875,6 +875,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-99MODE-S9: Check if argument is a call to a Result-returning function
+        // If so, unwrap with ? before calling .len()
+        // Pattern: len(func_call(x)) → func_call(x)?.len() as i32
+        if self.ctx.type_mapper.nasa_mode {
+            if let HirExpr::Call { func: inner_func, .. } = hir_arg {
+                if self.ctx.result_returning_functions.contains(inner_func)
+                    && self.ctx.current_function_can_fail
+                {
+                    return Ok(parse_quote! { #arg?.len() as i32 });
+                }
+            }
+        }
+
         // Check if the argument is a JSON Value (NOT a typed HashMap)
         // DEPYLER-0689: Only use as_array/as_object for serde_json::Value, not typed dicts
         // Typed dicts like dict[str, int] map to HashMap which has direct .len()
