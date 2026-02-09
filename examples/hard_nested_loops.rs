@@ -195,8 +195,8 @@ impl DepylerValue {
     pub fn as_string(&self) -> String {
         match self {
             DepylerValue::Str(_dv_str) => _dv_str.clone(),
-            DepylerValue::Int(_dv_int) => _dv_int.clone(),
-            DepylerValue::Float(_dv_float) => _dv_float.clone(),
+            DepylerValue::Int(_dv_int) => _dv_int.to_string(),
+            DepylerValue::Float(_dv_float) => _dv_float.to_string(),
             DepylerValue::Bool(_dv_bool) => _dv_bool.to_string(),
             DepylerValue::None => "None".to_string(),
             DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
@@ -502,7 +502,7 @@ impl From<Vec<&str>> for DepylerValue {
     fn from(v: Vec<&str>) -> Self {
         DepylerValue::List(
             v.into_iter()
-                .map(|s| DepylerValue::Str(s.clone()))
+                .map(|s| DepylerValue::Str(s.to_string()))
                 .collect(),
         )
     }
@@ -2254,7 +2254,7 @@ impl PyStringMethods for str {
     }
     #[inline]
     fn py_split(&self, sep: &str) -> Vec<String> {
-        self.split(sep).map(|s| s.clone()).collect()
+        self.split(sep).map(|s| s.to_string()).collect()
     }
     #[inline]
     fn py_replace(&self, old: &str, new: &str) -> String {
@@ -3175,12 +3175,12 @@ impl DepylerRegexMatch {
     }
     #[doc = r" Simple string split(NASA mode alternative to regex split)"]
     pub fn split(pattern: &str, text: &str) -> Vec<String> {
-        text.split(pattern).map(|s| s.clone()).collect()
+        text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
 #[doc = "Triple-nested matrix multiplication: result[i][j] += a[i][k] * b[k][j]."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'b, 'a>(
+pub fn matrix_multiply<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3834,8 +3834,8 @@ pub fn test_spiral_order() -> Result<i32, Box<dyn std::error::Error>> {
     let m: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
     let s: Vec<i32> = spiral_order(&m)?;
     total = 0;
-    for v in s.chars() {
-        total = (total.py_add(v)) as i32;
+    for v in s.iter().cloned() {
+        total = ((total).py_add(v)) as i32;
     }
     Ok(total)
 }
@@ -4125,11 +4125,11 @@ pub fn histogram_2d(grid: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std::error
     for row in grid.iter().cloned() {
         for val in row.iter().cloned() {
             if (val >= 0) && (val <= 9) {
-                {
-                    let _key = val.clone();
-                    let _old_val = counts.get(&_key).cloned().unwrap_or_default();
-                    counts.insert(_key, _old_val + 1);
-                }
+                counts[(val) as usize] = (counts
+                    .get(val as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"))
+                .py_add(1i32);
             }
         }
     }
@@ -4404,12 +4404,12 @@ pub fn test_wave_collapse_count() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Edit distance via full DP table: dp[i][j] = min (dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost)."]
 #[doc = " Depyler: proven to terminate"]
-pub fn edit_distance_table<'b, 'a>(
+pub fn edit_distance_table<'a, 'b>(
     s1: &'a Vec<i32>,
     s2: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut best: i32 = Default::default();
     let mut cost: i32 = Default::default();
+    let mut best: i32 = Default::default();
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = s2.len() as i32;
