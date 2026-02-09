@@ -3342,8 +3342,8 @@ pub fn merge<'a, 'b>(
     left: &'a Vec<i32>,
     right: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;
@@ -3414,7 +3414,7 @@ pub fn fib_helper(
     }
     let _cse_temp_1 = memo.get(&n).is_some();
     if _cse_temp_1 {
-        return Ok(memo.get(&n).cloned().unwrap_or_default());
+        return Ok(memo.get(&(n)).cloned().unwrap_or_default());
     }
     let _cse_temp_2 =
         (fib_helper((n) - (1i32), memo)?).py_add(fib_helper((n) - (2i32), memo)?);
@@ -3434,7 +3434,7 @@ pub fn two_sum(nums: &Vec<i32>, target: i32) -> Vec<i32> {
         let i = i as i32;
         let complement: i32 = ((target) - (num)) as i32;
         if seen.get(&complement).is_some() {
-            return vec![seen.get(&complement).cloned().unwrap_or_default(), i];
+            return vec![seen.get(&(complement)).cloned().unwrap_or_default(), i];
         }
         seen.insert(num.clone(), i);
     }

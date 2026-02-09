@@ -3195,7 +3195,7 @@ pub fn coin_change_memo<'a, 'b>(
     }
     let _cse_temp_2 = memo.get(&amount).is_some();
     if _cse_temp_2 {
-        return Ok(memo.get(&amount).cloned().unwrap_or_default());
+        return Ok(memo.get(&(amount)).cloned().unwrap_or_default());
     }
     min_coins = ((amount).py_add(1i32)) as i32;
     for coin in coins.iter().cloned() {
@@ -3225,7 +3225,10 @@ pub fn two_sum_indices(
                 .expect("IndexError: list index out of range")
         )) as i32;
         if seen.get(&complement).is_some() {
-            return Ok(vec![seen.get(&complement).cloned().unwrap_or_default(), i]);
+            return Ok(vec![
+                seen.get(&(complement)).cloned().unwrap_or_default(),
+                i,
+            ]);
         }
         seen.insert(
             nums.get(i as usize)
@@ -3276,7 +3279,7 @@ pub fn three_sum_count(nums: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std:
                 .expect("IndexError: list index out of range")
         )) as i32;
         if pair_sums.get(&need).is_some() {
-            count = ((count).py_add(pair_sums.get(&need).cloned().unwrap_or_default())) as i32;
+            count = ((count).py_add(pair_sums.get(&(need)).cloned().unwrap_or_default())) as i32;
         }
     }
     Ok(count)
@@ -3723,16 +3726,16 @@ pub fn bfs_shortest_path(
             .expect("IndexError: list index out of range");
         head = ((head).py_add(1i32)) as i32;
         if adj.get(&node).is_some() {
-            let neighbors: Vec<i32> = adj.get(&node).cloned().unwrap_or_default();
+            let neighbors: Vec<i32> = adj.get(&(node)).cloned().unwrap_or_default();
             for neighbor in neighbors.iter().cloned() {
                 if visited.get(&neighbor).is_none() {
                     visited.insert(neighbor.clone(), true);
                     dist.insert(
                         neighbor.clone(),
-                        (dist.get(&node).cloned().unwrap_or_default()).py_add(1i32),
+                        (dist.get(&(node)).cloned().unwrap_or_default()).py_add(1i32),
                     );
                     if neighbor == end {
-                        return Ok(dist.get(&neighbor).cloned().unwrap_or_default());
+                        return Ok(dist.get(&(neighbor)).cloned().unwrap_or_default());
                     }
                     queue.push(neighbor);
                 }
@@ -3763,8 +3766,8 @@ pub fn dfs_count_components(
             .get(1usize)
             .cloned()
             .expect("IndexError: list index out of range");
-        adj.get(&u).cloned().unwrap_or_default().push(v);
-        adj.get(&v).cloned().unwrap_or_default().push(u);
+        adj.get(&(u)).cloned().unwrap_or_default().push(v);
+        adj.get(&(v)).cloned().unwrap_or_default().push(u);
     }
     let mut visited: std::collections::HashMap<i32, bool> = {
         let map: HashMap<i32, bool> = HashMap::new();
@@ -3780,7 +3783,7 @@ pub fn dfs_count_components(
                 if visited.get(&current).is_none() {
                     visited.insert(current.clone(), true);
                     if adj.get(&current).is_some() {
-                        for neighbor in adj.get(&current).cloned().unwrap_or_default() {
+                        for neighbor in adj.get(&(current)).cloned().unwrap_or_default() {
                             if visited.get(&neighbor).is_none() {
                                 stack.push(neighbor);
                             }
@@ -3863,7 +3866,7 @@ pub fn sliding_window_distinct(nums: &Vec<i32>, k: i32) -> Result<i32, Box<dyn s
             let _old_val = freq.get(&_key).cloned().unwrap_or_default();
             freq.insert(_key, _old_val - 1);
         }
-        if freq.get(&old_val).cloned().unwrap_or_default() == 0 {
+        if freq.get(&(old_val)).cloned().unwrap_or_default() == 0 {
             distinct_count = ((distinct_count) - (1i32)) as i32;
         }
         if distinct_count == k {
@@ -3972,7 +3975,7 @@ pub fn climb_stairs_memo(
     }
     let _cse_temp_3 = memo.get(&n).is_some();
     if _cse_temp_3 {
-        return Ok(memo.get(&n).cloned().unwrap_or_default());
+        return Ok(memo.get(&(n)).cloned().unwrap_or_default());
     }
     let _cse_temp_4 = (climb_stairs_memo((n) - (1i32), memo)?)
         .py_add(climb_stairs_memo((n) - (2i32), memo)?);
@@ -4176,7 +4179,7 @@ pub fn topological_sort_kahn(
             .get(1usize)
             .cloned()
             .expect("IndexError: list index out of range");
-        adj.get(&src).cloned().unwrap_or_default().push(dst);
+        adj.get(&(src)).cloned().unwrap_or_default().push(dst);
         {
             let _key = dst.clone();
             let _old_val = in_degree.get(&_key).cloned().unwrap_or_default();
@@ -4185,7 +4188,7 @@ pub fn topological_sort_kahn(
     }
     let mut queue: Vec<i32> = vec![];
     for i in 0..(n) {
-        if in_degree.get(&i).cloned().unwrap_or_default() == 0 {
+        if in_degree.get(&(i)).cloned().unwrap_or_default() == 0 {
             queue.push(i);
         }
     }
@@ -4199,13 +4202,13 @@ pub fn topological_sort_kahn(
         head = ((head).py_add(1i32)) as i32;
         result.push(node);
         if adj.get(&node).is_some() {
-            for neighbor in adj.get(&node).cloned().unwrap_or_default() {
+            for neighbor in adj.get(&(node)).cloned().unwrap_or_default() {
                 {
                     let _key = neighbor.clone();
                     let _old_val = in_degree.get(&_key).cloned().unwrap_or_default();
                     in_degree.insert(_key, _old_val - 1);
                 }
-                if in_degree.get(&neighbor).cloned().unwrap_or_default() == 0 {
+                if in_degree.get(&(neighbor)).cloned().unwrap_or_default() == 0 {
                     queue.push(neighbor);
                 }
             }
@@ -4396,19 +4399,19 @@ pub fn frequency_sort_score(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::
         for j in ((i).py_add(1i32))..(unique.len() as i32) {
             if freq
                 .get(
-                    &unique
+                    &(unique
                         .get(i as usize)
                         .cloned()
-                        .expect("IndexError: list index out of range"),
+                        .expect("IndexError: list index out of range")),
                 )
                 .cloned()
                 .unwrap_or_default()
                 > freq
                     .get(
-                        &unique
+                        &(unique
                             .get(j as usize)
                             .cloned()
-                            .expect("IndexError: list index out of range"),
+                            .expect("IndexError: list index out of range")),
                     )
                     .cloned()
                     .unwrap_or_default()
@@ -4425,19 +4428,19 @@ pub fn frequency_sort_score(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::
             } else {
                 if (freq
                     .get(
-                        &unique
+                        &(unique
                             .get(i as usize)
                             .cloned()
-                            .expect("IndexError: list index out of range"),
+                            .expect("IndexError: list index out of range")),
                     )
                     .cloned()
                     .unwrap_or_default()
                     == freq
                         .get(
-                            &unique
+                            &(unique
                                 .get(j as usize)
                                 .cloned()
-                                .expect("IndexError: list index out of range"),
+                                .expect("IndexError: list index out of range")),
                         )
                         .cloned()
                         .unwrap_or_default())
@@ -4466,7 +4469,7 @@ pub fn frequency_sort_score(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::
     score = 0;
     let mut position: i32 = 1;
     for val in unique.iter().cloned() {
-        let count: i32 = freq.get(&val).cloned().unwrap_or_default();
+        let count: i32 = freq.get(&(val)).cloned().unwrap_or_default();
         score = ((score).py_add(((val).py_mul(count) as i32).py_mul(position))) as i32;
         position = ((position).py_add(1i32)) as i32;
     }

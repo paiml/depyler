@@ -3180,7 +3180,7 @@ impl DepylerRegexMatch {
 }
 #[doc = "Triple-nested matrix multiplication: result[i][j] += a[i][k] * b[k][j]."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'a, 'b>(
+pub fn matrix_multiply<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -4404,12 +4404,12 @@ pub fn test_wave_collapse_count() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Edit distance via full DP table: dp[i][j] = min (dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost)."]
 #[doc = " Depyler: proven to terminate"]
-pub fn edit_distance_table<'a, 'b>(
+pub fn edit_distance_table<'b, 'a>(
     s1: &'a Vec<i32>,
     s2: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut cost: i32 = Default::default();
     let mut best: i32 = Default::default();
+    let mut cost: i32 = Default::default();
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = s2.len() as i32;

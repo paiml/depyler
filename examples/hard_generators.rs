@@ -3195,533 +3195,305 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = "Build a multiplication table using nested list comprehension."]
+#[doc = "Generate first n Fibonacci numbers as a list."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn nested_list_comp(n: i32, m: i32) -> Vec<Vec<i32>> {
-    (0..(n))
-        .into_iter()
-        .map(|x| {
-            (0..(m))
-                .into_iter()
-                .map(|y| (x).py_mul(y))
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-}
-#[doc = "Test nested list comprehension produces correct multiplication table."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_nested_list_comp() -> i32 {
-    let mut total: i32 = Default::default();
-    let table: Vec<Vec<i32>> = nested_list_comp(3, 4);
-    total = 0;
-    for row in table.iter().cloned() {
-        for val in row.iter().cloned() {
-            total = ((total).py_add(val)) as i32;
-        }
+pub fn fibonacci_sequence(n: i32) -> Vec<i32> {
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return vec![];
     }
-    total
-}
-#[doc = "Filter list to only even positive numbers using comprehension."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn filtered_even_positive(lst: &Vec<i32>) -> Vec<i32> {
-    lst.as_slice()
-        .iter()
-        .cloned()
-        .filter(|x| {
-            let x = x.clone();
-            ((x).py_mod(2i32) == 0) && (x > 0)
-        })
-        .map(|x| x)
-        .collect::<Vec<_>>()
-}
-#[doc = "Test filtered comprehension with compound condition."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_filtered_even_positive() -> i32 {
-    let mut total: i32 = Default::default();
-    let data: Vec<i32> = vec![-4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6];
-    let result: Vec<i32> = filtered_even_positive(&data);
-    total = 0;
-    for x in result.iter().cloned() {
-        total = ((total).py_add(x)) as i32;
+    let _cse_temp_1 = n == 1;
+    if _cse_temp_1 {
+        return vec![0];
     }
-    total
-}
-#[doc = "Build dict from two parallel lists using dict comprehension with zip."]
-#[doc = " Depyler: proven to terminate"]
-pub fn dict_from_parallel_lists<'a, 'b>(
-    keys: &'a Vec<String>,
-    values: &'b Vec<i32>,
-) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut result: std::collections::HashMap<String, i32> = {
-        let map: HashMap<String, i32> = HashMap::new();
-        map
-    };
-    for i in 0..(keys.len() as i32) {
-        if i < values.len() as i32 {
-            result.insert(
-                keys.get(i as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range")
-                    .to_string(),
-                values
-                    .get(i as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-        }
-    }
-    Ok(result)
-}
-#[doc = "Test dict comprehension from parallel lists."]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_dict_from_parallel_lists() -> Result<i32, Box<dyn std::error::Error>> {
-    let keys: Vec<String> = vec![
-        "a".to_string(),
-        "b".to_string(),
-        "c".to_string(),
-        "d".to_string(),
-    ];
-    let values: Vec<i32> = vec![10, 20, 30, 40];
-    let d: std::collections::HashMap<String, i32> = dict_from_parallel_lists(&keys, &values)?;
-    Ok({
-        let _r: i32 = (((d.get("a").cloned().unwrap_or_default())
-            .py_add(d.get("b").cloned().unwrap_or_default()) as i32)
-            .py_add(d.get("c").cloned().unwrap_or_default()) as i32)
-            .py_add(d.get("d").cloned().unwrap_or_default());
-        _r
-    })
-}
-#[doc = "Compute set of absolute values from data using set-like dedup."]
-#[doc = " Depyler: verified panic-free"]
-pub fn abs_set(data: &Vec<i32>) -> Vec<i32> {
-    let mut seen: Vec<i32> = vec![];
-    for x in data.iter().cloned() {
-        let val: i32 = if x >= 0 { x } else { -x };
-        let mut found: bool = false;
-        for s in seen.iter().cloned() {
-            if s == val {
-                found = true;
-            }
-        }
-        if !found {
-            seen.push(val);
-        }
-    }
-    seen.sort();
-    seen
-}
-#[doc = "Test set comprehension with absolute value transform."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_abs_set() -> i32 {
-    let mut total: i32 = Default::default();
-    let data: Vec<i32> = vec![-3, -2, -1, 0, 1, 2, 3, 4];
-    let result: Vec<i32> = abs_set(&data);
-    total = 0;
-    for x in result.iter().cloned() {
-        total = ((total).py_add(x)) as i32;
-    }
-    total
-}
-#[doc = "Apply square function and filter by threshold using comprehension pattern."]
-#[doc = " Depyler: verified panic-free"]
-pub fn apply_and_filter(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for x in data.iter().cloned() {
-        let squared: i32 = ((x).py_mul(x)) as i32;
-        if squared > threshold {
-            result.push(squared);
-        }
-    }
-    result
-}
-#[doc = "Test comprehension with function calls and filter."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_apply_and_filter() -> i32 {
-    let mut total: i32 = Default::default();
-    let data: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let result: Vec<i32> = apply_and_filter(&data, 5);
-    total = 0;
-    for x in result.iter().cloned() {
-        total = ((total).py_add(x)) as i32;
-    }
-    total
-}
-#[doc = "Generate all(i,j) pairs where i != j using multiple for-clauses."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn cross_product_pairs(n: i32, m: i32) -> Vec<Vec<i32>> {
-    let mut result: Vec<Vec<i32>> = vec![];
-    for i in 0..(n) {
-        for j in 0..(m) {
-            if i != j {
-                result.push(vec![i, j]);
-            }
-        }
-    }
-    result
-}
-#[doc = "Test multiple for-clause comprehension with filter."]
-pub fn test_cross_product_pairs() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
-    let pairs: Vec<Vec<i32>> = cross_product_pairs(3, 3);
-    total = 0;
-    for pair in pairs.iter().cloned() {
-        total = ((total).py_add(
-            (pair
-                .get(0usize)
-                .cloned()
-                .expect("IndexError: list index out of range"))
-            .py_add(
-                pair.get(1usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            ),
-        )) as i32;
-    }
-    Ok(total)
-}
-#[doc = "Build index-to-value dict using enumerate pattern."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn enumerate_to_dict(lst: &Vec<String>) -> HashMap<i32, String> {
-    let mut result: std::collections::HashMap<i32, String> = {
-        let map: HashMap<i32, String> = HashMap::new();
-        map
-    };
-    for (i, v) in lst.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) {
-        let i = i as i32;
-        result.insert(i.clone(), v.clone());
-    }
-    result
-}
-#[doc = "Test dict comprehension from enumerate."]
-pub fn test_enumerate_to_dict() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
-    let words: Vec<String> = vec![
-        "alpha".to_string(),
-        "beta".to_string(),
-        "gamma".to_string(),
-        "delta".to_string(),
-    ];
-    let d: std::collections::HashMap<i32, String> = enumerate_to_dict(&words);
-    total = 0;
-    for k in d.keys().cloned() {
-        total = ((total).py_add((k).py_add(d.get(&k).cloned().unwrap_or_default().len() as i32)))
-            as i32;
-    }
-    Ok(total)
-}
-#[doc = "Sum of squares of positive numbers(chained map/filter pattern)."]
-#[doc = " Depyler: verified panic-free"]
-pub fn sum_of_positive_squares(nums: &Vec<i32>) -> i32 {
-    let mut total: i32 = Default::default();
-    total = 0;
-    for x in nums.iter().cloned() {
-        if x > 0 {
-            total = ((total).py_add((x).py_mul(x))) as i32;
-        }
-    }
-    total
-}
-#[doc = "Test chained map/filter reduction pattern."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_sum_of_positive_squares() -> i32 {
-    let nums: Vec<i32> = vec![-3, -1, 0, 2, 4, 5];
-    sum_of_positive_squares(&nums)
-}
-#[doc = "Flatten a 2D matrix into a 1D list using comprehension pattern."]
-#[doc = " Depyler: verified panic-free"]
-pub fn flatten_matrix(matrix: &Vec<Vec<i32>>) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for row in matrix.iter().cloned() {
-        for val in row.iter().cloned() {
-            result.push(val);
-        }
-    }
-    result
-}
-#[doc = "Transpose a matrix using nested comprehension pattern."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn transpose_matrix(matrix: &Vec<Vec<i32>>, rows: i32, cols: i32) -> Vec<Vec<i32>> {
-    let mut result: Vec<Vec<i32>> = vec![];
-    for j in 0..(cols) {
-        let mut new_row: Vec<i32> = vec![];
-        for i in 0..(rows) {
-            new_row.push(
-                matrix
-                    .get(i as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range")
-                    .get(j as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-        }
-        result.push(new_row);
-    }
-    result
-}
-#[doc = "Test flatten and transpose matrix operations."]
-pub fn test_matrix_operations() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut t_sum: i32 = Default::default();
-    let mut total: i32 = Default::default();
-    let matrix: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6]];
-    let flat: Vec<i32> = flatten_matrix(&matrix);
-    let transposed: Vec<Vec<i32>> = transpose_matrix(&matrix, 2, 3);
-    t_sum = 0;
-    for row in transposed.iter().cloned() {
-        t_sum = ((t_sum).py_add(
-            (row.get(0usize)
-                .cloned()
-                .expect("IndexError: list index out of range"))
-            .py_add(
-                row.get(1usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            ),
-        )) as i32;
-    }
-    total = 0;
-    for x in flat.iter().cloned() {
-        total = ((total).py_add(x)) as i32;
-    }
-    Ok((total).py_add(t_sum))
-}
-#[doc = "Count frequency of each element using dict comprehension pattern."]
-pub fn frequency_count(lst: &Vec<i32>) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
-    let mut counts: std::collections::HashMap<i32, i32> = {
-        let map: HashMap<i32, i32> = HashMap::new();
-        map
-    };
-    for x in lst.iter().cloned() {
-        if counts.get(&x).is_some() {
-            {
-                let _key = x.clone();
-                let _old_val = counts.get(&_key).cloned().unwrap_or_default();
-                counts.insert(_key, _old_val + 1);
-            }
-        } else {
-            counts.insert(x.clone(), 1);
-        }
-    }
-    Ok(counts)
-}
-#[doc = "Test frequency counting via dict comprehension pattern."]
-pub fn test_frequency_count() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
-    let data: Vec<i32> = vec![1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
-    let freq: std::collections::HashMap<i32, i32> = frequency_count(&data)?;
-    total = 0;
-    for k in freq.keys().cloned() {
-        total = ((total).py_add((k).py_mul(freq.get(&k).cloned().unwrap_or_default()))) as i32;
-    }
-    Ok(total)
-}
-#[doc = "Apply conditional expression in comprehension: abs value."]
-#[doc = " Depyler: verified panic-free"]
-pub fn conditional_abs(data: &Vec<i32>) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for x in data.iter().cloned() {
-        if x > 0 {
-            result.push(x);
-        } else {
-            result.push(-x);
-        }
-    }
-    result
-}
-#[doc = "Test conditional value in comprehension(ternary)."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_conditional_abs() -> i32 {
-    let mut total: i32 = Default::default();
-    let data: Vec<i32> = vec![-5, -3, 0, 2, 7];
-    let result: Vec<i32> = conditional_abs(&data);
-    total = 0;
-    for x in result.iter().cloned() {
-        total = ((total).py_add(x)) as i32;
-    }
-    total
-}
-#[doc = "Filter words longer than min_len and uppercase them."]
-#[doc = " Depyler: verified panic-free"]
-pub fn filter_long_words_upper(text: &str, min_len: i32) -> Vec<String> {
-    let mut result: Vec<String> = vec![];
-    let words: Vec<String> = text
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect::<Vec<String>>();
-    for word in words.iter().cloned() {
-        if word.len() as i32 > min_len {
-            result.push(word.to_uppercase());
-        }
-    }
-    result
-}
-#[doc = "Test string processing comprehension pattern."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_filter_long_words_upper() -> i32 {
-    let mut total_len: i32 = Default::default();
-    let text: String = "the quick brown fox jumps over the lazy dog".to_string();
-    let result: Vec<String> = filter_long_words_upper(&text, 3);
-    total_len = 0;
-    for w in result.iter().cloned() {
-        total_len = ((total_len).py_add(w.len() as i32)) as i32;
-    }
-    {
-        let _r: i32 = ((result.len() as i32).py_mul(10i32) as i32).py_add(total_len) as i32;
-        _r
-    }
-}
-#[doc = "Sum each pair using tuple-unpacking comprehension pattern."]
-#[doc = " Depyler: verified panic-free"]
-pub fn sum_pairs(pairs: &Vec<Vec<i32>>) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for pair in pairs.iter().cloned() {
+    let mut result: Vec<i32> = vec![0, 1];
+    for i in (2)..(n) {
         result.push(
-            (pair
-                .get(0usize)
-                .cloned()
-                .expect("IndexError: list index out of range"))
-            .py_add(
-                pair.get(1usize)
+            ({
+                let base = &result;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
-            ),
+                    .expect("IndexError: list index out of range")
+            })
+            .py_add({
+                let base = &result;
+                let idx: i32 = (i) - (2i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }),
         );
     }
     result
 }
-#[doc = "Test tuple unpacking in comprehension."]
+#[doc = "Generate first n Lucas numbers(2, 1, 3, 4, 7,...)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_sum_pairs() -> i32 {
-    let mut total: i32 = Default::default();
-    let pairs: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6], vec![7, 8]];
-    let sums: Vec<i32> = sum_pairs(&pairs);
-    total = 0;
-    for s in sums.iter().cloned() {
-        total = ((total).py_add(s)) as i32;
+#[doc = " Depyler: proven to terminate"]
+pub fn lucas_sequence(n: i32) -> Vec<i32> {
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return vec![];
     }
-    total
+    let _cse_temp_1 = n == 1;
+    if _cse_temp_1 {
+        return vec![2];
+    }
+    let mut result: Vec<i32> = vec![2, 1];
+    for i in (2)..(n) {
+        result.push(
+            ({
+                let base = &result;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            })
+            .py_add({
+                let base = &result;
+                let idx: i32 = (i) - (2i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }),
+        );
+    }
+    result
 }
-#[doc = "Deep copy a nested dict using nested dict comprehension pattern."]
-pub fn deep_copy_nested_dict(
-    d: &std::collections::HashMap<String, std::collections::HashMap<String, i32>>,
-) -> Result<HashMap<String, HashMap<String, i32>>, Box<dyn std::error::Error>> {
-    let mut result: std::collections::HashMap<String, std::collections::HashMap<String, i32>> = {
-        let map: HashMap<String, std::collections::HashMap<String, i32>> = HashMap::new();
-        map
-    };
-    for outer_key in d.keys().cloned() {
-        let mut inner_copy: std::collections::HashMap<String, i32> = {
-            let map: HashMap<String, i32> = HashMap::new();
-            map
-        };
-        let inner: std::collections::HashMap<String, i32> =
-            d.get(&outer_key).cloned().unwrap_or_default();
-        for inner_key in inner.keys().cloned() {
-            inner_copy.insert(
-                inner_key.to_string().clone(),
-                inner.get(&inner_key).cloned().unwrap_or_default(),
-            );
+#[doc = "Generate first n Tribonacci numbers(0, 0, 1, 1, 2, 4, 7,...)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn tribonacci_sequence(n: i32) -> Vec<i32> {
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return vec![];
+    }
+    let _cse_temp_1 = n == 1;
+    if _cse_temp_1 {
+        return vec![0];
+    }
+    let _cse_temp_2 = n == 2;
+    if _cse_temp_2 {
+        return vec![0, 0];
+    }
+    let mut result: Vec<i32> = vec![0, 0, 1];
+    for i in (3)..(n) {
+        result.push(
+            (({
+                let base = &result;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            })
+            .py_add({
+                let base = &result;
+                let idx: i32 = (i) - (2i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }) as i32)
+                .py_add({
+                    let base = &result;
+                    let idx: i32 = (i) - (3i32);
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                }),
+        );
+    }
+    result
+}
+#[doc = "Simulate infinite natural number generator with cutoff."]
+#[doc = " Depyler: verified panic-free"]
+pub fn naturals_up_to(limit: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut n: i32 = 1;
+    while n <= limit {
+        result.push(n);
+        n = ((n).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Generate first count powers of two."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn powers_of_two(count: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut val: i32 = 1;
+    for _i in 0..(count) {
+        result.push(val);
+        val = ((val).py_mul(2i32)) as i32;
+    }
+    result
+}
+#[doc = "Generate geometric sequence: start, start*ratio, start*ratio^2,..."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn geometric_sequence(start: i32, ratio: i32, count: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut current: i32 = start.clone();
+    for _i in 0..(count) {
+        result.push(current);
+        current = ((current).py_mul(ratio)) as i32;
+    }
+    result
+}
+#[doc = "Generate arithmetic sequence with given start, step, and count."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn arithmetic_sequence(start: i32, step: i32, count: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut current: i32 = start.clone();
+    for _i in 0..(count) {
+        result.push(current);
+        current = ((current).py_add(step)) as i32;
+    }
+    result
+}
+#[doc = "Generate Collatz sequence starting from n until reaching 1."]
+pub fn collatz_sequence(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut current: i32 = Default::default();
+    let mut result: Vec<i32> = vec![n];
+    current = n;
+    while current != 1 {
+        if (current).py_mod(2i32) == 0 {
+            current = {
+                let a = current;
+                let b = 2;
+                let q = a / b;
+                let r = a % b;
+                let r_negative = r < 0;
+                let b_negative = b < 0;
+                let r_nonzero = r != 0;
+                let signs_differ = r_negative != b_negative;
+                let needs_adjustment = r_nonzero && signs_differ;
+                if needs_adjustment {
+                    q - 1
+                } else {
+                    q
+                }
+            };
+        } else {
+            current = (((3i32).py_mul(current) as i32).py_add(1i32)) as i32;
         }
-        result.insert(outer_key.to_string().clone(), inner_copy.clone());
+        result.push(current);
     }
     Ok(result)
 }
-#[doc = "Test nested dict comprehension via deep copy."]
-pub fn test_deep_copy_nested_dict() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
-    let mut original: std::collections::HashMap<String, std::collections::HashMap<String, i32>> = {
-        let map: HashMap<String, std::collections::HashMap<String, i32>> = HashMap::new();
-        map
-    };
-    let mut inner_a: std::collections::HashMap<String, i32> = {
-        let map: HashMap<String, i32> = HashMap::new();
-        map
-    };
-    inner_a.insert("x".to_string(), 10);
-    inner_a.insert("y".to_string(), 20);
-    let mut inner_b: std::collections::HashMap<String, i32> = {
-        let map: HashMap<String, i32> = HashMap::new();
-        map
-    };
-    inner_b.insert("x".to_string(), 30);
-    inner_b.insert("y".to_string(), 40);
-    original.insert("a".to_string(), inner_a.clone());
-    original.insert("b".to_string(), inner_b.clone());
-    let copy: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
-        deep_copy_nested_dict(&original)?;
-    total = 0;
-    for outer in copy.keys().cloned() {
-        let inner: std::collections::HashMap<String, i32> =
-            copy.get(&outer).cloned().unwrap_or_default();
-        for k in inner.keys().cloned() {
-            total = ((total).py_add(inner.get(&k).cloned().unwrap_or_default())) as i32;
-        }
-    }
-    Ok(total)
-}
-#[doc = "Manual reduce: sum all elements via accumulation."]
+#[doc = "Take elements while they are positive."]
 #[doc = " Depyler: verified panic-free"]
-pub fn manual_reduce_sum(nums: &Vec<i32>) -> i32 {
-    let mut acc: i32 = Default::default();
-    acc = 0;
+pub fn take_while_positive(nums: &Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
     for x in nums.iter().cloned() {
-        acc = ((acc).py_add(x)) as i32;
-    }
-    acc
-}
-#[doc = "Manual reduce: product of all elements via accumulation."]
-#[doc = " Depyler: verified panic-free"]
-pub fn manual_reduce_product(nums: &Vec<i32>) -> i32 {
-    let mut acc: i32 = Default::default();
-    acc = 1;
-    for x in nums.iter().cloned() {
-        acc = ((acc).py_mul(x)) as i32;
-    }
-    acc
-}
-#[doc = "Manual reduce: find maximum via accumulation."]
-#[doc = " Depyler: proven to terminate"]
-pub fn manual_reduce_max(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut acc: i32 = Default::default();
-    if nums.is_empty() {
-        return Ok(0);
-    }
-    acc = nums
-        .get(0usize)
-        .cloned()
-        .expect("IndexError: list index out of range");
-    for i in (1)..(nums.len() as i32) {
-        if nums
-            .get(i as usize)
-            .cloned()
-            .expect("IndexError: list index out of range")
-            > acc
-        {
-            acc = nums
-                .get(i as usize)
-                .cloned()
-                .expect("IndexError: list index out of range");
+        if x <= 0 {
+            break;
         }
+        result.push(x);
     }
-    Ok(acc)
+    result
 }
-#[doc = "Test manual reduce patterns for sum, product, and max."]
+#[doc = "Drop elements while they are negative, keep the rest."]
 #[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_manual_reductions() -> Result<i32, Box<dyn std::error::Error>> {
-    let nums: Vec<i32> = vec![2, 3, 5, 7, 11];
-    let s: i32 = manual_reduce_sum(&nums);
-    let p: i32 = manual_reduce_product(&nums);
-    let m: i32 = manual_reduce_max(&nums)?;
-    Ok((s).py_add(m))
+pub fn drop_while_negative(nums: &Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut dropping: bool = true;
+    for x in nums.iter().cloned() {
+        if (dropping) && (x < 0) {
+            continue;
+        }
+        dropping = false;
+        result.push(x);
+    }
+    result
 }
-#[doc = "Compute running maximum using accumulation pattern."]
+#[doc = "Take first n items from a list(simulates islice)."]
+#[doc = " Depyler: verified panic-free"]
+pub fn take_first_n(items: &Vec<i32>, n: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut count: i32 = 0;
+    for x in items.iter().cloned() {
+        if count >= n {
+            break;
+        }
+        result.push(x);
+        count = ((count).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Drop first n items from a list."]
+#[doc = " Depyler: verified panic-free"]
+pub fn drop_first_n(items: &Vec<i32>, n: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut count: i32 = 0;
+    for x in items.iter().cloned() {
+        if count < n {
+            count = ((count).py_add(1i32)) as i32;
+            continue;
+        }
+        result.push(x);
+    }
+    result
+}
+#[doc = "Produce running sum(like itertools.accumulate)."]
+#[doc = " Depyler: verified panic-free"]
+pub fn running_sum(nums: &Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut total: i32 = 0;
+    for x in nums.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+        result.push(total);
+    }
+    result
+}
+#[doc = "Produce running product of elements."]
+#[doc = " Depyler: verified panic-free"]
+pub fn running_product(nums: &Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut prod: i32 = 1;
+    for x in nums.iter().cloned() {
+        prod = ((prod).py_mul(x)) as i32;
+        result.push(prod);
+    }
+    result
+}
+#[doc = "Track the running maximum across the sequence."]
 #[doc = " Depyler: proven to terminate"]
 pub fn running_max(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut current_max: i32 = Default::default();
@@ -3752,98 +3524,1797 @@ pub fn running_max(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Erro
     }
     Ok(result)
 }
-#[doc = "Test running maximum accumulation."]
-#[doc = " Depyler: verified panic-free"]
-pub fn test_running_max() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
-    let nums: Vec<i32> = vec![3, 1, 4, 1, 5, 9, 2, 6];
-    let result: Vec<i32> = running_max(&nums)?;
-    total = 0;
-    for x in result.iter().cloned() {
-        total = ((total).py_add(x)) as i32;
+#[doc = "Track the running minimum across the sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn running_min(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut current_min: i32 = Default::default();
+    if nums.is_empty() {
+        return Ok(vec![]);
     }
-    Ok(total)
-}
-#[doc = "Group numbers by their remainder when divided by divisor."]
-pub fn group_by_remainder(
-    nums: &Vec<i32>,
-    divisor: i32,
-) -> Result<HashMap<i32, Vec<i32>>, Box<dyn std::error::Error>> {
-    let mut groups: std::collections::HashMap<i32, Vec<i32>> = {
-        let map: HashMap<i32, Vec<i32>> = HashMap::new();
-        map
-    };
-    for x in nums.iter().cloned() {
-        let r: i32 = ((x).py_mod(divisor)) as i32;
-        if groups.get(&r).is_none() {
-            groups.insert(r.clone(), vec![]);
+    let mut result: Vec<i32> = vec![nums
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")];
+    current_min = nums
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    for i in (1)..(nums.len() as i32) {
+        if nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            < current_min
+        {
+            current_min = nums
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
         }
-        groups.get(&r).cloned().unwrap_or_default().push(x);
+        result.push(current_min);
     }
-    Ok(groups)
+    Ok(result)
 }
-#[doc = "Test grouping via dict-of-lists comprehension pattern."]
-pub fn test_group_by_remainder() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut sum_r1: i32 = Default::default();
-    let nums: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    let groups: std::collections::HashMap<i32, Vec<i32>> = group_by_remainder(&nums, 3)?;
-    let _cse_temp_0 = groups.get(&0).cloned().unwrap_or_default().len() as i32;
-    let count_r0: i32 = _cse_temp_0;
-    sum_r1 = 0;
-    for x in groups.get(&1).cloned().unwrap_or_default() {
-        sum_r1 = ((sum_r1).py_add(x)) as i32;
+#[doc = "Generalized scan: accumulate with add or multiply."]
+#[doc = " Depyler: verified panic-free"]
+pub fn scan_with_op(nums: &Vec<i32>, initial: i32, add: bool) -> Vec<i32> {
+    let mut acc: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    acc = initial;
+    for x in nums.iter().cloned() {
+        if add {
+            acc = ((acc).py_add(x)) as i32;
+        } else {
+            acc = ((acc).py_mul(x)) as i32;
+        }
+        result.push(acc);
     }
-    Ok({
-        let _r: i32 = ((count_r0).py_mul(100i32) as i32).py_add(sum_r1);
-        _r
-    })
+    result
 }
-#[doc = "Element-wise operation on two lists using zip-like pattern."]
+#[doc = "Chain three lists together(like itertools.chain)."]
+#[doc = " Depyler: verified panic-free"]
+pub fn chain_lists<'b, 'a, 'c>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in a.iter().cloned() {
+        result.push(x);
+    }
+    for x in b.iter().cloned() {
+        result.push(x);
+    }
+    for x in c.iter().cloned() {
+        result.push(x);
+    }
+    result
+}
+#[doc = "Flatten a list of lists into a single list."]
+#[doc = " Depyler: verified panic-free"]
+pub fn flatten_nested(nested: &Vec<Vec<i32>>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for inner in nested.iter().cloned() {
+        for x in inner.iter().cloned() {
+            result.push(x);
+        }
+    }
+    result
+}
+#[doc = "Flatten and keep only elements above threshold."]
+#[doc = " Depyler: verified panic-free"]
+pub fn flatten_and_filter(nested: &Vec<Vec<i32>>, threshold: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for inner in nested.iter().cloned() {
+        for x in inner.iter().cloned() {
+            if x > threshold {
+                result.push(x);
+            }
+        }
+    }
+    result
+}
+#[doc = "Interleave two lists element by element."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_with_operation<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn interleave<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+    let mut min_len: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
-    let length: i32 = if (a.len() as i32) < b.len() as i32 {
-        a.len() as i32
-    } else {
-        b.len() as i32
-    };
-    for i in 0..(length) {
+    let _cse_temp_0 = a.len() as i32;
+    min_len = _cse_temp_0;
+    let _cse_temp_1 = b.len() as i32;
+    let _cse_temp_2 = _cse_temp_1 < min_len;
+    if _cse_temp_2 {
+        min_len = _cse_temp_1;
+    }
+    for i in 0..(min_len) {
         result.push(
-            (((a.get(i as usize)
+            a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+        result.push(
+            b.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+    }
+    for i in (min_len)..(a.len() as i32) {
+        result.push(
+            a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+    }
+    for i in (min_len)..(b.len() as i32) {
+        result.push(
+            b.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+    }
+    result
+}
+#[doc = "Round-robin iteration across multiple lists."]
+#[doc = " Depyler: verified panic-free"]
+pub fn roundrobin(lists: &Vec<Vec<i32>>) -> Vec<i32> {
+    let mut max_len: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    max_len = 0;
+    for lst in lists.iter().cloned() {
+        if lst.len() as i32 > max_len {
+            max_len = lst.len() as i32;
+        }
+    }
+    for i in 0..(max_len) {
+        for lst in lists.iter().cloned() {
+            if i < lst.len() as i32 {
+                result.push(
+                    lst.get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                );
+            }
+        }
+    }
+    result
+}
+#[doc = "Zip two lists and sum corresponding pairs."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn zip_sum<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+    let mut min_len: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = a.len() as i32;
+    min_len = _cse_temp_0;
+    let _cse_temp_1 = b.len() as i32;
+    let _cse_temp_2 = _cse_temp_1 < min_len;
+    if _cse_temp_2 {
+        min_len = _cse_temp_1;
+    }
+    for i in 0..(min_len) {
+        result.push(
+            (a.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_add(
+                b.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ),
+        );
+    }
+    result
+}
+#[doc = "Zip two lists and multiply corresponding pairs."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn zip_product<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+    let mut min_len: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = a.len() as i32;
+    min_len = _cse_temp_0;
+    let _cse_temp_1 = b.len() as i32;
+    let _cse_temp_2 = _cse_temp_1 < min_len;
+    if _cse_temp_2 {
+        min_len = _cse_temp_1;
+    }
+    for i in 0..(min_len) {
+        result.push(
+            (a.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"))
             .py_mul(
                 b.get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range"),
-            ) as i32)
-                .py_add(
-                    a.get(i as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                ) as i32)
-                .py_add(
-                    b.get(i as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                ),
+            ),
         );
     }
     result
 }
-#[doc = "Test zip-based comprehension with compound operation."]
+#[doc = "Zip two lists and take the max of each pair."]
+#[doc = " Depyler: proven to terminate"]
+pub fn zip_max<'b, 'a>(
+    a: &'a Vec<i32>,
+    b: &'b Vec<i32>,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut min_len: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = a.len() as i32;
+    min_len = _cse_temp_0;
+    let _cse_temp_1 = b.len() as i32;
+    let _cse_temp_2 = _cse_temp_1 < min_len;
+    if _cse_temp_2 {
+        min_len = _cse_temp_1;
+    }
+    for i in 0..(min_len) {
+        if a.get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            > b.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        {
+            result.push(
+                a.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        } else {
+            result.push(
+                b.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+    }
+    Ok(result)
+}
+#[doc = "Simulate enumerate: return list of [index, value] pairs."]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_zip_with_operation() -> i32 {
+#[doc = " Depyler: proven to terminate"]
+pub fn enumerate_list(items: &Vec<i32>) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(items.len() as i32) {
+        result.push(vec![
+            format!("{:?}", i),
+            format!(
+                "{:?}",
+                items
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            ),
+        ]);
+    }
+    result
+}
+#[doc = "Zip items with their index starting from a given offset."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn zip_with_index(items: &Vec<i32>, start: i32) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(items.len() as i32) {
+        result.push(vec![
+            (start).py_add(i),
+            items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ]);
+    }
+    result
+}
+#[doc = "Split a list into chunks of given size."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn chunk_list(items: &Vec<i32>, size: i32) -> Vec<Vec<i32>> {
+    let mut chunk: Vec<i32> = Default::default();
+    let mut result: Vec<Vec<i32>> = vec![];
+    chunk = vec![];
+    for i in 0..(items.len() as i32) {
+        chunk.push(
+            items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
+        if chunk.len() as i32 == size {
+            result.push(chunk);
+            chunk = vec![];
+        }
+    }
+    let _cse_temp_0 = chunk.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 > 0;
+    if _cse_temp_1 {
+        result.push(chunk);
+    }
+    result
+}
+#[doc = "Split into chunks and sum each chunk."]
+#[doc = " Depyler: verified panic-free"]
+pub fn chunk_sum(items: &Vec<i32>, size: i32) -> Vec<i32> {
+    let mut count: i32 = Default::default();
     let mut total: i32 = Default::default();
-    let a: Vec<i32> = vec![1, 2, 3, 4];
-    let b: Vec<i32> = vec![10, 20, 30, 40];
-    let result: Vec<i32> = zip_with_operation(&a, &b);
+    let mut result: Vec<i32> = vec![];
+    total = 0;
+    count = 0;
+    for x in items.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+        count = ((count).py_add(1i32)) as i32;
+        if count == size {
+            result.push(total);
+            total = 0;
+            count = 0;
+        }
+    }
+    let _cse_temp_0 = count > 0;
+    if _cse_temp_0 {
+        result.push(total);
+    }
+    result
+}
+#[doc = "Generate consecutive pairs: [a,b], [b,c], [c,d],..."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn pairwise(items: &Vec<i32>) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..((items.len() as i32) - (1i32)) {
+        result.push(vec![
+            items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            {
+                let base = &items;
+                let idx: i32 = (i).py_add(1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            },
+        ]);
+    }
+    result
+}
+#[doc = "Generate consecutive triples from a list."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn triples(items: &Vec<i32>) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..((items.len() as i32) - (2i32)) {
+        result.push(vec![
+            items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            {
+                let base = &items;
+                let idx: i32 = (i).py_add(1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            },
+            {
+                let base = &items;
+                let idx: i32 = (i).py_add(2i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            },
+        ]);
+    }
+    result
+}
+#[doc = "Compute sum over a sliding window of given size."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sliding_window_sum(
+    nums: &Vec<i32>,
+    window: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut current_sum: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = nums.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 < window;
+    if _cse_temp_1 {
+        return Ok(result);
+    }
+    current_sum = 0;
+    for i in 0..(window) {
+        current_sum = ((current_sum).py_add(
+            nums.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        )) as i32;
+    }
+    result.push(current_sum);
+    for i in (window)..(nums.len() as i32) {
+        current_sum = ((current_sum).py_add(
+            (nums
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+             - ({
+                let base = &nums;
+                let idx: i32 = (i) - (window);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }),
+        )) as i32;
+        result.push(current_sum);
+    }
+    Ok(result)
+}
+#[doc = "Compute max over a sliding window(brute force)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sliding_window_max(
+    nums: &Vec<i32>,
+    window: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(((nums.len() as i32) - (window) as i32).py_add(1i32)) {
+        let mut w_max: i32 = nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        for j in ((i).py_add(1i32))..((i).py_add(window)) {
+            if nums
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                > w_max
+            {
+                w_max = nums
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+            }
+        }
+        result.push(w_max);
+    }
+    Ok(result)
+}
+#[doc = "Compute min over a sliding window(brute force)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sliding_window_min(
+    nums: &Vec<i32>,
+    window: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    for i in 0..(((nums.len() as i32) - (window) as i32).py_add(1i32)) {
+        let mut w_min: i32 = nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        for j in ((i).py_add(1i32))..((i).py_add(window)) {
+            if nums
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                < w_min
+            {
+                w_min = nums
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+            }
+        }
+        result.push(w_min);
+    }
+    Ok(result)
+}
+#[doc = "Integer average over a sliding window(truncated)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn sliding_window_avg_int(
+    nums: &Vec<i32>,
+    window: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut current_sum: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = nums.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 < window;
+    let _cse_temp_2 = window <= 0;
+    let _cse_temp_3 = (_cse_temp_1) || (_cse_temp_2);
+    if _cse_temp_3 {
+        return Ok(result);
+    }
+    current_sum = 0;
+    for i in 0..(window) {
+        current_sum = ((current_sum).py_add(
+            nums.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        )) as i32;
+    }
+    result.push({
+        let a = current_sum;
+        let b = window;
+        let q = a / b;
+        let r = a % b;
+        let r_negative = r < 0;
+        let b_negative = b < 0;
+        let r_nonzero = r != 0;
+        let signs_differ = r_negative != b_negative;
+        let needs_adjustment = r_nonzero && signs_differ;
+        if needs_adjustment {
+            q - 1
+        } else {
+            q
+        }
+    });
+    for i in (window)..(nums.len() as i32) {
+        current_sum = ((current_sum).py_add(
+            (nums
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+             - ({
+                let base = &nums;
+                let idx: i32 = (i) - (window);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }),
+        )) as i32;
+        result.push({
+            let a = current_sum;
+            let b = window;
+            let q = a / b;
+            let r = a % b;
+            let r_negative = r < 0;
+            let b_negative = b < 0;
+            let r_nonzero = r != 0;
+            let signs_differ = r_negative != b_negative;
+            let needs_adjustment = r_nonzero && signs_differ;
+            if needs_adjustment {
+                q - 1
+            } else {
+                q
+            }
+        });
+    }
+    Ok(result)
+}
+#[doc = "Map(multiply) then filter(keep above threshold)."]
+#[doc = " Depyler: verified panic-free"]
+pub fn map_then_filter(nums: &Vec<i32>, multiplier: i32, threshold: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in nums.iter().cloned() {
+        let mapped: i32 = ((x).py_mul(multiplier)) as i32;
+        if mapped > threshold {
+            result.push(mapped);
+        }
+    }
+    result
+}
+#[doc = "Filter(keep above threshold) then map(add offset)."]
+#[doc = " Depyler: verified panic-free"]
+pub fn filter_then_map(nums: &Vec<i32>, threshold: i32, offset: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in nums.iter().cloned() {
+        if x > threshold {
+            result.push((x).py_add(offset));
+        }
+    }
+    result
+}
+#[doc = "Pipeline: square each -> filter below limit -> sum."]
+#[doc = " Depyler: verified panic-free"]
+pub fn pipeline_square_filter_sum(nums: &Vec<i32>, limit: i32) -> i32 {
+    let mut total: i32 = Default::default();
+    total = 0;
+    for x in nums.iter().cloned() {
+        let squared: i32 = ((x).py_mul(x)) as i32;
+        if squared < limit {
+            total = ((total).py_add(squared)) as i32;
+        }
+    }
+    total
+}
+#[doc = "Pipeline: absolute value -> deduplicate -> sort."]
+pub fn pipeline_abs_dedup_sort(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut abs_vals: Vec<i32> = vec![];
+    for x in nums.iter().cloned() {
+        if x < 0 {
+            abs_vals.push(-x);
+        } else {
+            abs_vals.push(x);
+        }
+    }
+    let mut seen: Vec<i32> = vec![];
+    for x in abs_vals.iter().cloned() {
+        let mut found: bool = false;
+        for s in seen.iter().cloned() {
+            if s == x {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            seen.push(x);
+        }
+    }
+    for i in 0..(seen.len() as i32) {
+        for j in ((i).py_add(1i32))..(seen.len() as i32) {
+            if seen
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                > seen
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            {
+                let temp: i32 = seen
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                seen[(i) as usize] = seen
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                seen[(j) as usize] = temp;
+            }
+        }
+    }
+    Ok(seen)
+}
+#[doc = "Three-stage pipeline: double -> filter even -> subtract one."]
+pub fn multi_stage_transform(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut stage1: Vec<i32> = vec![];
+    for x in nums.iter().cloned() {
+        stage1.push((x).py_mul(2i32));
+    }
+    let mut stage2: Vec<i32> = vec![];
+    for x in stage1.iter().cloned() {
+        if (x).py_mod(2i32) == 0 {
+            stage2.push(x);
+        }
+    }
+    let mut stage3: Vec<i32> = vec![];
+    for x in stage2.iter().cloned() {
+        stage3.push((x) - (1i32));
+    }
+    Ok(stage3)
+}
+#[doc = "State machine: count transitions between even/odd states."]
+#[doc = " Depyler: proven to terminate"]
+pub fn state_machine_even_odd(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut transitions: i32 = Default::default();
+    if nums.is_empty() {
+        return Ok(0);
+    }
+    transitions = 0;
+    let _cse_temp_0 = ((nums
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+    .py_mod(2i32)) as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    let mut is_even: bool = _cse_temp_1.clone();
+    for i in (1)..(nums.len() as i32) {
+        let current_even: bool = (nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_mod(2i32)
+            == 0;
+        if current_even != is_even {
+            transitions = ((transitions).py_add(1i32)) as i32;
+        }
+        is_even = current_even;
+    }
+    Ok(transitions)
+}
+#[doc = "Count sign changes(positive < -> negative) in sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn state_machine_sign_changes(nums: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut changes: i32 = Default::default();
+    let _cse_temp_0 = nums.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 < 2;
+    if _cse_temp_1 {
+        return Ok(0);
+    }
+    changes = 0;
+    let _cse_temp_2 = nums
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        >= 0;
+    let mut prev_positive: bool = _cse_temp_2.clone();
+    for i in (1)..(nums.len() as i32) {
+        let curr_positive: bool = nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            >= 0;
+        if curr_positive != prev_positive {
+            changes = ((changes).py_add(1i32)) as i32;
+        }
+        prev_positive = curr_positive;
+    }
+    Ok(changes)
+}
+#[doc = "Encode run lengths of consecutive equal elements."]
+#[doc = " Depyler: proven to terminate"]
+pub fn state_machine_run_lengths(nums: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut count: i32 = Default::default();
+    if nums.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut result: Vec<i32> = vec![];
+    count = 1;
+    for i in (1)..(nums.len() as i32) {
+        if nums
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            == {
+                let base = &nums;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }
+        {
+            count = ((count).py_add(1i32)) as i32;
+        } else {
+            result.push(count);
+            count = 1;
+        }
+    }
+    result.push(count);
+    Ok(result)
+}
+#[doc = "Simulate bracket depth tracking. opens=[positions of '('], closes=[positions of ')'].\n    Returns depth at each position from 0 to max_pos."]
+#[doc = " Depyler: verified panic-free"]
+pub fn state_machine_bracket_depth<'a, 'b>(opens: &'a Vec<i32>, closes: &'b Vec<i32>) -> Vec<i32> {
+    let mut max_pos: i32 = Default::default();
+    max_pos = 0;
+    for p in opens.iter().cloned() {
+        if p > max_pos {
+            max_pos = p;
+        }
+    }
+    for p in closes.iter().cloned() {
+        if p > max_pos {
+            max_pos = p;
+        }
+    }
+    let mut depths: Vec<i32> = vec![];
+    let mut depth: i32 = 0;
+    for pos in 0..((max_pos).py_add(1i32)) {
+        for o in opens.iter().cloned() {
+            if o == pos {
+                depth = ((depth).py_add(1i32)) as i32;
+            }
+        }
+        for c in closes.iter().cloned() {
+            if c == pos {
+                depth = ((depth) - (1i32)) as i32;
+            }
+        }
+        depths.push(depth);
+    }
+    depths
+}
+#[doc = "Cartesian product flattened: [a0*b0, a0*b1,..., a1*b0,...]."]
+#[doc = " Depyler: verified panic-free"]
+pub fn cartesian_product_flat<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in a.iter().cloned() {
+        for y in b.iter().cloned() {
+            result.push((x).py_mul(y));
+        }
+    }
+    result
+}
+#[doc = "Cartesian product as pairs: [[a0,b0], [a0,b1],...]."]
+#[doc = " Depyler: verified panic-free"]
+pub fn cartesian_product_pairs<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<Vec<i32>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for x in a.iter().cloned() {
+        for y in b.iter().cloned() {
+            result.push(vec![x, y]);
+        }
+    }
+    result
+}
+#[doc = "Triple cartesian product, returning sums of triples."]
+#[doc = " Depyler: verified panic-free"]
+pub fn cartesian_triple_sum<'a, 'b, 'c>(
+    a: &'a Vec<i32>,
+    b: &'b Vec<i32>,
+    c: &'c Vec<i32>,
+) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in a.iter().cloned() {
+        for y in b.iter().cloned() {
+            for z in c.iter().cloned() {
+                result.push(((x).py_add(y) as i32).py_add(z));
+            }
+        }
+    }
+    result
+}
+#[doc = "Find all pairs from items where pair sums to target."]
+#[doc = " Depyler: proven to terminate"]
+pub fn self_cartesian_filter(
+    items: &Vec<i32>,
+    target_sum: i32,
+) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
+    let mut result: Vec<Vec<i32>> = vec![];
+    for i in 0..(items.len() as i32) {
+        for j in ((i).py_add(1i32))..(items.len() as i32) {
+            if (items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+            .py_add(
+                items
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ) == target_sum
+            {
+                result.push(vec![
+                    items
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                    items
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ]);
+            }
+        }
+    }
+    Ok(result)
+}
+#[doc = "Simulate range with arbitrary step."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn step_iterator(start: i32, stop: i32, step: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut current: i32 = start.clone();
+    let _cse_temp_0 = step > 0;
+    if _cse_temp_0 {
+        while current < stop {
+            result.push(current);
+            current = ((current).py_add(step)) as i32;
+        }
+    } else {
+        let _cse_temp_1 = step < 0;
+        if _cse_temp_1 {
+            while current > stop {
+                result.push(current);
+                current = ((current).py_add(step)) as i32;
+            }
+        }
+    }
+    result
+}
+#[doc = "Cycle through items n times total(like itertools.cycle limited)."]
+#[doc = " Depyler: verified panic-free"]
+pub fn cycle_n(items: &Vec<i32>, n: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    if items.is_empty() {
+        return result;
+    }
+    let mut count: i32 = 0;
+    while count < n {
+        for x in items.iter().cloned() {
+            if count >= n {
+                break;
+            }
+            result.push(x);
+            count = ((count).py_add(1i32)) as i32;
+        }
+    }
+    result
+}
+#[doc = "Repeat each element a given number of times."]
+#[doc = " Depyler: verified panic-free"]
+pub fn repeat_each(items: &Vec<i32>, times: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in items.iter().cloned() {
+        for _t in 0..(times) {
+            result.push(x);
+        }
+    }
+    result
+}
+#[doc = "Yield only unique elements preserving first-seen order."]
+#[doc = " Depyler: verified panic-free"]
+pub fn unique_elements(items: &Vec<i32>) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    for x in items.iter().cloned() {
+        let mut found: bool = false;
+        for r in result.iter().cloned() {
+            if r == x {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            result.push(x);
+        }
+    }
+    result
+}
+#[doc = "Select elements where corresponding selector is nonzero(like itertools.compress)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn compress_select<'a, 'b>(
+    data: &'a Vec<i32>,
+    selectors: &'b Vec<i32>,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut min_len: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = data.len() as i32;
+    min_len = _cse_temp_0;
+    let _cse_temp_1 = selectors.len() as i32;
+    let _cse_temp_2 = _cse_temp_1 < min_len;
+    if _cse_temp_2 {
+        min_len = _cse_temp_1;
+    }
+    for i in 0..(min_len) {
+        if selectors
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != 0
+        {
+            result.push(
+                data.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        }
+    }
+    Ok(result)
+}
+#[doc = "Generate primes up to limit using sieve approach with list."]
+pub fn prime_sieve(limit: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = limit < 2;
+    if _cse_temp_0 {
+        return Ok(vec![]);
+    }
+    let mut is_prime: Vec<bool> = vec![];
+    for _i in 0..((limit).py_add(1i32)) {
+        is_prime.push(true);
+    }
+    is_prime[(0) as usize] = false;
+    is_prime[(1) as usize] = false;
+    let mut p: i32 = 2;
+    while (p).py_mul(p) <= limit {
+        if is_prime
+            .get(p as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+        {
+            let mut multiple: i32 = ((p).py_mul(p)) as i32;
+            while multiple <= limit {
+                is_prime[(multiple) as usize] = false;
+                multiple = ((multiple).py_add(p)) as i32;
+            }
+        }
+        p = ((p).py_add(1i32)) as i32;
+    }
+    let mut result: Vec<i32> = vec![];
+    for i in (2)..((limit).py_add(1i32)) {
+        if is_prime
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+        {
+            result.push(i);
+        }
+    }
+    Ok(result)
+}
+#[doc = "Generate nth row of Pascal's triangle."]
+#[doc = " Depyler: proven to terminate"]
+pub fn pascal_row(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut row: Vec<i32> = vec![1];
+    for k in (1)..((n).py_add(1i32)) {
+        let val: i32 = {
+            let a = ({
+                let base = &row;
+                let idx: i32 = (k) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            })
+            .py_mul(((n) - (k) as i32).py_add(1i32));
+            let b = k;
+            let q = a / b;
+            let r = a % b;
+            let r_negative = r < 0;
+            let b_negative = b < 0;
+            let r_nonzero = r != 0;
+            let signs_differ = r_negative != b_negative;
+            let needs_adjustment = r_nonzero && signs_differ;
+            if needs_adjustment {
+                q - 1
+            } else {
+                q
+            }
+        };
+        row.push(val);
+    }
+    Ok(row)
+}
+#[doc = "One step of the look-and-say sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn look_and_say_step(seq: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut count: i32 = Default::default();
+    let mut current: i32 = Default::default();
+    if seq.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut result: Vec<i32> = vec![];
+    count = 1;
+    current = seq
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    for i in (1)..(seq.len() as i32) {
+        if seq
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            == current
+        {
+            count = ((count).py_add(1i32)) as i32;
+        } else {
+            result.push(count);
+            result.push(current);
+            current = seq
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            count = 1;
+        }
+    }
+    result.push(count);
+    result.push(current);
+    Ok(result)
+}
+#[doc = "Generate first n Catalan numbers."]
+#[doc = " Depyler: proven to terminate"]
+pub fn catalan_numbers(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return Ok(vec![]);
+    }
+    let mut result: Vec<i32> = vec![1];
+    for i in (1)..(n) {
+        let val: i32 = {
+            let a = (({
+                let base = &result;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            })
+            .py_mul(2i32) as i32)
+                .py_mul(((2i32).py_mul(i) as i32) - (1i32));
+            let b = (i).py_add(1i32);
+            let q = a / b;
+            let r = a % b;
+            let r_negative = r < 0;
+            let b_negative = b < 0;
+            let r_nonzero = r != 0;
+            let signs_differ = r_negative != b_negative;
+            let needs_adjustment = r_nonzero && signs_differ;
+            if needs_adjustment {
+                q - 1
+            } else {
+                q
+            }
+        };
+        result.push(val);
+    }
+    Ok(result)
+}
+#[doc = "Test fibonacci sequence generation."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_fibonacci() -> Result<i32, Box<dyn std::error::Error>> {
+    let fib: Vec<i32> = fibonacci_sequence(10);
+    Ok(fib
+        .get(9usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test lucas sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_lucas() -> Result<i32, Box<dyn std::error::Error>> {
+    let luc: Vec<i32> = lucas_sequence(7);
+    Ok(luc
+        .get(6usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test tribonacci sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_tribonacci() -> Result<i32, Box<dyn std::error::Error>> {
+    let tri: Vec<i32> = tribonacci_sequence(8);
+    Ok(tri
+        .get(7usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test naturals up to limit."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_naturals() -> i32 {
+    let mut total: i32 = Default::default();
+    let nums: Vec<i32> = naturals_up_to(5);
+    total = 0;
+    for x in nums.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test powers of two generation."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_powers_of_two() -> Result<i32, Box<dyn std::error::Error>> {
+    let pows: Vec<i32> = powers_of_two(6);
+    Ok(pows
+        .get(5usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test geometric sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_geometric() -> Result<i32, Box<dyn std::error::Error>> {
+    let geo: Vec<i32> = geometric_sequence(3, 2, 5);
+    Ok(geo
+        .get(4usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test arithmetic sequence."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_arithmetic() -> Result<i32, Box<dyn std::error::Error>> {
+    let arith: Vec<i32> = arithmetic_sequence(10, 3, 4);
+    Ok(arith
+        .get(3usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test collatz sequence length for 27."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_collatz() -> Result<i32, Box<dyn std::error::Error>> {
+    let seq: Vec<i32> = collatz_sequence(27)?;
+    Ok(seq.len() as i32 as i32)
+}
+#[doc = "Test take_while_positive."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_take_while() -> i32 {
+    let result: Vec<i32> = take_while_positive(&vec![3, 5, 2, -1, 4]);
+    result.len() as i32 as i32
+}
+#[doc = "Test drop_while_negative."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_drop_while() -> i32 {
+    let result: Vec<i32> = drop_while_negative(&vec![-3, -1, 5, -2, 8]);
+    result.len() as i32 as i32
+}
+#[doc = "Test take_first_n."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_take_first() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = take_first_n(&vec![10, 20, 30, 40, 50], 3);
     total = 0;
     for x in result.iter().cloned() {
         total = ((total).py_add(x)) as i32;
     }
     total
+}
+#[doc = "Test drop_first_n."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_drop_first() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = drop_first_n(&vec![10, 20, 30, 40, 50], 2);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test running sum accumulator."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_running_sum() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = running_sum(&vec![1, 2, 3, 4, 5]);
+    Ok(result
+        .get(4usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test running product."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_running_product() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = running_product(&vec![1, 2, 3, 4]);
+    Ok(result
+        .get(3usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test running max tracker."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_running_max() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = running_max(&vec![3, 1, 4, 1, 5, 9])?;
+    Ok(result
+        .get(5usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test running min tracker."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_running_min() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = running_min(&vec![5, 3, 7, 2, 8])?;
+    Ok(result
+        .get(3usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test scan with addition."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_scan() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = scan_with_op(&vec![1, 2, 3, 4], 0, true);
+    Ok(result
+        .get(3usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test chaining lists."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_chain() -> i32 {
+    let result: Vec<i32> = chain_lists(&vec![1, 2], &vec![3, 4], &vec![5, 6]);
+    result.len() as i32 as i32
+}
+#[doc = "Test flatten nested lists."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_flatten() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = flatten_nested(&vec![vec![1, 2], vec![3], vec![4, 5, 6]]);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test flatten and filter."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_flatten_filter() -> i32 {
+    let result: Vec<i32> = flatten_and_filter(&vec![vec![1, 5], vec![2, 8], vec![3, 7]], 4);
+    result.len() as i32 as i32
+}
+#[doc = "Test interleave two lists."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_interleave() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = interleave(&vec![1, 3, 5], &vec![2, 4, 6]);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test round-robin iteration."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_roundrobin() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = roundrobin(&vec![vec![1, 4], vec![2, 5], vec![3, 6]]);
+    Ok({
+        let _r: i32 = ((result
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range"))
+        .py_add(
+            result
+                .get(1usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        ) as i32)
+            .py_add(
+                result
+                    .get(2usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+        _r
+    })
+}
+#[doc = "Test zip sum."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_zip_sum() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = zip_sum(&vec![1, 2, 3], &vec![10, 20, 30]);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test zip product."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_zip_product() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = zip_product(&vec![2, 3, 4], &vec![5, 6, 7]);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test zip max."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_zip_max() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = zip_max(&vec![1, 5, 3], &vec![4, 2, 6])?;
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    Ok(total)
+}
+#[doc = "Test enumerate simulation."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_enumerate() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<Vec<i32>> = enumerate_list(&vec![10, 20, 30]);
+    Ok((result
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+    .py_add(
+        result
+            .get(2usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range"),
+    ))
+}
+#[doc = "Test chunking."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_chunk() -> i32 {
+    let chunks: Vec<Vec<i32>> = chunk_list(&vec![1, 2, 3, 4, 5, 6, 7], 3);
+    chunks.len() as i32 as i32
+}
+#[doc = "Test chunk sum."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_chunk_sum() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = chunk_sum(&vec![1, 2, 3, 4, 5, 6], 2);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test pairwise generation."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_pairwise() -> i32 {
+    let pairs: Vec<Vec<i32>> = pairwise(&vec![1, 2, 3, 4]);
+    pairs.len() as i32 as i32
+}
+#[doc = "Test triple generation."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_triples() -> i32 {
+    let trips: Vec<Vec<i32>> = triples(&vec![1, 2, 3, 4, 5]);
+    trips.len() as i32 as i32
+}
+#[doc = "Test sliding window sum."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sliding_sum() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = sliding_window_sum(&vec![1, 3, 5, 7, 9], 3)?;
+    Ok((result
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+    .py_add(
+        result
+            .get(2usize)
+            .cloned()
+            .expect("IndexError: list index out of range"),
+    ))
+}
+#[doc = "Test sliding window max."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sliding_max() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = sliding_window_max(&vec![1, 3, 2, 5, 4, 1], 3)?;
+    Ok((result
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+    .py_add(
+        result
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range"),
+    ))
+}
+#[doc = "Test sliding window min."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sliding_min() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = sliding_window_min(&vec![4, 2, 5, 1, 3, 6], 3)?;
+    Ok((result
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+    .py_add(
+        result
+            .get(1usize)
+            .cloned()
+            .expect("IndexError: list index out of range"),
+    ))
+}
+#[doc = "Test sliding window integer average."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sliding_avg() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = sliding_window_avg_int(&vec![10, 20, 30, 40, 50], 3)?;
+    Ok(result
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test map then filter pipeline."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_map_filter_pipeline() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = map_then_filter(&vec![1, 2, 3, 4, 5], 3, 9);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test filter then map pipeline."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_filter_map_pipeline() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = filter_then_map(&vec![1, 5, 3, 8, 2], 3, 10);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test pipeline square filter sum."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_square_filter_sum() -> i32 {
+    pipeline_square_filter_sum(&vec![1, 2, 3, 4, 5], 20)
+}
+#[doc = "Test abs dedup sort pipeline."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_abs_dedup_sort() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = pipeline_abs_dedup_sort(&vec![-3, 1, -1, 3, 2, -2])?;
+    Ok(result.len() as i32 as i32)
+}
+#[doc = "Test multi-stage transform pipeline."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_multi_stage() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = multi_stage_transform(&vec![1, 2, 3, 4, 5])?;
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    Ok(total)
+}
+#[doc = "Test even/odd state machine."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_state_even_odd() -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(state_machine_even_odd(&vec![2, 3, 4, 6, 7])?)
+}
+#[doc = "Test sign change detection."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_sign_changes() -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(state_machine_sign_changes(&vec![1, -2, 3, -4, 5])?)
+}
+#[doc = "Test run length encoding."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_run_lengths() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = state_machine_run_lengths(&vec![1, 1, 2, 2, 2, 3])?;
+    Ok(result.len() as i32 as i32)
+}
+#[doc = "Test bracket depth simulation."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_bracket_depth() -> Result<i32, Box<dyn std::error::Error>> {
+    let depths: Vec<i32> = state_machine_bracket_depth(&vec![0, 2], &vec![3, 4]);
+    Ok(depths
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test flattened cartesian product."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_cartesian_flat() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = cartesian_product_flat(&vec![1, 2], &vec![3, 4]);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test cartesian product pairs."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_cartesian_pairs() -> i32 {
+    let result: Vec<Vec<i32>> = cartesian_product_pairs(&vec![1, 2], &vec![3, 4]);
+    result.len() as i32 as i32
+}
+#[doc = "Test triple cartesian sum."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_triple_sum() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = cartesian_triple_sum(&vec![1], &vec![2], &vec![3]);
+    Ok(result
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Test self cartesian filter."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_self_cartesian() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<Vec<i32>> = self_cartesian_filter(&vec![1, 2, 3, 4, 5], 6)?;
+    Ok(result.len() as i32 as i32)
+}
+#[doc = "Test step iterator."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_step_iterator() -> i32 {
+    let result: Vec<i32> = step_iterator(0, 20, 3);
+    result.len() as i32 as i32
+}
+#[doc = "Test cycle_n."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_cycle() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = cycle_n(&vec![1, 2, 3], 7);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test repeat each element."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_repeat_each() -> i32 {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = repeat_each(&vec![5, 10], 3);
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    total
+}
+#[doc = "Test unique elements preserving order."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_unique() -> i32 {
+    let result: Vec<i32> = unique_elements(&vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3]);
+    result.len() as i32 as i32
+}
+#[doc = "Test compress select."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_compress() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = Default::default();
+    let result: Vec<i32> = compress_select(&vec![10, 20, 30, 40, 50], &vec![1, 0, 1, 0, 1])?;
+    total = 0;
+    for x in result.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    Ok(total)
+}
+#[doc = "Test prime sieve."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_prime_sieve() -> Result<i32, Box<dyn std::error::Error>> {
+    let primes: Vec<i32> = prime_sieve(30)?;
+    Ok(primes.len() as i32 as i32)
+}
+#[doc = "Test Pascal's triangle row."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_pascal_row() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = Default::default();
+    let row: Vec<i32> = pascal_row(5)?;
+    total = 0;
+    for x in row.iter().cloned() {
+        total = ((total).py_add(x)) as i32;
+    }
+    Ok(total)
+}
+#[doc = "Test look-and-say step."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_look_and_say() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = look_and_say_step(&vec![1, 1, 2, 3, 3])?;
+    Ok(result.len() as i32 as i32)
+}
+#[doc = "Test Catalan numbers."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_catalan() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: Vec<i32> = catalan_numbers(6)?;
+    Ok(result
+        .get(5usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
+}
+#[doc = "Run all test functions and sum their results for verification."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn run_all_tests() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = 0;
+    let _cse_temp_0 = ((total).py_add(test_fibonacci()?)) as i32;
+    total = _cse_temp_0;
+    let _cse_temp_1 = ((total).py_add(test_lucas()?)) as i32;
+    total = _cse_temp_1;
+    let _cse_temp_2 = ((total).py_add(test_tribonacci()?)) as i32;
+    total = _cse_temp_2;
+    let _cse_temp_3 = ((total).py_add(test_naturals())) as i32;
+    total = _cse_temp_3;
+    let _cse_temp_4 = ((total).py_add(test_powers_of_two()?)) as i32;
+    total = _cse_temp_4;
+    let _cse_temp_5 = ((total).py_add(test_geometric()?)) as i32;
+    total = _cse_temp_5;
+    let _cse_temp_6 = ((total).py_add(test_arithmetic()?)) as i32;
+    total = _cse_temp_6;
+    let _cse_temp_7 = ((total).py_add(test_collatz()?)) as i32;
+    total = _cse_temp_7;
+    let _cse_temp_8 = ((total).py_add(test_take_while())) as i32;
+    total = _cse_temp_8;
+    let _cse_temp_9 = ((total).py_add(test_drop_while())) as i32;
+    total = _cse_temp_9;
+    let _cse_temp_10 = ((total).py_add(test_take_first())) as i32;
+    total = _cse_temp_10;
+    let _cse_temp_11 = ((total).py_add(test_drop_first())) as i32;
+    total = _cse_temp_11;
+    let _cse_temp_12 = ((total).py_add(test_running_sum()?)) as i32;
+    total = _cse_temp_12;
+    let _cse_temp_13 = ((total).py_add(test_running_product()?)) as i32;
+    total = _cse_temp_13;
+    let _cse_temp_14 = ((total).py_add(test_running_max()?)) as i32;
+    total = _cse_temp_14;
+    let _cse_temp_15 = ((total).py_add(test_running_min()?)) as i32;
+    total = _cse_temp_15;
+    let _cse_temp_16 = ((total).py_add(test_scan()?)) as i32;
+    total = _cse_temp_16;
+    let _cse_temp_17 = ((total).py_add(test_chain())) as i32;
+    total = _cse_temp_17;
+    let _cse_temp_18 = ((total).py_add(test_flatten())) as i32;
+    total = _cse_temp_18;
+    let _cse_temp_19 = ((total).py_add(test_flatten_filter())) as i32;
+    total = _cse_temp_19;
+    let _cse_temp_20 = ((total).py_add(test_interleave())) as i32;
+    total = _cse_temp_20;
+    let _cse_temp_21 = ((total).py_add(test_roundrobin()?)) as i32;
+    total = _cse_temp_21;
+    let _cse_temp_22 = ((total).py_add(test_zip_sum())) as i32;
+    total = _cse_temp_22;
+    let _cse_temp_23 = ((total).py_add(test_zip_product())) as i32;
+    total = _cse_temp_23;
+    let _cse_temp_24 = ((total).py_add(test_zip_max()?)) as i32;
+    total = _cse_temp_24;
+    let _cse_temp_25 = ((total).py_add(test_enumerate()?)) as i32;
+    total = _cse_temp_25;
+    let _cse_temp_26 = ((total).py_add(test_chunk())) as i32;
+    total = _cse_temp_26;
+    let _cse_temp_27 = ((total).py_add(test_chunk_sum())) as i32;
+    total = _cse_temp_27;
+    let _cse_temp_28 = ((total).py_add(test_pairwise())) as i32;
+    total = _cse_temp_28;
+    let _cse_temp_29 = ((total).py_add(test_triples())) as i32;
+    total = _cse_temp_29;
+    let _cse_temp_30 = ((total).py_add(test_sliding_sum()?)) as i32;
+    total = _cse_temp_30;
+    let _cse_temp_31 = ((total).py_add(test_sliding_max()?)) as i32;
+    total = _cse_temp_31;
+    let _cse_temp_32 = ((total).py_add(test_sliding_min()?)) as i32;
+    total = _cse_temp_32;
+    let _cse_temp_33 = ((total).py_add(test_sliding_avg()?)) as i32;
+    total = _cse_temp_33;
+    let _cse_temp_34 = ((total).py_add(test_map_filter_pipeline())) as i32;
+    total = _cse_temp_34;
+    let _cse_temp_35 = ((total).py_add(test_filter_map_pipeline())) as i32;
+    total = _cse_temp_35;
+    let _cse_temp_36 = ((total).py_add(test_square_filter_sum())) as i32;
+    total = _cse_temp_36;
+    let _cse_temp_37 = ((total).py_add(test_abs_dedup_sort()?)) as i32;
+    total = _cse_temp_37;
+    let _cse_temp_38 = ((total).py_add(test_multi_stage()?)) as i32;
+    total = _cse_temp_38;
+    let _cse_temp_39 = ((total).py_add(test_state_even_odd()?)) as i32;
+    total = _cse_temp_39;
+    let _cse_temp_40 = ((total).py_add(test_sign_changes()?)) as i32;
+    total = _cse_temp_40;
+    let _cse_temp_41 = ((total).py_add(test_run_lengths()?)) as i32;
+    total = _cse_temp_41;
+    let _cse_temp_42 = ((total).py_add(test_bracket_depth()?)) as i32;
+    total = _cse_temp_42;
+    let _cse_temp_43 = ((total).py_add(test_cartesian_flat())) as i32;
+    total = _cse_temp_43;
+    let _cse_temp_44 = ((total).py_add(test_cartesian_pairs())) as i32;
+    total = _cse_temp_44;
+    let _cse_temp_45 = ((total).py_add(test_triple_sum()?)) as i32;
+    total = _cse_temp_45;
+    let _cse_temp_46 = ((total).py_add(test_self_cartesian()?)) as i32;
+    total = _cse_temp_46;
+    let _cse_temp_47 = ((total).py_add(test_step_iterator())) as i32;
+    total = _cse_temp_47;
+    let _cse_temp_48 = ((total).py_add(test_cycle())) as i32;
+    total = _cse_temp_48;
+    let _cse_temp_49 = ((total).py_add(test_repeat_each())) as i32;
+    total = _cse_temp_49;
+    let _cse_temp_50 = ((total).py_add(test_unique())) as i32;
+    total = _cse_temp_50;
+    let _cse_temp_51 = ((total).py_add(test_compress()?)) as i32;
+    total = _cse_temp_51;
+    let _cse_temp_52 = ((total).py_add(test_prime_sieve()?)) as i32;
+    total = _cse_temp_52;
+    let _cse_temp_53 = ((total).py_add(test_pascal_row()?)) as i32;
+    total = _cse_temp_53;
+    let _cse_temp_54 = ((total).py_add(test_look_and_say()?)) as i32;
+    total = _cse_temp_54;
+    let _cse_temp_55 = ((total).py_add(test_catalan()?)) as i32;
+    total = _cse_temp_55;
+    Ok(total)
 }
 #[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
 #[doc = r" This file was transpiled from a Python script with executable top-level code."]
@@ -3855,157 +5326,24 @@ mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
-    fn test_test_nested_list_comp_examples() {
-        let _ = test_nested_list_comp();
+    fn test_take_while_positive_examples() {
+        assert_eq!(take_while_positive(vec![]), vec![]);
+        assert_eq!(take_while_positive(vec![1]), vec![1]);
     }
     #[test]
-    fn test_filtered_even_positive_examples() {
-        assert_eq!(filtered_even_positive(vec![]), vec![]);
-        assert_eq!(filtered_even_positive(vec![1]), vec![1]);
+    fn test_drop_while_negative_examples() {
+        assert_eq!(drop_while_negative(vec![]), vec![]);
+        assert_eq!(drop_while_negative(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_filtered_even_positive_examples() {
-        let _ = test_filtered_even_positive();
+    fn test_running_sum_examples() {
+        assert_eq!(running_sum(vec![]), vec![]);
+        assert_eq!(running_sum(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_dict_from_parallel_lists_examples() {
-        let _ = test_dict_from_parallel_lists();
-    }
-    #[test]
-    fn quickcheck_abs_set() {
-        fn prop(data: Vec<i32>) -> TestResult {
-            let result = abs_set(&data);
-            if result < 0 {
-                return TestResult::failed();
-            }
-            TestResult::passed()
-        }
-        quickcheck(prop as fn(Vec<i32>) -> TestResult);
-    }
-    #[test]
-    fn test_abs_set_examples() {
-        assert_eq!(abs_set(vec![]), vec![]);
-        assert_eq!(abs_set(vec![1]), vec![1]);
-    }
-    #[test]
-    fn quickcheck_test_abs_set() {
-        fn prop() -> TestResult {
-            let result = test_abs_set();
-            if result < 0 {
-                return TestResult::failed();
-            }
-            TestResult::passed()
-        }
-        quickcheck(prop as fn() -> TestResult);
-    }
-    #[test]
-    fn test_test_abs_set_examples() {
-        let _ = test_abs_set();
-    }
-    #[test]
-    fn test_test_apply_and_filter_examples() {
-        let _ = test_apply_and_filter();
-    }
-    #[test]
-    fn test_test_cross_product_pairs_examples() {
-        let _ = test_cross_product_pairs();
-    }
-    #[test]
-    fn test_test_enumerate_to_dict_examples() {
-        let _ = test_enumerate_to_dict();
-    }
-    #[test]
-    fn test_sum_of_positive_squares_examples() {
-        assert_eq!(sum_of_positive_squares(&vec![]), 0);
-        assert_eq!(sum_of_positive_squares(&vec![1]), 1);
-        assert_eq!(sum_of_positive_squares(&vec![1, 2, 3]), 6);
-    }
-    #[test]
-    fn test_test_sum_of_positive_squares_examples() {
-        let _ = test_sum_of_positive_squares();
-    }
-    #[test]
-    fn test_flatten_matrix_examples() {
-        assert_eq!(flatten_matrix(vec![]), vec![]);
-        assert_eq!(flatten_matrix(vec![1]), vec![1]);
-    }
-    #[test]
-    fn test_test_matrix_operations_examples() {
-        let _ = test_matrix_operations();
-    }
-    #[test]
-    fn test_test_frequency_count_examples() {
-        let _ = test_frequency_count();
-    }
-    #[test]
-    fn quickcheck_conditional_abs() {
-        fn prop(data: Vec<i32>) -> TestResult {
-            let result = conditional_abs(&data);
-            if result < 0 {
-                return TestResult::failed();
-            }
-            TestResult::passed()
-        }
-        quickcheck(prop as fn(Vec<i32>) -> TestResult);
-    }
-    #[test]
-    fn test_conditional_abs_examples() {
-        assert_eq!(conditional_abs(vec![]), vec![]);
-        assert_eq!(conditional_abs(vec![1]), vec![1]);
-    }
-    #[test]
-    fn quickcheck_test_conditional_abs() {
-        fn prop() -> TestResult {
-            let result = test_conditional_abs();
-            if result < 0 {
-                return TestResult::failed();
-            }
-            TestResult::passed()
-        }
-        quickcheck(prop as fn() -> TestResult);
-    }
-    #[test]
-    fn test_test_conditional_abs_examples() {
-        let _ = test_conditional_abs();
-    }
-    #[test]
-    fn test_test_filter_long_words_upper_examples() {
-        let _ = test_filter_long_words_upper();
-    }
-    #[test]
-    fn test_sum_pairs_examples() {
-        assert_eq!(sum_pairs(vec![]), vec![]);
-        assert_eq!(sum_pairs(vec![1]), vec![1]);
-    }
-    #[test]
-    fn test_test_sum_pairs_examples() {
-        let _ = test_sum_pairs();
-    }
-    #[test]
-    fn test_test_deep_copy_nested_dict_examples() {
-        let _ = test_deep_copy_nested_dict();
-    }
-    #[test]
-    fn test_manual_reduce_sum_examples() {
-        assert_eq!(manual_reduce_sum(&vec![]), 0);
-        assert_eq!(manual_reduce_sum(&vec![1]), 1);
-        assert_eq!(manual_reduce_sum(&vec![1, 2, 3]), 6);
-    }
-    #[test]
-    fn test_manual_reduce_product_examples() {
-        assert_eq!(manual_reduce_product(&vec![]), 0);
-        assert_eq!(manual_reduce_product(&vec![1]), 1);
-        assert_eq!(manual_reduce_product(&vec![1, 2, 3]), 3);
-    }
-    #[test]
-    fn test_manual_reduce_max_examples() {
-        assert_eq!(manual_reduce_max(&vec![]), 0);
-        assert_eq!(manual_reduce_max(&vec![1]), 1);
-        assert_eq!(manual_reduce_max(&vec![1, 2, 3]), 3);
-    }
-    #[test]
-    fn test_test_manual_reductions_examples() {
-        let _ = test_manual_reductions();
+    fn test_running_product_examples() {
+        assert_eq!(running_product(vec![]), vec![]);
+        assert_eq!(running_product(vec![1]), vec![1]);
     }
     #[test]
     fn test_running_max_examples() {
@@ -4013,15 +5351,338 @@ mod tests {
         assert_eq!(running_max(vec![1]), vec![1]);
     }
     #[test]
+    fn test_running_min_examples() {
+        assert_eq!(running_min(vec![]), vec![]);
+        assert_eq!(running_min(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_flatten_nested_examples() {
+        assert_eq!(flatten_nested(vec![]), vec![]);
+        assert_eq!(flatten_nested(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_roundrobin_examples() {
+        assert_eq!(roundrobin(vec![]), vec![]);
+        assert_eq!(roundrobin(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_enumerate_list_examples() {
+        assert_eq!(enumerate_list(vec![]), vec![]);
+        assert_eq!(enumerate_list(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_pairwise_examples() {
+        assert_eq!(pairwise(vec![]), vec![]);
+        assert_eq!(pairwise(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_triples_examples() {
+        assert_eq!(triples(vec![]), vec![]);
+        assert_eq!(triples(vec![1]), vec![1]);
+    }
+    #[test]
+    fn quickcheck_pipeline_abs_dedup_sort() {
+        fn prop(nums: Vec<i32>) -> TestResult {
+            let result = pipeline_abs_dedup_sort(&nums);
+            if result < 0 {
+                return TestResult::failed();
+            }
+            let input_len = nums.len();
+            let result = pipeline_abs_dedup_sort(&nums);
+            if result.len() != input_len {
+                return TestResult::failed();
+            }
+            let result = pipeline_abs_dedup_sort(&nums);
+            for i in 1..result.len() {
+                if result[i - 1] > result[i] {
+                    return TestResult::failed();
+                }
+            }
+            let mut input_sorted = nums.clone();
+            input_sorted.sort();
+            let mut result = pipeline_abs_dedup_sort(&nums);
+            result.sort();
+            if input_sorted != result {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(Vec<i32>) -> TestResult);
+    }
+    #[test]
+    fn test_pipeline_abs_dedup_sort_examples() {
+        assert_eq!(pipeline_abs_dedup_sort(vec![]), vec![]);
+        assert_eq!(pipeline_abs_dedup_sort(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_multi_stage_transform_examples() {
+        assert_eq!(multi_stage_transform(vec![]), vec![]);
+        assert_eq!(multi_stage_transform(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_state_machine_even_odd_examples() {
+        assert_eq!(state_machine_even_odd(&vec![]), 0);
+        assert_eq!(state_machine_even_odd(&vec![1]), 1);
+        assert_eq!(state_machine_even_odd(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_state_machine_sign_changes_examples() {
+        assert_eq!(state_machine_sign_changes(&vec![]), 0);
+        assert_eq!(state_machine_sign_changes(&vec![1]), 1);
+        assert_eq!(state_machine_sign_changes(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_state_machine_run_lengths_examples() {
+        assert_eq!(state_machine_run_lengths(vec![]), vec![]);
+        assert_eq!(state_machine_run_lengths(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_unique_elements_examples() {
+        assert_eq!(unique_elements(vec![]), vec![]);
+        assert_eq!(unique_elements(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_look_and_say_step_examples() {
+        assert_eq!(look_and_say_step(vec![]), vec![]);
+        assert_eq!(look_and_say_step(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_test_fibonacci_examples() {
+        let _ = test_fibonacci();
+    }
+    #[test]
+    fn test_test_lucas_examples() {
+        let _ = test_lucas();
+    }
+    #[test]
+    fn test_test_tribonacci_examples() {
+        let _ = test_tribonacci();
+    }
+    #[test]
+    fn test_test_naturals_examples() {
+        let _ = test_naturals();
+    }
+    #[test]
+    fn test_test_powers_of_two_examples() {
+        let _ = test_powers_of_two();
+    }
+    #[test]
+    fn test_test_geometric_examples() {
+        let _ = test_geometric();
+    }
+    #[test]
+    fn test_test_arithmetic_examples() {
+        let _ = test_arithmetic();
+    }
+    #[test]
+    fn test_test_collatz_examples() {
+        let _ = test_collatz();
+    }
+    #[test]
+    fn test_test_take_while_examples() {
+        let _ = test_take_while();
+    }
+    #[test]
+    fn test_test_drop_while_examples() {
+        let _ = test_drop_while();
+    }
+    #[test]
+    fn test_test_take_first_examples() {
+        let _ = test_take_first();
+    }
+    #[test]
+    fn test_test_drop_first_examples() {
+        let _ = test_drop_first();
+    }
+    #[test]
+    fn test_test_running_sum_examples() {
+        let _ = test_running_sum();
+    }
+    #[test]
+    fn test_test_running_product_examples() {
+        let _ = test_running_product();
+    }
+    #[test]
     fn test_test_running_max_examples() {
         let _ = test_running_max();
     }
     #[test]
-    fn test_test_group_by_remainder_examples() {
-        let _ = test_group_by_remainder();
+    fn test_test_running_min_examples() {
+        let _ = test_running_min();
     }
     #[test]
-    fn test_test_zip_with_operation_examples() {
-        let _ = test_zip_with_operation();
+    fn test_test_scan_examples() {
+        let _ = test_scan();
+    }
+    #[test]
+    fn test_test_chain_examples() {
+        let _ = test_chain();
+    }
+    #[test]
+    fn test_test_flatten_examples() {
+        let _ = test_flatten();
+    }
+    #[test]
+    fn test_test_flatten_filter_examples() {
+        let _ = test_flatten_filter();
+    }
+    #[test]
+    fn test_test_interleave_examples() {
+        let _ = test_interleave();
+    }
+    #[test]
+    fn test_test_roundrobin_examples() {
+        let _ = test_roundrobin();
+    }
+    #[test]
+    fn test_test_zip_sum_examples() {
+        let _ = test_zip_sum();
+    }
+    #[test]
+    fn test_test_zip_product_examples() {
+        let _ = test_zip_product();
+    }
+    #[test]
+    fn test_test_zip_max_examples() {
+        let _ = test_zip_max();
+    }
+    #[test]
+    fn test_test_enumerate_examples() {
+        let _ = test_enumerate();
+    }
+    #[test]
+    fn test_test_chunk_examples() {
+        let _ = test_chunk();
+    }
+    #[test]
+    fn test_test_chunk_sum_examples() {
+        let _ = test_chunk_sum();
+    }
+    #[test]
+    fn test_test_pairwise_examples() {
+        let _ = test_pairwise();
+    }
+    #[test]
+    fn test_test_triples_examples() {
+        let _ = test_triples();
+    }
+    #[test]
+    fn test_test_sliding_sum_examples() {
+        let _ = test_sliding_sum();
+    }
+    #[test]
+    fn test_test_sliding_max_examples() {
+        let _ = test_sliding_max();
+    }
+    #[test]
+    fn test_test_sliding_min_examples() {
+        let _ = test_sliding_min();
+    }
+    #[test]
+    fn test_test_sliding_avg_examples() {
+        let _ = test_sliding_avg();
+    }
+    #[test]
+    fn test_test_map_filter_pipeline_examples() {
+        let _ = test_map_filter_pipeline();
+    }
+    #[test]
+    fn test_test_filter_map_pipeline_examples() {
+        let _ = test_filter_map_pipeline();
+    }
+    #[test]
+    fn test_test_square_filter_sum_examples() {
+        let _ = test_square_filter_sum();
+    }
+    #[test]
+    fn quickcheck_test_abs_dedup_sort() {
+        fn prop() -> TestResult {
+            let result = test_abs_dedup_sort();
+            if result < 0 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn() -> TestResult);
+    }
+    #[test]
+    fn test_test_abs_dedup_sort_examples() {
+        let _ = test_abs_dedup_sort();
+    }
+    #[test]
+    fn test_test_multi_stage_examples() {
+        let _ = test_multi_stage();
+    }
+    #[test]
+    fn test_test_state_even_odd_examples() {
+        let _ = test_state_even_odd();
+    }
+    #[test]
+    fn test_test_sign_changes_examples() {
+        let _ = test_sign_changes();
+    }
+    #[test]
+    fn test_test_run_lengths_examples() {
+        let _ = test_run_lengths();
+    }
+    #[test]
+    fn test_test_bracket_depth_examples() {
+        let _ = test_bracket_depth();
+    }
+    #[test]
+    fn test_test_cartesian_flat_examples() {
+        let _ = test_cartesian_flat();
+    }
+    #[test]
+    fn test_test_cartesian_pairs_examples() {
+        let _ = test_cartesian_pairs();
+    }
+    #[test]
+    fn test_test_triple_sum_examples() {
+        let _ = test_triple_sum();
+    }
+    #[test]
+    fn test_test_self_cartesian_examples() {
+        let _ = test_self_cartesian();
+    }
+    #[test]
+    fn test_test_step_iterator_examples() {
+        let _ = test_step_iterator();
+    }
+    #[test]
+    fn test_test_cycle_examples() {
+        let _ = test_cycle();
+    }
+    #[test]
+    fn test_test_repeat_each_examples() {
+        let _ = test_repeat_each();
+    }
+    #[test]
+    fn test_test_unique_examples() {
+        let _ = test_unique();
+    }
+    #[test]
+    fn test_test_compress_examples() {
+        let _ = test_compress();
+    }
+    #[test]
+    fn test_test_prime_sieve_examples() {
+        let _ = test_prime_sieve();
+    }
+    #[test]
+    fn test_test_pascal_row_examples() {
+        let _ = test_pascal_row();
+    }
+    #[test]
+    fn test_test_look_and_say_examples() {
+        let _ = test_look_and_say();
+    }
+    #[test]
+    fn test_test_catalan_examples() {
+        let _ = test_catalan();
+    }
+    #[test]
+    fn test_run_all_tests_examples() {
+        let _ = run_all_tests();
     }
 }

@@ -290,8 +290,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else if needs_into {
                         // DEPYLER-1319: Dict has DepylerValue values - add .into()
                         if needs_borrow {
+                            // DEPYLER-99MODE-S9: Wrap index_expr in parens so & applies to full expression
                             Ok(parse_quote! {
-                                #base_expr.get(&#index_expr).cloned().unwrap_or_default().into()
+                                #base_expr.get(&(#index_expr)).cloned().unwrap_or_default().into()
                             })
                         } else {
                             Ok(parse_quote! {
@@ -299,8 +300,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             })
                         }
                     } else if needs_borrow {
+                        // DEPYLER-99MODE-S9: Wrap index_expr in parens so & applies to full expression
                         Ok(parse_quote! {
-                            #base_expr.get(&#index_expr).cloned().unwrap_or_default()
+                            #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
                         })
                     } else {
                         Ok(parse_quote! {
@@ -370,8 +372,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Concrete typed keys: use native key types directly
                 match &key_type {
                     Some(Type::Int) | Some(Type::Bool) => {
+                        // DEPYLER-99MODE-S9: Wrap in parens so & applies to full expression (e.g., i-1)
                         return Ok(parse_quote! {
-                            #base_expr.get(&#index_expr).cloned().unwrap_or_default()
+                            #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
                         });
                     }
                     Some(Type::Float) => {
