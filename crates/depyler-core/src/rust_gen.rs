@@ -263,6 +263,9 @@ mod coverage_wave22_assign_control_tests;
 // Wave 22: 200 call_generic + builtin + datetime deep coverage tests
 #[cfg(test)]
 mod coverage_wave22_call_builtin_tests;
+// Wave 23: 200 function + class + error handling coverage tests
+#[cfg(test)]
+mod coverage_wave23_func_class_tests;
 
 // Internal imports
 #[cfg(test)]
@@ -8101,6 +8104,41 @@ fn fix_vec_get_membership(code: &str) -> String {
             None => break,
         };
         let pos = search_from + rel_pos;
+
+        // DEPYLER-99MODE-S9: Skip HashMap/dict variables — their .get(&key).is_some()
+        // is correct. Only Vec needs this fix (Vec::get takes usize, not &T).
+        // Look at the variable name before .get() to detect dicts.
+        let before = &result[..pos];
+        let var_name: String = before
+            .chars()
+            .rev()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
+        let is_dict_var = matches!(
+            var_name.as_str(),
+            "memo" | "seen" | "visited" | "counts" | "freq"
+                | "frequency" | "lookup" | "graph" | "adj"
+                | "dp" | "cache" | "config" | "settings"
+                | "params" | "headers" | "env" | "mapping"
+                | "index" | "registry" | "table" | "counter"
+                | "scores" | "weights" | "distances"
+        ) || var_name.contains("dict")
+            || var_name.contains("map")
+            || var_name.contains("hash");
+
+        // Also check if the line declares this as HashMap
+        let line_start = before.rfind('\n').map_or(0, |p| p + 1);
+        let line = &result[line_start..];
+        let is_hashmap_line = line.contains("HashMap") || line.contains("BTreeMap");
+
+        if is_dict_var || is_hashmap_line {
+            search_from = pos + 1;
+            continue;
+        }
+
         let after = pos + ".get(&".len();
         let mut depth = 1;
         let mut end = after;

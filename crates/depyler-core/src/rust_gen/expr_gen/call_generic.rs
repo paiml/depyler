@@ -607,10 +607,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 false
                             }
                         }
+                        // DEPYLER-99MODE-S9: Slice expressions produce owned
+                        // Vec via .to_vec(), no borrowing needed
+                        HirExpr::Slice { .. } => false,
+                        // Call expressions return owned values
+                        HirExpr::Call { .. } => false,
                         _ => {
-                            // Fallback: check if expression creates a Vec via .to_vec()
-                            let expr_string = quote! { #arg_expr }.to_string();
-                            expr_string.contains("to_vec")
+                            // Default: don't borrow unknown expressions
+                            false
                         }
                     }
                     }; // Close the if func_requires_mut else block
