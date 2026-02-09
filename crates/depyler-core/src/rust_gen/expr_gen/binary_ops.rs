@@ -36,6 +36,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             confidence = 0.95
         );
 
+        // DEPYLER-99MODE-S9: List repetition [x] * n → vec![x; n as usize]
+        // Must be caught before general expression conversion to avoid DepylerValue wrapping
+        // in NASA mode. Python `[0] * n` or `[big] * (amount + 1)` becomes `vec![elem; count]`.
+        if matches!(op, BinOp::Mul) {
+            if let HirExpr::List(elts) = left {
+                if elts.len() == 1 {
+                    let elem_expr = elts[0].to_rust_expr(self.ctx)?;
+                    let count_expr = right.to_rust_expr(self.ctx)?;
+                    return Ok(parse_quote! { vec![#elem_expr; (#count_expr) as usize] });
+                }
+            }
+            if let HirExpr::List(elts) = right {
+                if elts.len() == 1 {
+                    let elem_expr = elts[0].to_rust_expr(self.ctx)?;
+                    let count_expr = left.to_rust_expr(self.ctx)?;
+                    return Ok(parse_quote! { vec![#elem_expr; (#count_expr) as usize] });
+                }
+            }
+        }
+
         // DEPYLER-0496: Check if operands return Result types (need ? operator)
         let left_returns_result = self.expr_returns_result(left);
         let right_returns_result = self.expr_returns_result(right);
