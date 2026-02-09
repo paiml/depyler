@@ -388,6 +388,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
                         });
                     }
+                    Some(Type::String) => {
+                        // DEPYLER-99MODE-S9: String-keyed dicts use &key directly
+                        // lookup[encoded[i]] → lookup.get(&(encoded_i)).cloned()
+                        return Ok(parse_quote! {
+                            #base_expr.get(&(#index_expr)).cloned().unwrap_or_default()
+                        });
+                    }
                     Some(Type::Float) => {
                         // Float keys use DepylerValue::Float for ordered-float compat
                         if matches!(index, HirExpr::Literal(Literal::Float(_))) {
