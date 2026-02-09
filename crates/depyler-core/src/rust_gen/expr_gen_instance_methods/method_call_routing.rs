@@ -309,6 +309,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-99MODE-S9: Handle is_some/is_none on Result-returning function calls
+        // Pattern: `func_call(...) is not None` → HIR: MethodCall { object: Call(func), method: "is_some" }
+        // When the called function returns Result<Option<T>>, we need `?` to unwrap Result first:
+        //   func_call(...).is_some()  → func_call(...)?.is_some()
+        if (method == "is_some" || method == "is_none") && args.is_empty() {
+            if let HirExpr::Call { func, .. } = object {
+                if self.ctx.type_mapper.nasa_mode
+                    && self.ctx.result_returning_functions.contains(func)
+                    && self.ctx.current_function_can_fail
+                {
+                    let object_expr = object.to_rust_expr(self.ctx)?;
+                    let method_ident =
+                        syn::Ident::new(method, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! { #object_expr?.#method_ident() });
+                }
+            }
+        }
+
         // DEPYLER-0931: Handle subprocess.Child methods (.wait(), .kill(), etc.)
         // proc.wait() → proc.as_mut().unwrap().wait().ok().and_then(|s| s.code()).unwrap_or(-1)
         // When proc is Option<Child>, we need to unwrap and extract exit code
