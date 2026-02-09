@@ -149,6 +149,22 @@ pub fn convert_int_cast(
                 return Ok(parse_quote! { (#arg) as i32 });
             }
 
+            // DEPYLER-99MODE-S9: Index into a string → parse to int
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    let is_string_base = ctx
+                        .var_types
+                        .get(base_name)
+                        .is_some_and(|t| matches!(t, Type::String));
+                    if is_string_base {
+                        return Ok(
+                            parse_quote! { #arg.parse::<i32>().unwrap_or_default() },
+                        );
+                    }
+                }
+                return Ok(parse_quote! { (#arg) as i32 });
+            }
+
             // Check if it's a known bool expression
             expr => {
                 if let Some(is_bool) = is_bool_expr_fn(expr) {
