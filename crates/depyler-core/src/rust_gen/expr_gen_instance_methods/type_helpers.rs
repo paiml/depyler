@@ -1516,6 +1516,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-99MODE-S9: Check if expression is float-typed.
+    /// Used to determine chain cast type (as f64 vs as i32) in py_ops chains.
+    pub(crate) fn expr_is_float_type(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::Float(_)) => true,
+            HirExpr::Var(name) => {
+                matches!(self.ctx.var_types.get(name), Some(Type::Float))
+            }
+            HirExpr::Index { base, .. } => {
+                // List[float] element access
+                if let HirExpr::Var(name) = &**base {
+                    matches!(
+                        self.ctx.var_types.get(name),
+                        Some(Type::List(inner)) if matches!(&**inner, Type::Float)
+                    )
+                } else {
+                    false
+                }
+            }
+            HirExpr::Binary { left, right, .. } => {
+                self.expr_is_float_type(left) || self.expr_is_float_type(right)
+            }
+            HirExpr::Call { func, .. } => {
+                matches!(
+                    self.ctx.function_return_types.get(func),
+                    Some(Type::Float)
+                )
+            }
+            _ => false,
+        }
+    }
+
     /// DEPYLER-1127: Check if expression is a boolean-returning expression
     /// Used to determine if `or`/`and` should return bool or value
     ///

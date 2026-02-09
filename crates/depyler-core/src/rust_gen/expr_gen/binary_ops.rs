@@ -174,7 +174,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .as_ref()
                     .map(crate::rust_gen::func_gen::return_type_expects_float)
                     .unwrap_or(false);
-                if return_expects_float {
+                // DEPYLER-99MODE-S9: Also check if either operand is float-typed.
+                // For functions returning bool/int, float operands still need f64 cast.
+                let operand_is_float = self.expr_is_float_type(left)
+                    || self.expr_is_float_type(right);
+                if return_expects_float || operand_is_float {
                     parse_quote! { (#left_pyops as f64) }
                 } else {
                     parse_quote! { (#left_pyops as i32) }
