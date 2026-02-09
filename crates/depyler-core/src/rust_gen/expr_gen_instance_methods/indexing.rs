@@ -353,38 +353,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1073: Handle float keys using DepylerValue::Float
             if self.is_dict_expr(base) {
                 let index_expr = index.to_rust_expr(self.ctx)?;
-                // Check if dict has float keys
-                let has_float_keys = if let HirExpr::Var(var_name) = base {
-                    self.ctx.var_types.get(var_name).is_some_and(|t| {
-                        matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float))
+                // DEPYLER-99MODE-S9: Check if dict has CONCRETE typed keys
+                // For Dict[int, int] → HashMap<i32, i32>, use &key directly (no DepylerValue wrapping)
+                let key_type = if let HirExpr::Var(var_name) = base {
+                    self.ctx.var_types.get(var_name).and_then(|t| {
+                        if let Type::Dict(k, _) = t {
+                            Some(k.as_ref().clone())
+                        } else {
+                            None
+                        }
                     })
                 } else {
-                    false
+                    None
                 };
 
-                // HashMap<DepylerValue, _>.get() expects &DepylerValue
-                if has_float_keys {
-                    // Float keys use DepylerValue::Float
-                    if matches!(index, HirExpr::Literal(Literal::Float(_))) {
+                // Concrete typed keys: use native key types directly
+                match &key_type {
+                    Some(Type::Int) | Some(Type::Bool) => {
                         return Ok(parse_quote! {
-                            #base_expr.get(&DepylerValue::Float(#index_expr)).cloned().unwrap_or_default()
-                        });
-                    } else if matches!(index, HirExpr::Literal(Literal::Int(_))) {
-                        // Int used as float key - convert
-                        return Ok(parse_quote! {
-                            #base_expr.get(&DepylerValue::Float(#index_expr as f64)).cloned().unwrap_or_default()
-                        });
-                    } else {
-                        // Variable - use From trait
-                        return Ok(parse_quote! {
-                            #base_expr.get(&DepylerValue::from(#index_expr)).cloned().unwrap_or_default()
+                            #base_expr.get(&#index_expr).cloned().unwrap_or_default()
                         });
                     }
-                } else {
-                    // Integer keys use DepylerValue::Int
-                    return Ok(parse_quote! {
-                        #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
-                    });
+                    Some(Type::Float) => {
+                        // Float keys use DepylerValue::Float for ordered-float compat
+                        if matches!(index, HirExpr::Literal(Literal::Float(_))) {
+                            return Ok(parse_quote! {
+                                #base_expr.get(&DepylerValue::Float(#index_expr)).cloned().unwrap_or_default()
+                            });
+                        } else if matches!(index, HirExpr::Literal(Literal::Int(_))) {
+                            return Ok(parse_quote! {
+                                #base_expr.get(&DepylerValue::Float(#index_expr as f64)).cloned().unwrap_or_default()
+                            });
+                        } else {
+                            return Ok(parse_quote! {
+                                #base_expr.get(&DepylerValue::from(#index_expr)).cloned().unwrap_or_default()
+                            });
+                        }
+                    }
+                    _ => {
+                        // Unknown or DepylerValue keys: wrap with DepylerValue::Int
+                        return Ok(parse_quote! {
+                            #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
+                        });
+                    }
                 }
             }
 
