@@ -4167,7 +4167,20 @@ pub(crate) fn codegen_assign_stmt(
                 | Type::Optional(_)
                 | Type::Int
                 | Type::Float => {
-                    ctx.var_types.insert(var_name.clone(), annot_type.clone());
+                    // DEPYLER-99MODE-S9: Don't overwrite concrete parameter types
+                    // with HM-inferred annotations of a different kind.
+                    // E.g., `prefix: str` from param should not be overwritten by
+                    // `prefix = prefix[:-1]` with annotation List(Int) from HM.
+                    let should_insert = match ctx.var_types.get(var_name) {
+                        None | Some(Type::Unknown) => true,
+                        Some(existing) => {
+                            std::mem::discriminant(existing)
+                                == std::mem::discriminant(annot_type)
+                        }
+                    };
+                    if should_insert {
+                        ctx.var_types.insert(var_name.clone(), annot_type.clone());
+                    }
                 }
                 _ => {}
             }
@@ -4419,18 +4432,29 @@ pub(crate) fn codegen_assign_stmt(
             HirExpr::Slice { base, .. } => {
                 // DEPYLER-0301: Track sliced lists as owned Vec types
                 // When rest = numbers[1:], mark rest as List(Int) so it gets borrowed on call
-                // Infer element type from base variable if available
-                let elem_type = if let HirExpr::Var(base_var) = base.as_ref() {
-                    if let Some(Type::List(elem)) = ctx.var_types.get(base_var) {
-                        elem.as_ref().clone()
-                    } else {
-                        Type::Int // Default to Int for untyped slices
-                    }
+                // DEPYLER-99MODE-S9: String slices produce String, not List
+                // When prefix = prefix[:-1] where prefix is str, keep String type
+                let base_is_string = if let HirExpr::Var(base_var) = base.as_ref() {
+                    matches!(ctx.var_types.get(base_var), Some(Type::String))
                 } else {
-                    Type::Int // Default to Int
+                    false
                 };
-                ctx.var_types
-                    .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+                if base_is_string {
+                    ctx.var_types.insert(var_name.clone(), Type::String);
+                } else {
+                    // Infer element type from base variable if available
+                    let elem_type = if let HirExpr::Var(base_var) = base.as_ref() {
+                        if let Some(Type::List(elem)) = ctx.var_types.get(base_var) {
+                            elem.as_ref().clone()
+                        } else {
+                            Type::Int // Default to Int for untyped slices
+                        }
+                    } else {
+                        Type::Int // Default to Int
+                    };
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+                }
             }
             // DEPYLER-0327 Fix #1: Track types for method call results
             // E.g., value_str = data.get(...) where data: Vec<String> → value_str: String

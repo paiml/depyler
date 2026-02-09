@@ -623,7 +623,22 @@ fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
         } => {
             // Only preload non-Unknown types to avoid overwriting better inferences
             if !matches!(ty, Type::Unknown) {
-                ctx.var_types.insert(var_name.clone(), ty.clone());
+                // DEPYLER-99MODE-S9: Don't overwrite concrete parameter types with
+                // incorrect HM-inferred types. E.g., `prefix: str` should not be
+                // overwritten by HM inference of `prefix = prefix[:-1]` as List(Int).
+                // Only overwrite if existing type is Unknown or if new type is the same kind.
+                let should_overwrite = match ctx.var_types.get(var_name) {
+                    None => true,
+                    Some(Type::Unknown) => true,
+                    Some(existing) => {
+                        // Don't overwrite concrete types (String, Int, etc.) with
+                        // structurally different inferred types from HM
+                        std::mem::discriminant(existing) == std::mem::discriminant(ty)
+                    }
+                };
+                if should_overwrite {
+                    ctx.var_types.insert(var_name.clone(), ty.clone());
+                }
             }
         }
         // Recursively handle nested statements
@@ -1047,25 +1062,23 @@ impl RustCodeGen for HirFunction {
         let was_main = ctx.is_main_function;
         ctx.is_main_function = self.name == "main";
 
+        // DEPYLER-1182: Preload PARAMETER types into var_types FIRST
+        // Parameters have explicit type annotations from the function signature, which are
+        // more reliable than HM-inferred types. Load these first so that
+        // preload_hir_type_annotations won't overwrite them with incorrect inferences.
+        for param in &self.params {
+            if !matches!(param.ty, Type::Unknown) {
+                ctx.var_types.insert(param.name.clone(), param.ty.clone());
+            }
+        }
+
         // DEPYLER-1181: Preload HIR type annotations into var_types BEFORE body codegen
         // This ensures that types inferred by the constraint solver (DEPYLER-1173) and
         // propagated to HIR (DEPYLER-1180) are available during expression generation.
         // Without this, the code generator ignores inferred types (the "Deaf Mapper" problem).
+        // NOTE: Runs AFTER parameter preload so that HM-inferred types don't overwrite
+        // correct parameter types (DEPYLER-99MODE-S9).
         preload_hir_type_annotations(&self.body, ctx);
-
-        // DEPYLER-1182: Preload PARAMETER types into var_types
-        // The constraint solver (DEPYLER-1173) may infer parameter types from usage
-        // (e.g., `s[1:4]` constrains `s` to String). These inferred types are stored in
-        // the HirParam.ty field via apply_substitutions (DEPYLER-1180).
-        // Without this preload, expression codegen ignores inferred param types.
-        for param in &self.params {
-            if !matches!(param.ty, Type::Unknown) {
-                // Only preload if we don't already have a better type from earlier inference
-                if !ctx.var_types.contains_key(&param.name) {
-                    ctx.var_types.insert(param.name.clone(), param.ty.clone());
-                }
-            }
-        }
 
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;

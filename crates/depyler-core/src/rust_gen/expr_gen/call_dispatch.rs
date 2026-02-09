@@ -451,6 +451,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 };
 
+                // DEPYLER-99MODE-S9: Check if arg is a string variable
+                // Strings use .chars() not .iter() for iteration
+                let is_string_var = if let HirExpr::Var(var_name) = &args[0] {
+                    self.ctx
+                        .var_types
+                        .get(var_name)
+                        .is_some_and(|t| matches!(t, Type::String))
+                        || self
+                            .ctx
+                            .fn_str_params
+                            .contains(var_name)
+                } else {
+                    false
+                };
+
                 match args[0].to_rust_expr(self.ctx) {
                     Ok(items_expr) => {
                         if is_file_var {
@@ -464,6 +479,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     .enumerate()
                                     .map(|(i, x)| (i as i32, x))
                             }))
+                        } else if is_string_var {
+                            // DEPYLER-99MODE-S9: String iteration uses .chars()
+                            Some(Ok(
+                                parse_quote! { #items_expr.chars().enumerate().map(|(i, x)| (i as i32, x)) },
+                            ))
                         } else {
                             // DEPYLER-0692: Convert usize index to i32 for Python compatibility
                             Some(Ok(

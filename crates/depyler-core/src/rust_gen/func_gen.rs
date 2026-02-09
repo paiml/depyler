@@ -2392,7 +2392,19 @@ pub(crate) fn build_var_type_env_full(
                     }
                 };
                 if !matches!(value_type, Type::Unknown) {
-                    var_types.insert(name.clone(), value_type);
+                    // DEPYLER-99MODE-S9: Don't overwrite concrete param/annotation types
+                    // with structurally different inferred types (e.g., String → List(Int)
+                    // from `prefix = prefix[:-1]` where HM mis-infers the slice type)
+                    let should_insert = match var_types.get(name) {
+                        None | Some(Type::Unknown) => true,
+                        Some(existing) => {
+                            std::mem::discriminant(existing)
+                                == std::mem::discriminant(&value_type)
+                        }
+                    };
+                    if should_insert {
+                        var_types.insert(name.clone(), value_type);
+                    }
                 }
             }
             HirStmt::If {

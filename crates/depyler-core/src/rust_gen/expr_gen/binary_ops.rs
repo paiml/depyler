@@ -113,7 +113,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // String + String = String, casting to i32 is wrong
             let left_is_string = self.expr_is_string_type(left);
             let right_is_string = self.expr_is_string_type(right);
-            let is_string_concat = left_is_string || right_is_string;
+            // DEPYLER-99MODE-S9: Detect char iteration variables - char doesn't implement PyAdd
+            let left_is_char_iter = if let HirExpr::Var(name) = left {
+                self.ctx.char_iter_vars.contains(name.as_str())
+            } else {
+                false
+            };
+            let right_is_char_iter = if let HirExpr::Var(name) = right {
+                self.ctx.char_iter_vars.contains(name.as_str())
+            } else {
+                false
+            };
+            let is_string_concat =
+                left_is_string || right_is_string || left_is_char_iter || right_is_char_iter;
 
             let left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
                 matches!(
@@ -142,7 +154,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             match op {
-                BinOp::Add => return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) }),
+                // DEPYLER-99MODE-S9: Skip py_add for string/char concat - fall through to regular path
+                BinOp::Add if !is_string_concat => {
+                    return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) });
+                }
                 BinOp::Sub => return Ok(parse_quote! { (#left_typed).py_sub(#right_pyops) }),
                 BinOp::Mul => return Ok(parse_quote! { (#left_typed).py_mul(#right_pyops) }),
                 BinOp::Div => {
