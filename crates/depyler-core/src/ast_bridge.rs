@@ -1496,8 +1496,15 @@ impl AstBridge {
                                             .unwrap_or(Type::Unknown)
                                     } else {
                                         // Otherwise, try to infer from literal or default to Unknown
-                                        self.infer_type_from_expr(assign.value.as_ref())
-                                            .unwrap_or(Type::Unknown)
+                                        let inferred = self.infer_type_from_expr(assign.value.as_ref())
+                                            .unwrap_or(Type::Unknown);
+                                        // DEPYLER-99MODE: Fields initialized to None are Optional
+                                        // Python pattern: self.field = None → Option<T>
+                                        if inferred == Type::None {
+                                            Type::Optional(Box::new(Type::Unknown))
+                                        } else {
+                                            inferred
+                                        }
                                     };
 
                                     fields.push(HirField {
