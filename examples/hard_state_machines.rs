@@ -4,11 +4,11 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_B: &'static str = "b";
+const STR__: &'static str = " ";
+    const STR_B: &'static str = "b";
+    const STR_EMPTY: &'static str = "";
     const STR_0: &'static str = "0";
     const STR_C: &'static str = "c";
-    const STR__: &'static str = " ";
-    const STR_EMPTY: &'static str = "";
     const STR_A: &'static str = "a";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct IndexError {
@@ -3072,7 +3072,7 @@ i  = ((i).py_add(1i32)) as i32;
 result.push((current_val, current_count));
     Ok(result)
 }
-#[doc = "Simulate an NFA given as transition table.\n    Transition keys are 'state,char' -> list of next states.\n    Returns True if any path reaches an accept state."] pub fn nfa_simulate<'c, 'a, 'b>(transitions: & 'a std::collections::HashMap<String, Vec<i32>>, start: i32, accepts: & 'b Vec<i32>, input_str: & 'c str) -> Result<bool, Box<dyn std::error::Error>>{
+#[doc = "Simulate an NFA given as transition table.\n    Transition keys are 'state,char' -> list of next states.\n    Returns True if any path reaches an accept state."] pub fn nfa_simulate<'a, 'c, 'b>(transitions: & 'a std::collections::HashMap<String, Vec<i32>>, start: i32, accepts: & 'b Vec<i32>, input_str: & 'c str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut current_states: Vec<i32>= Default::default();
     current_states = vec! [start];
     for ch in input_str.chars() {
@@ -3308,8 +3308,8 @@ new_grid.push(row);
 Ok(new_grid)
 }
 #[doc = "Decode a simplified morse-like encoding.\n    '.' = short, '-' = long, ' ' = letter separator, '/' = word separator.\n    Maps a small alphabet: a=.-, b=-..., e=., t=-, s=..., o=---."] pub fn morse_decoder(encoded: & str) -> Result<String, Box<dyn std::error::Error>>{
-    let mut current: String = Default::default();
     let mut result: String = Default::default();
+    let mut current: String = Default::default();
     let mut morse_map: std::collections::HashMap<String, String>= {
     let map: HashMap<String, String>= HashMap::new();
     map };

@@ -4379,8 +4379,8 @@ pub fn simulate_timeout(work: i32, timeout: i32) -> i32 {
 #[doc = "Simulate work with exponential backoff. Returns rounds used."]
 #[doc = " Depyler: verified panic-free"]
 pub fn work_with_backoff(total: i32, max_rounds: i32) -> i32 {
-    let mut rounds: i32 = Default::default();
     let mut remaining: i32 = Default::default();
+    let mut rounds: i32 = Default::default();
     let mut chunk: i32 = Default::default();
     remaining = total;
     rounds = 0;
@@ -4491,12 +4491,12 @@ pub fn untyped_guard_compute(a: i32, b: i32, c: i32) -> i32 {
     }
 }
 #[doc = "Weighted average with mismatched-length and zero-weight guards."]
-pub fn safe_weighted_average<'a, 'b>(
+pub fn safe_weighted_average<'b, 'a>(
     values: &'a Vec<i32>,
     weights: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut weighted_sum: i32 = Default::default();
     let mut total_weight: i32 = Default::default();
+    let mut weighted_sum: i32 = Default::default();
     let mut w: i32 = Default::default();
     let mut length: i32 = Default::default();
     let _cse_temp_0 = values.len() as i32;

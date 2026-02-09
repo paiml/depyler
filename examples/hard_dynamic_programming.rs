@@ -3774,7 +3774,7 @@ pub fn min_path_sum(grid: &Vec<Vec<i32>>) -> Result<i32, Box<dyn std::error::Err
     })
 }
 #[doc = "Levenshtein edit distance between two strings. Classic 2D DP."]
-pub fn edit_distance<'b, 'a>(
+pub fn edit_distance<'a, 'b>(
     word1: &'a str,
     word2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3931,7 +3931,7 @@ pub fn edit_distance<'b, 'a>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "Length of the longest common subsequence of two strings."]
-pub fn longest_common_subsequence<'b, 'a>(
+pub fn longest_common_subsequence<'a, 'b>(
     text1: &'a str,
     text2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4206,7 +4206,7 @@ pub fn knapsack_01_space_optimized<'a, 'b>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "Unbounded knapsack: items can be used multiple times."]
-pub fn unbounded_knapsack<'a, 'b>(
+pub fn unbounded_knapsack<'b, 'a>(
     weights: &'a Vec<i32>,
     values: &'b Vec<i32>,
     capacity: i32,
@@ -4805,7 +4805,7 @@ pub fn decode_ways(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
     }
     let mut i: i32 = 2;
     while i <= n {
-        let one_digit: i32 = ({
+        let one_digit: i32 = {
             let base = &s;
             let idx: i32 = (i) - (1i32);
             let actual_idx = if idx < 0 {
@@ -4817,8 +4817,10 @@ pub fn decode_ways(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
                 .nth(actual_idx)
                 .map(|c| c.to_string())
                 .unwrap_or_default()
-        }) as i32;
-        let two_digit: i32 = (((({
+        }
+        .parse::<i32>()
+        .unwrap_or_default();
+        let two_digit: i32 = ((({
             let base = &s;
             let idx: i32 = (i) - (2i32);
             let actual_idx = if idx < 0 {
@@ -4830,10 +4832,12 @@ pub fn decode_ways(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
                 .nth(actual_idx)
                 .map(|c| c.to_string())
                 .unwrap_or_default()
-        }) as i32)
-            .py_mul(10i32) as i32)
+        }
+        .parse::<i32>()
+        .unwrap_or_default())
+        .py_mul(10i32) as i32)
             .py_add(
-                ({
+                {
                     let base = &s;
                     let idx: i32 = (i) - (1i32);
                     let actual_idx = if idx < 0 {
@@ -4845,7 +4849,9 @@ pub fn decode_ways(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
                         .nth(actual_idx)
                         .map(|c| c.to_string())
                         .unwrap_or_default()
-                }) as i32,
+                }
+                .parse::<i32>()
+                .unwrap_or_default(),
             )) as i32;
         if one_digit >= 1 {
             dp[(i) as usize] = (dp
@@ -5018,7 +5024,7 @@ pub fn max_profit_stock_cooldown(prices: &Vec<i32>) -> Result<i32, Box<dyn std::
     Ok(last_rest)
 }
 #[doc = "Count ways to segment string s using dictionary words. 1D DP with inner scan."]
-pub fn word_break_count<'a, 'b>(
+pub fn word_break_count<'b, 'a>(
     s: &'a str,
     words: &'b Vec<String>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

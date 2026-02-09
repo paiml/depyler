@@ -4,9 +4,9 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR__: &'static str = "*";
 const STR_HELLO: &'static str = "hello";
 const STR_EMPTY: &'static str = "";
+const STR__: &'static str = "*";
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -3339,14 +3339,14 @@ pub fn kmp_search<'a, 'b>(
     Ok(matches)
 }
 #[doc = "Find pattern occurrences using Rabin-Karp rolling hash."]
-pub fn rabin_karp_search<'a, 'b>(
+pub fn rabin_karp_search<'b, 'a>(
     text: &'a str,
     pattern: &'b str,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut h: i32 = Default::default();
-    let mut i: i32 = Default::default();
     let mut t_hash: i32 = Default::default();
     let mut p_hash: i32 = Default::default();
+    let mut i: i32 = Default::default();
+    let mut h: i32 = Default::default();
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = pattern.len() as i32;
@@ -3704,7 +3704,7 @@ pub fn char_frequency(s: &str) -> Result<HashMap<String, i32>, Box<dyn std::erro
     Ok(freq)
 }
 #[doc = "Check if two strings are anagrams of each other."]
-pub fn are_anagrams<'b, 'a>(s1: &'a str, s2: &'b str) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn are_anagrams<'a, 'b>(s1: &'a str, s2: &'b str) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = s1.len() as i32;
     let _cse_temp_1 = s2.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3829,8 +3829,8 @@ pub fn sort_string(s: &str) -> Result<String, Box<dyn std::error::Error>> {
 }
 #[doc = "Run-length encode a string: 'aaabbc' -> 'a3b2c1'."]
 pub fn run_length_encode(s: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let mut count: i32 = Default::default();
     let mut result: String = Default::default();
+    let mut count: i32 = Default::default();
     let _cse_temp_0 = s.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4113,12 +4113,12 @@ pub fn str_to_int(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
     Ok(result)
 }
 #[doc = "Compute the Levenshtein (edit) distance between two strings."]
-pub fn levenshtein_distance<'a, 'b>(
+pub fn levenshtein_distance<'b, 'a>(
     s1: &'a str,
     s2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut prev: Vec<i32> = Default::default();
+    let mut j: i32 = Default::default();
     let mut min_cost: i32 = Default::default();
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
@@ -4597,9 +4597,9 @@ pub fn manacher_odd(s: &str) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 }
 #[doc = "Find the longest palindromic substring using Manacher's algorithm."]
 pub fn longest_palindrome_manacher(s: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut max_len: i32 = Default::default();
     let mut i: i32 = Default::default();
     let mut t: String = Default::default();
-    let mut max_len: i32 = Default::default();
     let mut best_center: i32 = Default::default();
     let _cse_temp_0 = s.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -4768,8 +4768,8 @@ pub fn longest_palindrome_manacher(s: &str) -> Result<String, Box<dyn std::error
 }
 #[doc = "Compress a string using run-length encoding; return original if no savings."]
 pub fn compress_string(s: String) -> Result<String, Box<dyn std::error::Error>> {
-    let mut count: i32 = Default::default();
     let mut compressed: String = Default::default();
+    let mut count: i32 = Default::default();
     let _cse_temp_0 = s.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -5009,8 +5009,8 @@ pub fn simple_regex_match<'a, 'b>(
     text: &'a str,
     pattern: &'b str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut prev: Vec<bool> = Default::default();
+    let mut j: i32 = Default::default();
     let _cse_temp_0 = text.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = pattern.len() as i32;
@@ -5375,7 +5375,7 @@ pub fn hamming_distance<'b, 'a>(
     Ok(dist)
 }
 #[doc = "Find the longest common substring of two strings."]
-pub fn longest_common_substring<'a, 'b>(
+pub fn longest_common_substring<'b, 'a>(
     s1: &'a str,
     s2: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -5562,7 +5562,7 @@ pub fn count_distinct_substrings(s: &str) -> i32 {
     count
 }
 #[doc = "Find minimum repeats of a such that b is a substring of the repeated a. Return -1 if impossible."]
-pub fn repeated_string_match<'a, 'b>(
+pub fn repeated_string_match<'b, 'a>(
     a: &'a str,
     b: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -5633,9 +5633,9 @@ pub fn interleave_strings<'b, 'a>(
     s1: &'a str,
     s2: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let mut result: String = Default::default();
-    let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut i: i32 = Default::default();
+    let mut result: String = Default::default();
     result = STR_EMPTY.to_string().to_string();
     i = 0;
     j = 0;

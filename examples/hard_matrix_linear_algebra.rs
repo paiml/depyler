@@ -3292,7 +3292,7 @@ pub fn mat_diagonal(diag: &Vec<i32>) -> Vec<Vec<i32>> {
 }
 #[doc = "Element-wise addition of two matrices."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_add<'a, 'b>(
+pub fn mat_add<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3331,7 +3331,7 @@ pub fn mat_add<'a, 'b>(
 }
 #[doc = "Element-wise subtraction of two matrices."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_sub<'a, 'b>(
+pub fn mat_sub<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3469,7 +3469,7 @@ pub fn mat_negate(a: &Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, Box<dyn std::error
 }
 #[doc = "Standard matrix multiplication via triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_mul<'b, 'a>(
+pub fn mat_mul<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3513,7 +3513,7 @@ pub fn mat_mul<'b, 'a>(
 }
 #[doc = "Multiply a matrix by a column vector."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_vec_mul<'b, 'a>(
+pub fn mat_vec_mul<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     v: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -4520,7 +4520,7 @@ pub fn sparse_to_dense(
 }
 #[doc = "Multiply a sparse matrix(list of triples) by a dense vector."]
 #[doc = " Depyler: proven to terminate"]
-pub fn sparse_mat_vec_mul<'b, 'a>(
+pub fn sparse_mat_vec_mul<'a, 'b>(
     entries: &'a Vec<Vec<i32>>,
     v: &'b Vec<i32>,
     rows: i32,
@@ -4610,7 +4610,7 @@ pub fn mat_flatten(a: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std::error::Er
 }
 #[doc = "Check if two matrices are equal. Returns 1 or 0."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_equal<'a, 'b>(
+pub fn mat_equal<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
