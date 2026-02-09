@@ -227,6 +227,15 @@ mod coverage_wave19_instance_deep_tests;
 // Wave 19 Deep: 200 stmt/expr/call/class/type deep coverage tests
 #[cfg(test)]
 mod coverage_wave19_stmt_expr_deep_tests;
+// Wave 20: 200 rust_gen generate_rust_file_internal + analyze_mutable_vars coverage tests
+#[cfg(test)]
+mod coverage_wave20_rustgen_mutable_tests;
+// Wave 20: 200 codegen_assign_stmt + convert_string_method coverage tests
+#[cfg(test)]
+mod coverage_wave20_stmt_string_tests;
+// Wave 20: 200 call_generic/method_call_routing/instance_dispatch coverage tests
+#[cfg(test)]
+mod coverage_wave20_call_dispatch_tests;
 
 // Internal imports
 #[cfg(test)]
