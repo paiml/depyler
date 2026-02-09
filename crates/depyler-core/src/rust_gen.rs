@@ -3662,8 +3662,8 @@ fn generate_rust_file_internal(
                 pub fn set(&mut self, key: &str, value: &str) {
                     if let DepylerValue::Dict(_dv_dict) = self {
                         _dv_dict.insert(
-                            DepylerValue::Str(key.to_string()),
-                            DepylerValue::Str(value.to_string())
+                            DepylerValue::Str(String::from(key)),
+                            DepylerValue::Str(String::from(value))
                         );
                     }
                 }

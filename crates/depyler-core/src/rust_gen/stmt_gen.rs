@@ -6388,33 +6388,39 @@ pub(crate) fn codegen_assign_index(
     // DEPYLER-0567/DEPYLER-1027/DEPYLER-1029: Convert keys based on dict's key type
     // In NASA mode, only convert to String if the dict's key type is String
     // If dict has int keys (e.g., Dict[int, str]), keep keys as integers
-    let dict_has_int_keys = if let HirExpr::Var(base_name) = base {
-        ctx.var_types.get(base_name).is_some_and(
-            |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int)),
-        )
+    // DEPYLER-99MODE-S9: For nested subscripts, resolve the target dict type from the chain
+    let target_dict_type = if let HirExpr::Var(base_name) = base {
+        ctx.var_types.get(base_name).cloned()
     } else {
-        false
+        // For nested subscripts, walk the type chain to find the type being indexed
+        find_root_var_in_chain(base).and_then(|root_name| {
+            let root_type = ctx.var_types.get(&root_name)?.clone();
+            let mut current = root_type;
+            let mut tmp = base;
+            while let HirExpr::Index { base: inner, .. } = tmp {
+                match current {
+                    Type::List(elem) => { current = *elem; }
+                    Type::Dict(_, val) => { current = *val; }
+                    _ => break,
+                }
+                tmp = inner;
+            }
+            Some(current)
+        })
     };
+    let dict_has_int_keys = target_dict_type.as_ref().is_some_and(
+        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int)),
+    );
 
     // DEPYLER-1073: Check if dict has float keys (uses DepylerValue)
-    let dict_has_float_keys = if let HirExpr::Var(base_name) = base {
-        ctx.var_types.get(base_name).is_some_and(
-            |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float)),
-        )
-    } else {
-        false
-    };
+    let dict_has_float_keys = target_dict_type.as_ref().is_some_and(
+        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float)),
+    );
 
     // DEPYLER-TUPLE-KEY-FIX: Check if dict has tuple keys
-    // Python: Dict[Tuple[int, int], str] → Rust: HashMap<(i32, i32), String>
-    // Tuple keys are used directly, no .to_string() conversion needed
-    let dict_has_tuple_keys = if let HirExpr::Var(base_name) = base {
-        ctx.var_types.get(base_name).is_some_and(
-            |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Tuple(_))),
-        )
-    } else {
-        false
-    };
+    let dict_has_tuple_keys = target_dict_type.as_ref().is_some_and(
+        |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Tuple(_))),
+    );
 
     let final_index = if dict_has_float_keys {
         // DEPYLER-1073: Float keys use DepylerValue for Hash/Eq support
