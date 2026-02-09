@@ -5936,27 +5936,29 @@ pub(crate) fn codegen_assign_index(
                 Type::Dict(_, _) => false, // Dict/HashMap → key (not numeric)
                 _ => {
                     // Fall back to index heuristic for other types
-                    // DEPYLER-0449: Check if index looks like a string key before assuming numeric
+                    // DEPYLER-99MODE-S9: Check index var_types FIRST before name heuristic
                     match index {
                         HirExpr::Var(name) => {
-                            let name_str = name.as_str();
-                            // String-like variable names → NOT numeric
-                            if name_str == "key"
-                                || name_str == "k"
-                                || name_str == "name"
-                                || name_str == "id"
-                                || name_str == "word"
-                                || name_str == "text"
-                                || name_str == "char"
-                                || name_str == "character"
-                                || name_str == "c"
-                                || name_str.ends_with("_key")
-                                || name_str.ends_with("_name")
-                            {
-                                false
+                            if let Some(idx_type) = ctx.var_types.get(name) {
+                                // Concrete type known: use it
+                                matches!(
+                                    idx_type,
+                                    Type::Int | Type::Float | Type::Bool
+                                )
                             } else {
-                                // Default: assume numeric for other variables
-                                true
+                                let name_str = name.as_str();
+                                // Heuristic only when type unknown
+                                !(name_str == "key"
+                                    || name_str == "k"
+                                    || name_str == "name"
+                                    || name_str == "id"
+                                    || name_str == "word"
+                                    || name_str == "text"
+                                    || name_str == "char"
+                                    || name_str == "character"
+                                    || name_str == "c"
+                                    || name_str.ends_with("_key")
+                                    || name_str.ends_with("_name"))
                             }
                         }
                         HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => {
@@ -5967,28 +5969,25 @@ pub(crate) fn codegen_assign_index(
                 }
             }
         } else {
-            // No type info - use heuristic
-            // DEPYLER-0449: Check if index looks like a string key before assuming numeric
+            // No type info for base - check index type then heuristic
+            // DEPYLER-99MODE-S9: Check index var_types FIRST
             match index {
                 HirExpr::Var(name) => {
-                    let name_str = name.as_str();
-                    // String-like variable names → NOT numeric
-                    if name_str == "key"
-                        || name_str == "k"
-                        || name_str == "name"
-                        || name_str == "id"
-                        || name_str == "word"
-                        || name_str == "text"
-                        || name_str == "char"
-                        || name_str == "character"
-                        || name_str == "c"
-                        || name_str.ends_with("_key")
-                        || name_str.ends_with("_name")
-                    {
-                        false
+                    if let Some(idx_type) = ctx.var_types.get(name) {
+                        matches!(idx_type, Type::Int | Type::Float | Type::Bool)
                     } else {
-                        // Default: assume numeric for other variables
-                        true
+                        let name_str = name.as_str();
+                        !(name_str == "key"
+                            || name_str == "k"
+                            || name_str == "name"
+                            || name_str == "id"
+                            || name_str == "word"
+                            || name_str == "text"
+                            || name_str == "char"
+                            || name_str == "character"
+                            || name_str == "c"
+                            || name_str.ends_with("_key")
+                            || name_str.ends_with("_name"))
                     }
                 }
                 HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
@@ -6305,23 +6304,24 @@ pub(crate) fn codegen_assign_index(
             }
         }
     } else {
-        // Nested assignment: build chain of get_mut calls
+        // Nested assignment: build chain of get_mut/index calls
         let mut chain = quote! { #base_expr };
         for idx in &indices {
-            // DEPYLER-E0277-FIX: String literals are already &str, don't add &
-            // For HashMap<String, V>, get_mut expects &Q where String: Borrow<Q>
-            // - "key" is &str, String: Borrow<str> ✓ → pass "key" directly
-            // - var is String, &String auto-derefs to &str ✓ → pass &var
-            // Check for both bare literals AND literals with .to_string() wrapping
-            // quote! adds spaces around tokens, so check first non-space char is quote
-            let idx_str = quote! { #idx }.to_string();
-            let first_char = idx_str.trim_start().chars().next();
-            let is_str_lit = first_char == Some('"');
-            chain = if is_str_lit {
-                quote! { #chain.get_mut(#idx).expect("key not found in dict") }
+            if is_numeric_index {
+                // DEPYLER-99MODE-S9: Vec nested access uses direct indexing
+                // dp[i][j] = x → dp[i as usize][j as usize] = x
+                chain = quote! { #chain[#idx as usize] };
             } else {
-                quote! { #chain.get_mut(&#idx).expect("key not found in dict") }
-            };
+                // Dict nested access uses get_mut
+                let idx_str = quote! { #idx }.to_string();
+                let first_char = idx_str.trim_start().chars().next();
+                let is_str_lit = first_char == Some('"');
+                chain = if is_str_lit {
+                    quote! { #chain.get_mut(#idx).expect("key not found in dict") }
+                } else {
+                    quote! { #chain.get_mut(&#idx).expect("key not found in dict") }
+                };
+            }
         }
 
         if is_numeric_index {

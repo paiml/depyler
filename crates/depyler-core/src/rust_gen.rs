@@ -431,6 +431,60 @@ fn scan_expr_for_validators(expr: &HirExpr, ctx: &mut CodeGenContext) {
     }
 }
 
+/// DEPYLER-99MODE-S9: Lightweight check if a parameter is mutated in the function body.
+/// Used by the pre-scan phase to populate function_param_muts before codegen.
+/// Detects: subscript assignment (`param[k] = v`), method mutation (`.insert`, `.pop`, etc.)
+fn param_is_mutated_in_body(param_name: &str, body: &[HirStmt]) -> bool {
+    use crate::hir::AssignTarget;
+    for stmt in body {
+        match stmt {
+            HirStmt::Assign { target, .. } => {
+                if let AssignTarget::Index { base, .. } = target {
+                    if let HirExpr::Var(name) = base.as_ref() {
+                        if name == param_name {
+                            return true;
+                        }
+                    }
+                }
+            }
+            HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) => {
+                if let HirExpr::Var(name) = object.as_ref() {
+                    if name == param_name
+                        && matches!(
+                            method.as_str(),
+                            "insert" | "pop" | "remove" | "clear" | "update"
+                                | "append" | "extend" | "add" | "discard"
+                        )
+                    {
+                        return true;
+                    }
+                }
+            }
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if param_is_mutated_in_body(param_name, then_body) {
+                    return true;
+                }
+                if let Some(eb) = else_body {
+                    if param_is_mutated_in_body(param_name, eb) {
+                        return true;
+                    }
+                }
+            }
+            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
+                if param_is_mutated_in_body(param_name, body) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// Analyze which variables are reassigned (mutated) in a list of statements
 ///
 /// Populates ctx.mutable_vars with variables that are:
@@ -3057,6 +3111,32 @@ fn generate_rust_file_internal(
     for func in &module.functions {
         if func.params.iter().any(|p| p.is_vararg) {
             ctx.vararg_functions.insert(func.name.clone());
+        }
+    }
+
+    // DEPYLER-99MODE-S9: Pre-populate function_param_muts for all functions
+    // This enables correct &mut passing at call sites for forward references
+    // (e.g., fibonacci_memo calls fib_helper which is defined later)
+    for func in &module.functions {
+        let param_muts: Vec<bool> = func
+            .params
+            .iter()
+            .map(|p| {
+                // A param needs &mut if: (a) it's a Dict/List type AND (b) body mutates it
+                let is_collection = matches!(
+                    p.ty,
+                    Type::Dict(_, _) | Type::List(_) | Type::Set(_)
+                );
+                if !is_collection {
+                    return false;
+                }
+                // Check if body has subscript assignment to this param
+                param_is_mutated_in_body(&p.name, &func.body)
+            })
+            .collect();
+        if param_muts.iter().any(|&m| m) {
+            ctx.function_param_muts
+                .insert(func.name.clone(), param_muts);
         }
     }
 

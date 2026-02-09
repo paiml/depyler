@@ -3396,11 +3396,11 @@ pub fn merge<'a, 'b>(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn fibonacci_memo(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let memo: std::collections::HashMap<i32, i32> = {
+    let mut memo: std::collections::HashMap<i32, i32> = {
         let map: HashMap<i32, i32> = HashMap::new();
         map
     };
-    Ok(fib_helper(n, &memo)?)
+    Ok(fib_helper(n, &mut memo)?)
 }
 #[doc = "Helper for memoized fibonacci."]
 #[doc = " Depyler: proven to terminate"]
@@ -3521,7 +3521,7 @@ pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Matrix multiplication."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'b, 'a>(
+pub fn matrix_multiply<'a, 'b>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3544,13 +3544,13 @@ pub fn matrix_multiply<'b, 'a>(
                     (a.get(i as usize)
                         .cloned()
                         .expect("IndexError: list index out of range")
-                        .get(&k)
+                        .get(k as usize)
                         .cloned()
-                        .unwrap_or_default())
+                        .expect("IndexError: list index out of range"))
                     .py_mul(
-                        b.get(&k)
+                        b.get(k as usize)
                             .cloned()
-                            .unwrap_or_default()
+                            .expect("IndexError: list index out of range")
                             .get(j as usize)
                             .cloned()
                             .expect("IndexError: list index out of range"),
