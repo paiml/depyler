@@ -136,7 +136,7 @@ mod coverage_wave9_direct_rules_tests;
 mod coverage_wave9_stdlib_expr_tests;
 #[cfg(test)]
 mod coverage_wave9_fix_inference_tests;
-// Waves 10-11: 1084 tests (enabled for normal builds, disabled for coverage measurement)
+// Waves 10-11: 1084 tests (excluded from coverage to avoid OOM)
 #[cfg(all(test, not(coverage)))]
 mod coverage_wave10_assign_control_tests;
 #[cfg(all(test, not(coverage)))]
@@ -147,17 +147,20 @@ mod coverage_wave11_string_dict_tests;
 mod coverage_wave11_expr_type_tests;
 #[cfg(all(test, not(coverage)))]
 mod coverage_wave11_assign_control_tests;
-// Wave 12: 200 tests targeting binary_ops, call_generic, stdlib_numpy
-#[cfg(test)]
+// Wave 12: 600 tests
+#[cfg(all(test, not(coverage)))]
 mod coverage_wave12_binary_call_tests;
-
-// Wave 12: 200 tests targeting expr_methods.rs and expr_advanced.rs
-#[cfg(test)]
+#[cfg(all(test, not(coverage)))]
 mod coverage_wave12_expr_methods_tests;
-
-// Wave 12: 200 tests targeting instance dispatch and type helpers
-#[cfg(test)]
+#[cfg(all(test, not(coverage)))]
 mod coverage_wave12_dispatch_type_tests;
+// Wave 13: 600 tests targeting func_gen, stmt_gen, call_dispatch, stdlib
+#[cfg(all(test, not(coverage)))]
+mod coverage_wave13_func_gen_tests;
+#[cfg(all(test, not(coverage)))]
+mod coverage_wave13_stmt_gen_tests;
+#[cfg(all(test, not(coverage)))]
+mod coverage_wave13_call_stdlib_tests;
 
 // Internal imports
 #[cfg(test)]
