@@ -3469,7 +3469,7 @@ pub fn mat_negate(a: &Vec<Vec<i32>>) -> Result<Vec<Vec<i32>>, Box<dyn std::error
 }
 #[doc = "Standard matrix multiplication via triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
-pub fn mat_mul<'a, 'b>(
+pub fn mat_mul<'b, 'a>(
     a: &'a Vec<Vec<i32>>,
     b: &'b Vec<Vec<i32>>,
 ) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>> {
@@ -3810,7 +3810,7 @@ pub fn mat_is_banded(
 }
 #[doc = "Dot product of two integer vectors."]
 #[doc = " Depyler: proven to terminate"]
-pub fn vec_dot<'b, 'a>(
+pub fn vec_dot<'a, 'b>(
     a: &'a Vec<i32>,
     b: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3835,7 +3835,7 @@ pub fn vec_dot<'b, 'a>(
 #[doc = "Cross product of two 3D integer vectors."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn vec_cross<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn vec_cross<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     result.push(
         ((a.get(1usize)
@@ -3921,7 +3921,7 @@ pub fn vec_norm_squared(v: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>
 #[doc = "Add two vectors element-wise."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn vec_add<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn vec_add<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for i in 0..(a.len() as i32) {
         result.push(

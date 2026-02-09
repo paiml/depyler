@@ -9271,9 +9271,19 @@ fn apply_to_string_in_new_calls(code: &str, params: &[String]) -> String {
     let mut result = String::with_capacity(code.len());
     let mut in_new_call = false;
     let mut paren_depth: i32 = 0;
+    // DEPYLER-99MODE-S9: Skip Self::new() inside impl std::ops:: blocks
+    let mut in_ops_impl = false;
     for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("impl std::ops::") || trimmed.starts_with("impl DepylerTimeDelta") {
+            in_ops_impl = true;
+        }
+        // End of impl block (approximate: closing brace at indent 0)
+        if in_ops_impl && trimmed == "}" && !line.starts_with(' ') && !line.starts_with('\t') {
+            in_ops_impl = false;
+        }
         let mut fixed_line = line.to_string();
-        if line.contains("::new(") {
+        if line.contains("::new(") && !in_ops_impl {
             in_new_call = true;
             paren_depth = 0;
         }

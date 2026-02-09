@@ -2618,8 +2618,8 @@ Ok(merged)
 }
 #[doc = "Bottom-up merge sort without recursion."] #[doc = " Depyler: verified panic-free"] pub fn iterative_merge_sort(arr: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut result: Vec<i32>= Default::default();
-    let mut mid: i32 = Default::default();
     let mut right: i32 = Default::default();
+    let mut mid: i32 = Default::default();
     result = vec! [];
     for val in arr.iter().cloned() {
     result.push(val);
@@ -3525,7 +3525,7 @@ let _cse_temp_3 = quickselect(& vec! [1], 0) ? == 1;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
     let mut result: Vec<i32>= vec! [];
@@ -3821,8 +3821,8 @@ else {
 Ok(output)
 }
 #[doc = "LSD radix sort for non-negative integers."] pub fn radix_sort_lsd(arr: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut result: Vec<i32>= Default::default();
     let mut max_val: i32 = Default::default();
+    let mut result: Vec<i32>= Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4265,8 +4265,8 @@ let _cse_temp_0 = result.len() as i32;
 Ok(result)
 }
 #[doc = " Depyler: proven to terminate"] pub fn test_topological_sort() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut valid: bool = Default::default();
     let mut ok: i32 = Default::default();
+    let mut valid: bool = Default::default();
     ok = 0;
     let r1: Vec<i32>= topological_sort(6, & vec! [vec! [5, 2], vec! [5, 0], vec! [4, 0], vec! [4, 1], vec! [2, 3], vec! [3, 1]]) ?;
     let _cse_temp_0 = r1.len() as i32;
@@ -4323,11 +4323,11 @@ let r3: Vec<i32>= topological_sort(1, & vec! []) ?;
 }
 Ok(ok)
 }
-#[doc = "Merge and count inversions across halves."] pub fn merge_count<'a, 'b>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut j: i32 = Default::default();
+#[doc = "Merge and count inversions across halves."] pub fn merge_count<'b, 'a>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
     let mut inv_count: i32 = Default::default();
     let mut k: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     i = left;
     j  = ((mid).py_add(1i32)) as i32;
     k = left;
@@ -4688,7 +4688,7 @@ let r4: Vec<i32>= kmp_failure(& vec! [5]) ?;
 }
 Ok(ok)
 }
-#[doc = "KMP pattern matching, returns list of match start indices."] pub fn kmp_search<'a, 'b>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "KMP pattern matching, returns list of match start indices."] pub fn kmp_search<'b, 'a>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut j: i32 = Default::default();
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
@@ -5201,8 +5201,8 @@ let r3: Vec<i32>= pancake_sort(& vec! [1]) ?;
 Ok(ok)
 }
 #[doc = "Cycle sort - minimizes writes, O(n^2)."] pub fn cycle_sort(arr: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut cycle_start: i32 = Default::default();
     let mut item: i32 = Default::default();
+    let mut cycle_start: i32 = Default::default();
     let mut result: Vec<i32>= vec! [];
     for val in arr.iter().cloned() {
     result.push(val);
@@ -5657,8 +5657,8 @@ else {
 Ok(lo)
 }
 #[doc = " Depyler: proven to terminate"] pub fn test_find_peak_element() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut is_peak: bool = Default::default();
     let mut ok: i32 = Default::default();
+    let mut is_peak: bool = Default::default();
     ok = 0;
     let p1: i32 = find_peak_element(& vec! [1, 2, 3, 1]) ?;
     let _cse_temp_0 = p1 == 2;
@@ -5755,7 +5755,7 @@ let r3: Vec<i32>= two_sum_sorted(& vec! [1, 2], 10) ?;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted arrays simulating in-place merge with gap method."] pub fn merge_in_place_sim<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted arrays simulating in-place merge with gap method."] pub fn merge_in_place_sim<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut combined: Vec<i32>= vec! [];
     for val in a.iter().cloned() {
     combined.push(val);

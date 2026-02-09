@@ -2958,9 +2958,9 @@ let _cse_temp_3 = b<0;
 (a).py_add(b)
 }
 #[doc = "Multiply with overflow detection."] #[doc = " Depyler: proven to terminate"] pub fn safe_multiply(a: i32, b: i32, max_val: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut abs_b: i32 = Default::default();
     let mut abs_a: i32 = Default::default();
     let mut sign: i32 = Default::default();
+    let mut abs_b: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     let _cse_temp_1 = b == 0;
     let _cse_temp_2  = (_cse_temp_0) ||(_cse_temp_1);
@@ -4557,7 +4557,7 @@ result = coeffs.get(0usize).cloned().expect("IndexError: list index out of range
 }
 Ok(result)
 }
-#[doc = "Add two polynomials(index = degree)."] #[doc = " Depyler: verified panic-free"] pub fn poly_add<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Add two polynomials(index = degree)."] #[doc = " Depyler: verified panic-free"] pub fn poly_add<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let max_len: i32 = if a.len() as i32>b.len() as i32 {
     a.len() as i32
 }
@@ -4703,9 +4703,9 @@ while b != 0 {
 Ok(a)
 }
 #[doc = "Extended GCD returning [gcd, x, y] where a*x + b*y = gcd."] pub fn extended_gcd(a: i32, b: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut old_r: i32 = Default::default();
-    let mut old_t: i32 = Default::default();
     let mut old_s: i32 = Default::default();
+    let mut old_t: i32 = Default::default();
+    let mut old_r: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     if _cse_temp_0 {
     return Ok(vec! [b, 0, 1]);
@@ -4976,8 +4976,8 @@ else {
 Ok(vec! [x, combined])
 }
 #[doc = "CRT for a list of congruences."] pub fn crt_list<'b, 'a>(remainders: & 'a Vec<i32>, moduli: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut cur_r: i32 = Default::default();
     let mut cur_m: i32 = Default::default();
+    let mut cur_r: i32 = Default::default();
     let _cse_temp_0 = remainders.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     let _cse_temp_2 = moduli.len() as i32;
