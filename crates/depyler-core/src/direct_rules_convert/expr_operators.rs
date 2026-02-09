@@ -469,7 +469,9 @@ impl<'a> ExprConverter<'a> {
                         Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String
                     )
                 } else {
-                    false
+                    // DEPYLER-99MODE: Heuristic fallback for collection/string attribute names
+                    crate::rust_gen::truthiness_helpers::is_collection_attr_name(attr)
+                        || crate::rust_gen::truthiness_helpers::is_string_attr_name(attr)
                 }
             } else {
                 false
