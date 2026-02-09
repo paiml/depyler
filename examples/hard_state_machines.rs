@@ -4,12 +4,12 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR__: &'static str = " ";
-    const STR_B: &'static str = "b";
-    const STR_EMPTY: &'static str = "";
-    const STR_0: &'static str = "0";
+const STR_0: &'static str = "0";
     const STR_C: &'static str = "c";
+    const STR_EMPTY: &'static str = "";
+    const STR__: &'static str = " ";
     const STR_A: &'static str = "a";
+    const STR_B: &'static str = "b";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
@@ -2880,8 +2880,8 @@ else {
 phase3
 }
 #[doc = "Simulate a vending machine. Accepts coins(1, 5, 10, 25).\n    Returns(items_dispensed, change_returned).\n    Invalid coins are ignored. Dispenses when total>= price."] #[doc = " Depyler: verified panic-free"] pub fn vending_machine_fsm(coins: & Vec<i32>, price: i32) -> (i32, i32) {
-    let mut change: i32 = Default::default();
     let mut items: i32 = Default::default();
+    let mut change: i32 = Default::default();
     let mut total: i32 = 0;
     items = 0;
     change = 0;
@@ -2939,7 +2939,7 @@ else {
 }
 visited
 }
-#[doc = "Simple regex matching supporting '.'(any char) and '*'(zero or more of prev).\n    Uses iterative state machine approach with backtracking stack."] pub fn regex_dot_star_match<'a, 'b>(pattern: & 'a str, text: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
+#[doc = "Simple regex matching supporting '.'(any char) and '*'(zero or more of prev).\n    Uses iterative state machine approach with backtracking stack."] pub fn regex_dot_star_match<'b, 'a>(pattern: & 'a str, text: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut stack: Vec <(i32, i32)>= vec! [(0, 0)];
     let mut visited: std::collections::HashMap<String, bool>= {
     let map: HashMap<String, bool>= HashMap::new();
@@ -3072,7 +3072,7 @@ i  = ((i).py_add(1i32)) as i32;
 result.push((current_val, current_count));
     Ok(result)
 }
-#[doc = "Simulate an NFA given as transition table.\n    Transition keys are 'state,char' -> list of next states.\n    Returns True if any path reaches an accept state."] pub fn nfa_simulate<'a, 'c, 'b>(transitions: & 'a std::collections::HashMap<String, Vec<i32>>, start: i32, accepts: & 'b Vec<i32>, input_str: & 'c str) -> Result<bool, Box<dyn std::error::Error>>{
+#[doc = "Simulate an NFA given as transition table.\n    Transition keys are 'state,char' -> list of next states.\n    Returns True if any path reaches an accept state."] pub fn nfa_simulate<'c, 'a, 'b>(transitions: & 'a std::collections::HashMap<String, Vec<i32>>, start: i32, accepts: & 'b Vec<i32>, input_str: & 'c str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut current_states: Vec<i32>= Default::default();
     current_states = vec! [start];
     for ch in input_str.chars() {
@@ -3108,9 +3108,9 @@ Ok(false)
 }
 #[doc = "Reduce a state sequence by merging consecutive duplicates\n    and collapsing alternating patterns(e.g., 1,2,1,2 -> 1,2).\n    Returns the reduced sequence."] pub fn state_reduction_merge(states: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut current: Vec<i32>= Default::default();
+    let mut already_seen: bool = Default::default();
     let mut changed: bool = Default::default();
     let mut j: i32 = Default::default();
-    let mut already_seen: bool = Default::default();
     let _cse_temp_0 = states.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {

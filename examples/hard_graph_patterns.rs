@@ -4038,8 +4038,8 @@ pub fn count_bridges(
 pub fn count_articulation_points(
     graph: &std::collections::HashMap<i32, Vec<i32>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut nbs: Vec<i32> = Default::default();
     let mut cc: i32 = Default::default();
+    let mut nbs: Vec<i32> = Default::default();
     let ug: std::collections::HashMap<i32, Vec<i32>> = make_undirected(&graph)?;
     let nodes: Vec<i32> = all_nodes(&ug)?;
     let mut disc: std::collections::HashMap<i32, i32> = {

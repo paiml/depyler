@@ -5,12 +5,12 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-const STR_IDLE: &'static str = "idle";
-const STR_PAUSE: &'static str = "pause";
-const STR_STOPPED: &'static str = "stopped";
 const STR_STOP: &'static str = "stop";
+const STR_PAUSE: &'static str = "pause";
 const STR_START: &'static str = "start";
+const STR_STOPPED: &'static str = "stopped";
 const STR_RESET: &'static str = "reset";
+const STR_IDLE: &'static str = "idle";
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -3208,8 +3208,8 @@ pub fn multi_nested_break(
     matrix: &Vec<Vec<i32>>,
     target: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut found_row: i32 = Default::default();
     let mut found_col: i32 = Default::default();
+    let mut found_row: i32 = Default::default();
     found_row = -1;
     found_col = -1;
     let mut found: bool = false;

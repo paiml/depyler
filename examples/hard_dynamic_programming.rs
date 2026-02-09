@@ -3028,7 +3028,7 @@ impl DepylerTimeDelta {
         let total_days = days + weeks * 7;
         let total_secs = seconds + minutes * 60 + hours * 3600;
         let total_us = microseconds + milliseconds * 1000;
-        Self::new(total_days.to_string(), total_secs.to_string(), total_us.to_string())
+        Self::new(total_days, total_secs, total_us)
     }
     #[doc = r" Get total seconds as f64"]
     pub fn total_seconds(&self) -> f64 {
@@ -3051,9 +3051,9 @@ impl std::ops::Add for DepylerTimeDelta {
     type Output = Self;
     fn add(self, other: Self) -> Self {
         Self::new(
-            self.days + other.days.to_string(),
-            self.seconds + other.seconds.to_string(),
-            self.microseconds + other.microseconds.to_string(),
+            self.days + other.days,
+            self.seconds + other.seconds,
+            self.microseconds + other.microseconds,
         )
     }
 }
@@ -3061,9 +3061,9 @@ impl std::ops::Sub for DepylerTimeDelta {
     type Output = Self;
     fn sub(self, other: Self) -> Self {
         Self::new(
-            self.days - other.days.to_string(),
-            self.seconds - other.seconds.to_string(),
-            self.microseconds - other.microseconds.to_string(),
+            self.days - other.days,
+            self.seconds - other.seconds,
+            self.microseconds - other.microseconds,
         )
     }
 }
@@ -3931,7 +3931,7 @@ pub fn edit_distance<'a, 'b>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "Length of the longest common subsequence of two strings."]
-pub fn longest_common_subsequence<'a, 'b>(
+pub fn longest_common_subsequence<'b, 'a>(
     text1: &'a str,
     text2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4049,7 +4049,7 @@ pub fn longest_common_subsequence<'a, 'b>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "0/1 knapsack: max value without exceeding capacity."]
-pub fn knapsack_01<'b, 'a>(
+pub fn knapsack_01<'a, 'b>(
     weights: &'a Vec<i32>,
     values: &'b Vec<i32>,
     capacity: i32,
@@ -4206,7 +4206,7 @@ pub fn knapsack_01_space_optimized<'a, 'b>(
         .expect("IndexError: list index out of range"))
 }
 #[doc = "Unbounded knapsack: items can be used multiple times."]
-pub fn unbounded_knapsack<'b, 'a>(
+pub fn unbounded_knapsack<'a, 'b>(
     weights: &'a Vec<i32>,
     values: &'b Vec<i32>,
     capacity: i32,
@@ -5024,7 +5024,7 @@ pub fn max_profit_stock_cooldown(prices: &Vec<i32>) -> Result<i32, Box<dyn std::
     Ok(last_rest)
 }
 #[doc = "Count ways to segment string s using dictionary words. 1D DP with inner scan."]
-pub fn word_break_count<'b, 'a>(
+pub fn word_break_count<'a, 'b>(
     s: &'a str,
     words: &'b Vec<String>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

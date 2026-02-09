@@ -4089,8 +4089,8 @@ pub fn countdown_to_target(start: i32, target: i32, max_steps: i32) -> i32 {
 }
 #[doc = "Halve value toward zero. Return iterations or -1."]
 pub fn converge_to_zero(value: i32, max_iters: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut iters: i32 = Default::default();
     let mut current: i32 = Default::default();
+    let mut iters: i32 = Default::default();
     current = value;
     let _cse_temp_0 = current < 0;
     if _cse_temp_0 {
@@ -4491,14 +4491,14 @@ pub fn untyped_guard_compute(a: i32, b: i32, c: i32) -> i32 {
     }
 }
 #[doc = "Weighted average with mismatched-length and zero-weight guards."]
-pub fn safe_weighted_average<'b, 'a>(
+pub fn safe_weighted_average<'a, 'b>(
     values: &'a Vec<i32>,
     weights: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total_weight: i32 = Default::default();
     let mut weighted_sum: i32 = Default::default();
-    let mut w: i32 = Default::default();
     let mut length: i32 = Default::default();
+    let mut w: i32 = Default::default();
     let _cse_temp_0 = values.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
