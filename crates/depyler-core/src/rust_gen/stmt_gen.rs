@@ -3283,22 +3283,28 @@ pub(crate) fn codegen_for_stmt(
                 .is_some_and(|t| matches!(t, Type::String));
 
             // DEPYLER-0300/0302: Fall back to name-based heuristics if type not available
-            // Strings use .chars() instead of .iter().cloned()
-            // DEPYLER-0302: Exclude plurals (strings, words, etc.) which are collections
-            let is_string_name = {
+            // DEPYLER-99MODE-S9: Only use name heuristic when var_types has NO concrete type
+            // If var_types says s=List(Int), don't override with string heuristic
+            let has_known_non_string_type = ctx.var_types.get(var_name).is_some_and(|t| {
+                matches!(
+                    t,
+                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Int
+                        | Type::Float | Type::Bool | Type::Tuple(_)
+                )
+            });
+            let is_string_name = if has_known_non_string_type {
+                false
+            } else {
                 let n = var_name.as_str();
-                // Exact matches (singular forms only)
                 (n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
                 || n == "char" || n == "character")
-            // Prefixes (but not if followed by 's' for plural)
-            || (n.starts_with("str") && !n.starts_with("strings"))
-            || (n.starts_with("word") && !n.starts_with("words"))
-            || (n.starts_with("text") && !n.starts_with("texts"))
-            // Suffixes (but exclude plurals)
-            || (n.ends_with("_str") && !n.ends_with("_strs"))
-            || (n.ends_with("_string") && !n.ends_with("_strings"))
-            || (n.ends_with("_word") && !n.ends_with("_words"))
-            || (n.ends_with("_text") && !n.ends_with("_texts"))
+                || (n.starts_with("str") && !n.starts_with("strings"))
+                || (n.starts_with("word") && !n.starts_with("words"))
+                || (n.starts_with("text") && !n.starts_with("texts"))
+                || (n.ends_with("_str") && !n.ends_with("_strs"))
+                || (n.ends_with("_string") && !n.ends_with("_strings"))
+                || (n.ends_with("_word") && !n.ends_with("_words"))
+                || (n.ends_with("_text") && !n.ends_with("_texts"))
             };
 
             // DEPYLER-0606: Check if iterating over serde_json::Value
@@ -4106,7 +4112,17 @@ pub(crate) fn codegen_assign_stmt(
 
     // DEPYLER-0279: Detect and handle dict augmented assignment pattern
     // If we have dict[key] += value, avoid borrow-after-move by evaluating old value first
-    if is_dict_augassign_pattern(target, value) {
+    // DEPYLER-99MODE-S9: Skip dict pattern for List bases (use direct index instead)
+    let base_is_list = if let AssignTarget::Index { base, .. } = target {
+        if let HirExpr::Var(name) = base.as_ref() {
+            matches!(ctx.var_types.get(name), Some(Type::List(_)))
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if !base_is_list && is_dict_augassign_pattern(target, value) {
         if let AssignTarget::Index { base, index } = target {
             if let HirExpr::Binary { op, left: _, right } = value {
                 // Generate: let old_val = dict.get(&key).cloned().unwrap_or_default();

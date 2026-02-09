@@ -3179,7 +3179,7 @@ impl DepylerRegexMatch {
     }
 }
 #[doc = "Minimum coins needed for amount using memoized recursion.\n\n    Passes memo dict mutably to recursive calls. Tests &mut HashMap<i64,i64>\n    parameter threading through recursion with dict mutation in callee.\n    "]
-pub fn coin_change_memo<'b, 'a>(
+pub fn coin_change_memo<'a, 'b>(
     amount: i32,
     coins: &'a Vec<i32>,
     memo: &'b mut std::collections::HashMap<i32, i32>,
@@ -3330,7 +3330,7 @@ pub fn longest_increasing_subseq(nums: &Vec<i32>) -> Result<i32, Box<dyn std::er
 }
 #[doc = "Levenshtein edit distance using 2D DP table.\n\n    Tests list[list[int]] creation, nested indexing dp[i][j],\n    row initialization via inner loop, and min-of-three computation\n    across adjacent cells in the matrix.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn edit_distance_dp<'b, 'a>(
+pub fn edit_distance_dp<'a, 'b>(
     word1: &'a str,
     word2: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -3481,7 +3481,7 @@ pub fn edit_distance_dp<'b, 'a>(
 }
 #[doc = "0/1 knapsack via bottom-up 2D DP table.\n\n    Tests list[list[int]] with(n+1)x(capacity+1) dimensions,\n    conditional cell updates referencing previous row, and nested\n    max comparisons across the DP table.\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn knapsack_01<'b, 'a>(
+pub fn knapsack_01<'a, 'b>(
     weights: &'a Vec<i32>,
     values: &'b Vec<i32>,
     capacity: i32,
@@ -3878,8 +3878,8 @@ pub fn max_sum_subarray_of_size_k(
     nums: &Vec<i32>,
     k: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut window_sum: i32 = Default::default();
     let mut max_sum: i32 = Default::default();
+    let mut window_sum: i32 = Default::default();
     let _cse_temp_0 = nums.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = k > n;

@@ -9974,8 +9974,14 @@ fn fix_vec_to_string_debug(code: &str) -> String {
     }
     let mut result = code.to_string();
     for var in &vec_vars {
+        // DEPYLER-99MODE-S9: Skip internal boilerplate variables (_dv_ prefix)
+        // and single-char vars (too prone to false positives in closures like |s|)
+        if var.starts_with("_dv_") || var.len() <= 1 {
+            continue;
+        }
         // Replace `.to_string()` with `.clone()` so Vec is passed by value
-        // (the variable may be a reference, so .clone() is safer than bare name)
+        // Only replace when preceded by word boundary (space, (, |, or line start)
+        // to avoid corrupting closure params like `|s| DepylerValue::Str(s.to_string())`
         let old = format!("{}.to_string()", var);
         let new = format!("{}.clone()", var);
         result = result.replace(&old, &new);

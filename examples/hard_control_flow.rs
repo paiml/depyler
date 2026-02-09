@@ -5,12 +5,12 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
+const STR_RESET: &'static str = "reset";
 const STR_IDLE: &'static str = "idle";
 const STR_STOPPED: &'static str = "stopped";
 const STR_PAUSE: &'static str = "pause";
-const STR_RESET: &'static str = "reset";
-const STR_STOP: &'static str = "stop";
 const STR_START: &'static str = "start";
+const STR_STOP: &'static str = "stop";
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -3208,8 +3208,8 @@ pub fn multi_nested_break(
     matrix: &Vec<Vec<i32>>,
     target: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut found_col: i32 = Default::default();
     let mut found_row: i32 = Default::default();
+    let mut found_col: i32 = Default::default();
     found_row = -1;
     found_col = -1;
     let mut found: bool = false;
@@ -3530,8 +3530,8 @@ pub fn error_code_pipeline(values: &Vec<i32>) -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn complex_boolean_logic(a: bool, b: bool, c: bool, d: bool) -> i32 {
-    let mut result1: i32 = Default::default();
     let mut vote_count: i32 = Default::default();
+    let mut result1: i32 = Default::default();
     if !(a) && (b) {
         let _cse_temp_0 = (!a) || (!b);
         if _cse_temp_0 {
