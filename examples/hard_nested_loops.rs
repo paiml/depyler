@@ -4408,8 +4408,8 @@ pub fn edit_distance_table<'a, 'b>(
     s1: &'a Vec<i32>,
     s2: &'b Vec<i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut cost: i32 = Default::default();
     let mut best: i32 = Default::default();
+    let mut cost: i32 = Default::default();
     let _cse_temp_0 = s1.len() as i32;
     let m: i32 = _cse_temp_0;
     let _cse_temp_1 = s2.len() as i32;

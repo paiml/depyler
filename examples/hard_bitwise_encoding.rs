@@ -3392,8 +3392,8 @@ pub fn xor_encode_rolling(
 }
 #[doc = "Run-length encode a list into [value, count, value, count,...] pairs."]
 pub fn rle_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut current: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3701,8 +3701,8 @@ pub fn crc16_simple(data: &Vec<i32>, poly: i32) -> Result<i32, Box<dyn std::erro
 }
 #[doc = "Convert list of 8-bit values to list of 6-bit values(base64-style grouping)."]
 pub fn base64_like_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut buffer: i32 = Default::default();
     let mut bits_in_buffer: i32 = Default::default();
+    let mut buffer: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     buffer = 0;
     bits_in_buffer = 0;
@@ -3824,7 +3824,7 @@ pub fn assign_bit_lengths(freq: &std::collections::HashMap<i32, i32>) -> HashMap
     lengths
 }
 #[doc = "Compute total bits needed to encode data with given bit lengths."]
-pub fn total_encoded_bits<'b, 'a>(
+pub fn total_encoded_bits<'a, 'b>(
     data: &'a Vec<i32>,
     bit_lengths: &'b std::collections::HashMap<i32, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -4476,8 +4476,8 @@ pub fn test_crc() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Test base64-like encoding roundtrip."]
 pub fn test_base64_like() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut r#match: i32 = Default::default();
     let mut all_valid: i32 = Default::default();
+    let mut r#match: i32 = Default::default();
     let mut result: i32 = Default::default();
     result = 0;
     let data: Vec<i32> = vec![65, 66, 67];

@@ -5,12 +5,12 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-const STR_STOP: &'static str = "stop";
-const STR_STOPPED: &'static str = "stopped";
-const STR_RESET: &'static str = "reset";
 const STR_IDLE: &'static str = "idle";
 const STR_PAUSE: &'static str = "pause";
+const STR_STOPPED: &'static str = "stopped";
+const STR_STOP: &'static str = "stop";
 const STR_START: &'static str = "start";
+const STR_RESET: &'static str = "reset";
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -3208,8 +3208,8 @@ pub fn multi_nested_break(
     matrix: &Vec<Vec<i32>>,
     target: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut found_col: i32 = Default::default();
     let mut found_row: i32 = Default::default();
+    let mut found_col: i32 = Default::default();
     found_row = -1;
     found_col = -1;
     let mut found: bool = false;
@@ -3471,7 +3471,7 @@ pub fn nested_loop_with_continue_break(n: i32) -> Result<Vec<i32>, Box<dyn std::
     Ok(results)
 }
 #[doc = "Search for multiple needles in haystack using flag variables.\n\n    For each needle, sets a found flag and searches linearly.\n    Collects indices of found needles. Tests flag variable patterns\n    with nested loops and conditional accumulation.\n    "]
-pub fn flag_controlled_search<'b, 'a>(
+pub fn flag_controlled_search<'a, 'b>(
     haystack: &'a Vec<i32>,
     needles: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -3530,8 +3530,8 @@ pub fn error_code_pipeline(values: &Vec<i32>) -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn complex_boolean_logic(a: bool, b: bool, c: bool, d: bool) -> i32 {
-    let mut result1: i32 = Default::default();
     let mut vote_count: i32 = Default::default();
+    let mut result1: i32 = Default::default();
     if !(a) && (b) {
         let _cse_temp_0 = (!a) || (!b);
         if _cse_temp_0 {
@@ -3591,7 +3591,7 @@ pub fn countdown_with_restarts(initial: i32, restart_at: &Vec<i32>) -> i32 {
     steps = 0;
     let mut used_restarts: std::collections::HashSet<i32> = std::collections::HashSet::<i32>::new();
     let max_steps: i32 = 1000;
-    while (counter > 0) && ((steps as f64) < (max_steps as f64)) {
+    while (counter > 0) && (steps < max_steps) {
         if (restart_at.contains(&counter)) && (!used_restarts.contains(&counter)) {
             used_restarts.insert(counter);
             counter = ((counter).py_add(5i32)) as i32;
