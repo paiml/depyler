@@ -3801,7 +3801,7 @@ pub fn test_group_by_remainder() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Element-wise operation on two lists using zip-like pattern."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_with_operation<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_with_operation<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     let length: i32 = if (a.len() as i32) < b.len() as i32 {
         a.len() as i32

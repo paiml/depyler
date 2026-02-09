@@ -496,8 +496,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 if matches!(var_type, Type::Custom(ref s) if s == "serde_json::Value") {
                                     true  // Always borrow Value types
                                 } else if matches!(var_type, Type::Dict(_, _)) {
-                                    // Also borrow Dict types (mapped to serde_json::Value)
-                                    true
+                                    // DEPYLER-99MODE-S9: Check function_param_borrows for Dict types
+                                    // Don't always borrow — functions that take ownership (return modified dict)
+                                    // should receive the dict by value, not reference
+                                    self.ctx
+                                        .function_param_borrows
+                                        .get(func)
+                                        .and_then(|borrows| borrows.get(param_idx))
+                                        .copied()
+                                        .unwrap_or(true) // Default to borrow if unknown
                                 } else if matches!(var_type, Type::String) {
                                     // DEPYLER-0469: Borrow String types as &str
                                     // DEPYLER-0818: But DON'T borrow if the variable is already &str

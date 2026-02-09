@@ -4005,8 +4005,8 @@ else {
 Ok(result)
 }
 #[doc = "Evaluate continued fraction, returns [numerator, denominator]."] pub fn evaluate_continued_fraction(cf: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut den: i32 = Default::default();
     let mut num: i32 = Default::default();
+    let mut den: i32 = Default::default();
     let _cse_temp_0 = cf.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4031,8 +4031,8 @@ Ok(vec! [num, den])
     evaluate_continued_fraction(& cf)
 }
 #[doc = "Test continued fraction computations."] #[doc = " Depyler: proven to terminate"] pub fn test_continued_fractions() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut total: i32 = Default::default();
     let mut diff: i32 = Default::default();
+    let mut total: i32 = Default::default();
     total = 0;
     let cf4: Vec<i32>= continued_fraction_sqrt(4, 5) ?;
     let _cse_temp_0 = cf4 == vec! [2];
@@ -4557,7 +4557,7 @@ result = coeffs.get(0usize).cloned().expect("IndexError: list index out of range
 }
 Ok(result)
 }
-#[doc = "Add two polynomials(index = degree)."] #[doc = " Depyler: verified panic-free"] pub fn poly_add<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Add two polynomials(index = degree)."] #[doc = " Depyler: verified panic-free"] pub fn poly_add<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let max_len: i32 = if a.len() as i32>b.len() as i32 {
     a.len() as i32
 }
@@ -4703,9 +4703,9 @@ while b != 0 {
 Ok(a)
 }
 #[doc = "Extended GCD returning [gcd, x, y] where a*x + b*y = gcd."] pub fn extended_gcd(a: i32, b: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut old_r: i32 = Default::default();
     let mut old_s: i32 = Default::default();
     let mut old_t: i32 = Default::default();
+    let mut old_r: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     if _cse_temp_0 {
     return Ok(vec! [b, 0, 1]);
@@ -4756,8 +4756,8 @@ let _cse_temp_1 = old_r<0;
 Ok(vec! [old_r, old_s, old_t])
 }
 #[doc = "Least common multiple."] #[doc = " Depyler: proven to terminate"] pub fn lcm(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut vb: i32 = Default::default();
     let mut va: i32 = Default::default();
+    let mut vb: i32 = Default::default();
     let _cse_temp_0 = a == 0;
     let _cse_temp_1 = b == 0;
     let _cse_temp_2  = (_cse_temp_0) ||(_cse_temp_1);
@@ -4975,7 +4975,7 @@ else {
 }
 Ok(vec! [x, combined])
 }
-#[doc = "CRT for a list of congruences."] pub fn crt_list<'a, 'b>(remainders: & 'a Vec<i32>, moduli: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "CRT for a list of congruences."] pub fn crt_list<'b, 'a>(remainders: & 'a Vec<i32>, moduli: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut cur_m: i32 = Default::default();
     let mut cur_r: i32 = Default::default();
     let _cse_temp_0 = remainders.len() as i32;
@@ -5329,8 +5329,8 @@ val  = ((((val).py_mul(base) as i32)).py_mod(r#mod)) as i32;
 Ok(- 1)
 }
 #[doc = "Euler's totient function."] pub fn euler_totient(n: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut temp: i32 = Default::default();
     let mut result: i32 = Default::default();
+    let mut temp: i32 = Default::default();
     let _cse_temp_0 = n <= 0;
     if _cse_temp_0 {
     return Ok(0);
