@@ -368,6 +368,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let index_expr = index.to_rust_expr(self.ctx)?;
                 // DEPYLER-99MODE-S9: Check if dict has CONCRETE typed keys
                 // For Dict[int, int] → HashMap<i32, i32>, use &key directly (no DepylerValue wrapping)
+                // DEPYLER-99MODE-S9: Also resolve nested subscript bases like trie[k][ik]
+                // where trie: Dict[str, Dict[str, str]] → inner dict has String keys
                 let key_type = if let HirExpr::Var(var_name) = base {
                     self.ctx.var_types.get(var_name).and_then(|t| {
                         if let Type::Dict(k, _) = t {
@@ -376,6 +378,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             None
                         }
                     })
+                } else if let HirExpr::Index { base: inner_base, .. } = base {
+                    // Walk to root variable and resolve the value type of the outer dict
+                    let mut current = inner_base.as_ref();
+                    while let HirExpr::Index { base: deeper, .. } = current {
+                        current = deeper;
+                    }
+                    if let HirExpr::Var(root_name) = current {
+                        let mut cur_type = self.ctx.var_types.get(root_name).cloned();
+                        // Walk through Index levels to find the value type at this level
+                        let mut walk = inner_base.as_ref();
+                        while let HirExpr::Index { base: deeper, .. } = walk {
+                            walk = deeper;
+                        }
+                        // Peel one Dict level (root → value type of root dict)
+                        if let Some(Type::Dict(_, val)) = &cur_type {
+                            cur_type = Some(val.as_ref().clone());
+                        } else if let Some(Type::List(elem)) = &cur_type {
+                            cur_type = Some(elem.as_ref().clone());
+                        }
+                        // Extract key type from the resolved inner dict type
+                        cur_type.and_then(|t| {
+                            if let Type::Dict(k, _) = t {
+                                Some(k.as_ref().clone())
+                            } else {
+                                None
+                            }
+                        })
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 };
