@@ -245,9 +245,24 @@ mod coverage_wave21_func_expr_tests;
 // Wave 21: 200 direct_rules convert_method_call + argparse transform coverage tests
 #[cfg(test)]
 mod coverage_wave21_rules_argparse_tests;
-// Wave 21: 200 collection edge case coverage tests (list/dict/set/tuple methods)
+// Wave 21: 200 collection edge case tests (list/dict/set/tuple methods)
 #[cfg(test)]
 mod coverage_wave21_collection_edge_tests;
+// Wave 21: 200 string method edge case + attribute access tests
+#[cfg(test)]
+mod coverage_wave21_string_attr_tests;
+// Wave 21: 200 stmt_gen complex + indexing + func_gen nested tests
+#[cfg(test)]
+mod coverage_wave21_stmt_index_tests;
+// Wave 22: 200 string/set/dict method deep coverage tests
+#[cfg(test)]
+mod coverage_wave22_method_deep_tests;
+// Wave 22: 200 assignment + control flow deep coverage tests
+#[cfg(test)]
+mod coverage_wave22_assign_control_tests;
+// Wave 22: 200 call_generic + builtin + datetime deep coverage tests
+#[cfg(test)]
+mod coverage_wave22_call_builtin_tests;
 
 // Internal imports
 #[cfg(test)]
