@@ -3335,15 +3335,15 @@ pub fn merge_sort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>
             Vec::new()
         }
     })?;
-    Ok(merge(&left, &right)?)
+    merge(&left, &right)
 }
 #[doc = "Merge two sorted lists."]
 pub fn merge<'a, 'b>(
     left: &'a Vec<i32>,
     right: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;
@@ -3400,7 +3400,7 @@ pub fn fibonacci_memo(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let map: HashMap<i32, i32> = HashMap::new();
         map
     };
-    Ok(fib_helper(n, &mut memo)?)
+    fib_helper(n, &mut memo)
 }
 #[doc = "Helper for memoized fibonacci."]
 #[doc = " Depyler: proven to terminate"]

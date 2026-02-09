@@ -12,7 +12,8 @@ use crate::rust_gen::expr_analysis::{
     expr_infers_float, expr_produces_depyler_value, extract_kwarg_bool, extract_kwarg_string,
     extract_string_literal, get_depyler_extraction_for_type, get_inner_optional_type,
     handler_ends_with_exit, has_chained_pyops, is_dict_augassign_pattern, is_dict_index_access,
-    is_dict_with_value_type, is_iterator_producing_expr, is_native_depyler_tuple,
+    is_call_to_result_returning_fn, is_dict_with_value_type, is_iterator_producing_expr,
+    is_native_depyler_tuple,
     is_numpy_value_expr, is_pure_expression, looks_like_option_expr, needs_type_conversion,
     to_pascal_case,
 };
@@ -1202,6 +1203,15 @@ pub(crate) fn codegen_return_stmt(
                     } else {
                         Ok(quote! { let _ = #expr_tokens; Ok(()) })
                     }
+                }
+            } else if is_call_to_result_returning_fn(e, ctx) {
+                // DEPYLER-99MODE-S9: Don't double-wrap Result-returning function calls in Ok()
+                // If the return expression is a call to a function that already returns Result,
+                // just return the call directly (possibly with ?)
+                if use_return_keyword {
+                    Ok(quote! { return #expr_tokens; })
+                } else {
+                    Ok(quote! { #expr_tokens })
                 }
             } else if use_return_keyword {
                 Ok(quote! { return Ok(#expr_tokens); })
@@ -2808,6 +2818,52 @@ fn track_range_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGen
     }
 }
 
+/// Track loop variable type when iterating over a collection with known element type (DEPYLER-99MODE-S9)
+/// For `for x in some_list` where some_list is List(Int), track x as Int.
+/// Also handles Index expressions like `for neighbor in adj[node]` where adj is Dict(_, List(Int)).
+#[inline]
+fn track_collection_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(name) = target {
+        let elem_type = match iter {
+            HirExpr::Var(collection_name) => {
+                match ctx.var_types.get(collection_name) {
+                    Some(Type::List(elem)) => Some(elem.as_ref().clone()),
+                    Some(Type::Set(elem)) => Some(elem.as_ref().clone()),
+                    _ => None,
+                }
+            }
+            // for x in dict[key] where dict value type is List(T) → x: T
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    match ctx.var_types.get(base_name) {
+                        Some(Type::Dict(_, val_type)) => {
+                            if let Type::List(elem) = val_type.as_ref() {
+                                Some(elem.as_ref().clone())
+                            } else {
+                                None
+                            }
+                        }
+                        Some(Type::List(elem)) => {
+                            // Nested list: for row in matrix[i]
+                            Some(elem.as_ref().clone())
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        if let Some(ty) = elem_type {
+            // Only track concrete types, not Unknown/UnificationVar
+            if !matches!(ty, Type::Unknown | Type::UnificationVar(_)) {
+                ctx.var_types.insert(name.clone(), ty);
+            }
+        }
+    }
+}
+
 /// Track char variables from Counter(string) iteration (DEPYLER-0821)
 #[inline]
 fn track_char_counter_iter(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGenContext) {
@@ -3169,6 +3225,7 @@ pub(crate) fn codegen_for_stmt(
 
     // DEPYLER-REFACTOR: Use extracted helper functions for loop variable tracking
     track_range_loop_var(target, iter, ctx);
+    track_collection_loop_var(target, iter, ctx);
     track_char_counter_iter(target, iter, ctx);
 
     // DEPYLER-REFACTOR: Use extracted helper for target pattern generation

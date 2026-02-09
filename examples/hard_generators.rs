@@ -3573,7 +3573,7 @@ pub fn scan_with_op(nums: &Vec<i32>, initial: i32, add: bool) -> Vec<i32> {
 }
 #[doc = "Chain three lists together(like itertools.chain)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn chain_lists<'a, 'b, 'c>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> Vec<i32> {
+pub fn chain_lists<'a, 'c, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>, c: &'c Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for x in a.iter().cloned() {
         result.push(x);
@@ -3613,7 +3613,7 @@ pub fn flatten_and_filter(nested: &Vec<Vec<i32>>, threshold: i32) -> Vec<i32> {
 #[doc = "Interleave two lists element by element."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn interleave<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn interleave<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut min_len: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     let _cse_temp_0 = a.len() as i32;
@@ -3678,7 +3678,7 @@ pub fn roundrobin(lists: &Vec<Vec<i32>>) -> Vec<i32> {
 #[doc = "Zip two lists and sum corresponding pairs."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_sum<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn zip_sum<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut min_len: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     let _cse_temp_0 = a.len() as i32;
@@ -4324,7 +4324,7 @@ pub fn state_machine_bracket_depth<'a, 'b>(opens: &'a Vec<i32>, closes: &'b Vec<
 }
 #[doc = "Cartesian product flattened: [a0*b0, a0*b1,..., a1*b0,...]."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_flat<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
+pub fn cartesian_product_flat<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for x in a.iter().cloned() {
         for y in b.iter().cloned() {
@@ -4335,7 +4335,7 @@ pub fn cartesian_product_flat<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<i
 }
 #[doc = "Cartesian product as pairs: [[a0,b0], [a0,b1],...]."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_pairs<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<Vec<i32>> {
+pub fn cartesian_product_pairs<'a, 'b>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<Vec<i32>> {
     let mut result: Vec<Vec<i32>> = vec![];
     for x in a.iter().cloned() {
         for y in b.iter().cloned() {
@@ -4346,7 +4346,7 @@ pub fn cartesian_product_pairs<'b, 'a>(a: &'a Vec<i32>, b: &'b Vec<i32>) -> Vec<
 }
 #[doc = "Triple cartesian product, returning sums of triples."]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_triple_sum<'b, 'c, 'a>(
+pub fn cartesian_triple_sum<'c, 'a, 'b>(
     a: &'a Vec<i32>,
     b: &'b Vec<i32>,
     c: &'c Vec<i32>,
@@ -4577,8 +4577,8 @@ pub fn pascal_row(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 #[doc = "One step of the look-and-say sequence."]
 #[doc = " Depyler: proven to terminate"]
 pub fn look_and_say_step(seq: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut count: i32 = Default::default();
     let mut current: i32 = Default::default();
+    let mut count: i32 = Default::default();
     if seq.is_empty() {
         return Ok(vec![]);
     }
@@ -5055,13 +5055,13 @@ pub fn test_multi_stage() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_state_even_odd() -> Result<i32, Box<dyn std::error::Error>> {
-    Ok(state_machine_even_odd(&vec![2, 3, 4, 6, 7])?)
+    state_machine_even_odd(&vec![2, 3, 4, 6, 7])
 }
 #[doc = "Test sign change detection."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sign_changes() -> Result<i32, Box<dyn std::error::Error>> {
-    Ok(state_machine_sign_changes(&vec![1, -2, 3, -4, 5])?)
+    state_machine_sign_changes(&vec![1, -2, 3, -4, 5])
 }
 #[doc = "Test run length encoding."]
 #[doc = " Depyler: verified panic-free"]

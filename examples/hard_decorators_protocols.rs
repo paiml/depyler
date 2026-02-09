@@ -5,7 +5,6 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -3196,132 +3195,85 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = "Ackermann function: deeply recursive with multiple base cases.\n\n    This function grows faster than any primitive recursive function.\n    Three distinct base/recursive cases stress return-type unification.\n    "]
+#[doc = "Simulate a decorator that doubles the result of a function."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn ackermann(m: i32, n: i32) -> i32 {
-    let _cse_temp_0 = m == 0;
-    if _cse_temp_0 {
-        return (n).py_add(1i32);
-    } else {
-        let _cse_temp_1 = m > 0;
-        let _cse_temp_2 = n == 0;
-        let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
-        if _cse_temp_3 {
-            return ackermann((m) - (1i32), 1);
-        } else {
-            return ackermann((m) - (1i32), ackermann(m, (n) - (1i32)));
-        }
-    }
+pub fn apply_double(x: i32) -> i32 {
+    (x).py_mul(2i32)
 }
-#[doc = "Flatten with recursive accumulator pattern.\n\n    Uses a mutable accumulator passed through recursive calls,\n    testing how the transpiler handles mutation through recursion.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn flatten_nested(lst: &Vec<Vec<i32>>) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for sublist in lst.iter().cloned() {
-        for item in sublist.iter().cloned() {
-            result.push(item);
-        }
-    }
-    result
-}
-#[doc = "Count integer partitions using dict-based memoization.\n\n    The cache is created inside the outer function and closed over\n    by the inner recursive helper. Tests closure capture of mutable dict.\n    "]
+#[doc = "Simulate a decorator that negates the result of a function."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn memoized_partition_count(n: i32) -> i32 {
-    let cache: std::collections::HashMap<String, i32> = {
-        let map: HashMap<String, i32> = HashMap::new();
-        map
-    };
-    let helper = move |remaining: i32, max_val: i32| -> i32 {
-        if remaining == 0 {
-            return 1;
-        }
-        if remaining < 0 {
-            return 0;
-        }
-        let key: String = format!(
-            "{}{}",
-            format!("{}{}", (remaining).to_string(), ","),
-            (max_val).to_string()
-        );
-        if cache.get(&key).is_some() {
-            return cache.get(&(key)).cloned().unwrap_or_default();
-        }
-        let mut total: i32 = 0;
-        for k in (1)..((max_val).py_add(1i32)) {
-            if k <= remaining {
-                total = ((total).py_add(helper((remaining) - (k), k))) as i32;
-            }
-        }
-        cache.insert(key.to_string().clone(), total);
-        return total;
-    };
-    helper(n, n)
+pub fn apply_negate(x: i32) -> i32 {
+    -x
 }
-#[doc = "Mutual recursion: is_even calls is_odd, is_odd calls is_even.\n\n    Tests transpiler's ability to handle forward references and\n    mutually recursive function definitions.\n    "]
+#[doc = "Chain two decorator simulations: double then negate."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_even_mutual(n: i32) -> bool {
-    let _cse_temp_0 = n == 0;
-    if _cse_temp_0 {
-        return true;
-    }
-    is_odd_mutual((n) - (1i32))
+pub fn apply_double_then_negate(x: i32) -> i32 {
+    let doubled: i32 = apply_double(x);
+    let negated: i32 = apply_negate(doubled);
+    negated
 }
-#[doc = "Companion to is_even_mutual for mutual recursion test."]
+#[doc = "Chain two decorator simulations: negate then double."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_odd_mutual(n: i32) -> bool {
-    let _cse_temp_0 = n == 0;
-    if _cse_temp_0 {
-        return false;
-    }
-    is_even_mutual((n) - (1i32))
+pub fn apply_negate_then_double(x: i32) -> i32 {
+    let negated: i32 = apply_negate(x);
+    let doubled: i32 = apply_double(negated);
+    doubled
 }
-#[doc = "Simulate a closure-based accumulator.\n\n    Returns the final accumulated value after a sequence of operations.\n    Tests the pattern of building up state through function-like composition.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn make_accumulator(initial: i32) -> i32 {
-    let mut total: i32 = Default::default();
-    total = initial;
-    let additions: Vec<i32> = vec![10, 20, 30, -5, 15];
-    for val in additions.iter().cloned() {
-        total = ((total).py_add(val)) as i32;
-    }
-    total
-}
-#[doc = "Simulate paired increment/decrement counters.\n\n    Returns [increment_result, decrement_result, final_state].\n    Tests the pattern where two closures share mutable state.\n    "]
+#[doc = "Simulate a decorator that increments the result by one."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn make_counter_pair() -> Vec<i32> {
-    let mut state: i32 = Default::default();
-    state = 0;
-    let mut results: Vec<i32> = vec![];
-    for __sanitized in 0..(3) {
-        state = ((state).py_add(1i32)) as i32;
-    }
-    results.push(state);
-    state = ((state) - (1i32)) as i32;
-    results.push(state);
-    results.push(state);
-    results
+pub fn apply_increment(x: i32) -> i32 {
+    (x).py_add(1i32)
 }
-#[doc = "Fast exponentiation via recursive squaring.\n\n    Three branches: base case, even exponent(square), odd exponent.\n    Tests complex conditional recursion with arithmetic transformations.\n    "]
+#[doc = "Chain three decorator simulations: double, increment, negate."]
+#[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn recursive_power(base: i32, exp: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = exp == 0;
-    if _cse_temp_0 {
-        return Ok(1);
+pub fn apply_triple_chain(x: i32) -> i32 {
+    let step1: i32 = apply_double(x);
+    let step2: i32 = apply_increment(step1);
+    let step3: i32 = apply_negate(step2);
+    step3
+}
+#[doc = "Count the number of operations in a linear scan."]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_operations_linear(n: i32) -> i32 {
+    let mut ops: i32 = Default::default();
+    ops = 0;
+    let mut i: i32 = 0;
+    while i < n {
+        ops = ((ops).py_add(1i32)) as i32;
+        i = ((i).py_add(1i32)) as i32;
     }
-    let _cse_temp_1 = exp < 0;
-    if _cse_temp_1 {
-        return Ok(0);
+    ops
+}
+#[doc = "Count the number of operations in a quadratic nested loop."]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_operations_quadratic(n: i32) -> i32 {
+    let mut ops: i32 = Default::default();
+    ops = 0;
+    let mut i: i32 = 0;
+    while i < n {
+        let mut j: i32 = 0;
+        while j < n {
+            ops = ((ops).py_add(1i32)) as i32;
+            j = ((j).py_add(1i32)) as i32;
+        }
+        i = ((i).py_add(1i32)) as i32;
     }
-    let _cse_temp_2 = ((exp).py_mod(2i32)) as i32;
-    let _cse_temp_3 = _cse_temp_2 == 0;
-    if _cse_temp_3 {
-        let half: i32 = recursive_power(base, {
-            let a = exp;
+    ops
+}
+#[doc = "Count the number of halvings until value reaches zero(log-like)."]
+pub fn count_operations_halving(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut ops: i32 = Default::default();
+    ops = 0;
+    let mut val: i32 = n.clone();
+    while val > 0 {
+        val = {
+            let a = val;
             let b = 2;
             let q = a / b;
             let r = a % b;
@@ -3335,246 +3287,1134 @@ pub fn recursive_power(base: i32, exp: i32) -> Result<i32, Box<dyn std::error::E
             } else {
                 q
             }
-        })?;
-        return Ok((half).py_mul(half));
-    } else {
-        return Ok((base).py_mul(recursive_power(base, (exp) - (1i32))?));
+        };
+        ops = ((ops).py_add(1i32)) as i32;
     }
+    Ok(ops)
 }
-#[doc = "Depth-first traversal of a tree represented as adjacency list.\n\n    Uses recursive DFS with a visited set and accumulator list.\n    Tests dict lookup, set membership, list mutation, and recursion together.\n    "]
+#[doc = "Compute fibonacci without cache(iterative to avoid stack issues)."]
 #[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn tree_depth_first(adj: &std::collections::HashMap<i32, Vec<i32>>, root: i32) -> Vec<i32> {
-    let visited: std::collections::HashSet<i32> = std::collections::HashSet::<i32>::new();
-    let order: Vec<i32> = vec![];
-    let dfs = move |node: i32| -> () {
-        if visited.contains(&node) {
-            return;
-        }
-        visited.insert(node);
-        order.push(node);
-        if adj.get(&node).is_some() {
-            let neighbors: Vec<i32> = adj.get(&(node)).cloned().unwrap_or_default();
-            for neighbor in neighbors.iter().cloned() {
-                dfs(neighbor);
-            }
-        }
-    };
-    dfs(root);
-    order
+pub fn fib_no_cache(n: i32) -> i32 {
+    let mut b: i32 = Default::default();
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return 0;
+    }
+    let _cse_temp_1 = n == 1;
+    if _cse_temp_1 {
+        return 1;
+    }
+    let mut a: i32 = 0;
+    b = 1;
+    let mut i: i32 = 2;
+    while i <= n {
+        let temp: i32 = ((a).py_add(b)) as i32;
+        a = b;
+        b = temp;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    b
 }
-#[doc = "Tower of Hanoi solver recording all moves.\n\n    Recursive solution that builds a list of move descriptions.\n    Tests string formatting inside recursion with list accumulation.\n    "]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn tower_of_hanoi(n: i32) -> Vec<String> {
-    let moves: Vec<String> = vec![];
-    let hanoi = move |disks: i32, source: &str, target: &str, auxiliary: &str| -> () {
-        if disks == 1 {
-            moves.push(format!("{}{}", format!("{}{}", source, " -> "), target));
-            return;
-        }
-        hanoi((disks) - (1i32), &source, &auxiliary, &target);
-        moves.push(format!("{}{}", format!("{}{}", source, " -> "), target));
-        hanoi((disks) - (1i32), &auxiliary, &target, &source);
-    };
-    hanoi(n, "A", "C", "B");
-    moves
+#[doc = "Compute fibonacci with explicit memoization cache dict."]
+pub fn fib_with_cache(
+    n: i32,
+    cache: &mut std::collections::HashMap<i32, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut b: i32 = Default::default();
+    let _cse_temp_0 = cache.get(&n).is_some();
+    if _cse_temp_0 {
+        return Ok(cache.get(&(n)).cloned().unwrap_or_default());
+    }
+    let _cse_temp_1 = n <= 0;
+    if _cse_temp_1 {
+        cache.insert(0, 0);
+        return Ok(0);
+    }
+    let _cse_temp_2 = n == 1;
+    if _cse_temp_2 {
+        cache.insert(1, 1);
+        return Ok(1);
+    }
+    let mut a: i32 = 0;
+    b = 1;
+    let mut i: i32 = 2;
+    while i <= n {
+        let temp: i32 = ((a).py_add(b)) as i32;
+        a = b;
+        b = temp;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    cache.insert(n.clone(), b);
+    Ok(b)
 }
-#[doc = "Sum all elements in a nested list structure.\n\n    Combines flattening and accumulation in one recursive pass.\n    Tests how transpiler handles list-of-lists with recursive processing.\n    "]
+#[doc = "Count how many keys are already present in the cache."]
 #[doc = " Depyler: verified panic-free"]
-pub fn recursive_flatten_sum(nested: &Vec<Vec<i32>>) -> i32 {
-    let mut total: i32 = Default::default();
-    total = 0;
-    for sublist in nested.iter().cloned() {
-        for val in sublist.iter().cloned() {
-            total = ((total).py_add(val)) as i32;
+pub fn cache_hit_count<'a, 'b>(
+    keys: &'a Vec<i32>,
+    cache: &'b std::collections::HashMap<i32, i32>,
+) -> i32 {
+    let mut hits: i32 = Default::default();
+    hits = 0;
+    for k in keys.iter().cloned() {
+        if cache.get(&k).is_some() {
+            hits = ((hits).py_add(1i32)) as i32;
         }
     }
-    total
+    hits
 }
-#[doc = "Generate full Collatz sequence from n to 1.\n\n    While-loop based recursion simulation with conditional branching.\n    The chain length is unpredictable, testing dynamic list growth.\n    "]
-pub fn collatz_chain(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
-    let mut chain: Vec<i32> = vec![n];
-    current = n;
-    while current != 1 {
-        if (current).py_mod(2i32) == 0 {
-            current = {
-                let a = current;
-                let b = 2;
-                let q = a / b;
-                let r = a % b;
-                let r_negative = r < 0;
-                let b_negative = b < 0;
-                let r_nonzero = r != 0;
-                let signs_differ = r_negative != b_negative;
-                let needs_adjustment = r_nonzero && signs_differ;
-                if needs_adjustment {
-                    q - 1
-                } else {
-                    q
-                }
-            };
-        } else {
-            current = (((3i32).py_mul(current) as i32).py_add(1i32)) as i32;
-        }
-        chain.push(current);
-    }
-    Ok(chain)
-}
-#[doc = "Simulate nested callback pattern via sequential transformations.\n\n    Applies a chain of transformations: double, filter, sum.\n    Each step depends on the previous, simulating callback nesting.\n    "]
+#[doc = "Simulate retry: iterate values, return first positive or -1."]
 #[doc = " Depyler: verified panic-free"]
-pub fn nested_callback_simulation(values: &Vec<i32>) -> i32 {
-    let mut total: i32 = Default::default();
-    let mut doubled: Vec<i32> = vec![];
+pub fn retry_until_positive(values: &Vec<i32>) -> i32 {
+    let mut result: i32 = Default::default();
+    result = -1;
+    let mut attempt: i32 = 0;
     for v in values.iter().cloned() {
-        doubled.push((v).py_mul(2i32));
-    }
-    let mut filtered: Vec<i32> = vec![];
-    for v in doubled.iter().cloned() {
-        if v > 10 {
-            filtered.push(v);
+        attempt = ((attempt).py_add(1i32)) as i32;
+        if v > 0 {
+            result = v;
+            break;
         }
     }
-    total = 0;
-    for v in filtered.iter().cloned() {
-        total = ((total).py_add(v)) as i32;
-    }
-    total
+    result
 }
-#[doc = "Test Ackermann function with small inputs to avoid stack overflow."]
+#[doc = "Simulate retry with a maximum attempt count."]
+#[doc = " Depyler: verified panic-free"]
+pub fn retry_with_max_attempts(values: &Vec<i32>, max_attempts: i32) -> i32 {
+    let mut result: i32 = Default::default();
+    result = -1;
+    let mut attempt: i32 = 0;
+    for v in values.iter().cloned() {
+        if attempt >= max_attempts {
+            break;
+        }
+        attempt = ((attempt).py_add(1i32)) as i32;
+        if v > 0 {
+            result = v;
+            break;
+        }
+    }
+    result
+}
+#[doc = "Count how many attempts before finding a positive value."]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_retries_before_success(values: &Vec<i32>) -> i32 {
+    let mut attempt: i32 = Default::default();
+    attempt = 0;
+    for v in values.iter().cloned() {
+        attempt = ((attempt).py_add(1i32)) as i32;
+        if v > 0 {
+            return attempt;
+        }
+    }
+    attempt
+}
+#[doc = "Return 1 if x is positive, 0 otherwise(validation check)."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_ackermann() -> i32 {
-    let r1: i32 = ackermann(2, 3);
-    let r2: i32 = ackermann(1, 5);
-    (r1).py_add(r2)
+pub fn validate_positive(x: i32) -> i32 {
+    let _cse_temp_0 = x > 0;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
 }
-#[doc = "Test nested list flattening."]
+#[doc = "Compute square only if x is positive, else return -1(sentinel)."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_flatten_nested() -> i32 {
-    let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5], vec![6]];
-    let flat: Vec<i32> = flatten_nested(&data);
-    flat.len() as i32 as i32
+pub fn validated_square(x: i32) -> i32 {
+    let valid: i32 = validate_positive(x);
+    let _cse_temp_0 = valid == 0;
+    if _cse_temp_0 {
+        return -1;
+    }
+    (x).py_mul(x)
 }
-#[doc = "Test memoized partition counting."]
+#[doc = "Compute factorial only if n is non-negative and <= 12, else return -1."]
+#[doc = " Depyler: verified panic-free"]
+pub fn validated_factorial(n: i32) -> i32 {
+    let mut result: i32 = Default::default();
+    let _cse_temp_0 = n < 0;
+    if _cse_temp_0 {
+        return -1;
+    }
+    let _cse_temp_1 = n > 12;
+    if _cse_temp_1 {
+        return -1;
+    }
+    result = 1;
+    let mut i: i32 = 2;
+    while i <= n {
+        result = ((result).py_mul(i)) as i32;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Return 1 if low <= x <= high, 0 otherwise."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_memoized_partition() -> i32 {
-    memoized_partition_count(5)
+pub fn validate_in_range(x: i32, low: i32, high: i32) -> i32 {
+    let _cse_temp_0 = x >= low;
+    let _cse_temp_1 = x <= high;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return 1;
+    }
+    0
 }
-#[doc = "Test mutual recursion is_even/is_odd."]
-#[doc = " Depyler: verified panic-free"]
+#[doc = "Integer division only if b is nonzero, else return -1."]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_mutual_recursion() -> i32 {
-    let mut results: i32 = Default::default();
-    results = 0;
-    if is_even_mutual(10) {
-        results = ((results).py_add(1i32)) as i32;
+pub fn validated_divide(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = b == 0;
+    if _cse_temp_0 {
+        return Ok(-1);
     }
-    if is_odd_mutual(7) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if !is_even_mutual(3) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if !is_odd_mutual(4) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    results
-}
-#[doc = "Test closure-based accumulator simulation."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_accumulator() -> i32 {
-    make_accumulator(0)
-}
-#[doc = "Test paired counter closure simulation."]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_counter_pair() -> Result<i32, Box<dyn std::error::Error>> {
-    let result: Vec<i32> = make_counter_pair();
     Ok({
-        let _r: i32 = ((result
-            .get(0usize)
-            .cloned()
-            .expect("IndexError: list index out of range"))
-        .py_add(
-            result
-                .get(1usize)
-                .cloned()
-                .expect("IndexError: list index out of range"),
-        ) as i32)
-            .py_add(
-                result
-                    .get(2usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-        _r
+        let a = a;
+        let b = b;
+        let q = a / b;
+        let r = a % b;
+        let r_negative = r < 0;
+        let b_negative = b < 0;
+        let r_nonzero = r != 0;
+        let signs_differ = r_negative != b_negative;
+        let needs_adjustment = r_nonzero && signs_differ;
+        if needs_adjustment {
+            q - 1
+        } else {
+            q
+        }
     })
 }
-#[doc = "Test recursive fast exponentiation."]
+#[doc = "Create a point as a dict with x and y keys."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_recursive_power() -> Result<i32, Box<dyn std::error::Error>> {
-    let r1: i32 = recursive_power(2, 10)?;
-    let r2: i32 = recursive_power(3, 0)?;
-    let r3: i32 = recursive_power(5, 3)?;
-    let r4: i32 = recursive_power(2, -1)?;
-    Ok({
-        let _r: i32 = (((r1).py_add(r2) as i32).py_add(r3) as i32).py_add(r4);
-        _r
-    })
-}
-#[doc = "Test DFS tree traversal."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_tree_dfs() -> i32 {
-    let adj: std::collections::HashMap<i32, Vec<i32>> = {
-        let mut map: HashMap<i32, Vec<i32>> = HashMap::new();
-        map.insert(0, vec![1, 2]);
-        map.insert(1, vec![3, 4]);
-        map.insert(2, vec![5]);
-        map.insert(3, vec![]);
-        map.insert(4, vec![]);
-        map.insert(5, vec![]);
+pub fn make_point(x: i32, y: i32) -> HashMap<String, i32> {
+    let mut point: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
-    let order: Vec<i32> = tree_depth_first(&adj, 0);
-    order.len() as i32 as i32
+    point.insert("x".to_string(), x);
+    point.insert("y".to_string(), y);
+    point
 }
-#[doc = "Test Tower of Hanoi move generation."]
+#[doc = "Getter for x coordinate of a point dict."]
+#[doc = " Depyler: proven to terminate"]
+pub fn get_x(
+    point: &std::collections::HashMap<String, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(point.get("x").cloned().unwrap_or_default())
+}
+#[doc = "Getter for y coordinate of a point dict."]
+#[doc = " Depyler: proven to terminate"]
+pub fn get_y(
+    point: &std::collections::HashMap<String, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(point.get("y").cloned().unwrap_or_default())
+}
+#[doc = "Setter for x coordinate, returns modified point."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_tower_of_hanoi() -> i32 {
-    let moves: Vec<String> = tower_of_hanoi(3);
-    moves.len() as i32 as i32
+pub fn set_x(mut point: std::collections::HashMap<String, i32>, val: i32) -> HashMap<String, i32> {
+    point.insert("x".to_string(), val);
+    point
 }
-#[doc = "Test recursive flatten and sum."]
+#[doc = "Setter for y coordinate, returns modified point."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_recursive_flatten_sum() -> i32 {
-    let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6, 7]];
-    recursive_flatten_sum(&nested)
+pub fn set_y(mut point: std::collections::HashMap<String, i32>, val: i32) -> HashMap<String, i32> {
+    point.insert("y".to_string(), val);
+    point
 }
-#[doc = "Test Collatz sequence generation."]
+#[doc = "Compute squared distance from origin using getters."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_collatz_chain() -> Result<i32, Box<dyn std::error::Error>> {
-    let chain: Vec<i32> = collatz_chain(6)?;
-    Ok(chain.len() as i32 as i32)
+pub fn point_distance_squared(
+    p: &std::collections::HashMap<String, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let px: i32 = get_x(&p)?;
+    let py: i32 = get_y(&p)?;
+    Ok({
+        let _r: i32 = ((px).py_mul(px) as i32).py_add((py).py_mul(py));
+        _r
+    })
 }
-#[doc = "Test nested callback simulation."]
+#[doc = "Static-like method: compute absolute value."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nested_callbacks() -> i32 {
-    let values: Vec<i32> = vec![1, 3, 5, 7, 9, 2, 4, 6, 8, 10];
-    nested_callback_simulation(&values)
+pub fn math_abs(x: i32) -> i32 {
+    let _cse_temp_0 = x < 0;
+    if _cse_temp_0 {
+        return -x;
+    }
+    x
 }
-#[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
-#[doc = r" This file was transpiled from a Python script with executable top-level code."]
+#[doc = "Static-like method: return sign of x(-1, 0, or 1)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn math_sign(x: i32) -> i32 {
+    let _cse_temp_0 = x > 0;
+    if _cse_temp_0 {
+        return 1;
+    }
+    let _cse_temp_1 = x < 0;
+    if _cse_temp_1 {
+        return -1;
+    }
+    0
+}
+#[doc = "Static-like method: clamp x to [lo, hi] range."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn math_clamp(x: i32, lo: i32, hi: i32) -> i32 {
+    let _cse_temp_0 = x < lo;
+    if _cse_temp_0 {
+        return lo;
+    }
+    let _cse_temp_1 = x > hi;
+    if _cse_temp_1 {
+        return hi;
+    }
+    x
+}
+#[doc = "Factory: create a counter dict-object with value and step."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn make_counter(start: i32) -> HashMap<String, i32> {
+    let mut counter: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    counter.insert("value".to_string(), start);
+    counter.insert("step".to_string(), 1);
+    counter
+}
+#[doc = "Increment counter value by step, return modified counter."]
+#[doc = " Depyler: proven to terminate"]
+pub fn counter_increment(
+    mut counter: std::collections::HashMap<String, i32>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = ((counter.get("value").cloned().unwrap_or_default())
+        .py_add(counter.get("step").cloned().unwrap_or_default())) as i32;
+    counter.insert("value".to_string(), _cse_temp_0);
+    Ok(counter)
+}
+#[doc = "Get current counter value."]
+#[doc = " Depyler: proven to terminate"]
+pub fn counter_get(
+    counter: &std::collections::HashMap<String, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(counter.get("value").cloned().unwrap_or_default())
+}
+#[doc = "Factory: create a counter with custom step."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn make_counter_with_step(start: i32, step: i32) -> HashMap<String, i32> {
+    let mut counter: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    counter.insert("value".to_string(), start);
+    counter.insert("step".to_string(), step);
+    counter
+}
+#[doc = "Abstract base: return -1 sentinel for unknown shape kind."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn shape_area_base(_kind: i32) -> i32 {
+    -1
+}
+#[doc = "Derived: compute area of square."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn shape_area_square(side: i32) -> i32 {
+    (side).py_mul(side)
+}
+#[doc = "Derived: compute area of rectangle."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn shape_area_rect(width: i32, height: i32) -> i32 {
+    (width).py_mul(height)
+}
+#[doc = "Dispatch to correct area function based on kind(0=base, 1=square, 2=rect)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn shape_area_dispatch(kind: i32, a: i32, b: i32) -> i32 {
+    let _cse_temp_0 = kind == 1;
+    if _cse_temp_0 {
+        return shape_area_square(a);
+    }
+    let _cse_temp_1 = kind == 2;
+    if _cse_temp_1 {
+        return shape_area_rect(a, b);
+    }
+    shape_area_base(kind)
+}
+#[doc = "Create a new empty builder dict."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn builder_new() -> HashMap<String, i32> {
+    let mut b: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    b.insert("width".to_string(), 0);
+    b.insert("height".to_string(), 0);
+    b.insert("depth".to_string(), 0);
+    b
+}
+#[doc = "Set width on builder, return builder for chaining."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn builder_set_width(
+    mut b: std::collections::HashMap<String, i32>,
+    w: i32,
+) -> HashMap<String, i32> {
+    b.insert("width".to_string(), w);
+    b
+}
+#[doc = "Set height on builder, return builder for chaining."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn builder_set_height(
+    mut b: std::collections::HashMap<String, i32>,
+    h: i32,
+) -> HashMap<String, i32> {
+    b.insert("height".to_string(), h);
+    b
+}
+#[doc = "Set depth on builder, return builder for chaining."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn builder_set_depth(
+    mut b: std::collections::HashMap<String, i32>,
+    d: i32,
+) -> HashMap<String, i32> {
+    b.insert("depth".to_string(), d);
+    b
+}
+#[doc = "Compute volume from builder dimensions."]
+#[doc = " Depyler: proven to terminate"]
+pub fn builder_volume(
+    b: &std::collections::HashMap<String, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok({
+        let _r: i32 = ((b.get("width").cloned().unwrap_or_default())
+            .py_mul(b.get("height").cloned().unwrap_or_default()) as i32)
+            .py_mul(b.get("depth").cloned().unwrap_or_default());
+        _r
+    })
+}
+#[doc = "Simulate __enter__: increment open count, set active flag."]
+#[doc = " Depyler: proven to terminate"]
+pub fn context_enter(
+    mut state: std::collections::HashMap<String, i32>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = ((state.get("open_count").cloned().unwrap_or_default()).py_add(1i32)) as i32;
+    state.insert("open_count".to_string(), _cse_temp_0);
+    state.insert("active".to_string(), 1);
+    Ok(state)
+}
+#[doc = "Simulate __exit__: decrement open count, clear active flag."]
+#[doc = " Depyler: proven to terminate"]
+pub fn context_exit(
+    mut state: std::collections::HashMap<String, i32>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = ((state.get("open_count").cloned().unwrap_or_default()) - (1i32)) as i32;
+    state.insert("open_count".to_string(), _cse_temp_0);
+    state.insert("active".to_string(), 0);
+    Ok(state)
+}
+#[doc = "Perform work only if context is active."]
+#[doc = " Depyler: proven to terminate"]
+pub fn context_do_work(
+    mut state: std::collections::HashMap<String, i32>,
+    work_units: i32,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = state.get("active").cloned().unwrap_or_default() == 1;
+    if _cse_temp_0 {
+        let _cse_temp_1 =
+            ((state.get("work_done").cloned().unwrap_or_default()).py_add(work_units)) as i32;
+        state.insert("work_done".to_string(), _cse_temp_1);
+    }
+    Ok(state)
+}
+#[doc = "Create initial context manager state dict."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn make_context_state() -> HashMap<String, i32> {
+    let mut state: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    state.insert("open_count".to_string(), 0);
+    state.insert("active".to_string(), 0);
+    state.insert("work_done".to_string(), 0);
+    state
+}
+#[doc = "Run a full enter-work-exit cycle, return work done."]
+#[doc = " Depyler: proven to terminate"]
+pub fn context_managed_operation(work_units: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut state: std::collections::HashMap<String, i32> = make_context_state();
+    state = context_enter(&state)?;
+    state = context_do_work(&state, work_units)?;
+    state = context_exit(&state)?;
+    Ok(state.get("work_done").cloned().unwrap_or_default())
+}
+#[doc = "Get existing value or create with default(singleton-like)."]
+#[doc = " Depyler: proven to terminate"]
+pub fn singleton_get_or_create<'a, 'b>(
+    registry: &'a mut std::collections::HashMap<String, i32>,
+    key: &'b str,
+    default_val: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = registry.get(key).is_some();
+    if _cse_temp_0 {
+        return Ok(registry.get(key).cloned().unwrap_or_default());
+    }
+    registry.insert(key.to_string().clone(), default_val);
+    Ok(default_val)
+}
+#[doc = "Check if singleton key exists. Return 1 if yes, 0 if no."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn singleton_exists<'a, 'b>(
+    registry: &'a std::collections::HashMap<String, i32>,
+    key: &'b str,
+) -> i32 {
+    let _cse_temp_0 = registry.get(key).is_some();
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Remove a singleton key if it exists, return registry."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn singleton_reset(
+    registry: std::collections::HashMap<String, i32>,
+    key: &str,
+) -> HashMap<String, i32> {
+    let _cse_temp_0 = registry.get(key).is_some();
+    if _cse_temp_0 {}
+    registry
+}
+#[doc = "Register an observer by appending its id."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn observer_register(mut observers: Vec<i32>, observer_id: i32) -> Vec<i32> {
+    observers.push(observer_id);
+    observers
+}
+#[doc = "Simulate notify: sum observer_id * event_value for all observers."]
+#[doc = " Depyler: verified panic-free"]
+pub fn observer_notify_all(observers: &Vec<i32>, event_value: i32) -> i32 {
+    let mut total: i32 = Default::default();
+    total = 0;
+    for obs_id in observers.iter().cloned() {
+        total = ((total).py_add((obs_id).py_mul(event_value))) as i32;
+    }
+    total
+}
+#[doc = "Return the number of registered observers."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn observer_count(observers: &Vec<i32>) -> i32 {
+    observers.len() as i32 as i32
+}
+#[doc = "Remove first occurrence of observer_id from list."]
+#[doc = " Depyler: verified panic-free"]
+pub fn observer_remove(observers: &Vec<i32>, observer_id: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut found: i32 = 0;
+    for obs_id in observers.iter().cloned() {
+        if (obs_id == observer_id) && (found == 0) {
+            found = 1;
+        } else {
+            result.push(obs_id);
+        }
+    }
+    result
+}
+#[doc = "Strategy: addition."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn strategy_add(a: i32, b: i32) -> i32 {
+    (a).py_add(b)
+}
+#[doc = "Strategy: subtraction."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn strategy_sub(a: i32, b: i32) -> i32 {
+    (a) - (b)
+}
+#[doc = "Strategy: multiplication."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn strategy_mul(a: i32, b: i32) -> i32 {
+    (a).py_mul(b)
+}
+#[doc = "Dispatch to strategy based on operation string."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn strategy_dispatch(op: &str, a: i32, b: i32) -> i32 {
+    let _cse_temp_0 = op == "add";
+    if _cse_temp_0 {
+        return strategy_add(a, b);
+    }
+    let _cse_temp_1 = op == "sub";
+    if _cse_temp_1 {
+        return strategy_sub(a, b);
+    }
+    let _cse_temp_2 = op == "mul";
+    if _cse_temp_2 {
+        return strategy_mul(a, b);
+    }
+    -1
+}
+#[doc = "Execute a sequence of operations, accumulating results left to right."]
+pub fn strategy_execute_sequence<'a, 'b>(
+    ops: &'a Vec<String>,
+    values: &'b Vec<i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
+    let _cse_temp_0 = values.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return Ok(0);
+    }
+    result = values
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    let mut i: i32 = 0;
+    while (i < ops.len() as i32) && ((i).py_add(1i32) < values.len() as i32) {
+        result = strategy_dispatch(
+            ops.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            result,
+            {
+                let base = &values;
+                let idx: i32 = (i).py_add(1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            },
+        );
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Create empty config builder."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn config_new() -> HashMap<String, i32> {
+    let mut cfg: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    cfg.insert("timeout".to_string(), 0);
+    cfg.insert("retries".to_string(), 0);
+    cfg.insert("port".to_string(), 0);
+    cfg.insert("valid".to_string(), 0);
+    cfg
+}
+#[doc = "Set timeout on config builder."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn config_set_timeout(
+    mut cfg: std::collections::HashMap<String, i32>,
+    timeout: i32,
+) -> HashMap<String, i32> {
+    let _cse_temp_0 = timeout > 0;
+    if _cse_temp_0 {
+        cfg.insert("timeout".to_string(), timeout);
+    }
+    cfg
+}
+#[doc = "Set retries on config builder."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn config_set_retries(
+    mut cfg: std::collections::HashMap<String, i32>,
+    retries: i32,
+) -> HashMap<String, i32> {
+    let _cse_temp_0 = retries >= 0;
+    let _cse_temp_1 = retries <= 10;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        cfg.insert("retries".to_string(), retries);
+    }
+    cfg
+}
+#[doc = "Set port on config builder."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn config_set_port(
+    mut cfg: std::collections::HashMap<String, i32>,
+    port: i32,
+) -> HashMap<String, i32> {
+    let _cse_temp_0 = port > 0;
+    let _cse_temp_1 = port < 65536;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        cfg.insert("port".to_string(), port);
+    }
+    cfg
+}
+#[doc = "Validate config: set valid=1 if all fields are set properly."]
+#[doc = " Depyler: proven to terminate"]
+pub fn config_validate(
+    mut cfg: std::collections::HashMap<String, i32>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = cfg.get("timeout").cloned().unwrap_or_default() > 0;
+    let _cse_temp_1 = cfg.get("retries").cloned().unwrap_or_default() >= 0;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = (_cse_temp_2) && (_cse_temp_0);
+    if _cse_temp_3 {
+        cfg.insert("valid".to_string(), 1);
+    } else {
+        cfg.insert("valid".to_string(), 0);
+    }
+    Ok(cfg)
+}
+#[doc = "Return 1 if config is valid, 0 otherwise."]
+#[doc = " Depyler: proven to terminate"]
+pub fn config_is_valid(
+    cfg: &std::collections::HashMap<String, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    Ok(cfg.get("valid").cloned().unwrap_or_default())
+}
+#[doc = "Test manual decorator chaining: double then negate of 5 = -10."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_decorator_chain() -> i32 {
+    let result: i32 = apply_double_then_negate(5);
+    let _cse_temp_0 = result == -10;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test triple chain: double(3)=6, inc(6)=7, neg(7)=-7."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_triple_chain() -> i32 {
+    let result: i32 = apply_triple_chain(3);
+    let _cse_temp_0 = result == -7;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test linear operation count: 100 iterations = 100 ops."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_timing_linear() -> i32 {
+    let ops: i32 = count_operations_linear(100);
+    let _cse_temp_0 = ops == 100;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test quadratic operation count: 10x10 = 100 ops."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_timing_quadratic() -> i32 {
+    let ops: i32 = count_operations_quadratic(10);
+    let _cse_temp_0 = ops == 100;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test memoization: fib(10) cached, second lookup is a hit."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_memoization() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut cache: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    let val1: i32 = fib_with_cache(10, &mut cache)?;
+    let hits_before: i32 = cache_hit_count(&vec![10], &cache);
+    let val2: i32 = fib_with_cache(10, &mut cache)?;
+    let _cse_temp_0 = val1 == 55;
+    let _cse_temp_1 = val2 == 55;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = hits_before == 1;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test retry: first positive in [-1, -2, 3, -4] is 3."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_retry_logic() -> i32 {
+    let values: Vec<i32> = vec![-1, -2, 3, -4];
+    let result: i32 = retry_until_positive(&values);
+    let _cse_temp_0 = result == 3;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test retry with max 2 attempts on [-1, -2, 3]: should fail(-1)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_retry_max_attempts() -> i32 {
+    let values: Vec<i32> = vec![-1, -2, 3];
+    let result: i32 = retry_with_max_attempts(&values, 2);
+    let _cse_temp_0 = result == -1;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test validated_square: positive gives square, negative gives -1."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_validation() -> i32 {
+    let pos: i32 = validated_square(4);
+    let neg: i32 = validated_square(-3);
+    let _cse_temp_0 = pos == 16;
+    let _cse_temp_1 = neg == -1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test getter/setter on point dict."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_property_pattern() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut p: std::collections::HashMap<String, i32> = make_point(3, 4);
+    p = set_x(&p, 5);
+    let x: i32 = get_x(&p)?;
+    let dist_sq: i32 = point_distance_squared(&p)?;
+    let _cse_temp_0 = x == 5;
+    let _cse_temp_1 = dist_sq == 41;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test static-like math functions."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_static_methods() -> i32 {
+    let a: i32 = math_abs(-7);
+    let s: i32 = math_sign(-3);
+    let c: i32 = math_clamp(15, 0, 10);
+    let _cse_temp_0 = a == 7;
+    let _cse_temp_1 = s == -1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = c == 10;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test counter factory and increment."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_factory_counter() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut ctr: std::collections::HashMap<String, i32> = make_counter(0);
+    ctr = counter_increment(&ctr)?;
+    ctr = counter_increment(&ctr)?;
+    ctr = counter_increment(&ctr)?;
+    let val: i32 = counter_get(&ctr)?;
+    let _cse_temp_0 = val == 3;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test shape area dispatch: square(5)=25, rect(3,4)=12, unknown=-1."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_abstract_dispatch() -> i32 {
+    let sq: i32 = shape_area_dispatch(1, 5, 0);
+    let rect: i32 = shape_area_dispatch(2, 3, 4);
+    let base: i32 = shape_area_dispatch(0, 0, 0);
+    let _cse_temp_0 = sq == 25;
+    let _cse_temp_1 = rect == 12;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = base == -1;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test chained builder: 3*4*5 = 60 volume."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_chained_builder() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut b: std::collections::HashMap<String, i32> = builder_new();
+    b = builder_set_width(&b, 3);
+    b = builder_set_height(&b, 4);
+    b = builder_set_depth(&b, 5);
+    let vol: i32 = builder_volume(&b)?;
+    let _cse_temp_0 = vol == 60;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test context manager simulation: 42 work units done."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_context_manager() -> Result<i32, Box<dyn std::error::Error>> {
+    let result: i32 = context_managed_operation(42)?;
+    let _cse_temp_0 = result == 42;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test singleton get_or_create: first call creates, second retrieves."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_singleton() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut reg: std::collections::HashMap<String, i32> = {
+        let map: HashMap<String, i32> = HashMap::new();
+        map
+    };
+    let val1: i32 = singleton_get_or_create(&mut reg, &"db", 100)?;
+    let exists: i32 = singleton_exists(&reg, &"db");
+    let val2: i32 = singleton_get_or_create(&mut reg, &"db", 999)?;
+    let _cse_temp_0 = val1 == 100;
+    let _cse_temp_1 = exists == 1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = val2 == 100;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test observer register and notify: observers [1,2,3], event=10 =>60."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_observer_pattern() -> i32 {
+    let mut obs: Vec<i32> = vec![];
+    obs = observer_register(obs.clone(), 1);
+    obs = observer_register(obs.clone(), 2);
+    obs = observer_register(obs.clone(), 3);
+    let total: i32 = observer_notify_all(&obs, 10);
+    let count: i32 = observer_count(&obs);
+    let _cse_temp_0 = total == 60;
+    let _cse_temp_1 = count == 3;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    if _cse_temp_2 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test strategy dispatch: add(3,4)=7, sub(10,3)=7, mul(2,5)=10."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_strategy_dispatch() -> i32 {
+    let a: i32 = strategy_dispatch(&"add", 3, 4);
+    let s: i32 = strategy_dispatch(&"sub", 10, 3);
+    let m: i32 = strategy_dispatch(&"mul", 2, 5);
+    let _cse_temp_0 = a == 7;
+    let _cse_temp_1 = s == 7;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = m == 10;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test config builder with validation."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_config_builder() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut cfg: std::collections::HashMap<String, i32> = config_new();
+    cfg = config_set_timeout(&cfg, 30);
+    cfg = config_set_retries(&cfg, 3);
+    cfg = config_set_port(&cfg, 8080);
+    cfg = config_validate(&cfg)?;
+    let valid: i32 = config_is_valid(&cfg)?;
+    let _cse_temp_0 = valid == 1;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test config builder rejects invalid config(port=0)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_config_invalid() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut cfg: std::collections::HashMap<String, i32> = config_new();
+    cfg = config_set_timeout(&cfg, 30);
+    cfg = config_set_retries(&cfg, 3);
+    cfg = config_validate(&cfg)?;
+    let valid: i32 = config_is_valid(&cfg)?;
+    let _cse_temp_0 = valid == 0;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test observer removal: remove id=2 from [1,2,3], notify event=5 =>20."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_observer_remove() -> i32 {
+    let mut obs: Vec<i32> = vec![];
+    obs = observer_register(obs.clone(), 1);
+    obs = observer_register(obs.clone(), 2);
+    obs = observer_register(obs.clone(), 3);
+    obs = observer_remove(&obs, 2);
+    let total: i32 = observer_notify_all(&obs, 5);
+    let _cse_temp_0 = total == 20;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test validated factorial: 5!=120, negative=-1, too large=-1."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_validated_factorial() -> i32 {
+    let f5: i32 = validated_factorial(5);
+    let r#fn: i32 = validated_factorial(-1);
+    let fb: i32 = validated_factorial(13);
+    let _cse_temp_0 = f5 == 120;
+    let _cse_temp_1 = r#fn == -1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
+    let _cse_temp_3 = fb == -1;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
+    if _cse_temp_4 {
+        return 1;
+    }
+    0
+}
+#[doc = "Test halving operation count: 16 requires 5 halvings(16,8,4,2,1,0)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_halving_ops() -> Result<i32, Box<dyn std::error::Error>> {
+    let ops: i32 = count_operations_halving(16)?;
+    let _cse_temp_0 = ops == 5;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test strategy sequence: [add, mul] on [2, 3, 4]  = (2+3)*4 = 20."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_strategy_sequence() -> Result<i32, Box<dyn std::error::Error>> {
+    let ops: Vec<String> = vec!["add".to_string(), "mul".to_string()];
+    let vals: Vec<i32> = vec![2, 3, 4];
+    let result: i32 = strategy_execute_sequence(&ops, &vals)?;
+    let _cse_temp_0 = result == 20;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test counter with step=5: start=10, 3 increments =>25."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_counter_custom_step() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut ctr: std::collections::HashMap<String, i32> = make_counter_with_step(10, 5);
+    ctr = counter_increment(&ctr)?;
+    ctr = counter_increment(&ctr)?;
+    ctr = counter_increment(&ctr)?;
+    let val: i32 = counter_get(&ctr)?;
+    let _cse_temp_0 = val == 25;
+    if _cse_temp_0 {
+        return Ok(1);
+    }
+    Ok(0)
+}
+#[doc = "Test reverse chain: negate then double of 5 = -10."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_negate_then_double() -> i32 {
+    let result: i32 = apply_negate_then_double(5);
+    let _cse_temp_0 = result == -10;
+    if _cse_temp_0 {
+        return 1;
+    }
+    0
+}
+#[doc = "Run all tests and return sum of results(each test returns 0 or 1)."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn run_all_tests() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = 0;
+    let _cse_temp_0 = ((total).py_add(test_decorator_chain())) as i32;
+    total = _cse_temp_0;
+    let _cse_temp_1 = ((total).py_add(test_triple_chain())) as i32;
+    total = _cse_temp_1;
+    let _cse_temp_2 = ((total).py_add(test_timing_linear())) as i32;
+    total = _cse_temp_2;
+    let _cse_temp_3 = ((total).py_add(test_timing_quadratic())) as i32;
+    total = _cse_temp_3;
+    let _cse_temp_4 = ((total).py_add(test_memoization()?)) as i32;
+    total = _cse_temp_4;
+    let _cse_temp_5 = ((total).py_add(test_retry_logic())) as i32;
+    total = _cse_temp_5;
+    let _cse_temp_6 = ((total).py_add(test_retry_max_attempts())) as i32;
+    total = _cse_temp_6;
+    let _cse_temp_7 = ((total).py_add(test_validation())) as i32;
+    total = _cse_temp_7;
+    let _cse_temp_8 = ((total).py_add(test_property_pattern()?)) as i32;
+    total = _cse_temp_8;
+    let _cse_temp_9 = ((total).py_add(test_static_methods())) as i32;
+    total = _cse_temp_9;
+    let _cse_temp_10 = ((total).py_add(test_factory_counter()?)) as i32;
+    total = _cse_temp_10;
+    let _cse_temp_11 = ((total).py_add(test_abstract_dispatch())) as i32;
+    total = _cse_temp_11;
+    let _cse_temp_12 = ((total).py_add(test_chained_builder()?)) as i32;
+    total = _cse_temp_12;
+    let _cse_temp_13 = ((total).py_add(test_context_manager()?)) as i32;
+    total = _cse_temp_13;
+    let _cse_temp_14 = ((total).py_add(test_singleton()?)) as i32;
+    total = _cse_temp_14;
+    let _cse_temp_15 = ((total).py_add(test_observer_pattern())) as i32;
+    total = _cse_temp_15;
+    let _cse_temp_16 = ((total).py_add(test_strategy_dispatch())) as i32;
+    total = _cse_temp_16;
+    let _cse_temp_17 = ((total).py_add(test_config_builder()?)) as i32;
+    total = _cse_temp_17;
+    let _cse_temp_18 = ((total).py_add(test_config_invalid()?)) as i32;
+    total = _cse_temp_18;
+    let _cse_temp_19 = ((total).py_add(test_observer_remove())) as i32;
+    total = _cse_temp_19;
+    let _cse_temp_20 = ((total).py_add(test_validated_factorial())) as i32;
+    total = _cse_temp_20;
+    let _cse_temp_21 = ((total).py_add(test_halving_ops()?)) as i32;
+    total = _cse_temp_21;
+    let _cse_temp_22 = ((total).py_add(test_strategy_sequence()?)) as i32;
+    total = _cse_temp_22;
+    let _cse_temp_23 = ((total).py_add(test_counter_custom_step()?)) as i32;
+    total = _cse_temp_23;
+    let _cse_temp_24 = ((total).py_add(test_negate_then_double())) as i32;
+    total = _cse_temp_24;
+    Ok(total)
+}
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let passed: i32 = run_all_tests()?;
+    println!("{}", format!("Tests passed: {}/25", passed));
+    assert_eq!(passed, 25, "{}", format!("Expected 25, got {}", passed));
     Ok(())
 }
 #[cfg(test)]
@@ -3582,100 +4422,332 @@ mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
-    fn test_ackermann_examples() {
-        assert_eq!(ackermann(0, 0), 0);
-        assert_eq!(ackermann(1, 2), 3);
-        assert_eq!(ackermann(-1, 1), 0);
+    fn test_apply_double_examples() {
+        assert_eq!(apply_double(0), 0);
+        assert_eq!(apply_double(1), 1);
+        assert_eq!(apply_double(-1), -1);
     }
     #[test]
-    fn test_flatten_nested_examples() {
-        assert_eq!(flatten_nested(vec![]), vec![]);
-        assert_eq!(flatten_nested(vec![1]), vec![1]);
+    fn test_apply_negate_examples() {
+        assert_eq!(apply_negate(0), 0);
+        assert_eq!(apply_negate(1), 1);
+        assert_eq!(apply_negate(-1), -1);
     }
     #[test]
-    fn test_memoized_partition_count_examples() {
-        assert_eq!(memoized_partition_count(0), 0);
-        assert_eq!(memoized_partition_count(1), 1);
-        assert_eq!(memoized_partition_count(-1), -1);
+    fn test_apply_double_then_negate_examples() {
+        assert_eq!(apply_double_then_negate(0), 0);
+        assert_eq!(apply_double_then_negate(1), 1);
+        assert_eq!(apply_double_then_negate(-1), -1);
     }
     #[test]
-    fn test_is_even_mutual_examples() {
-        let _ = is_even_mutual(Default::default());
+    fn test_apply_negate_then_double_examples() {
+        assert_eq!(apply_negate_then_double(0), 0);
+        assert_eq!(apply_negate_then_double(1), 1);
+        assert_eq!(apply_negate_then_double(-1), -1);
     }
     #[test]
-    fn test_is_odd_mutual_examples() {
-        let _ = is_odd_mutual(Default::default());
+    fn test_apply_increment_examples() {
+        assert_eq!(apply_increment(0), 0);
+        assert_eq!(apply_increment(1), 1);
+        assert_eq!(apply_increment(-1), -1);
     }
     #[test]
-    fn test_make_accumulator_examples() {
-        assert_eq!(make_accumulator(0), 0);
-        assert_eq!(make_accumulator(1), 1);
-        assert_eq!(make_accumulator(-1), -1);
+    fn test_apply_triple_chain_examples() {
+        assert_eq!(apply_triple_chain(0), 0);
+        assert_eq!(apply_triple_chain(1), 1);
+        assert_eq!(apply_triple_chain(-1), -1);
     }
     #[test]
-    fn test_recursive_power_examples() {
-        assert_eq!(recursive_power(0, 0), 0);
-        assert_eq!(recursive_power(1, 2), 3);
-        assert_eq!(recursive_power(-1, 1), 0);
+    fn test_count_operations_linear_examples() {
+        assert_eq!(count_operations_linear(0), 0);
+        assert_eq!(count_operations_linear(1), 1);
+        assert_eq!(count_operations_linear(-1), -1);
     }
     #[test]
-    fn test_recursive_flatten_sum_examples() {
-        assert_eq!(recursive_flatten_sum(&vec![]), 0);
-        assert_eq!(recursive_flatten_sum(&vec![1]), 1);
-        assert_eq!(recursive_flatten_sum(&vec![1, 2, 3]), 6);
+    fn test_count_operations_quadratic_examples() {
+        assert_eq!(count_operations_quadratic(0), 0);
+        assert_eq!(count_operations_quadratic(1), 1);
+        assert_eq!(count_operations_quadratic(-1), -1);
     }
     #[test]
-    fn test_nested_callback_simulation_examples() {
-        assert_eq!(nested_callback_simulation(&vec![]), 0);
-        assert_eq!(nested_callback_simulation(&vec![1]), 1);
-        assert_eq!(nested_callback_simulation(&vec![1, 2, 3]), 3);
+    fn test_count_operations_halving_examples() {
+        assert_eq!(count_operations_halving(0), 0);
+        assert_eq!(count_operations_halving(1), 1);
+        assert_eq!(count_operations_halving(-1), -1);
     }
     #[test]
-    fn test_test_ackermann_examples() {
-        let _ = test_ackermann();
+    fn test_fib_no_cache_examples() {
+        assert_eq!(fib_no_cache(0), 0);
+        assert_eq!(fib_no_cache(1), 1);
+        assert_eq!(fib_no_cache(-1), -1);
     }
     #[test]
-    fn test_test_flatten_nested_examples() {
-        let _ = test_flatten_nested();
+    fn test_retry_until_positive_examples() {
+        assert_eq!(retry_until_positive(&vec![]), 0);
+        assert_eq!(retry_until_positive(&vec![1]), 1);
+        assert_eq!(retry_until_positive(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_memoized_partition_examples() {
-        let _ = test_memoized_partition();
+    fn test_count_retries_before_success_examples() {
+        assert_eq!(count_retries_before_success(&vec![]), 0);
+        assert_eq!(count_retries_before_success(&vec![1]), 1);
+        assert_eq!(count_retries_before_success(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_mutual_recursion_examples() {
-        let _ = test_mutual_recursion();
+    fn test_validate_positive_examples() {
+        assert_eq!(validate_positive(0), 0);
+        assert_eq!(validate_positive(1), 1);
+        assert_eq!(validate_positive(-1), -1);
     }
     #[test]
-    fn test_test_accumulator_examples() {
-        let _ = test_accumulator();
+    fn test_validated_square_examples() {
+        assert_eq!(validated_square(0), 0);
+        assert_eq!(validated_square(1), 1);
+        assert_eq!(validated_square(-1), -1);
     }
     #[test]
-    fn test_test_counter_pair_examples() {
-        let _ = test_counter_pair();
+    fn test_validated_factorial_examples() {
+        assert_eq!(validated_factorial(0), 0);
+        assert_eq!(validated_factorial(1), 1);
+        assert_eq!(validated_factorial(-1), -1);
     }
     #[test]
-    fn test_test_recursive_power_examples() {
-        let _ = test_recursive_power();
+    fn test_validated_divide_examples() {
+        assert_eq!(validated_divide(0, 0), 0);
+        assert_eq!(validated_divide(1, 2), 3);
+        assert_eq!(validated_divide(-1, 1), 0);
     }
     #[test]
-    fn test_test_tree_dfs_examples() {
-        let _ = test_tree_dfs();
+    fn quickcheck_math_abs() {
+        fn prop(x: i32) -> TestResult {
+            let result = math_abs(x.clone());
+            if result < 0 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(i32) -> TestResult);
     }
     #[test]
-    fn test_test_tower_of_hanoi_examples() {
-        let _ = test_tower_of_hanoi();
+    fn test_math_abs_examples() {
+        assert_eq!(math_abs(0), 0);
+        assert_eq!(math_abs(1), 1);
+        assert_eq!(math_abs(-1), 1);
+        assert_eq!(math_abs(i32::MIN + 1), i32::MAX);
     }
     #[test]
-    fn test_test_recursive_flatten_sum_examples() {
-        let _ = test_recursive_flatten_sum();
+    fn test_math_sign_examples() {
+        assert_eq!(math_sign(0), 0);
+        assert_eq!(math_sign(1), 1);
+        assert_eq!(math_sign(-1), -1);
     }
     #[test]
-    fn test_test_collatz_chain_examples() {
-        let _ = test_collatz_chain();
+    fn test_shape_area_base_examples() {
+        assert_eq!(shape_area_base(0), 0);
+        assert_eq!(shape_area_base(1), 1);
+        assert_eq!(shape_area_base(-1), -1);
     }
     #[test]
-    fn test_test_nested_callbacks_examples() {
-        let _ = test_nested_callbacks();
+    fn test_shape_area_square_examples() {
+        assert_eq!(shape_area_square(0), 0);
+        assert_eq!(shape_area_square(1), 1);
+        assert_eq!(shape_area_square(-1), -1);
+    }
+    #[test]
+    fn quickcheck_shape_area_rect() {
+        fn prop(width: i32, height: i32) -> TestResult {
+            if (width > 0 && height > i32::MAX - width) || (width < 0 && height < i32::MIN - width)
+            {
+                return TestResult::discard();
+            }
+            let result1 = shape_area_rect(width.clone(), height.clone());
+            let result2 = shape_area_rect(height.clone(), width.clone());
+            if result1 != result2 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(i32, i32) -> TestResult);
+    }
+    #[test]
+    fn test_shape_area_rect_examples() {
+        assert_eq!(shape_area_rect(0, 0), 0);
+        assert_eq!(shape_area_rect(1, 2), 3);
+        assert_eq!(shape_area_rect(-1, 1), 0);
+    }
+    #[test]
+    fn test_context_managed_operation_examples() {
+        assert_eq!(context_managed_operation(0), 0);
+        assert_eq!(context_managed_operation(1), 1);
+        assert_eq!(context_managed_operation(-1), -1);
+    }
+    #[test]
+    fn test_observer_count_examples() {
+        assert_eq!(observer_count(&vec![]), 0);
+        assert_eq!(observer_count(&vec![1]), 1);
+        assert_eq!(observer_count(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn quickcheck_strategy_add() {
+        fn prop(a: i32, b: i32) -> TestResult {
+            if (a > 0 && b > i32::MAX - a) || (a < 0 && b < i32::MIN - a) {
+                return TestResult::discard();
+            }
+            let result1 = strategy_add(a.clone(), b.clone());
+            let result2 = strategy_add(b.clone(), a.clone());
+            if result1 != result2 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(i32, i32) -> TestResult);
+    }
+    #[test]
+    fn test_strategy_add_examples() {
+        assert_eq!(strategy_add(0, 0), 0);
+        assert_eq!(strategy_add(1, 2), 3);
+        assert_eq!(strategy_add(-1, 1), 0);
+    }
+    #[test]
+    fn test_strategy_sub_examples() {
+        assert_eq!(strategy_sub(0, 0), 0);
+        assert_eq!(strategy_sub(1, 2), 3);
+        assert_eq!(strategy_sub(-1, 1), 0);
+    }
+    #[test]
+    fn quickcheck_strategy_mul() {
+        fn prop(a: i32, b: i32) -> TestResult {
+            if (a > 0 && b > i32::MAX - a) || (a < 0 && b < i32::MIN - a) {
+                return TestResult::discard();
+            }
+            let result1 = strategy_mul(a.clone(), b.clone());
+            let result2 = strategy_mul(b.clone(), a.clone());
+            if result1 != result2 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(i32, i32) -> TestResult);
+    }
+    #[test]
+    fn test_strategy_mul_examples() {
+        assert_eq!(strategy_mul(0, 0), 0);
+        assert_eq!(strategy_mul(1, 2), 3);
+        assert_eq!(strategy_mul(-1, 1), 0);
+    }
+    #[test]
+    fn test_test_decorator_chain_examples() {
+        let _ = test_decorator_chain();
+    }
+    #[test]
+    fn test_test_triple_chain_examples() {
+        let _ = test_triple_chain();
+    }
+    #[test]
+    fn test_test_timing_linear_examples() {
+        let _ = test_timing_linear();
+    }
+    #[test]
+    fn test_test_timing_quadratic_examples() {
+        let _ = test_timing_quadratic();
+    }
+    #[test]
+    fn test_test_memoization_examples() {
+        let _ = test_memoization();
+    }
+    #[test]
+    fn test_test_retry_logic_examples() {
+        let _ = test_retry_logic();
+    }
+    #[test]
+    fn test_test_retry_max_attempts_examples() {
+        let _ = test_retry_max_attempts();
+    }
+    #[test]
+    fn test_test_validation_examples() {
+        let _ = test_validation();
+    }
+    #[test]
+    fn test_test_property_pattern_examples() {
+        let _ = test_property_pattern();
+    }
+    #[test]
+    fn test_test_static_methods_examples() {
+        let _ = test_static_methods();
+    }
+    #[test]
+    fn test_test_factory_counter_examples() {
+        let _ = test_factory_counter();
+    }
+    #[test]
+    fn quickcheck_test_abstract_dispatch() {
+        fn prop() -> TestResult {
+            let result = test_abstract_dispatch();
+            if result < 0 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn() -> TestResult);
+    }
+    #[test]
+    fn test_test_abstract_dispatch_examples() {
+        let _ = test_abstract_dispatch();
+    }
+    #[test]
+    fn test_test_chained_builder_examples() {
+        let _ = test_chained_builder();
+    }
+    #[test]
+    fn test_test_context_manager_examples() {
+        let _ = test_context_manager();
+    }
+    #[test]
+    fn test_test_singleton_examples() {
+        let _ = test_singleton();
+    }
+    #[test]
+    fn test_test_observer_pattern_examples() {
+        let _ = test_observer_pattern();
+    }
+    #[test]
+    fn test_test_strategy_dispatch_examples() {
+        let _ = test_strategy_dispatch();
+    }
+    #[test]
+    fn test_test_config_builder_examples() {
+        let _ = test_config_builder();
+    }
+    #[test]
+    fn test_test_config_invalid_examples() {
+        let _ = test_config_invalid();
+    }
+    #[test]
+    fn test_test_observer_remove_examples() {
+        let _ = test_observer_remove();
+    }
+    #[test]
+    fn test_test_validated_factorial_examples() {
+        let _ = test_validated_factorial();
+    }
+    #[test]
+    fn test_test_halving_ops_examples() {
+        let _ = test_halving_ops();
+    }
+    #[test]
+    fn test_test_strategy_sequence_examples() {
+        let _ = test_strategy_sequence();
+    }
+    #[test]
+    fn test_test_counter_custom_step_examples() {
+        let _ = test_counter_custom_step();
+    }
+    #[test]
+    fn test_test_negate_then_double_examples() {
+        let _ = test_negate_then_double();
+    }
+    #[test]
+    fn test_run_all_tests_examples() {
+        let _ = run_all_tests();
     }
 }

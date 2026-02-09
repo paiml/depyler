@@ -530,6 +530,18 @@ pub fn is_dict_with_value_type(t: &crate::hir::Type) -> bool {
     }
 }
 
+/// DEPYLER-99MODE-S9: Check if expression is a call to a function that returns Result.
+/// Used to prevent double-wrapping: `Ok(result_returning_fn())` should be just the call.
+pub fn is_call_to_result_returning_fn(
+    expr: &HirExpr,
+    ctx: &crate::rust_gen::context::CodeGenContext,
+) -> bool {
+    match expr {
+        HirExpr::Call { func, .. } => ctx.result_returning_functions.contains(func),
+        _ => false,
+    }
+}
+
 /// DEPYLER-0749: Check if this is a dict augmented assignment pattern (dict[key] op= value)
 /// Returns true if target is Index and value is Binary with left being an Index to same location
 pub fn is_dict_augassign_pattern(target: &crate::hir::AssignTarget, value: &HirExpr) -> bool {

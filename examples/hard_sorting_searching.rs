@@ -2494,7 +2494,7 @@ Ok(result)
     ok  = ((ok).py_add(1i32)) as i32;
    
 }
-let _cse_temp_1 = r2 == vec! [];
+let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -2564,7 +2564,7 @@ let _cse_temp_1 = r2 == vec! [1, 2, 3];
     ok  = ((ok).py_add(1i32)) as i32;
    
 }
-let _cse_temp_2 = r3 == vec! [];
+let _cse_temp_2 = r3.is_empty();
     if _cse_temp_2 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -2577,8 +2577,8 @@ let _cse_temp_3 = r4 == vec! [- 5, 0, 42, 100];
 Ok(ok)
 }
 #[doc = "Merge two sorted sub-arrays within arr, return new array."] pub fn merge_two(arr: & Vec<i32>, left: i32, mid: i32, right: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut i: i32 = Default::default();
     let mut merged: Vec<i32>= vec! [];
     for val in arr.iter().cloned() {
     merged.push(val);
@@ -2618,8 +2618,8 @@ Ok(merged)
 }
 #[doc = "Bottom-up merge sort without recursion."] #[doc = " Depyler: verified panic-free"] pub fn iterative_merge_sort(arr: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut result: Vec<i32>= Default::default();
-    let mut mid: i32 = Default::default();
     let mut right: i32 = Default::default();
+    let mut mid: i32 = Default::default();
     result = vec! [];
     for val in arr.iter().cloned() {
     result.push(val);
@@ -2671,7 +2671,7 @@ Ok(result)
     ok  = ((ok).py_add(1i32)) as i32;
    
 }
-let _cse_temp_1 = r2 == vec! [];
+let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -2769,7 +2769,7 @@ Ok(result)
     ok  = ((ok).py_add(1i32)) as i32;
    
 }
-let _cse_temp_1 = r2 == vec! [];
+let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -2872,7 +2872,7 @@ let _cse_temp_0 = r1.len() as i32;
    
 }
 let r2: Vec<i32>= dutch_national_flag(& vec! [], 5) ?;
-    let _cse_temp_3 = r2 == vec! [];
+    let _cse_temp_3 = r2.is_empty();
     if _cse_temp_3 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -2974,7 +2974,7 @@ if valid {
    
 }
 let r2: Vec<i32>= three_way_partition(& vec! [], 1, 5) ?;
-    let _cse_temp_0 = r2 == vec! [];
+    let _cse_temp_0 = r2.is_empty();
     if _cse_temp_0 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -3322,7 +3322,7 @@ else {
     hi  = ((n) - (1i32)) as i32;
    
 }
-Ok(binary_search_range(& arr, target, lo, hi))
+binary_search_range(& arr, target, lo, hi)
 }
 #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_exponential_search() -> Result<i32, Box<dyn std::error::Error>>{
     let mut ok: i32 = Default::default();
@@ -3356,9 +3356,9 @@ let _cse_temp_4 = exponential_search(& vec! [], 1) ? == - 1;
 Ok(ok)
 }
 #[doc = "Find index of maximum in a unimodal array using ternary search."] pub fn ternary_search_max(arr: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut lo: i32 = Default::default();
-    let mut hi: i32 = Default::default();
     let mut best: i32 = Default::default();
+    let mut hi: i32 = Default::default();
+    let mut lo: i32 = Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = n == 0;
@@ -3525,7 +3525,7 @@ let _cse_temp_3 = quickselect(& vec! [1], 0) ? == 1;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted lists into one sorted list."] pub fn merge_two_sorted<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
     let mut result: Vec<i32>= vec! [];
@@ -3617,7 +3617,7 @@ let r2: Vec<i32>= merge_k_sorted(& vec! [vec! [1], vec! [2], vec! [3], vec! [4]]
    
 }
 let r3: Vec<i32>= merge_k_sorted(& vec! []) ?;
-    let _cse_temp_2 = r3 == vec! [];
+    let _cse_temp_2 = r3.is_empty();
     if _cse_temp_2 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -3659,7 +3659,7 @@ chunk = insertion_sort(& chunk) ?;
     i = end;
    
 }
-Ok(merge_k_sorted(& chunks))
+merge_k_sorted(& chunks)
 }
 #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_chunk_sort() -> Result<i32, Box<dyn std::error::Error>>{
     let mut ok: i32 = Default::default();
@@ -3671,7 +3671,7 @@ Ok(merge_k_sorted(& chunks))
    
 }
 let r2: Vec<i32>= chunk_sort(& vec! [], 5) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -3727,7 +3727,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= counting_sort(& vec! [], 5) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -3821,8 +3821,8 @@ else {
 Ok(output)
 }
 #[doc = "LSD radix sort for non-negative integers."] pub fn radix_sort_lsd(arr: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut result: Vec<i32>= Default::default();
     let mut max_val: i32 = Default::default();
+    let mut result: Vec<i32>= Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3874,7 +3874,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= radix_sort_lsd(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4185,7 +4185,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= heap_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4249,8 +4249,8 @@ let mut result: Vec<i32>= vec! [];
 queue = new_queue.clone();
     result.push(node);
     for neighbor in adj.get(node as usize).cloned().expect("IndexError: list index out of range") {
-    in_degree [(neighbor) as usize]  = (in_degree.get(neighbor.to_i64() as usize).cloned().expect("IndexError: list index out of range")) - (1i32);
-    if in_degree.get(neighbor.to_i64() as usize).cloned().expect("IndexError: list index out of range") == 0 {
+    in_degree [(neighbor) as usize]  = (in_degree.get(neighbor as usize).cloned().expect("IndexError: list index out of range")) - (1i32);
+    if in_degree.get(neighbor as usize).cloned().expect("IndexError: list index out of range") == 0 {
     queue.push(neighbor);
    
 }
@@ -4265,8 +4265,8 @@ let _cse_temp_0 = result.len() as i32;
 Ok(result)
 }
 #[doc = " Depyler: proven to terminate"] pub fn test_topological_sort() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut valid: bool = Default::default();
     let mut ok: i32 = Default::default();
+    let mut valid: bool = Default::default();
     ok = 0;
     let r1: Vec<i32>= topological_sort(6, & vec! [vec! [5, 2], vec! [5, 0], vec! [4, 0], vec! [4, 1], vec! [2, 3], vec! [3, 1]]) ?;
     let _cse_temp_0 = r1.len() as i32;
@@ -4310,7 +4310,7 @@ if valid {
    
 }
 } let r2: Vec<i32>= topological_sort(3, & vec! [vec! [0, 1], vec! [1, 2], vec! [2, 0]]) ?;
-    let _cse_temp_3 = r2 == vec! [];
+    let _cse_temp_3 = r2.is_empty();
     if _cse_temp_3 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4324,9 +4324,9 @@ let r3: Vec<i32>= topological_sort(1, & vec! []) ?;
 Ok(ok)
 }
 #[doc = "Merge and count inversions across halves."] pub fn merge_count<'b, 'a>(arr: & 'a mut Vec<i32>, temp: & 'b mut Vec<i32>, left: i32, mid: i32, right: i32) -> Result<i32, Box<dyn std::error::Error>>{
+    let mut inv_count: i32 = Default::default();
     let mut k: i32 = Default::default();
     let mut i: i32 = Default::default();
-    let mut inv_count: i32 = Default::default();
     let mut j: i32 = Default::default();
     i = left;
     j  = ((mid).py_add(1i32)) as i32;
@@ -4369,8 +4369,8 @@ Ok(inv_count)
 }
 #[doc = "Count inversions using iterative merge sort approach."] #[doc = " Depyler: verified panic-free"] pub fn count_inversions(arr: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
     let mut total: i32 = Default::default();
-    let mut right: i32 = Default::default();
     let mut mid: i32 = Default::default();
+    let mut right: i32 = Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let n: i32 = _cse_temp_0;
     let _cse_temp_1 = n <= 1;
@@ -4437,8 +4437,8 @@ if _cse_temp_1 {
 Ok(ok)
 }
 #[doc = "Encode runs as [[value, count],...]."] pub fn run_length_encode(arr: & Vec<i32>) -> Result<Vec<Vec<i32>>, Box<dyn std::error::Error>>{
-    let mut current: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut current: i32 = Default::default();
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -4476,7 +4476,7 @@ result.push(vec! [current, count]);
    
 }
 let r2: Vec<Vec<i32>>= run_length_encode(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4512,7 +4512,7 @@ Ok(ok)
    
 }
 let r2: Vec<i32>= run_length_decode(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4537,14 +4537,14 @@ Ok(ok)
    
 }
 let empty_rt: Vec<i32>= run_length_decode(run_length_encode(& vec! [])) ?;
-    let _cse_temp_1 = empty_rt == vec! [];
+    let _cse_temp_1 = empty_rt.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
 }
 Ok(ok)
 }
-#[doc = "Find all starting indices where pattern appears in text."] pub fn naive_pattern_match<'a, 'b>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Find all starting indices where pattern appears in text."] pub fn naive_pattern_match<'b, 'a>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut result: Vec<i32>= vec! [];
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
@@ -4599,7 +4599,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= naive_pattern_match(& vec! [1, 2, 3], & vec! [4, 5]) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4611,7 +4611,7 @@ let r3: Vec<i32>= naive_pattern_match(& vec! [1, 1, 1, 1], & vec! [1, 1]) ?;
    
 }
 let r4: Vec<i32>= naive_pattern_match(& vec! [], & vec! [1]) ?;
-    let _cse_temp_3 = r4 == vec! [];
+    let _cse_temp_3 = r4.is_empty();
     if _cse_temp_3 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4675,7 +4675,7 @@ let r2: Vec<i32>= kmp_failure(& vec! [1, 1, 1, 1]) ?;
    
 }
 let r3: Vec<i32>= kmp_failure(& vec! []) ?;
-    let _cse_temp_2 = r3 == vec! [];
+    let _cse_temp_2 = r3.is_empty();
     if _cse_temp_2 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4688,7 +4688,7 @@ let r4: Vec<i32>= kmp_failure(& vec! [5]) ?;
 }
 Ok(ok)
 }
-#[doc = "KMP pattern matching, returns list of match start indices."] pub fn kmp_search<'b, 'a>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "KMP pattern matching, returns list of match start indices."] pub fn kmp_search<'a, 'b>(text: & 'a Vec<i32>, pattern: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut j: i32 = Default::default();
     let _cse_temp_0 = text.len() as i32;
     let n: i32 = _cse_temp_0;
@@ -4748,7 +4748,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= kmp_search(& vec! [1, 2, 3], & vec! [4]) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4849,7 +4849,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= shell_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -4938,7 +4938,7 @@ i  = ((i).py_add(1i32)) as i32;
    
 }
 let r2: Vec<i32>= comb_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -5050,7 +5050,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= cocktail_shaker_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -5112,7 +5112,7 @@ else {
    
 }
 let r2: Vec<i32>= gnome_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -5187,7 +5187,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= pancake_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -5274,7 +5274,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= cycle_sort(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -5657,8 +5657,8 @@ else {
 Ok(lo)
 }
 #[doc = " Depyler: proven to terminate"] pub fn test_find_peak_element() -> Result<i32, Box<dyn std::error::Error>>{
-    let mut ok: i32 = Default::default();
     let mut is_peak: bool = Default::default();
+    let mut ok: i32 = Default::default();
     ok = 0;
     let p1: i32 = find_peak_element(& vec! [1, 2, 3, 1]) ?;
     let _cse_temp_0 = p1 == 2;
@@ -5755,7 +5755,7 @@ let r3: Vec<i32>= two_sum_sorted(& vec! [1, 2], 10) ?;
 }
 Ok(ok)
 }
-#[doc = "Merge two sorted arrays simulating in-place merge with gap method."] pub fn merge_in_place_sim<'b, 'a>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
+#[doc = "Merge two sorted arrays simulating in-place merge with gap method."] pub fn merge_in_place_sim<'a, 'b>(a: & 'a Vec<i32>, b: & 'b Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let mut combined: Vec<i32>= vec! [];
     for val in a.iter().cloned() {
     combined.push(val);
@@ -6116,7 +6116,7 @@ Ok(output)
    
 }
 let r2: Vec<i32>= counting_sort_stable(& vec! [], 5) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -6186,7 +6186,7 @@ let r2: Vec<i32>= next_greater_element(& vec! [13, 7, 6, 12]) ?;
    
 }
 let r3: Vec<i32>= next_greater_element(& vec! []) ?;
-    let _cse_temp_2 = r3 == vec! [];
+    let _cse_temp_2 = r3.is_empty();
     if _cse_temp_2 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -6379,7 +6379,7 @@ pub fn test_sort_by_parity() -> Result<i32, Box<dyn std::error::Error>>{
    
 }
 let r2: Vec<i32>= sort_by_parity(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -6522,7 +6522,7 @@ let _cse_temp_1 = n == 6;
    
 }
 let r2: Vec<i32>= wiggle_sort(& vec! []) ?;
-    let _cse_temp_3 = r2 == vec! [];
+    let _cse_temp_3 = r2.is_empty();
     if _cse_temp_3 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -6574,7 +6574,7 @@ Ok(result)
    
 }
 let r2: Vec<i32>= remove_duplicates_sorted(& vec! []) ?;
-    let _cse_temp_1 = r2 == vec! [];
+    let _cse_temp_1 = r2.is_empty();
     if _cse_temp_1 {
     ok  = ((ok).py_add(1i32)) as i32;
    
@@ -6639,7 +6639,7 @@ let r2: Vec<i32>= sort_colors(& vec! [2, 0, 1]) ?;
    
 }
 let r3: Vec<i32>= sort_colors(& vec! []) ?;
-    let _cse_temp_2 = r3 == vec! [];
+    let _cse_temp_2 = r3.is_empty();
     if _cse_temp_2 {
     ok  = ((ok).py_add(1i32)) as i32;
    

@@ -5,24 +5,6 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::collections::HashMap;
-use std::collections::HashSet;
-#[derive(Debug, Clone)]
-pub struct ZeroDivisionError {
-    message: String,
-}
-impl std::fmt::Display for ZeroDivisionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "division by zero: {}", self.message)
-    }
-}
-impl std::error::Error for ZeroDivisionError {}
-impl ZeroDivisionError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -3196,385 +3178,1539 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = "Ackermann function: deeply recursive with multiple base cases.\n\n    This function grows faster than any primitive recursive function.\n    Three distinct base/recursive cases stress return-type unification.\n    "]
+#[doc = "Count the number of set bits in a non-negative integer."]
+#[doc = " Depyler: verified panic-free"]
+pub fn popcount(n: i32) -> i32 {
+    let mut count: i32 = Default::default();
+    count = 0;
+    let mut val: i32 = n.clone();
+    while val > 0 {
+        count = ((count).py_add(val & 1)) as i32;
+        val = val >> 1;
+    }
+    count
+}
+#[doc = "Return 0 if even number of set bits, 1 if odd."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn ackermann(m: i32, n: i32) -> i32 {
-    let _cse_temp_0 = m == 0;
-    if _cse_temp_0 {
-        return (n).py_add(1i32);
-    } else {
-        let _cse_temp_1 = m > 0;
-        let _cse_temp_2 = n == 0;
-        let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
-        if _cse_temp_3 {
-            return ackermann((m) - (1i32), 1);
-        } else {
-            return ackermann((m) - (1i32), ackermann(m, (n) - (1i32)));
-        }
-    }
+pub fn parity(n: i32) -> i32 {
+    let mut val: i32 = n.clone();
+    let _cse_temp_0 = val >> 16;
+    let _cse_temp_1 = val ^ _cse_temp_0;
+    val = _cse_temp_1;
+    let _cse_temp_2 = val >> 8;
+    let _cse_temp_3 = val ^ _cse_temp_2;
+    val = _cse_temp_3;
+    let _cse_temp_4 = val >> 4;
+    let _cse_temp_5 = val ^ _cse_temp_4;
+    val = _cse_temp_5;
+    let _cse_temp_6 = val >> 2;
+    let _cse_temp_7 = val ^ _cse_temp_6;
+    val = _cse_temp_7;
+    let _cse_temp_8 = val >> 1;
+    let _cse_temp_9 = val ^ _cse_temp_8;
+    val = _cse_temp_9;
+    val & 1
 }
-#[doc = "Flatten with recursive accumulator pattern.\n\n    Uses a mutable accumulator passed through recursive calls,\n    testing how the transpiler handles mutation through recursion.\n    "]
+#[doc = "Reverse all 32 bits of an integer."]
 #[doc = " Depyler: verified panic-free"]
-pub fn flatten_nested(lst: &Vec<Vec<i32>>) -> Vec<i32> {
-    let mut result: Vec<i32> = vec![];
-    for sublist in lst.iter().cloned() {
-        for item in sublist.iter().cloned() {
-            result.push(item);
-        }
+pub fn reverse_bits_32(n: i32) -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let mut i: i32 = 0;
+    let _cse_temp_0 = n & 4294967295;
+    let mut val: i32 = _cse_temp_0.clone();
+    while i < 32 {
+        result = result << 1 | val & 1;
+        val = val >> 1;
+        i = ((i).py_add(1i32)) as i32;
     }
     result
 }
-#[doc = "Count integer partitions using dict-based memoization.\n\n    The cache is created inside the outer function and closed over\n    by the inner recursive helper. Tests closure capture of mutable dict.\n    "]
+#[doc = "Isolate the lowest set bit. Returns 0 if n is 0."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn memoized_partition_count(n: i32) -> i32 {
-    let cache: std::collections::HashMap<String, i32> = {
-        let map: HashMap<String, i32> = HashMap::new();
-        map
-    };
-    let helper = move |remaining: i32, max_val: i32| -> i32 {
-        if remaining == 0 {
-            return 1;
-        }
-        if remaining < 0 {
-            return 0;
-        }
-        let key: String = format!(
-            "{}{}",
-            format!("{}{}", (remaining).to_string(), ","),
-            (max_val).to_string()
+pub fn isolate_lowest_set_bit(n: i32) -> i32 {
+    let _cse_temp_0 = n == 0;
+    if _cse_temp_0 {
+        return 0;
+    }
+    n & (-n)
+}
+#[doc = "Clear the lowest set bit of n."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn clear_lowest_set_bit(n: i32) -> i32 {
+    n & (n) - (1i32)
+}
+#[doc = "Return the position of the highest set bit, or -1 if n is 0."]
+#[doc = " Depyler: verified panic-free"]
+pub fn highest_set_bit_pos(n: i32) -> i32 {
+    let mut pos: i32 = Default::default();
+    let _cse_temp_0 = n <= 0;
+    if _cse_temp_0 {
+        return -1;
+    }
+    pos = 0;
+    let mut val: i32 = n.clone();
+    while val > 1 {
+        val = val >> 1;
+        pos = ((pos).py_add(1i32)) as i32;
+    }
+    pos
+}
+#[doc = "Return the smallest power of two>= n. Assumes n>0."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn next_power_of_two(n: i32) -> i32 {
+    let _cse_temp_0 = n <= 1;
+    if _cse_temp_0 {
+        return 1;
+    }
+    let mut val: i32 = ((n) - (1i32)) as i32;
+    let _cse_temp_1 = val >> 1;
+    let _cse_temp_2 = val | _cse_temp_1;
+    val = _cse_temp_2;
+    let _cse_temp_3 = val >> 2;
+    let _cse_temp_4 = val | _cse_temp_3;
+    val = _cse_temp_4;
+    let _cse_temp_5 = val >> 4;
+    let _cse_temp_6 = val | _cse_temp_5;
+    val = _cse_temp_6;
+    let _cse_temp_7 = val >> 8;
+    let _cse_temp_8 = val | _cse_temp_7;
+    val = _cse_temp_8;
+    let _cse_temp_9 = val >> 16;
+    let _cse_temp_10 = val | _cse_temp_9;
+    val = _cse_temp_10;
+    (val).py_add(1i32)
+}
+#[doc = "Swap bits at positions i and j in n."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn swap_bits(n: i32, i: i32, j: i32) -> i32 {
+    let _cse_temp_0 = n >> i;
+    let _cse_temp_1 = _cse_temp_0 & 1;
+    let bit_i: i32 = _cse_temp_1;
+    let _cse_temp_2 = n >> j;
+    let _cse_temp_3 = _cse_temp_2 & 1;
+    let bit_j: i32 = _cse_temp_3;
+    let _cse_temp_4 = bit_i == bit_j;
+    if _cse_temp_4 {
+        return n;
+    }
+    let _cse_temp_5 = 1 << i;
+    let _cse_temp_6 = 1 << j;
+    let _cse_temp_7 = _cse_temp_5 | _cse_temp_6;
+    let mask: i32 = _cse_temp_7;
+    n ^ mask
+}
+#[doc = "Pack three 8-bit color channels into a single 24-bit integer."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn pack_rgb(r: i32, g: i32, b: i32) -> i32 {
+    (r & 255) << 16 | (g & 255) << 8 | b & 255
+}
+#[doc = "Extract the red channel from a packed RGB value."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn unpack_r(packed: i32) -> i32 {
+    packed >> 16 & 255
+}
+#[doc = "Extract the green channel from a packed RGB value."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn unpack_g(packed: i32) -> i32 {
+    packed >> 8 & 255
+}
+#[doc = "Extract the blue channel from a packed RGB value."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn unpack_b(packed: i32) -> i32 {
+    packed & 255
+}
+#[doc = "Pack four 8-bit fields into a 32-bit integer."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn pack_fields(a: i32, b: i32, c: i32, d: i32) -> i32 {
+    (a & 255) << 24 | (b & 255) << 16 | (c & 255) << 8 | d & 255
+}
+#[doc = "Extract a bitfield of given width at given bit offset."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn extract_field(packed: i32, offset: i32, width: i32) -> i32 {
+    let _cse_temp_0 = 1 << width;
+    let mask: i32 = ((_cse_temp_0) - (1i32)) as i32;
+    packed >> offset & mask
+}
+#[doc = "Set a bitfield of given width at given bit offset to value."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn set_field(packed: i32, offset: i32, width: i32, value: i32) -> i32 {
+    let _cse_temp_0 = 1 << width;
+    let mask: i32 = ((_cse_temp_0) - (1i32)) as i32;
+    let _cse_temp_1 = packed & !mask << offset;
+    let cleared: i32 = _cse_temp_1;
+    cleared | (value & mask) << offset
+}
+#[doc = "Encode a list of integers by XORing each with the key."]
+#[doc = " Depyler: verified panic-free"]
+pub fn xor_encode(data: &Vec<i32>, key: i32) -> Vec<i32> {
+    let mut result: Vec<i32> = vec![];
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        result.push(
+            data.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                ^ key & 255,
         );
-        if cache.get(&key).is_some() {
-            return cache.get(&(key)).cloned().unwrap_or_default();
-        }
-        let mut total: i32 = 0;
-        for k in (1)..((max_val).py_add(1i32)) {
-            if k <= remaining {
-                total = ((total).py_add(helper((remaining) - (k), k))) as i32;
-            }
-        }
-        cache.insert(key.to_string().clone(), total);
-        return total;
-    };
-    helper(n, n)
-}
-#[doc = "Mutual recursion: is_even calls is_odd, is_odd calls is_even.\n\n    Tests transpiler's ability to handle forward references and\n    mutually recursive function definitions.\n    "]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn is_even_mutual(n: i32) -> bool {
-    let _cse_temp_0 = n == 0;
-    if _cse_temp_0 {
-        return true;
+        i = ((i).py_add(1i32)) as i32;
     }
-    is_odd_mutual((n) - (1i32))
+    result
 }
-#[doc = "Companion to is_even_mutual for mutual recursion test."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn is_odd_mutual(n: i32) -> bool {
-    let _cse_temp_0 = n == 0;
-    if _cse_temp_0 {
-        return false;
-    }
-    is_even_mutual((n) - (1i32))
-}
-#[doc = "Simulate a closure-based accumulator.\n\n    Returns the final accumulated value after a sequence of operations.\n    Tests the pattern of building up state through function-like composition.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn make_accumulator(initial: i32) -> i32 {
-    let mut total: i32 = Default::default();
-    total = initial;
-    let additions: Vec<i32> = vec![10, 20, 30, -5, 15];
-    for val in additions.iter().cloned() {
-        total = ((total).py_add(val)) as i32;
-    }
-    total
-}
-#[doc = "Simulate paired increment/decrement counters.\n\n    Returns [increment_result, decrement_result, final_state].\n    Tests the pattern where two closures share mutable state.\n    "]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn make_counter_pair() -> Vec<i32> {
-    let mut state: i32 = Default::default();
-    state = 0;
-    let mut results: Vec<i32> = vec![];
-    for __sanitized in 0..(3) {
-        state = ((state).py_add(1i32)) as i32;
-    }
-    results.push(state);
-    state = ((state) - (1i32)) as i32;
-    results.push(state);
-    results.push(state);
-    results
-}
-#[doc = "Fast exponentiation via recursive squaring.\n\n    Three branches: base case, even exponent(square), odd exponent.\n    Tests complex conditional recursion with arithmetic transformations.\n    "]
-#[doc = " Depyler: proven to terminate"]
-pub fn recursive_power(base: i32, exp: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = exp == 0;
-    if _cse_temp_0 {
-        return Ok(1);
-    }
-    let _cse_temp_1 = exp < 0;
-    if _cse_temp_1 {
-        return Ok(0);
-    }
-    let _cse_temp_2 = ((exp).py_mod(2i32)) as i32;
-    let _cse_temp_3 = _cse_temp_2 == 0;
-    if _cse_temp_3 {
-        let half: i32 = recursive_power(base, {
-            let a = exp;
-            let b = 2;
-            let q = a / b;
-            let r = a % b;
-            let r_negative = r < 0;
-            let b_negative = b < 0;
-            let r_nonzero = r != 0;
-            let signs_differ = r_negative != b_negative;
-            let needs_adjustment = r_nonzero && signs_differ;
-            if needs_adjustment {
-                q - 1
-            } else {
-                q
-            }
-        })?;
-        return Ok((half).py_mul(half));
-    } else {
-        return Ok((base).py_mul(recursive_power(base, (exp) - (1i32))?));
-    }
-}
-#[doc = "Depth-first traversal of a tree represented as adjacency list.\n\n    Uses recursive DFS with a visited set and accumulator list.\n    Tests dict lookup, set membership, list mutation, and recursion together.\n    "]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn tree_depth_first(adj: &std::collections::HashMap<i32, Vec<i32>>, root: i32) -> Vec<i32> {
-    let visited: std::collections::HashSet<i32> = std::collections::HashSet::<i32>::new();
-    let order: Vec<i32> = vec![];
-    let dfs = move |node: i32| -> () {
-        if visited.contains(&node) {
-            return;
-        }
-        visited.insert(node);
-        order.push(node);
-        if adj.get(&node).is_some() {
-            let neighbors: Vec<i32> = adj.get(&(node)).cloned().unwrap_or_default();
-            for neighbor in neighbors.iter().cloned() {
-                dfs(neighbor);
-            }
-        }
-    };
-    dfs(root);
-    order
-}
-#[doc = "Tower of Hanoi solver recording all moves.\n\n    Recursive solution that builds a list of move descriptions.\n    Tests string formatting inside recursion with list accumulation.\n    "]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn tower_of_hanoi(n: i32) -> Vec<String> {
-    let moves: Vec<String> = vec![];
-    let hanoi = move |disks: i32, source: &str, target: &str, auxiliary: &str| -> () {
-        if disks == 1 {
-            moves.push(format!("{}{}", format!("{}{}", source, " -> "), target));
-            return;
-        }
-        hanoi((disks) - (1i32), &source, &auxiliary, &target);
-        moves.push(format!("{}{}", format!("{}{}", source, " -> "), target));
-        hanoi((disks) - (1i32), &auxiliary, &target, &source);
-    };
-    hanoi(n, "A", "C", "B");
-    moves
-}
-#[doc = "Sum all elements in a nested list structure.\n\n    Combines flattening and accumulation in one recursive pass.\n    Tests how transpiler handles list-of-lists with recursive processing.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn recursive_flatten_sum(nested: &Vec<Vec<i32>>) -> i32 {
-    let mut total: i32 = Default::default();
-    total = 0;
-    for sublist in nested.iter().cloned() {
-        for val in sublist.iter().cloned() {
-            total = ((total).py_add(val)) as i32;
-        }
-    }
-    total
-}
-#[doc = "Generate full Collatz sequence from n to 1.\n\n    While-loop based recursion simulation with conditional branching.\n    The chain length is unpredictable, testing dynamic list growth.\n    "]
-pub fn collatz_chain(n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut current: i32 = Default::default();
-    let mut chain: Vec<i32> = vec![n];
-    current = n;
-    while current != 1 {
-        if (current).py_mod(2i32) == 0 {
-            current = {
-                let a = current;
-                let b = 2;
-                let q = a / b;
-                let r = a % b;
-                let r_negative = r < 0;
-                let b_negative = b < 0;
-                let r_nonzero = r != 0;
-                let signs_differ = r_negative != b_negative;
-                let needs_adjustment = r_nonzero && signs_differ;
-                if needs_adjustment {
-                    q - 1
-                } else {
-                    q
-                }
-            };
-        } else {
-            current = (((3i32).py_mul(current) as i32).py_add(1i32)) as i32;
-        }
-        chain.push(current);
-    }
-    Ok(chain)
-}
-#[doc = "Simulate nested callback pattern via sequential transformations.\n\n    Applies a chain of transformations: double, filter, sum.\n    Each step depends on the previous, simulating callback nesting.\n    "]
-#[doc = " Depyler: verified panic-free"]
-pub fn nested_callback_simulation(values: &Vec<i32>) -> i32 {
-    let mut total: i32 = Default::default();
-    let mut doubled: Vec<i32> = vec![];
-    for v in values.iter().cloned() {
-        doubled.push((v).py_mul(2i32));
-    }
-    let mut filtered: Vec<i32> = vec![];
-    for v in doubled.iter().cloned() {
-        if v > 10 {
-            filtered.push(v);
-        }
-    }
-    total = 0;
-    for v in filtered.iter().cloned() {
-        total = ((total).py_add(v)) as i32;
-    }
-    total
-}
-#[doc = "Test Ackermann function with small inputs to avoid stack overflow."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_ackermann() -> i32 {
-    let r1: i32 = ackermann(2, 3);
-    let r2: i32 = ackermann(1, 5);
-    (r1).py_add(r2)
-}
-#[doc = "Test nested list flattening."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_flatten_nested() -> i32 {
-    let data: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5], vec![6]];
-    let flat: Vec<i32> = flatten_nested(&data);
-    flat.len() as i32 as i32
-}
-#[doc = "Test memoized partition counting."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_memoized_partition() -> i32 {
-    memoized_partition_count(5)
-}
-#[doc = "Test mutual recursion is_even/is_odd."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_mutual_recursion() -> i32 {
-    let mut results: i32 = Default::default();
-    results = 0;
-    if is_even_mutual(10) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if is_odd_mutual(7) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if !is_even_mutual(3) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    if !is_odd_mutual(4) {
-        results = ((results).py_add(1i32)) as i32;
-    }
-    results
-}
-#[doc = "Test closure-based accumulator simulation."]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_accumulator() -> i32 {
-    make_accumulator(0)
-}
-#[doc = "Test paired counter closure simulation."]
-#[doc = " Depyler: proven to terminate"]
-pub fn test_counter_pair() -> Result<i32, Box<dyn std::error::Error>> {
-    let result: Vec<i32> = make_counter_pair();
-    Ok({
-        let _r: i32 = ((result
-            .get(0usize)
+#[doc = "Encode with a rolling XOR key that shifts after each byte."]
+pub fn xor_encode_rolling(
+    data: &Vec<i32>,
+    key: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    let _cse_temp_0 = key & 255;
+    let mut current_key: i32 = _cse_temp_0.clone();
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        let encoded: i32 = data
+            .get(i as usize)
             .cloned()
-            .expect("IndexError: list index out of range"))
-        .py_add(
-            result
-                .get(1usize)
+            .expect("IndexError: list index out of range")
+            ^ current_key;
+        result.push(encoded);
+        current_key = (current_key << 1 | current_key >> 7) & 255;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Run-length encode a list into [value, count, value, count,...] pairs."]
+pub fn rle_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut count: i32 = Default::default();
+    let mut current: i32 = Default::default();
+    let _cse_temp_0 = data.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return Ok(vec![]);
+    }
+    let mut result: Vec<i32> = vec![];
+    current = data
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    count = 1;
+    let mut i: i32 = 1;
+    while i < data.len() as i32 {
+        if data
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            == current
+        {
+            count = ((count).py_add(1i32)) as i32;
+        } else {
+            result.push(current);
+            result.push(count);
+            current = data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            count = 1;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result.push(current);
+    result.push(count);
+    Ok(result)
+}
+#[doc = "Decode a run-length encoded list back to original data."]
+pub fn rle_decode(encoded: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    let mut i: i32 = 0;
+    while i < (encoded.len() as i32) - (1i32) {
+        let value: i32 = encoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        let count: i32 = {
+            let base = &encoded;
+            let idx: i32 = (i).py_add(1i32);
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        };
+        let mut j: i32 = 0;
+        while j < count {
+            result.push(value);
+            j = ((j).py_add(1i32)) as i32;
+        }
+        i = ((i).py_add(2i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Delta-encode: first element as-is, then differences."]
+#[doc = " Depyler: verified panic-free"]
+pub fn delta_encode(data: &Vec<i32>) -> Vec<i32> {
+    let _cse_temp_0 = data.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return vec![];
+    }
+    let mut result: Vec<i32> = vec![data
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")];
+    let mut i: i32 = 1;
+    while i < data.len() as i32 {
+        result.push(
+            (data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+             - ({
+                let base = &data;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }),
+        );
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Decode a delta-encoded list back to original values."]
+#[doc = " Depyler: verified panic-free"]
+pub fn delta_decode(encoded: &Vec<i32>) -> Vec<i32> {
+    let _cse_temp_0 = encoded.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return vec![];
+    }
+    let mut result: Vec<i32> = vec![encoded
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")];
+    let mut i: i32 = 1;
+    while i < encoded.len() as i32 {
+        result.push(
+            ({
+                let base = &result;
+                let idx: i32 = (i) - (1i32);
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            })
+            .py_add(
+                encoded
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            ),
+        );
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Encode a non-negative integer into 7-bit chunks with high-bit continuation."]
+#[doc = " Depyler: verified panic-free"]
+pub fn varint_encode(n: i32) -> Vec<i32> {
+    let mut chunk: i32 = Default::default();
+    let _cse_temp_0 = n == 0;
+    if _cse_temp_0 {
+        return vec![0];
+    }
+    let mut result: Vec<i32> = vec![];
+    let mut val: i32 = n.clone();
+    while val > 0 {
+        chunk = val & 127;
+        val = val >> 7;
+        if val > 0 {
+            chunk = chunk | 128;
+        }
+        result.push(chunk);
+    }
+    result
+}
+#[doc = "Decode a varint-encoded list back to an integer."]
+pub fn varint_decode(encoded: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let mut shift: i32 = 0;
+    let mut i: i32 = 0;
+    while i < encoded.len() as i32 {
+        let chunk: i32 = encoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            & 127;
+        result = result | chunk << shift;
+        if encoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            & 128
+            == 0
+        {
+            break;
+        }
+        shift = ((shift).py_add(7i32)) as i32;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Encode a list of non-negative integers as concatenated varints."]
+pub fn varint_encode_list(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        let encoded: Vec<i32> = varint_encode(
+            data.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
-        ) as i32)
-            .py_add(
-                result
-                    .get(2usize)
+        );
+        let mut j: i32 = 0;
+        while j < encoded.len() as i32 {
+            result.push(
+                encoded
+                    .get(j as usize)
                     .cloned()
                     .expect("IndexError: list index out of range"),
             );
-        _r
-    })
+            j = ((j).py_add(1i32)) as i32;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(result)
 }
-#[doc = "Test recursive fast exponentiation."]
+#[doc = "Convert a binary number to Gray code."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_recursive_power() -> Result<i32, Box<dyn std::error::Error>> {
-    let r1: i32 = recursive_power(2, 10)?;
-    let r2: i32 = recursive_power(3, 0)?;
-    let r3: i32 = recursive_power(5, 3)?;
-    let r4: i32 = recursive_power(2, -1)?;
-    Ok({
-        let _r: i32 = (((r1).py_add(r2) as i32).py_add(r3) as i32).py_add(r4);
-        _r
-    })
+pub fn to_gray(n: i32) -> i32 {
+    n ^ n >> 1
 }
-#[doc = "Test DFS tree traversal."]
+#[doc = "Convert a Gray code back to binary."]
+#[doc = " Depyler: verified panic-free"]
+pub fn from_gray(gray: i32) -> i32 {
+    let mut n: i32 = Default::default();
+    n = gray;
+    let _cse_temp_0 = n >> 1;
+    let mut mask: i32 = _cse_temp_0.clone();
+    while mask > 0 {
+        n = n ^ mask;
+        mask = mask >> 1;
+    }
+    n
+}
+#[doc = "Count the number of bit positions where a and b differ."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_tree_dfs() -> i32 {
-    let adj: std::collections::HashMap<i32, Vec<i32>> = {
-        let mut map: HashMap<i32, Vec<i32>> = HashMap::new();
-        map.insert(0, vec![1, 2]);
-        map.insert(1, vec![3, 4]);
-        map.insert(2, vec![5]);
-        map.insert(3, vec![]);
-        map.insert(4, vec![]);
-        map.insert(5, vec![]);
+pub fn hamming_distance(a: i32, b: i32) -> i32 {
+    popcount(a ^ b)
+}
+#[doc = "Rotate a 32-bit value left by amount positions."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn rotate_left_32(n: i32, amount: i32) -> i32 {
+    let _cse_temp_0 = n & 4294967295;
+    let val: i32 = _cse_temp_0;
+    let _cse_temp_1 = amount & 31;
+    let shift: i32 = _cse_temp_1;
+    (val << shift | val >> (32i32) - (shift)) & 4294967295
+}
+#[doc = "Rotate a 32-bit value right by amount positions."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn rotate_right_32(n: i32, amount: i32) -> i32 {
+    let _cse_temp_0 = n & 4294967295;
+    let val: i32 = _cse_temp_0;
+    let _cse_temp_1 = amount & 31;
+    let shift: i32 = _cse_temp_1;
+    (val >> shift | val << (32i32) - (shift)) & 4294967295
+}
+#[doc = "Compute an 8-bit CRC-like checksum using polynomial division over GF(2)."]
+pub fn crc8_simple(data: &Vec<i32>, poly: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut crc: i32 = Default::default();
+    crc = 0;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        crc = crc
+            ^ data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                & 255;
+        let mut bit: i32 = 0;
+        while bit < 8 {
+            if crc & 128 != 0 {
+                crc = (crc << 1 ^ poly) & 255;
+            } else {
+                crc = crc << 1 & 255;
+            }
+            bit = ((bit).py_add(1i32)) as i32;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(crc)
+}
+#[doc = "Compute a 16-bit CRC-like checksum."]
+pub fn crc16_simple(data: &Vec<i32>, poly: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut crc: i32 = Default::default();
+    crc = 65535;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        crc = crc
+            ^ data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                & 255;
+        let mut bit: i32 = 0;
+        while bit < 8 {
+            if crc & 1 != 0 {
+                crc = crc >> 1 ^ poly;
+            } else {
+                crc = crc >> 1;
+            }
+            bit = ((bit).py_add(1i32)) as i32;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(crc & 65535)
+}
+#[doc = "Convert list of 8-bit values to list of 6-bit values(base64-style grouping)."]
+pub fn base64_like_encode(data: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut bits_in_buffer: i32 = Default::default();
+    let mut buffer: i32 = Default::default();
+    let mut result: Vec<i32> = vec![];
+    buffer = 0;
+    bits_in_buffer = 0;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        buffer = buffer << 8
+            | data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                & 255;
+        bits_in_buffer = ((bits_in_buffer).py_add(8i32)) as i32;
+        while bits_in_buffer >= 6 {
+            bits_in_buffer = ((bits_in_buffer) - (6i32)) as i32;
+            result.push(buffer >> bits_in_buffer & 63);
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    let _cse_temp_0 = bits_in_buffer > 0;
+    if _cse_temp_0 {
+        result.push(buffer << (6i32) - (bits_in_buffer) & 63);
+    }
+    Ok(result)
+}
+#[doc = "Convert list of 6-bit values back to 8-bit values."]
+pub fn base64_like_decode(
+    encoded: &Vec<i32>,
+    original_len: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut result: Vec<i32> = vec![];
+    let mut buffer: i32 = 0;
+    let mut bits_in_buffer: i32 = 0;
+    let mut i: i32 = 0;
+    while i < encoded.len() as i32 {
+        buffer = buffer << 6
+            | encoded
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                & 63;
+        bits_in_buffer = ((bits_in_buffer).py_add(6i32)) as i32;
+        while bits_in_buffer >= 8 {
+            bits_in_buffer = ((bits_in_buffer) - (8i32)) as i32;
+            result.push(buffer >> bits_in_buffer & 255);
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    while result.len() as i32 > original_len {
+        result.pop().unwrap_or_default();
+    }
+    Ok(result)
+}
+#[doc = "Build a frequency table mapping values to their counts."]
+pub fn frequency_table(data: &Vec<i32>) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
+    let mut table: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
         map
     };
-    let order: Vec<i32> = tree_depth_first(&adj, 0);
-    order.len() as i32 as i32
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        let val: i32 = data
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        if table.get(&val).is_some() {
+            {
+                let _key = val.clone();
+                let _old_val = table.get(&_key).cloned().unwrap_or_default();
+                table.insert(_key, _old_val + 1);
+            }
+        } else {
+            table.insert(val.clone(), 1);
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(table)
 }
-#[doc = "Test Tower of Hanoi move generation."]
+#[doc = "Assign bit lengths by frequency rank: most frequent gets 1 bit, next 2, etc."]
+#[doc = " Depyler: verified panic-free"]
+pub fn assign_bit_lengths(freq: &std::collections::HashMap<i32, i32>) -> HashMap<i32, i32> {
+    let mut bit_len: i32 = Default::default();
+    let _cse_temp_0 = freq.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return {
+            let map: HashMap<i32, i32> = HashMap::new();
+            map
+        };
+    }
+    let sorted_keys: Vec<i32> = {
+        let mut __sorted_result = freq.keys().cloned().collect::<Vec<_>>().clone();
+        __sorted_result.sort_by_key(|k| freq.get(&(k)).cloned().unwrap_or_default());
+        if true {
+            __sorted_result.reverse();
+        }
+        __sorted_result
+    };
+    let mut lengths: std::collections::HashMap<i32, i32> = {
+        let map: HashMap<i32, i32> = HashMap::new();
+        map
+    };
+    let mut rank: i32 = 1;
+    let mut i: i32 = 0;
+    while i < sorted_keys.len() as i32 {
+        bit_len = ((highest_set_bit_pos(rank)).py_add(1i32)) as i32;
+        if bit_len < 1 {
+            bit_len = 1;
+        }
+        lengths.insert(
+            sorted_keys
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            bit_len,
+        );
+        rank = ((rank).py_add(1i32)) as i32;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    lengths
+}
+#[doc = "Compute total bits needed to encode data with given bit lengths."]
+pub fn total_encoded_bits<'b, 'a>(
+    data: &'a Vec<i32>,
+    bit_lengths: &'b std::collections::HashMap<i32, i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = Default::default();
+    total = 0;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        if bit_lengths
+            .get(
+                &data
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            )
+            .is_some()
+        {
+            total = ((total).py_add(
+                bit_lengths
+                    .get(
+                        &(data
+                            .get(i as usize)
+                            .cloned()
+                            .expect("IndexError: list index out of range")),
+                    )
+                    .cloned()
+                    .unwrap_or_default(),
+            )) as i32;
+        } else {
+            total = ((total).py_add(8i32)) as i32;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(total)
+}
+#[doc = "Map signed integer to unsigned: 0 -> 0, -1 -> 1, 1 -> 2, -2 -> 3, 2 -> 4, etc."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_tower_of_hanoi() -> i32 {
-    let moves: Vec<String> = tower_of_hanoi(3);
-    moves.len() as i32 as i32
+pub fn zigzag_encode(n: i32) -> i32 {
+    let _cse_temp_0 = n >= 0;
+    if _cse_temp_0 {
+        return (n).py_mul(2i32);
+    }
+    {
+        let _r: i32 = ((-n).py_mul(2i32) as i32) - (1i32);
+        _r
+    }
 }
-#[doc = "Test recursive flatten and sum."]
+#[doc = "Decode a zigzag-encoded unsigned integer back to signed."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_recursive_flatten_sum() -> i32 {
-    let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6, 7]];
-    recursive_flatten_sum(&nested)
+pub fn zigzag_decode(n: i32) -> i32 {
+    let _cse_temp_0 = n & 1;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return n >> 1;
+    }
+    -(n).py_add(1i32) >> 1
 }
-#[doc = "Test Collatz sequence generation."]
+#[doc = "Check if code_a(with len_a bits) is a prefix of code_b(with len_b bits). Returns 1 or 0."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_collatz_chain() -> Result<i32, Box<dyn std::error::Error>> {
-    let chain: Vec<i32> = collatz_chain(6)?;
-    Ok(chain.len() as i32 as i32)
+pub fn is_prefix_of(code_a: i32, len_a: i32, code_b: i32, len_b: i32) -> i32 {
+    let _cse_temp_0 = len_a > len_b;
+    if _cse_temp_0 {
+        return 0;
+    }
+    let shift: i32 = ((len_b) - (len_a)) as i32;
+    let _cse_temp_1 = code_b >> shift;
+    let _cse_temp_2 = _cse_temp_1 == code_a;
+    if _cse_temp_2 {
+        return 1;
+    }
+    0
 }
-#[doc = "Test nested callback simulation."]
+#[doc = "Check if a set of codes with given bit lengths is prefix-free. Returns 1 if valid, 0 if not."]
+pub fn validate_prefix_free<'a, 'b>(
+    codes: &'a Vec<i32>,
+    lengths: &'b Vec<i32>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = codes.len() as i32;
+    let n: i32 = _cse_temp_0;
+    let mut i: i32 = 0;
+    while i < n {
+        let mut j: i32 = 0;
+        while j < n {
+            if i != j {
+                if is_prefix_of(
+                    codes
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                    lengths
+                        .get(i as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                    codes
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                    lengths
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                ) == 1
+                {
+                    return Ok(0);
+                }
+            }
+            j = ((j).py_add(1i32)) as i32;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    Ok(1)
+}
+#[doc = "Interleave the lower 16 bits of x and y into a 32-bit Morton code."]
+#[doc = " Depyler: verified panic-free"]
+pub fn interleave_bits(x: i32, y: i32) -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let mut i: i32 = 0;
+    while i < 16 {
+        result = result | (x >> i & 1) << (2i32).py_mul(i);
+        result = result | (y >> i & 1) << ((2i32).py_mul(i) as i32).py_add(1i32);
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Extract the x component from a Morton code."]
+#[doc = " Depyler: verified panic-free"]
+pub fn deinterleave_x(morton: i32) -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let mut i: i32 = 0;
+    while i < 16 {
+        result = result | (morton >> (2i32).py_mul(i) & 1) << i;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Extract the y component from a Morton code."]
+#[doc = " Depyler: verified panic-free"]
+pub fn deinterleave_y(morton: i32) -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let mut i: i32 = 0;
+    while i < 16 {
+        result = result | (morton >> ((2i32).py_mul(i) as i32).py_add(1i32) & 1) << i;
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Compute the absolute difference of Morton codes for two 2D points."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nested_callbacks() -> i32 {
-    let values: Vec<i32> = vec![1, 3, 5, 7, 9, 2, 4, 6, 8, 10];
-    nested_callback_simulation(&values)
+pub fn morton_distance(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
+    let m1: i32 = interleave_bits(x1, y1);
+    let m2: i32 = interleave_bits(x2, y2);
+    let _cse_temp_0 = m1 > m2;
+    if _cse_temp_0 {
+        return (m1) - (m2);
+    }
+    (m2) - (m1)
 }
-#[doc = r" DEPYLER-1216: Auto-generated entry point wrapping top-level script statements"]
-#[doc = r" This file was transpiled from a Python script with executable top-level code."]
+#[doc = "Test popcount and parity on known values."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_popcount_and_parity() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = popcount(0) == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = popcount(255) == 8;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = popcount(170) == 4;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = parity(15) == 0;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_4 = parity(7) == 1;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_5 = parity(0) == 0;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test 32-bit bit reversal."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_reverse_bits() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = reverse_bits_32(0) == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = reverse_bits_32(1) == 2147483648;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let rev: i32 = reverse_bits_32(2147483648);
+    let _cse_temp_2 = rev == 1;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = reverse_bits_32(reverse_bits_32(12345)) == 12345;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test isolate lowest set bit and clear lowest set bit."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_isolate_and_clear() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = isolate_lowest_set_bit(12) == 4;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = isolate_lowest_set_bit(0) == 0;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = isolate_lowest_set_bit(8) == 8;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = clear_lowest_set_bit(12) == 8;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_4 = clear_lowest_set_bit(8) == 0;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_5 = clear_lowest_set_bit(0) == -1;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test highest_set_bit_pos, next_power_of_two, swap_bits."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_bit_utilities() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = highest_set_bit_pos(1) == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = highest_set_bit_pos(8) == 3;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = highest_set_bit_pos(0) == -1;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = next_power_of_two(5) == 8;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_4 = next_power_of_two(8) == 8;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_5 = next_power_of_two(1) == 1;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let swapped: i32 = swap_bits(10, 1, 2);
+    let _cse_temp_6 = swapped == 12;
+    if _cse_temp_6 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test RGB packing and unpacking."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_pack_unpack_rgb() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let packed: i32 = pack_rgb(255, 128, 0);
+    let _cse_temp_0 = unpack_r(packed) == 255;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = unpack_g(packed) == 128;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = unpack_b(packed) == 0;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let packed2: i32 = pack_rgb(0, 0, 0);
+    let _cse_temp_3 = packed2 == 0;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test pack_fields, extract_field, set_field."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_bitfield_ops() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let packed: i32 = pack_fields(171, 205, 239, 18);
+    let _cse_temp_0 = extract_field(packed, 24, 8) == 171;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = extract_field(packed, 16, 8) == 205;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = extract_field(packed, 8, 8) == 239;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = extract_field(packed, 0, 8) == 18;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let modified: i32 = set_field(packed, 8, 8, 153);
+    let _cse_temp_4 = extract_field(modified, 8, 8) == 153;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test XOR encode is reversible."]
+pub fn test_xor_cipher() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut r#match: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    result = 0;
+    let data: Vec<i32> = vec![72, 101, 108, 108, 111];
+    let key: i32 = 42;
+    let encoded: Vec<i32> = xor_encode(&data, key);
+    let decoded: Vec<i32> = xor_encode(&encoded, key);
+    let _cse_temp_0 = decoded.len() as i32;
+    let _cse_temp_1 = data.len() as i32;
+    let _cse_temp_2 = _cse_temp_0 == _cse_temp_1;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    r#match = 1;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        if decoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        {
+            r#match = 0;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(r#match)) as i32;
+    let rolling_enc: Vec<i32> = xor_encode_rolling(&data, key)?;
+    let _cse_temp_3 = rolling_enc.len() as i32;
+    let _cse_temp_4 = _cse_temp_3 == _cse_temp_1;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Test run-length encoding roundtrip."]
+pub fn test_rle() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut r#match: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    result = 0;
+    let data: Vec<i32> = vec![1, 1, 1, 2, 2, 3, 3, 3, 3];
+    let encoded: Vec<i32> = rle_encode(&data)?;
+    let _cse_temp_0 = encoded
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 1;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = encoded
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = encoded
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 2;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let decoded: Vec<i32> = rle_decode(&encoded)?;
+    let _cse_temp_3 = decoded.len() as i32;
+    let _cse_temp_4 = data.len() as i32;
+    let _cse_temp_5 = _cse_temp_3 == _cse_temp_4;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    r#match = 1;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        if decoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        {
+            r#match = 0;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(r#match)) as i32;
+    Ok(result)
+}
+#[doc = "Test delta encoding roundtrip."]
+pub fn test_delta_encoding() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut r#match: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    result = 0;
+    let data: Vec<i32> = vec![10, 13, 17, 20, 25];
+    let encoded: Vec<i32> = delta_encode(&data);
+    let _cse_temp_0 = encoded
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 10;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = encoded
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 3;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = encoded
+        .get(2usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 4;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let decoded: Vec<i32> = delta_decode(&encoded);
+    r#match = 1;
+    let mut i: i32 = 0;
+    while i < data.len() as i32 {
+        if decoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != data
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        {
+            r#match = 0;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(r#match)) as i32;
+    let empty_enc: Vec<i32> = delta_encode(&vec![]);
+    let _cse_temp_3 = empty_enc.len() as i32;
+    let _cse_temp_4 = _cse_temp_3 == 0;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Test variable-length integer encoding roundtrip."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_varint() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let enc0: Vec<i32> = varint_encode(0);
+    let _cse_temp_0 = enc0
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = varint_decode(&enc0)? == 0;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let enc300: Vec<i32> = varint_encode(300);
+    let _cse_temp_2 = varint_decode(&enc300)? == 300;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let enc_big: Vec<i32> = varint_encode(123456789);
+    let _cse_temp_3 = varint_decode(&enc_big)? == 123456789;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_4 = enc_big.len() as i32;
+    let _cse_temp_5 = _cse_temp_4 > 1;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Test Gray code conversion roundtrip."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_gray_code() -> i32 {
+    let mut all_roundtrip: i32 = Default::default();
+    let mut gray_diff: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = to_gray(0) == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = to_gray(1) == 1;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = to_gray(2) == 3;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = to_gray(3) == 2;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let mut i: i32 = 0;
+    all_roundtrip = 1;
+    while i < 256 {
+        if from_gray(to_gray(i)) != i {
+            all_roundtrip = 0;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(all_roundtrip)) as i32;
+    gray_diff = 1;
+    let mut j: i32 = 1;
+    while j < 64 {
+        let diff: i32 = to_gray(j) ^ to_gray((j) - (1i32));
+        if popcount(diff) != 1 {
+            gray_diff = 0;
+        }
+        j = ((j).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(gray_diff)) as i32;
+    result
+}
+#[doc = "Test Hamming distance and bit rotation."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_hamming_and_rotation() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = hamming_distance(0, 0) == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = hamming_distance(255, 0) == 8;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = hamming_distance(10, 5) == 4;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let rot: i32 = rotate_left_32(1, 4);
+    let _cse_temp_3 = rot == 16;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let rot_back: i32 = rotate_right_32(rot, 4);
+    let _cse_temp_4 = rot_back == 1;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let full_rot: i32 = rotate_left_32(3735928559, 32);
+    let _cse_temp_5 = full_rot == 3735928559;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test CRC checksum computation."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_crc() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let data1: Vec<i32> = vec![1, 2, 3];
+    let crc1: i32 = crc8_simple(&data1, 7)?;
+    let _cse_temp_0 = crc1 >= 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = crc1 <= 255;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let data2: Vec<i32> = vec![1, 2, 3];
+    let crc2: i32 = crc8_simple(&data2, 7)?;
+    let _cse_temp_2 = crc1 == crc2;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let crc16_val: i32 = crc16_simple(&data1, 40961)?;
+    let _cse_temp_3 = crc16_val >= 0;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_4 = crc16_val <= 65535;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Test base64-like encoding roundtrip."]
+pub fn test_base64_like() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut all_valid: i32 = Default::default();
+    let mut r#match: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    result = 0;
+    let data: Vec<i32> = vec![65, 66, 67];
+    let encoded: Vec<i32> = base64_like_encode(&data)?;
+    let _cse_temp_0 = encoded.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 4;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let mut i: i32 = 0;
+    all_valid = 1;
+    while i < encoded.len() as i32 {
+        if encoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            < 0
+        {
+            all_valid = 0;
+        }
+        if encoded
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            > 63
+        {
+            all_valid = 0;
+        }
+        i = ((i).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(all_valid)) as i32;
+    let decoded: Vec<i32> = base64_like_decode(&encoded, 3)?;
+    let _cse_temp_2 = decoded.len() as i32;
+    let _cse_temp_3 = _cse_temp_2 == 3;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    r#match = 1;
+    let mut j: i32 = 0;
+    while j < data.len() as i32 {
+        if decoded
+            .get(j as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != data
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+        {
+            r#match = 0;
+        }
+        j = ((j).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(r#match)) as i32;
+    Ok(result)
+}
+#[doc = "Test zigzag encoding for signed-to-unsigned mapping."]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_zigzag() -> i32 {
+    let mut roundtrip_ok: i32 = Default::default();
+    let mut result: i32 = Default::default();
+    result = 0;
+    let _cse_temp_0 = zigzag_encode(0) == 0;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = zigzag_encode(-1) == 1;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = zigzag_encode(1) == 2;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_3 = zigzag_encode(-2) == 3;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_4 = zigzag_encode(2) == 4;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    roundtrip_ok = 1;
+    let mut n: i32 = -100;
+    while n <= 100 {
+        if zigzag_decode(zigzag_encode(n)) != n {
+            roundtrip_ok = 0;
+        }
+        n = ((n).py_add(1i32)) as i32;
+    }
+    result = ((result).py_add(roundtrip_ok)) as i32;
+    result
+}
+#[doc = "Test prefix-free code validation."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_prefix_free() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let codes_good: Vec<i32> = vec![0, 2, 3];
+    let lens_good: Vec<i32> = vec![1, 2, 2];
+    let _cse_temp_0 = validate_prefix_free(&codes_good, &lens_good)? == 1;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let codes_bad: Vec<i32> = vec![0, 1, 1];
+    let lens_bad: Vec<i32> = vec![1, 2, 1];
+    let _cse_temp_1 = validate_prefix_free(&codes_bad, &lens_bad)? == 0;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let codes_single: Vec<i32> = vec![5];
+    let lens_single: Vec<i32> = vec![3];
+    let _cse_temp_2 = validate_prefix_free(&codes_single, &lens_single)? == 1;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Test bit interleaving / Morton codes."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_morton_codes() -> i32 {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let morton: i32 = interleave_bits(5, 3);
+    let _cse_temp_0 = deinterleave_x(morton) == 5;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = deinterleave_y(morton) == 3;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = interleave_bits(0, 0) == 0;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let m1: i32 = interleave_bits(1, 0);
+    let _cse_temp_3 = m1 == 1;
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let m2: i32 = interleave_bits(0, 1);
+    let _cse_temp_4 = m2 == 2;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let dist: i32 = morton_distance(0, 0, 1, 1);
+    let _cse_temp_5 = dist > 0;
+    if _cse_temp_5 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    result
+}
+#[doc = "Test frequency table and bit length assignment."]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_huffman_like() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
+    result = 0;
+    let data: Vec<i32> = vec![1, 1, 1, 2, 2, 3];
+    let freq: std::collections::HashMap<i32, i32> = frequency_table(&data)?;
+    let _cse_temp_0 = freq.get(&(1)).cloned().unwrap_or_default() == 3;
+    if _cse_temp_0 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_1 = freq.get(&(2)).cloned().unwrap_or_default() == 2;
+    if _cse_temp_1 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let _cse_temp_2 = freq.get(&(3)).cloned().unwrap_or_default() == 1;
+    if _cse_temp_2 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let lengths: std::collections::HashMap<i32, i32> = assign_bit_lengths(&freq);
+    let _cse_temp_3 = lengths.get(&(1)).cloned().unwrap_or_default()
+        <= lengths.get(&(3)).cloned().unwrap_or_default();
+    if _cse_temp_3 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    let total: i32 = total_encoded_bits(&data, &lengths)?;
+    let _cse_temp_4 = total > 0;
+    if _cse_temp_4 {
+        result = ((result).py_add(1i32)) as i32;
+    }
+    Ok(result)
+}
+#[doc = "Run all test functions and return the sum of passed checks."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn run_all_tests() -> Result<i32, Box<dyn std::error::Error>> {
+    let mut total: i32 = 0;
+    let _cse_temp_0 = ((total).py_add(test_popcount_and_parity())) as i32;
+    total = _cse_temp_0;
+    let _cse_temp_1 = ((total).py_add(test_reverse_bits())) as i32;
+    total = _cse_temp_1;
+    let _cse_temp_2 = ((total).py_add(test_isolate_and_clear())) as i32;
+    total = _cse_temp_2;
+    let _cse_temp_3 = ((total).py_add(test_bit_utilities())) as i32;
+    total = _cse_temp_3;
+    let _cse_temp_4 = ((total).py_add(test_pack_unpack_rgb())) as i32;
+    total = _cse_temp_4;
+    let _cse_temp_5 = ((total).py_add(test_bitfield_ops())) as i32;
+    total = _cse_temp_5;
+    let _cse_temp_6 = ((total).py_add(test_xor_cipher()?)) as i32;
+    total = _cse_temp_6;
+    let _cse_temp_7 = ((total).py_add(test_rle()?)) as i32;
+    total = _cse_temp_7;
+    let _cse_temp_8 = ((total).py_add(test_delta_encoding()?)) as i32;
+    total = _cse_temp_8;
+    let _cse_temp_9 = ((total).py_add(test_varint()?)) as i32;
+    total = _cse_temp_9;
+    let _cse_temp_10 = ((total).py_add(test_gray_code())) as i32;
+    total = _cse_temp_10;
+    let _cse_temp_11 = ((total).py_add(test_hamming_and_rotation())) as i32;
+    total = _cse_temp_11;
+    let _cse_temp_12 = ((total).py_add(test_crc()?)) as i32;
+    total = _cse_temp_12;
+    let _cse_temp_13 = ((total).py_add(test_base64_like()?)) as i32;
+    total = _cse_temp_13;
+    let _cse_temp_14 = ((total).py_add(test_zigzag())) as i32;
+    total = _cse_temp_14;
+    let _cse_temp_15 = ((total).py_add(test_prefix_free()?)) as i32;
+    total = _cse_temp_15;
+    let _cse_temp_16 = ((total).py_add(test_morton_codes())) as i32;
+    total = _cse_temp_16;
+    let _cse_temp_17 = ((total).py_add(test_huffman_like()?)) as i32;
+    total = _cse_temp_17;
+    Ok(total)
+}
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let passed: i32 = run_all_tests()?;
+    println!("{}", passed);
     Ok(())
 }
 #[cfg(test)]
@@ -3582,100 +4718,235 @@ mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
-    fn test_ackermann_examples() {
-        assert_eq!(ackermann(0, 0), 0);
-        assert_eq!(ackermann(1, 2), 3);
-        assert_eq!(ackermann(-1, 1), 0);
+    fn test_popcount_examples() {
+        assert_eq!(popcount(0), 0);
+        assert_eq!(popcount(1), 1);
+        assert_eq!(popcount(-1), -1);
     }
     #[test]
-    fn test_flatten_nested_examples() {
-        assert_eq!(flatten_nested(vec![]), vec![]);
-        assert_eq!(flatten_nested(vec![1]), vec![1]);
+    fn test_parity_examples() {
+        assert_eq!(parity(0), 0);
+        assert_eq!(parity(1), 1);
+        assert_eq!(parity(-1), -1);
     }
     #[test]
-    fn test_memoized_partition_count_examples() {
-        assert_eq!(memoized_partition_count(0), 0);
-        assert_eq!(memoized_partition_count(1), 1);
-        assert_eq!(memoized_partition_count(-1), -1);
+    fn test_reverse_bits_32_examples() {
+        assert_eq!(reverse_bits_32(0), 0);
+        assert_eq!(reverse_bits_32(1), 1);
+        assert_eq!(reverse_bits_32(-1), -1);
     }
     #[test]
-    fn test_is_even_mutual_examples() {
-        let _ = is_even_mutual(Default::default());
+    fn test_isolate_lowest_set_bit_examples() {
+        assert_eq!(isolate_lowest_set_bit(0), 0);
+        assert_eq!(isolate_lowest_set_bit(1), 1);
+        assert_eq!(isolate_lowest_set_bit(-1), -1);
     }
     #[test]
-    fn test_is_odd_mutual_examples() {
-        let _ = is_odd_mutual(Default::default());
+    fn test_clear_lowest_set_bit_examples() {
+        assert_eq!(clear_lowest_set_bit(0), 0);
+        assert_eq!(clear_lowest_set_bit(1), 1);
+        assert_eq!(clear_lowest_set_bit(-1), -1);
     }
     #[test]
-    fn test_make_accumulator_examples() {
-        assert_eq!(make_accumulator(0), 0);
-        assert_eq!(make_accumulator(1), 1);
-        assert_eq!(make_accumulator(-1), -1);
+    fn test_highest_set_bit_pos_examples() {
+        assert_eq!(highest_set_bit_pos(0), 0);
+        assert_eq!(highest_set_bit_pos(1), 1);
+        assert_eq!(highest_set_bit_pos(-1), -1);
     }
     #[test]
-    fn test_recursive_power_examples() {
-        assert_eq!(recursive_power(0, 0), 0);
-        assert_eq!(recursive_power(1, 2), 3);
-        assert_eq!(recursive_power(-1, 1), 0);
+    fn test_next_power_of_two_examples() {
+        assert_eq!(next_power_of_two(0), 0);
+        assert_eq!(next_power_of_two(1), 1);
+        assert_eq!(next_power_of_two(-1), -1);
     }
     #[test]
-    fn test_recursive_flatten_sum_examples() {
-        assert_eq!(recursive_flatten_sum(&vec![]), 0);
-        assert_eq!(recursive_flatten_sum(&vec![1]), 1);
-        assert_eq!(recursive_flatten_sum(&vec![1, 2, 3]), 6);
+    fn test_unpack_r_examples() {
+        assert_eq!(unpack_r(0), 0);
+        assert_eq!(unpack_r(1), 1);
+        assert_eq!(unpack_r(-1), -1);
     }
     #[test]
-    fn test_nested_callback_simulation_examples() {
-        assert_eq!(nested_callback_simulation(&vec![]), 0);
-        assert_eq!(nested_callback_simulation(&vec![1]), 1);
-        assert_eq!(nested_callback_simulation(&vec![1, 2, 3]), 3);
+    fn test_unpack_g_examples() {
+        assert_eq!(unpack_g(0), 0);
+        assert_eq!(unpack_g(1), 1);
+        assert_eq!(unpack_g(-1), -1);
     }
     #[test]
-    fn test_test_ackermann_examples() {
-        let _ = test_ackermann();
+    fn test_unpack_b_examples() {
+        assert_eq!(unpack_b(0), 0);
+        assert_eq!(unpack_b(1), 1);
+        assert_eq!(unpack_b(-1), -1);
     }
     #[test]
-    fn test_test_flatten_nested_examples() {
-        let _ = test_flatten_nested();
+    fn test_rle_encode_examples() {
+        assert_eq!(rle_encode(vec![]), vec![]);
+        assert_eq!(rle_encode(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_memoized_partition_examples() {
-        let _ = test_memoized_partition();
+    fn test_rle_decode_examples() {
+        assert_eq!(rle_decode(vec![]), vec![]);
+        assert_eq!(rle_decode(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_mutual_recursion_examples() {
-        let _ = test_mutual_recursion();
+    fn test_delta_encode_examples() {
+        assert_eq!(delta_encode(vec![]), vec![]);
+        assert_eq!(delta_encode(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_accumulator_examples() {
-        let _ = test_accumulator();
+    fn test_delta_decode_examples() {
+        assert_eq!(delta_decode(vec![]), vec![]);
+        assert_eq!(delta_decode(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_counter_pair_examples() {
-        let _ = test_counter_pair();
+    fn test_varint_decode_examples() {
+        assert_eq!(varint_decode(&vec![]), 0);
+        assert_eq!(varint_decode(&vec![1]), 1);
+        assert_eq!(varint_decode(&vec![1, 2, 3]), 3);
     }
     #[test]
-    fn test_test_recursive_power_examples() {
-        let _ = test_recursive_power();
+    fn test_varint_encode_list_examples() {
+        assert_eq!(varint_encode_list(vec![]), vec![]);
+        assert_eq!(varint_encode_list(vec![1]), vec![1]);
     }
     #[test]
-    fn test_test_tree_dfs_examples() {
-        let _ = test_tree_dfs();
+    fn test_to_gray_examples() {
+        assert_eq!(to_gray(0), 0);
+        assert_eq!(to_gray(1), 1);
+        assert_eq!(to_gray(-1), -1);
     }
     #[test]
-    fn test_test_tower_of_hanoi_examples() {
-        let _ = test_tower_of_hanoi();
+    fn test_from_gray_examples() {
+        assert_eq!(from_gray(0), 0);
+        assert_eq!(from_gray(1), 1);
+        assert_eq!(from_gray(-1), -1);
     }
     #[test]
-    fn test_test_recursive_flatten_sum_examples() {
-        let _ = test_recursive_flatten_sum();
+    fn test_hamming_distance_examples() {
+        assert_eq!(hamming_distance(0, 0), 0);
+        assert_eq!(hamming_distance(1, 2), 3);
+        assert_eq!(hamming_distance(-1, 1), 0);
     }
     #[test]
-    fn test_test_collatz_chain_examples() {
-        let _ = test_collatz_chain();
+    fn test_rotate_left_32_examples() {
+        assert_eq!(rotate_left_32(0, 0), 0);
+        assert_eq!(rotate_left_32(1, 2), 3);
+        assert_eq!(rotate_left_32(-1, 1), 0);
     }
     #[test]
-    fn test_test_nested_callbacks_examples() {
-        let _ = test_nested_callbacks();
+    fn test_rotate_right_32_examples() {
+        assert_eq!(rotate_right_32(0, 0), 0);
+        assert_eq!(rotate_right_32(1, 2), 3);
+        assert_eq!(rotate_right_32(-1, 1), 0);
+    }
+    #[test]
+    fn test_base64_like_encode_examples() {
+        assert_eq!(base64_like_encode(vec![]), vec![]);
+        assert_eq!(base64_like_encode(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_zigzag_encode_examples() {
+        assert_eq!(zigzag_encode(0), 0);
+        assert_eq!(zigzag_encode(1), 1);
+        assert_eq!(zigzag_encode(-1), -1);
+    }
+    #[test]
+    fn test_zigzag_decode_examples() {
+        assert_eq!(zigzag_decode(0), 0);
+        assert_eq!(zigzag_decode(1), 1);
+        assert_eq!(zigzag_decode(-1), -1);
+    }
+    #[test]
+    fn test_interleave_bits_examples() {
+        assert_eq!(interleave_bits(0, 0), 0);
+        assert_eq!(interleave_bits(1, 2), 3);
+        assert_eq!(interleave_bits(-1, 1), 0);
+    }
+    #[test]
+    fn test_deinterleave_x_examples() {
+        assert_eq!(deinterleave_x(0), 0);
+        assert_eq!(deinterleave_x(1), 1);
+        assert_eq!(deinterleave_x(-1), -1);
+    }
+    #[test]
+    fn test_deinterleave_y_examples() {
+        assert_eq!(deinterleave_y(0), 0);
+        assert_eq!(deinterleave_y(1), 1);
+        assert_eq!(deinterleave_y(-1), -1);
+    }
+    #[test]
+    fn test_test_popcount_and_parity_examples() {
+        let _ = test_popcount_and_parity();
+    }
+    #[test]
+    fn test_test_reverse_bits_examples() {
+        let _ = test_reverse_bits();
+    }
+    #[test]
+    fn test_test_isolate_and_clear_examples() {
+        let _ = test_isolate_and_clear();
+    }
+    #[test]
+    fn test_test_bit_utilities_examples() {
+        let _ = test_bit_utilities();
+    }
+    #[test]
+    fn test_test_pack_unpack_rgb_examples() {
+        let _ = test_pack_unpack_rgb();
+    }
+    #[test]
+    fn test_test_bitfield_ops_examples() {
+        let _ = test_bitfield_ops();
+    }
+    #[test]
+    fn test_test_xor_cipher_examples() {
+        let _ = test_xor_cipher();
+    }
+    #[test]
+    fn test_test_rle_examples() {
+        let _ = test_rle();
+    }
+    #[test]
+    fn test_test_delta_encoding_examples() {
+        let _ = test_delta_encoding();
+    }
+    #[test]
+    fn test_test_varint_examples() {
+        let _ = test_varint();
+    }
+    #[test]
+    fn test_test_gray_code_examples() {
+        let _ = test_gray_code();
+    }
+    #[test]
+    fn test_test_hamming_and_rotation_examples() {
+        let _ = test_hamming_and_rotation();
+    }
+    #[test]
+    fn test_test_crc_examples() {
+        let _ = test_crc();
+    }
+    #[test]
+    fn test_test_base64_like_examples() {
+        let _ = test_base64_like();
+    }
+    #[test]
+    fn test_test_zigzag_examples() {
+        let _ = test_zigzag();
+    }
+    #[test]
+    fn test_test_prefix_free_examples() {
+        let _ = test_prefix_free();
+    }
+    #[test]
+    fn test_test_morton_codes_examples() {
+        let _ = test_morton_codes();
+    }
+    #[test]
+    fn test_test_huffman_like_examples() {
+        let _ = test_huffman_like();
+    }
+    #[test]
+    fn test_run_all_tests_examples() {
+        let _ = run_all_tests();
     }
 }

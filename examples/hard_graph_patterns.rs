@@ -4038,8 +4038,8 @@ pub fn count_bridges(
 pub fn count_articulation_points(
     graph: &std::collections::HashMap<i32, Vec<i32>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut nbs: Vec<i32> = Default::default();
     let mut cc: i32 = Default::default();
+    let mut nbs: Vec<i32> = Default::default();
     let ug: std::collections::HashMap<i32, Vec<i32>> = make_undirected(&graph)?;
     let nodes: Vec<i32> = all_nodes(&ug)?;
     let mut disc: std::collections::HashMap<i32, i32> = {
@@ -5180,7 +5180,7 @@ pub fn has_eulerian_path(
     let odd: i32 = count_odd_degree_nodes(&graph)?;
     let _cse_temp_0 = odd == 0;
     if _cse_temp_0 {
-        return Ok(is_eulerian_circuit(&graph)?);
+        return is_eulerian_circuit(&graph);
     }
     let _cse_temp_1 = odd == 2;
     if _cse_temp_1 {

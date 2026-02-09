@@ -49,12 +49,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0496: Add ? operator for Result-returning expressions in binary operations
         // Only add ? if we're in a Result-returning context (current function can fail)
+        // DEPYLER-99MODE-S9: Wrap cast expressions in parens before adding ? to avoid
+        // "casts cannot be followed by ?" parse error (e.g., `x as i32?` → `(x as i32)?`)
         if self.ctx.current_function_can_fail {
             if left_returns_result {
-                left_expr = parse_quote! { #left_expr? };
+                if matches!(left_expr, syn::Expr::Cast(_)) {
+                    left_expr = parse_quote! { (#left_expr)? };
+                } else {
+                    left_expr = parse_quote! { #left_expr? };
+                }
             }
             if right_returns_result {
-                right_expr = parse_quote! { #right_expr? };
+                if matches!(right_expr, syn::Expr::Cast(_)) {
+                    right_expr = parse_quote! { (#right_expr)? };
+                } else {
+                    right_expr = parse_quote! { #right_expr? };
+                }
             }
         }
 
@@ -174,6 +184,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         if is_comparison {
+            // DEPYLER-99MODE-S9: Convert `x == []` to `x.is_empty()` and `x != []` to `!x.is_empty()`
+            // This avoids E0283 type annotation errors when comparing with empty vec![]
+            if matches!(op, BinOp::Eq | BinOp::NotEq) {
+                let left_is_empty_list =
+                    matches!(left, HirExpr::List(elts) if elts.is_empty());
+                let right_is_empty_list =
+                    matches!(right, HirExpr::List(elts) if elts.is_empty());
+
+                if right_is_empty_list {
+                    if matches!(op, BinOp::Eq) {
+                        return Ok(parse_quote! { #left_expr.is_empty() });
+                    } else {
+                        return Ok(parse_quote! { !#left_expr.is_empty() });
+                    }
+                }
+                if left_is_empty_list {
+                    if matches!(op, BinOp::Eq) {
+                        return Ok(parse_quote! { #right_expr.is_empty() });
+                    } else {
+                        return Ok(parse_quote! { !#right_expr.is_empty() });
+                    }
+                }
+            }
+
             if left_is_option && !right_is_option {
                 // Left is Option, right is plain - unwrap left
                 left_expr = parse_quote! { #left_expr.unwrap_or_default() };
