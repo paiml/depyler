@@ -3289,16 +3289,14 @@ pub(crate) fn codegen_for_stmt(
             let obj_expr = object.to_rust_expr(ctx)?;
             parse_quote! { #obj_expr.iter().map(|(k, v)| (k.clone(), v.clone())) }
         } else if method == "keys" {
-            // dict.keys() → dict.keys() (already correct, but ensure no collect)
-            // DEPYLER-99MODE-S9: Mark loop var as borrowed ref (&String from keys())
-            // so dict.get(key) won't double-borrow to &&String (E0277)
+            // dict.keys() yields &K references in Rust; mark loop var as borrowed ref
+            // so downstream codegen (get, contains_key) can use the reference directly
             if let AssignTarget::Symbol(name) = target {
                 ctx.fn_str_params.insert(name.clone());
             }
             let obj_expr = object.to_rust_expr(ctx)?;
             parse_quote! { #obj_expr.keys() }
         } else if method == "values" {
-            // dict.values() → dict.values()
             let obj_expr = object.to_rust_expr(ctx)?;
             parse_quote! { #obj_expr.values() }
         } else {
@@ -4291,7 +4289,8 @@ pub(crate) fn codegen_assign_stmt(
                 | Type::String
                 | Type::Optional(_)
                 | Type::Int
-                | Type::Float => {
+                | Type::Float
+                | Type::Bool => {
                     // DEPYLER-99MODE-S9: Don't overwrite concrete parameter types
                     // with HM-inferred annotations of a different kind.
                     // E.g., `prefix: str` from param should not be overwritten by
@@ -4320,6 +4319,14 @@ pub(crate) fn codegen_assign_stmt(
                 }
                 HirExpr::Literal(Literal::Float(_)) => {
                     ctx.var_types.insert(var_name.clone(), Type::Float);
+                }
+                // DEPYLER-99MODE-S9: Track bool literals to prevent .is_empty() on bool vars
+                HirExpr::Literal(Literal::Bool(_)) => {
+                    ctx.var_types.insert(var_name.clone(), Type::Bool);
+                }
+                // DEPYLER-99MODE-S9: Track string literals for correct truthiness
+                HirExpr::Literal(Literal::String(_)) => {
+                    ctx.var_types.insert(var_name.clone(), Type::String);
                 }
                 _ => {}
             }
