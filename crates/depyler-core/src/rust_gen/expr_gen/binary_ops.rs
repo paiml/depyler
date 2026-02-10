@@ -720,9 +720,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let left_is_bool_expr = self.expr_is_boolean_expr(left);
                 let right_is_bool_expr = self.expr_is_boolean_expr(right);
 
+                // DEPYLER-99MODE-S9: When either operand is a declared bool variable,
+                // skip the value-returning DepylerValue path and use standard && / ||.
+                // Python `result = result and val` with result: bool should produce
+                // bool, not DepylerValue. Without this, the DepylerValue wrapping
+                // overwrites the bool type in var_types, causing .is_empty() on bools.
+                let either_is_bool_var = {
+                    let l = if let HirExpr::Var(name) = left {
+                        matches!(
+                            self.ctx.var_types.get(name.as_str()),
+                            Some(Type::Bool)
+                        )
+                    } else {
+                        false
+                    };
+                    let r = if let HirExpr::Var(name) = right {
+                        matches!(
+                            self.ctx.var_types.get(name.as_str()),
+                            Some(Type::Bool)
+                        )
+                    } else {
+                        false
+                    };
+                    l || r
+                };
+
                 // If BOTH operands are boolean expressions, use standard && / ||
+                // If EITHER operand is a declared bool variable, also use standard && / ||
                 // Otherwise, generate value-returning pattern
-                if !left_is_bool_expr || !right_is_bool_expr {
+                if (!left_is_bool_expr || !right_is_bool_expr) && !either_is_bool_var {
                     // Check if either operand is DepylerValue (needs special handling)
                     let left_is_depyler = self.expr_is_depyler_value(left);
                     let right_is_depyler = self.expr_is_depyler_value(right);
