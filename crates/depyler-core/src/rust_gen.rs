@@ -7289,28 +7289,48 @@ fn fix_python_truthiness(code: &str) -> String {
     result.join("\n") + "\n"
 }
 
-/// Extract variable names that are typed as `bool` from function signatures.
+/// Extract variable names that are typed as `bool` from function signatures
+/// and local variable declarations.
 fn extract_bool_typed_vars(code: &str) -> Vec<String> {
     let mut vars = Vec::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("fn ") && !trimmed.starts_with("pub fn ") {
-            continue;
-        }
-        // Extract parameter list between parens
-        if let Some(start) = trimmed.find('(') {
-            if let Some(end) = trimmed.find(')') {
-                let params = &trimmed[start + 1..end];
-                for param in params.split(',') {
-                    let p = param.trim();
-                    if p.ends_with(": bool") {
-                        if let Some(name) = p.strip_suffix(": bool") {
-                            let name = name.trim();
-                            if !name.is_empty() {
-                                vars.push(name.to_string());
+        // Extract from function signatures: `fn foo(x: bool, y: bool)`
+        if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
+            if let Some(start) = trimmed.find('(') {
+                if let Some(end) = trimmed.find(')') {
+                    let params = &trimmed[start + 1..end];
+                    for param in params.split(',') {
+                        let p = param.trim();
+                        if p.ends_with(": bool") {
+                            if let Some(name) = p.strip_suffix(": bool") {
+                                let name = name.trim();
+                                if !name.is_empty() {
+                                    vars.push(name.to_string());
+                                }
                             }
                         }
                     }
+                }
+            }
+            continue;
+        }
+        // DEPYLER-99MODE-S9: Extract from local variable declarations
+        // Patterns: `let mut result: bool = ...` or `let result: bool = ...`
+        // or `let result: bool;`
+        if trimmed.starts_with("let ") {
+            // Strip `let ` and optional `mut `
+            let rest = trimmed.strip_prefix("let ").unwrap_or("");
+            let rest = rest.strip_prefix("mut ").unwrap_or(rest);
+            // Look for `: bool` type annotation
+            if let Some(colon_pos) = rest.find(": bool") {
+                let name = rest[..colon_pos].trim();
+                if !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_')
+                {
+                    vars.push(name.to_string());
                 }
             }
         }
