@@ -272,10 +272,14 @@ impl<'a> ExprConverter<'a> {
         match expr {
             HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
             HirExpr::Call { func, .. } if func == "set" || func == "frozenset" => true,
-            HirExpr::Var(_name) => {
-                // For now, be conservative and only treat explicit sets as sets
-                // This prevents incorrect conversion of integer bitwise operations
-                false
+            HirExpr::Var(name) => {
+                // DEPYLER-99MODE-S9: Check param_types for set-typed variables
+                // to correctly handle set subtraction (s1 - s2 → s1.difference(&s2))
+                if let Some(var_type) = self.param_types.get(name) {
+                    matches!(var_type, Type::Set(_))
+                } else {
+                    false
+                }
             }
             _ => false,
         }
@@ -385,8 +389,19 @@ impl<'a> ExprConverter<'a> {
         match expr {
             // Dict literal
             HirExpr::Dict { .. } => true,
-            // Variables with common dict-like names
+            // Variables with common dict-like names or typed as dict
             HirExpr::Var(name) => {
+                // DEPYLER-99MODE: Check param_types and class_field_types first
+                if let Some(t) = self.param_types.get(name) {
+                    if matches!(t, Type::Dict(_, _)) {
+                        return true;
+                    }
+                }
+                if let Some(t) = self.class_field_types.get(name) {
+                    if matches!(t, Type::Dict(_, _)) {
+                        return true;
+                    }
+                }
                 let n = name.as_str();
                 n.contains("dict")
                     || n.contains("map")
@@ -401,6 +416,23 @@ impl<'a> ExprConverter<'a> {
                     || n == "cache"
                     || n == "d"
                     || n == "m"
+                    // DEPYLER-99MODE: Common algorithm dict names
+                    || n == "memo"
+                    || n == "seen"
+                    || n == "visited"
+                    || n == "counts"
+                    || n == "freq"
+                    || n == "frequency"
+                    || n == "lookup"
+                    || n == "index"
+                    || n == "graph"
+                    || n == "adj"
+                    || n == "dp"
+                    || n.ends_with("_map")
+                    || n.ends_with("_dict")
+                    || n.ends_with("_cache")
+                    || n.ends_with("_index")
+                    || n.ends_with("_lookup")
             }
             // Calls to dict() or functions returning dicts
             HirExpr::Call { func, .. } => {

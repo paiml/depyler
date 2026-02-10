@@ -187,12 +187,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 left_pyops
             };
 
+            // DEPYLER-99MODE-S9: Skip py_sub for set types - use .difference() instead
+            // Set subtraction must be handled separately since py_sub takes ownership
+            // but set difference needs references for cloned collection semantics
+            let is_set_sub = matches!(op, BinOp::Sub)
+                && (self.is_set_expr(left) || self.is_set_expr(right));
+
             match op {
                 // DEPYLER-99MODE-S9: Skip py_add for string/char concat - fall through to regular path
                 BinOp::Add if !is_string_concat => {
                     return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) });
                 }
-                BinOp::Sub => return Ok(parse_quote! { (#left_typed).py_sub(#right_pyops) }),
+                // DEPYLER-99MODE-S9: Let set subtraction fall through to set-specific handler
+                BinOp::Sub if !is_set_sub => {
+                    return Ok(parse_quote! { (#left_typed).py_sub(#right_pyops) });
+                }
                 BinOp::Mul => return Ok(parse_quote! { (#left_typed).py_mul(#right_pyops) }),
                 BinOp::Div => {
                     // DEPYLER-1163: Cast py_div result to i32 when return type expects int

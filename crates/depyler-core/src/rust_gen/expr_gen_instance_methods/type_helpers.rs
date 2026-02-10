@@ -722,6 +722,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     matches!(var_type, Type::Dict(_, _))
                 } else {
                     // DEPYLER-99MODE: Heuristic fallback for common dict variable names
+                    // DEPYLER-99MODE-S9: Added data, info, metadata, headers, kwargs,
+                    // context, registry, mapping, index, table, frequencies
                     let n = name.as_str();
                     n.contains("dict")
                         || n.contains("map")
@@ -732,6 +734,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         || n == "counts"
                         || n == "freq"
                         || n == "frequency"
+                        || n == "frequencies"
                         || n == "lookup"
                         || n == "graph"
                         || n == "adj"
@@ -742,11 +745,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         || n == "params"
                         || n == "options"
                         || n == "env"
+                        || n == "data"
+                        || n == "info"
+                        || n == "metadata"
+                        || n == "headers"
+                        || n == "kwargs"
+                        || n == "context"
+                        || n == "registry"
+                        || n == "index"
+                        || n == "table"
                         || n.ends_with("_map")
                         || n.ends_with("_dict")
                         || n.ends_with("_cache")
                         || n.ends_with("_index")
                         || n.ends_with("_lookup")
+                        || n.ends_with("_table")
                 }
             }
             // DEPYLER-1044: Handle attribute access (e.g., self.config)

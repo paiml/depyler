@@ -73,7 +73,7 @@ pub const STRING_ATTR_NAMES: &[&str] = &[
 ];
 
 /// Dict-like variable names that indicate HashMap/dict access.
-pub const DICT_VAR_NAMES: &[&str] = &["info", "data", "config", "options", "result", "response"];
+pub const DICT_VAR_NAMES: &[&str] = &["info", "data", "config", "options", "response"];
 
 /// Dict-like variable suffixes.
 pub const DICT_VAR_SUFFIXES: &[&str] = &["_info", "_data", "_dict"];
@@ -212,7 +212,7 @@ mod tests {
     fn test_dict_var_names() {
         assert!(is_dict_var_name("info"));
         assert!(is_dict_var_name("config"));
-        assert!(is_dict_var_name("result")); // "result" IS a dict var name per original code
+        assert!(!is_dict_var_name("result")); // "result" is too generic, causes bool.is_empty() bugs
         assert!(is_dict_var_name("response"));
         assert!(is_dict_var_name("user_data"));
         assert!(is_dict_var_name("cache_dict"));
