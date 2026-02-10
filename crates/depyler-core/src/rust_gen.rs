@@ -7256,6 +7256,12 @@ fn generate_rust_file_internal(
     // TODO: Needs function-scope-aware analysis.
     // formatted_code = fix_move_closure_capture(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix unclosed vec![] macro (syntax error).
+    formatted_code = fix_unclosed_vec_macro(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix missing inherited fields in child structs (E0609).
+    formatted_code = fix_missing_inherited_fields(&formatted_code);
+
     // DEPYLER-99MODE-S9: De-async: remove tokio dependency for single-file compilation (E0433).
     // Since we compile without Cargo (no tokio crate), strip async/await/tokio attributes.
     formatted_code = fix_remove_async_for_standalone(&formatted_code);
@@ -7265,6 +7271,14 @@ fn generate_rust_file_internal(
 
     // DEPYLER-99MODE-S9: Fix let var → let mut var for &mut self methods (E0596).
     formatted_code = fix_missing_mut_for_method_calls(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix wrong type annotation on let bindings with .collect() (E0308).
+    // When `let var: WrongType = ...collect::<CorrectType>()`, strip the annotation.
+    formatted_code = fix_collect_type_annotation_mismatch(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix negative integer literal without type annotation (E0277/E0689).
+    // `let step = -1;` → `let step: i32 = -1;` to avoid ambiguous integer inference.
+    formatted_code = fix_negative_literal_type_annotation(&formatted_code);
 
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
@@ -12356,6 +12370,237 @@ fn fix_remove_async_for_standalone(code: &str) -> String {
     result
 }
 
+/// DEPYLER-99MODE-S9: Fix unclosed `vec![` macro wrapping collect expressions.
+///
+/// When the transpiler generates `vec![EXPR.collect::<Vec<_>>()` without a closing `]`,
+/// remove the `vec![` since the expression already produces a Vec.
+fn fix_unclosed_vec_macro(code: &str) -> String {
+    if !code.contains("vec![") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Detect: `vec![EXPR` where there's no `]` on this or subsequent lines before `}`
+        if trimmed.contains("vec![") && !trimmed.contains(']') {
+            // Check if a matching `]` appears before the next closing `}`
+            let mut has_bracket = false;
+            let mut j = i + 1;
+            while j < lines.len() {
+                let next_trimmed = lines[j].trim();
+                if next_trimmed.contains(']') {
+                    has_bracket = true;
+                    break;
+                }
+                if next_trimmed == "}" || next_trimmed.starts_with("pub fn ")
+                    || next_trimmed.starts_with("#[doc")
+                {
+                    break;
+                }
+                j += 1;
+            }
+            if !has_bracket {
+                // Remove the `vec![` wrapper
+                let new_line = lines[i].replace("vec![", "");
+                result.push_str(&new_line);
+                result.push('\n');
+                i += 1;
+                continue;
+            }
+        }
+        result.push_str(lines[i]);
+        result.push('\n');
+        i += 1;
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix missing inherited fields in child structs.
+///
+/// When a child struct method accesses `self.field` but `field` isn't in the struct,
+/// find it in the parent struct and add it. This handles Python class inheritance.
+fn fix_missing_inherited_fields(code: &str) -> String {
+    if !code.contains("pub struct ") || !code.contains("self.") {
+        return code.to_string();
+    }
+    // Collect all struct definitions with their fields
+    let lines: Vec<&str> = code.lines().collect();
+    let mut struct_fields: Vec<(String, Vec<(String, String)>)> = Vec::new(); // (name, [(field, type)])
+
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("pub struct ") && trimmed.ends_with('{') {
+            let name = trimmed
+                .strip_prefix("pub struct ")
+                .unwrap_or("")
+                .split(|c: char| c == ' ' || c == '{')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            let mut fields = Vec::new();
+            i += 1;
+            while i < lines.len() {
+                let field_line = lines[i].trim();
+                if field_line == "}" {
+                    break;
+                }
+                if field_line.starts_with("pub ") && field_line.contains(':') {
+                    let after_pub = field_line.strip_prefix("pub ").unwrap_or("");
+                    if let Some(colon) = after_pub.find(':') {
+                        let field_name = after_pub[..colon].trim().to_string();
+                        let field_type = after_pub[colon + 1..]
+                            .trim()
+                            .trim_end_matches(',')
+                            .to_string();
+                        fields.push((field_name, field_type));
+                    }
+                }
+                i += 1;
+            }
+            if !name.is_empty() {
+                struct_fields.push((name, fields));
+            }
+        }
+        i += 1;
+    }
+
+    if struct_fields.len() < 2 {
+        return code.to_string();
+    }
+
+    // Find structs that access self.field where field isn't in their definition
+    let mut additions: Vec<(String, Vec<(String, String)>)> = Vec::new(); // (struct_name, fields_to_add)
+
+    for (struct_name, fields) in &struct_fields {
+        // Find the impl block for this struct
+        let impl_pattern = format!("impl {} {{", struct_name);
+        let field_names: Vec<&str> = fields.iter().map(|(n, _)| n.as_str()).collect();
+
+        let mut missing_fields: Vec<(String, String)> = Vec::new();
+        let mut in_impl = false;
+        let mut impl_brace_depth: i32 = 0;
+
+        for line in &lines {
+            let trimmed = line.trim();
+            if !in_impl && trimmed.contains(&impl_pattern) {
+                in_impl = true;
+                impl_brace_depth = 1;
+                continue;
+            }
+            if in_impl {
+                for ch in trimmed.chars() {
+                    if ch == '{' {
+                        impl_brace_depth += 1;
+                    } else if ch == '}' {
+                        impl_brace_depth -= 1;
+                    }
+                }
+                if impl_brace_depth <= 0 {
+                    in_impl = false;
+                    continue;
+                }
+            }
+            if in_impl && trimmed.contains("self.") {
+                // Extract field accesses
+                let mut pos = 0;
+                while let Some(self_idx) = trimmed[pos..].find("self.") {
+                    let abs_idx = pos + self_idx + 5;
+                    let field_end = trimmed[abs_idx..]
+                        .find(|c: char| !c.is_alphanumeric() && c != '_')
+                        .unwrap_or(trimmed.len() - abs_idx);
+                    let field = &trimmed[abs_idx..abs_idx + field_end];
+                    if !field.is_empty()
+                        && !field_names.contains(&field)
+                        && !missing_fields.iter().any(|(n, _)| n == field)
+                    {
+                        // Find this field in OTHER structs
+                        for (other_name, other_fields) in &struct_fields {
+                            if other_name != struct_name {
+                                for (f_name, f_type) in other_fields {
+                                    if f_name == field {
+                                        missing_fields
+                                            .push((f_name.clone(), f_type.clone()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    pos = abs_idx + field_end;
+                }
+            }
+        }
+
+        if !missing_fields.is_empty() {
+            additions.push((struct_name.clone(), missing_fields));
+        }
+    }
+
+    if additions.is_empty() {
+        return code.to_string();
+    }
+
+    // Apply the additions
+    let mut result = String::with_capacity(code.len() + 200);
+    for line in &lines {
+        let trimmed = line.trim();
+        // Check if this is a struct closing brace that needs fields added before it
+        for (struct_name, fields_to_add) in &additions {
+            let struct_start = format!("pub struct {} {{", struct_name);
+            // We need to add fields before the `}` that closes this struct
+            // Check if the previous non-empty line started the struct
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    // Simpler approach: use string replacement on the struct definition
+    let mut result = code.to_string();
+    for (struct_name, fields_to_add) in &additions {
+        for (field_name, field_type) in fields_to_add {
+            // Find the struct definition and add the field
+            let struct_pattern = format!("pub struct {} {{", struct_name);
+            if let Some(struct_idx) = result.find(&struct_pattern) {
+                let insert_point = struct_idx + struct_pattern.len();
+                let field_line = format!("\n    pub {}: {},", field_name, field_type);
+                result.insert_str(insert_point, &field_line);
+            }
+        }
+
+        // Also fix the constructor to initialize the field with Default.
+        // Find `Self {` constructor literal (NOT `-> Self {` function signature).
+        let impl_pattern = format!("impl {} {{", struct_name);
+        if let Some(impl_idx) = result.find(&impl_pattern) {
+            let after_impl = &result[impl_idx..];
+            // Search for "Self {" that is the constructor literal, not "-> Self {"
+            let mut search_pos = 0;
+            while let Some(self_idx) = after_impl[search_pos..].find("Self {") {
+                let abs_in_slice = search_pos + self_idx;
+                // Check if preceded by "-> " (function return type, not constructor)
+                let before = &after_impl[..abs_in_slice];
+                let before_trimmed = before.trim_end();
+                if before_trimmed.ends_with("->") {
+                    search_pos = abs_in_slice + 6;
+                    continue;
+                }
+                // This is the constructor literal
+                let abs_self = impl_idx + abs_in_slice + 6; // after "Self {"
+                let mut extra_fields = String::new();
+                for (field_name, _field_type) in fields_to_add {
+                    extra_fields
+                        .push_str(&format!(" {}: Default::default(),", field_name));
+                }
+                result.insert_str(abs_self, &extra_fields);
+                break;
+            }
+        }
+    }
+    result
+}
+
 /// DEPYLER-99MODE-S9: Fix `&var` passed to function expecting owned `String`.
 ///
 /// When a function takes `url: String` and the call site passes `&url`,
@@ -12556,6 +12801,185 @@ fn fix_missing_mut_for_method_calls(code: &str) -> String {
             }
         }
         result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix wrong type annotation on `let` bindings with `.collect()`.
+///
+/// When `let var: WrongType = expr.collect::<CorrectType>()`, the annotation
+/// conflicts with the collect type. Since `.collect()` already specifies or
+/// infers the type, remove the annotation to let Rust infer correctly.
+///
+/// Targets: `let var: bool = ...collect::<Vec<...>>()` (wrong primitive type),
+/// `let var: Container<DepylerValue> = ...collect::<Container<_>>()` (DepylerValue mismatch).
+fn fix_collect_type_annotation_mismatch(code: &str) -> String {
+    if !code.contains(".collect::<") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        // Look for `let [mut] VAR: TYPE = `
+        let let_offset = if trimmed.starts_with("let mut ") {
+            Some(8)
+        } else if trimmed.starts_with("let ") {
+            Some(4)
+        } else {
+            None
+        };
+
+        if let Some(offset) = let_offset {
+            let after_let = &trimmed[offset..];
+            // Find `: ` (type annotation) and ` = ` (assignment)
+            if let (Some(colon_rel), Some(eq_rel)) = (after_let.find(": "), after_let.find(" = "))
+            {
+                if colon_rel < eq_rel {
+                    let type_ann = &after_let[colon_rel + 2..eq_rel];
+
+                    // Check if this multi-line statement contains .collect::<
+                    // Track brace depth so we don't stop at `;` inside closures.
+                    let mut has_collect = trimmed.contains(".collect::<");
+                    let mut brace_depth: i32 = trimmed.chars().fold(0, |d, c| match c {
+                        '{' => d + 1,
+                        '}' => d - 1,
+                        _ => d,
+                    });
+                    let mut check_line = i + 1;
+                    while !has_collect && check_line < lines.len() {
+                        let cl = lines[check_line].trim();
+                        for ch in cl.chars() {
+                            match ch {
+                                '{' => brace_depth += 1,
+                                '}' => brace_depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        if cl.contains(".collect::<") {
+                            has_collect = true;
+                        }
+                        // Only stop at `;` when we're at top-level (not inside closures)
+                        if brace_depth <= 0 && cl.ends_with(';') {
+                            break;
+                        }
+                        check_line += 1;
+                    }
+
+                    if has_collect {
+                        // Check for mismatch conditions:
+                        // 1. Primitive type (bool, i32, etc.) used where collection expected
+                        // 2. Container<DepylerValue> when iterator doesn't use .into()
+                        let is_wrong_primitive = type_ann == "bool"
+                            || type_ann == "i32"
+                            || type_ann == "f64"
+                            || type_ann == "String";
+                        let is_depyler_collection = type_ann.contains("DepylerValue")
+                            && (type_ann.contains("Vec")
+                                || type_ann.contains("HashSet")
+                                || type_ann.contains("HashMap"));
+                        // Only strip DepylerValue collections if the chain doesn't use .into()
+                        let chain_has_into = {
+                            let mut found = trimmed.contains(".into()");
+                            let mut bd: i32 = trimmed.chars().fold(0, |d, c| match c {
+                                '{' => d + 1,
+                                '}' => d - 1,
+                                _ => d,
+                            });
+                            let mut cl = i + 1;
+                            while !found && cl < lines.len() {
+                                let clt = lines[cl].trim();
+                                for ch in clt.chars() {
+                                    match ch {
+                                        '{' => bd += 1,
+                                        '}' => bd -= 1,
+                                        _ => {}
+                                    }
+                                }
+                                if clt.contains(".into()") {
+                                    found = true;
+                                }
+                                if bd <= 0 && clt.ends_with(';') {
+                                    break;
+                                }
+                                cl += 1;
+                            }
+                            found
+                        };
+
+                        if is_wrong_primitive
+                            || (is_depyler_collection && !chain_has_into)
+                        {
+                            // Remove the `: TYPE` annotation
+                            let indent = &line[..line.len() - trimmed.len()];
+                            let before_colon = &trimmed[..offset + colon_rel];
+                            let after_type = &trimmed[offset + eq_rel..];
+                            let new_line =
+                                format!("{}{}{}", indent, before_colon, after_type);
+                            result.push(new_line);
+                            i += 1;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        result.push(line.to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Fix negative integer literal without type annotation.
+///
+/// When `let var = -N;` (negative integer literal, no type annotation), Rust
+/// may infer an unsigned type (e.g. `usize`) from context, causing E0277
+/// ("Neg not implemented for usize"). Add `: i32` to disambiguate.
+fn fix_negative_literal_type_annotation(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: `let VAR = -DIGITS;` without type annotation
+        let prefix = if trimmed.starts_with("let mut ") {
+            Some("let mut ")
+        } else if trimmed.starts_with("let ") {
+            Some("let ")
+        } else {
+            None
+        };
+        if let Some(pfx) = prefix {
+            let after = &trimmed[pfx.len()..];
+            // Check for `VAR = -DIGITS;` pattern (no colon = no type annotation)
+            if let Some(eq_pos) = after.find(" = ") {
+                let var_part = &after[..eq_pos];
+                let rhs = after[eq_pos + 3..].trim();
+                // Only if no existing type annotation (no `:` in var part)
+                if !var_part.contains(':') {
+                    // Check if RHS is a negative integer literal like `-1;` or `-1i32;`
+                    if rhs.starts_with('-') {
+                        let digits_part = rhs[1..].trim_end_matches(';').trim();
+                        if !digits_part.is_empty()
+                            && digits_part.chars().all(|c| c.is_ascii_digit())
+                        {
+                            let indent = &line[..line.len() - trimmed.len()];
+                            let new_line = format!(
+                                "{}{}{}: i32 = {}",
+                                indent, pfx, var_part, rhs
+                            );
+                            result.push_str(&new_line);
+                            result.push('\n');
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        result.push_str(line);
         result.push('\n');
     }
     result
