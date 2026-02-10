@@ -7019,6 +7019,11 @@ fn generate_rust_file_internal(
     // Python `not obj.field` on String/Vec fields needs .is_empty() in Rust.
     formatted_code = fix_field_access_truthiness(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix HashMap `.contains()` → `.contains_key()` (E0599).
+    // HashMap doesn't have `.contains()`, only `.contains_key()`.
+    // The codegen's `is_dict_expr` sometimes misses dict parameters.
+    formatted_code = fix_hashmap_contains(&formatted_code);
+
     // DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping (E0308).
     // Extend to kwargs, config, params etc., not just `map` variable.
     formatted_code = fix_depyler_value_inserts_generalized(&formatted_code);
@@ -8088,6 +8093,79 @@ fn fix_negation_on_non_bool(code: &str) -> String {
     result.join("\n")
 }
 
+/// DEPYLER-99MODE-S9: Fix `.contains()` → `.contains_key()` on HashMap variables.
+///
+/// HashMap doesn't have `.contains()` (that's HashSet). Detect HashMap-typed
+/// variables from function signatures and replace `.contains(` with `.contains_key(`.
+fn fix_hashmap_contains(code: &str) -> String {
+    let hashmap_vars = extract_hashmap_typed_vars(code);
+    if hashmap_vars.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for var in &hashmap_vars {
+        let pattern = format!("{var}.contains(");
+        let replacement = format!("{var}.contains_key(");
+        if result.contains(&pattern) {
+            eprintln!("[DEBUG] Replacing '{}' with '{}'", pattern, replacement);
+            result = result.replace(&pattern, &replacement);
+        }
+    }
+    result
+}
+
+/// Extract variable names typed as HashMap from function signatures and local declarations.
+/// Handles multi-line function signatures where params span multiple lines.
+fn extract_hashmap_typed_vars(code: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+    // Scan individual lines for HashMap-typed parameter declarations
+    // This handles both single-line and multi-line function signatures
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match parameter lines containing HashMap (works for multi-line sigs too)
+        // Pattern: `name: &'a HashMap<...>` or `name: HashMap<...>`
+        if trimmed.contains("HashMap<") && trimmed.contains(':') {
+            // Skip function return types (contains `->`)
+            if trimmed.contains("->") && !trimmed.contains(',') {
+                continue;
+            }
+            // Extract the parameter name before the colon
+            // Handle trailing comma: `data: &HashMap<String, i32>,`
+            let clean = trimmed.trim_end_matches(',').trim();
+            if let Some(colon_pos) = clean.find(':') {
+                let name = clean[..colon_pos].trim();
+                if !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_')
+                    && !name.starts_with("fn ")
+                    && !name.starts_with("pub ")
+                {
+                    vars.push(name.to_string());
+                }
+            }
+        }
+        // From local declarations: `let mut data: HashMap<...>`
+        if trimmed.starts_with("let ") && trimmed.contains("HashMap<") {
+            let rest = trimmed
+                .strip_prefix("let ")
+                .unwrap_or("")
+                .trim_start_matches("mut ");
+            if let Some(colon_pos) = rest.find(':') {
+                let name = rest[..colon_pos].trim();
+                if !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_')
+                {
+                    vars.push(name.to_string());
+                }
+            }
+        }
+    }
+    vars
+}
+
 /// DEPYLER-CONVERGE-MULTI-ITER10: Fix field-access truthiness patterns.
 ///
 /// Python `not config.field` generates `!config.field` which is E0600 on String/Vec.
@@ -8265,6 +8343,9 @@ fn fix_vec_get_membership(code: &str) -> String {
     if !code.contains(".get(&") || !code.contains(".is_some()") {
         return code.to_string();
     }
+    // DEPYLER-99MODE-S9: Collect HashMap-typed variables so we can skip them.
+    // Their .get(&key).is_some() is correct and should NOT be rewritten to .contains().
+    let hashmap_typed = extract_hashmap_typed_vars(code);
     let mut result = code.to_string();
     let mut search_from = 0;
     loop {
@@ -8295,6 +8376,9 @@ fn fix_vec_get_membership(code: &str) -> String {
                 | "params" | "headers" | "env" | "mapping"
                 | "index" | "registry" | "table" | "counter"
                 | "scores" | "weights" | "distances"
+                | "data" | "info" | "metadata" | "kwargs"
+                | "context" | "options" | "result" | "results"
+                | "record" | "row" | "entry" | "item"
         ) || var_name.contains("dict")
             || var_name.contains("map")
             || var_name.contains("hash");
@@ -8304,7 +8388,10 @@ fn fix_vec_get_membership(code: &str) -> String {
         let line = &result[line_start..];
         let is_hashmap_line = line.contains("HashMap") || line.contains("BTreeMap");
 
-        if is_dict_var || is_hashmap_line {
+        // DEPYLER-99MODE-S9: Check against extracted HashMap-typed variables
+        let is_hashmap_typed = hashmap_typed.contains(&var_name);
+
+        if is_dict_var || is_hashmap_line || is_hashmap_typed {
             search_from = pos + 1;
             continue;
         }
