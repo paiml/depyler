@@ -6450,7 +6450,6 @@ fn generate_rust_file_internal(
 
     // Format the code first (this is when tokens become readable strings)
     let mut formatted_code = format_rust_code(file.to_string());
-
     // DEPYLER-0393: Post-process FORMATTED code to detect missed dependencies
     // TokenStreams don't have literal strings - must scan AFTER formatting
     // DEPYLER-1028: Skip in NASA mode - don't add external crate imports
@@ -7289,13 +7288,16 @@ fn fix_python_truthiness(code: &str) -> String {
     result.join("\n") + "\n"
 }
 
-/// Extract variable names that are typed as `bool` from function signatures
-/// and local variable declarations.
+/// Extract variable names that are typed as `bool` from function signatures,
+/// local variable declarations, and loop variables over Vec<bool>.
 fn extract_bool_typed_vars(code: &str) -> Vec<String> {
     let mut vars = Vec::new();
+    // Track parameter names that are Vec<bool> for loop variable inference
+    let mut vec_bool_params: Vec<String> = Vec::new();
+
     for line in code.lines() {
         let trimmed = line.trim();
-        // Extract from function signatures: `fn foo(x: bool, y: bool)`
+        // Extract from function signatures: `fn foo(x: bool, values: &Vec<bool>)`
         if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
             if let Some(start) = trimmed.find('(') {
                 if let Some(end) = trimmed.find(')') {
@@ -7310,6 +7312,15 @@ fn extract_bool_typed_vars(code: &str) -> Vec<String> {
                                 }
                             }
                         }
+                        // DEPYLER-99MODE-S9: Track Vec<bool> params for loop var inference
+                        if p.contains("Vec<bool>") || p.contains("Vec < bool >") {
+                            if let Some(colon_pos) = p.find(':') {
+                                let name = p[..colon_pos].trim();
+                                if !name.is_empty() {
+                                    vec_bool_params.push(name.to_string());
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -7317,12 +7328,9 @@ fn extract_bool_typed_vars(code: &str) -> Vec<String> {
         }
         // DEPYLER-99MODE-S9: Extract from local variable declarations
         // Patterns: `let mut result: bool = ...` or `let result: bool = ...`
-        // or `let result: bool;`
         if trimmed.starts_with("let ") {
-            // Strip `let ` and optional `mut `
             let rest = trimmed.strip_prefix("let ").unwrap_or("");
             let rest = rest.strip_prefix("mut ").unwrap_or(rest);
-            // Look for `: bool` type annotation
             if let Some(colon_pos) = rest.find(": bool") {
                 let name = rest[..colon_pos].trim();
                 if !name.is_empty()
@@ -7331,6 +7339,27 @@ fn extract_bool_typed_vars(code: &str) -> Vec<String> {
                         .all(|c| c.is_alphanumeric() || c == '_')
                 {
                     vars.push(name.to_string());
+                }
+            }
+        }
+        // DEPYLER-99MODE-S9: Extract loop variables over Vec<bool> params
+        // Pattern: `for VAR in PARAM.iter()` where PARAM is Vec<bool>
+        if trimmed.starts_with("for ") {
+            if let Some(in_pos) = trimmed.find(" in ") {
+                let loop_var = trimmed[4..in_pos].trim();
+                let iter_part = &trimmed[in_pos + 4..];
+                for param in &vec_bool_params {
+                    if iter_part.starts_with(&format!("{param}."))
+                        || iter_part.starts_with(&format!("{param} "))
+                    {
+                        if !loop_var.is_empty()
+                            && loop_var
+                                .chars()
+                                .all(|c| c.is_alphanumeric() || c == '_')
+                        {
+                            vars.push(loop_var.to_string());
+                        }
+                    }
                 }
             }
         }
@@ -8016,6 +8045,17 @@ fn fix_negation_on_non_bool(code: &str) -> String {
         return code.to_string();
     }
     let string_typed_vars = extract_string_typed_vars(code);
+    if string_typed_vars.is_empty() {
+        return code.to_string();
+    }
+    // DEPYLER-99MODE-S9: Exclude variables that are also bool-typed in other scopes.
+    // A variable like `v` may be `String` in a From impl and `bool` in a loop.
+    // When ambiguous, do NOT rewrite - leaving `!v` for a bool is correct.
+    let bool_vars = extract_bool_typed_vars(code);
+    let string_typed_vars: Vec<String> = string_typed_vars
+        .into_iter()
+        .filter(|v| !bool_vars.contains(v))
+        .collect();
     if string_typed_vars.is_empty() {
         return code.to_string();
     }
