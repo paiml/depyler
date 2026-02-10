@@ -3064,6 +3064,35 @@ fn extract_iterator_element_type(iter: &HirExpr, ctx: &CodeGenContext) -> Option
         HirExpr::MethodCall { object, method, .. } if method == "glob" => {
             extract_glob_element_type(object.as_ref(), ctx)
         }
+        // DEPYLER-99MODE-S9: Handle subscript iteration (e.g., `for ik in trie[k]:`)
+        // Walk the Index chain to root variable, resolve through Dict/List value types,
+        // then extract element type from the result type.
+        HirExpr::Index { base, .. } => {
+            // Walk to root variable
+            let mut current: &HirExpr = base;
+            while let HirExpr::Index { base: inner, .. } = current {
+                current = inner;
+            }
+            if let HirExpr::Var(root_name) = current {
+                let mut cur_type = ctx.var_types.get(root_name)?.clone();
+                // Peel one level for the subscript
+                match cur_type {
+                    Type::Dict(_, val) => cur_type = *val,
+                    Type::List(elem) => cur_type = *elem,
+                    _ => return None,
+                }
+                // Now extract element type from the resolved type
+                match cur_type {
+                    Type::List(elem) => Some(*elem),
+                    Type::Set(elem) => Some(*elem),
+                    Type::Dict(key, _) => Some(*key),
+                    Type::String => Some(Type::String),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
@@ -3261,6 +3290,11 @@ pub(crate) fn codegen_for_stmt(
             parse_quote! { #obj_expr.iter().map(|(k, v)| (k.clone(), v.clone())) }
         } else if method == "keys" {
             // dict.keys() → dict.keys() (already correct, but ensure no collect)
+            // DEPYLER-99MODE-S9: Mark loop var as borrowed ref (&String from keys())
+            // so dict.get(key) won't double-borrow to &&String (E0277)
+            if let AssignTarget::Symbol(name) = target {
+                ctx.fn_str_params.insert(name.clone());
+            }
             let obj_expr = object.to_rust_expr(ctx)?;
             parse_quote! { #obj_expr.keys() }
         } else if method == "values" {
@@ -6511,7 +6545,11 @@ pub(crate) fn codegen_assign_index(
                 let idx_str = quote! { #idx }.to_string();
                 let first_char = idx_str.trim_start().chars().next();
                 let is_str_lit = first_char == Some('"');
-                chain = if is_str_lit {
+                // DEPYLER-99MODE-S9: Check if variable is already a &str param
+                // to avoid double-borrow (&(&str) → &&str) which causes E0277
+                let is_already_ref = is_str_lit
+                    || ctx.fn_str_params.contains(idx_str.trim());
+                chain = if is_already_ref {
                     quote! { #chain.get_mut(#idx).expect("key not found in dict") }
                 } else {
                     quote! { #chain.get_mut(&#idx).expect("key not found in dict") }
