@@ -914,6 +914,18 @@ pub(crate) fn codegen_return_stmt(
             if is_slice_param && is_vec_return {
                 expr_tokens = parse_quote! { #expr_tokens.to_vec() };
             }
+
+            // DEPYLER-99MODE-S9: Convert &str params to String when returning String
+            // Pattern: def func(s: str) -> str: return s
+            // Rust: fn func(s: &str) -> String { s.to_string() }
+            let is_str_param = ctx.fn_str_params.contains(var_name);
+            let is_string_return_type = matches!(
+                ctx.current_return_type.as_ref(),
+                Some(Type::String)
+            );
+            if is_str_param && is_string_return_type {
+                expr_tokens = parse_quote! { #expr_tokens.to_string() };
+            }
         }
 
         // DEPYLER-0757: Wrap return values when function returns serde_json::Value (Python's `any`)
