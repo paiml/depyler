@@ -7230,6 +7230,24 @@ fn generate_rust_file_internal(
     // The transpiler generates PyRange struct but uses `Range` as type annotation.
     formatted_code = fix_range_type_annotation(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix HashMap .keys() producing &String in tuple push (E0308).
+    formatted_code = fix_hashmap_keys_iter_clone(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix String::from_utf8_lossy(&string_var) (E0308).
+    formatted_code = fix_from_utf8_lossy_string_arg(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix closure passed where &dyn Fn expected (E0308).
+    formatted_code = fix_closure_to_dyn_fn_ref(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix &item passed to impl Fn(String) param (E0308).
+    formatted_code = fix_ref_arg_to_fn_string_param(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix (*var.expect()).expect() double-unwrap (E0614).
+    formatted_code = fix_double_expect_on_option_ref(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix usize.to_string() in constructor args (E0308).
+    formatted_code = fix_usize_to_string_in_constructor(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -11738,6 +11756,391 @@ fn fix_range_type_annotation(code: &str) -> String {
     // Handle "let r: Range = " (with space after)
     result = result.replace(": Range =", ": PyRange =");
     result
+}
+
+/// DEPYLER-99MODE-S9: Fix HashMap `.keys()` iteration producing `&String`.
+///
+/// When iterating `for k in hashmap.keys()`, `k` is `&K`. Adding `.cloned()` gives owned values.
+/// Also fixes `.get(key)` → `.get(&key)` since key is now owned after cloning.
+fn fix_hashmap_keys_iter_clone(code: &str) -> String {
+    if !code.contains(".keys()") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Match: `for VAR in EXPR.keys() {`
+        if trimmed.starts_with("for ")
+            && trimmed.contains(".keys()")
+            && trimmed.ends_with('{')
+            && !trimmed.contains(".cloned()")
+        {
+            // Extract the loop variable name
+            let after_for = trimmed.strip_prefix("for ").unwrap_or("");
+            let loop_var = after_for
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_string();
+
+            // Extract the map variable (before .keys())
+            let map_var = if let Some(in_idx) = after_for.find(" in ") {
+                let after_in = &after_for[in_idx + 4..];
+                if let Some(keys_idx) = after_in.find(".keys()") {
+                    after_in[..keys_idx].trim().to_string()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+            // Add .cloned() to keys()
+            result.push_str(&lines[i].replace(".keys() {", ".keys().cloned() {"));
+            result.push('\n');
+            i += 1;
+
+            // Process the loop body: fix .get(key) → .get(&key)
+            if !loop_var.is_empty() && !map_var.is_empty() {
+                let get_pattern = format!(".get({})", loop_var);
+                let get_fixed = format!(".get(&{})", loop_var);
+                let mut brace_depth = 1;
+                while i < lines.len() && brace_depth > 0 {
+                    let mut line = lines[i].to_string();
+                    for c in lines[i].chars() {
+                        match c {
+                            '{' => brace_depth += 1,
+                            '}' => brace_depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    // Fix .get(key) to .get(&key)
+                    if line.contains(&get_pattern) {
+                        line = line.replace(&get_pattern, &get_fixed);
+                    }
+                    result.push_str(&line);
+                    result.push('\n');
+                    i += 1;
+                }
+            }
+        } else {
+            result.push_str(lines[i]);
+            result.push('\n');
+            i += 1;
+        }
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `String::from_utf8_lossy(&string_var)`.
+///
+/// `from_utf8_lossy` expects `&[u8]`, not `&String`. When the argument is a `&var` where
+/// var was assigned from `format!()` (producing String), add `.as_bytes()` to convert.
+/// Excludes variables that chain `.into_bytes()` since those are already `Vec<u8>`.
+fn fix_from_utf8_lossy_string_arg(code: &str) -> String {
+    if !code.contains("from_utf8_lossy") {
+        return code.to_string();
+    }
+    // Collect variable names assigned from format!() that produce String (not Vec<u8>)
+    let mut format_string_vars: Vec<String> = Vec::new();
+    let lines: Vec<&str> = code.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if let Some(eq_idx) = trimmed.find(" = format!(") {
+            // Check the NEXT line for .into_bytes() which would make it Vec<u8>
+            let next_has_into_bytes = i + 1 < lines.len()
+                && lines[i + 1].trim().starts_with(".into_bytes()");
+            // Also check same line for .into_bytes() chain
+            let same_line_into_bytes = trimmed[eq_idx..].contains(".into_bytes()");
+
+            if !next_has_into_bytes && !same_line_into_bytes {
+                let before_eq = &trimmed[..eq_idx];
+                if let Some(name) = before_eq.split_whitespace().last() {
+                    let clean_name = name.trim_end_matches(':');
+                    format_string_vars.push(clean_name.to_string());
+                }
+            }
+        }
+    }
+    if format_string_vars.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for var in &format_string_vars {
+        let bad = format!("from_utf8_lossy(&{})", var);
+        let good = format!("from_utf8_lossy({}.as_bytes())", var);
+        result = result.replace(&bad, &good);
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix closures passed where `&dyn Fn` expected.
+///
+/// When a let-binding defines a closure with `&dyn Fn(T) -> U` param, callers pass bare closures
+/// like `move |x: i32| ...`. We need `&(move |x: i32| ...)` to match the `&dyn Fn` parameter.
+fn fix_closure_to_dyn_fn_ref(code: &str) -> String {
+    if !code.contains("&dyn Fn") {
+        return code.to_string();
+    }
+    // Find let-bindings or fn signatures that have &dyn Fn params
+    // We need to find: `let NAME = move |..., func: &dyn Fn(...) -> ...| -> ... {`
+    // Then at call sites: `NAME(..., move |...|  ...)` → `NAME(..., &(move |...|  ...))`
+    // This is complex in general. Use a targeted approach for the most common pattern.
+
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+
+    // Collect names of closures/functions that take &dyn Fn params
+    let mut dyn_fn_names: Vec<String> = Vec::new();
+    for line in &lines {
+        let trimmed = line.trim();
+        // Pattern: `let NAME = move |..., func: &dyn Fn` or `fn NAME(..., func: &dyn Fn`
+        if trimmed.contains("&dyn Fn") {
+            if let Some(let_idx) = trimmed.find("let ") {
+                let after_let = &trimmed[let_idx + 4..];
+                if let Some(eq_or_colon) = after_let.find(|c: char| c == '=' || c == ':') {
+                    let name = after_let[..eq_or_colon].trim().to_string();
+                    if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        dyn_fn_names.push(name);
+                    }
+                }
+            } else if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+                let after_fn = if trimmed.starts_with("pub fn ") {
+                    &trimmed[7..]
+                } else {
+                    &trimmed[3..]
+                };
+                if let Some(paren) = after_fn.find('(') {
+                    let name = after_fn[..paren].trim().to_string();
+                    if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        dyn_fn_names.push(name);
+                    }
+                }
+            }
+        }
+    }
+
+    if dyn_fn_names.is_empty() {
+        return code.to_string();
+    }
+
+    for line in &lines {
+        let mut new_line = (*line).to_string();
+        for name in &dyn_fn_names {
+            // Find call pattern: `NAME(..., move |...|  ...)`
+            // Replace: `move |x: i32| expr)` → `&(move |x: i32| expr))`
+            let call_prefix = format!("{}(", name);
+            if new_line.contains(&call_prefix) && new_line.contains("move |") {
+                // Find the `move |` that's a trailing argument
+                if let Some(move_idx) = new_line.rfind(", move |") {
+                    // Find the closing `)` of the outer call
+                    if let Some(close_paren) = new_line.rfind(");") {
+                        let closure_text = &new_line[move_idx + 2..close_paren];
+                        let replacement =
+                            format!(" &({})", closure_text);
+                        new_line = format!(
+                            "{}{}{}",
+                            &new_line[..move_idx + 1],
+                            replacement,
+                            &new_line[close_paren..]
+                        );
+                    }
+                }
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `transform(&item)` where `transform: impl Fn(String) -> String`.
+///
+/// When iterating with `.iter().cloned()` the item is owned `String`, but the transpiler
+/// adds a spurious `&` prefix. Remove `&` from args when calling `impl Fn(String)` closures.
+fn fix_ref_arg_to_fn_string_param(code: &str) -> String {
+    if !code.contains("impl Fn(String)") {
+        return code.to_string();
+    }
+    // Find parameter names with type `impl Fn(String) -> String`
+    let mut fn_param_names: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("impl Fn(String)") {
+            // Extract param name before `: impl Fn(String)`
+            if let Some(idx) = trimmed.find(": impl Fn(String)") {
+                let before = &trimmed[..idx];
+                if let Some(name) = before.split(|c: char| c == '(' || c == ',').last() {
+                    let name = name.trim();
+                    if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        fn_param_names.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    if fn_param_names.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for name in &fn_param_names {
+        // Replace: `name(&var)` with `name(var.clone())`
+        // This is safe because String is Clone
+        let re_pattern = format!(r"{}(&", name);
+        if result.contains(&re_pattern) {
+            // Find all occurrences and fix them
+            let mut new_result = String::with_capacity(result.len());
+            let mut pos = 0;
+            while let Some(idx) = result[pos..].find(&re_pattern) {
+                let abs_idx = pos + idx;
+                new_result.push_str(&result[pos..abs_idx]);
+                new_result.push_str(&format!("{}(", name));
+                // Skip past the `&`
+                let after = abs_idx + re_pattern.len();
+                // Find the closing `)`
+                if let Some(close) = result[after..].find(')') {
+                    let var = &result[after..after + close];
+                    new_result.push_str(&format!("{}.clone())", var));
+                    pos = after + close + 1;
+                } else {
+                    new_result.push_str(&result[after..]);
+                    pos = result.len();
+                }
+            }
+            new_result.push_str(&result[pos..]);
+            result = new_result;
+        }
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `(*opt.expect(...)).expect(...)` double-unwrap on Option<i32>.
+///
+/// Pattern: `(*maybe_value.expect("msg1")).expect("msg2")` where maybe_value: &Option<i32>.
+/// The first .expect() unwraps Option→i32, then (*i32).expect() is nonsensical.
+/// Fix: remove dereference and second .expect(), keep just `maybe_value.expect("msg1")`.
+fn fix_double_expect_on_option_ref(code: &str) -> String {
+    if !code.contains(".expect(") {
+        return code.to_string();
+    }
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match pattern: `(*VAR.expect("msg1")).expect("msg2")`
+        // The full pattern has: leading `(*`, first `.expect("...")`, closing `)`, second `.expect("...")`
+        if trimmed.contains("(*") && {
+            // Count .expect( occurrences - need at least 2
+            trimmed.matches(".expect(").count() >= 2
+        } {
+            if let Some(star_idx) = trimmed.find("(*") {
+                // Find first .expect(
+                if let Some(exp1_offset) = trimmed[star_idx + 2..].find(".expect(") {
+                    let var_name = &trimmed[star_idx + 2..star_idx + 2 + exp1_offset];
+                    if var_name
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_')
+                    {
+                        // Find the first .expect("...") end
+                        let exp1_start = star_idx + 2 + exp1_offset;
+                        // Find matching close paren for first expect
+                        if let Some(quote1_start) = trimmed[exp1_start..].find('"') {
+                            let abs_q1 = exp1_start + quote1_start;
+                            if let Some(quote1_end) = trimmed[abs_q1 + 1..].find('"') {
+                                let exp1_close = abs_q1 + 1 + quote1_end + 1; // after closing quote
+                                // Skip to closing paren of first expect
+                                if exp1_close < trimmed.len()
+                                    && trimmed.as_bytes()[exp1_close] == b')'
+                                {
+                                    let first_expect_result =
+                                        &trimmed[star_idx + 2..exp1_close + 1];
+                                    // Check for ).expect( after
+                                    let after = &trimmed[exp1_close + 1..];
+                                    if after.starts_with(").expect(") {
+                                        // Replace entire expression with just the first unwrap
+                                        let indent =
+                                            &line[..line.len() - line.trim_start().len()];
+                                        let prefix = &trimmed[..star_idx];
+                                        // Find end of second .expect("...")
+                                        let exp2_start = exp1_close + 1 + 1; // skip )
+                                        if let Some(exp2_close) =
+                                            trimmed[exp2_start..].find("\")") // end of second expect
+                                        {
+                                            let suffix =
+                                                &trimmed[exp2_start + exp2_close + 2..];
+                                            let new_trimmed = format!(
+                                                "{}{}{}",
+                                                prefix, first_expect_result, suffix
+                                            );
+                                            result.push_str(indent);
+                                            result.push_str(&new_trimmed);
+                                            result.push('\n');
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.to_string()` on usize values passed to usize params.
+///
+/// Pattern: `Struct::new(text, start, end.to_string())` where end: usize and param expects usize.
+/// The `.to_string()` converts to String but the param expects usize.
+fn fix_usize_to_string_in_constructor(code: &str) -> String {
+    if !code.contains(".to_string()") {
+        return code.to_string();
+    }
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match pattern: `VAR.to_string())` at end of line where VAR is a known usize-like name
+        // Common usize vars: end, start, len, size, idx, index, pos, offset, count
+        let usize_vars = [
+            "end", "start", "len", "size", "idx", "index", "pos", "offset", "count", "capacity",
+        ];
+        let mut new_line = line.to_string();
+        for var in &usize_vars {
+            // Replace `VAR.to_string()` with just `VAR` when inside a constructor/function call
+            let pattern = format!("{}.to_string()", var);
+            if trimmed.contains(&pattern) {
+                // Only replace when this appears as a function argument (preceded by comma or open paren)
+                let safe_pattern_comma = format!(", {}", pattern);
+                let safe_pattern_paren = format!("({}", pattern);
+                if new_line.contains(&safe_pattern_comma) {
+                    new_line = new_line.replace(&safe_pattern_comma, &format!(", {}", var));
+                } else if new_line.contains(&safe_pattern_paren) {
+                    new_line = new_line.replace(&safe_pattern_paren, &format!("({}", var));
+                }
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `E0609` no field on `()` for tuple operations.
+///
+/// When a for loop unpacks items from a Vec that the compiler infers as `Vec<()>`,
+/// fix the type annotation from `()` to the correct tuple type based on push patterns.
+fn fix_tuple_field_on_unit(code: &str) -> String {
+    if !code.contains(".0") && !code.contains(".1") {
+        return code.to_string();
+    }
+    // Check for the pattern: `let mut ops: Vec<()>` with later `ops.push((string, int))`
+    // This is a transpiler type inference issue; for now skip as it needs AST-level fix
+    code.to_string()
 }
 
 #[cfg(test)]
