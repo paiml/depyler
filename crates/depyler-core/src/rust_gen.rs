@@ -7218,6 +7218,14 @@ fn generate_rust_file_internal(
     // When u32 field has spurious .to_string() but callee expects u32.
     formatted_code = fix_spurious_to_string_in_numeric_call(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix &str param returned where -> String expected (E0308).
+    // When a function takes &str params and returns String, bare param returns need .to_string().
+    formatted_code = fix_str_param_return_as_string(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix bool.as_bool() method call (E0599).
+    // When DepylerValue.as_bool() is called on a variable that's already bool type.
+    formatted_code = fix_as_bool_on_bool(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -11589,6 +11597,115 @@ fn fix_numeric_field_to_string(line: &str) -> String {
         let pattern = format!("{}.to_string()", field);
         if result.contains(&pattern) {
             result = result.replace(&pattern, field);
+        }
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix &str param returned where -> String expected (E0308).
+/// When a function signature is `fn foo(s: &str) -> String` and the body just returns `s`,
+/// add `.to_string()` to the return value.
+fn fix_str_param_return_as_string(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut current_fn_returns_string = false;
+    let mut current_fn_str_params: Vec<String> = Vec::new();
+
+    for line in &lines {
+        let trimmed = line.trim();
+
+        // Track function signatures: fn foo(s: &str, ...) -> String
+        if (trimmed.starts_with("fn ") || trimmed.starts_with("pub fn "))
+            && trimmed.contains("-> String")
+        {
+            current_fn_returns_string = true;
+            current_fn_str_params.clear();
+            // Extract &str param names
+            if let Some(start) = trimmed.find('(') {
+                if let Some(end) = trimmed.rfind(')') {
+                    let params = &trimmed[start + 1..end];
+                    for param in params.split(',') {
+                        let p = param.trim();
+                        // Match &str, &'a str, & str, &'lifetime str
+                        if p.contains("str") && p.contains('&') {
+                            if let Some(colon) = p.find(':') {
+                                let name = p[..colon].trim().trim_start_matches("mut ");
+                                if !name.is_empty()
+                                    && name
+                                        .chars()
+                                        .all(|c| c.is_alphanumeric() || c == '_')
+                                {
+                                    current_fn_str_params.push(name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Reset on new function definition
+        if trimmed.starts_with("fn ") && !trimmed.contains("-> String") {
+            current_fn_returns_string = false;
+            current_fn_str_params.clear();
+        }
+
+        // Check if this is a bare return of a &str param
+        if current_fn_returns_string && !current_fn_str_params.is_empty() {
+            let mut fixed = false;
+            for param in &current_fn_str_params {
+                // Match: "    s" or "    return s;" where s is a &str param
+                if trimmed == *param || trimmed == format!("{};", param) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push(format!(
+                        "{}{}.to_string()",
+                        indent,
+                        trimmed.trim_end_matches(';')
+                    ));
+                    fixed = true;
+                    break;
+                }
+                let ret_pattern = format!("return {};", param);
+                let ret_bare = format!("return {}", param);
+                if trimmed == ret_pattern || trimmed == ret_bare {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push(format!("{}return {}.to_string();", indent, param));
+                    fixed = true;
+                    break;
+                }
+            }
+            if fixed {
+                continue;
+            }
+        }
+
+        result.push(line.to_string());
+    }
+
+    let joined = result.join("\n");
+    if code.ends_with('\n') {
+        joined + "\n"
+    } else {
+        joined
+    }
+}
+
+/// DEPYLER-99MODE-S9: Fix `bool_var.as_bool()` (E0599).
+/// When a variable is known to be `bool` type, `.as_bool()` is invalid.
+/// Remove the method call since the variable is already bool.
+fn fix_as_bool_on_bool(code: &str) -> String {
+    if !code.contains(".as_bool()") {
+        return code.to_string();
+    }
+    let bool_vars = extract_bool_typed_vars(code);
+    if bool_vars.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for var in &bool_vars {
+        let pattern = format!("{}.as_bool()", var);
+        if result.contains(&pattern) {
+            result = result.replace(&pattern, var);
         }
     }
     result
