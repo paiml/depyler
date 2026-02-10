@@ -7222,9 +7222,13 @@ fn generate_rust_file_internal(
     // When a function takes &str params and returns String, bare param returns need .to_string().
     formatted_code = fix_str_param_return_as_string(&formatted_code);
 
-    // DEPYLER-99MODE-S9: Fix bool.as_bool() method call (E0599).
-    // When DepylerValue.as_bool() is called on a variable that's already bool type.
+    // DEPYLER-99MODE-S9: Fix bool.as_bool() and bool.unwrap_or_default() (E0599).
+    // When DepylerValue methods are called on a variable that's already bool type.
     formatted_code = fix_as_bool_on_bool(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix bare `Range` type annotation → `PyRange` (E0425).
+    // The transpiler generates PyRange struct but uses `Range` as type annotation.
+    formatted_code = fix_range_type_annotation(&formatted_code);
 
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
@@ -11690,11 +11694,13 @@ fn fix_str_param_return_as_string(code: &str) -> String {
     }
 }
 
-/// DEPYLER-99MODE-S9: Fix `bool_var.as_bool()` (E0599).
-/// When a variable is known to be `bool` type, `.as_bool()` is invalid.
-/// Remove the method call since the variable is already bool.
+/// DEPYLER-99MODE-S9: Fix `bool_var.as_bool()` and `bool_var.unwrap_or_default()` (E0599).
+/// When a variable is known to be `bool` type, DepylerValue methods are invalid.
+/// Remove the method call since the variable is already the correct type.
 fn fix_as_bool_on_bool(code: &str) -> String {
-    if !code.contains(".as_bool()") {
+    let has_as_bool = code.contains(".as_bool()");
+    let has_unwrap = code.contains(".unwrap_or_default()");
+    if !has_as_bool && !has_unwrap {
         return code.to_string();
     }
     let bool_vars = extract_bool_typed_vars(code);
@@ -11703,11 +11709,34 @@ fn fix_as_bool_on_bool(code: &str) -> String {
     }
     let mut result = code.to_string();
     for var in &bool_vars {
-        let pattern = format!("{}.as_bool()", var);
-        if result.contains(&pattern) {
-            result = result.replace(&pattern, var);
+        if has_as_bool {
+            let pattern = format!("{}.as_bool()", var);
+            if result.contains(&pattern) {
+                result = result.replace(&pattern, var);
+            }
+        }
+        if has_unwrap {
+            let pattern = format!("{}.unwrap_or_default()", var);
+            if result.contains(&pattern) {
+                result = result.replace(&pattern, var);
+            }
         }
     }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix bare `Range` type annotation → `PyRange` (E0425).
+/// The transpiler generates `struct PyRange` but uses `Range` as type annotation.
+fn fix_range_type_annotation(code: &str) -> String {
+    if !code.contains("struct PyRange") || !code.contains(": Range") {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    // Replace ": Range " and ": Range=" type annotations
+    result = result.replace(": Range =", ": PyRange =");
+    result = result.replace(": Range;", ": PyRange;");
+    // Handle "let r: Range = " (with space after)
+    result = result.replace(": Range =", ": PyRange =");
     result
 }
 
