@@ -7206,6 +7206,18 @@ fn generate_rust_file_internal(
     // Pattern: `DepylerRegexMatch::new(x.to_string(), ...)` → `...::new(&x.to_string(), ...)`
     formatted_code = fix_regex_match_string_arg(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix `format!(...).expect(...)` on String (E0599).
+    // format! returns String which has no .expect() method. Remove the spurious .expect() call.
+    formatted_code = fix_format_expect(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix `(*pos).expect(...)` on non-Option types (E0614).
+    // When a numeric param is dereferenced and .expect() called, it's a spurious unwrap.
+    formatted_code = fix_deref_expect_on_primitive(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix `self.day.to_string()` in DepylerDate::new() (E0308).
+    // When u32 field has spurious .to_string() but callee expects u32.
+    formatted_code = fix_spurious_to_string_in_numeric_call(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -11364,6 +11376,222 @@ fn find_balanced_comma(s: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// DEPYLER-99MODE-S9: Fix `format!(...).expect(...)` on String (E0599).
+/// format! returns String, not Result, so .expect() is invalid.
+/// Handles both single-line and multi-line patterns where .expect is on the next line.
+/// Only matches when the closing `)` before `.expect(` balances with the `format!(` opening.
+fn fix_format_expect(code: &str) -> String {
+    if !code.contains("format!") || !code.contains(".expect(") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        // Check for multi-line: format!(...)\n        .expect("...")
+        // Only match when the line's balanced parens indicate the final `)` closes `format!(`
+        if i + 1 < lines.len() {
+            let cur = lines[i];
+            let next = lines[i + 1];
+            let next_trimmed = next.trim();
+
+            if next_trimmed.starts_with(".expect(") {
+                // Check if current line has format!( where the final ) closes it
+                if let Some(fmt_pos) = cur.find("format!(") {
+                    let after_format = &cur[fmt_pos + 7..]; // after "format!"
+                    // Count parens from "format!(" onwards - if balanced, the ) closes format!
+                    let paren_balance: i32 = after_format
+                        .chars()
+                        .fold(0, |acc, c| match c {
+                            '(' => acc + 1,
+                            ')' => acc - 1,
+                            _ => acc,
+                        });
+                    // Only match when parens are balanced (the last ) closes the format! open paren)
+                    if paren_balance == 0 && cur.trim_end().ends_with(')') {
+                        let cur_trimmed = cur.trim_end();
+                        let expect_rest = &next_trimmed[8..]; // skip .expect(
+                        if let Some(close) = find_matching_paren(expect_rest) {
+                            let after_expect = expect_rest[close + 1..].trim();
+                            result.push(format!("{}{}", cur_trimmed, after_expect));
+                            i += 2;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Single-line: format!(...).expect("...")
+        // Only match when the ) before .expect( closes the format!( paren
+        let line = lines[i];
+        if line.contains("format!(") && line.contains(").expect(") {
+            if let Some(fmt_pos) = line.find("format!(") {
+                // Find the matching close paren for format!(
+                let after_fmt_open = &line[fmt_pos + 8..]; // after "format!("
+                if let Some(close_idx) = find_matching_paren(after_fmt_open) {
+                    let abs_close = fmt_pos + 8 + close_idx;
+                    // Check if .expect( immediately follows
+                    let after_close = &line[abs_close + 1..];
+                    if after_close.starts_with(".expect(") {
+                        let in_expect = &after_close[8..]; // skip .expect(
+                        if let Some(exp_close) = find_matching_paren(in_expect) {
+                            let rest = &in_expect[exp_close + 1..];
+                            result.push(format!("{}{}", &line[..abs_close + 1], rest));
+                            i += 1;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        result.push(line.to_string());
+        i += 1;
+    }
+
+    let joined = result.join("\n");
+    if code.ends_with('\n') {
+        joined + "\n"
+    } else {
+        joined
+    }
+}
+
+/// Find the matching closing paren in a string starting after an open paren.
+fn find_matching_paren(s: &str) -> Option<usize> {
+    let mut depth = 1;
+    let mut in_string = false;
+    let mut escape_next = false;
+    for (i, c) in s.char_indices() {
+        if escape_next {
+            escape_next = false;
+            continue;
+        }
+        if c == '\\' {
+            escape_next = true;
+            continue;
+        }
+        if c == '"' {
+            in_string = !in_string;
+            continue;
+        }
+        if in_string {
+            continue;
+        }
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// DEPYLER-99MODE-S9: Fix `(*pos).expect(...)` on non-Option/non-Result types (E0614).
+/// When a numeric param (i32, f64, usize) is passed as pos, the transpiler
+/// generates `(*pos).expect("...")` which tries to deref and unwrap a plain number.
+fn fix_deref_expect_on_primitive(code: &str) -> String {
+    if !code.contains("(*") || !code.contains(".expect(") {
+        return code.to_string();
+    }
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let mut fixed_line = line.to_string();
+        // Match pattern: (*var).expect("...")
+        // Replace with just: var
+        while let Some(star_pos) = fixed_line.find("(*") {
+            let after_star = &fixed_line[star_pos + 2..];
+            // Find the closing paren of (*var)
+            if let Some(close_paren) = after_star.find(')') {
+                let var_name = &after_star[..close_paren];
+                // Only fix simple variable names (no dots, no complex expressions)
+                if var_name
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_')
+                    && !var_name.is_empty()
+                {
+                    let after_close = &after_star[close_paren + 1..];
+                    if after_close.starts_with(".expect(") {
+                        // Find the end of .expect("...")
+                        let expect_content = &after_close[8..]; // skip .expect(
+                        if let Some(end) = find_matching_paren(expect_content) {
+                            let rest = &expect_content[end + 1..];
+                            fixed_line = format!(
+                                "{}{}{}",
+                                &fixed_line[..star_pos],
+                                var_name,
+                                rest
+                            );
+                            continue; // Check for more patterns in same line
+                        }
+                    }
+                }
+            }
+            break; // No more patterns or couldn't fix
+        }
+        result.push_str(&fixed_line);
+        result.push('\n');
+    }
+    if !code.ends_with('\n') {
+        result.truncate(result.len().saturating_sub(1));
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `self.field.to_string()` passed where u32/i32 expected (E0308).
+/// When a numeric struct field (day, month, year, etc.) has spurious .to_string(),
+/// remove it since the callee expects the numeric type.
+fn fix_spurious_to_string_in_numeric_call(code: &str) -> String {
+    if !code.contains(".to_string()") {
+        return code.to_string();
+    }
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: DepylerDate::new(self.year, self.month, self.day.to_string())
+        // Also match partial: self.day.to_string()
+        if trimmed.contains("::new(") && trimmed.contains(".to_string()") {
+            // Check if this is a call where numeric fields have .to_string()
+            let fixed = fix_numeric_field_to_string(line);
+            result.push_str(&fixed);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    if !code.ends_with('\n') {
+        result.truncate(result.len().saturating_sub(1));
+    }
+    result
+}
+
+/// Remove .to_string() from self.field in ::new() calls where the field is numeric.
+fn fix_numeric_field_to_string(line: &str) -> String {
+    // Common numeric field names in struct constructors
+    let numeric_fields = [
+        "self.day", "self.month", "self.year", "self.hour", "self.minute",
+        "self.second", "self.width", "self.height", "self.x", "self.y",
+        "self.index", "self.count", "self.size", "self.length", "self.age",
+        "self.port", "self.timeout", "self.max_size", "self.min_size",
+        "self.capacity", "self.priority", "self.weight", "self.score",
+    ];
+    let mut result = line.to_string();
+    for field in &numeric_fields {
+        let pattern = format!("{}.to_string()", field);
+        if result.contains(&pattern) {
+            result = result.replace(&pattern, field);
+        }
+    }
+    result
 }
 
 #[cfg(test)]

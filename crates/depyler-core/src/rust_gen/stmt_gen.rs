@@ -267,8 +267,8 @@ pub(crate) fn codegen_assert_stmt(
     if let HirExpr::Binary { op, left, right } = test {
         match op {
             BinOp::Eq => {
-                let left_expr = left.to_rust_expr(ctx)?;
-                let right_expr = right.to_rust_expr(ctx)?;
+                let left_expr = unwrap_result_in_assert(left, ctx)?;
+                let right_expr = unwrap_result_in_assert(right, ctx)?;
                 if let Some(message_expr) = msg {
                     let msg_tokens = message_expr.to_rust_expr(ctx)?;
                     return Ok(quote! { assert_eq!(#left_expr, #right_expr, "{}", #msg_tokens); });
@@ -277,8 +277,8 @@ pub(crate) fn codegen_assert_stmt(
                 }
             }
             BinOp::NotEq => {
-                let left_expr = left.to_rust_expr(ctx)?;
-                let right_expr = right.to_rust_expr(ctx)?;
+                let left_expr = unwrap_result_in_assert(left, ctx)?;
+                let right_expr = unwrap_result_in_assert(right, ctx)?;
                 if let Some(message_expr) = msg {
                     let msg_tokens = message_expr.to_rust_expr(ctx)?;
                     return Ok(quote! { assert_ne!(#left_expr, #right_expr, "{}", #msg_tokens); });
@@ -297,6 +297,21 @@ pub(crate) fn codegen_assert_stmt(
         Ok(quote! { assert!(#test_expr, "{}", #msg_tokens); })
     } else {
         Ok(quote! { assert!(#test_expr); })
+    }
+}
+
+/// DEPYLER-99MODE-S9: Unwrap Result-returning function calls in assert_eq!/assert_ne!.
+/// If `expr` is a call to a function known to return Result, generate `func(args).unwrap()`
+/// instead of bare `func(args)` so assert_eq! can compare inner values.
+fn unwrap_result_in_assert(
+    expr: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Expr> {
+    let rust_expr = expr.to_rust_expr(ctx)?;
+    if is_call_to_result_returning_fn(expr, ctx) {
+        Ok(syn::parse_quote! { #rust_expr.unwrap() })
+    } else {
+        Ok(rust_expr)
     }
 }
 
