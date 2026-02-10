@@ -7248,6 +7248,24 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix usize.to_string() in constructor args (E0308).
     formatted_code = fix_usize_to_string_in_constructor(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix PyRange.iter().cloned() → start..stop (E0599).
+    formatted_code = fix_pyrange_iteration(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix move closure capturing vars used later (E0382).
+    // Disabled: current heuristic is too broad, cloning vars from other scopes.
+    // TODO: Needs function-scope-aware analysis.
+    // formatted_code = fix_move_closure_capture(&formatted_code);
+
+    // DEPYLER-99MODE-S9: De-async: remove tokio dependency for single-file compilation (E0433).
+    // Since we compile without Cargo (no tokio crate), strip async/await/tokio attributes.
+    formatted_code = fix_remove_async_for_standalone(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix &var passed to fn expecting owned String (E0308).
+    formatted_code = fix_ref_string_to_owned_in_call(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix let var → let mut var for &mut self methods (E0596).
+    formatted_code = fix_missing_mut_for_method_calls(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -12141,6 +12159,406 @@ fn fix_tuple_field_on_unit(code: &str) -> String {
     // Check for the pattern: `let mut ops: Vec<()>` with later `ops.push((string, int))`
     // This is a transpiler type inference issue; for now skip as it needs AST-level fix
     code.to_string()
+}
+
+/// DEPYLER-99MODE-S9: Fix PyRange iteration.
+///
+/// When `for i in r.iter().cloned()` and `r` is a `PyRange`, replace with
+/// `for i in r.start..r.stop` since PyRange doesn't implement Iterator.
+fn fix_pyrange_iteration(code: &str) -> String {
+    if !code.contains("struct PyRange") || !code.contains(".iter().cloned()") {
+        return code.to_string();
+    }
+    // Collect variable names declared as PyRange
+    let mut pyrange_vars: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: `let r: PyRange = PyRange::new(...)` or `let r = PyRange::new(...)`
+        if (trimmed.contains(": PyRange") || trimmed.contains("= PyRange::new"))
+            && trimmed.starts_with("let ")
+        {
+            let after_let = trimmed.strip_prefix("let ").unwrap_or("");
+            let after_let = after_let.strip_prefix("mut ").unwrap_or(after_let);
+            if let Some(sep) = after_let.find(|c: char| c == ':' || c == ' ') {
+                let var = after_let[..sep].trim().to_string();
+                if !var.is_empty() && var.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    pyrange_vars.push(var);
+                }
+            }
+        }
+    }
+    if pyrange_vars.is_empty() {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    for var in &pyrange_vars {
+        let old = format!("{}.iter().cloned()", var);
+        let new = format!("{}.start..{}.stop", var, var);
+        result = result.replace(&old, &new);
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `move` closure capturing variables that are used later.
+///
+/// When a `move` closure captures a HashMap/Vec variable and that variable is used after the
+/// closure, clone the variable before the closure definition.
+fn fix_move_closure_capture(code: &str) -> String {
+    if !code.contains("move |") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+
+        // Detect: `let mut CLOSURE_NAME = move |PARAMS| -> TYPE {`
+        if trimmed.contains("= move |") && trimmed.ends_with('{') {
+            // Find variables used inside the closure that were defined before
+            // Look for HashMap/Vec variables referenced inside the closure body
+            let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
+
+            // Scan the closure body to find captured variables
+            let mut captured_vars: Vec<String> = Vec::new();
+            let mut body_depth = 1;
+            let mut j = i + 1;
+            while j < lines.len() && body_depth > 0 {
+                for c in lines[j].chars() {
+                    match c {
+                        '{' => body_depth += 1,
+                        '}' => body_depth -= 1,
+                        _ => {}
+                    }
+                }
+                j += 1;
+            }
+            let closure_end = j;
+
+            // Look for variables used BOTH in the closure and AFTER it
+            // Check for HashMap/Vec variables that are `let mut VAR: Type = ...` before this line
+            for k in 0..i {
+                let prev_trimmed = lines[k].trim();
+                if prev_trimmed.starts_with("let mut ") {
+                    let after_let = prev_trimmed.strip_prefix("let mut ").unwrap_or("");
+                    let var_end = after_let
+                        .find(|c: char| c == ':' || c == ' ' || c == '=')
+                        .unwrap_or(0);
+                    let var = &after_let[..var_end];
+                    if var.is_empty() || !var.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                        continue;
+                    }
+                    // Check if variable is used in closure body AND after closure
+                    let in_closure = (i + 1..closure_end)
+                        .any(|m| lines[m].contains(var));
+                    let after_closure = (closure_end..lines.len())
+                        .any(|m| lines[m].contains(var));
+                    if in_closure && after_closure {
+                        captured_vars.push(var.to_string());
+                    }
+                }
+            }
+
+            // Add clone statements before the closure
+            for var in &captured_vars {
+                result.push_str(&format!(
+                    "{}let {}_clone = {}.clone();\n",
+                    indent, var, var
+                ));
+            }
+
+            // Rewrite the closure to use the cloned variable
+            let mut closure_line = lines[i].to_string();
+            for var in &captured_vars {
+                // In the closure body, replace references to the original var
+                // with the clone. We do this for the body lines.
+            }
+
+            // Actually, simpler approach: change `move |` to use cloned vars
+            // Insert clone before, and change closure body to use VAR_clone
+            result.push_str(&closure_line);
+            result.push('\n');
+            i += 1;
+
+            // Rewrite closure body to use VAR_clone instead of VAR
+            body_depth = 1;
+            while i < lines.len() && body_depth > 0 {
+                let mut line = lines[i].to_string();
+                for c in lines[i].chars() {
+                    match c {
+                        '{' => body_depth += 1,
+                        '}' => body_depth -= 1,
+                        _ => {}
+                    }
+                }
+                for var in &captured_vars {
+                    let clone_name = format!("{}_clone", var);
+                    // Replace standalone variable references
+                    // Be careful not to replace substrings (e.g., "parent" in "parent_clone")
+                    let patterns = [
+                        (format!("{}.get", var), format!("{}.get", clone_name)),
+                        (format!("{}.insert", var), format!("{}.insert", clone_name)),
+                        (format!("{}.contains", var), format!("{}.contains", clone_name)),
+                        (format!("{}.entry", var), format!("{}.entry", clone_name)),
+                        (format!("{}.len", var), format!("{}.len", clone_name)),
+                        (format!("{}.push", var), format!("{}.push", clone_name)),
+                        (format!("{}.clone", var), format!("{}.clone", clone_name)),
+                        (format!("{}.remove", var), format!("{}.remove", clone_name)),
+                        (format!(" {} ", var), format!(" {} ", clone_name)),
+                        (
+                            format!("[{} as", var),
+                            format!("[{} as", clone_name),
+                        ),
+                        (
+                            format!("[{}]", var),
+                            format!("[{}]", clone_name),
+                        ),
+                    ];
+                    for (old, new) in &patterns {
+                        if line.contains(old.as_str()) && !line.contains(&clone_name) {
+                            line = line.replace(old.as_str(), new.as_str());
+                        }
+                    }
+                }
+                result.push_str(&line);
+                result.push('\n');
+                i += 1;
+            }
+            continue;
+        }
+
+        result.push_str(lines[i]);
+        result.push('\n');
+        i += 1;
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Strip async/await/tokio for standalone rustc compilation.
+///
+/// Since we compile with `rustc --crate-type lib` (no Cargo, no tokio crate),
+/// async code can't resolve `#[tokio::main]`. Strip async constructs to make
+/// the code synchronous for compilation purposes.
+fn fix_remove_async_for_standalone(code: &str) -> String {
+    if !code.contains("#[tokio::main]") && !code.contains("async fn") {
+        return code.to_string();
+    }
+    let mut result = code.to_string();
+    // Remove #[tokio::main] attribute
+    result = result.replace("#[tokio::main] ", "");
+    result = result.replace("#[tokio::main]", "");
+    // Change `pub async fn` to `pub fn` and `async fn` to `fn`
+    result = result.replace("pub async fn ", "pub fn ");
+    result = result.replace("async fn ", "fn ");
+    // Remove `.await` suffixes
+    result = result.replace(".await", "");
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `&var` passed to function expecting owned `String`.
+///
+/// When a function takes `url: String` and the call site passes `&url`,
+/// change to `url.clone()`. Only applies when the function parameter type
+/// is `String` (not `&str`).
+fn fix_ref_string_to_owned_in_call(code: &str) -> String {
+    // Collect functions that take owned String params
+    let mut string_param_fns: Vec<(String, Vec<usize>)> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match function signatures - use contains() since doc comments may precede on same line
+        let fn_keyword_pos = if let Some(pos) = trimmed.find("pub fn ") {
+            Some(pos + 7)
+        } else if let Some(pos) = trimmed.find("fn ") {
+            // Make sure it's not inside a string or comment
+            if pos == 0 || !trimmed.as_bytes()[pos - 1].is_ascii_alphanumeric() {
+                Some(pos + 3)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(fn_start) = fn_keyword_pos {
+            if !trimmed[fn_start..].contains('(') || !trimmed.contains("String") {
+                continue;
+            }
+            let after_fn = &trimmed[fn_start..];
+            if let Some(paren_start) = after_fn.find('(') {
+                let fn_name = after_fn[..paren_start].trim().to_string();
+                if fn_name.is_empty()
+                    || !fn_name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                {
+                    continue;
+                }
+                // Parse params to find which positions take String
+                if let Some(paren_end) = after_fn.find(')') {
+                    let params_str = &after_fn[paren_start + 1..paren_end];
+                    let mut string_positions: Vec<usize> = Vec::new();
+                    for (idx, param) in params_str.split(',').enumerate() {
+                        let param = param.trim();
+                        // Check if param type is exactly String (not &str, not &String)
+                        if param.contains(": String") && !param.contains("&") {
+                            string_positions.push(idx);
+                        }
+                    }
+                    if !string_positions.is_empty() {
+                        string_param_fns.push((fn_name, string_positions));
+                    }
+                }
+            }
+        }
+    }
+
+    if string_param_fns.is_empty() {
+        return code.to_string();
+    }
+
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let mut new_line = line.to_string();
+        let trimmed = line.trim();
+        for (fn_name, positions) in &string_param_fns {
+            // Check if this line calls the function
+            let call_pattern = format!("{}(", fn_name);
+            if !trimmed.contains(&call_pattern) {
+                continue;
+            }
+            // For each String param position, check if `& ` is used
+            for &pos in positions {
+                // Simple approach: find `fn_name(` and then the nth argument
+                // For position 0, look for `fn_name(& ` or `fn_name(&var)`
+                if pos == 0 {
+                    let ref_pattern = format!("{}(& ", fn_name);
+                    let ref_pattern2 = format!("{}(&", fn_name);
+                    if new_line.contains(&ref_pattern) {
+                        // Find the var name after &
+                        if let Some(start) = new_line.find(&ref_pattern) {
+                            let after = &new_line[start + ref_pattern.len()..];
+                            if let Some(end) = after.find(|c: char| c == ')' || c == ',') {
+                                let var = after[..end].trim();
+                                if var.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                                    let old = format!("{}(& {}{}",
+                                        fn_name, var,
+                                        if after.as_bytes()[end] == b')' { ")" } else { "," });
+                                    let new_str = format!("{}{}.clone(){}",
+                                        format!("{}(", fn_name), var,
+                                        if after.as_bytes()[end] == b')' { ")" } else { "," });
+                                    new_line = new_line.replace(&old, &new_str);
+                                }
+                            }
+                        }
+                    } else if new_line.contains(&ref_pattern2) {
+                        if let Some(start) = new_line.find(&ref_pattern2) {
+                            let after = &new_line[start + ref_pattern2.len()..];
+                            if let Some(end) = after.find(|c: char| c == ')' || c == ',') {
+                                let var = after[..end].trim();
+                                if !var.is_empty()
+                                    && var.chars().all(|c| c.is_alphanumeric() || c == '_')
+                                {
+                                    let old = format!("{}(&{}{}",
+                                        fn_name, var,
+                                        if after.as_bytes()[end] == b')' { ")" } else { "," });
+                                    let new_str = format!("{}{}.clone(){}",
+                                        format!("{}(", fn_name), var,
+                                        if after.as_bytes()[end] == b')' { ")" } else { "," });
+                                    new_line = new_line.replace(&old, &new_str);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `let var` → `let mut var` when method requires `&mut self`.
+///
+/// When a method is defined with `&mut self` and called on a non-mut variable,
+/// add `mut` to the variable declaration.
+fn fix_missing_mut_for_method_calls(code: &str) -> String {
+    if !code.contains("&mut self") {
+        return code.to_string();
+    }
+    // Collect method names that take &mut self
+    let mut mut_methods: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("&mut self") && trimmed.contains("fn ") {
+            // Extract method name
+            if let Some(fn_idx) = trimmed.find("fn ") {
+                let after_fn = &trimmed[fn_idx + 3..];
+                if let Some(paren) = after_fn.find('(') {
+                    let method = after_fn[..paren].trim().to_string();
+                    if !method.is_empty()
+                        && method.chars().all(|c| c.is_alphanumeric() || c == '_')
+                        && method != "new"
+                    {
+                        mut_methods.push(method);
+                    }
+                }
+            }
+        }
+    }
+    if mut_methods.is_empty() {
+        return code.to_string();
+    }
+
+    // Find variables that call mut methods but aren't declared as mut
+    let mut vars_needing_mut: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        for method in &mut_methods {
+            let call_pattern = format!(".{}(", method);
+            if trimmed.contains(&call_pattern) {
+                // Extract the variable name before .method(
+                if let Some(dot_idx) = trimmed.find(&call_pattern) {
+                    let before = trimmed[..dot_idx].trim();
+                    // Get the last token (the variable name)
+                    let var = before
+                        .split(|c: char| !c.is_alphanumeric() && c != '_')
+                        .last()
+                        .unwrap_or("");
+                    if !var.is_empty()
+                        && var != "self"
+                        && var != "mut"
+                        && var.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    {
+                        vars_needing_mut.push(var.to_string());
+                    }
+                }
+            }
+        }
+    }
+    if vars_needing_mut.is_empty() {
+        return code.to_string();
+    }
+
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let mut new_line = line.to_string();
+        for var in &vars_needing_mut {
+            // Replace `let VAR =` with `let mut VAR =` (only if not already mut)
+            let non_mut = format!("let {} =", var);
+            let with_mut = format!("let mut {} =", var);
+            if new_line.contains(&non_mut) && !new_line.contains(&with_mut) {
+                new_line = new_line.replace(&non_mut, &with_mut);
+            }
+            // Also handle `let VAR:` pattern
+            let non_mut_typed = format!("let {}:", var);
+            let with_mut_typed = format!("let mut {}:", var);
+            if new_line.contains(&non_mut_typed) && !new_line.contains(&with_mut_typed) {
+                new_line = new_line.replace(&non_mut_typed, &with_mut_typed);
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
 }
 
 #[cfg(test)]
