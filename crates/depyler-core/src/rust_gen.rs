@@ -7332,6 +7332,9 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix dequeue()/pop_front() Option unwrap (E0308).
     formatted_code = fix_option_dequeue_unwrap(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix Option<HashMap>.contains_key() (E0599).
+    formatted_code = fix_option_hashmap_contains_key(&formatted_code);
+
     // DEPYLER-99MODE-S9: Fix char.as_str() → char.to_string() (E0599).
     formatted_code = fix_char_as_str(&formatted_code);
 
@@ -13874,6 +13877,70 @@ fn fix_option_dequeue_unwrap(code: &str) -> String {
                 }
             }
             result.push_str(&new_line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `Option<HashMap>.contains_key()` → unwrap first (E0599).
+///
+/// When a variable is `Option<HashMap>` and `.contains_key()` is called on it,
+/// we need to unwrap: `memo.as_ref().map_or(false, |m| m.contains_key(&key))`
+fn fix_option_hashmap_contains_key(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut option_hashmap_vars: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Track Option<HashMap> vars
+        if trimmed.contains("Option<") && trimmed.contains("HashMap<") {
+            if let Some(colon_pos) = trimmed.find(':') {
+                let before = trimmed[..colon_pos].trim();
+                let name = before
+                    .strip_prefix("let ")
+                    .unwrap_or(before)
+                    .trim()
+                    .trim_start_matches("mut ")
+                    .trim();
+                if !name.is_empty()
+                    && name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    && !name.starts_with("pub ")
+                    && !name.starts_with("fn ")
+                {
+                    option_hashmap_vars.push(name.to_string());
+                }
+            }
+        }
+        // Fix: memo.contains_key(&key) → memo.as_ref().map_or(false, |m| m.contains_key(&key))
+        let mut new_line = line.to_string();
+        let mut modified = false;
+        for var in &option_hashmap_vars {
+            let pat = format!("{}.contains_key(", var);
+            if new_line.contains(&pat) {
+                if let Some(start) = new_line.find(&pat) {
+                    let after = &new_line[start + pat.len()..];
+                    if let Some(close) = after.find(')') {
+                        let key_arg = &after[..close]; // e.g., "&n"
+                        let replacement = format!(
+                            "{}.as_ref().map_or(false, |_ohm| _ohm.contains_key({}))",
+                            var, key_arg
+                        );
+                        let end_pos = start + pat.len() + close + 1;
+                        new_line = format!(
+                            "{}{}{}",
+                            &new_line[..start],
+                            replacement,
+                            &new_line[end_pos..]
+                        );
+                        modified = true;
+                    }
+                }
+            }
+        }
+        if modified {
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
         }
         result.push('\n');
     }
