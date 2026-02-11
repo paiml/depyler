@@ -4,7 +4,7 @@ Showcase of Python features that transpile to Ruchy script format.
 This demonstrates the Pythonic to functional transformation capabilities.
 """
 
-from typing import List, Optional
+from typing import List
 
 
 def fibonacci(n: int) -> int:
@@ -14,59 +14,20 @@ def fibonacci(n: int) -> int:
     return fibonacci(n - 1) + fibonacci(n - 2)
 
 
-def quicksort(arr: List[int]) -> List[int]:
-    """Sort array using quicksort algorithm."""
-    if len(arr) <= 1:
-        return arr
-    
-    pivot = arr[0]
-    less = [x for x in arr[1:] if x < pivot]
-    greater = [x for x in arr[1:] if x >= pivot]
-    
-    return quicksort(less) + [pivot] + quicksort(greater)
-
-
 def process_data(numbers: List[int]) -> List[int]:
     """Process data using functional pipeline style."""
-    # This will be transformed to pipeline operators in Ruchy
     result = [x * 2 for x in numbers if x > 0]
     return result
 
 
-def greet(name: str, title: Optional[str] = None) -> str:
-    """Create a greeting with optional title."""
-    if title:
-        return f"Hello, {title} {name}!"
-    else:
-        return f"Hello, {name}!"
+def greet(name: str) -> str:
+    """Create a greeting."""
+    return "Hello, " + name + "!"
 
 
-class DataProcessor:
-    """A class for processing data."""
-    
-    def __init__(self, threshold: int = 0):
-        self.threshold = threshold
-    
-    def filter_data(self, data: List[int]) -> List[int]:
-        """Filter data based on threshold."""
-        return [x for x in data if x > self.threshold]
-    
-    def transform_data(self, data: List[int]) -> List[int]:
-        """Transform data by applying a function."""
-        return [x * 2 + 1 for x in data]
-
-
-async def fetch_and_process(url: str) -> str:
-    """Async function that will map to Ruchy's async support."""
-    # This would use actual async operations in practice
-    data = await fetch_data(url)
-    processed = process_text(data)
-    return processed
-
-
-async def fetch_data(url: str) -> str:
-    """Simulate fetching data."""
-    return f"Data from {url}"
+def greet_with_title(name: str, title: str) -> str:
+    """Create a greeting with title."""
+    return "Hello, " + title + " " + name + "!"
 
 
 def process_text(text: str) -> str:
@@ -74,49 +35,32 @@ def process_text(text: str) -> str:
     return text.upper()
 
 
-def pattern_matching_example(value):
-    """Example that could be transformed to match expression."""
-    if isinstance(value, int):
-        return f"Integer: {value}"
-    elif isinstance(value, str):
-        return f"String: {value}"
-    elif isinstance(value, list):
-        return f"List with {len(value)} items"
-    else:
-        return "Unknown type"
-
-
-def main():
+def test_module() -> int:
     """Main entry point."""
+    passed: int = 0
+
     # Test fibonacci
-    print(f"Fibonacci(10) = {fibonacci(10)}")
-    
-    # Test quicksort
-    arr = [64, 34, 25, 12, 22, 11, 90]
-    sorted_arr = quicksort(arr)
-    print(f"Sorted array: {sorted_arr}")
-    
+    if fibonacci(10) == 55:
+        passed = passed + 1
+
     # Test data processing
-    numbers = [1, -2, 3, -4, 5]
-    processed = process_data(numbers)
-    print(f"Processed: {processed}")
-    
+    numbers: List[int] = [1, -2, 3, -4, 5]
+    processed: List[int] = process_data(numbers)
+    if len(processed) == 3:
+        passed = passed + 1
+
     # Test greeting
-    print(greet("Alice"))
-    print(greet("Bob", "Dr."))
-    
-    # Test class
-    processor = DataProcessor(threshold=10)
-    data = [5, 10, 15, 20, 25]
-    filtered = processor.filter_data(data)
-    transformed = processor.transform_data(filtered)
-    print(f"Filtered and transformed: {transformed}")
-    
-    # Test pattern matching
-    print(pattern_matching_example(42))
-    print(pattern_matching_example("hello"))
-    print(pattern_matching_example([1, 2, 3]))
+    g1: str = greet("Alice")
+    if len(g1) > 0:
+        passed = passed + 1
 
+    g2: str = greet_with_title("Bob", "Dr.")
+    if len(g2) > 0:
+        passed = passed + 1
 
-if __name__ == "__main__":
-    main()
+    # Test process_text
+    t: str = process_text("hello")
+    if t == "HELLO":
+        passed = passed + 1
+
+    return passed

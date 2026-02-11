@@ -48,7 +48,8 @@ def eval_postfix(tokens: list[str]) -> int:
     while idx < length:
         token: str = tokens[idx]
         if is_digit_string(token) == 1:
-            stack.append(parse_int_simple(token))
+            val: int = parse_int_simple(token)
+            stack.append(val)
         else:
             stack_len: int = len(stack)
             b_pos: int = stack_len - 1

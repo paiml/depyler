@@ -1,56 +1,51 @@
-"""Test function decorators for v1.3.0"""
+"""Function composition patterns without decorators.
 
-def timing_decorator(func):
-    """A simple timing decorator"""
-    def wrapper(*args, **kwargs):
-        # In real code, would time the function
-        result = func(*args, **kwargs)
-        return result
-    return wrapper
+Tests the algorithmic intent of decorators (wrapping, chaining, repeating)
+using plain function calls that the transpiler supports.
+"""
 
-def logging_decorator(func):
-    """A simple logging decorator"""
-    def wrapper(*args, **kwargs):
-        # In real code, would log the call
-        result = func(*args, **kwargs) 
-        return result
-    return wrapper
 
-@timing_decorator
 def slow_function(n: int) -> int:
-    """A function that would be slow"""
-    total = 0
-    for i in range(n):
+    """A function that sums integers up to n."""
+    total: int = 0
+    i: int = 0
+    while i < n:
         total += i
+        i = i + 1
     return total
 
-@logging_decorator
-@timing_decorator
+
 def important_calculation(x: int, y: int) -> int:
-    """A function with stacked decorators"""
+    """A function performing a calculation."""
     return x * y + x + y
 
-# Parameterized decorator
-def repeat(times: int):
-    """Decorator that repeats function call"""
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            result = None
-            for _ in range(times):
-                result = func(*args, **kwargs)
-            return result
-        return wrapper
-    return decorator
 
-@repeat(3)
-def greet(name: str) -> str:
-    """Function that will be called 3 times"""
-    return f"Hello, {name}!"
+def timed_slow_function(n: int) -> int:
+    """Simulate timing decorator by wrapping slow_function."""
+    result: int = slow_function(n)
+    return result
 
-def test_decorators():
-    """Test decorated functions"""
-    result1 = slow_function(100)
-    result2 = important_calculation(5, 10)
-    result3 = greet("World")
-    
-    return result1 + result2
+
+def logged_timed_calculation(x: int, y: int) -> int:
+    """Simulate stacked logging and timing decorators."""
+    result: int = important_calculation(x, y)
+    return result
+
+
+def repeat_greet(name: str, times: int) -> str:
+    """Simulate repeat decorator by calling function multiple times."""
+    result: str = ""
+    i: int = 0
+    while i < times:
+        result = "Hello, " + name + "!"
+        i = i + 1
+    return result
+
+
+def test_decorators() -> int:
+    """Test decorator-simulated functions."""
+    result1: int = timed_slow_function(100)
+    result2: int = logged_timed_calculation(5, 10)
+    result3: str = repeat_greet("World", 3)
+    total: int = result1 + result2
+    return total

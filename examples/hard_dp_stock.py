@@ -37,15 +37,17 @@ def max_profit_two(prices: list[int]) -> int:
     n: int = len(prices)
     if n < 2:
         return 0
-    buy1: int = -prices[0]
+    first_price: int = prices[0]
+    buy1: int = 0 - first_price
     sell1: int = 0
-    buy2: int = -prices[0]
+    buy2: int = 0 - first_price
     sell2: int = 0
     i: int = 1
     while i < n:
+        neg_pi: int = 0 - prices[i]
         new_buy1: int = buy1
-        if -prices[i] > new_buy1:
-            new_buy1 = -prices[i]
+        if neg_pi > new_buy1:
+            new_buy1 = neg_pi
         new_sell1: int = sell1
         candidate1: int = buy1 + prices[i]
         if candidate1 > new_sell1:
@@ -71,14 +73,16 @@ def max_profit_cooldown(prices: list[int]) -> int:
     n: int = len(prices)
     if n < 2:
         return 0
-    held: int = -prices[0]
+    first_p: int = prices[0]
+    held: int = 0 - first_p
     sold: int = 0
     rest: int = 0
     i: int = 1
     while i < n:
         new_held: int = held
-        if rest - prices[i] > new_held:
-            new_held = rest - prices[i]
+        rest_minus_pi: int = rest - prices[i]
+        if rest_minus_pi > new_held:
+            new_held = rest_minus_pi
         new_sold: int = held + prices[i]
         new_rest: int = rest
         if sold > new_rest:

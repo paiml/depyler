@@ -17,20 +17,24 @@ def bellman_ford(num_nodes: int, edges: list[int], num_edges: int, source: int) 
     while iteration < num_nodes - 1:
         e: int = 0
         while e < num_edges:
-            base: int = e * 3
-            u: int = edges[base]
-            v: int = edges[base + 1]
-            w: int = edges[base + 2]
+            off: int = e * 3
+            off1: int = off + 1
+            off2: int = off + 2
+            u: int = edges[off]
+            v: int = edges[off1]
+            w: int = edges[off2]
             if dist[u] != inf and dist[u] + w < dist[v]:
                 dist[v] = dist[u] + w
             e = e + 1
         iteration = iteration + 1
     e2: int = 0
     while e2 < num_edges:
-        base2: int = e2 * 3
-        u2: int = edges[base2]
-        v2: int = edges[base2 + 1]
-        w2: int = edges[base2 + 2]
+        off3: int = e2 * 3
+        off4: int = off3 + 1
+        off5: int = off3 + 2
+        u2: int = edges[off3]
+        v2: int = edges[off4]
+        w2: int = edges[off5]
         if dist[u2] != inf and dist[u2] + w2 < dist[v2]:
             dist[v2] = -1
         e2 = e2 + 1

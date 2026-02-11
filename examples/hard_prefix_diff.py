@@ -39,10 +39,12 @@ def apply_diff_updates(n: int, updates: list[int], offsets: list[int], num_updat
         j = j + 1
     u: int = 0
     while u < num_updates:
-        base: int = offsets[u]
-        start: int = updates[base]
-        end: int = updates[base + 1]
-        val: int = updates[base + 2]
+        off: int = offsets[u]
+        off1: int = off + 1
+        off2: int = off + 2
+        start: int = updates[off]
+        end: int = updates[off1]
+        val: int = updates[off2]
         diff[start] = diff[start] + val
         if end + 1 <= n:
             diff[end + 1] = diff[end + 1] - val
