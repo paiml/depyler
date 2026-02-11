@@ -15601,15 +15601,29 @@ fn fix_bare_return_in_result_fn(code: &str) -> String {
         return code.to_string();
     }
     // Build set of functions that return Result (to avoid double-wrapping)
+    // Handle multi-line signatures: track last fn name, check continuation lines
     let mut result_fns: HashSet<String> = HashSet::new();
-    for line in code.lines() {
-        let trimmed = line.trim();
-        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
-            && trimmed.contains("-> Result<")
-        {
-            let after_fn = if trimmed.starts_with("pub fn ") { &trimmed[7..] } else { &trimmed[3..] };
-            if let Some(paren_pos) = after_fn.find('(') {
-                result_fns.insert(after_fn[..paren_pos].trim().to_string());
+    {
+        let mut last_fn_name: Option<String> = None;
+        for line in code.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+                let after_fn = if trimmed.starts_with("pub fn ") { &trimmed[7..] } else { &trimmed[3..] };
+                if let Some(paren_pos) = after_fn.find('(') {
+                    let name = after_fn[..paren_pos].trim().to_string();
+                    if trimmed.contains("-> Result<") {
+                        result_fns.insert(name);
+                        last_fn_name = None;
+                    } else {
+                        last_fn_name = Some(name);
+                    }
+                }
+            } else if trimmed.contains("-> Result<") {
+                if let Some(name) = last_fn_name.take() {
+                    result_fns.insert(name);
+                }
+            } else if trimmed.contains('{') || trimmed.is_empty() {
+                last_fn_name = None;
             }
         }
     }
@@ -15620,15 +15634,29 @@ fn fix_bare_return_in_result_fn(code: &str) -> String {
     let mut fn_brace_depth: i32 = 0;
     let mut in_bare_return = false;
     let mut return_paren_depth: i32 = 0;
+    let mut pending_fn_name: Option<String> = None;
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
         let trimmed = line.trim();
-        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
-            && trimmed.contains("-> Result<")
-        {
+        // Detect Result-returning function (single or multi-line signature)
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            if trimmed.contains("-> Result<") {
+                in_result_fn = true;
+                fn_brace_depth = brace_depth;
+                pending_fn_name = None;
+            } else if !trimmed.contains('{') {
+                // Multi-line signature (no { yet, so return type is on next line)
+                pending_fn_name = Some("pending".to_string());
+            } else {
+                pending_fn_name = None;
+            }
+        } else if pending_fn_name.is_some() && trimmed.contains("-> Result<") {
             in_result_fn = true;
             fn_brace_depth = brace_depth;
+            pending_fn_name = None;
+        } else if pending_fn_name.is_some() && trimmed.contains('{') {
+            pending_fn_name = None;
         }
         for ch in trimmed.chars() {
             match ch {
