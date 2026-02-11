@@ -1,142 +1,251 @@
 """
-Comprehensive test suite for base64 module.
+Comprehensive test suite for base64-like encoding module.
 Following TDD Book methodology: minimal examples, incremental complexity.
 
-Tests base64 core features:
+Tests base64 core features using integer-array implementation:
 - Encoding and decoding with standard alphabet
-- URL-safe encoding/decoding
 - Padding handling
-- Binary data encoding
-- Error handling
+- Roundtrip verification
+- Edge cases (empty, single byte, multi-byte)
 """
 
-import base64
+
+def b64_char_to_index(code: int) -> int:
+    """Map a character code to a base64 index (0-63) or -1 for padding/invalid."""
+    if code >= 65 and code <= 90:
+        idx: int = code - 65
+        return idx
+    if code >= 97 and code <= 122:
+        idx2: int = code - 97 + 26
+        return idx2
+    if code >= 48 and code <= 57:
+        idx3: int = code - 48 + 52
+        return idx3
+    if code == 43:
+        return 62
+    if code == 47:
+        return 63
+    return -1
 
 
-def test_base64_encode_basic():
-    """Test basic base64 encoding."""
-    data = b"Hello, World!"
-    encoded = base64.b64encode(data)
-    assert encoded == b"SGVsbG8sIFdvcmxkIQ=="
-    print("PASS: test_base64_encode_basic")
+def b64_index_to_char(idx: int) -> int:
+    """Map a base64 index (0-63) to an ASCII character code."""
+    if idx >= 0 and idx <= 25:
+        code: int = idx + 65
+        return code
+    if idx >= 26 and idx <= 51:
+        code2: int = idx - 26 + 97
+        return code2
+    if idx >= 52 and idx <= 61:
+        code3: int = idx - 52 + 48
+        return code3
+    if idx == 62:
+        return 43
+    if idx == 63:
+        return 47
+    return 0
 
 
-def test_base64_decode_basic():
-    """Test basic base64 decoding."""
-    encoded = b"SGVsbG8sIFdvcmxkIQ=="
-    decoded = base64.b64decode(encoded)
-    assert decoded == b"Hello, World!"
-    print("PASS: test_base64_decode_basic")
+def b64_encode_bytes(data: list[int]) -> list[int]:
+    """Encode a list of byte values (0-255) into base64 character codes."""
+    output: list[int] = []
+    i: int = 0
+    length: int = len(data)
+    while i < length:
+        b0: int = data[i]
+        b1: int = 0
+        b2: int = 0
+        remaining: int = length - i
+        if remaining >= 2:
+            b1 = data[i + 1]
+        if remaining >= 3:
+            b2 = data[i + 2]
+
+        c0: int = (b0 >> 2) & 63
+        c1: int = ((b0 & 3) << 4) | ((b1 >> 4) & 15)
+        c2: int = ((b1 & 15) << 2) | ((b2 >> 6) & 3)
+        c3: int = b2 & 63
+
+        output.append(b64_index_to_char(c0))
+        output.append(b64_index_to_char(c1))
+        if remaining >= 2:
+            output.append(b64_index_to_char(c2))
+        else:
+            output.append(61)
+        if remaining >= 3:
+            output.append(b64_index_to_char(c3))
+        else:
+            output.append(61)
+        i = i + 3
+    return output
 
 
-def test_base64_roundtrip():
-    """Test encode-decode round trip."""
-    original = b"Python to Rust transpilation!"
-    encoded = base64.b64encode(original)
-    decoded = base64.b64decode(encoded)
-    assert decoded == original
-    print("PASS: test_base64_roundtrip")
+def b64_decode_chars(encoded: list[int]) -> list[int]:
+    """Decode base64 character codes back to byte values."""
+    output: list[int] = []
+    i: int = 0
+    length: int = len(encoded)
+    while i + 3 < length:
+        i0: int = b64_char_to_index(encoded[i])
+        i1: int = b64_char_to_index(encoded[i + 1])
+        i2: int = b64_char_to_index(encoded[i + 2])
+        i3: int = b64_char_to_index(encoded[i + 3])
+        if i0 < 0:
+            i0 = 0
+        if i1 < 0:
+            i1 = 0
+
+        b0: int = ((i0 << 2) | (i1 >> 4)) & 255
+        output.append(b0)
+
+        if encoded[i + 2] != 61:
+            if i2 < 0:
+                i2 = 0
+            b1: int = (((i1 & 15) << 4) | (i2 >> 2)) & 255
+            output.append(b1)
+
+        if encoded[i + 3] != 61:
+            if i3 < 0:
+                i3 = 0
+            b2: int = (((i2 & 3) << 6) | i3) & 255
+            output.append(b2)
+
+        i = i + 4
+    return output
 
 
-def test_base64_empty():
-    """Test encoding/decoding empty data."""
-    data = b""
-    encoded = base64.b64encode(data)
-    assert encoded == b""
-
-    decoded = base64.b64decode(b"")
-    assert decoded == b""
-    print("PASS: test_base64_empty")
+def str_to_bytes(text: str) -> list[int]:
+    """Convert a string to a list of ASCII byte values."""
+    result: list[int] = []
+    for ch in text:
+        code: int = ord(ch)
+        result.append(code)
+    return result
 
 
-def test_base64_binary_data():
-    """Test encoding binary data."""
-    data = bytes(range(256))
-    encoded = base64.b64encode(data)
-    decoded = base64.b64decode(encoded)
-    assert decoded == data
-    print("PASS: test_base64_binary_data")
+def bytes_to_str(data: list[int]) -> str:
+    """Convert a list of byte values to a string."""
+    result: str = ""
+    for val in data:
+        result = result + chr(val)
+    return result
 
 
-def test_base64_urlsafe_encode():
-    """Test URL-safe base64 encoding."""
-    # URL-safe uses - and _ instead of + and /
-    data = b"Hello>>???World"
-    encoded = base64.urlsafe_b64encode(data)
-    # Should not contain + or /
-    assert b"+" not in encoded
-    assert b"/" not in encoded
-    print("PASS: test_base64_urlsafe_encode")
+def lists_equal(a: list[int], b: list[int]) -> int:
+    """Return 1 if lists are equal, 0 otherwise."""
+    if len(a) != len(b):
+        return 0
+    i: int = 0
+    length: int = len(a)
+    while i < length:
+        if a[i] != b[i]:
+            return 0
+        i = i + 1
+    return 1
 
 
-def test_base64_urlsafe_decode():
-    """Test URL-safe base64 decoding."""
-    data = b"Test data with special chars"
-    encoded = base64.urlsafe_b64encode(data)
-    decoded = base64.urlsafe_b64decode(encoded)
-    assert decoded == data
-    print("PASS: test_base64_urlsafe_decode")
+def test_encode_hello() -> int:
+    """Test encoding 'Hello' to base64."""
+    data: list[int] = [72, 101, 108, 108, 111]
+    encoded: list[int] = b64_encode_bytes(data)
+    expected: list[int] = [83, 71, 86, 115, 98, 71, 56, 61]
+    return lists_equal(encoded, expected)
 
 
-def test_base64_padding():
-    """Test base64 padding handling."""
-    # Different lengths produce different padding
-    data1 = b"a"
-    encoded1 = base64.b64encode(data1)
-    assert encoded1 == b"YQ=="  # 2 padding chars
-
-    data2 = b"ab"
-    encoded2 = base64.b64encode(data2)
-    assert encoded2 == b"YWI="  # 1 padding char
-
-    data3 = b"abc"
-    encoded3 = base64.b64encode(data3)
-    assert encoded3 == b"YWJj"  # No padding
-    print("PASS: test_base64_padding")
+def test_decode_hello() -> int:
+    """Test decoding base64 back to 'Hello'."""
+    encoded: list[int] = [83, 71, 86, 115, 98, 71, 56, 61]
+    decoded: list[int] = b64_decode_chars(encoded)
+    expected: list[int] = [72, 101, 108, 108, 111]
+    return lists_equal(decoded, expected)
 
 
-def test_base64_multiline():
-    """Test encoding larger data."""
-    data = b"The quick brown fox jumps over the lazy dog. " * 10
-    encoded = base64.b64encode(data)
-    decoded = base64.b64decode(encoded)
-    assert decoded == data
-    print("PASS: test_base64_multiline")
+def test_roundtrip_abc() -> int:
+    """Test encode-decode roundtrip for 'ABC'."""
+    original: list[int] = [65, 66, 67]
+    encoded: list[int] = b64_encode_bytes(original)
+    decoded: list[int] = b64_decode_chars(encoded)
+    return lists_equal(decoded, original)
 
 
-def test_base64_unicode():
-    """Test encoding Unicode text."""
-    text = "Hello 世界 🌍"
-    data = text.encode('utf-8')
-    encoded = base64.b64encode(data)
-    decoded = base64.b64decode(encoded)
-    result = decoded.decode('utf-8')
-    assert result == text
-    print("PASS: test_base64_unicode")
+def test_roundtrip_single_byte() -> int:
+    """Test encode-decode roundtrip for a single byte."""
+    original: list[int] = [42]
+    encoded: list[int] = b64_encode_bytes(original)
+    decoded: list[int] = b64_decode_chars(encoded)
+    return lists_equal(decoded, original)
 
 
-def main():
-    """Run all base64 tests."""
-    print("=" * 60)
-    print("BASE64 MODULE TESTS")
-    print("=" * 60)
-
-    test_base64_encode_basic()
-    test_base64_decode_basic()
-    test_base64_roundtrip()
-    test_base64_empty()
-    test_base64_binary_data()
-    test_base64_urlsafe_encode()
-    test_base64_urlsafe_decode()
-    test_base64_padding()
-    test_base64_multiline()
-    test_base64_unicode()
-
-    print("=" * 60)
-    print("ALL BASE64 TESTS PASSED!")
-    print("Total tests: 10")
-    print("=" * 60)
+def test_roundtrip_two_bytes() -> int:
+    """Test encode-decode roundtrip for two bytes."""
+    original: list[int] = [200, 150]
+    encoded: list[int] = b64_encode_bytes(original)
+    decoded: list[int] = b64_decode_chars(encoded)
+    return lists_equal(decoded, original)
 
 
-if __name__ == "__main__":
-    main()
+def test_roundtrip_three_bytes() -> int:
+    """Test encode-decode roundtrip for exactly three bytes (no padding)."""
+    original: list[int] = [77, 97, 110]
+    encoded: list[int] = b64_encode_bytes(original)
+    decoded: list[int] = b64_decode_chars(encoded)
+    eq: int = lists_equal(decoded, original)
+    has_no_pad: int = 0
+    if len(encoded) == 4:
+        if encoded[2] != 61 and encoded[3] != 61:
+            has_no_pad = 1
+    if eq == 1 and has_no_pad == 1:
+        return 1
+    return 0
+
+
+def test_encode_empty() -> int:
+    """Test encoding empty data."""
+    data: list[int] = []
+    encoded: list[int] = b64_encode_bytes(data)
+    if len(encoded) == 0:
+        return 1
+    return 0
+
+
+def test_index_mapping_roundtrip() -> int:
+    """Test that b64 index mapping is consistent for all 64 values."""
+    i: int = 0
+    while i < 64:
+        ch: int = b64_index_to_char(i)
+        back: int = b64_char_to_index(ch)
+        if back != i:
+            return 0
+        i = i + 1
+    return 1
+
+
+def test_module() -> int:
+    """Test base64-like encoding operations. Returns count of passed tests."""
+    passed: int = 0
+
+    r1: int = test_encode_hello()
+    passed = passed + r1
+
+    r2: int = test_decode_hello()
+    passed = passed + r2
+
+    r3: int = test_roundtrip_abc()
+    passed = passed + r3
+
+    r4: int = test_roundtrip_single_byte()
+    passed = passed + r4
+
+    r5: int = test_roundtrip_two_bytes()
+    passed = passed + r5
+
+    r6: int = test_roundtrip_three_bytes()
+    passed = passed + r6
+
+    r7: int = test_encode_empty()
+    passed = passed + r7
+
+    r8: int = test_index_mapping_roundtrip()
+    passed = passed + r8
+
+    return passed

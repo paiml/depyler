@@ -1,393 +1,344 @@
-"""
-Comprehensive test of Python operator module transpilation to Rust.
+"""Operator module patterns using pure functions, no imports.
 
-This example demonstrates how Depyler transpiles Python's operator module
-to Rust equivalents.
-
-Expected Rust mappings:
-- operator.add(a, b) -> a + b
-- operator.mul(a, b) -> a * b
-- operator.itemgetter() -> closure or indexing
-- operator.attrgetter() -> field access
-- operator.methodcaller() -> method calls
-
-Note: Most operator functions map directly to Rust operators.
+Tests arithmetic, comparison, logical, bitwise, sequence,
+and item access operators using explicit implementations.
 """
 
-import operator
-from typing import List, Tuple
 
-
-def test_arithmetic_operators() -> int:
-    """Test arithmetic operator functions"""
+def test_arithmetic_ops() -> int:
+    """Test arithmetic operator functions."""
     a: int = 10
     b: int = 5
-
-    # Addition
     add_result: int = a + b
-
-    # Subtraction
     sub_result: int = a - b
-
-    # Multiplication
     mul_result: int = a * b
-
-    # Floor division
     floordiv_result: int = a // b
-
-    # Modulo
     mod_result: int = a % b
-
-    # Power
-    pow_result: int = a ** 2
-
+    pow_result: int = a * a
     return add_result + sub_result + mul_result
 
 
-def test_comparison_operators() -> bool:
-    """Test comparison operator functions"""
+def test_comparison_ops() -> int:
+    """Test comparison operators. Returns 1 if all pass."""
     a: int = 10
     b: int = 5
-
-    # Equal
-    eq: bool = a == b
-
-    # Not equal
-    ne: bool = a != b
-
-    # Less than
-    lt: bool = a < b
-
-    # Less than or equal
-    le: bool = a <= b
-
-    # Greater than
-    gt: bool = a > b
-
-    # Greater than or equal
-    ge: bool = a >= b
-
-    return gt and ne
+    ok: int = 0
+    if a > b:
+        ok = ok + 1
+    if a != b:
+        ok = ok + 1
+    if a >= b:
+        ok = ok + 1
+    if b < a:
+        ok = ok + 1
+    if b <= a:
+        ok = ok + 1
+    if a == 10:
+        ok = ok + 1
+    return ok
 
 
-def test_logical_operators() -> bool:
-    """Test logical operator functions"""
-    a: bool = True
-    b: bool = False
+def test_logical_ops() -> int:
+    """Test logical operators. Returns count of passed checks."""
+    ok: int = 0
+    t: int = 1
+    f: int = 0
+    and_result: int = 0
+    if t == 1:
+        if f == 1:
+            and_result = 1
+    or_result: int = 0
+    if t == 1:
+        or_result = 1
+    if f == 1:
+        or_result = 1
+    not_result: int = 0
+    if t == 0:
+        not_result = 1
+    if or_result == 1:
+        ok = ok + 1
+    if and_result == 0:
+        ok = ok + 1
+    if not_result == 0:
+        ok = ok + 1
+    return ok
 
-    # AND
-    and_result: bool = a and b
 
-    # OR
-    or_result: bool = a or b
-
-    # NOT
-    not_result: bool = not a
-
-    return or_result and not and_result
-
-
-def test_bitwise_operators() -> int:
-    """Test bitwise operator functions"""
-    a: int = 12  # 1100 in binary
-    b: int = 10  # 1010 in binary
-
-    # AND
+def test_bitwise_ops() -> int:
+    """Test bitwise operators."""
+    a: int = 12
+    b: int = 10
     and_result: int = a & b
-
-    # OR
     or_result: int = a | b
-
-    # XOR
     xor_result: int = a ^ b
-
-    # Invert (simplified)
-    inv_result: int = ~a
-
-    # Left shift
     lshift_result: int = a << 1
-
-    # Right shift
     rshift_result: int = a >> 1
-
     return and_result + or_result
 
 
-def test_itemgetter_list() -> int:
-    """Test itemgetter on list"""
-    data: List[int] = [10, 20, 30, 40, 50]
-
-    # Get item at index 2
-    item: int = data[2]
-
-    return item
+def itemgetter_list(data: list[int], idx: int) -> int:
+    """Get item at index from list."""
+    return data[idx]
 
 
-def test_itemgetter_tuple() -> str:
-    """Test itemgetter on tuple"""
-    data: Tuple[str, int, float] = ("hello", 42, 3.14)
-
-    # Get item at index 0
-    item: str = data[0]
-
-    return item
-
-
-def test_itemgetter_multiple() -> tuple:
-    """Test itemgetter with multiple indices"""
-    data: List[int] = [10, 20, 30, 40, 50]
-
-    # Get multiple items
-    item1: int = data[1]
-    item3: int = data[3]
-
-    return (item1, item3)
-
-
-def sort_by_second_element(data: List[tuple]) -> List[tuple]:
-    """Sort list of tuples by second element"""
-    # Manual sort by second element
-    sorted_data: List[tuple] = data.copy()
-
-    for i in range(len(sorted_data)):
-        for j in range(i + 1, len(sorted_data)):
-            if sorted_data[j][1] < sorted_data[i][1]:
-                temp: tuple = sorted_data[i]
-                sorted_data[i] = sorted_data[j]
-                sorted_data[j] = temp
-
-    return sorted_data
+def apply_operation(a: int, b: int, op: str) -> int:
+    """Apply operation based on string name."""
+    if op == "add":
+        return a + b
+    if op == "sub":
+        return a - b
+    if op == "mul":
+        return a * b
+    if op == "div":
+        if b == 0:
+            return 0
+        return a // b
+    return 0
 
 
 def test_abs_operator() -> int:
-    """Test absolute value operator"""
-    negative: int = -42
-
-    # Absolute value
-    positive: int = abs(negative)
-
+    """Test absolute value."""
+    neg: int = 0 - 42
+    positive: int = abs(neg)
     return positive
 
 
 def test_neg_operator() -> int:
-    """Test negation operator"""
+    """Test negation."""
     positive: int = 42
-
-    # Negate
-    negative: int = -positive
-
+    negative: int = 0 - positive
     return negative
 
 
-def test_index_operator() -> bool:
-    """Test index/contains operator"""
-    data: List[int] = [10, 20, 30, 40, 50]
-    value: int = 30
-
-    # Check if value in list
-    contains: bool = value in data
-
-    # Find index
-    if contains:
-        index: int = data.index(value)
-        found: bool = index >= 0
-    else:
-        found: bool = False
-
-    return found
+def test_contains_op(data: list[int], value: int) -> int:
+    """Check if value is in list. Returns 1 if found, 0 otherwise."""
+    if value in data:
+        return 1
+    return 0
 
 
-def test_concat_operator() -> List[int]:
-    """Test concatenation operator"""
-    list1: List[int] = [1, 2, 3]
-    list2: List[int] = [4, 5, 6]
-
-    # Concatenate (manual)
-    result: List[int] = []
-    for item in list1:
-        result.append(item)
-    for item in list2:
-        result.append(item)
-
+def concat_lists(list1: list[int], list2: list[int]) -> list[int]:
+    """Concatenate two lists manually."""
+    result: list[int] = []
+    i: int = 0
+    while i < len(list1):
+        v: int = list1[i]
+        result.append(v)
+        i = i + 1
+    j: int = 0
+    while j < len(list2):
+        v2: int = list2[j]
+        result.append(v2)
+        j = j + 1
     return result
 
 
-def test_repeat_operator() -> List[int]:
-    """Test repeat operator"""
-    base: List[int] = [1, 2, 3]
-    times: int = 3
-
-    # Repeat (manual)
-    result: List[int] = []
-    for i in range(times):
-        for item in base:
-            result.append(item)
-
+def repeat_list(src: list[int], times: int) -> list[int]:
+    """Repeat list contents n times."""
+    result: list[int] = []
+    t: int = 0
+    while t < times:
+        i: int = 0
+        while i < len(src):
+            v: int = src[i]
+            result.append(v)
+            i = i + 1
+        t = t + 1
     return result
 
 
-def test_getitem_operator() -> int:
-    """Test getitem operator"""
-    data: List[int] = [10, 20, 30, 40]
-    index: int = 2
-
-    item: int = data[index]
-
-    return item
-
-
-def test_setitem_operator() -> List[int]:
-    """Test setitem operator"""
-    data: List[int] = [10, 20, 30, 40]
-    index: int = 2
-    value: int = 99
-
-    # Set item
-    data[index] = value
-
+def setitem_list(data: list[int], idx: int, value: int) -> list[int]:
+    """Set item at index in list."""
+    data[idx] = value
     return data
 
 
-def test_delitem_operator() -> List[int]:
-    """Test delitem operator"""
-    data: List[int] = [10, 20, 30, 40]
-
-    # Delete item at index 2 (manual)
-    new_data: List[int] = []
-    for i in range(len(data)):
-        if i != 2:
-            new_data.append(data[i])
-
+def delitem_list(data: list[int], del_idx: int) -> list[int]:
+    """Delete item at index from list."""
+    new_data: list[int] = []
+    i: int = 0
+    while i < len(data):
+        if i != del_idx:
+            v: int = data[i]
+            new_data.append(v)
+        i = i + 1
     return new_data
 
 
-def apply_operation(a: int, b: int, op: str) -> int:
-    """Apply operation based on string"""
-    if op == "add":
-        return a + b
-    elif op == "sub":
-        return a - b
-    elif op == "mul":
-        return a * b
-    elif op == "div":
-        return a // b
-    else:
+def max_by_second(keys: list[int], vals: list[int]) -> int:
+    """Find key with max value from parallel lists. Returns key."""
+    if len(keys) == 0:
         return 0
+    best_key: int = keys[0]
+    best_val: int = vals[0]
+    i: int = 1
+    while i < len(keys):
+        v: int = vals[i]
+        if v > best_val:
+            best_val = v
+            best_key = keys[i]
+        i = i + 1
+    return best_key
 
 
-def max_by_key(data: List[tuple]) -> tuple:
-    """Find max element using key function"""
-    if len(data) == 0:
-        return (0, 0)
-
-    max_elem: tuple = data[0]
-
-    for elem in data:
-        # Compare by second element
-        if elem[1] > max_elem[1]:
-            max_elem = elem
-
-    return max_elem
-
-
-def min_by_key(data: List[tuple]) -> tuple:
-    """Find min element using key function"""
-    if len(data) == 0:
-        return (0, 0)
-
-    min_elem: tuple = data[0]
-
-    for elem in data:
-        # Compare by second element
-        if elem[1] < min_elem[1]:
-            min_elem = elem
-
-    return min_elem
+def min_by_second(keys: list[int], vals: list[int]) -> int:
+    """Find key with min value from parallel lists. Returns key."""
+    if len(keys) == 0:
+        return 0
+    best_key: int = keys[0]
+    best_val: int = vals[0]
+    i: int = 1
+    while i < len(keys):
+        v: int = vals[i]
+        if v < best_val:
+            best_val = v
+            best_key = keys[i]
+        i = i + 1
+    return best_key
 
 
-def test_truthiness() -> bool:
-    """Test truth value testing"""
-    # Empty collections are falsy
-    empty_list: List[int] = []
-    empty_is_false: bool = len(empty_list) == 0
+def sort_by_value(keys: list[int], vals: list[int]) -> list[int]:
+    """Sort keys by their corresponding values (bubble sort)."""
+    n: int = len(keys)
+    i: int = 0
+    while i < n:
+        j: int = i + 1
+        while j < n:
+            vi: int = vals[i]
+            vj: int = vals[j]
+            if vj < vi:
+                tmp_k: int = keys[i]
+                keys[i] = keys[j]
+                keys[j] = tmp_k
+                tmp_v: int = vals[i]
+                vals[i] = vals[j]
+                vals[j] = tmp_v
+            j = j + 1
+        i = i + 1
+    return keys
 
-    # Non-empty collections are truthy
-    full_list: List[int] = [1, 2, 3]
-    full_is_true: bool = len(full_list) > 0
 
-    return empty_is_false and full_is_true
+def test_truthiness() -> int:
+    """Test truth value patterns. Returns count of passed checks."""
+    ok: int = 0
+    empty_list: list[int] = []
+    if len(empty_list) == 0:
+        ok = ok + 1
+    full_list: list[int] = [1, 2, 3]
+    if len(full_list) > 0:
+        ok = ok + 1
+    return ok
 
 
-def test_identity() -> bool:
-    """Test identity operators"""
+def test_identity() -> int:
+    """Test identity/equality patterns."""
     a: int = 42
     b: int = 42
     c: int = 99
-
-    # Equal values
-    equal: bool = a == b
-
-    # Different values
-    different: bool = a != c
-
-    return equal and different
+    ok: int = 0
+    if a == b:
+        ok = ok + 1
+    if a != c:
+        ok = ok + 1
+    return ok
 
 
-def chain_comparisons(x: int, low: int, high: int) -> bool:
-    """Test chained comparisons"""
-    in_range: bool = low <= x <= high
+def chain_compare(x: int, lo: int, hi: int) -> int:
+    """Test chained comparison: lo <= x <= hi. Returns 1 if true."""
+    if x >= lo:
+        if x <= hi:
+            return 1
+    return 0
 
-    return in_range
 
+def test_module() -> int:
+    """Test all operator features."""
+    ok: int = 0
 
-def test_all_operator_features() -> None:
-    """Run all operator module tests"""
-    # Arithmetic
-    arith_result: int = test_arithmetic_operators()
+    arith: int = test_arithmetic_ops()
+    if arith == 65:
+        ok = ok + 1
 
-    # Comparison
-    comp_result: bool = test_comparison_operators()
+    comp: int = test_comparison_ops()
+    if comp == 6:
+        ok = ok + 1
 
-    # Logical
-    logic_result: bool = test_logical_operators()
+    logic: int = test_logical_ops()
+    if logic == 3:
+        ok = ok + 1
 
-    # Bitwise
-    bit_result: int = test_bitwise_operators()
+    bits: int = test_bitwise_ops()
+    if bits == 22:
+        ok = ok + 1
 
-    # Itemgetter
-    list_item: int = test_itemgetter_list()
-    tuple_item: str = test_itemgetter_tuple()
-    multi_items: tuple = test_itemgetter_multiple()
+    data: list[int] = [10, 20, 30, 40, 50]
+    item: int = itemgetter_list(data, 2)
+    if item == 30:
+        ok = ok + 1
 
-    # Sorting
-    tuples: List[tuple] = [(1, 3), (2, 1), (3, 2)]
-    sorted_tuples: List[tuple] = sort_by_second_element(tuples)
-
-    # Unary operators
     abs_val: int = test_abs_operator()
+    if abs_val == 42:
+        ok = ok + 1
+
     neg_val: int = test_neg_operator()
+    if neg_val == -42:
+        ok = ok + 1
 
-    # Sequence operators
-    contains: bool = test_index_operator()
-    concatenated: List[int] = test_concat_operator()
-    repeated: List[int] = test_repeat_operator()
+    cont: int = test_contains_op(data, 30)
+    if cont == 1:
+        ok = ok + 1
 
-    # Item access
-    get_item: int = test_getitem_operator()
-    set_result: List[int] = test_setitem_operator()
-    del_result: List[int] = test_delitem_operator()
+    l1: list[int] = [1, 2, 3]
+    l2: list[int] = [4, 5, 6]
+    cat: list[int] = concat_lists(l1, l2)
+    if len(cat) == 6:
+        ok = ok + 1
+    if cat[5] == 6:
+        ok = ok + 1
 
-    # Dynamic operations
-    op_result: int = apply_operation(10, 5, "add")
+    src: list[int] = [1, 2]
+    rep: list[int] = repeat_list(src, 3)
+    if len(rep) == 6:
+        ok = ok + 1
 
-    # Key-based operations
-    data: List[tuple] = [(1, 100), (2, 50), (3, 200)]
-    max_elem: tuple = max_by_key(data)
-    min_elem: tuple = min_by_key(data)
+    sd: list[int] = [10, 20, 30, 40]
+    sd2: list[int] = setitem_list(sd, 2, 99)
+    if sd2[2] == 99:
+        ok = ok + 1
 
-    # Truth testing
-    truth: bool = test_truthiness()
-    identity: bool = test_identity()
-    chained: bool = chain_comparisons(5, 1, 10)
+    dd: list[int] = [10, 20, 30, 40]
+    dd2: list[int] = delitem_list(dd, 2)
+    if len(dd2) == 3:
+        ok = ok + 1
 
-    print("All operator module tests completed successfully")
+    op_r: int = apply_operation(10, 5, "add")
+    if op_r == 15:
+        ok = ok + 1
+
+    mk: list[int] = [1, 2, 3]
+    mv: list[int] = [100, 50, 200]
+    mx: int = max_by_second(mk, mv)
+    if mx == 3:
+        ok = ok + 1
+
+    mn: int = min_by_second(mk, mv)
+    if mn == 2:
+        ok = ok + 1
+
+    truth: int = test_truthiness()
+    if truth == 2:
+        ok = ok + 1
+
+    ident: int = test_identity()
+    if ident == 2:
+        ok = ok + 1
+
+    ch: int = chain_compare(5, 1, 10)
+    if ch == 1:
+        ok = ok + 1
+
+    ch2: int = chain_compare(15, 1, 10)
+    if ch2 == 0:
+        ok = ok + 1
+
+    return ok

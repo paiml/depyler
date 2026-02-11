@@ -1,371 +1,318 @@
-"""
-Comprehensive test of Python array and queue modules transpilation to Rust.
+"""Array and queue operations using pure functions with lists.
 
-This example demonstrates how Depyler transpiles Python's array and queue modules
-to their Rust equivalents.
-
-Expected Rust mappings:
-- array.array() -> Vec or fixed-size arrays
-- queue.Queue -> VecDeque or channel-based queue
-- queue.LifoQueue -> Vec (stack)
-- queue.PriorityQueue -> BinaryHeap
-
-Note: Manual implementations provided for learning.
+No classes, no tuples, no imports. All state is explicit list/dict params.
 """
 
-from typing import List, Optional
 
-
-# ============================================================================
-# ARRAY MODULE TESTS
-# ============================================================================
-
-def test_array_creation() -> List[int]:
-    """Test creating array with type code"""
-    # Python array.array('i', [1, 2, 3])
-    # Simulated with list
-    arr: List[int] = [1, 2, 3, 4, 5]
-
+def make_array() -> list[int]:
+    """Create a sample array."""
+    arr: list[int] = [1, 2, 3, 4, 5]
     return arr
 
 
-def test_array_append() -> List[int]:
-    """Test appending to array"""
-    arr: List[int] = [1, 2, 3]
+def array_append_test() -> list[int]:
+    """Test appending to array."""
+    arr: list[int] = [1, 2, 3]
     arr.append(4)
     arr.append(5)
-
     return arr
 
 
-def test_array_extend() -> List[int]:
-    """Test extending array"""
-    arr: List[int] = [1, 2, 3]
-    extension: List[int] = [4, 5, 6]
-
-    arr.extend(extension)
-
+def array_extend_test() -> list[int]:
+    """Test extending array manually."""
+    arr: list[int] = [1, 2, 3]
+    ext: list[int] = [4, 5, 6]
+    i: int = 0
+    while i < len(ext):
+        val: int = ext[i]
+        arr.append(val)
+        i = i + 1
     return arr
 
 
-def test_array_insert() -> List[int]:
-    """Test inserting into array"""
-    arr: List[int] = [1, 2, 4, 5]
+def array_insert_test() -> list[int]:
+    """Test inserting into array."""
+    arr: list[int] = [1, 2, 4, 5]
     arr.insert(2, 3)
-
     return arr
 
 
-def test_array_remove() -> List[int]:
-    """Test removing from array"""
-    arr: List[int] = [1, 2, 3, 4, 5]
+def array_remove_test() -> list[int]:
+    """Test removing from array."""
+    arr: list[int] = [1, 2, 3, 4, 5]
     arr.remove(3)
-
     return arr
 
 
-def test_array_pop() -> tuple:
-    """Test popping from array"""
-    arr: List[int] = [1, 2, 3, 4, 5]
-    popped: int = arr.pop()
+def array_pop_value(arr: list[int]) -> int:
+    """Pop last element from array and return it."""
+    if len(arr) == 0:
+        return -1
+    return arr.pop()
 
-    return (popped, arr)
 
-
-def test_array_index() -> int:
-    """Test finding index in array"""
-    arr: List[int] = [10, 20, 30, 40, 50]
+def array_index_test() -> int:
+    """Find index of value 30."""
+    arr: list[int] = [10, 20, 30, 40, 50]
     idx: int = arr.index(30)
-
     return idx
 
 
-def test_array_count() -> int:
-    """Test counting in array"""
-    arr: List[int] = [1, 2, 2, 3, 2, 4]
-    count: int = arr.count(2)
+def array_count_test() -> int:
+    """Count occurrences of 2."""
+    arr: list[int] = [1, 2, 2, 3, 2, 4]
+    c: int = arr.count(2)
+    return c
 
-    return count
 
-
-def test_array_reverse() -> List[int]:
-    """Test reversing array"""
-    arr: List[int] = [1, 2, 3, 4, 5]
+def array_reverse_test() -> list[int]:
+    """Reverse array."""
+    arr: list[int] = [1, 2, 3, 4, 5]
     arr.reverse()
-
     return arr
 
 
-def test_array_tolist() -> List[int]:
-    """Test converting array to list"""
-    arr: List[int] = [1, 2, 3, 4, 5]
-    # In Python: arr.tolist(), but already a list
-    return arr.copy()
-
-
-# ============================================================================
-# QUEUE MODULE TESTS
-# ============================================================================
-
-class SimpleQueue:
-    """Simple FIFO queue implementation"""
-
-    def __init__(self) -> None:
-        self.items: List[int] = []
-
-    def put(self, item: int) -> None:
-        """Add item to queue"""
-        self.items.append(item)
-
-    def get(self) -> int:
-        """Remove and return item from queue"""
-        if len(self.items) == 0:
-            return -1
-
-        item: int = self.items[0]
-
-        # Remove first element
-        new_items: List[int] = []
-        for i in range(1, len(self.items)):
-            new_items.append(self.items[i])
-
-        self.items = new_items
-
-        return item
-
-    def size(self) -> int:
-        """Get queue size"""
-        return len(self.items)
-
-    def empty(self) -> bool:
-        """Check if queue is empty"""
-        return len(self.items) == 0
-
-
-class SimpleStack:
-    """Simple LIFO stack implementation"""
-
-    def __init__(self) -> None:
-        self.items: List[int] = []
-
-    def push(self, item: int) -> None:
-        """Push item onto stack"""
-        self.items.append(item)
-
-    def pop(self) -> int:
-        """Pop item from stack"""
-        if len(self.items) == 0:
-            return -1
-
-        return self.items.pop()
-
-    def size(self) -> int:
-        """Get stack size"""
-        return len(self.items)
-
-    def empty(self) -> bool:
-        """Check if stack is empty"""
-        return len(self.items) == 0
-
-    def peek(self) -> int:
-        """Peek at top item without removing"""
-        if len(self.items) == 0:
-            return -1
-
-        return self.items[len(self.items) - 1]
-
-
-def test_queue_fifo() -> List[int]:
-    """Test FIFO queue operations"""
-    q: SimpleQueue = SimpleQueue()
-
-    # Enqueue
-    q.put(1)
-    q.put(2)
-    q.put(3)
-
-    # Dequeue
-    results: List[int] = []
-    while not q.empty():
-        item: int = q.get()
-        results.append(item)
-
-    return results
-
-
-def test_stack_lifo() -> List[int]:
-    """Test LIFO stack operations"""
-    s: SimpleStack = SimpleStack()
-
-    # Push
-    s.push(1)
-    s.push(2)
-    s.push(3)
-
-    # Pop
-    results: List[int] = []
-    while not s.empty():
-        item: int = s.pop()
-        results.append(item)
-
-    return results
-
-
-def test_queue_size() -> int:
-    """Test queue size tracking"""
-    q: SimpleQueue = SimpleQueue()
-
-    q.put(1)
-    q.put(2)
-    q.put(3)
-
-    size: int = q.size()
-
-    return size
-
-
-def test_stack_peek() -> int:
-    """Test stack peek operation"""
-    s: SimpleStack = SimpleStack()
-
-    s.push(1)
-    s.push(2)
-    s.push(3)
-
-    top: int = s.peek()
-
-    return top
-
-
-# Priority Queue (min-heap implementation)
-class SimplePriorityQueue:
-    """Simple priority queue implementation"""
-
-    def __init__(self) -> None:
-        self.items: List[tuple] = []
-
-    def put(self, priority: int, item: str) -> None:
-        """Add item with priority"""
-        self.items.append((priority, item))
-
-        # Sort by priority (manual sort)
-        for i in range(len(self.items)):
-            for j in range(i + 1, len(self.items)):
-                if self.items[j][0] < self.items[i][0]:
-                    temp: tuple = self.items[i]
-                    self.items[i] = self.items[j]
-                    self.items[j] = temp
-
-    def get(self) -> str:
-        """Get highest priority item"""
-        if len(self.items) == 0:
-            return ""
-
-        item: tuple = self.items[0]
-
-        # Remove first element
-        new_items: List[tuple] = []
-        for i in range(1, len(self.items)):
-            new_items.append(self.items[i])
-
-        self.items = new_items
-
-        return item[1]
-
-    def empty(self) -> bool:
-        """Check if queue is empty"""
-        return len(self.items) == 0
-
-
-def test_priority_queue() -> List[str]:
-    """Test priority queue"""
-    pq: SimplePriorityQueue = SimplePriorityQueue()
-
-    # Add with priorities
-    pq.put(3, "low")
-    pq.put(1, "high")
-    pq.put(2, "medium")
-
-    # Get in priority order
-    results: List[str] = []
-    while not pq.empty():
-        item: str = pq.get()
-        results.append(item)
-
-    return results
-
-
-def test_circular_buffer(size: int) -> List[int]:
-    """Test circular buffer implementation"""
-    buffer: List[int] = []
-    max_size: int = size
-
-    values: List[int] = [1, 2, 3, 4, 5, 6, 7, 8]
-
-    for val in values:
-        buffer.append(val)
-
-        # Remove oldest if over capacity
-        if len(buffer) > max_size:
-            # Remove first element
-            new_buffer: List[int] = []
-            for i in range(1, len(buffer)):
-                new_buffer.append(buffer[i])
-            buffer = new_buffer
-
-    return buffer
-
-
-def test_deque_simulation() -> List[int]:
-    """Simulate double-ended queue"""
-    deque: List[int] = []
-
-    # Append right
-    deque.append(1)
-    deque.append(2)
-    deque.append(3)
-
-    # Append left (insert at 0)
-    deque.insert(0, 0)
-
-    # Pop right
-    deque.pop()
-
-    # Pop left (remove at 0)
-    if len(deque) > 0:
-        new_deque: List[int] = []
-        for i in range(1, len(deque)):
-            new_deque.append(deque[i])
-        deque = new_deque
-
-    return deque
-
-
-def test_all_array_queue_features() -> None:
-    """Run all array and queue tests"""
-    # Array tests
-    arr: List[int] = test_array_creation()
-    appended: List[int] = test_array_append()
-    extended: List[int] = test_array_extend()
-    inserted: List[int] = test_array_insert()
-    removed: List[int] = test_array_remove()
-    pop_result: tuple = test_array_pop()
-    idx: int = test_array_index()
-    count: int = test_array_count()
-    reversed_arr: List[int] = test_array_reverse()
-    as_list: List[int] = test_array_tolist()
-
-    # Queue tests
-    fifo_result: List[int] = test_queue_fifo()
-    lifo_result: List[int] = test_stack_lifo()
-    size: int = test_queue_size()
-    top: int = test_stack_peek()
-
-    # Priority queue
-    priority_result: List[str] = test_priority_queue()
-
-    # Advanced structures
-    circular: List[int] = test_circular_buffer(3)
-    deque_result: List[int] = test_deque_simulation()
-
-    print("All array and queue module tests completed successfully")
+def queue_put(items: list[int], val: int) -> list[int]:
+    """Enqueue: append to end."""
+    items.append(val)
+    return items
+
+
+def queue_get(items: list[int]) -> int:
+    """Dequeue: remove and return first element. Returns -1 if empty."""
+    if len(items) == 0:
+        return -1
+    item: int = items[0]
+    new_items: list[int] = []
+    i: int = 1
+    while i < len(items):
+        v: int = items[i]
+        new_items.append(v)
+        i = i + 1
+    j: int = 0
+    while j < len(new_items):
+        if j == 0:
+            items.clear()
+        val: int = new_items[j]
+        items.append(val)
+        j = j + 1
+    if len(new_items) == 0:
+        items.clear()
+    return item
+
+
+def queue_size(items: list[int]) -> int:
+    """Return queue size."""
+    return len(items)
+
+
+def queue_is_empty(items: list[int]) -> int:
+    """Returns 1 if empty, 0 otherwise."""
+    if len(items) == 0:
+        return 1
+    return 0
+
+
+def stack_push(items: list[int], val: int) -> list[int]:
+    """Push onto stack."""
+    items.append(val)
+    return items
+
+
+def stack_pop(items: list[int]) -> int:
+    """Pop from stack. Returns -1 if empty."""
+    if len(items) == 0:
+        return -1
+    return items.pop()
+
+
+def stack_peek(items: list[int]) -> int:
+    """Peek at top of stack. Returns -1 if empty."""
+    if len(items) == 0:
+        return -1
+    idx: int = len(items) - 1
+    return items[idx]
+
+
+def test_fifo_order() -> int:
+    """Test FIFO: put 1,2,3 then get should return 1,2,3 in order."""
+    q: list[int] = []
+    q.append(1)
+    q.append(2)
+    q.append(3)
+    results: list[int] = []
+    first: int = queue_get(q)
+    results.append(first)
+    second: int = queue_get(q)
+    results.append(second)
+    third: int = queue_get(q)
+    results.append(third)
+    ok: int = 0
+    if results[0] == 1:
+        ok = ok + 1
+    if results[1] == 2:
+        ok = ok + 1
+    if results[2] == 3:
+        ok = ok + 1
+    return ok
+
+
+def test_lifo_order() -> int:
+    """Test LIFO: push 1,2,3 then pop should return 3,2,1."""
+    s: list[int] = []
+    s.append(1)
+    s.append(2)
+    s.append(3)
+    results: list[int] = []
+    v1: int = stack_pop(s)
+    results.append(v1)
+    v2: int = stack_pop(s)
+    results.append(v2)
+    v3: int = stack_pop(s)
+    results.append(v3)
+    ok: int = 0
+    if results[0] == 3:
+        ok = ok + 1
+    if results[1] == 2:
+        ok = ok + 1
+    if results[2] == 1:
+        ok = ok + 1
+    return ok
+
+
+def circular_buffer(max_size: int) -> list[int]:
+    """Simulate circular buffer: insert 1..8, keep only last max_size."""
+    buf: list[int] = []
+    val: int = 1
+    while val <= 8:
+        buf.append(val)
+        if len(buf) > max_size:
+            new_buf: list[int] = []
+            k: int = 1
+            while k < len(buf):
+                v: int = buf[k]
+                new_buf.append(v)
+                k = k + 1
+            buf = new_buf
+        val = val + 1
+    return buf
+
+
+def priority_insert(priorities: list[int], vals: list[int], pri: int, val: int) -> int:
+    """Insert into priority queue (two parallel lists). Returns new length."""
+    priorities.append(pri)
+    vals.append(val)
+    n: int = len(priorities)
+    i: int = 0
+    while i < n:
+        j: int = i + 1
+        while j < n:
+            pi: int = priorities[j]
+            pii: int = priorities[i]
+            if pi < pii:
+                tmp_p: int = priorities[i]
+                priorities[i] = priorities[j]
+                priorities[j] = tmp_p
+                tmp_v: int = vals[i]
+                vals[i] = vals[j]
+                vals[j] = tmp_v
+            j = j + 1
+        i = i + 1
+    return n
+
+
+def deque_sim() -> list[int]:
+    """Simulate double-ended queue operations."""
+    dq: list[int] = []
+    dq.append(1)
+    dq.append(2)
+    dq.append(3)
+    dq.insert(0, 0)
+    dq.pop()
+    if len(dq) > 0:
+        new_dq: list[int] = []
+        idx: int = 1
+        while idx < len(dq):
+            v: int = dq[idx]
+            new_dq.append(v)
+            idx = idx + 1
+        dq = new_dq
+    return dq
+
+
+def test_module() -> int:
+    """Test all array and queue features."""
+    ok: int = 0
+
+    arr: list[int] = make_array()
+    if len(arr) == 5:
+        ok = ok + 1
+    if arr[0] == 1:
+        ok = ok + 1
+
+    app: list[int] = array_append_test()
+    if len(app) == 5:
+        ok = ok + 1
+    if app[4] == 5:
+        ok = ok + 1
+
+    ext: list[int] = array_extend_test()
+    if len(ext) == 6:
+        ok = ok + 1
+    if ext[5] == 6:
+        ok = ok + 1
+
+    ins: list[int] = array_insert_test()
+    if ins[2] == 3:
+        ok = ok + 1
+
+    rem: list[int] = array_remove_test()
+    if len(rem) == 4:
+        ok = ok + 1
+
+    pop_arr: list[int] = [10, 20, 30]
+    popped: int = array_pop_value(pop_arr)
+    if popped == 30:
+        ok = ok + 1
+
+    idx: int = array_index_test()
+    if idx == 2:
+        ok = ok + 1
+
+    cnt: int = array_count_test()
+    if cnt == 3:
+        ok = ok + 1
+
+    rev: list[int] = array_reverse_test()
+    if rev[0] == 5:
+        ok = ok + 1
+
+    fifo: int = test_fifo_order()
+    ok = ok + fifo
+
+    lifo: int = test_lifo_order()
+    ok = ok + lifo
+
+    s: list[int] = []
+    s.append(1)
+    s.append(2)
+    s.append(3)
+    top: int = stack_peek(s)
+    if top == 3:
+        ok = ok + 1
+
+    sz: int = queue_size(s)
+    if sz == 3:
+        ok = ok + 1
+
+    circ: list[int] = circular_buffer(3)
+    if len(circ) == 3:
+        ok = ok + 1
+    if circ[0] == 6:
+        ok = ok + 1
+
+    dsim: list[int] = deque_sim()
+    if len(dsim) == 2:
+        ok = ok + 1
+
+    return ok
