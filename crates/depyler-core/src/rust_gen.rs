@@ -7393,6 +7393,15 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix Vec::<WRONG>::new() in assert by inferring from fn return type (E0277).
     formatted_code = fix_assert_vec_type_from_fn_return(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Remove spurious .into() in middle of DepylerValue chains (E0282).
+    // Disabled: DepylerValue.get() takes &DepylerValue not &str; .into() converts to HashMap
+    // which accepts &str keys. Removing .into() breaks the chain.
+    // formatted_code = fix_into_in_depyler_value_chain(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Replace DepylerValue::from(EXPR) with EXPR in concrete contexts (E0308).
+    // Disabled: too aggressive, removes wrapping in DepylerValue contexts where it's needed.
+    // formatted_code = fix_depyler_value_from_in_concrete_tuple(&formatted_code);
+
     // DEPYLER-99MODE-S9: Fix .push_back() → .push() (Vec has no push_back) (E0599).
     // Disabled: VecDeque legitimately uses .push_back(). Would need type tracking.
     // formatted_code = fix_push_back_to_push(&formatted_code);
@@ -15635,6 +15644,8 @@ fn fix_bare_return_in_result_fn(code: &str) -> String {
     let mut in_bare_return = false;
     let mut return_paren_depth: i32 = 0;
     let mut pending_fn_name: Option<String> = None;
+    // Track closure scopes: stack of brace depths where non-Result closures start
+    let mut closure_scope_stack: Vec<i32> = Vec::new();
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
@@ -15658,6 +15669,38 @@ fn fix_bare_return_in_result_fn(code: &str) -> String {
         } else if pending_fn_name.is_some() && trimmed.contains('{') {
             pending_fn_name = None;
         }
+        // Detect closure starts: lines with |...|...{ that are not fn declarations
+        // Only track closures with non-Result return types (those should skip Ok wrapping)
+        if in_result_fn
+            && !trimmed.starts_with("pub fn ")
+            && !trimmed.starts_with("fn ")
+            && trimmed.contains('{')
+        {
+            // Look for closure parameter pattern: paired | characters (not ||)
+            let bytes = trimmed.as_bytes();
+            let mut pipe_positions = Vec::new();
+            let mut j = 0;
+            while j < bytes.len() {
+                if bytes[j] == b'|' {
+                    if j + 1 < bytes.len() && bytes[j + 1] == b'|' {
+                        j += 2; // skip ||
+                        continue;
+                    }
+                    pipe_positions.push(j);
+                }
+                j += 1;
+            }
+            if pipe_positions.len() >= 2 {
+                // Found closure params. Check if return type is Result
+                let last_pipe = pipe_positions[pipe_positions.len() - 1];
+                let after_pipes = &trimmed[last_pipe + 1..];
+                let is_result_closure = after_pipes.contains("-> Result<");
+                if !is_result_closure {
+                    // Record depth BEFORE this line's braces are counted
+                    closure_scope_stack.push(brace_depth);
+                }
+            }
+        }
         for ch in trimmed.chars() {
             match ch {
                 '{' => brace_depth += 1,
@@ -15665,10 +15708,21 @@ fn fix_bare_return_in_result_fn(code: &str) -> String {
                 _ => {}
             }
         }
+        // Pop closure scopes that have ended
+        while let Some(&scope_depth) = closure_scope_stack.last() {
+            if brace_depth <= scope_depth {
+                closure_scope_stack.pop();
+            } else {
+                break;
+            }
+        }
         if in_result_fn && brace_depth <= fn_brace_depth {
             in_result_fn = false;
+            closure_scope_stack.clear();
         }
-        if in_result_fn && !in_bare_return {
+        // Skip Ok() wrapping inside non-Result closures
+        let in_non_result_closure = !closure_scope_stack.is_empty();
+        if in_result_fn && !in_bare_return && !in_non_result_closure {
             if trimmed.starts_with("return ") && trimmed.ends_with(';') {
                 let expr = trimmed[7..trimmed.len() - 1].trim();
                 if !expr.starts_with("Ok(") && !expr.starts_with("Err(") {
@@ -15741,6 +15795,77 @@ fn fix_let_unit_type_annotation(code: &str) -> String {
         } else {
             result.push(line.to_string());
         }
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Remove spurious `.into()` in middle of DepylerValue method chains.
+///
+/// When transpiling nested dict access like `event["s3"]["bucket"]["name"]`,
+/// the codegen inserts `.into()` between DepylerValue method calls. This causes
+/// E0282 (type annotations needed) because Rust can't infer the target type of `.into()`.
+/// The `.into()` is unnecessary since DepylerValue already has `.get()`, `.get_str()`, etc.
+fn fix_into_in_depyler_value_chain(code: &str) -> String {
+    if !code.contains(".into()") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Check if this line is `.into()` and the next line starts with a DepylerValue method
+        if trimmed == ".into()" && i + 1 < lines.len() {
+            let next_trimmed = lines[i + 1].trim();
+            if next_trimmed.starts_with(".get(")
+                || next_trimmed.starts_with(".get_str(")
+                || next_trimmed.starts_with(".keys(")
+                || next_trimmed.starts_with(".values(")
+                || next_trimmed.starts_with(".items(")
+                || next_trimmed.starts_with(".contains(")
+                || next_trimmed.starts_with(".len(")
+            {
+                // Skip the spurious .into() line
+                i += 1;
+                continue;
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Replace `DepylerValue::from(EXPR)` with just `EXPR` in concrete contexts.
+///
+/// When the transpiler wraps values in `DepylerValue::from()` but the surrounding
+/// context expects a concrete type (e.g., in a tuple `(i32, i32)`), this causes E0308.
+/// This fix replaces `DepylerValue::from(EXPR)` with `EXPR` when the expression is:
+/// - An integer literal (positive or negative)
+/// - A variable that was declared as a concrete type (i32, f64, etc.)
+/// Only applies when the `DepylerValue::from()` appears as a standalone expression
+/// in a tuple, function argument, or assignment to a concrete-typed variable.
+fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
+    if !code.contains("DepylerValue::from(") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let trimmed = line.trim();
+        // Match standalone DepylerValue::from(EXPR) lines ending with , or ;
+        // Pattern: "DepylerValue::from(EXPR)," or "DepylerValue::from(EXPR);"
+        if trimmed.starts_with("DepylerValue::from(") && (trimmed.ends_with("),") || trimmed.ends_with(");")) {
+            let end_char = if trimmed.ends_with("),") { ',' } else { ';' };
+            let inner = &trimmed[19..trimmed.len() - 2]; // Extract EXPR from DepylerValue::from(EXPR)
+            // Only unwrap if the inner expression is simple (no nested DepylerValue)
+            if !inner.contains("DepylerValue") && !inner.contains("vec!") {
+                let indent = &line[..line.len() - trimmed.len()];
+                result.push(format!("{}{}{}", indent, inner, end_char));
+                continue;
+            }
+        }
+        result.push(line.to_string());
     }
     result.join("\n")
 }
