@@ -1,74 +1,62 @@
-# Modular arithmetic patterns for transpiler stress testing
-# NO imports, NO I/O, ALL pure functions, ALL type-annotated
-
-
-def mod_add(a: int, b: int, m: int) -> int:
-    """Modular addition: (a + b) % m."""
-    if m <= 0:
-        return 0
-    return (a % m + b % m) % m
-
-
-def mod_multiply(a: int, b: int, m: int) -> int:
-    """Modular multiplication: (a * b) % m."""
-    if m <= 0:
-        return 0
-    return ((a % m) * (b % m)) % m
-
-
-def mod_power(base: int, exp: int, m: int) -> int:
-    """Modular exponentiation: (base^exp) % m using repeated squaring."""
-    if m <= 0:
-        return 0
-    if m == 1:
-        return 0
+def mod_exp(base: int, exp: int, mod: int) -> int:
     result: int = 1
-    base = base % m
-    while exp > 0:
-        if exp % 2 == 1:
-            result = (result * base) % m
-        exp = exp // 2
-        base = (base * base) % m
+    b: int = base % mod
+    e: int = exp
+    while e > 0:
+        if e % 2 == 1:
+            result = (result * b) % mod
+        e = e // 2
+        b = (b * b) % mod
     return result
 
 
-def is_divisible(a: int, b: int) -> bool:
-    """Check if a is divisible by b."""
+def extended_gcd(a: int, b: int) -> list[int]:
     if b == 0:
-        return False
-    return a % b == 0
+        return [a, 1, 0]
+    r: list[int] = extended_gcd(b, a % b)
+    g: int = r[0]
+    x1: int = r[1]
+    y1: int = r[2]
+    x: int = y1
+    y: int = x1 - (a // b) * y1
+    return [g, x, y]
 
 
-def sum_multiples(limit: int, factor: int) -> int:
-    """Sum all multiples of factor below limit."""
-    if factor <= 0:
-        return 0
-    total: int = 0
-    i: int = factor
-    while i < limit:
-        total = total + i
-        i = i + factor
-    return total
+def mod_inverse(a: int, m: int) -> int:
+    r: list[int] = extended_gcd(a, m)
+    if r[0] != 1:
+        return -1
+    result: int = r[1] % m
+    if result < 0:
+        result = result + m
+    return result
+
+
+def chinese_remainder_two(r1: int, m1: int, r2: int, m2: int) -> int:
+    inv: int = mod_inverse(m1, m2)
+    if inv == -1:
+        return -1
+    result: int = r1 + m1 * ((r2 - r1) * inv % m2)
+    if result < 0:
+        result = result + m1 * m2
+    return result % (m1 * m2)
 
 
 def test_module() -> int:
-    """Test all modular arithmetic functions."""
-    assert mod_add(7, 5, 6) == 0
-    assert mod_add(3, 4, 10) == 7
-    assert mod_multiply(7, 8, 5) == 1
-    assert mod_multiply(3, 4, 7) == 5
-    assert mod_power(2, 10, 1000) == 24
-    assert mod_power(3, 5, 13) == 9
-    assert mod_power(2, 0, 5) == 1
-    assert is_divisible(10, 5) == True
-    assert is_divisible(10, 3) == False
-    assert is_divisible(0, 5) == True
-    assert is_divisible(5, 0) == False
-    assert sum_multiples(10, 3) == 18
-    assert sum_multiples(20, 5) == 30
-    assert sum_multiples(1000, 3) == 166833
-    return 0
-
-
-if __name__ == "__main__":
-    test_module()
+    passed: int = 0
+    if mod_exp(2, 10, 1000) == 1024:
+        passed = passed + 1
+    if mod_exp(3, 5, 13) == 9:
+        passed = passed + 1
+    if mod_inverse(3, 7) == 5:
+        passed = passed + 1
+    if mod_inverse(2, 4) == -1:
+        passed = passed + 1
+    r: list[int] = extended_gcd(12, 8)
+    if r[0] == 4:
+        passed = passed + 1
+    if chinese_remainder_two(2, 3, 3, 5) == 8:
+        passed = passed + 1
+    if mod_exp(5, 0, 7) == 1:
+        passed = passed + 1
+    return passed
