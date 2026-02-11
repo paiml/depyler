@@ -7377,6 +7377,26 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix Vec<()> → Vec<(String, i32)> from tuple contents (E0609).
     formatted_code = fix_unit_vec_to_tuple_type(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix Vec::<T>::new() → vec![] in assert_eq (let Rust infer type) (E0277).
+    // Disabled: DepylerValue PartialEq<i32> impl causes vec![] inference ambiguity.
+    // formatted_code = fix_empty_vec_new_in_assert(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix bare return in Result fn → wrap in Ok() (E0308).
+    formatted_code = fix_bare_return_in_result_fn(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix let x: () = expr → let x = expr (remove unit type annotation) (E0308).
+    formatted_code = fix_let_unit_type_annotation(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix let x: WRONG = fn(args) where fn returns CORRECT (E0308).
+    formatted_code = fix_let_type_from_fn_return(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix Vec::<WRONG>::new() in assert by inferring from fn return type (E0277).
+    formatted_code = fix_assert_vec_type_from_fn_return(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix .push_back() → .push() (Vec has no push_back) (E0599).
+    // Disabled: VecDeque legitimately uses .push_back(). Would need type tracking.
+    // formatted_code = fix_push_back_to_push(&formatted_code);
+
     // DEPYLER-99MODE-S9: Fix HashMap<K,V> type when inserts have swapped arg order (E0308).
     // Disabled: too aggressive, swaps all occurrences including correct ones.
     // TODO: make this scope-aware to only fix inline dict literal blocks.
@@ -15338,6 +15358,363 @@ fn fix_missing_ref_in_fn_call(code: &str) -> String {
         result.push('\n');
     }
     result
+}
+
+/// DEPYLER-99MODE-S9: Fix `let var: WRONG = fn_name(args);` by propagating return type.
+///
+/// Builds a map of function names → return types. When a let binding's type
+/// doesn't match the called function's return type, replaces the annotation.
+/// Only fixes when the called function returns a custom/non-primitive type
+/// to avoid breaking implicit conversions.
+fn fix_let_type_from_fn_return(code: &str) -> String {
+    use std::collections::HashMap;
+    // Build map of fn_name -> return_type (only for custom types, not primitives)
+    let mut fn_returns: HashMap<String, String> = HashMap::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) && trimmed.contains("-> ") {
+            // Extract function name
+            let after_fn = if trimmed.starts_with("pub fn ") {
+                &trimmed[7..]
+            } else {
+                &trimmed[3..]
+            };
+            if let Some(paren_pos) = after_fn.find('(') {
+                let fn_name = after_fn[..paren_pos].trim().to_string();
+                // Extract return type (after -> , before {)
+                if let Some(arrow_pos) = trimmed.find("-> ") {
+                    let after_arrow = &trimmed[arrow_pos + 3..];
+                    let ret_type = after_arrow
+                        .trim_end_matches('{')
+                        .trim_end_matches("where")
+                        .trim()
+                        .to_string();
+                    // Only store custom types (PascalCase, not primitives)
+                    // Exclude Self::Output and other Self-prefixed types
+                    if !ret_type.is_empty()
+                        && ret_type.chars().next().map_or(false, |c| c.is_uppercase())
+                        && !ret_type.contains("Self")
+                        && !matches!(ret_type.as_str(), "String" | "Vec" | "HashMap" | "Option" | "Result" | "Box")
+                        && !ret_type.starts_with("Vec<")
+                        && !ret_type.starts_with("Result<")
+                        && !ret_type.starts_with("Option<")
+                        && !ret_type.starts_with("Box<")
+                        && !ret_type.starts_with("HashMap<")
+                        && !ret_type.starts_with("std::")
+                    {
+                        fn_returns.insert(fn_name, ret_type);
+                    }
+                }
+            }
+        }
+    }
+    if fn_returns.is_empty() {
+        return code.to_string();
+    }
+    // Now fix let bindings
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let trimmed = line.trim();
+        // Match: let VAR: TYPE = fn_name(ARGS);
+        if trimmed.starts_with("let ") && trimmed.contains(": ") && trimmed.contains(" = ") {
+            let after_let = &trimmed[4..];
+            if let Some(colon_pos) = after_let.find(": ") {
+                let var_name = &after_let[..colon_pos];
+                let after_colon = &after_let[colon_pos + 2..];
+                if let Some(eq_pos) = after_colon.find(" = ") {
+                    let declared_type = after_colon[..eq_pos].trim();
+                    let rhs = after_colon[eq_pos + 3..].trim();
+                    // Check if RHS is a simple function call: fn_name(args);
+                    if let Some(paren) = rhs.find('(') {
+                        let called_fn = rhs[..paren].trim();
+                        if let Some(correct_type) = fn_returns.get(called_fn) {
+                            if declared_type != correct_type {
+                                let indent = &line[..line.len() - trimmed.len()];
+                                result.push(format!(
+                                    "{}let {}: {} = {}",
+                                    indent, var_name, correct_type, rhs
+                                ));
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        result.push(line.to_string());
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Fix Vec type in assert_eq by inferring from function return type.
+///
+/// When `assert_eq!(fn_name(ARGS).unwrap(), Vec::<WRONG>::new(), ...)`,
+/// looks up fn_name's return type `Result<Vec<CORRECT>, ...>` and replaces
+/// `Vec::<WRONG>::new()` with `Vec::<CORRECT>::new()`.
+fn fix_assert_vec_type_from_fn_return(code: &str) -> String {
+    use std::collections::HashMap;
+    if !code.contains("assert_eq!") || !code.contains("Vec::<") {
+        return code.to_string();
+    }
+    // Build map of fn_name -> inner Vec type from Result<Vec<T>, E> signatures
+    let mut fn_vec_type: HashMap<String, String> = HashMap::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) && trimmed.contains("-> Result<Vec<") {
+            let after_fn = if trimmed.starts_with("pub fn ") { &trimmed[7..] } else { &trimmed[3..] };
+            if let Some(paren_pos) = after_fn.find('(') {
+                let fn_name = after_fn[..paren_pos].trim().to_string();
+                if let Some(vec_start) = trimmed.find("-> Result<Vec<") {
+                    let inner_start = vec_start + 14; // after "-> Result<Vec<"
+                    let after_inner = &trimmed[inner_start..];
+                    // Find matching > with depth tracking
+                    let mut depth = 1;
+                    for (i, ch) in after_inner.char_indices() {
+                        match ch {
+                            '<' => depth += 1,
+                            '>' => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    let inner_type = &after_inner[..i];
+                                    fn_vec_type.insert(fn_name.clone(), inner_type.to_string());
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if fn_vec_type.is_empty() {
+        return code.to_string();
+    }
+    // Fix assert_eq! lines
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut current_fn_call: Option<String> = None;
+    let mut in_assert = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("assert_eq!(") || trimmed.starts_with("assert_ne!(") {
+            in_assert = true;
+            current_fn_call = None;
+            // Check if first line contains a fn call
+            for fn_name in fn_vec_type.keys() {
+                if trimmed.contains(&format!("{}(", fn_name)) && trimmed.contains(".unwrap()") {
+                    current_fn_call = Some(fn_name.clone());
+                    break;
+                }
+            }
+        }
+        if in_assert {
+            if let Some(ref fn_name) = current_fn_call {
+                // Check if this line has Vec::<T>::new() standalone
+                let content = trimmed.trim_end_matches(',');
+                if content.starts_with("Vec::<") && content.ends_with(">::new()") {
+                    if let Some(correct_inner) = fn_vec_type.get(fn_name) {
+                        let indent = &line[..line.len() - trimmed.len()];
+                        let trailing = if trimmed.ends_with(',') { "," } else { "" };
+                        result.push(format!("{}Vec::<{}>::new(){}", indent, correct_inner, trailing));
+                        if trimmed.ends_with(");") { in_assert = false; }
+                        continue;
+                    }
+                }
+            }
+            // Also check for fn_name on subsequent lines
+            if current_fn_call.is_none() {
+                for fn_name in fn_vec_type.keys() {
+                    if trimmed.contains(&format!("{}(", fn_name)) && trimmed.contains(".unwrap()") {
+                        current_fn_call = Some(fn_name.clone());
+                        break;
+                    }
+                }
+            }
+            if trimmed.ends_with(");") {
+                in_assert = false;
+                current_fn_call = None;
+            }
+        }
+        result.push(line.to_string());
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Fix `.push_back()` → `.push()`.
+///
+/// Rust's Vec doesn't have push_back (that's C++ STL / VecDeque).
+fn fix_push_back_to_push(code: &str) -> String {
+    if !code.contains(".push_back(") {
+        return code.to_string();
+    }
+    code.replace(".push_back(", ".push(")
+}
+
+/// DEPYLER-99MODE-S9: Replace `Vec::<T>::new()` with `vec![]` inside `assert_eq!`.
+///
+/// ONLY replaces when the Vec is the ENTIRE content of the line (standalone
+/// second argument), not when embedded inside a function call. This prevents
+/// breaking type inference for function arguments like `rotate_left(&Vec::<i32>::new(), 5)`.
+fn fix_empty_vec_new_in_assert(code: &str) -> String {
+    if !code.contains("Vec::<") || !code.contains("assert") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut in_assert = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("assert_eq!(") || trimmed.starts_with("assert_ne!(") {
+            in_assert = true;
+        }
+        if in_assert {
+            // Only replace when Vec::<T>::new() is the ENTIRE line content (with optional comma)
+            let content = trimmed.trim_end_matches(',');
+            if content.starts_with("Vec::<") && content.ends_with(">::new()") {
+                let indent = &line[..line.len() - trimmed.len()];
+                let trailing = if trimmed.ends_with(',') { "," } else { "" };
+                result.push(format!("{}vec![]{}", indent, trailing));
+            } else {
+                result.push(line.to_string());
+            }
+            if trimmed.ends_with(");") {
+                in_assert = false;
+            }
+        } else {
+            result.push(line.to_string());
+        }
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Wrap bare return in Ok() for functions returning Result.
+///
+/// Detects `return EXPR;` inside functions with `-> Result<...>`.
+/// Handles both single-line and multi-line returns (e.g. `return (\n...\n);`).
+/// Wraps the expression in `Ok(...)` when it's not already `Ok(` or `Err(`
+/// and the expression is not a call to another Result-returning function.
+fn fix_bare_return_in_result_fn(code: &str) -> String {
+    use std::collections::HashSet;
+    if !code.contains("-> Result<") {
+        return code.to_string();
+    }
+    // Build set of functions that return Result (to avoid double-wrapping)
+    let mut result_fns: HashSet<String> = HashSet::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && trimmed.contains("-> Result<")
+        {
+            let after_fn = if trimmed.starts_with("pub fn ") { &trimmed[7..] } else { &trimmed[3..] };
+            if let Some(paren_pos) = after_fn.find('(') {
+                result_fns.insert(after_fn[..paren_pos].trim().to_string());
+            }
+        }
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    let mut in_result_fn = false;
+    let mut brace_depth: i32 = 0;
+    let mut fn_brace_depth: i32 = 0;
+    let mut in_bare_return = false;
+    let mut return_paren_depth: i32 = 0;
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && trimmed.contains("-> Result<")
+        {
+            in_result_fn = true;
+            fn_brace_depth = brace_depth;
+        }
+        for ch in trimmed.chars() {
+            match ch {
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                _ => {}
+            }
+        }
+        if in_result_fn && brace_depth <= fn_brace_depth {
+            in_result_fn = false;
+        }
+        if in_result_fn && !in_bare_return {
+            if trimmed.starts_with("return ") && trimmed.ends_with(';') {
+                let expr = trimmed[7..trimmed.len() - 1].trim();
+                if !expr.starts_with("Ok(") && !expr.starts_with("Err(") {
+                    // Check if expression calls a Result-returning function
+                    let calls_result_fn = if let Some(paren) = expr.find('(') {
+                        let called = expr[..paren].trim();
+                        result_fns.contains(called)
+                    } else {
+                        false
+                    };
+                    if !calls_result_fn {
+                        let indent = &line[..line.len() - trimmed.len()];
+                        result.push(format!("{}return Ok({});", indent, expr));
+                        i += 1;
+                        continue;
+                    }
+                }
+            } else if trimmed.starts_with("return (") && !trimmed.ends_with(';') {
+                let after_return = &trimmed[7..];
+                if !after_return.starts_with("Ok(") && !after_return.starts_with("Err(") {
+                    in_bare_return = true;
+                    return_paren_depth = 0;
+                    for ch in after_return.chars() {
+                        match ch { '(' => return_paren_depth += 1, ')' => return_paren_depth -= 1, _ => {} }
+                    }
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push(format!("{}return Ok({}", indent, after_return));
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+        if in_bare_return {
+            for ch in trimmed.chars() {
+                match ch { '(' => return_paren_depth += 1, ')' => return_paren_depth -= 1, _ => {} }
+            }
+            if return_paren_depth <= 0 && trimmed.ends_with(';') {
+                let indent = &line[..line.len() - trimmed.len()];
+                let content = trimmed.trim_end_matches(';');
+                result.push(format!("{}{});", indent, content));
+                in_bare_return = false;
+            } else {
+                result.push(line.to_string());
+            }
+            i += 1;
+            continue;
+        }
+        result.push(line.to_string());
+        i += 1;
+    }
+    result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Remove `: ()` type annotations from let bindings.
+///
+/// When the transpiler generates `let temp: () = expr.get(i).cloned()...`,
+/// the `()` type is wrong. Removing it lets Rust infer the correct type.
+fn fix_let_unit_type_annotation(code: &str) -> String {
+    if !code.contains(": () =") {
+        return code.to_string();
+    }
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let trimmed = line.trim();
+        // Match: let IDENT: () = EXPR  (but NOT let _: () = ...)
+        if trimmed.starts_with("let ") && trimmed.contains(": () =") && !trimmed.starts_with("let _:") {
+            let new_line = line.replace(": () =", " =");
+            result.push(new_line);
+        } else {
+            result.push(line.to_string());
+        }
+    }
+    result.join("\n")
 }
 
 #[cfg(test)]
