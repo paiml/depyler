@@ -18,9 +18,10 @@ def mat2_identity() -> list[int]:
 
 def mat2_power(m: list[int], n: int) -> list[int]:
     # Matrix exponentiation by squaring
-    if n == 0:
-        return mat2_identity()
     result: list[int] = mat2_identity()
+    if n == 0:
+        return result
+    result = mat2_identity()
     base: list[int] = [m[0], m[1], m[2], m[3]]
     exp: int = n
     while exp > 0:

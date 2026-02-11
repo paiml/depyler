@@ -35,9 +35,11 @@ def merge_intervals(starts: list[int], ends: list[int]) -> list[list[int]]:
     me: list[int] = [se[0]]
     i: int = 1
     while i < len(ss):
-        if ss[i] <= me[len(me) - 1]:
-            if se[i] > me[len(me) - 1]:
-                me[len(me) - 1] = se[i]
+        last_idx: int = len(me) - 1
+        if ss[i] <= me[last_idx]:
+            if se[i] > me[last_idx]:
+                last_idx2: int = len(me) - 1
+                me[last_idx2] = se[i]
         else:
             ms.append(ss[i])
             me.append(se[i])

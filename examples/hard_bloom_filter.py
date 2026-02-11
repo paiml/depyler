@@ -21,19 +21,25 @@ def bloom_create(size: int) -> list[int]:
 
 def bloom_add(bits: list[int], val: int) -> list[int]:
     size: int = len(bits)
-    bits[hash_fn1(val, size)] = 1
-    bits[hash_fn2(val, size)] = 1
-    bits[hash_fn3(val, size)] = 1
+    h1: int = hash_fn1(val, size)
+    h2: int = hash_fn2(val, size)
+    h3: int = hash_fn3(val, size)
+    bits[h1] = 1
+    bits[h2] = 1
+    bits[h3] = 1
     return bits
 
 
 def bloom_check(bits: list[int], val: int) -> int:
     size: int = len(bits)
-    if bits[hash_fn1(val, size)] == 0:
+    h1: int = hash_fn1(val, size)
+    h2: int = hash_fn2(val, size)
+    h3: int = hash_fn3(val, size)
+    if bits[h1] == 0:
         return 0
-    if bits[hash_fn2(val, size)] == 0:
+    if bits[h2] == 0:
         return 0
-    if bits[hash_fn3(val, size)] == 0:
+    if bits[h3] == 0:
         return 0
     return 1
 

@@ -1,12 +1,6 @@
 # Queue implemented using two stacks (as lists)
 
 
-def tsq_create() -> list[list[int]]:
-    inbox: list[int] = []
-    outbox: list[int] = []
-    return [inbox, outbox]
-
-
 def tsq_enqueue(inbox: list[int], value: int) -> list[int]:
     new_inbox: list[int] = []
     i: int = 0
@@ -17,8 +11,8 @@ def tsq_enqueue(inbox: list[int], value: int) -> list[int]:
     return new_inbox
 
 
-def tsq_transfer(inbox: list[int], outbox: list[int]) -> list[list[int]]:
-    # Move all from inbox to outbox (reversing order)
+def tsq_transfer_to_outbox(inbox: list[int], outbox: list[int]) -> list[int]:
+    # Move all from inbox to outbox (reversing order), return new outbox
     new_outbox: list[int] = []
     i: int = 0
     while i < len(outbox):
@@ -28,35 +22,31 @@ def tsq_transfer(inbox: list[int], outbox: list[int]) -> list[list[int]]:
     while idx >= 0:
         new_outbox.append(inbox[idx])
         idx = idx - 1
-    empty: list[int] = []
-    return [empty, new_outbox]
-
-
-def tsq_dequeue(inbox: list[int], outbox: list[int]) -> list[int]:
-    # Returns [dequeued_value, ...new_inbox..., -999, ...new_outbox...]
-    # Using -999 as separator
-    if len(outbox) == 0:
-        stacks: list[list[int]] = tsq_transfer(inbox, outbox)
-        inbox = stacks[0]
-        outbox = stacks[1]
-    if len(outbox) == 0:
-        return [-1]
-    val: int = outbox[len(outbox) - 1]
-    new_outbox: list[int] = []
-    i: int = 0
-    while i < len(outbox) - 1:
-        new_outbox.append(outbox[i])
-        i = i + 1
-    result: list[int] = [val]
-    return result
+    return new_outbox
 
 
 def tsq_size(inbox: list[int], outbox: list[int]) -> int:
     return len(inbox) + len(outbox)
 
 
+def tsq_pop_back(arr: list[int]) -> list[int]:
+    # Return a new list with the last element removed
+    result: list[int] = []
+    i: int = 0
+    limit: int = len(arr) - 1
+    while i < limit:
+        result.append(arr[i])
+        i = i + 1
+    return result
+
+
+def tsq_peek_back(arr: list[int]) -> int:
+    # Return the last element
+    idx: int = len(arr) - 1
+    return arr[idx]
+
+
 def simple_queue_test() -> int:
-    # Simpler approach: use a single list as queue
     inbox: list[int] = []
     outbox: list[int] = []
     passed: int = 0
@@ -68,38 +58,27 @@ def simple_queue_test() -> int:
     if tsq_size(inbox, outbox) == 3:
         passed = passed + 1
 
-    # Test 2: transfer and dequeue
-    stacks: list[list[int]] = tsq_transfer(inbox, outbox)
-    inbox = stacks[0]
-    outbox = stacks[1]
+    # Test 2: transfer and check outbox size
+    outbox = tsq_transfer_to_outbox(inbox, outbox)
+    inbox = []
     if len(outbox) == 3:
         passed = passed + 1
 
-    # Test 3: dequeue gets first element
-    val: int = outbox[len(outbox) - 1]
+    # Test 3: dequeue gets first element (FIFO)
+    val: int = tsq_peek_back(outbox)
     if val == 10:
         passed = passed + 1
 
     # Remove from outbox
-    new_outbox: list[int] = []
-    i: int = 0
-    while i < len(outbox) - 1:
-        new_outbox.append(outbox[i])
-        i = i + 1
-    outbox = new_outbox
+    outbox = tsq_pop_back(outbox)
 
     # Test 4: next dequeue
-    val = outbox[len(outbox) - 1]
+    val = tsq_peek_back(outbox)
     if val == 20:
         passed = passed + 1
 
-    # Test 5: size correct
-    new_outbox = []
-    i = 0
-    while i < len(outbox) - 1:
-        new_outbox.append(outbox[i])
-        i = i + 1
-    outbox = new_outbox
+    # Test 5: size correct after removals
+    outbox = tsq_pop_back(outbox)
     if tsq_size(inbox, outbox) == 1:
         passed = passed + 1
 
@@ -109,7 +88,7 @@ def simple_queue_test() -> int:
         passed = passed + 1
 
     # Test 7: last item from outbox
-    val = outbox[len(outbox) - 1]
+    val = tsq_peek_back(outbox)
     if val == 30:
         passed = passed + 1
 

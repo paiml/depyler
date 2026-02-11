@@ -79,12 +79,14 @@ def test_module() -> int:
     passed: int = 0
 
     a1: list[int] = [3, 6, 8, 10, 1, 2, 1]
-    pi1: int = lomuto_partition(a1, 0, len(a1) - 1)
+    a1_high: int = len(a1) - 1
+    pi1: int = lomuto_partition(a1, 0, a1_high)
     if a1[pi1] == 1:
         passed = passed + 1
 
     a2: list[int] = [10, 7, 8, 9, 1, 5]
-    pi2: int = hoare_partition(a2, 0, len(a2) - 1)
+    a2_high: int = len(a2) - 1
+    pi2: int = hoare_partition(a2, 0, a2_high)
     if pi2 >= 0 and pi2 < len(a2):
         passed = passed + 1
 
