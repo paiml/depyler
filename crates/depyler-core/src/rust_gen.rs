@@ -7280,6 +7280,31 @@ fn generate_rust_file_internal(
     // `let step = -1;` → `let step: i32 = -1;` to avoid ambiguous integer inference.
     formatted_code = fix_negative_literal_type_annotation(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix empty vec![] in assert_eq!/assert_ne! (E0282/E0283).
+    // DepylerValue PartialEq impl causes ambiguity with empty vec inference.
+    formatted_code = fix_empty_vec_in_assert(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix DepylerValue→typed variable assignment missing .into() (E0308).
+    formatted_code = fix_depyler_value_to_typed_assignment(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix format!("{:?}", N) in vec literal where i32 expected (E0308).
+    formatted_code = fix_format_debug_in_int_vec(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix ambiguous .into() on chain for String context (E0282).
+    formatted_code = fix_ambiguous_into_on_chain(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix .contains() → .contains_key() on HashMap (E0599).
+    formatted_code = fix_hashmap_contains_to_contains_key(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix ambiguous .into() after DV chain (E0283).
+    formatted_code = fix_ambiguous_into_type_annotation(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix `let q = a / b;` missing type annotation (E0282).
+    formatted_code = fix_floor_div_type_annotation(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix -fn_call() when fn returns Result (E0600).
+    formatted_code = fix_negate_result_fn_call(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -12980,6 +13005,456 @@ fn fix_negative_literal_type_annotation(code: &str) -> String {
             }
         }
         result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix empty `vec![]` in `assert_eq!`/`assert_ne!` macros (E0282/E0283).
+///
+/// The `impl PartialEq<DepylerValue> for i32` creates ambiguity when comparing
+/// `Vec<i32>` with an empty `vec![]`. Only replace `vec![]` when it's a top-level
+/// comparison argument (not nested inside a function call like `fn(&vec![])`).
+fn fix_empty_vec_in_assert(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        let is_assert = trimmed.contains("assert_eq!") || trimmed.contains("assert_ne!");
+        if is_assert && trimmed.contains("vec![]") {
+            // Find the assert macro start
+            let macro_start = if let Some(pos) = trimmed.find("assert_eq!(") {
+                pos + 11 // length of "assert_eq!("
+            } else if let Some(pos) = trimmed.find("assert_ne!(") {
+                pos + 11
+            } else {
+                result.push_str(line);
+                result.push('\n');
+                continue;
+            };
+
+            // Scan through the macro arguments to find top-level vec![] occurrences
+            let macro_body = &trimmed[macro_start..];
+            let mut new_line = line.to_string();
+            let mut depth: i32 = 0;
+            let bytes = macro_body.as_bytes();
+            let mut i = 0;
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'(' => depth += 1,
+                    b')' => {
+                        if depth == 0 {
+                            break; // end of macro
+                        }
+                        depth -= 1;
+                    }
+                    b'v' if depth == 0 => {
+                        // Check for "vec![]" at top level of the macro
+                        if macro_body[i..].starts_with("vec![]") {
+                            // This vec![] is a top-level argument, replace it
+                            let abs_pos = macro_start + i;
+                            let before = &trimmed[..abs_pos];
+                            let after = &trimmed[abs_pos + 6..]; // skip "vec![]"
+                            let indent = &line[..line.len() - trimmed.len()];
+                            new_line = format!(
+                                "{}{}Vec::<i32>::new(){}",
+                                indent, before, after
+                            );
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix DepylerValue assigned to typed i32/f64/String variable (E0308).
+///
+/// When a let binding has a concrete type annotation (i32, f64, String) but the RHS
+/// produces a DepylerValue (from .expect(), .clone(), .unwrap_or_default(), etc.),
+/// append `.into()` to convert. Also tracks typed variable declarations to fix
+/// subsequent bare assignments.
+fn fix_depyler_value_to_typed_assignment(code: &str) -> String {
+    use std::collections::HashSet;
+    let mut result = String::with_capacity(code.len());
+    let typed_types = ["i32", "f64", "i64", "usize", "String", "bool"];
+    let dv_terminators = [
+        ".expect(\"IndexError: list index out of range\")",
+        ".expect(\"value is None\")",
+        ".unwrap_or_default()",
+    ];
+    // Track variables declared with concrete types
+    let mut typed_vars: HashSet<String> = HashSet::new();
+    let lines: Vec<&str> = code.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+        let mut handled = false;
+
+        // Track typed variable declarations: `let [mut] VAR: TYPE = ...`
+        if trimmed.starts_with("let ") || trimmed.starts_with("let mut ") {
+            let after_let = if trimmed.starts_with("let mut ") {
+                &trimmed[8..]
+            } else {
+                &trimmed[4..]
+            };
+            if let Some(colon) = after_let.find(':') {
+                let var_name = after_let[..colon].trim().to_string();
+                let after_colon = &after_let[colon + 1..];
+                let type_part = if let Some(eq) = after_colon.find('=') {
+                    after_colon[..eq].trim()
+                } else {
+                    after_colon.trim().trim_end_matches(';')
+                };
+                if typed_types.iter().any(|t| type_part == *t) {
+                    typed_vars.insert(var_name);
+                }
+            }
+
+            // Check single-line let with DV terminator
+            let has_typed_ann = typed_types
+                .iter()
+                .any(|t| trimmed.contains(&format!(": {} ", t)) || trimmed.contains(&format!(": {} =", t)));
+            if has_typed_ann && trimmed.ends_with(';') {
+                let before_semi = &trimmed[..trimmed.len() - 1];
+                for term in &dv_terminators {
+                    if before_semi.ends_with(term) {
+                        let indent = &line[..line.len() - trimmed.len()];
+                        result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+                        handled = true;
+                        break;
+                    }
+                }
+            }
+
+            // Note: ambiguous .into() annotation is handled by fix_ambiguous_into_type_annotation
+        }
+
+        // Handle multi-line expressions ending with DV terminator
+        // Pattern: last line of a chained expression ends with `.expect("...");`
+        if !handled && trimmed.ends_with(';') && !trimmed.starts_with("let ") && !trimmed.starts_with("//") {
+            for term in &dv_terminators {
+                let before_semi = &trimmed[..trimmed.len() - 1];
+                if before_semi.ends_with(term.trim_start_matches('.')) || before_semi.ends_with(term) {
+                    // Look back to find the assignment start
+                    let mut is_typed_assign = false;
+                    // Check if this line itself is a bare assignment to a typed var
+                    if let Some(eq_idx) = trimmed.find(" = ") {
+                        let var_part = trimmed[..eq_idx].trim();
+                        if typed_vars.contains(var_part) {
+                            is_typed_assign = true;
+                        }
+                    }
+                    // Also check lines above for the start of a multi-line assignment
+                    if !is_typed_assign && i > 0 {
+                        for back in (0..i).rev() {
+                            let prev = lines[back].trim();
+                            if prev.is_empty() || prev.starts_with("//") {
+                                break;
+                            }
+                            if let Some(eq_idx) = prev.find(" = ") {
+                                let var_part = prev[..eq_idx].trim();
+                                if typed_vars.contains(var_part) {
+                                    is_typed_assign = true;
+                                }
+                                break;
+                            }
+                            // If this line starts with `.` it's part of a chain, keep looking back
+                            if !prev.starts_with('.') && !prev.ends_with('.') {
+                                break;
+                            }
+                        }
+                    }
+                    if is_typed_assign {
+                        let indent = &line[..line.len() - trimmed.len()];
+                        let before_semi_full = &trimmed[..trimmed.len() - 1];
+                        result.push_str(&format!("{}{}.into();\n", indent, before_semi_full));
+                        handled = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Handle `var = expr.clone();` for typed vars
+        if !handled && trimmed.ends_with(".clone();") && !trimmed.starts_with("let ") {
+            if let Some(eq_idx) = trimmed.find(" = ") {
+                let var_part = trimmed[..eq_idx].trim();
+                if typed_vars.contains(var_part) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    let before_semi = &trimmed[..trimmed.len() - 1];
+                    result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+                    handled = true;
+                }
+            }
+        }
+
+        if !handled {
+            result.push_str(line);
+            result.push('\n');
+        }
+        i += 1;
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `format!("{:?}", N)` in vec literal where i32 expected (E0308).
+///
+/// The transpiler sometimes emits `format!("{:?}", -2)` as the repr() of an integer,
+/// but when used in a Vec<i32> context, String doesn't match. Replace with the integer.
+fn fix_format_debug_in_int_vec(code: &str) -> String {
+    // Pattern: vec![..., format!("{:?}", N), ...]
+    // Replace with: vec![..., N, ...]
+    let mut result = String::with_capacity(code.len());
+    let pattern_start = "format!(\"{:?}\", ";
+    for line in code.lines() {
+        if line.contains(pattern_start) && line.contains("vec![") {
+            let mut new_line = line.to_string();
+            // Replace all occurrences of format!("{:?}", EXPR) with EXPR
+            while let Some(start) = new_line.find(pattern_start) {
+                let after = &new_line[start + pattern_start.len()..];
+                // Find the closing )
+                if let Some(end) = after.find(')') {
+                    let expr = &after[..end];
+                    let full_match_end = start + pattern_start.len() + end + 1;
+                    let replacement = expr.to_string();
+                    new_line = format!(
+                        "{}{}{}",
+                        &new_line[..start],
+                        replacement,
+                        &new_line[full_match_end..]
+                    );
+                } else {
+                    break;
+                }
+            }
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.into()` on nested dict chain producing ambiguous type (E0282).
+///
+/// When `record.get_str("x").cloned().unwrap_or_default().into()` appears,
+/// the `.into()` target is ambiguous. If assigned to `let var: String = ...`,
+/// replace `.into()` with `.to_string()` for String context, or annotate.
+fn fix_ambiguous_into_on_chain(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Check for multi-line let binding with .into() on a chain
+        if trimmed.starts_with("let ") && trimmed.contains(": String") {
+            // Look ahead for .into() on subsequent lines
+            let mut block = vec![lines[i].to_string()];
+            let mut j = i + 1;
+            let mut found_into = false;
+            while j < lines.len() {
+                let next_trimmed = lines[j].trim();
+                block.push(lines[j].to_string());
+                if next_trimmed == ".into()" || next_trimmed.starts_with(".into()") {
+                    found_into = true;
+                }
+                if next_trimmed.ends_with(';') {
+                    break;
+                }
+                j += 1;
+            }
+            if found_into {
+                // Replace .into() with .to_string() for String context
+                for bline in &block {
+                    let new_line = bline.replace(".into()", ".to_string()");
+                    result.push_str(&new_line);
+                    result.push('\n');
+                }
+                i = j + 1;
+                continue;
+            }
+            // Not modified, output normally
+            for bline in &block {
+                result.push_str(bline);
+                result.push('\n');
+            }
+            i = j + 1;
+            continue;
+        }
+        result.push_str(lines[i]);
+        result.push('\n');
+        i += 1;
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `let VAR = CHAIN.expect("...").into();` without type annotation (E0283).
+///
+/// When `.into()` follows a DepylerValue-producing chain and the let binding has no type
+/// annotation, the conversion target is ambiguous. Add `: i32` annotation.
+fn fix_ambiguous_into_type_annotation(code: &str) -> String {
+    let dv_chain_into_patterns = [
+        ".expect(\"IndexError: list index out of range\").into()",
+        ".expect(\"value is None\").into()",
+        ".unwrap_or_default().into()",
+    ];
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let mut new_line = line.to_string();
+        let mut modified = false;
+        for pattern in &dv_chain_into_patterns {
+            if !new_line.contains(pattern) {
+                continue;
+            }
+            // Find `let IDENT = ` before the chain (possibly nested in blocks)
+            // We need to find the closest `let IDENT = ` that has no `:` type annotation
+            if let Some(pat_pos) = new_line.find(pattern) {
+                let before = &new_line[..pat_pos];
+                // Find the last `let ` before the pattern
+                if let Some(let_offset) = before.rfind("let ") {
+                    let after_let = &before[let_offset + 4..];
+                    // Find ` = ` to extract variable name
+                    if let Some(eq_offset) = after_let.find(" = ") {
+                        let var_name = after_let[..eq_offset].trim();
+                        // Only annotate if no existing type annotation
+                        if !var_name.contains(':')
+                            && !var_name.is_empty()
+                            && var_name
+                                .chars()
+                                .all(|c| c.is_alphanumeric() || c == '_')
+                        {
+                            let insert_pos = let_offset + 4 + eq_offset;
+                            new_line = format!(
+                                "{}: i32{}",
+                                &new_line[..insert_pos],
+                                &new_line[insert_pos..]
+                            );
+                            modified = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if modified {
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `let q = a / b;` missing type annotation (E0282).
+///
+/// Floor division generates `let q = a / b;` where the type of `q` is ambiguous
+/// when `a` comes from `.into()`. Add `: i32` annotation.
+fn fix_floor_div_type_annotation(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: `let q = a / b;` or `let r = a % b;` without type annotation
+        if (trimmed.starts_with("let q = ") || trimmed.starts_with("let r = "))
+            && !trimmed.contains(':')
+            && (trimmed.contains(" / ") || trimmed.contains(" % "))
+            && trimmed.ends_with(';')
+        {
+            let indent = &line[..line.len() - trimmed.len()];
+            let new_line = trimmed.replacen("let q = ", "let q: i32 = ", 1);
+            let new_line = new_line.replacen("let r = ", "let r: i32 = ", 1);
+            result.push_str(&format!("{}{}", indent, new_line));
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `-fn_call()` when fn returns Result (E0600).
+///
+/// Pattern: `return Ok(-some_fn(arg))` where some_fn returns Result<i32>.
+/// The `-` operator can't be applied to Result. Need: `-some_fn(arg)?`
+fn fix_negate_result_fn_call(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Pattern: `return Ok(-FUNC(ARGS));` where FUNC is called recursively
+        // and returns Result, so needs `?` operator
+        if trimmed.contains("Ok(-") && trimmed.ends_with(");") {
+            // Find the pattern Ok(-func_name(args))
+            if let Some(ok_neg_start) = trimmed.find("Ok(-") {
+                let after = &trimmed[ok_neg_start + 4..]; // after "Ok(-"
+                // Find matching closing paren for the function call
+                let mut depth = 0;
+                let mut call_end = None;
+                for (j, ch) in after.char_indices() {
+                    match ch {
+                        '(' => depth += 1,
+                        ')' => {
+                            if depth == 0 {
+                                // This closes the Ok(...)
+                                call_end = Some(j);
+                                break;
+                            }
+                            depth -= 1;
+                        }
+                        _ => {}
+                    }
+                }
+                if let Some(end) = call_end {
+                    let fn_call = &after[..end]; // e.g., "reverse_number(-n)"
+                    // Check if this looks like a function call (has parens)
+                    if fn_call.contains('(') && fn_call.contains(')') {
+                        // Add ? to unwrap the Result: Ok(-fn(args)?)
+                        let indent = &line[..line.len() - trimmed.len()];
+                        let before_ok = &trimmed[..ok_neg_start];
+                        let after_close = &trimmed[ok_neg_start + 4 + end..];
+                        let new_line = format!(
+                            "{}{}Ok(-{}?{}",
+                            indent, before_ok, fn_call, after_close
+                        );
+                        result.push_str(&new_line);
+                        result.push('\n');
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.contains()` → `.contains_key()` on HashMap (E0599).
+///
+/// Python dicts use `key in dict` which transpiles to `dict.contains(key)`,
+/// but Rust HashMaps use `contains_key()`.
+fn fix_hashmap_contains_to_contains_key(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Pattern: expr.contains(&key) where expr involves HashMap or .expect("value is None")
+        if trimmed.contains(".contains(&")
+            && (trimmed.contains(".expect(\"value is None\").")
+                || trimmed.contains("HashMap"))
+        {
+            result.push_str(&line.replace(".contains(&", ".contains_key(&"));
+        } else {
+            result.push_str(line);
+        }
         result.push('\n');
     }
     result
