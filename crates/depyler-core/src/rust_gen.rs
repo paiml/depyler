@@ -7393,6 +7393,9 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix Vec::<WRONG>::new() in assert by inferring from fn return type (E0277).
     formatted_code = fix_assert_vec_type_from_fn_return(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Refine fn(&Vec<DepylerValue>) → fn(&Vec<concrete>) from call-site types (E0308).
+    formatted_code = fix_vec_depyler_value_param_from_callsite(&formatted_code);
+
     // DEPYLER-99MODE-S9: Remove spurious .into() in middle of DepylerValue chains (E0282).
     // Disabled: DepylerValue.get() takes &DepylerValue not &str; .into() converts to HashMap
     // which accepts &str keys. Removing .into() breaks the chain.
@@ -15868,6 +15871,114 @@ fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
         result.push(line.to_string());
     }
     result.join("\n")
+}
+
+/// DEPYLER-99MODE-S9: Refine `Vec<DepylerValue>` params from call-site types.
+///
+/// When a function declares `param: &Vec<DepylerValue>` but call sites in the same
+/// file pass `&Vec<i32>` (or other concrete types), replace the param type.
+/// Only applies when:
+/// - The function body doesn't use DepylerValue-specific methods
+/// - There's a matching call site with a concrete vector type
+fn fix_vec_depyler_value_param_from_callsite(code: &str) -> String {
+    if !code.contains("&Vec<DepylerValue>") {
+        return code.to_string();
+    }
+    use std::collections::HashMap;
+    // Step 1: Find functions with &Vec<DepylerValue> params
+    let mut fn_params: HashMap<String, Vec<String>> = HashMap::new(); // fn_name -> param_names
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && trimmed.contains("&Vec<DepylerValue>")
+        {
+            let after_fn = if trimmed.starts_with("pub fn ") {
+                &trimmed[7..]
+            } else {
+                &trimmed[3..]
+            };
+            if let Some(paren_pos) = after_fn.find('(') {
+                let name = after_fn[..paren_pos].trim().to_string();
+                // Extract param names that have &Vec<DepylerValue> type
+                let params_str = &after_fn[paren_pos + 1..];
+                let mut param_names = Vec::new();
+                for part in params_str.split(',') {
+                    let pt = part.trim();
+                    if pt.contains("&Vec<DepylerValue>") {
+                        if let Some(colon) = pt.find(':') {
+                            let pname = pt[..colon].trim().to_string();
+                            param_names.push(pname);
+                        }
+                    }
+                }
+                if !param_names.is_empty() {
+                    fn_params.insert(name, param_names);
+                }
+            }
+        }
+    }
+    if fn_params.is_empty() {
+        return code.to_string();
+    }
+    // Step 2: Find call sites and their argument types
+    // Look for patterns: fn_name(&var_name) where var_name is declared as Vec<TYPE>
+    let mut var_types: HashMap<String, String> = HashMap::new(); // var_name -> element_type
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match: let VAR: Vec<TYPE> = ...
+        if trimmed.starts_with("let ") && trimmed.contains("Vec<") && !trimmed.contains("DepylerValue") {
+            if let Some(colon) = trimmed.find(':') {
+                let var_name = trimmed[4..colon].trim().trim_start_matches("mut ").to_string();
+                if let Some(vec_start) = trimmed.find("Vec<") {
+                    if let Some(gt) = trimmed[vec_start + 4..].find('>') {
+                        let elem_type = trimmed[vec_start + 4..vec_start + 4 + gt].to_string();
+                        if !elem_type.contains("DepylerValue") {
+                            var_types.insert(var_name, elem_type);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Step 3: Match call sites to functions
+    let mut fn_replacements: HashMap<String, String> = HashMap::new(); // fn_name -> concrete element type
+    for line in code.lines() {
+        let trimmed = line.trim();
+        for (fn_name, _) in &fn_params {
+            let call_pattern = format!("{}(&", fn_name);
+            if let Some(call_pos) = trimmed.find(&call_pattern) {
+                let after_call = &trimmed[call_pos + call_pattern.len()..];
+                if let Some(paren_end) = after_call.find(')') {
+                    let arg = after_call[..paren_end].trim();
+                    if let Some(elem_type) = var_types.get(arg) {
+                        fn_replacements.insert(fn_name.clone(), elem_type.clone());
+                    }
+                }
+            }
+        }
+    }
+    if fn_replacements.is_empty() {
+        return code.to_string();
+    }
+    // Step 4: Replace &Vec<DepylerValue> with &Vec<CONCRETE> in function signatures
+    let mut result = code.to_string();
+    for (fn_name, elem_type) in &fn_replacements {
+        // Find the function declaration line and replace the param type
+        let search = format!("fn {}(", fn_name);
+        if let Some(fn_pos) = result.find(&search) {
+            let after = &result[fn_pos..];
+            if let Some(sig_end) = after.find('{') {
+                let sig = &after[..sig_end];
+                if sig.contains("&Vec<DepylerValue>") {
+                    let new_sig =
+                        sig.replace("&Vec<DepylerValue>", &format!("&Vec<{}>", elem_type));
+                    let fn_end = fn_pos + sig_end;
+                    result = format!("{}{}{}", &result[..fn_pos], new_sig, &result[fn_end..]);
+                }
+            }
+        }
+    }
+    result
 }
 
 #[cfg(test)]
