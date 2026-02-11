@@ -16,9 +16,10 @@ impl<'a> ExprConverter<'a> {
         // Rust tuples use .0, .1 syntax, not [0], [1]
         if let HirExpr::Literal(Literal::Int(idx)) = index {
             if *idx >= 0 {
-                // Check if base variable has tuple type from param_types
+                // Check if base variable has tuple type from param_types or class_field_types
                 let is_tuple = if let HirExpr::Var(var_name) = base {
                     matches!(self.param_types.get(var_name), Some(Type::Tuple(_)))
+                        || matches!(self.class_field_types.get(var_name), Some(Type::Tuple(_)))
                 } else {
                     false
                 };

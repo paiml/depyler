@@ -261,6 +261,48 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
 // collect_all_assigned_variables, extract_toplevel_assigned_symbols, is_var_used_in_remaining_stmts,
 // is_var_used_anywhere moved to control_flow_analysis module
 
+/// DEPYLER-99MODE-S9: Collect typed local variable annotations from the function body.
+/// Walks assignments looking for explicit type annotations (e.g., `x: Tuple[int, int] = ...`)
+/// and returns them as a map. This allows type-aware codegen (e.g., tuple field access)
+/// for local variables, not just function parameters.
+fn collect_typed_locals_from_body(
+    stmts: &[HirStmt],
+) -> std::collections::HashMap<String, Type> {
+    let mut locals = std::collections::HashMap::new();
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                type_annotation: Some(ty),
+                ..
+            } => {
+                locals.insert(name.clone(), ty.clone());
+            }
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                for (k, v) in collect_typed_locals_from_body(then_body) {
+                    locals.entry(k).or_insert(v);
+                }
+                if let Some(else_stmts) = else_body {
+                    for (k, v) in collect_typed_locals_from_body(else_stmts) {
+                        locals.entry(k).or_insert(v);
+                    }
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                for (k, v) in collect_typed_locals_from_body(body) {
+                    locals.entry(k).or_insert(v);
+                }
+            }
+            _ => {}
+        }
+    }
+    locals
+}
+
 /// DEPYLER-0963: Find the type of a variable from its assignments in the function body.
 /// Searches for the first assignment to the variable and infers the type from the value.
 /// Returns Some(Type) if found, None otherwise.
@@ -768,11 +810,18 @@ pub(crate) fn codegen_function_body(
 
     // DEPYLER-0963: Build parameter types map for variable type inference
     // This allows us to infer types for variables assigned from parameters (e.g., result = n)
-    let param_types: std::collections::HashMap<String, Type> = func
+    let mut param_types: std::collections::HashMap<String, Type> = func
         .params
         .iter()
         .map(|p| (p.name.clone(), p.ty.clone()))
         .collect();
+
+    // DEPYLER-99MODE-S9: Extend param_types with typed local variable annotations.
+    // This allows codegen to know types of locals like `x: Tuple[int, int] = create_pair()`
+    // so that tuple field access (x.0, x.1) is used instead of dict-like .get()
+    for (name, ty) in collect_typed_locals_from_body(&func.body) {
+        param_types.entry(name).or_insert(ty);
+    }
 
     // DEPYLER-0762: Hoist loop-escaping variables
     // Python has function-level scoping, so variables assigned in for/while loops
