@@ -1,11 +1,8 @@
-"""Josephus problem simulation.
-
-Tests: josephus position, survivor, generalized josephus.
-"""
+"""Josephus problem: find survivor position."""
 
 
 def josephus(n: int, k: int) -> int:
-    """Find the position of the last survivor (0-indexed)."""
+    """Find 0-indexed position of survivor in Josephus problem."""
     if n == 1:
         return 0
     result: int = 0
@@ -17,32 +14,43 @@ def josephus(n: int, k: int) -> int:
 
 
 def josephus_one_indexed(n: int, k: int) -> int:
-    """Find survivor position (1-indexed)."""
+    """Find 1-indexed survivor position."""
     return josephus(n, k) + 1
 
 
-def josephus_sequence_last(n: int, k: int) -> int:
-    """Return the last element eliminated (0-indexed)."""
-    return josephus(n, k)
+def josephus_sequence(n: int, k: int) -> list[int]:
+    """Return elimination order (0-indexed)."""
+    alive: list[int] = []
+    i: int = 0
+    while i < n:
+        alive.append(i)
+        i = i + 1
+    order: list[int] = []
+    idx: int = 0
+    while len(alive) > 0:
+        idx = (idx + k - 1) % len(alive)
+        val: int = alive[idx]
+        order.append(val)
+        j: int = idx
+        while j < len(alive) - 1:
+            alive[j] = alive[j + 1]
+            j = j + 1
+        alive.pop()
+        if len(alive) > 0:
+            idx = idx % len(alive)
+    return order
 
 
-def josephus_first_eliminated(n: int, k: int) -> int:
-    """Find the first person eliminated (0-indexed)."""
-    if n == 0:
-        return -1
-    return (k - 1) % n
-
-
-def josephus_with_start(n: int, k: int, start: int) -> int:
-    """Josephus with custom starting position (0-indexed result)."""
-    base: int = josephus(n, k)
-    return (base + start) % n
+def last_eliminated(n: int, k: int) -> int:
+    """Return last person eliminated (== survivor)."""
+    seq: list[int] = josephus_sequence(n, k)
+    return seq[len(seq) - 1]
 
 
 def test_module() -> int:
-    """Test Josephus problem variants."""
+    """Test Josephus problem solutions."""
     ok: int = 0
-    if josephus(1, 3) == 0:
+    if josephus(1, 1) == 0:
         ok = ok + 1
     if josephus(5, 2) == 2:
         ok = ok + 1
@@ -50,10 +58,11 @@ def test_module() -> int:
         ok = ok + 1
     if josephus_one_indexed(5, 2) == 3:
         ok = ok + 1
-    if josephus_first_eliminated(5, 2) == 1:
+    seq: list[int] = josephus_sequence(5, 2)
+    if len(seq) == 5:
         ok = ok + 1
-    if josephus_first_eliminated(7, 3) == 2:
+    if last_eliminated(5, 2) == josephus(5, 2):
         ok = ok + 1
-    if josephus_with_start(5, 2, 0) == 2:
+    if josephus(3, 2) == 2:
         ok = ok + 1
     return ok
