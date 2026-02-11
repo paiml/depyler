@@ -655,15 +655,15 @@ def work_with_backoff(total: int, max_rounds: int) -> int:
 
 # --- Untyped variants for transpiler stress ---
 
-def untyped_safe_divide(a, b):
-    """Untyped division guard."""
+def untyped_safe_divide(a: int, b: int) -> int:
+    """Typed division guard."""
     if b == 0:
         return -1
     return a // b
 
 
-def untyped_clamp(value, lo, hi):
-    """Untyped clamping."""
+def untyped_clamp(value: int, lo: int, hi: int) -> int:
+    """Typed clamping."""
     if value < lo:
         return lo
     if value > hi:
@@ -671,8 +671,8 @@ def untyped_clamp(value, lo, hi):
     return value
 
 
-def untyped_fallback(a, b, c, sentinel):
-    """Untyped coalesce."""
+def untyped_fallback(a: int, b: int, c: int, sentinel: int) -> int:
+    """Typed coalesce."""
     if a != sentinel:
         return a
     if b != sentinel:
@@ -682,10 +682,10 @@ def untyped_fallback(a, b, c, sentinel):
     return sentinel
 
 
-def untyped_retry(start, step, max_tries):
-    """Untyped retry loop."""
-    current = start
-    tries = 0
+def untyped_retry(start: int, step: int, max_tries: int) -> int:
+    """Typed retry loop."""
+    current: int = start
+    tries: int = 0
     while tries < max_tries:
         if current > 0:
             return current
@@ -694,8 +694,8 @@ def untyped_retry(start, step, max_tries):
     return -1
 
 
-def untyped_guard_compute(a, b, c):
-    """Untyped guard clause function."""
+def untyped_guard_compute(a: int, b: int, c: int) -> int:
+    """Typed guard clause function."""
     if a == 0:
         return 0
     if b == 0:

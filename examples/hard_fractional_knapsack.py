@@ -14,8 +14,10 @@ def sort_by_ratio_desc(values: list[int], weights: list[int]) -> list[int]:
     while i < length:
         j: int = i + 1
         while j < length:
-            ratio_i: int = values[indices[i]] * weights[indices[j]]
-            ratio_j: int = values[indices[j]] * weights[indices[i]]
+            ii: int = indices[i]
+            jj: int = indices[j]
+            ratio_i: int = values[ii] * weights[jj]
+            ratio_j: int = values[jj] * weights[ii]
             if ratio_j > ratio_i:
                 temp: int = indices[i]
                 indices[i] = indices[j]

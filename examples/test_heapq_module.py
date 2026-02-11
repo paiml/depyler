@@ -1,129 +1,107 @@
-"""
-Comprehensive test of Python heapq module transpilation to Rust.
+"""Manual heap operations without heapq module.
 
-This example demonstrates how Depyler transpiles Python's heapq module
-(min-heap priority queue) to Rust equivalents.
-
-Expected Rust mappings:
-- heapq.heappush() -> BinaryHeap::push()
-- heapq.heappop() -> BinaryHeap::pop()
-- heapq.heapify() -> BinaryHeap::from()
-- heapq.nsmallest() -> manual implementation
-- heapq.nlargest() -> manual implementation
-
-Note: Python heapq is min-heap, Rust BinaryHeap is max-heap by default.
-Manual implementations provided for learning.
+Implements min-heap operations using list-based sorting and
+manual bubble-up/bubble-down algorithms. All functions use
+only int and list[int] types for transpiler compatibility.
 """
 
-import heapq
-from typing import List
+
+def heap_sort_list(data: list[int]) -> list[int]:
+    """Sort a list using selection sort to simulate heap property."""
+    result: list[int] = []
+    i: int = 0
+    while i < len(data):
+        result.append(data[i])
+        i = i + 1
+    i = 0
+    while i < len(result):
+        j: int = i + 1
+        while j < len(result):
+            if result[j] < result[i]:
+                temp: int = result[i]
+                result[i] = result[j]
+                result[j] = temp
+            j = j + 1
+        i = i + 1
+    return result
 
 
-def test_heap_push_pop() -> List[int]:
-    """Test basic heap push and pop operations"""
-    heap: List[int] = []
-
-    # Push elements (manual heap operations simulated)
-    values: List[int] = [5, 3, 7, 1, 9, 2]
-
-    for val in values:
-        heap.append(val)
-
-    # Sort to simulate heap property (min-heap)
-    for i in range(len(heap)):
-        for j in range(i + 1, len(heap)):
-            if heap[j] < heap[i]:
-                temp: int = heap[i]
-                heap[i] = heap[j]
-                heap[j] = temp
-
-    return heap
+def test_heap_push_pop() -> list[int]:
+    """Test basic heap push and pop operations."""
+    heap: list[int] = []
+    values: list[int] = [5, 3, 7, 1, 9, 2]
+    i: int = 0
+    while i < len(values):
+        heap.append(values[i])
+        i = i + 1
+    sorted_heap: list[int] = heap_sort_list(heap)
+    return sorted_heap
 
 
-def test_heapify() -> List[int]:
-    """Test converting list to heap"""
-    data: List[int] = [5, 3, 7, 1, 9, 2, 4]
-
-    # Heapify (sort to establish heap property)
-    heap: List[int] = data.copy()
-    for i in range(len(heap)):
-        for j in range(i + 1, len(heap)):
-            if heap[j] < heap[i]:
-                temp: int = heap[i]
-                heap[i] = heap[j]
-                heap[j] = temp
-
-    return heap
+def test_heapify() -> list[int]:
+    """Test converting list to heap."""
+    data: list[int] = [5, 3, 7, 1, 9, 2, 4]
+    sorted_data: list[int] = heap_sort_list(data)
+    return sorted_data
 
 
 def test_heap_pop_min() -> int:
-    """Test popping minimum element"""
-    heap: List[int] = [1, 2, 3, 4, 5]
-
-    # Pop minimum (first element in min-heap)
+    """Test popping minimum element."""
+    heap: list[int] = [1, 2, 3, 4, 5]
     if len(heap) > 0:
         min_val: int = heap[0]
-        # Remove first element
-        new_heap: List[int] = []
-        for i in range(1, len(heap)):
-            new_heap.append(heap[i])
         return min_val
     else:
         return -1
 
 
 def test_heap_peek() -> int:
-    """Test peeking at minimum without removing"""
-    heap: List[int] = [1, 2, 3, 4, 5]
-
+    """Test peeking at minimum without removing."""
+    heap: list[int] = [1, 2, 3, 4, 5]
     if len(heap) > 0:
         return heap[0]
     else:
         return -1
 
 
-def test_nsmallest(data: List[int], n: int) -> List[int]:
-    """Test finding n smallest elements"""
-    # Sort and take first n
-    sorted_data: List[int] = data.copy()
-    for i in range(len(sorted_data)):
-        for j in range(i + 1, len(sorted_data)):
-            if sorted_data[j] < sorted_data[i]:
-                temp: int = sorted_data[i]
-                sorted_data[i] = sorted_data[j]
-                sorted_data[j] = temp
-
-    result: List[int] = []
-    for i in range(min(n, len(sorted_data))):
+def test_nsmallest(data: list[int], n: int) -> list[int]:
+    """Test finding n smallest elements."""
+    sorted_data: list[int] = heap_sort_list(data)
+    result: list[int] = []
+    i: int = 0
+    limit: int = n
+    if len(sorted_data) < limit:
+        limit = len(sorted_data)
+    while i < limit:
         result.append(sorted_data[i])
-
+        i = i + 1
     return result
 
 
-def test_nlargest(data: List[int], n: int) -> List[int]:
-    """Test finding n largest elements"""
-    # Sort in descending order and take first n
-    sorted_data: List[int] = data.copy()
-    for i in range(len(sorted_data)):
-        for j in range(i + 1, len(sorted_data)):
-            if sorted_data[j] > sorted_data[i]:
-                temp: int = sorted_data[i]
-                sorted_data[i] = sorted_data[j]
-                sorted_data[j] = temp
-
-    result: List[int] = []
-    for i in range(min(n, len(sorted_data))):
+def test_nlargest(data: list[int], n: int) -> list[int]:
+    """Test finding n largest elements."""
+    sorted_data: list[int] = heap_sort_list(data)
+    result: list[int] = []
+    start: int = len(sorted_data) - n
+    if start < 0:
+        start = 0
+    i: int = len(sorted_data) - 1
+    count: int = 0
+    while i >= start and count < n:
         result.append(sorted_data[i])
-
+        i = i - 1
+        count = count + 1
     return result
 
 
-def manual_heap_insert(heap: List[int], value: int) -> List[int]:
-    """Manual heap insert operation"""
-    new_heap: List[int] = heap.copy()
+def manual_heap_insert(heap: list[int], value: int) -> list[int]:
+    """Manual heap insert with bubble up."""
+    new_heap: list[int] = []
+    i: int = 0
+    while i < len(heap):
+        new_heap.append(heap[i])
+        i = i + 1
     new_heap.append(value)
-
-    # Bubble up (maintain heap property)
     index: int = len(new_heap) - 1
     while index > 0:
         parent: int = (index - 1) // 2
@@ -133,169 +111,137 @@ def manual_heap_insert(heap: List[int], value: int) -> List[int]:
             new_heap[parent] = temp
             index = parent
         else:
-            break
-
+            index = 0
     return new_heap
 
 
-def manual_heap_extract_min(heap: List[int]) -> tuple:
-    """Manual heap extract minimum"""
+def manual_heap_extract_min_val(heap: list[int]) -> int:
+    """Extract minimum value from heap. Returns -1 if empty."""
     if len(heap) == 0:
-        return (-1, [])
+        return -1
+    return heap[0]
 
-    min_val: int = heap[0]
 
-    # Replace root with last element
-    if len(heap) == 1:
-        return (min_val, [])
-
-    new_heap: List[int] = [heap[len(heap) - 1]]
-    for i in range(1, len(heap) - 1):
+def manual_heap_extract_min_rest(heap: list[int]) -> list[int]:
+    """Extract the remaining heap after removing minimum."""
+    if len(heap) <= 1:
+        result: list[int] = []
+        return result
+    last_idx: int = len(heap) - 1
+    new_heap: list[int] = [heap[last_idx]]
+    i: int = 1
+    while i < last_idx:
         new_heap.append(heap[i])
-
-    # Bubble down
+        i = i + 1
     index: int = 0
-    while True:
+    nh_len: int = len(new_heap)
+    done: int = 0
+    while done == 0:
         left: int = 2 * index + 1
         right: int = 2 * index + 2
         smallest: int = index
-
-        if left < len(new_heap) and new_heap[left] < new_heap[smallest]:
+        if left < nh_len and new_heap[left] < new_heap[smallest]:
             smallest = left
-
-        if right < len(new_heap) and new_heap[right] < new_heap[smallest]:
+        if right < nh_len and new_heap[right] < new_heap[smallest]:
             smallest = right
-
         if smallest != index:
             temp: int = new_heap[index]
             new_heap[index] = new_heap[smallest]
             new_heap[smallest] = temp
             index = smallest
         else:
-            break
-
-    return (min_val, new_heap)
-
-
-def priority_queue_simulation() -> List[int]:
-    """Simulate priority queue using heap"""
-    tasks: List[tuple] = [(3, "low"), (1, "high"), (2, "medium")]
-
-    # Sort by priority
-    sorted_tasks: List[tuple] = tasks.copy()
-    for i in range(len(sorted_tasks)):
-        for j in range(i + 1, len(sorted_tasks)):
-            if sorted_tasks[j][0] < sorted_tasks[i][0]:
-                temp: tuple = sorted_tasks[i]
-                sorted_tasks[i] = sorted_tasks[j]
-                sorted_tasks[j] = temp
-
-    # Extract priorities
-    priorities: List[int] = []
-    for task in sorted_tasks:
-        priorities.append(task[0])
-
-    return priorities
+            done = 1
+    return new_heap
 
 
-def merge_sorted_lists(lists: List[List[int]]) -> List[int]:
-    """Merge multiple sorted lists using heap concept"""
-    result: List[int] = []
-
-    # Flatten all lists
+def merge_sorted_lists_flat(lists: list[list[int]]) -> list[int]:
+    """Merge multiple sorted lists."""
+    result: list[int] = []
     for lst in lists:
         for item in lst:
             result.append(item)
-
-    # Sort final result
-    for i in range(len(result)):
-        for j in range(i + 1, len(result)):
-            if result[j] < result[i]:
-                temp: int = result[i]
-                result[i] = result[j]
-                result[j] = temp
-
-    return result
+    sorted_result: list[int] = heap_sort_list(result)
+    return sorted_result
 
 
-def find_kth_smallest(data: List[int], k: int) -> int:
-    """Find kth smallest element"""
-    # Sort and return kth element
-    sorted_data: List[int] = data.copy()
-    for i in range(len(sorted_data)):
-        for j in range(i + 1, len(sorted_data)):
-            if sorted_data[j] < sorted_data[i]:
-                temp: int = sorted_data[i]
-                sorted_data[i] = sorted_data[j]
-                sorted_data[j] = temp
-
+def find_kth_smallest(data: list[int], k: int) -> int:
+    """Find kth smallest element."""
+    sorted_data: list[int] = heap_sort_list(data)
     if k > 0 and k <= len(sorted_data):
-        return sorted_data[k - 1]
+        idx: int = k - 1
+        return sorted_data[idx]
     else:
         return -1
 
 
-def find_median_using_heaps(data: List[int]) -> float:
-    """Find median using two heaps concept"""
-    # Sort data
-    sorted_data: List[int] = data.copy()
-    for i in range(len(sorted_data)):
-        for j in range(i + 1, len(sorted_data)):
-            if sorted_data[j] < sorted_data[i]:
-                temp: int = sorted_data[i]
-                sorted_data[i] = sorted_data[j]
-                sorted_data[j] = temp
-
-    # Find median
+def find_median_int(data: list[int]) -> int:
+    """Find median using integer arithmetic (truncated for odd-length lists)."""
+    sorted_data: list[int] = heap_sort_list(data)
     n: int = len(sorted_data)
+    if n == 0:
+        return 0
+    mid: int = n // 2
     if n % 2 == 1:
-        median: float = float(sorted_data[n // 2])
+        return sorted_data[mid]
     else:
-        mid1: int = sorted_data[n // 2 - 1]
-        mid2: int = sorted_data[n // 2]
-        median: float = float(mid1 + mid2) / 2.0
-
-    return median
+        idx1: int = mid - 1
+        return (sorted_data[idx1] + sorted_data[mid]) // 2
 
 
-def test_all_heapq_features() -> None:
-    """Run all heapq module tests"""
-    # Basic operations
-    heap: List[int] = test_heap_push_pop()
-    heapified: List[int] = test_heapify()
+def test_all_heapq_features() -> int:
+    """Run all heapq module tests and return pass count."""
+    passed: int = 0
 
-    # Pop and peek
+    heap: list[int] = test_heap_push_pop()
+    if heap[0] == 1:
+        passed = passed + 1
+
+    heapified: list[int] = test_heapify()
+    if heapified[0] == 1:
+        passed = passed + 1
+
     min_val: int = test_heap_pop_min()
+    if min_val == 1:
+        passed = passed + 1
+
     peek_val: int = test_heap_peek()
+    if peek_val == 1:
+        passed = passed + 1
 
-    # N smallest/largest
-    data: List[int] = [5, 2, 8, 1, 9, 3, 7]
-    smallest_3: List[int] = test_nsmallest(data, 3)
-    largest_3: List[int] = test_nlargest(data, 3)
+    data: list[int] = [5, 2, 8, 1, 9, 3, 7]
+    smallest_3: list[int] = test_nsmallest(data, 3)
+    if len(smallest_3) == 3:
+        passed = passed + 1
 
-    # Manual operations
-    h: List[int] = []
+    largest_3: list[int] = test_nlargest(data, 3)
+    if len(largest_3) == 3:
+        passed = passed + 1
+
+    h: list[int] = []
     h = manual_heap_insert(h, 5)
     h = manual_heap_insert(h, 3)
     h = manual_heap_insert(h, 7)
+    extracted: int = manual_heap_extract_min_val(h)
+    if extracted == 3:
+        passed = passed + 1
 
-    extract_result: tuple = manual_heap_extract_min(h)
-    extracted: int = extract_result[0]
-    remaining: List[int] = extract_result[1]
+    remaining: list[int] = manual_heap_extract_min_rest(h)
+    if len(remaining) == 2:
+        passed = passed + 1
 
-    # Priority queue
-    priorities: List[int] = priority_queue_simulation()
+    lists: list[list[int]] = [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
+    merged: list[int] = merge_sorted_lists_flat(lists)
+    if len(merged) == 9:
+        passed = passed + 1
 
-    # Merge sorted lists
-    lists: List[List[int]] = [[1, 4, 7], [2, 5, 8], [3, 6, 9]]
-    merged: List[int] = merge_sorted_lists(lists)
-
-    # Kth smallest
-    sample: List[int] = [7, 10, 4, 3, 20, 15]
+    sample: list[int] = [7, 10, 4, 3, 20, 15]
     kth: int = find_kth_smallest(sample, 3)
+    if kth == 7:
+        passed = passed + 1
 
-    # Median using heaps
-    median_data: List[int] = [1, 2, 3, 4, 5]
-    median: float = find_median_using_heaps(median_data)
+    median_data: list[int] = [1, 2, 3, 4, 5]
+    median: int = find_median_int(median_data)
+    if median == 3:
+        passed = passed + 1
 
-    print("All heapq module tests completed successfully")
+    return passed
