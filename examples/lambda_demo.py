@@ -1,68 +1,106 @@
-# AWS Lambda function for demonstration
-import json
-from typing import Dict, Any, List
-import base64
+# AWS Lambda function for demonstration (simplified for transpiler)
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Process S3 events and return processed results.
-    
-    This function demonstrates:
-    - S3 event processing
-    - Error handling
-    - JSON response formatting
-    """
-    
-    # Check if this is an S3 event
-    if 'Records' not in event:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Invalid event format'})
-        }
-    
-    processed_files = []
-    total_size = 0
-    
-    for record in event['Records']:
-        # Extract S3 information
-        if 's3' in record:
-            bucket = record['s3']['bucket']['name']
-            key = record['s3']['object']['key']
-            size = record['s3']['object'].get('size', 0)
-            
-            # Process based on file type
-            file_type = 'unknown'
-            if key.endswith('.jpg') or key.endswith('.jpeg'):
-                file_type = 'image/jpeg'
-            elif key.endswith('.png'):
-                file_type = 'image/png'
-            elif key.endswith('.pdf'):
-                file_type = 'document/pdf'
-            elif key.endswith('.json'):
-                file_type = 'application/json'
-            
-            processed_files.append({
-                'bucket': bucket,
-                'key': key,
-                'size': size,
-                'type': file_type,
-                'processed': True
-            })
-            
-            total_size += size
-    
-    # Return summary
-    result = {
-        'files_processed': len(processed_files),
-        'total_size_bytes': total_size,
-        'total_size_mb': round(total_size / (1024 * 1024), 2),
-        'files': processed_files
-    }
-    
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'application/json'
-        },
-        'body': json.dumps(result)
-    }
+
+def classify_file_type(filename: str) -> str:
+    """Classify file type based on extension."""
+    if filename.endswith(".jpg"):
+        return "image/jpeg"
+    if filename.endswith(".jpeg"):
+        return "image/jpeg"
+    if filename.endswith(".png"):
+        return "image/png"
+    if filename.endswith(".pdf"):
+        return "document/pdf"
+    if filename.endswith(".json"):
+        return "application/json"
+    return "unknown"
+
+
+def compute_size_mb(size_bytes: int) -> int:
+    """Compute size in megabytes (integer, truncated)."""
+    if size_bytes <= 0:
+        return 0
+    mb: int = size_bytes // (1024 * 1024)
+    return mb
+
+
+def process_file_record(bucket_name: str, file_path: str, file_size: int) -> int:
+    """Process a single file record and return 1 if successful."""
+    file_type: str = classify_file_type(file_path)
+    if len(file_type) == 0:
+        return 0
+    if len(bucket_name) == 0:
+        return 0
+    return 1
+
+
+def process_batch(
+    buckets: list[str], paths: list[str], sizes: list[int]
+) -> int:
+    """Process a batch of file records. Returns count of processed files."""
+    n: int = len(buckets)
+    processed: int = 0
+    total_size: int = 0
+    i: int = 0
+    while i < n:
+        ok: int = process_file_record(buckets[i], paths[i], sizes[i])
+        if ok == 1:
+            processed = processed + 1
+            total_size = total_size + sizes[i]
+        i = i + 1
+    return processed
+
+
+def build_response(status_code: int, file_count: int, total_bytes: int) -> int:
+    """Build a response status. Returns status code if valid."""
+    if file_count < 0:
+        return 400
+    if status_code != 200 and status_code != 400:
+        return 500
+    return status_code
+
+
+def test_lambda_handler() -> int:
+    """Test the lambda handler logic."""
+    ft: str = classify_file_type("photo.jpg")
+    if ft != "image/jpeg":
+        return 0
+
+    ft2: str = classify_file_type("data.json")
+    if ft2 != "application/json":
+        return 0
+
+    ft3: str = classify_file_type("readme.txt")
+    if ft3 != "unknown":
+        return 0
+
+    mb: int = compute_size_mb(2097152)
+    if mb != 2:
+        return 0
+
+    mb2: int = compute_size_mb(500)
+    if mb2 != 0:
+        return 0
+
+    ok: int = process_file_record("my-bucket", "data/file.json", 1024)
+    if ok != 1:
+        return 0
+
+    buckets: list[str] = ["b1", "b2", "b3"]
+    paths: list[str] = ["f1.jpg", "f2.png", "f3.pdf"]
+    sizes: list[int] = [100, 200, 300]
+    cnt: int = process_batch(buckets, paths, sizes)
+    if cnt != 3:
+        return 0
+
+    resp: int = build_response(200, 3, 600)
+    if resp != 200:
+        return 0
+
+    return 1
+
+
+if __name__ == "__main__":
+    result: int = test_lambda_handler()
+    if result != 1:
+        raise ValueError("lambda_demo test failed")

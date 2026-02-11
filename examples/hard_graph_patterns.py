@@ -260,6 +260,19 @@ def has_cycle_directed(graph: dict[int, list[int]]) -> int:
     return 0
 
 
+def uf_find_dict(parent: dict[int, int], x: int) -> int:
+    """Find root with path compression for dict-based union-find."""
+    r: int = x
+    while parent[r] != r:
+        r = parent[r]
+    cur2: int = x
+    while cur2 != r:
+        nxt: int = parent[cur2]
+        parent[cur2] = r
+        cur2 = nxt
+    return r
+
+
 def has_cycle_undirected(graph: dict[int, list[int]]) -> int:
     """Detect cycle in undirected graph using union-find. Returns 1/0."""
     parent: dict[int, int] = {}
@@ -269,25 +282,14 @@ def has_cycle_undirected(graph: dict[int, list[int]]) -> int:
         parent[nodes[pi]] = nodes[pi]
         pi = pi + 1
 
-    def find_root(x: int) -> int:
-        r: int = x
-        while parent[r] != r:
-            r = parent[r]
-        cur2: int = x
-        while cur2 != r:
-            nxt: int = parent[cur2]
-            parent[cur2] = r
-            cur2 = nxt
-        return r
-
     for u in graph:
         neighbors: list[int] = graph[u]
         ei: int = 0
         while ei < len(neighbors):
             v: int = neighbors[ei]
             if u < v:
-                ru: int = find_root(u)
-                rv: int = find_root(v)
+                ru: int = uf_find_dict(parent, u)
+                rv: int = uf_find_dict(parent, v)
                 if ru == rv:
                     return 1
                 parent[ru] = rv
@@ -674,6 +676,35 @@ def chromatic_number_upper(graph: dict[int, list[int]]) -> int:
 # =============================================================================
 
 
+def uf_find_list(parent: list[int], x: int) -> int:
+    """Find root with path compression for list-based union-find."""
+    r: int = x
+    while parent[r] != r:
+        r = parent[r]
+    cur2: int = x
+    while cur2 != r:
+        nxt: int = parent[cur2]
+        parent[cur2] = r
+        cur2 = nxt
+    return r
+
+
+def uf_union_list(parent: list[int], rank_arr: list[int], a: int, b: int) -> int:
+    """Union two sets. Returns 1 if merged, 0 if already same set."""
+    ra: int = uf_find_list(parent, a)
+    rb: int = uf_find_list(parent, b)
+    if ra == rb:
+        return 0
+    if rank_arr[ra] < rank_arr[rb]:
+        parent[ra] = rb
+    elif rank_arr[ra] > rank_arr[rb]:
+        parent[rb] = ra
+    else:
+        parent[rb] = ra
+        rank_arr[ra] = rank_arr[ra] + 1
+    return 1
+
+
 def kruskal_mst_weight(
     num_nodes: int, edges: list[list[int]]
 ) -> int:
@@ -694,44 +725,19 @@ def kruskal_mst_weight(
             sj = sj + 1
         si = si + 1
     parent: list[int] = []
-    rank: list[int] = []
+    rank_arr: list[int] = []
     pi: int = 0
     while pi < num_nodes:
         parent.append(pi)
-        rank.append(0)
+        rank_arr.append(0)
         pi = pi + 1
-
-    def find_uf(x: int) -> int:
-        r: int = x
-        while parent[r] != r:
-            r = parent[r]
-        cur2: int = x
-        while cur2 != r:
-            nxt: int = parent[cur2]
-            parent[cur2] = r
-            cur2 = nxt
-        return r
-
-    def union_uf(a: int, b: int) -> int:
-        ra: int = find_uf(a)
-        rb: int = find_uf(b)
-        if ra == rb:
-            return 0
-        if rank[ra] < rank[rb]:
-            parent[ra] = rb
-        elif rank[ra] > rank[rb]:
-            parent[rb] = ra
-        else:
-            parent[rb] = ra
-            rank[ra] = rank[ra] + 1
-        return 1
 
     total_weight: int = 0
     edge_count: int = 0
     ki: int = 0
     while ki < len(sorted_edges) and edge_count < num_nodes - 1:
         e: list[int] = sorted_edges[ki]
-        if union_uf(e[0], e[1]) == 1:
+        if uf_union_list(parent, rank_arr, e[0], e[1]) == 1:
             total_weight = total_weight + e[2]
             edge_count = edge_count + 1
         ki = ki + 1
