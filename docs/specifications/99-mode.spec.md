@@ -92,18 +92,24 @@ is the recommended primary path, but all paths are subject to empirical validati
 
 ### 2.1 Compile Rate by Corpus (v3.25.0)
 
-*Last measured: 2026-02-02*
+*Last measured: 2026-02-10*
 
 | Corpus | Files | Compile Rate | Gap to 99% |
 |--------|-------|--------------|------------|
-| Tier 1 (stdlib) | 41 | 92.7% | 6.3 pp |
-| Tier 2 (typed-cli) | 16 | 62.5% | 36.5 pp |
-| Tier 3 (HuggingFace ML) | 128 | 4.7% | 94.3 pp |
-| Tier 4 (JAX) | 7 | 0% | 99 pp |
-| Tier 5 (algorithms) | 101 | 47.5% | 51.5 pp |
-| Internal examples | 321 | 75.7% | 23.3 pp |
+| Internal examples | 996 | 96.3% | 2.7 pp |
 
-**Measured Compile Rates (2026-02-02)**:
+**Measured Compile Rates (2026-02-10, DEPYLER-99MODE-S9)**:
+- Internal examples: 960/996 = 96.3% (rustc --crate-type=lib validation)
+- CFAIL (transpiles but fails rustc): 27 files
+- TFAIL (fails at transpilation): 9 files
+
+**Rate progression (DEPYLER-99MODE-S9)**:
+- 2026-02-07: 77.5% (321 files)
+- 2026-02-08: 86.8% → 87.6% → 87.7% → 89.2% → 90.3%
+- 2026-02-09: 93.7% → 95.8% (840/876)
+- 2026-02-10: 96.1% (899/935) → **96.3% (960/996)**
+
+**Previous Measured Compile Rates (2026-02-02, baseline)**:
 - Internal examples: 243/321 = 75.7% (rustc --crate-type=lib validation)
 
 **External Corpus Single-Shot Compile Rates (2026-02-02, v3.25.0)**:
