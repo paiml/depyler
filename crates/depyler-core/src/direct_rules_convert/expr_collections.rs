@@ -131,18 +131,18 @@ impl<'a> ExprConverter<'a> {
                     match k {
                         HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#key_raw as i64) },
                         HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#key_raw as f64) },
-                        HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_raw) },
+                        HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_raw.to_string()) },
                         HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#key_raw) },
                         _ => parse_quote! { DepylerValue::Str(format!("{:?}", #key_raw)) },
                     }
                 };
 
                 // Wrap value in DepylerValue based on its type
-                // Note: String literals already have .to_string() from convert(), so wrap directly
+                // DEPYLER-99MODE-S9: String literals need .to_string() for DepylerValue::Str(String)
                 let val: syn::Expr = match v {
                     HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#val_raw as i64) },
                     HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#val_raw as f64) },
-                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#val_raw) },
+                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#val_raw.to_string()) },
                     HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#val_raw) },
                     HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
                     HirExpr::Attribute { value, attr } => {
@@ -196,7 +196,7 @@ impl<'a> ExprConverter<'a> {
                                 let wrapped: syn::Expr = match item {
                                     HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#item_raw as i64) },
                                     HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#item_raw as f64) },
-                                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#item_raw) },
+                                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#item_raw.to_string()) },
                                     HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#item_raw) },
                                     HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
                                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #item_raw)) },
