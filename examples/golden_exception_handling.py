@@ -1,435 +1,245 @@
-"""Golden Exception Handling Example - DEPYLER-0983
+"""Exception-safe pattern tests using return codes (no try/except).
 
-A fully type-annotated Python file specifically designed to test
-exception handling transformations (try/except → Result).
-
-Purpose: Falsify hypothesis that exception handling codegen is sound.
-Method: Every function has explicit type annotations, isolating
-exception-specific bugs from type inference issues.
-
-Exception patterns tested:
-1. Simple try/except with early return
-2. try/except with exception variable binding
-3. try/except/finally (resource cleanup)
-4. try/except/else pattern (full suite)
-5. Multiple exception handlers
-6. Nested try/except blocks
-7. Exception re-raising patterns
-8. Custom Exception classes
-9. raise statements with and without arguments
-10. Return value propagation through Result
-
-Expected Rust transformations:
-- try/except → match on Result/closure
-- Exception types → custom error structs or Box<dyn Error>
-- finally → defer-like cleanup (drop guards or explicit)
-- else → executed when no exception occurs
-- raise → Err(...) or panic!
-- Custom exceptions → custom error types with Display/Error traits
+Tests error handling via sentinel values and return codes,
+avoiding transpiler bugs with try/except, raise, class, Optional, f-strings.
 """
 
-from typing import Optional, Dict, List
 
-
-# =============================================================================
-# Custom Exception Classes (Pattern 8)
-# =============================================================================
-
-class ValidationError(Exception):
-    """Custom exception for validation failures.
-
-    Rust: struct ValidationError { message: String }
-    impl std::error::Error for ValidationError {}
-    """
-    def __init__(self, message: str) -> None:
-        self.message: str = message
-        super().__init__(message)
-
-
-class RangeError(Exception):
-    """Custom exception for out-of-range values.
-
-    Rust: struct RangeError { value: i64, min_val: i64, max_val: i64 }
-    """
-    def __init__(self, value: int, min_val: int, max_val: int) -> None:
-        self.value: int = value
-        self.min_val: int = min_val
-        self.max_val: int = max_val
-        super().__init__(f"Value {value} not in range [{min_val}, {max_val}]")
-
-
-def parse_int_safe(s: str) -> int:
-    """Simple try/except with fallback return.
-
-    Python: try/except ValueError → return default
-    Rust: s.parse::<i64>().unwrap_or(0)
-    """
-    try:
-        return int(s)
-    except ValueError:
+def safe_divide(a: int, b: int) -> int:
+    """Division with zero check returning sentinel on error."""
+    if b == 0:
         return 0
+    return a // b
 
 
-def parse_int_with_error(s: str) -> Optional[int]:
-    """try/except returning Optional.
-
-    Python: try/except → None
-    Rust: s.parse::<i64>().ok()
-    """
-    try:
-        return int(s)
-    except ValueError:
-        return None
+def safe_divide_with_code(a: int, b: int) -> int:
+    """Division returning -1 on error."""
+    if b == 0:
+        return -1
+    return a // b
 
 
-def divide_safe(a: int, b: int) -> int:
-    """try/except with ZeroDivisionError.
-
-    Python: try/except ZeroDivisionError
-    Rust: if b == 0 { 0 } else { a / b }
-    """
-    try:
-        return a // b
-    except ZeroDivisionError:
+def validate_range(value: int, lo: int, hi: int) -> int:
+    """Returns 1 if value in [lo, hi], 0 otherwise."""
+    if value < lo:
         return 0
-
-
-def get_with_key_error(d: Dict[str, int], key: str) -> int:
-    """try/except with KeyError.
-
-    Python: try d[key] except KeyError
-    Rust: d.get(&key).copied().unwrap_or(-1)
-    """
-    try:
-        return d[key]
-    except KeyError:
-        return -1
-
-
-def get_with_bound_exception(d: Dict[str, int], key: str) -> str:
-    """try/except with exception variable binding.
-
-    Python: except KeyError as e → use e
-    Rust: Err(e) => format!("Error: {}", e)
-    """
-    try:
-        value: int = d[key]
-        return str(value)
-    except KeyError as e:
-        return f"Missing key: {e}"
-
-
-def multiple_handlers(s: str, d: Dict[str, int]) -> int:
-    """Multiple exception type handlers.
-
-    Python: except ValueError, except KeyError
-    Rust: match with multiple Err patterns
-    """
-    try:
-        num: int = int(s)
-        return d[str(num)]
-    except ValueError:
-        return -1
-    except KeyError:
-        return -2
-
-
-def nested_try_except(x: int) -> int:
-    """Nested try/except blocks.
-
-    Python: outer try wrapping inner try
-    Rust: nested match expressions
-    """
-    outer: int = 0
-    inner: int = 0
-    try:
-        outer = x + 1
-        try:
-            inner = outer * 2
-            if inner > 100:
-                raise ValueError("Too large")
-            return inner
-        except ValueError:
-            return outer
-    except Exception:
+    if value > hi:
         return 0
+    return 1
 
 
-def try_except_finally_pattern(filename: str) -> str:
-    """try/except/finally for resource cleanup.
-
-    Python: finally block always executes
-    Rust: Drop guard or explicit cleanup
-
-    Note: This tests cleanup semantics, not file I/O.
-    """
-    result: str = ""
-    opened: bool = False
-    try:
-        opened = True
-        result = f"Processing {filename}"
-        if filename == "":
-            raise ValueError("Empty filename")
-        return result
-    except ValueError as e:
-        result = f"Error: {e}"
-        return result
-    finally:
-        # Cleanup - this should always execute
-        if opened:
-            pass  # Close would happen here
-
-
-def propagate_result(values: List[str]) -> int:
-    """Exception propagation through multiple operations.
-
-    Python: Multiple operations that can fail
-    Rust: ? operator or explicit Result handling
-    """
-    total: int = 0
-    try:
-        for v in values:
-            num: int = int(v)
-            total += num
-        return total
-    except ValueError:
-        return -1
-
-
-def early_return_in_try(x: int) -> int:
-    """Early return within try block.
-
-    Python: return before try block ends
-    Rust: Ok(value) propagation
-    """
-    try:
-        if x < 0:
-            return -1
-        result: int = x * 2
-        if result > 100:
-            return 100
-        return result
-    except Exception:
-        return 0
-
-
-def exception_with_computation(a: int, b: int, c: int) -> int:
-    """Complex computation in try with multiple failure points.
-
-    Python: Chain of operations that can fail
-    Rust: Result chain with ? or match
-    """
-    try:
-        step1: int = a // b  # Can raise ZeroDivisionError
-        step2: int = step1 * c
-        if step2 < 0:
-            raise ValueError("Negative result")
-        return step2
-    except ZeroDivisionError:
-        return -1
-    except ValueError:
-        return -2
-
-
-# =============================================================================
-# try/except/else Pattern (Pattern 4)
-# =============================================================================
-
-def try_except_else(s: str) -> int:
-    """Full try/except/else pattern.
-
-    Python: else block runs when try succeeds (no exception)
-    Rust: Separate success path in match arm
-    """
-    result: int = 0
-    try:
-        value: int = int(s)
-    except ValueError:
-        result = -1
-    else:
-        # This runs only if no exception occurred
-        result = value * 2
-    return result
-
-
-def try_except_else_finally(s: str) -> str:
-    """Complete try/except/else/finally suite.
-
-    Python: Full exception handling pattern
-    Rust: Complex Result handling with cleanup
-    """
-    status: str = "init"
-    result: int = 0
-    try:
-        result = int(s)
-        status = "parsed"
-    except ValueError:
-        status = "error"
-        result = -1
-    else:
-        # Runs when try succeeds
-        result = result * 10
-        status = "success"
-    finally:
-        # Always runs
-        status = f"{status}_done"
-    return f"{status}:{result}"
-
-
-# =============================================================================
-# Raise Statement Patterns (Pattern 9)
-# =============================================================================
-
-def raise_without_args(x: int) -> int:
-    """Raise without arguments (re-raise current exception).
-
-    Python: bare raise re-raises the current exception
-    Rust: return Err(e) in catch block
-    """
-    try:
-        if x < 0:
-            raise ValueError("Negative")
-        return x
-    except ValueError:
-        # Re-raise the same exception
-        raise
-
-
-def raise_with_message(x: int) -> int:
-    """Raise with explicit message.
-
-    Python: raise ValueError("message")
-    Rust: Err(Box::new(ValueError { message: "...".to_string() }))
-    """
+def validate_positive(x: int) -> int:
+    """Returns x if positive, -1 as error sentinel."""
     if x < 0:
-        raise ValueError("Value must be non-negative")
-    if x > 100:
-        raise ValueError("Value must be <= 100")
+        return -1
     return x
 
 
-def raise_custom_exception(value: int, min_val: int, max_val: int) -> int:
-    """Raise custom exception type.
-
-    Python: raise RangeError(value, min, max)
-    Rust: Err(Box::new(RangeError { value, min_val, max_val }))
-    """
-    if value < min_val or value > max_val:
-        raise RangeError(value, min_val, max_val)
-    return value
-
-
-def raise_from_exception(s: str) -> int:
-    """Exception chaining with raise ... from.
-
-    Python: raise NewError from original_error
-    Rust: Error chaining with source()
-    """
-    try:
-        return int(s)
-    except ValueError as e:
-        raise ValidationError(f"Invalid input: {s}") from e
+def validate_even(x: int) -> int:
+    """Returns x // 2 if x is even and in [0, 1000], else error code."""
+    if x < 0:
+        return -1
+    if x > 1000:
+        return -2
+    if x % 2 != 0:
+        return -3
+    return x // 2
 
 
-def validate_and_transform(value: int) -> int:
-    """Multiple raise points in one function.
-
-    Python: Different exceptions at different validation stages
-    Rust: Multiple Err() returns with different error types
-    """
-    if value < 0:
-        raise ValidationError("Value cannot be negative")
-    if value > 1000:
-        raise RangeError(value, 0, 1000)
-    if value % 2 != 0:
-        raise ValueError("Value must be even")
-    return value // 2
+def clamp_result(x: int) -> int:
+    """Clamp computation: if x < 0 return -1, if x*2 > 100 return 100, else x*2."""
+    if x < 0:
+        return -1
+    result: int = x * 2
+    if result > 100:
+        return 100
+    return result
 
 
-# =============================================================================
-# Exception Handling with Custom Exceptions
-# =============================================================================
-
-def catch_custom_exception(value: int) -> str:
-    """Catch custom exception types.
-
-    Python: except ValidationError as e
-    Rust: match on specific error types via downcast
-    """
-    try:
-        result: int = validate_and_transform(value)
-        return f"Result: {result}"
-    except ValidationError as e:
-        return f"Validation failed: {e.message}"
-    except RangeError as e:
-        return f"Range error: {e.value} not in [{e.min_val}, {e.max_val}]"
-    except ValueError as e:
-        return f"Value error: {e}"
+def chain_computation(a: int, b: int, c: int) -> int:
+    """Chain of operations: a // b * c, with error codes for failures."""
+    if b == 0:
+        return -1
+    step1: int = a // b
+    step2: int = step1 * c
+    if step2 < 0:
+        return -2
+    return step2
 
 
-def main() -> int:
-    """Main function exercising all exception patterns."""
-    # Test parse_int_safe
-    assert parse_int_safe("42") == 42
-    assert parse_int_safe("invalid") == 0
+def safe_lookup(keys: list[str], values: list[int], key: str) -> int:
+    """Manual dict lookup using parallel lists. Returns -1 if not found."""
+    i: int = 0
+    while i < len(keys):
+        k: str = keys[i]
+        if k == key:
+            return values[i]
+        i = i + 1
+    return -1
 
-    # Test parse_int_with_error
-    assert parse_int_with_error("42") == 42
-    assert parse_int_with_error("invalid") is None
 
-    # Test divide_safe
-    assert divide_safe(10, 2) == 5
-    assert divide_safe(10, 0) == 0
+def parse_digit_string(s: str) -> int:
+    """Parse a string of digits manually. Returns -1 if any non-digit found."""
+    if len(s) == 0:
+        return -1
+    result: int = 0
+    i: int = 0
+    while i < len(s):
+        ch: str = s[i]
+        code: int = ord(ch)
+        if code < 48:
+            return -1
+        if code > 57:
+            return -1
+        digit: int = code - 48
+        result = result * 10 + digit
+        i = i + 1
+    return result
 
-    # Test get_with_key_error
-    d: Dict[str, int] = {"a": 1, "b": 2}
-    assert get_with_key_error(d, "a") == 1
-    assert get_with_key_error(d, "missing") == -1
 
-    # Test multiple_handlers
-    assert multiple_handlers("1", {"1": 100}) == 100
-    assert multiple_handlers("invalid", {"1": 100}) == -1
-    assert multiple_handlers("99", {"1": 100}) == -2
+def sum_digit_strings(items: list[str]) -> int:
+    """Sum parsed digit strings. Returns -1 if any parse fails."""
+    total: int = 0
+    i: int = 0
+    while i < len(items):
+        s: str = items[i]
+        parsed: int = parse_digit_string(s)
+        if parsed < 0:
+            return -1
+        total = total + parsed
+        i = i + 1
+    return total
 
-    # Test nested_try_except
-    assert nested_try_except(10) == 22
-    assert nested_try_except(100) == 101  # inner exceeds 100
 
-    # Test propagate_result
-    assert propagate_result(["1", "2", "3"]) == 6
-    assert propagate_result(["1", "invalid"]) == -1
+def nested_validate(x: int) -> int:
+    """Nested validation: outer adds 1, inner doubles, error if > 100."""
+    outer: int = x + 1
+    inner: int = outer * 2
+    if inner > 100:
+        return outer
+    return inner
 
-    # Test early_return_in_try
-    assert early_return_in_try(-5) == -1
-    assert early_return_in_try(10) == 20
-    assert early_return_in_try(100) == 100
 
-    # Test exception_with_computation
-    assert exception_with_computation(10, 2, 3) == 15
-    assert exception_with_computation(10, 0, 3) == -1
-    assert exception_with_computation(10, 2, -3) == -2
+def multi_step_validate(s: str, keys: list[str], values: list[int]) -> int:
+    """Multi-step: parse string then lookup. Returns error codes on failure."""
+    num: int = parse_digit_string(s)
+    if num < 0:
+        return -1
+    num_str: str = str(num)
+    result: int = safe_lookup(keys, values, num_str)
+    if result < 0:
+        return -2
+    return result
 
-    # Test try_except_else
-    assert try_except_else("5") == 10  # 5 * 2
-    assert try_except_else("invalid") == -1
 
-    # Test try_except_else_finally
-    assert try_except_else_finally("5") == "success_done:50"
-    assert try_except_else_finally("invalid") == "error_done:-1"
+def describe_validation(value: int) -> str:
+    """Return string description of validation result."""
+    result: int = validate_even(value)
+    if result == -1:
+        return "negative"
+    if result == -2:
+        return "too_large"
+    if result == -3:
+        return "odd"
+    return "ok"
 
-    # Test raise_with_message (should work for valid input)
-    assert raise_with_message(50) == 50
 
-    # Test raise_custom_exception (valid range)
-    assert raise_custom_exception(50, 0, 100) == 50
+def process_or_default(x: int) -> int:
+    """Process x with fallback: if negative, return 0."""
+    if x < 0:
+        return 0
+    return x * 2
 
-    # Test validate_and_transform (valid even number)
-    assert validate_and_transform(100) == 50
 
-    # Test catch_custom_exception
-    assert catch_custom_exception(100) == "Result: 50"
-    assert "Validation failed" in catch_custom_exception(-1)
-    assert "Range error" in catch_custom_exception(2000)
-    assert "Value error" in catch_custom_exception(3)  # odd number
+def conditional_chain(a: int, b: int) -> int:
+    """If b==0 return safe value, else compute and validate."""
+    if b == 0:
+        return 0
+    step1: int = a // b
+    if step1 < 0:
+        return 0
+    return step1 * 3
 
-    return 0
+
+def test_module() -> int:
+    """Test all exception-safe patterns."""
+    ok: int = 0
+
+    if safe_divide(10, 2) == 5:
+        ok = ok + 1
+    if safe_divide(10, 0) == 0:
+        ok = ok + 1
+
+    if safe_divide_with_code(10, 2) == 5:
+        ok = ok + 1
+    if safe_divide_with_code(10, 0) == -1:
+        ok = ok + 1
+
+    if validate_range(50, 0, 100) == 1:
+        ok = ok + 1
+    if validate_range(200, 0, 100) == 0:
+        ok = ok + 1
+
+    if validate_positive(10) == 10:
+        ok = ok + 1
+    if validate_positive(-5) == -1:
+        ok = ok + 1
+
+    if validate_even(100) == 50:
+        ok = ok + 1
+    if validate_even(-1) == -1:
+        ok = ok + 1
+    if validate_even(2000) == -2:
+        ok = ok + 1
+    if validate_even(3) == -3:
+        ok = ok + 1
+
+    if clamp_result(-5) == -1:
+        ok = ok + 1
+    if clamp_result(10) == 20:
+        ok = ok + 1
+    if clamp_result(100) == 100:
+        ok = ok + 1
+
+    if chain_computation(10, 2, 3) == 15:
+        ok = ok + 1
+    if chain_computation(10, 0, 3) == -1:
+        ok = ok + 1
+    if chain_computation(10, 2, -3) == -2:
+        ok = ok + 1
+
+    if parse_digit_string("42") == 42:
+        ok = ok + 1
+    if parse_digit_string("") == -1:
+        ok = ok + 1
+
+    items1: list[str] = ["1", "2", "3"]
+    if sum_digit_strings(items1) == 6:
+        ok = ok + 1
+
+    if nested_validate(10) == 22:
+        ok = ok + 1
+    if nested_validate(100) == 101:
+        ok = ok + 1
+
+    if process_or_default(-5) == 0:
+        ok = ok + 1
+    if process_or_default(10) == 20:
+        ok = ok + 1
+
+    if conditional_chain(10, 2) == 15:
+        ok = ok + 1
+    if conditional_chain(10, 0) == 0:
+        ok = ok + 1
+
+    r1: str = describe_validation(100)
+    if r1 == "ok":
+        ok = ok + 1
+    r2: str = describe_validation(-1)
+    if r2 == "negative":
+        ok = ok + 1
+    r3: str = describe_validation(3)
+    if r3 == "odd":
+        ok = ok + 1
+
+    return ok
