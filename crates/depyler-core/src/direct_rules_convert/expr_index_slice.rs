@@ -101,8 +101,9 @@ impl<'a> ExprConverter<'a> {
                 // String literal key - wrap in DepylerValue::Str
                 if let HirExpr::Literal(Literal::String(_)) = index {
                     let index_expr = self.convert(index)?;
+                    // DEPYLER-99MODE-S9: String literal needs .to_string() for DepylerValue::Str(String)
                     return Ok(parse_quote! {
-                        #base_expr.get(&DepylerValue::Str(#index_expr)).cloned().unwrap_or_default().into()
+                        #base_expr.get(&DepylerValue::Str(#index_expr.to_string())).cloned().unwrap_or_default().into()
                     });
                 }
             }
