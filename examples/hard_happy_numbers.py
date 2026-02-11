@@ -1,73 +1,86 @@
-"""Happy number detection.
-
-Tests: is happy, sum of squared digits, count happy in range, happy chain length.
-"""
+"""Happy number detection and sequence analysis."""
 
 
-def sum_squared_digits(n: int) -> int:
-    """Sum of squares of digits of n."""
+def digit_square_sum(n: int) -> int:
+    """Compute sum of squares of digits of n."""
+    total: int = 0
     val: int = n
     if val < 0:
         val = -val
-    total: int = 0
     while val > 0:
-        d: int = val % 10
-        total = total + d * d
+        digit: int = val % 10
+        total = total + digit * digit
         val = val // 10
     return total
 
 
 def is_happy(n: int) -> int:
-    """Returns 1 if n is a happy number."""
-    if n <= 0:
-        return 0
+    """Check if n is a happy number. Returns 1 if yes, 0 if no."""
     slow: int = n
-    fast: int = sum_squared_digits(n)
-    while fast != 1 and slow != fast:
-        slow = sum_squared_digits(slow)
-        fast = sum_squared_digits(sum_squared_digits(fast))
-    if fast == 1:
+    fast: int = n
+    slow = digit_square_sum(slow)
+    fast = digit_square_sum(digit_square_sum(fast))
+    while slow != fast:
+        slow = digit_square_sum(slow)
+        fast = digit_square_sum(digit_square_sum(fast))
+    if slow == 1:
         return 1
     return 0
 
 
-def happy_chain_length(n: int) -> int:
-    """Number of steps to reach 1 (or cycle detection limit)."""
-    if n <= 0:
-        return 0
-    val: int = n
-    steps: int = 0
-    limit: int = 200
-    while val != 1 and steps < limit:
-        val = sum_squared_digits(val)
-        steps = steps + 1
-    return steps
+def happy_sequence(n: int, steps: int) -> list[int]:
+    """Generate the happy number sequence for n up to steps iterations."""
+    result: list[int] = [n]
+    current: int = n
+    i: int = 0
+    while i < steps:
+        current = digit_square_sum(current)
+        result.append(current)
+        if current == 1:
+            break
+        i = i + 1
+    return result
 
 
-def count_happy_in_range(lo: int, hi: int) -> int:
-    """Count happy numbers in [lo, hi]."""
+def count_happy_in_range(low: int, high: int) -> int:
+    """Count happy numbers in range [low, high]."""
     count: int = 0
-    n: int = lo
-    while n <= hi:
-        if is_happy(n) == 1:
+    current: int = low
+    while current <= high:
+        if is_happy(current) == 1:
             count = count + 1
-        n = n + 1
+        current = current + 1
     return count
 
 
 def test_module() -> int:
-    """Test happy numbers."""
-    ok: int = 0
-    if is_happy(7) == 1:
-        ok = ok + 1
-    if is_happy(2) == 0:
-        ok = ok + 1
+    """Test happy number operations."""
+    passed: int = 0
+
+    if digit_square_sum(19) == 82:
+        passed = passed + 1
+
     if is_happy(1) == 1:
-        ok = ok + 1
-    if sum_squared_digits(49) == 97:
-        ok = ok + 1
-    if happy_chain_length(7) > 0:
-        ok = ok + 1
+        passed = passed + 1
+
+    if is_happy(7) == 1:
+        passed = passed + 1
+
+    if is_happy(2) == 0:
+        passed = passed + 1
+
+    seq: list[int] = happy_sequence(7, 10)
+    if seq[0] == 7:
+        passed = passed + 1
+
+    last_idx: int = len(seq) - 1
+    if seq[last_idx] == 1:
+        passed = passed + 1
+
     if count_happy_in_range(1, 10) == 3:
-        ok = ok + 1
-    return ok
+        passed = passed + 1
+
+    if digit_square_sum(100) == 1:
+        passed = passed + 1
+
+    return passed
