@@ -533,8 +533,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         if let HirExpr::Var(module_name) = object {
+            // DEPYLER-99MODE-S9: Skip module routing if this variable is known to be a
+            // local/declared variable (not a module). This prevents local variables named
+            // 'copy', 'calendar', etc. from being mistakenly routed to module method handlers.
+            let is_local_var = self.ctx.is_declared(module_name);
+            let is_actually_imported = !is_local_var;
+
             // DEPYLER-0021: Handle struct module (pack, unpack, calcsize)
-            if module_name == "struct" {
+            if is_actually_imported && module_name == "struct" {
                 return self.try_convert_struct_method(method, args);
             }
 
@@ -542,35 +548,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // math.sqrt(x) → x.sqrt()
             // math.sin(x) → x.sin()
             // math.pow(x, y) → x.powf(y)
-            if module_name == "math" {
+            if is_actually_imported && module_name == "math" {
                 return stdlib_method_gen::convert_math_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-RANDOM: Handle random module functions
             // random.random() → thread_rng().gen()
             // random.randint(a, b) → thread_rng().gen_range(a..=b)
-            if module_name == "random" {
+            if is_actually_imported && module_name == "random" {
                 return stdlib_method_gen::convert_random_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-STATISTICS: Handle statistics module functions
             // statistics.mean(data) → inline calculation
             // statistics.median(data) → sorted median calculation
-            if module_name == "statistics" {
+            if is_actually_imported && module_name == "statistics" {
                 return self.try_convert_statistics_method(method, args);
             }
 
             // DEPYLER-STDLIB-FRACTIONS: Handle fractions module functions
             // Fraction(1, 2) → Ratio::new(1, 2)
             // f.limit_denominator(100) → approximate with max denominator
-            if module_name == "fractions" {
+            if is_actually_imported && module_name == "fractions" {
                 return self.try_convert_fractions_method(method, args);
             }
 
             // DEPYLER-STDLIB-PATHLIB: Handle pathlib module functions
             // Path("/foo/bar").exists() → PathBuf::from("/foo/bar").exists()
             // Path("/foo").join("bar") → PathBuf::from("/foo").join("bar")
-            if module_name == "pathlib" {
+            if is_actually_imported && module_name == "pathlib" {
                 return stdlib_method_gen::convert_pathlib_method(method, args, self.ctx);
             }
 
@@ -586,7 +592,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-1069: Handle date.min/max vs datetime.min/max specially
             // date.min → DepylerDate(1, 1, 1), datetime.min → DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0)
-            if (module_name == "datetime" || module_name == "date")
+            if is_actually_imported
+                && (module_name == "datetime" || module_name == "date")
                 && (method == "min" || method == "max")
             {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
@@ -629,7 +636,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-1069: Handle date.today() vs datetime.today() separately
             // date.today() → DepylerDate::today(), datetime.today() → DepylerDateTime::today()
-            if (module_name == "datetime" || module_name == "date")
+            if is_actually_imported
+                && (module_name == "datetime" || module_name == "date")
                 && method == "today"
                 && args.is_empty()
             {
@@ -654,14 +662,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            if module_name == "datetime" || module_name == "date" {
+            if is_actually_imported && (module_name == "datetime" || module_name == "date") {
                 return self.try_convert_datetime_method(method, args);
             }
 
             // DEPYLER-1069: Handle datetime.time class attributes (min, max)
             // These are only valid for datetime.time class, not the time module
             // time.min → (0, 0, 0, 0), time.max → (23, 59, 59, 999999)
-            if module_name == "time" && (method == "min" || method == "max") {
+            if is_actually_imported && module_name == "time" && (method == "min" || method == "max") {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
                 if nasa_mode {
                     // Return tuple (hour, minute, second, microsecond)
@@ -682,7 +690,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0595: Handle bytes class methods
             // bytes.fromhex("aabbcc") → hex string to byte array
-            if module_name == "bytes" && method == "fromhex" && args.len() == 1 {
+            if is_actually_imported && module_name == "bytes" && method == "fromhex" && args.len() == 1 {
                 let hex_str = args[0].to_rust_expr(self.ctx)?;
                 // Convert hex string to Vec<u8> using inline parsing
                 return Ok(Some(parse_quote! {
@@ -696,29 +704,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-DECIMAL: Handle decimal module functions
             // decimal.Decimal("123.45") → Decimal::from_str("123.45")
             // Note: Decimal() constructor is handled separately in convert_call
-            if module_name == "decimal" {
+            if is_actually_imported && module_name == "decimal" {
                 return self.try_convert_decimal_method(method, args);
             }
 
             // DEPYLER-STDLIB-JSON: Handle json module functions
             // json.dumps(obj) → serde_json::to_string(&obj)
             // json.loads(s) → serde_json::from_str(&s)
-            if module_name == "json" {
+            if is_actually_imported && module_name == "json" {
                 return stdlib_method_gen::convert_json_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-RE: Regular expressions module
-            if module_name == "re" {
+            if is_actually_imported && module_name == "re" {
                 return stdlib_method_gen::convert_re_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-STRING: String module utilities
-            if module_name == "string" {
+            if is_actually_imported && module_name == "string" {
                 return stdlib_method_gen::convert_string_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-TIME: Time module
-            if module_name == "time" {
+            if is_actually_imported && module_name == "time" {
                 return stdlib_method_gen::convert_time_method(method, args, self.ctx);
             }
 
@@ -726,19 +734,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // shutil.copy(src, dst) → std::fs::copy(src, dst)
             // shutil.copy2(src, dst) → std::fs::copy(src, dst)
             // shutil.move(src, dst) → std::fs::rename(src, dst)
-            if module_name == "shutil" {
+            if is_actually_imported && module_name == "shutil" {
                 return stdlib_method_gen::convert_shutil_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-CSV: CSV file operations
             // DEPYLER-0426: Pass kwargs for DictWriter(file, fieldnames=...)
-            if module_name == "csv" {
+            if is_actually_imported && module_name == "csv" {
                 return self.try_convert_csv_method(method, args, kwargs);
             }
 
             // DEPYLER-0380: os module operations (getenv, etc.)
             // Must be checked before os.path to handle non-path os functions
-            if module_name == "os" {
+            if is_actually_imported && module_name == "os" {
                 if let Some(result) = stdlib_method_gen::convert_os_method(method, args, self.ctx)?
                 {
                     return Ok(Some(result));
@@ -749,112 +757,112 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-OSPATH: os.path file system operations
             // Only match the actual module "os.path", not variables named "path"
             // Variables named "path" are typically PathBuf instances from Path() constructor
-            if module_name == "os.path" {
+            if is_actually_imported && module_name == "os.path" {
                 return self.try_convert_os_path_method(method, args);
             }
 
             // DEPYLER-STDLIB-BASE64: Base64 encoding/decoding operations
-            if module_name == "base64" {
+            if is_actually_imported && module_name == "base64" {
                 return self.try_convert_base64_method(method, args);
             }
 
             // DEPYLER-STDLIB-SECRETS: Cryptographically strong random operations
-            if module_name == "secrets" {
+            if is_actually_imported && module_name == "secrets" {
                 return self.try_convert_secrets_method(method, args);
             }
 
             // DEPYLER-STDLIB-HASHLIB: Cryptographic hash functions
-            if module_name == "hashlib" {
+            if is_actually_imported && module_name == "hashlib" {
                 return self.try_convert_hashlib_method(method, args);
             }
 
             // DEPYLER-STDLIB-UUID: UUID generation (RFC 4122)
-            if module_name == "uuid" {
+            if is_actually_imported && module_name == "uuid" {
                 return self.try_convert_uuid_method(method, args);
             }
 
             // DEPYLER-STDLIB-HMAC: HMAC authentication
-            if module_name == "hmac" {
+            if is_actually_imported && module_name == "hmac" {
                 return self.try_convert_hmac_method(method, args);
             }
 
             // DEPYLER-0430: platform module - system information
-            if module_name == "platform" {
+            if is_actually_imported && module_name == "platform" {
                 return self.try_convert_platform_method(method, args);
             }
 
             // DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
-            if module_name == "binascii" {
+            if is_actually_imported && module_name == "binascii" {
                 return self.try_convert_binascii_method(method, args);
             }
 
             // DEPYLER-STDLIB-URLLIB-PARSE: URL parsing and encoding
-            if module_name == "urllib.parse" || module_name == "parse" {
+            if is_actually_imported && (module_name == "urllib.parse" || module_name == "parse") {
                 return self.try_convert_urllib_parse_method(method, args);
             }
 
             // DEPYLER-STDLIB-FNMATCH: Unix shell-style pattern matching
-            if module_name == "fnmatch" {
+            if is_actually_imported && module_name == "fnmatch" {
                 return self.try_convert_fnmatch_method(method, args);
             }
 
             // DEPYLER-STDLIB-SHLEX: Shell command line lexing
-            if module_name == "shlex" {
+            if is_actually_imported && module_name == "shlex" {
                 return self.try_convert_shlex_method(method, args);
             }
 
             // DEPYLER-STDLIB-TEXTWRAP: Text wrapping and formatting
-            if module_name == "textwrap" {
+            if is_actually_imported && module_name == "textwrap" {
                 return self.try_convert_textwrap_method(method, args);
             }
 
             // DEPYLER-STDLIB-BISECT: Binary search for sorted sequences
-            if module_name == "bisect" {
+            if is_actually_imported && module_name == "bisect" {
                 return self.try_convert_bisect_method(method, args);
             }
 
             // DEPYLER-STDLIB-HEAPQ: Heap queue algorithm (priority queue)
-            if module_name == "heapq" {
+            if is_actually_imported && module_name == "heapq" {
                 return self.try_convert_heapq_method(method, args);
             }
 
             // DEPYLER-STDLIB-COPY: Shallow and deep copy operations
-            if module_name == "copy" {
+            if is_actually_imported && module_name == "copy" {
                 return self.try_convert_copy_method(method, args);
             }
 
             // DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
-            if module_name == "itertools" {
+            if is_actually_imported && module_name == "itertools" {
                 return stdlib_method_gen::convert_itertools_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
-            if module_name == "functools" {
+            if is_actually_imported && module_name == "functools" {
                 return stdlib_method_gen::convert_functools_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-WARNINGS: Warning control
-            if module_name == "warnings" {
+            if is_actually_imported && module_name == "warnings" {
                 return stdlib_method_gen::convert_warnings_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-SYS: System-specific parameters and functions
-            if module_name == "sys" {
+            if is_actually_imported && module_name == "sys" {
                 return self.try_convert_sys_method(method, args);
             }
 
             // DEPYLER-STDLIB-PICKLE: Object serialization
-            if module_name == "pickle" {
+            if is_actually_imported && module_name == "pickle" {
                 return self.try_convert_pickle_method(method, args);
             }
 
             // DEPYLER-STDLIB-PPRINT: Pretty printing
-            if module_name == "pprint" {
+            if is_actually_imported && module_name == "pprint" {
                 return self.try_convert_pprint_method(method, args);
             }
 
             // DEPYLER-0424: Calendar module - date/time calculations
-            if module_name == "calendar" {
+            if is_actually_imported && module_name == "calendar" {
                 return self.try_convert_calendar_method(method, args);
             }
 

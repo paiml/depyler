@@ -865,32 +865,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // inside class methods where parameters might be mistyped as class instances
         // DEPYLER-1070: Skip if object is a known stdlib module (re, json, etc.) to allow
         // module method handling later (e.g., re.split() should be regex split, not str.split())
+        // DEPYLER-99MODE-S9: Skip stdlib module routing if the variable is a known local variable.
+        // This prevents local variables named 'copy', 'calendar', 'string', etc. from
+        // being mistakenly treated as stdlib module references.
         let is_stdlib_module = if let HirExpr::Var(name) = object {
-            matches!(
-                name.as_str(),
-                "re" | "json"
-                    | "math"
-                    | "random"
-                    | "os"
-                    | "sys"
-                    | "time"
-                    | "datetime"
-                    | "pathlib"
-                    | "struct"
-                    | "statistics"
-                    | "fractions"
-                    | "decimal"
-                    | "collections"
-                    | "itertools"
-                    | "functools"
-                    | "shutil"
-                    | "csv"
-                    | "base64"
-                    | "hashlib"
-                    | "subprocess"
-                    | "string"
-                    | "tempfile"
-            )
+            !self.ctx.is_declared(name)
+                && matches!(
+                    name.as_str(),
+                    "re" | "json"
+                        | "math"
+                        | "random"
+                        | "os"
+                        | "sys"
+                        | "time"
+                        | "datetime"
+                        | "pathlib"
+                        | "struct"
+                        | "statistics"
+                        | "fractions"
+                        | "decimal"
+                        | "collections"
+                        | "itertools"
+                        | "functools"
+                        | "shutil"
+                        | "csv"
+                        | "base64"
+                        | "hashlib"
+                        | "subprocess"
+                        | "string"
+                        | "tempfile"
+                )
         } else {
             false
         };
