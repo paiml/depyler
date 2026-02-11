@@ -1,89 +1,83 @@
-"""Matrix multiplication.
-
-Tests: multiply 2D matrices, scalar multiply, matrix power, identity check.
-"""
+def matrix_get(m: list[int], rows: int, cols: int, r: int, c: int) -> int:
+    return m[r * cols + c]
 
 
-def matrix_multiply(a: list[list[int]], b: list[list[int]], m: int, n: int, p: int) -> list[list[int]]:
-    """Multiply m x n matrix A by n x p matrix B."""
-    result: list[list[int]] = []
+def matrix_set(m: list[int], cols: int, r: int, c: int, val: int) -> list[int]:
+    m[r * cols + c] = val
+    return m
+
+
+def matrix_multiply(a: list[int], a_rows: int, a_cols: int, b: list[int], b_cols: int) -> list[int]:
+    result: list[int] = []
+    total: int = a_rows * b_cols
     i: int = 0
-    while i < m:
-        row: list[int] = []
-        j: int = 0
-        while j < p:
-            total: int = 0
+    while i < total:
+        result.append(0)
+        i = i + 1
+    r: int = 0
+    while r < a_rows:
+        c: int = 0
+        while c < b_cols:
+            s: int = 0
             k: int = 0
-            while k < n:
-                total = total + a[i][k] * b[k][j]
+            while k < a_cols:
+                s = s + matrix_get(a, a_rows, a_cols, r, k) * matrix_get(b, a_cols, b_cols, k, c)
                 k = k + 1
-            row.append(total)
-            j = j + 1
-        result.append(row)
-        i = i + 1
+            result = matrix_set(result, b_cols, r, c, s)
+            c = c + 1
+        r = r + 1
     return result
 
 
-def scalar_multiply(matrix: list[list[int]], scalar: int, rows: int, cols: int) -> list[list[int]]:
-    """Multiply every element by scalar."""
-    result: list[list[int]] = []
+def matrix_transpose(m: list[int], rows: int, cols: int) -> list[int]:
+    result: list[int] = []
+    total: int = rows * cols
     i: int = 0
-    while i < rows:
-        row: list[int] = []
-        j: int = 0
-        while j < cols:
-            row.append(matrix[i][j] * scalar)
-            j = j + 1
-        result.append(row)
+    while i < total:
+        result.append(0)
         i = i + 1
+    r: int = 0
+    while r < rows:
+        c: int = 0
+        while c < cols:
+            result[c * rows + r] = m[r * cols + c]
+            c = c + 1
+        r = r + 1
     return result
 
 
-def is_identity(matrix: list[list[int]], n: int) -> int:
-    """Check if matrix is n x n identity. Returns 1 or 0."""
+def matrix_identity(n: int) -> list[int]:
+    result: list[int] = []
+    total: int = n * n
     i: int = 0
-    while i < n:
-        j: int = 0
-        while j < n:
-            if i == j:
-                if matrix[i][j] != 1:
-                    return 0
-            else:
-                if matrix[i][j] != 0:
-                    return 0
-            j = j + 1
+    while i < total:
+        result.append(0)
         i = i + 1
-    return 1
-
-
-def matrix_trace(matrix: list[list[int]], n: int) -> int:
-    """Sum of diagonal elements."""
-    total: int = 0
-    i: int = 0
+    i = 0
     while i < n:
-        total = total + matrix[i][i]
+        result[i * n + i] = 1
         i = i + 1
-    return total
+    return result
 
 
 def test_module() -> int:
-    """Test matrix multiplication operations."""
-    ok: int = 0
-    a: list[list[int]] = [[1, 2], [3, 4]]
-    b: list[list[int]] = [[5, 6], [7, 8]]
-    c: list[list[int]] = matrix_multiply(a, b, 2, 2, 2)
-    if c[0][0] == 19 and c[0][1] == 22:
-        ok = ok + 1
-    if c[1][0] == 43 and c[1][1] == 50:
-        ok = ok + 1
-    s: list[list[int]] = scalar_multiply(a, 3, 2, 2)
-    if s[0][0] == 3 and s[1][1] == 12:
-        ok = ok + 1
-    ident: list[list[int]] = [[1, 0], [0, 1]]
-    if is_identity(ident, 2) == 1:
-        ok = ok + 1
-    if is_identity(a, 2) == 0:
-        ok = ok + 1
-    if matrix_trace(a, 2) == 5:
-        ok = ok + 1
-    return ok
+    passed: int = 0
+    a: list[int] = [1, 2, 3, 4]
+    b: list[int] = [5, 6, 7, 8]
+    r: list[int] = matrix_multiply(a, 2, 2, b, 2)
+    if r == [19, 22, 43, 50]:
+        passed = passed + 1
+    t: list[int] = matrix_transpose([1, 2, 3, 4, 5, 6], 2, 3)
+    if t == [1, 4, 2, 5, 3, 6]:
+        passed = passed + 1
+    ident: list[int] = matrix_identity(3)
+    if ident == [1, 0, 0, 0, 1, 0, 0, 0, 1]:
+        passed = passed + 1
+    if matrix_get([1, 2, 3, 4], 2, 2, 1, 0) == 3:
+        passed = passed + 1
+    r2: list[int] = matrix_multiply([1, 0, 0, 1], 2, 2, [5, 6, 7, 8], 2)
+    if r2 == [5, 6, 7, 8]:
+        passed = passed + 1
+    if matrix_identity(2) == [1, 0, 0, 1]:
+        passed = passed + 1
+    return passed

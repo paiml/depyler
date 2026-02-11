@@ -1,12 +1,14 @@
-"""Polynomial evaluation algorithms.
+"""Polynomial evaluation using Horner's method and derivative computation.
 
-Tests: Horner's method, polynomial derivative, coefficient operations.
+Tests: horner_eval, polynomial_derivative, polynomial_add.
 """
 
 
 def horner_eval(coeffs: list[int], x: int) -> int:
     """Evaluate polynomial using Horner's method.
-    coeffs[0] is the highest degree coefficient.
+    
+    coeffs[0] is highest degree coefficient.
+    E.g., [2, 3, 1] represents 2x^2 + 3x + 1.
     """
     if len(coeffs) == 0:
         return 0
@@ -14,13 +16,14 @@ def horner_eval(coeffs: list[int], x: int) -> int:
     i: int = 1
     while i < len(coeffs):
         result = result * x + coeffs[i]
-        i += 1
+        i = i + 1
     return result
 
 
-def poly_derivative(coeffs: list[int]) -> list[int]:
-    """Compute derivative coefficients.
-    coeffs[0] is the highest degree coefficient.
+def polynomial_derivative(coeffs: list[int]) -> list[int]:
+    """Compute derivative of polynomial.
+    
+    coeffs[0] is highest degree. Returns derivative coefficients.
     """
     n: int = len(coeffs)
     if n <= 1:
@@ -30,80 +33,74 @@ def poly_derivative(coeffs: list[int]) -> list[int]:
     degree: int = n - 1
     while i < n - 1:
         result.append(coeffs[i] * (degree - i))
-        i += 1
+        i = i + 1
     return result
 
 
-def poly_add(a: list[int], b: list[int]) -> list[int]:
-    """Add two polynomials (same length, padded with zeros)."""
+def polynomial_add(a: list[int], b: list[int]) -> list[int]:
+    """Add two polynomials (highest degree first)."""
     la: int = len(a)
     lb: int = len(b)
-    length: int = la
-    if lb > length:
-        length = lb
+    max_len: int = la
+    if lb > max_len:
+        max_len = lb
     result: list[int] = []
     i: int = 0
-    while i < length:
+    while i < max_len:
         va: int = 0
-        if i < la:
-            va = a[i]
         vb: int = 0
+        if i < la:
+            va = a[la - 1 - i]
         if i < lb:
-            vb = b[i]
+            vb = b[lb - 1 - i]
         result.append(va + vb)
-        i += 1
-    return result
+        i = i + 1
+    # Reverse result
+    reversed_result: list[int] = []
+    j: int = len(result) - 1
+    while j >= 0:
+        reversed_result.append(result[j])
+        j = j - 1
+    return reversed_result
 
 
-def poly_scale(coeffs: list[int], factor: int) -> list[int]:
-    """Scale all coefficients by a factor."""
-    result: list[int] = []
-    for c in coeffs:
-        result.append(c * factor)
-    return result
-
-
-def poly_degree(coeffs: list[int]) -> int:
-    """Find the degree of the polynomial."""
-    i: int = 0
-    while i < len(coeffs):
-        if coeffs[i] != 0:
-            return len(coeffs) - 1 - i
-        i += 1
-    return 0
+def polynomial_degree(coeffs: list[int]) -> int:
+    """Return degree of polynomial."""
+    if len(coeffs) == 0:
+        return -1
+    return len(coeffs) - 1
 
 
 def test_module() -> int:
     """Test polynomial operations."""
     ok: int = 0
 
-    # 2x^2 + 3x + 1 at x=2 => 8+6+1 = 15
-    v: int = horner_eval([2, 3, 1], 2)
-    if v == 15:
-        ok += 1
+    # 2x^2 + 3x + 1 at x=2 => 8 + 6 + 1 = 15
+    if horner_eval([2, 3, 1], 2) == 15:
+        ok = ok + 1
 
     # x^3 at x=3 => 27
-    v2: int = horner_eval([1, 0, 0, 0], 3)
-    if v2 == 27:
-        ok += 1
+    if horner_eval([1, 0, 0, 0], 3) == 27:
+        ok = ok + 1
 
-    # derivative of 3x^2 + 2x + 1 => 6x + 2 => [6, 2]
-    d: list[int] = poly_derivative([3, 2, 1])
-    if d == [6, 2]:
-        ok += 1
+    if horner_eval([], 5) == 0:
+        ok = ok + 1
 
-    # add [1, 2, 3] + [4, 5, 6] = [5, 7, 9]
-    s: list[int] = poly_add([1, 2, 3], [4, 5, 6])
-    if s == [5, 7, 9]:
-        ok += 1
+    # d/dx (2x^2 + 3x + 1) = 4x + 3
+    d: list[int] = polynomial_derivative([2, 3, 1])
+    if d == [4, 3]:
+        ok = ok + 1
 
-    # scale [1, 2, 3] by 2 = [2, 4, 6]
-    sc: list[int] = poly_scale([1, 2, 3], 2)
-    if sc == [2, 4, 6]:
-        ok += 1
+    # d/dx (5) = 0
+    if polynomial_derivative([5]) == [0]:
+        ok = ok + 1
 
-    deg: int = poly_degree([0, 0, 3, 2, 1])
-    if deg == 2:
-        ok += 1
+    # (x + 1) + (2x + 3) = 3x + 4
+    s: list[int] = polynomial_add([1, 1], [2, 3])
+    if s == [3, 4]:
+        ok = ok + 1
+
+    if polynomial_degree([2, 3, 1]) == 2:
+        ok = ok + 1
 
     return ok

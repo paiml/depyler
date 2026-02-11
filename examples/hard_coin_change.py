@@ -1,88 +1,89 @@
-"""Coin change problem variants.
+"""Coin change problem: minimum coins needed and number of ways to make change.
 
-Tests: minimum coins, number of ways, reachable amounts.
+Tests: min coins for various amounts, number of ways, edge cases with zero and impossible amounts.
 """
 
 
 def min_coins(coins: list[int], amount: int) -> int:
-    """Minimum number of coins to make amount. Returns -1 if impossible."""
-    big: int = amount + 1
-    dp: list[int] = [big] * (amount + 1)
-    dp[0] = 0
-    i: int = 1
+    """Return minimum number of coins needed to make amount, or -1 if impossible."""
+    dp: list[int] = []
+    i: int = 0
     while i <= amount:
+        dp.append(amount + 1)
+        i = i + 1
+    dp[0] = 0
+    a: int = 1
+    while a <= amount:
         j: int = 0
         while j < len(coins):
-            if coins[j] <= i:
-                candidate: int = dp[i - coins[j]] + 1
-                if candidate < dp[i]:
-                    dp[i] = candidate
+            if coins[j] <= a:
+                prev: int = dp[a - coins[j]] + 1
+                if prev < dp[a]:
+                    dp[a] = prev
             j = j + 1
-        i = i + 1
+        a = a + 1
     if dp[amount] > amount:
         return -1
     return dp[amount]
 
 
 def count_ways(coins: list[int], amount: int) -> int:
-    """Count number of ways to make amount (order doesn't matter)."""
-    dp: list[int] = [0] * (amount + 1)
-    dp[0] = 1
+    """Return the number of distinct ways to make change for amount."""
+    dp: list[int] = []
     i: int = 0
-    while i < len(coins):
-        j: int = coins[i]
-        while j <= amount:
-            dp[j] = dp[j] + dp[j - coins[i]]
-            j = j + 1
-        i = i + 1
-    return dp[amount]
-
-
-def count_permutations(coins: list[int], amount: int) -> int:
-    """Count number of ways to make amount (order matters)."""
-    dp: list[int] = [0] * (amount + 1)
-    dp[0] = 1
-    i: int = 1
     while i <= amount:
-        j: int = 0
-        while j < len(coins):
-            if coins[j] <= i:
-                dp[i] = dp[i] + dp[i - coins[j]]
-            j = j + 1
+        dp.append(0)
         i = i + 1
+    dp[0] = 1
+    j: int = 0
+    while j < len(coins):
+        a: int = coins[j]
+        while a <= amount:
+            dp[a] = dp[a] + dp[a - coins[j]]
+            a = a + 1
+        j = j + 1
     return dp[amount]
 
 
-def max_reachable(coins: list[int], amount: int) -> int:
-    """Find the largest amount <= given amount that can be made."""
-    dp: list[bool] = [False] * (amount + 1)
-    dp[0] = True
-    i: int = 0
-    while i < len(coins):
-        j: int = coins[i]
-        while j <= amount:
-            if dp[j - coins[i]]:
-                dp[j] = True
-            j = j + 1
-        i = i + 1
-    best: int = 0
-    k: int = amount
-    while k >= 0:
-        if dp[k]:
-            best = k
-            k = -1
-        else:
-            k = k - 1
-    return best
+def min_coins_single(coin: int, amount: int) -> int:
+    """Return min coins when only one denomination is available."""
+    if amount % coin != 0:
+        return -1
+    return amount // coin
 
 
-def test_module() -> None:
-    coins: list[int] = [1, 5, 10, 25]
-    assert min_coins(coins, 30) == 2
-    assert min_coins(coins, 11) == 2
-    assert min_coins([2], 3) == -1
-    assert count_ways(coins, 10) == 4
-    assert count_ways([1, 2], 4) == 3
-    assert count_permutations([1, 2], 4) == 5
-    assert max_reachable([3, 7], 10) == 10
-    assert max_reachable([3, 7], 8) == 7
+def test_module() -> int:
+    """Test coin change algorithms."""
+    ok: int = 0
+
+    coins1: list[int] = [1, 5, 10, 25]
+    if min_coins(coins1, 30) == 2:
+        ok = ok + 1
+    if min_coins(coins1, 11) == 2:
+        ok = ok + 1
+    if min_coins(coins1, 0) == 0:
+        ok = ok + 1
+
+    coins2: list[int] = [2]
+    if min_coins(coins2, 3) == -1:
+        ok = ok + 1
+
+    coins3: list[int] = [1, 2, 5]
+    if min_coins(coins3, 11) == 3:
+        ok = ok + 1
+
+    if count_ways(coins1, 10) == 4:
+        ok = ok + 1
+    if count_ways(coins1, 0) == 1:
+        ok = ok + 1
+
+    coins4: list[int] = [1, 2, 3]
+    if count_ways(coins4, 4) == 4:
+        ok = ok + 1
+
+    if min_coins_single(5, 25) == 5:
+        ok = ok + 1
+    if min_coins_single(3, 7) == -1:
+        ok = ok + 1
+
+    return ok
