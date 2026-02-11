@@ -7332,6 +7332,9 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix dequeue()/pop_front() Option unwrap (E0308).
     formatted_code = fix_option_dequeue_unwrap(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix char.as_str() → char.to_string() (E0599).
+    formatted_code = fix_char_as_str(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -8250,7 +8253,7 @@ fn extract_hashmap_typed_vars(code: &str) -> Vec<String> {
         let trimmed = line.trim();
         // Match parameter lines containing HashMap (works for multi-line sigs too)
         // Pattern: `name: &'a HashMap<...>` or `name: HashMap<...>`
-        if trimmed.contains("HashMap<") && trimmed.contains(':') {
+        if trimmed.contains("HashMap<") && trimmed.contains(':') && !trimmed.contains("Option<") {
             // Skip function return types (contains `->`)
             if trimmed.contains("->") && !trimmed.contains(',') {
                 continue;
@@ -8272,7 +8275,11 @@ fn extract_hashmap_typed_vars(code: &str) -> Vec<String> {
             }
         }
         // From local declarations: `let mut data: HashMap<...>`
-        if trimmed.starts_with("let ") && trimmed.contains("HashMap<") {
+        // Skip Option<HashMap<...>> — the var is Option, not directly a HashMap
+        if trimmed.starts_with("let ")
+            && trimmed.contains("HashMap<")
+            && !trimmed.contains("Option<")
+        {
             let rest = trimmed
                 .strip_prefix("let ")
                 .unwrap_or("")
@@ -13871,6 +13878,17 @@ fn fix_option_dequeue_unwrap(code: &str) -> String {
         result.push('\n');
     }
     result
+}
+
+/// DEPYLER-99MODE-S9: Fix `char.as_str()` → `char.to_string()` (E0599).
+///
+/// `char` in Rust has no `.as_str()` method. The transpiler generates
+/// `char.as_str().unwrap_or_default().to_string()` but should just use `.to_string()`.
+fn fix_char_as_str(code: &str) -> String {
+    code.replace(
+        ".as_str().unwrap_or_default().to_string()",
+        ".to_string()",
+    )
 }
 
 /// Helper: Unwrap Result<T, E> to just T in a return type string.
