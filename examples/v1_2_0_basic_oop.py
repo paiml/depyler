@@ -64,15 +64,16 @@ def test_rectangle():
     
     return area + perim
 
-def test_static():
+def test_static() -> int:
     """Test static methods"""
-    zero = Point.origin()
+    zero: int = Point.origin()
     return zero
 
-def main():
+def main() -> int:
     """Run all tests"""
-    point_result = test_point()
-    rect_result = test_rectangle()
-    static_result = test_static()
-    
-    return point_result + rect_result + static_result
+    point_result: int = test_point()
+    rect_result: int = test_rectangle()
+    static_result: int = test_static()
+    total: int = point_result + rect_result
+    result: int = total + static_result
+    return result

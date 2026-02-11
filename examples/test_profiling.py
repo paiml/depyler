@@ -17,74 +17,89 @@ def fibonacci_iterative(n: int) -> int:
     """Iterative Fibonacci - more efficient."""
     if n <= 1:
         return n
-    
-    a, b = 0, 1
-    for _ in range(2, n + 1):
-        a, b = b, a + b
+
+    a: int = 0
+    b: int = 1
+    for _i in range(2, n + 1):
+        c: int = a + b
+        a = b
+        b = c
     return b
 
 
 def process_list(items: list[int]) -> int:
-    """Process a list with nested loops - O(n²) complexity."""
-    total = 0
-    
-    # Nested loop pattern that profiler will flag
-    for i in range(len(items)):
-        for j in range(i, len(items)):
-            if items[i] < items[j]:
-                total += items[i] * items[j]
-    
+    """Process a list with nested loops - O(n squared) complexity."""
+    total: int = 0
+    n: int = len(items)
+    i: int = 0
+    while i < n:
+        j: int = i
+        while j < n:
+            val_i: int = items[i]
+            val_j: int = items[j]
+            if val_i < val_j:
+                total = total + val_i * val_j
+            j = j + 1
+        i = i + 1
     return total
 
 
 def string_concatenation_in_loop(n: int) -> str:
     """String concatenation in loop - inefficient pattern."""
-    result = ""
+    result: str = ""
     for i in range(n):
-        result += f"Item {i}, "  # O(n²) due to string immutability
+        result = result + "Item " + str(i) + ", "
     return result
 
 
-def allocate_many_lists(n: int) -> list[list[int]]:
-    """Function with many allocations."""
-    results = []
+def allocate_flat_list(n: int) -> list[int]:
+    """Function that allocates a flat list of computed values."""
+    results: list[int] = []
     for i in range(n):
-        # Each iteration allocates a new list
-        inner_list = []
         for j in range(10):
-            inner_list.append(i * j)
-        results.append(inner_list)
+            results.append(i * j)
     return results
 
 
-def type_check_heavy(values: list[object]) -> int:
-    """Function with many type checks that Rust can optimize away."""
-    count = 0
+def count_values(values: list[int]) -> int:
+    """Count and sum values from a list."""
+    count: int = 0
     for value in values:
-        if isinstance(value, int):
-            count += value
-        elif isinstance(value, str):
-            count += len(value)
-        elif isinstance(value, list):
-            count += len(value)
+        count = count + value
     return count
 
 
-def matrix_multiply(a: list[list[float]], b: list[list[float]]) -> list[list[float]]:
-    """Matrix multiplication - triple nested loop."""
-    rows_a = len(a)
-    cols_a = len(a[0]) if a else 0
-    cols_b = len(b[0]) if b else 0
-    
-    # Initialize result matrix
-    result = [[0.0 for _ in range(cols_b)] for _ in range(rows_a)]
-    
-    # Triple nested loop - O(n³)
-    for i in range(rows_a):
-        for j in range(cols_b):
-            for k in range(cols_a):
-                result[i][j] += a[i][k] * b[k][j]
-    
+def compute_mat_index(row: int, col: int, stride: int) -> int:
+    """Compute flat matrix index."""
+    return row * stride + col
+
+
+def matrix_multiply_flat(a_flat: list[float], b_flat: list[float],
+                         rows_a: int, cols_a: int, cols_b: int) -> list[float]:
+    """Matrix multiplication using flat arrays."""
+    result: list[float] = []
+    i: int = 0
+    total_size: int = rows_a * cols_b
+    while i < total_size:
+        result.append(0.0)
+        i = i + 1
+    ri: int = 0
+    while ri < rows_a:
+        ci: int = 0
+        while ci < cols_b:
+            total: float = 0.0
+            ki: int = 0
+            while ki < cols_a:
+                a_idx: int = compute_mat_index(ri, ki, cols_a)
+                b_idx: int = compute_mat_index(ki, ci, cols_b)
+                a_val: float = a_flat[a_idx]
+                b_val: float = b_flat[b_idx]
+                total = total + a_val * b_val
+                ki = ki + 1
+            r_idx: int = compute_mat_index(ri, ci, cols_b)
+            result[r_idx] = total
+            ci = ci + 1
+        ri = ri + 1
     return result
 
 
@@ -93,37 +108,42 @@ def simple_function(x: int, y: int) -> int:
     return x + y
 
 
-def main():
+def run_profiling() -> int:
     """Main entry point with various function calls."""
-    # Hot path: recursive fibonacci
+    total: int = 0
+
     for i in range(5):
-        fibonacci_recursive(i)
-    
-    # More efficient version
-    fibonacci_iterative(30)
-    
-    # Nested loops
-    test_list = list(range(100))
-    process_list(test_list)
-    
-    # String concatenation
-    string_concatenation_in_loop(100)
-    
-    # Many allocations
-    allocate_many_lists(50)
-    
-    # Type checks
-    mixed_values = [1, "hello", [1, 2, 3], 42, "world"]
-    type_check_heavy(mixed_values)
-    
-    # Matrix multiplication
-    mat_a = [[1.0, 2.0], [3.0, 4.0]]
-    mat_b = [[5.0, 6.0], [7.0, 8.0]]
-    matrix_multiply(mat_a, mat_b)
-    
-    # Simple function
-    simple_function(10, 20)
+        total = total + fibonacci_recursive(i)
+
+    total = total + fibonacci_iterative(30)
+
+    test_list: list[int] = []
+    li: int = 0
+    while li < 20:
+        test_list.append(li)
+        li = li + 1
+    total = total + process_list(test_list)
+
+    msg: str = string_concatenation_in_loop(5)
+    total = total + len(msg)
+
+    flat: list[int] = allocate_flat_list(5)
+    total = total + len(flat)
+
+    vals: list[int] = [1, 2, 3, 42, 10]
+    total = total + count_values(vals)
+
+    a_mat: list[float] = [1.0, 2.0, 3.0, 4.0]
+    b_mat: list[float] = [5.0, 6.0, 7.0, 8.0]
+    c_mat: list[float] = matrix_multiply_flat(a_mat, b_mat, 2, 2, 2)
+    total = total + len(c_mat)
+
+    total = total + simple_function(10, 20)
+
+    return total
 
 
 if __name__ == "__main__":
-    main()
+    result: int = run_profiling()
+    if result > 0:
+        pass
