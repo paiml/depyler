@@ -7305,6 +7305,33 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix -fn_call() when fn returns Result (E0600).
     formatted_code = fix_negate_result_fn_call(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix `return dv_param` when fn returns i32/f64/String (E0308).
+    formatted_code = fix_return_depyler_value_param(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix &str.clone() → .to_string() in Vec<String> context (E0308).
+    formatted_code = fix_str_clone_to_string(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix Option<i32> as u32 cast (E0605).
+    formatted_code = fix_option_as_cast(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix .unwrap_or(0) on Option<DepylerValue> (E0308).
+    formatted_code = fix_unwrap_or_depyler_value(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix (Ni32) as i64 in i32 context (E0308).
+    formatted_code = fix_i32_as_i64_cast(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix Vec::<i32>::new() where nested vec expected (E0277).
+    formatted_code = fix_nested_vec_type_in_assert(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix dict.get().cloned() return without unwrap (E0308).
+    formatted_code = fix_dict_get_return(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix .as_ref() ambiguity for File::create (E0282).
+    formatted_code = fix_string_as_ref_ambiguity(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix dequeue()/pop_front() Option unwrap (E0308).
+    formatted_code = fix_option_dequeue_unwrap(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -13017,56 +13044,93 @@ fn fix_negative_literal_type_annotation(code: &str) -> String {
 /// comparison argument (not nested inside a function call like `fn(&vec![])`).
 fn fix_empty_vec_in_assert(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
+    let mut in_assert_block = false;
+    let mut assert_paren_depth: i32 = 0;
     for line in code.lines() {
         let trimmed = line.trim();
         let is_assert = trimmed.contains("assert_eq!") || trimmed.contains("assert_ne!");
-        if is_assert && trimmed.contains("vec![]") {
-            // Find the assert macro start
-            let macro_start = if let Some(pos) = trimmed.find("assert_eq!(") {
-                pos + 11 // length of "assert_eq!("
-            } else if let Some(pos) = trimmed.find("assert_ne!(") {
-                pos + 11
-            } else {
-                result.push_str(line);
-                result.push('\n');
-                continue;
-            };
-
-            // Scan through the macro arguments to find top-level vec![] occurrences
-            let macro_body = &trimmed[macro_start..];
-            let mut new_line = line.to_string();
-            let mut depth: i32 = 0;
-            let bytes = macro_body.as_bytes();
-            let mut i = 0;
-            while i < bytes.len() {
-                match bytes[i] {
-                    b'(' => depth += 1,
-                    b')' => {
-                        if depth == 0 {
-                            break; // end of macro
-                        }
-                        depth -= 1;
-                    }
-                    b'v' if depth == 0 => {
-                        // Check for "vec![]" at top level of the macro
-                        if macro_body[i..].starts_with("vec![]") {
-                            // This vec![] is a top-level argument, replace it
-                            let abs_pos = macro_start + i;
-                            let before = &trimmed[..abs_pos];
-                            let after = &trimmed[abs_pos + 6..]; // skip "vec![]"
-                            let indent = &line[..line.len() - trimmed.len()];
-                            new_line = format!(
-                                "{}{}Vec::<i32>::new(){}",
-                                indent, before, after
-                            );
-                            break;
-                        }
-                    }
+        // Track multi-line assert blocks
+        if is_assert {
+            in_assert_block = true;
+            assert_paren_depth = 0;
+            // Count parens on this line (starting from the assert macro's opening paren)
+            for ch in trimmed.chars() {
+                match ch {
+                    '(' => assert_paren_depth += 1,
+                    ')' => assert_paren_depth -= 1,
                     _ => {}
                 }
-                i += 1;
             }
-            result.push_str(&new_line);
+            if assert_paren_depth <= 0 {
+                in_assert_block = false;
+            }
+        } else if in_assert_block {
+            for ch in trimmed.chars() {
+                match ch {
+                    '(' => assert_paren_depth += 1,
+                    ')' => assert_paren_depth -= 1,
+                    _ => {}
+                }
+            }
+            if assert_paren_depth <= 0 {
+                in_assert_block = false;
+            }
+        }
+        // Replace vec![] with Vec::<i32>::new() when inside or on an assert line
+        // Only replace standalone `vec![]` (not inside function call args)
+        if (is_assert || in_assert_block) && trimmed.contains("vec![]") {
+            // Simple case: line is just `vec![]` or `vec![],`
+            let just_vec = trimmed == "vec![]" || trimmed == "vec![],"
+                || trimmed == "vec![]);" || trimmed == "vec![]);";
+            if just_vec {
+                result.push_str(&line.replace("vec![]", "Vec::<i32>::new()"));
+            } else if is_assert {
+                // On assert line: use depth-aware replacement
+                let macro_start = if let Some(pos) = trimmed.find("assert_eq!(") {
+                    pos + 11
+                } else if let Some(pos) = trimmed.find("assert_ne!(") {
+                    pos + 11
+                } else {
+                    result.push_str(line);
+                    result.push('\n');
+                    continue;
+                };
+                let macro_body = &trimmed[macro_start..];
+                let mut new_line = line.to_string();
+                let mut depth: i32 = 0;
+                let bytes = macro_body.as_bytes();
+                let mut i = 0;
+                while i < bytes.len() {
+                    match bytes[i] {
+                        b'(' => depth += 1,
+                        b')' => {
+                            if depth == 0 {
+                                break;
+                            }
+                            depth -= 1;
+                        }
+                        b'v' if depth == 0 => {
+                            if macro_body[i..].starts_with("vec![]") {
+                                let abs_pos = macro_start + i;
+                                let before = &trimmed[..abs_pos];
+                                let after = &trimmed[abs_pos + 6..];
+                                let indent = &line[..line.len() - trimmed.len()];
+                                new_line = format!(
+                                    "{}{}Vec::<i32>::new(){}",
+                                    indent, before, after
+                                );
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                result.push_str(&new_line);
+            } else {
+                // Multi-line assert: replace vec![] if it looks like a top-level arg
+                result.push_str(&line.replace("vec![]", "Vec::<i32>::new()"));
+            }
         } else {
             result.push_str(line);
         }
@@ -13211,27 +13275,51 @@ fn fix_depyler_value_to_typed_assignment(code: &str) -> String {
 /// The transpiler sometimes emits `format!("{:?}", -2)` as the repr() of an integer,
 /// but when used in a Vec<i32> context, String doesn't match. Replace with the integer.
 fn fix_format_debug_in_int_vec(code: &str) -> String {
-    // Pattern: vec![..., format!("{:?}", N), ...]
-    // Replace with: vec![..., N, ...]
+    // Pattern: format!("{:?}", N) inside vec![] blocks (may span multiple lines)
+    // Replace with just N when the expression is a simple integer literal
     let mut result = String::with_capacity(code.len());
     let pattern_start = "format!(\"{:?}\", ";
-    for line in code.lines() {
-        if line.contains(pattern_start) && line.contains("vec![") {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut in_vec_block = false;
+    let mut vec_depth: i32 = 0;
+    for line in &lines {
+        let trimmed = line.trim();
+        // Track whether we're inside a vec![...] block
+        if trimmed.contains("vec![") {
+            in_vec_block = true;
+            vec_depth += trimmed.matches('[').count() as i32;
+            vec_depth -= trimmed.matches(']').count() as i32;
+        } else if in_vec_block {
+            vec_depth += trimmed.matches('[').count() as i32;
+            vec_depth -= trimmed.matches(']').count() as i32;
+            if vec_depth <= 0 {
+                in_vec_block = false;
+                vec_depth = 0;
+            }
+        }
+        if (in_vec_block || trimmed.contains("vec![")) && line.contains(pattern_start) {
             let mut new_line = line.to_string();
-            // Replace all occurrences of format!("{:?}", EXPR) with EXPR
             while let Some(start) = new_line.find(pattern_start) {
                 let after = &new_line[start + pattern_start.len()..];
-                // Find the closing )
                 if let Some(end) = after.find(')') {
-                    let expr = &after[..end];
-                    let full_match_end = start + pattern_start.len() + end + 1;
-                    let replacement = expr.to_string();
-                    new_line = format!(
-                        "{}{}{}",
-                        &new_line[..start],
-                        replacement,
-                        &new_line[full_match_end..]
-                    );
+                    let expr = after[..end].trim();
+                    // Only replace if expr is a simple integer literal (possibly negative)
+                    let is_int = if let Some(stripped) = expr.strip_prefix('-') {
+                        stripped.chars().all(|c| c.is_ascii_digit()) && !stripped.is_empty()
+                    } else {
+                        expr.chars().all(|c| c.is_ascii_digit()) && !expr.is_empty()
+                    };
+                    if is_int {
+                        let full_match_end = start + pattern_start.len() + end + 1;
+                        new_line = format!(
+                            "{}{}{}",
+                            &new_line[..start],
+                            expr,
+                            &new_line[full_match_end..]
+                        );
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -13455,6 +13543,634 @@ fn fix_hashmap_contains_to_contains_key(code: &str) -> String {
         } else {
             result.push_str(line);
         }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `return depyler_value_param` when fn returns i32/f64/String (E0308).
+///
+/// When a function signature says `-> i32` or `-> f64` but a `return` or tail expr
+/// returns a DepylerValue parameter, we need `.into()`.
+fn fix_return_depyler_value_param(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let mut current_return_type: Option<&str> = None;
+    let mut dv_params: Vec<String> = Vec::new();
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        // Track function signatures to know return type and DV params
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            dv_params.clear();
+            current_return_type = None;
+            if let Some(arrow) = trimmed.find("-> ") {
+                let ret = &trimmed[arrow + 3..];
+                let ret = ret.split('{').next().unwrap_or(ret).trim();
+                if ret == "i32" || ret == "f64" || ret == "String" {
+                    current_return_type = Some(if ret == "i32" {
+                        "i32"
+                    } else if ret == "f64" {
+                        "f64"
+                    } else {
+                        "String"
+                    });
+                }
+                // Collect DepylerValue params
+                if let Some(paren_start) = trimmed.find('(') {
+                    if let Some(paren_end) = trimmed.rfind(')') {
+                        let params_str = &trimmed[paren_start + 1..paren_end];
+                        for param in params_str.split(',') {
+                            let param = param.trim();
+                            if param.contains("DepylerValue") && !param.contains("&") {
+                                if let Some(colon) = param.find(':') {
+                                    let name = param[..colon].trim().to_string();
+                                    dv_params.push(name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(_ret_ty) = current_return_type {
+            // Check `return VAR;` where VAR is a DV param
+            if trimmed.starts_with("return ") && trimmed.ends_with(';') {
+                let expr = trimmed[7..trimmed.len() - 1].trim();
+                if dv_params.iter().any(|p| p == expr) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push_str(&format!("{}return {}.into();", indent, expr));
+                    result.push('\n');
+                    continue;
+                }
+            }
+            // Check tail expression (no return keyword, no semicolon, just the var)
+            if !trimmed.starts_with("return ")
+                && !trimmed.ends_with(';')
+                && !trimmed.contains('{')
+                && !trimmed.contains('}')
+                && !trimmed.is_empty()
+            {
+                // Check if next non-empty line is `}` (tail expression)
+                let is_tail = lines
+                    .get(i + 1)
+                    .map(|nl| nl.trim() == "}")
+                    .unwrap_or(false);
+                if is_tail && dv_params.iter().any(|p| p == trimmed) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push_str(&format!("{}{}.into()", indent, trimmed));
+                    result.push('\n');
+                    continue;
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.clone()` on `&str` param going into Vec<String> (E0308).
+///
+/// Pattern: `let mut v: Vec<String> = vec![s.clone()]` where s is &str.
+/// Fix: Replace `.clone()` with `.to_string()`.
+fn fix_str_clone_to_string(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let mut str_params: Vec<String> = Vec::new();
+    for line in &lines {
+        let trimmed = line.trim();
+        // Track &str parameters
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            str_params.clear();
+            if let Some(paren_start) = trimmed.find('(') {
+                if let Some(paren_end) = trimmed.rfind(')') {
+                    let params_str = &trimmed[paren_start + 1..paren_end];
+                    for param in params_str.split(',') {
+                        let param = param.trim();
+                        if param.contains("&str") || param.contains("&'") {
+                            if let Some(colon) = param.find(':') {
+                                let name = param[..colon].trim().to_string();
+                                str_params.push(name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Fix: Vec<String> = vec![str_param.clone()] → vec![str_param.to_string()]
+        if trimmed.contains("Vec<String>") && trimmed.contains(".clone()") {
+            let mut new_line = line.to_string();
+            for param in &str_params {
+                let pat = format!("{}.clone()", param);
+                let rep = format!("{}.to_string()", param);
+                new_line = new_line.replace(&pat, &rep);
+            }
+            result.push_str(&new_line);
+        } else if !str_params.is_empty()
+            && trimmed.contains(".clone()")
+            && (trimmed.contains(".push(") || trimmed.starts_with("vec!["))
+        {
+            let mut new_line = line.to_string();
+            for param in &str_params {
+                let pat = format!("{}.clone()", param);
+                let rep = format!("{}.to_string()", param);
+                new_line = new_line.replace(&pat, &rep);
+            }
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `Option<i32>` as `u32` cast (E0605).
+///
+/// Pattern: `(last) as u32` where last is `Option<i32>`.
+/// Fix: `last.unwrap() as u32`
+fn fix_option_as_cast(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut option_vars: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Track: `let var = expr.pop();` — var is Option<T>
+        if trimmed.starts_with("let ") && trimmed.contains(".pop()") && trimmed.ends_with(';') {
+            if let Some(eq) = trimmed.find(" = ") {
+                let var = trimmed[4..eq].trim().trim_start_matches("mut ");
+                option_vars.push(var.to_string());
+            }
+        }
+        // Fix .pop()) as u32 on same line
+        if trimmed.contains(".pop()") && trimmed.contains("as u32") {
+            let new_line = line.replace(".pop())", ".pop().unwrap())");
+            result.push_str(&new_line);
+        }
+        // Fix (option_var) as u32 — add .unwrap()
+        else if trimmed.contains("as u32") {
+            let mut new_line = line.to_string();
+            for var in &option_vars {
+                let pat = format!("({}) as u32", var);
+                let rep = format!("({}.unwrap()) as u32", var);
+                if new_line.contains(&pat) {
+                    new_line = new_line.replace(&pat, &rep);
+                }
+            }
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.unwrap_or(0)` on `Option<DepylerValue>` (E0308).
+///
+/// Pattern: `data.get("key").cloned().unwrap_or(0)` where data is HashMap<String, DepylerValue>
+/// Fix: Replace 0 with DepylerValue::Int(0)
+fn fix_unwrap_or_depyler_value(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Pattern: .get("...").cloned().unwrap_or(N) where N is a bare integer
+        if trimmed.contains(".get(\"")
+            && trimmed.contains(".cloned().unwrap_or(")
+            && !trimmed.contains("DepylerValue::")
+        {
+            let mut new_line = line.to_string();
+            let pat = ".cloned().unwrap_or(";
+            while let Some(pos) = new_line.find(pat) {
+                let after = &new_line[pos + pat.len()..];
+                if let Some(close) = after.find(')') {
+                    let arg = after[..close].trim();
+                    // Check if arg is a bare integer
+                    let is_int = if let Some(stripped) = arg.strip_prefix('-') {
+                        !stripped.is_empty() && stripped.chars().all(|c| c.is_ascii_digit())
+                    } else {
+                        !arg.is_empty() && arg.chars().all(|c| c.is_ascii_digit())
+                    };
+                    if is_int {
+                        let abs_start = pos + pat.len();
+                        let abs_end = abs_start + close;
+                        new_line = format!(
+                            "{}DepylerValue::Int({}i64){}",
+                            &new_line[..abs_start],
+                            arg,
+                            &new_line[abs_end..]
+                        );
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `as i64` in i32 arithmetic context (E0308).
+///
+/// Pattern: `(1i32) as i64` in an i32 expression context
+/// Fix: Remove the `as i64` cast
+fn fix_i32_as_i64_cast(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Pattern: (Ni32) as i64 — should just be the integer
+        if trimmed.contains("i32) as i64") {
+            result.push_str(&line.replace("i32) as i64", "i32)"));
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.as_ref()` ambiguity on String for File::create (E0282).
+///
+/// Pattern: `File::create(s.as_ref().expect("value is None"))`
+/// Fix: Replace `.as_ref()` with `.as_str()` for String params in File::create context.
+fn fix_string_as_ref_ambiguity(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        // Pattern: `expr.as_ref().expect("value is None")` in File::create context
+        // The .as_ref() on String is ambiguous. Just remove the whole .as_ref().expect(...)
+        // chain and use the expr directly (String implements AsRef<Path>).
+        if line.contains(".as_ref().expect(\"value is None\")") {
+            result.push_str(&line.replace(
+                ".as_ref().expect(\"value is None\")",
+                "",
+            ));
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `dequeue()`/`pop_front()` Option<T> not unwrapped (E0308).
+///
+/// When `let var: T = queue.dequeue()` where dequeue returns Option<T>,
+/// add `.unwrap()` to unwrap the Option.
+fn fix_option_dequeue_unwrap(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let option_methods = [".dequeue()", ".pop_front()"];
+    let mut option_vars: Vec<String> = Vec::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        let mut modified = false;
+        for method in &option_methods {
+            if trimmed.contains(method) {
+                // Case 1: `let var: T = expr.dequeue();` → add .unwrap()
+                if trimmed.starts_with("let ") && trimmed.contains(':') && trimmed.ends_with(';') {
+                    let target = format!("{};", method);
+                    if trimmed.ends_with(&target) {
+                        let unwrapped = format!("{}.unwrap();", method);
+                        result.push_str(&line.replace(&target, &unwrapped));
+                        modified = true;
+                        break;
+                    }
+                }
+                // Case 2: `let value = expr.dequeue();` → track as Option var
+                if trimmed.starts_with("let ") && !trimmed.contains(':') && trimmed.ends_with(';')
+                {
+                    if let Some(eq) = trimmed.find(" = ") {
+                        let var = trimmed[4..eq].trim().trim_start_matches("mut ").to_string();
+                        option_vars.push(var);
+                    }
+                }
+            }
+        }
+        if !modified {
+            // Fix uses of option vars: add .unwrap()
+            let mut new_line = line.to_string();
+            for var in &option_vars {
+                // Pattern: `result.push(var)` → `result.push(var.unwrap())`
+                let pat1 = format!(".push({});", var);
+                let rep1 = format!(".push({}.unwrap());", var);
+                if new_line.contains(&pat1) {
+                    new_line = new_line.replace(&pat1, &rep1);
+                }
+                let pat2 = format!(".push({})", var);
+                let rep2 = format!(".push({}.unwrap())", var);
+                if new_line.contains(&pat2) && !new_line.contains(".unwrap())") {
+                    new_line = new_line.replace(&pat2, &rep2);
+                }
+            }
+            result.push_str(&new_line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// Helper: Unwrap Result<T, E> to just T in a return type string.
+fn unwrap_result_type(ret: &mut String) {
+    if ret.starts_with("Result<") {
+        let inner = &ret[7..];
+        let mut depth = 0;
+        for (i, ch) in inner.char_indices() {
+            match ch {
+                '<' => depth += 1,
+                '>' => depth -= 1,
+                ',' if depth == 0 => {
+                    *ret = inner[..i].trim().to_string();
+                    return;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+/// DEPYLER-99MODE-S9: Fix empty vec in assert where nested type expected (E0277).
+///
+/// When `Vec::<i32>::new()` was inserted by fix_empty_vec_in_assert, but
+/// the actual return type is `Vec<Vec<i32>>`, the assert fails.
+/// Detect: assert_eq!(fn_call(), Vec::<i32>::new()) where fn returns Vec<Vec<...>>
+fn fix_nested_vec_type_in_assert(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Build a map of function return types (unwrap Result<T, E> → T)
+    // Handles multi-line signatures: `pub fn foo(\n  ...\n) -> RetType {`
+    let mut fn_return_types: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    let mut pending_fn_name: Option<String> = None;
+    for line in &lines {
+        let trimmed = line.trim();
+        // Detect fn declaration start
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            if let Some(name_start) = trimmed.find("fn ") {
+                let after_fn = &trimmed[name_start + 3..];
+                if let Some(paren) = after_fn.find('(') {
+                    let fn_name = after_fn[..paren].trim().to_string();
+                    if trimmed.contains("-> ") {
+                        // Single-line signature
+                        if let Some(arrow) = trimmed.find("-> ") {
+                            let mut ret = trimmed[arrow + 3..]
+                                .split('{')
+                                .next()
+                                .unwrap_or("")
+                                .trim()
+                                .to_string();
+                            unwrap_result_type(&mut ret);
+                            fn_return_types.insert(fn_name, ret);
+                        }
+                        pending_fn_name = None;
+                    } else {
+                        // Multi-line: fn name found, await -> on next lines
+                        pending_fn_name = Some(fn_name);
+                    }
+                }
+            }
+        } else if let Some(ref fn_name) = pending_fn_name {
+            if trimmed.contains("-> ") {
+                if let Some(arrow) = trimmed.find("-> ") {
+                    let mut ret = trimmed[arrow + 3..]
+                        .split('{')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    unwrap_result_type(&mut ret);
+                    fn_return_types.insert(fn_name.clone(), ret);
+                }
+                pending_fn_name = None;
+            } else if trimmed.contains('{') {
+                // Hit the body without finding ->, no return type
+                pending_fn_name = None;
+            }
+        }
+    }
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.contains("Vec::<i32>::new()") && trimmed.contains("assert_eq!") {
+            let mut replaced = false;
+            for (fn_name, ret_type) in &fn_return_types {
+                if !trimmed.contains(&format!("{}(", fn_name)) {
+                    continue;
+                }
+                // Check if fn returns any Vec<T> where T != i32
+                if ret_type.starts_with("Vec<") && ret_type != "Vec<i32>" {
+                    // Extract inner type from Vec<INNER>
+                    let inner_start = 4; // skip "Vec<"
+                    let mut depth = 1;
+                    let mut end = ret_type.len();
+                    for (i, ch) in ret_type[inner_start..].char_indices() {
+                        match ch {
+                            '<' => depth += 1,
+                            '>' => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    end = inner_start + i;
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    let inner = &ret_type[inner_start..end];
+                    let replacement = format!("Vec::<{}>::new()", inner);
+                    result.push_str(&line.replace("Vec::<i32>::new()", &replacement));
+                    replaced = true;
+                    break;
+                }
+            }
+            if !replaced {
+                result.push_str(line);
+            }
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    // Second pass: handle multi-line assert blocks where Vec::<i32>::new() is on its own line
+    let pass1_lines: Vec<&str> = result.lines().collect();
+    let mut result2 = String::with_capacity(result.len());
+    let mut current_assert_fn: Option<String> = None;
+    let mut in_assert = false;
+    let mut assert_depth: i32 = 0;
+    for line in &pass1_lines {
+        let trimmed = line.trim();
+        if trimmed.contains("assert_eq!") || trimmed.contains("assert_ne!") {
+            in_assert = true;
+            assert_depth = 0;
+            current_assert_fn = None;
+            for ch in trimmed.chars() {
+                match ch {
+                    '(' => assert_depth += 1,
+                    ')' => assert_depth -= 1,
+                    _ => {}
+                }
+            }
+            // Try to find fn call on this line
+            for (fn_name, _) in &fn_return_types {
+                if trimmed.contains(&format!("{}(", fn_name)) {
+                    current_assert_fn = Some(fn_name.clone());
+                    break;
+                }
+            }
+            if assert_depth <= 0 {
+                in_assert = false;
+            }
+        } else if in_assert {
+            // Try to find fn call on continuation lines
+            if current_assert_fn.is_none() {
+                for (fn_name, _) in &fn_return_types {
+                    if trimmed.contains(&format!("{}(", fn_name)) {
+                        current_assert_fn = Some(fn_name.clone());
+                        break;
+                    }
+                }
+            }
+            for ch in trimmed.chars() {
+                match ch {
+                    '(' => assert_depth += 1,
+                    ')' => assert_depth -= 1,
+                    _ => {}
+                }
+            }
+            if assert_depth <= 0 {
+                in_assert = false;
+            }
+        }
+        // Replace Vec::<i32>::new() on this line if we know the fn's return type
+        // But ONLY if it's a standalone argument (not inside a function call like `fn(&Vec::<i32>::new())`)
+        let is_standalone_vec = trimmed.contains("Vec::<i32>::new()")
+            && !trimmed.contains("(&Vec::<i32>::new()")
+            && !trimmed.contains("(Vec::<i32>::new()");
+        if is_standalone_vec && in_assert {
+            if let Some(ref fn_name) = current_assert_fn {
+                if let Some(ret_type) = fn_return_types.get(fn_name) {
+                    if ret_type.starts_with("Vec<") && ret_type != "Vec<i32>" {
+                        let inner_start = 4;
+                        let mut depth = 1;
+                        let mut end = ret_type.len();
+                        for (i, ch) in ret_type[inner_start..].char_indices() {
+                            match ch {
+                                '<' => depth += 1,
+                                '>' => {
+                                    depth -= 1;
+                                    if depth == 0 {
+                                        end = inner_start + i;
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        let inner = &ret_type[inner_start..end];
+                        let replacement = format!("Vec::<{}>::new()", inner);
+                        result2.push_str(&line.replace("Vec::<i32>::new()", &replacement));
+                        result2.push('\n');
+                        continue;
+                    }
+                }
+            }
+        }
+        result2.push_str(line);
+        result2.push('\n');
+    }
+    result2
+}
+
+/// DEPYLER-99MODE-S9: Fix `Option<DepylerValue>` → `.get().cloned()` returns that need unwrap (E0308).
+///
+/// When `value` assigned from `.get("key").cloned()` is used with `return value;`
+/// but function expects `i32`, add `.unwrap_or_default().into()`.
+fn fix_dict_get_return(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let mut current_return_type: Option<&str> = None;
+    // Vars that hold Option<DepylerValue> from .get().cloned() (not already unwrapped)
+    let mut option_dv_vars: Vec<String> = Vec::new();
+    // Vars that hold DepylerValue (already unwrapped from dict.get)
+    let mut dv_vars: Vec<String> = Vec::new();
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            option_dv_vars.clear();
+            dv_vars.clear();
+            current_return_type = None;
+            if let Some(arrow) = trimmed.find("-> ") {
+                let ret = trimmed[arrow + 3..].split('{').next().unwrap_or("").trim();
+                if ret == "i32" || ret == "f64" {
+                    current_return_type = Some(ret);
+                }
+            }
+        }
+        // Track: `let value = data.get("x").cloned();` — value is Option<DepylerValue>
+        // BUT: `let value = data.get("x").cloned().unwrap_or(...)` — value is DepylerValue
+        if trimmed.starts_with("let ")
+            && trimmed.contains(".get(\"")
+            && trimmed.contains(".cloned()")
+        {
+            if let Some(eq_pos) = trimmed.find(" = ") {
+                let var_part = trimmed[4..eq_pos].trim();
+                let var_name = var_part.split(':').next().unwrap_or(var_part).trim();
+                // Check if already unwrapped on same line
+                if trimmed.contains(".unwrap_or(") || trimmed.contains(".unwrap()") {
+                    dv_vars.push(var_name.to_string());
+                } else {
+                    option_dv_vars.push(var_name.to_string());
+                }
+            }
+        }
+        if current_return_type.is_some() {
+            let trimmed_expr = if trimmed.starts_with("return ") && trimmed.ends_with(';') {
+                Some(trimmed[7..trimmed.len() - 1].trim())
+            } else {
+                None
+            };
+            // Fix Option<DV> var: `return value;` → `return value.unwrap_or(DV::Int(0)).into();`
+            if let Some(expr) = trimmed_expr {
+                if option_dv_vars.iter().any(|v| v == expr) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push_str(&format!(
+                        "{}return {}.unwrap_or(DepylerValue::Int(0i64)).into();",
+                        indent, expr
+                    ));
+                    result.push('\n');
+                    continue;
+                }
+                // Fix DV var: `return value;` → `return value.into();`
+                if dv_vars.iter().any(|v| v == expr) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push_str(&format!("{}return {}.into();", indent, expr));
+                    result.push('\n');
+                    continue;
+                }
+            }
+            // Fix tail: option var
+            if !trimmed.ends_with(';')
+                && option_dv_vars.iter().any(|v| v.as_str() == trimmed)
+            {
+                let indent = &line[..line.len() - trimmed.len()];
+                result.push_str(&format!(
+                    "{}{}.unwrap_or(DepylerValue::Int(0i64)).into()",
+                    indent, trimmed
+                ));
+                result.push('\n');
+                continue;
+            }
+            // Fix tail: dv var
+            if !trimmed.ends_with(';') && dv_vars.iter().any(|v| v.as_str() == trimmed) {
+                let indent = &line[..line.len() - trimmed.len()];
+                result.push_str(&format!("{}{}.into()", indent, trimmed));
+                result.push('\n');
+                continue;
+            }
+        }
+        result.push_str(line);
         result.push('\n');
     }
     result
