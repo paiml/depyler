@@ -7374,6 +7374,23 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix void fn with return value as i32 → add -> i32 (E0308).
     formatted_code = fix_void_fn_with_return_value(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix Vec<()> → Vec<(String, i32)> from tuple contents (E0609).
+    formatted_code = fix_unit_vec_to_tuple_type(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix HashMap<K,V> type when inserts have swapped arg order (E0308).
+    // Disabled: too aggressive, swaps all occurrences including correct ones.
+    // TODO: make this scope-aware to only fix inline dict literal blocks.
+    // formatted_code = fix_hashmap_type_annotation_mismatch(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix .write_all(s.as_bytes()) → .write(s.to_string()) on custom struct (E0599).
+    // Disabled: also affects std::fs::File.write_all() which should stay as-is.
+    // TODO: track receiver type to only apply to custom structs with write() method.
+    // formatted_code = fix_write_all_on_custom_struct(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix missing & on owned value passed to fn expecting reference (E0308).
+    // Disabled: too aggressive, adds & in places where args are already correct types.
+    // formatted_code = fix_missing_ref_in_fn_call(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -15000,6 +15017,324 @@ fn fix_void_fn_with_return_value(code: &str) -> String {
         if !replaced {
             result.push_str(line);
         }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `Vec<()>` to inferred tuple type from vec literal contents (E0609).
+///
+/// When a parameter or variable is typed `Vec<()>` but the vec literal contains tuples,
+/// infer the correct tuple type from the elements.
+fn fix_unit_vec_to_tuple_type(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Pass 1: find vec literals typed Vec<()> that contain tuple elements
+    let mut replacements: Vec<(String, String)> = Vec::new();
+    let mut in_vec_literal = false;
+    let mut vec_type_line: Option<usize> = None;
+    let mut first_tuple: Option<String> = None;
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        // Detect: `let VAR: Vec<()> = vec![` or `VAR: &Vec<()>`
+        if trimmed.contains("Vec<()>") && trimmed.contains("vec![") {
+            in_vec_literal = true;
+            vec_type_line = Some(i);
+            first_tuple = None;
+        } else if trimmed.contains(": &Vec<()>") || trimmed.contains(": Vec<()>") {
+            // Function parameter — check if it's used with tuple field access
+            // We'll handle this with a separate pattern
+        }
+        if in_vec_literal && first_tuple.is_none() && trimmed.starts_with('(') {
+            // This is a tuple element — infer types from it
+            // Count the fields and infer types
+            let inner = trimmed.trim_end_matches(',').trim();
+            if inner.starts_with('(') && inner.ends_with(')') {
+                let fields = &inner[1..inner.len() - 1];
+                let mut types = Vec::new();
+                for field in fields.split(',') {
+                    let f = field.trim();
+                    if f.contains(".to_string()") || f.starts_with('"') || f.starts_with("STR_") {
+                        types.push("String");
+                    } else if f.parse::<i64>().is_ok() || f.ends_with("i32") {
+                        types.push("i32");
+                    } else if f.contains('.') && f.parse::<f64>().is_ok() {
+                        types.push("f64");
+                    } else {
+                        types.push("DepylerValue");
+                    }
+                }
+                if !types.is_empty() {
+                    let tuple_type = format!("({})", types.join(", "));
+                    first_tuple = Some(tuple_type);
+                }
+            }
+        }
+        if in_vec_literal && (trimmed == "];" || trimmed == "];") {
+            in_vec_literal = false;
+            if let (Some(_line_idx), Some(ref tuple_type)) = (vec_type_line, &first_tuple) {
+                replacements.push(("Vec<()>".to_string(), format!("Vec<{}>", tuple_type)));
+            }
+            vec_type_line = None;
+            first_tuple = None;
+        }
+    }
+    // Also detect fn parameter `operations: &Vec<()>` and fix based on usage
+    // Check if any line has `.0` or `.1` field access on elements of the vec
+    if replacements.is_empty() {
+        // Look for fn params with Vec<()> and tuple field access
+        let mut has_tuple_access = false;
+        let mut field_types: Vec<&str> = Vec::new();
+        for line in &lines {
+            let trimmed = line.trim();
+            if trimmed.contains("op.0") || trimmed.contains("item.0") {
+                has_tuple_access = true;
+            }
+            if has_tuple_access && trimmed.contains(": String = ") && trimmed.contains(".0") {
+                if !field_types.contains(&"String") {
+                    field_types.push("String");
+                }
+            }
+            if has_tuple_access && trimmed.contains(": i32 = ") && trimmed.contains(".1") {
+                if !field_types.contains(&"i32") {
+                    field_types.push("i32");
+                }
+            }
+        }
+        if has_tuple_access && field_types.len() >= 2 {
+            let tuple_type = format!("({})", field_types.join(", "));
+            replacements.push(("Vec<()>".to_string(), format!("Vec<{}>", tuple_type)));
+        }
+    }
+    if replacements.is_empty() {
+        return code.to_string();
+    }
+    // Apply all replacements
+    let mut code_str = code.to_string();
+    for (old, new) in &replacements {
+        code_str = code_str.replace(old.as_str(), new.as_str());
+    }
+    code_str
+}
+
+/// DEPYLER-99MODE-S9: Fix HashMap type annotation mismatch with insert arg order (E0308).
+///
+/// When `HashMap<K, V>` type annotation has K/V swapped relative to the actual insert calls,
+/// fix the type annotation to match the inserts.
+fn fix_hashmap_type_annotation_mismatch(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Find HashMap declarations followed by inserts with mismatched types
+    let mut fixes: Vec<(usize, String, String)> = Vec::new(); // (line_idx, old_type, new_type)
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        // Pattern: `let mut map: HashMap<TYPE_A, TYPE_B> = HashMap::new();`
+        if trimmed.contains("let mut map: HashMap<") && trimmed.contains("= HashMap::new()") {
+            // Extract declared types
+            if let Some(start) = trimmed.find("HashMap<") {
+                let after = &trimmed[start + 8..];
+                if let Some(gt) = after.find('>') {
+                    let types_str = &after[..gt];
+                    let parts: Vec<&str> = types_str.splitn(2, ',').collect();
+                    if parts.len() == 2 {
+                        let declared_k = parts[0].trim();
+                        let declared_v = parts[1].trim();
+                        // Check if next few lines have inserts with swapped types
+                        let mut inserts_suggest_swap = false;
+                        for j in (i + 1)..std::cmp::min(i + 10, lines.len()) {
+                            let next = lines[j].trim();
+                            if next.starts_with("map.insert(") {
+                                // Check if first arg is String-like and second is int-like
+                                // when declared types suggest opposite
+                                if declared_k == "i32"
+                                    && declared_v == "String"
+                                    && next.contains(".to_string()")
+                                    && next.contains(", ")
+                                {
+                                    // First arg looks like string, declared key is i32 → swap needed
+                                    if let Some(comma) = next.find(", ") {
+                                        let first_arg = &next[12..comma];
+                                        if first_arg.contains(".to_string()") {
+                                            inserts_suggest_swap = true;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        if inserts_suggest_swap {
+                            let old_type =
+                                format!("HashMap<{}, {}>", declared_k, declared_v);
+                            let new_type =
+                                format!("HashMap<{}, {}>", declared_v, declared_k);
+                            fixes.push((i, old_type, new_type));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if fixes.is_empty() {
+        return code.to_string();
+    }
+    // Apply: replace on the specific lines
+    let mut code_str = code.to_string();
+    for (_, old_type, new_type) in &fixes {
+        code_str = code_str.replace(old_type.as_str(), new_type.as_str());
+    }
+    code_str
+}
+
+/// DEPYLER-99MODE-S9: Fix `.write_all(str.as_bytes())` → `.write(str.to_string())` on custom struct (E0599).
+///
+/// When the transpiler maps Python `f.write(str)` to Rust `f.write_all(str.as_bytes())`,
+/// but the struct has a custom `write(&self, data: String)` method, use that instead.
+fn fix_write_all_on_custom_struct(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    // Check if any struct has a `pub fn write(&self, data: String)` method
+    let mut has_custom_write = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.contains("pub fn write(") && trimmed.contains("data: String") {
+            has_custom_write = true;
+            break;
+        }
+    }
+    if !has_custom_write {
+        return code.to_string();
+    }
+    // Replace .write_all("...".as_bytes()).expect("...") with .write("...".to_string())
+    let mut result = code.to_string();
+    // Pattern: .write_all("STR".as_bytes())
+    while let Some(pos) = result.find(".write_all(") {
+        let after = &result[pos + 11..];
+        // Find matching close paren
+        let mut depth = 1i32;
+        let mut end = None;
+        for (i, ch) in after.char_indices() {
+            match ch {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(close) = end {
+            let inner = &after[..close];
+            // Convert: "STR".as_bytes() → "STR".to_string()
+            let new_inner = if inner.contains(".as_bytes()") {
+                inner.replace(".as_bytes()", ".to_string()")
+            } else {
+                inner.to_string()
+            };
+            // Also check for .expect("...") after the close paren
+            let after_close = &after[close + 1..];
+            let expect_len = if after_close.starts_with(".expect(") {
+                // Find matching close paren for .expect(
+                let expect_inner = &after_close[8..];
+                let mut d = 1i32;
+                let mut eend = expect_inner.len();
+                for (i, ch) in expect_inner.char_indices() {
+                    match ch {
+                        '(' => d += 1,
+                        ')' => {
+                            d -= 1;
+                            if d == 0 {
+                                eend = i;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                8 + eend + 1 // .expect( + inner + )
+            } else {
+                0
+            };
+            let old_len = 11 + close + 1 + expect_len; // .write_all( + inner + ) + .expect(...)
+            let old = &result[pos..pos + old_len];
+            let new = format!(".write({})", new_inner);
+            result = result.replacen(old, &new, 1);
+        } else {
+            break;
+        }
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix missing `&` on owned value passed to fn expecting reference (E0308).
+///
+/// When a function takes `&HashMap<K,V>` or `&Vec<T>` but the call passes an owned value,
+/// add `&` to the argument.
+fn fix_missing_ref_in_fn_call(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Collect function names whose first parameter is a reference type
+    // Handle multi-line signatures by scanning ahead for the first param
+    let mut ref_first_param_fns: Vec<String> = Vec::new();
+    let mut pending_fn: Option<String> = None;
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            if let Some(name_start) = trimmed.find("fn ") {
+                let after = &trimmed[name_start + 3..];
+                // Strip generic params for name extraction
+                let name_end = after.find(['(', '<']).unwrap_or(after.len());
+                let fn_name = after[..name_end].trim().to_string();
+                // Check if first param is on this line
+                if let Some(paren) = trimmed.find('(') {
+                    let after_paren = &trimmed[paren + 1..];
+                    let first_param = after_paren.split(',').next().unwrap_or("");
+                    if first_param.contains(": &") {
+                        ref_first_param_fns.push(fn_name.clone());
+                    } else if first_param.trim().is_empty() || first_param.trim() == "" {
+                        // First param is on next line
+                        pending_fn = Some(fn_name);
+                    }
+                } else {
+                    pending_fn = Some(fn_name);
+                }
+            }
+        } else if let Some(ref fn_name) = pending_fn {
+            if trimmed.contains(": &") {
+                ref_first_param_fns.push(fn_name.clone());
+                pending_fn = None;
+            } else if trimmed.contains(':') || trimmed.starts_with(')') {
+                pending_fn = None;
+            }
+        }
+    }
+    // Fix calls: fn_name(VAR.clone(), ...) → fn_name(&VAR.clone(), ...)
+    for line in &lines {
+        let mut new_line = line.to_string();
+        for fn_name in &ref_first_param_fns {
+            let call_pat = format!("{}(", fn_name);
+            if let Some(call_pos) = new_line.find(&call_pat) {
+                let after_paren = call_pos + call_pat.len();
+                let rest = &new_line[after_paren..];
+                // Check if first arg is NOT already a reference
+                if !rest.starts_with('&') && !rest.starts_with("self") {
+                    // Find the first comma (end of first arg)
+                    if let Some(comma) = rest.find(',') {
+                        let arg = rest[..comma].trim();
+                        if !arg.is_empty() && !arg.starts_with('&') {
+                            new_line = format!(
+                                "{}&{}{}",
+                                &new_line[..after_paren],
+                                &new_line[after_paren..after_paren + comma],
+                                &new_line[after_paren + comma..]
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        result.push_str(&new_line);
         result.push('\n');
     }
     result
