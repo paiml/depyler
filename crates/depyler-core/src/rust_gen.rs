@@ -7338,6 +7338,24 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix char.as_str() → char.to_string() (E0599).
     formatted_code = fix_char_as_str(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix result.push(value) where value is Option after is_some() guard.
+    formatted_code = fix_option_push_after_is_some(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix DepylerValue::Str("literal") → .to_string() (E0308).
+    formatted_code = fix_depyler_value_str_literal(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix Vec arg type mismatch in assert fn calls (E0308).
+    formatted_code = fix_vec_arg_type_in_assert(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix format!("{}", vec) → format!("{:?}", vec) (E0277).
+    formatted_code = fix_format_vec_display(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix .iter() on impl Iterator (E0599).
+    formatted_code = fix_iter_on_impl_iterator(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix *self.field.unwrap_or() deref on non-ref (E0614).
+    formatted_code = fix_deref_on_unwrap_or(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -14259,6 +14277,331 @@ fn fix_dict_get_return(code: &str) -> String {
         result.push('\n');
     }
     result
+}
+
+/// DEPYLER-99MODE-S9: Fix `result.push(value)` where value is `Option<T>` after `is_some()` guard.
+///
+/// When a variable is checked with `if value.is_some()` and then pushed into a Vec<T>,
+/// the value needs `.unwrap()` because it's `Option<T>`, not `T`.
+fn fix_option_push_after_is_some(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let mut option_vars: Vec<String> = Vec::new();
+    let mut in_is_some_guard: Vec<(String, i32)> = Vec::new(); // (var_name, brace_depth)
+    let mut brace_depth: i32 = 0;
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Track brace depth
+        brace_depth += trimmed.matches('{').count() as i32;
+        brace_depth -= trimmed.matches('}').count() as i32;
+        // Track variables that have .is_some() called
+        if trimmed.contains(".is_some()") {
+            // Extract var name: "if VAR.is_some()" or "VAR.is_some()"
+            if let Some(pos) = trimmed.find(".is_some()") {
+                let before = trimmed[..pos].trim();
+                let var = before
+                    .rsplit(|c: char| !c.is_alphanumeric() && c != '_')
+                    .next()
+                    .unwrap_or("")
+                    .trim();
+                if !var.is_empty() {
+                    option_vars.push(var.to_string());
+                    in_is_some_guard.push((var.to_string(), brace_depth));
+                }
+            }
+        }
+        // Clean up guards that are out of scope
+        in_is_some_guard.retain(|(_, depth)| *depth <= brace_depth);
+        // Fix: result.push(value) → result.push(value.unwrap())
+        let mut new_line = line.to_string();
+        for (var, _) in &in_is_some_guard {
+            let push_pat = format!(".push({var})");
+            let push_replace = format!(".push({var}.unwrap())");
+            if new_line.contains(&push_pat) && !new_line.contains(&push_replace) {
+                new_line = new_line.replace(&push_pat, &push_replace);
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `DepylerValue::Str("literal")` → `DepylerValue::Str("literal".to_string())`.
+///
+/// The DepylerValue::Str variant wraps a `String`, but the transpiler sometimes
+/// generates a `&str` literal inside. This fix adds `.to_string()`.
+fn fix_depyler_value_str_literal(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let pattern = "DepylerValue::Str(\"";
+    for line in code.lines() {
+        if line.contains(pattern) {
+            let mut new_line = String::with_capacity(line.len() + 32);
+            let mut rest = line;
+            while let Some(start) = rest.find(pattern) {
+                new_line.push_str(&rest[..start + pattern.len()]);
+                let after = &rest[start + pattern.len()..];
+                // Find the closing ")
+                if let Some(close) = after.find("\")") {
+                    let literal = &after[..close];
+                    // Check if .to_string() is already there
+                    let after_close = &after[close + 2..];
+                    if !literal.contains(".to_string()") {
+                        new_line.push_str(literal);
+                        new_line.push_str("\".to_string())");
+                        rest = after_close;
+                    } else {
+                        new_line.push_str(literal);
+                        new_line.push_str("\")");
+                        rest = after_close;
+                    }
+                } else {
+                    new_line.push_str(after);
+                    rest = "";
+                }
+            }
+            new_line.push_str(rest);
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix function arg Vec type mismatch in assert_eq! calls.
+///
+/// When a function parameter is `&Vec<Vec<T>>` but the generated assert passes
+/// `&Vec::<T>::new()`, we need to fix the argument to match the parameter type.
+/// This complements fix_nested_vec_type_in_assert which handles the expected-result side.
+fn fix_vec_arg_type_in_assert(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    // Pass 1: collect function parameter types for Vec<Vec<T>> parameters
+    let mut fn_param_types: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    let lines: Vec<&str> = code.lines().collect();
+    for line in &lines {
+        let trimmed = line.trim();
+        if !(trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) {
+            continue;
+        }
+        if let Some(name_start) = trimmed.find("fn ") {
+            let after_fn = &trimmed[name_start + 3..];
+            if let Some(paren_open) = after_fn.find('(') {
+                let fn_name = after_fn[..paren_open].trim();
+                // Strip generic parameters from name
+                let fn_name = if let Some(gen) = fn_name.find('<') {
+                    &fn_name[..gen]
+                } else {
+                    fn_name
+                };
+                // Extract just the parameter section (between parens), not return type
+                let after_paren = &after_fn[paren_open + 1..];
+                // Find matching close paren, accounting for nested parens
+                let mut depth = 1i32;
+                let mut params_end = after_paren.len();
+                for (i, ch) in after_paren.char_indices() {
+                    match ch {
+                        '(' => depth += 1,
+                        ')' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                params_end = i;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                let params_section = &after_paren[..params_end];
+                // Only check parameters for Vec<Vec<
+                if params_section.contains("Vec<Vec<") {
+                    let mut param_types = Vec::new();
+                    for param in params_section.split(',') {
+                        if param.contains("Vec<Vec<") {
+                            if let Some(vv_pos) = param.find("Vec<Vec<") {
+                                let inner = &param[vv_pos + 8..];
+                                if let Some(close) = inner.find('>') {
+                                    param_types.push(inner[..close].trim().to_string());
+                                }
+                            }
+                        }
+                    }
+                    if !param_types.is_empty() {
+                        fn_param_types.insert(fn_name.to_string(), param_types);
+                    }
+                }
+            }
+        }
+    }
+    // Pass 2: fix Vec::<T>::new() in function call arguments
+    for line in &lines {
+        let mut new_line = line.to_string();
+        for (fn_name, param_vec_types) in &fn_param_types {
+            let pat = format!("{fn_name}(&Vec::<i32>::new())");
+            if new_line.contains(&pat) {
+                if let Some(inner_type) = param_vec_types.first() {
+                    let replacement = format!("{fn_name}(&Vec::<Vec<{inner_type}>>::new())");
+                    new_line = new_line.replace(&pat, &replacement);
+                }
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `format!("{}", vec_expr)` → `format!("{:?}", vec_expr)` for Vec types.
+///
+/// Vec<T> doesn't implement Display, only Debug. When format! uses `{}` with a Vec,
+/// it should use `{:?}` instead.
+fn fix_format_vec_display(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    // Collect functions that return Vec types
+    let mut vec_returning_fns: Vec<String> = Vec::new();
+    let mut vec_vars: Vec<String> = Vec::new();
+    let lines: Vec<&str> = code.lines().collect();
+    for line in &lines {
+        let trimmed = line.trim();
+        // Track fn returning Vec
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && trimmed.contains("-> Vec<")
+        {
+            if let Some(name_start) = trimmed.find("fn ") {
+                let after_fn = &trimmed[name_start + 3..];
+                if let Some(paren) = after_fn.find('(') {
+                    let fn_name = after_fn[..paren].trim();
+                    if !fn_name.is_empty() {
+                        vec_returning_fns.push(fn_name.to_string());
+                    }
+                }
+            }
+        }
+        // Track Vec variables
+        if trimmed.contains(": Vec<") || trimmed.contains(":Vec<") {
+            if let Some(colon) = trimmed.find(':') {
+                let before = trimmed[..colon].trim();
+                let name = before
+                    .strip_prefix("let ")
+                    .unwrap_or(before)
+                    .trim()
+                    .trim_start_matches("mut ")
+                    .trim();
+                if !name.is_empty()
+                    && name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                {
+                    vec_vars.push(name.to_string());
+                }
+            }
+        }
+    }
+    for line in &lines {
+        let mut new_line = line.to_string();
+        if new_line.contains("format!(\"") && new_line.contains("{}") {
+            // Check if any Vec-returning fn call is in the format args
+            for fn_name in &vec_returning_fns {
+                let call_pat = format!("{fn_name}(");
+                if new_line.contains(&call_pat) && new_line.contains("{}") {
+                    // Replace {} with {:?} for the position corresponding to the Vec call
+                    // Simple approach: if format has {} and a vec-fn-call, replace first matching {}
+                    new_line = new_line.replacen("{}", "{:?}", new_line.matches("{}").count());
+                    break;
+                }
+            }
+            // Check for Vec variables
+            if new_line.contains("{}") {
+                for var in &vec_vars {
+                    if new_line.contains(var.as_str()) {
+                        new_line = new_line.replacen("{}", "{:?}", new_line.matches("{}").count());
+                        break;
+                    }
+                }
+            }
+        }
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `.iter()` called on `impl Iterator` (E0599).
+///
+/// The transpiler generates `.iter()` on values that are already iterators.
+/// `impl Iterator` doesn't have an `.iter()` method.
+fn fix_iter_on_impl_iterator(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    // Track functions returning impl Iterator
+    let mut iter_fns: Vec<String> = Vec::new();
+    let lines: Vec<&str> = code.lines().collect();
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.contains("-> impl Iterator") || trimmed.contains("-> impl IntoIterator") {
+            if let Some(name_start) = trimmed.find("fn ") {
+                let after_fn = &trimmed[name_start + 3..];
+                if let Some(paren) = after_fn.find('(') {
+                    let fn_name = after_fn[..paren].trim();
+                    // Strip generic parameters (e.g., fibonacci_generator<'a> → fibonacci_generator)
+                    let fn_name = if let Some(gen) = fn_name.find('<') {
+                        &fn_name[..gen]
+                    } else {
+                        fn_name
+                    };
+                    if !fn_name.is_empty() {
+                        iter_fns.push(fn_name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    let mut prev_had_iter_fn_call = false;
+    let mut just_removed_iter = false;
+    for line in &lines {
+        let mut new_line = line.to_string();
+        let trimmed = line.trim();
+        let mut has_iter_fn_call = false;
+        for fn_name in &iter_fns {
+            let call_pat = format!("{fn_name}(");
+            if new_line.contains(&call_pat) {
+                has_iter_fn_call = true;
+                if new_line.contains(".iter()") {
+                    new_line = new_line.replace(".iter()", "");
+                    just_removed_iter = true;
+                }
+            }
+        }
+        // Next-line .iter() after a line with an iterator fn call
+        if prev_had_iter_fn_call && trimmed.starts_with(".iter()") {
+            new_line = new_line.replace(".iter()", "");
+            just_removed_iter = true;
+        }
+        // After removing .iter(), also remove .cloned() since impl Iterator yields owned values
+        if just_removed_iter && trimmed == ".cloned()" {
+            // Skip this line entirely (remove .cloned())
+            just_removed_iter = false;
+            prev_had_iter_fn_call = false;
+            continue;
+        }
+        if just_removed_iter && trimmed.starts_with(".cloned()") {
+            new_line = new_line.replace(".cloned()", "");
+        }
+        if just_removed_iter && !trimmed.is_empty() && trimmed != ".cloned()" {
+            just_removed_iter = false;
+        }
+        prev_had_iter_fn_call = has_iter_fn_call;
+        result.push_str(&new_line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `*self.field.unwrap_or(val)` deref on non-reference (E0614).
+///
+/// The transpiler generates `*self.field.unwrap_or(val)` but `unwrap_or` returns T,
+/// not &T, so the dereference is invalid. Remove the `*`.
+fn fix_deref_on_unwrap_or(code: &str) -> String {
+    code.replace("(*self.", "(self.")
+        .replace("(* self.", "(self.")
 }
 
 #[cfg(test)]
