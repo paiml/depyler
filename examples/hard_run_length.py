@@ -1,107 +1,97 @@
-"""Run length encoding/decoding variants.
-
-Tests: consecutive counting, list building, paired encoding.
-"""
+"""Run-length encoding and decoding for strings."""
 
 
-def rle_encode_lengths(arr: list[int]) -> list[int]:
-    """Return run lengths only (not values)."""
-    if len(arr) == 0:
-        return []
-    result: list[int] = []
-    count: int = 1
-    i: int = 1
-    while i < len(arr):
-        if arr[i] == arr[i - 1]:
-            count += 1
-        else:
-            result.append(count)
-            count = 1
-        i += 1
-    result.append(count)
-    return result
-
-
-def rle_encode_values(arr: list[int]) -> list[int]:
-    """Return unique consecutive values."""
-    if len(arr) == 0:
-        return []
-    result: list[int] = []
-    result.append(arr[0])
-    i: int = 1
-    while i < len(arr):
-        if arr[i] != arr[i - 1]:
-            result.append(arr[i])
-        i += 1
-    return result
-
-
-def rle_decode(values: list[int], lengths: list[int]) -> list[int]:
-    """Decode RLE given values and lengths."""
-    result: list[int] = []
+def rle_encode(text: str) -> str:
+    """Encode string using run-length encoding."""
+    if len(text) == 0:
+        return ""
+    result: str = ""
     i: int = 0
-    while i < len(values) and i < len(lengths):
-        j: int = 0
-        while j < lengths[i]:
-            result.append(values[i])
-            j += 1
-        i += 1
+    length: int = len(text)
+    while i < length:
+        current: str = text[i]
+        count: int = 1
+        next_idx: int = i + 1
+        while next_idx < length and text[next_idx] == current:
+            count = count + 1
+            next_idx = next_idx + 1
+        if count > 1:
+            result = result + str(count) + current
+        else:
+            result = result + current
+        i = next_idx
     return result
 
 
-def count_runs(arr: list[int]) -> int:
-    """Count number of runs in array."""
-    if len(arr) == 0:
-        return 0
-    runs: int = 1
-    i: int = 1
-    while i < len(arr):
-        if arr[i] != arr[i - 1]:
-            runs += 1
-        i += 1
-    return runs
+def rle_decode(encoded: str) -> str:
+    """Decode a run-length encoded string."""
+    result: str = ""
+    i: int = 0
+    length: int = len(encoded)
+    while i < length:
+        num_str: str = ""
+        while i < length and encoded[i].isdigit():
+            num_str = num_str + encoded[i]
+            i = i + 1
+        if i < length:
+            ch: str = encoded[i]
+            if num_str == "":
+                result = result + ch
+            else:
+                count: int = int(num_str)
+                j: int = 0
+                while j < count:
+                    result = result + ch
+                    j = j + 1
+            i = i + 1
+    return result
 
 
-def longest_run(arr: list[int]) -> int:
-    """Find the longest run length."""
-    if len(arr) == 0:
-        return 0
-    best: int = 1
-    current: int = 1
-    i: int = 1
-    while i < len(arr):
-        if arr[i] == arr[i - 1]:
-            current += 1
-            if current > best:
-                best = current
-        else:
-            current = 1
-        i += 1
-    return best
+def rle_compress_ratio(text: str) -> int:
+    """Return compression ratio as percentage (100 = same size)."""
+    if len(text) == 0:
+        return 100
+    encoded: str = rle_encode(text)
+    original_len: int = len(text)
+    encoded_len: int = len(encoded)
+    ratio: int = (encoded_len * 100) // original_len
+    return ratio
 
 
 def test_module() -> int:
     """Test run-length encoding operations."""
-    ok: int = 0
+    passed: int = 0
 
-    lengths: list[int] = rle_encode_lengths([1, 1, 2, 2, 2, 3])
-    if lengths == [2, 3, 1]:
-        ok += 1
+    r1: str = rle_encode("aaabbc")
+    if r1 == "3a2bc":
+        passed = passed + 1
 
-    values: list[int] = rle_encode_values([1, 1, 2, 2, 2, 3])
-    if values == [1, 2, 3]:
-        ok += 1
+    r2: str = rle_encode("abc")
+    if r2 == "abc":
+        passed = passed + 1
 
-    decoded: list[int] = rle_decode([1, 2, 3], [2, 3, 1])
-    if decoded == [1, 1, 2, 2, 2, 3]:
-        ok += 1
+    r3: str = rle_decode("3a2bc")
+    if r3 == "aaabbc":
+        passed = passed + 1
 
-    runs: int = count_runs([1, 1, 2, 3, 3])
-    if runs == 3:
-        ok += 1
+    r4: str = rle_decode("abc")
+    if r4 == "abc":
+        passed = passed + 1
 
-    lr: int = longest_run([1, 2, 2, 2, 3, 3])
-    if lr == 3:
-        ok += 1
+    roundtrip: str = rle_decode(rle_encode("aaaaabbbbcc"))
+    if roundtrip == "aaaaabbbbcc":
+        passed = passed + 1
 
-    return ok
+    r6: str = rle_encode("")
+    if r6 == "":
+        passed = passed + 1
+
+    r7: int = rle_compress_ratio("aaaaaaaaaa")
+    if r7 < 100:
+        passed = passed + 1
+
+    r8: int = rle_compress_ratio("abcdef")
+    if r8 == 100:
+        passed = passed + 1
+
+    return passed

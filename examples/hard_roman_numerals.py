@@ -1,66 +1,126 @@
-"""Roman numeral conversion operations.
-
-Tests: integer to roman value, roman digit values, numeral validation.
-"""
+"""Roman numeral encode and decode."""
 
 
-def int_to_roman_value(num: int) -> int:
-    """Convert integer to sum of roman digit weights as verification.
-    Returns the input if valid roman range, else -1."""
-    if num <= 0:
-        return -1
-    if num > 3999:
-        return -1
-    return num
+def roman_to_int(s: str) -> int:
+    """Convert Roman numeral string to integer."""
+    result: int = 0
+    prev: int = 0
+    i: int = len(s) - 1
+    while i >= 0:
+        val: int = 0
+        ch: str = s[i]
+        if ch == "I":
+            val = 1
+        elif ch == "V":
+            val = 5
+        elif ch == "X":
+            val = 10
+        elif ch == "L":
+            val = 50
+        elif ch == "C":
+            val = 100
+        elif ch == "D":
+            val = 500
+        elif ch == "M":
+            val = 1000
+        if val < prev:
+            result = result - val
+        else:
+            result = result + val
+        prev = val
+        i = i - 1
+    return result
 
 
-def count_roman_digits(num: int) -> int:
-    """Count how many roman numeral characters needed to represent num."""
-    if num <= 0:
+def int_to_roman(num: int) -> str:
+    """Convert integer (1-3999) to Roman numeral string."""
+    result: str = ""
+    val: int = num
+    while val >= 1000:
+        result = result + "M"
+        val = val - 1000
+    while val >= 900:
+        result = result + "CM"
+        val = val - 900
+    while val >= 500:
+        result = result + "D"
+        val = val - 500
+    while val >= 400:
+        result = result + "CD"
+        val = val - 400
+    while val >= 100:
+        result = result + "C"
+        val = val - 100
+    while val >= 90:
+        result = result + "XC"
+        val = val - 90
+    while val >= 50:
+        result = result + "L"
+        val = val - 50
+    while val >= 40:
+        result = result + "XL"
+        val = val - 40
+    while val >= 10:
+        result = result + "X"
+        val = val - 10
+    while val >= 9:
+        result = result + "IX"
+        val = val - 9
+    while val >= 5:
+        result = result + "V"
+        val = val - 5
+    while val >= 4:
+        result = result + "IV"
+        val = val - 4
+    while val >= 1:
+        result = result + "I"
+        val = val - 1
+    return result
+
+
+def is_valid_roman(s: str) -> int:
+    """Check if string is a valid Roman numeral. Returns 1/0."""
+    n: int = len(s)
+    if n == 0:
         return 0
-    count: int = 0
-    remaining: int = num
-    values: list[int] = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
     i: int = 0
-    while i < len(values):
-        while remaining >= values[i]:
-            count = count + 1
-            remaining = remaining - values[i]
+    while i < n:
+        ch: str = s[i]
+        if ch != "I" and ch != "V" and ch != "X" and ch != "L" and ch != "C" and ch != "D" and ch != "M":
+            return 0
         i = i + 1
-    return count
-
-
-def roman_digit_sum(num: int) -> int:
-    """Sum of individual roman digit values (e.g., XIV = 10+1+5 = 16, but value is 14).
-    This returns the raw sum without subtractive rule."""
-    if num <= 0:
-        return 0
-    total: int = 0
-    remaining: int = num
-    values: list[int] = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
-    digit_sums: list[int] = [1000, 1100, 500, 600, 100, 110, 50, 60, 10, 11, 5, 6, 1]
-    i: int = 0
-    while i < len(values):
-        while remaining >= values[i]:
-            total = total + digit_sums[i]
-            remaining = remaining - values[i]
-        i = i + 1
-    return total
+    converted: int = roman_to_int(s)
+    roundtrip: str = int_to_roman(converted)
+    if roundtrip == s:
+        return 1
+    return 0
 
 
 def test_module() -> int:
-    """Test roman numeral operations."""
-    ok: int = 0
-    if int_to_roman_value(14) == 14:
-        ok = ok + 1
-    if int_to_roman_value(0) == -1:
-        ok = ok + 1
-    if count_roman_digits(3) == 3:
-        ok = ok + 1
-    if count_roman_digits(4) == 2:
-        ok = ok + 1
-    if count_roman_digits(9) == 2:
-        ok = ok + 1
-    if roman_digit_sum(4) == 6:
-        ok = ok + 1
-    return ok
+    passed: int = 0
+
+    if roman_to_int("III") == 3:
+        passed = passed + 1
+
+    if roman_to_int("IV") == 4:
+        passed = passed + 1
+
+    if roman_to_int("MCMXCIV") == 1994:
+        passed = passed + 1
+
+    if int_to_roman(58) == "LVIII":
+        passed = passed + 1
+
+    if int_to_roman(1994) == "MCMXCIV":
+        passed = passed + 1
+
+    if is_valid_roman("XIV") == 1:
+        passed = passed + 1
+
+    if roman_to_int("CDXLIV") == 444:
+        passed = passed + 1
+
+    if int_to_roman(3999) == "MMMCMXCIX":
+        passed = passed + 1
+
+    return passed
