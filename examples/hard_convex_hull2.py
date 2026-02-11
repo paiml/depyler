@@ -55,7 +55,8 @@ def convex_hull_jarvis(xs: list[int], ys: list[int]) -> list[int]:
 
 
 def hull_size(xs: list[int], ys: list[int]) -> int:
-    return len(convex_hull_jarvis(xs, ys))
+    h: list[int] = convex_hull_jarvis(xs, ys)
+    return len(h)
 
 
 def test_module() -> int:

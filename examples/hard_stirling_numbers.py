@@ -32,7 +32,8 @@ def stirling2_row(n: int) -> list[int]:
     result: list[int] = []
     k: int = 0
     while k <= n:
-        result.append(stirling2(n, k))
+        val: int = stirling2(n, k)
+        result.append(val)
         k = k + 1
     return result
 
