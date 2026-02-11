@@ -1,107 +1,86 @@
-# Euler's totient function, totient sum
+"""Euler's totient function phi(n)."""
 
 
 def gcd(a: int, b: int) -> int:
-    x: int = a
-    y: int = b
-    while y != 0:
-        temp: int = y
-        y = x % y
-        x = temp
-    return x
+    """Compute greatest common divisor."""
+    while b != 0:
+        temp: int = b
+        b = a % b
+        a = temp
+    return a
 
 
 def euler_totient(n: int) -> int:
+    """Compute Euler's totient phi(n)."""
     if n <= 0:
         return 0
     if n == 1:
         return 1
     result: int = n
     p: int = 2
-    m: int = n
-    while p * p <= m:
-        if m % p == 0:
-            while m % p == 0:
-                m = m // p
+    temp_n: int = n
+    while p * p <= temp_n:
+        if temp_n % p == 0:
+            while temp_n % p == 0:
+                temp_n = temp_n // p
             result = result - result // p
         p = p + 1
-    if m > 1:
-        result = result - result // m
+    if temp_n > 1:
+        result = result - result // temp_n
     return result
 
 
-def totient_sum(n: int) -> int:
-    # Sum of phi(k) for k = 1 to n
-    total: int = 0
-    k: int = 1
-    while k <= n:
-        total = total + euler_totient(k)
-        k = k + 1
-    return total
-
-
-def totient_sieve(n: int) -> list[int]:
-    # Compute phi(0), phi(1), ..., phi(n) using sieve
-    phi: list[int] = []
-    i: int = 0
-    while i <= n:
-        phi.append(i)
-        i = i + 1
-    p: int = 2
-    while p <= n:
-        if phi[p] == p:
-            # p is prime
-            j: int = p
-            while j <= n:
-                phi[j] = phi[j] - phi[j] // p
-                j = j + p
-        p = p + 1
-    return phi
-
-
-def coprime_count(n: int) -> int:
-    # Count numbers 1..n-1 coprime to n (should equal totient)
+def totient_brute(n: int) -> int:
+    """Brute force totient by counting coprimes."""
+    if n <= 0:
+        return 0
+    if n == 1:
+        return 1
     count: int = 0
-    k: int = 1
-    while k < n:
-        if gcd(n, k) == 1:
+    i: int = 1
+    while i < n:
+        if gcd(i, n) == 1:
             count = count + 1
-        k = k + 1
+        i = i + 1
     return count
 
 
+def sum_totients(n: int) -> int:
+    """Sum of totients from 1 to n."""
+    total: int = 0
+    i: int = 1
+    while i <= n:
+        total = total + euler_totient(i)
+        i = i + 1
+    return total
+
+
+def is_prime_via_totient(n: int) -> int:
+    """If phi(n) == n-1, then n is prime. Returns 1 if prime."""
+    if n <= 1:
+        return 0
+    if euler_totient(n) == n - 1:
+        return 1
+    return 0
+
+
 def test_module() -> int:
-    passed: int = 0
-
-    # Test 1: phi(1) = 1
+    """Test Euler totient computations."""
+    ok: int = 0
     if euler_totient(1) == 1:
-        passed = passed + 1
-
-    # Test 2: phi(prime) = prime - 1
-    if euler_totient(7) == 6:
-        passed = passed + 1
-
-    # Test 3: phi(12) = 4
+        ok = ok + 1
+    if euler_totient(2) == 1:
+        ok = ok + 1
+    if euler_totient(6) == 2:
+        ok = ok + 1
+    if euler_totient(10) == 4:
+        ok = ok + 1
     if euler_totient(12) == 4:
-        passed = passed + 1
-
-    # Test 4: coprime count matches totient
-    if coprime_count(12) == euler_totient(12):
-        passed = passed + 1
-
-    # Test 5: totient sum up to 5
-    # phi(1)+phi(2)+phi(3)+phi(4)+phi(5) = 1+1+2+2+4 = 10
-    if totient_sum(5) == 10:
-        passed = passed + 1
-
-    # Test 6: sieve matches direct
-    sieve: list[int] = totient_sieve(10)
-    if sieve[6] == euler_totient(6) and sieve[10] == euler_totient(10):
-        passed = passed + 1
-
-    # Test 7: phi(power of 2)
-    # phi(8) = 4
-    if euler_totient(8) == 4:
-        passed = passed + 1
-
-    return passed
+        ok = ok + 1
+    if is_prime_via_totient(7) == 1:
+        ok = ok + 1
+    if is_prime_via_totient(6) == 0:
+        ok = ok + 1
+    if totient_brute(10) == 4:
+        ok = ok + 1
+    return ok
