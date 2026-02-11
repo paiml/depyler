@@ -96,10 +96,10 @@ is the recommended primary path, but all paths are subject to empirical validati
 
 | Corpus | Files | Compile Rate | Gap to 99% |
 |--------|-------|--------------|------------|
-| Internal examples | 1210 | 97.0% | 2.0 pp |
+| Internal examples | 1260 | 97.1% | 1.9 pp |
 
 **Measured Compile Rates (2026-02-11, DEPYLER-99MODE-S9)**:
-- Internal examples: 1174/1210 = 97.0% (rustc --crate-type=lib validation)
+- Internal examples: 1224/1260 = 97.1% (rustc --crate-type=lib validation)
 - CFAIL (transpiles but fails rustc): 27 files
 - TFAIL (fails at transpilation): 9 files
 
@@ -108,7 +108,7 @@ is the recommended primary path, but all paths are subject to empirical validati
 - 2026-02-08: 86.8% → 87.6% → 87.7% → 89.2% → 90.3%
 - 2026-02-09: 93.7% → 95.8% (840/876)
 - 2026-02-10: 96.1% (899/935) → 96.3% (960/996) → 96.5% (1020/1056)
-- 2026-02-11: 96.9% (1144/1180) → **97.0% (1174/1210)**
+- 2026-02-11: 96.9% (1144/1180) → 97.0% (1174/1210) → **97.1% (1224/1260)**
 
 **Previous Measured Compile Rates (2026-02-02, baseline)**:
 - Internal examples: 243/321 = 75.7% (rustc --crate-type=lib validation)
