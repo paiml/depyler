@@ -7356,6 +7356,24 @@ fn generate_rust_file_internal(
     // DEPYLER-99MODE-S9: Fix *self.field.unwrap_or() deref on non-ref (E0614).
     formatted_code = fix_deref_on_unwrap_or(&formatted_code);
 
+    // DEPYLER-99MODE-S9: Fix .py_index(DepylerValue::Int(EXPR)) → .py_index((EXPR) as i64) (E0277).
+    formatted_code = fix_pyindex_depyler_value_wrapper(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix self.field = expr → Some(expr) for Option<T> fields (E0308).
+    formatted_code = fix_option_field_assignment(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix option.clone().to_string() in is_some() guard → unwrap() (E0599).
+    formatted_code = fix_option_to_string_in_is_some_guard(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix return &Option<T> param in is_some() guard → unwrap (E0308).
+    formatted_code = fix_return_option_param_in_is_some(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix let _ = Ok(expr); → Ok(expr) as tail expression (E0308).
+    formatted_code = fix_let_discard_ok_return(&formatted_code);
+
+    // DEPYLER-99MODE-S9: Fix void fn with return value as i32 → add -> i32 (E0308).
+    formatted_code = fix_void_fn_with_return_value(&formatted_code);
+
     // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
     // Generated code may have unused imports (due to import mapping), unused mut (from conservative
     // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
@@ -14602,6 +14620,389 @@ fn fix_iter_on_impl_iterator(code: &str) -> String {
 fn fix_deref_on_unwrap_or(code: &str) -> String {
     code.replace("(*self.", "(self.")
         .replace("(* self.", "(self.")
+}
+
+/// DEPYLER-99MODE-S9: Fix `.py_index(DepylerValue::Int(EXPR))` → `.py_index((EXPR) as i64)`.
+///
+/// When indexing a concrete `Vec<T>` (not `DepylerValue::List`), the transpiler wraps
+/// the index in `DepylerValue::Int(...)`, but `Vec<T>` only implements `PyIndex<i64>`,
+/// not `PyIndex<DepylerValue>`. Handles multi-line expressions.
+fn fix_pyindex_depyler_value_wrapper(code: &str) -> String {
+    // Work on the full code string to handle multi-line patterns
+    let needle = "py_index(DepylerValue::Int(";
+    if !code.contains(needle) {
+        return code.to_string();
+    }
+    let mut result = String::with_capacity(code.len());
+    let mut rest = code;
+    while let Some(pos) = rest.find(needle) {
+        // Copy everything before the match
+        result.push_str(&rest[..pos]);
+        let inner_start = pos + needle.len();
+        // Find the matching close paren for DepylerValue::Int(, then one more `)` for py_index(
+        let bytes = rest.as_bytes();
+        let mut depth = 1i32;
+        let mut inner_end = None;
+        for i in inner_start..bytes.len() {
+            match bytes[i] {
+                b'(' => depth += 1,
+                b')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        inner_end = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(end) = inner_end {
+            let inner_expr = rest[inner_start..end].trim();
+            // Strip trailing comma if present (DepylerValue::Int(EXPR,) is valid)
+            let inner_expr = inner_expr.trim_end_matches(',').trim();
+            // After the inner `)`, there should be another `)` for the py_index call
+            // The pattern is: py_index(DepylerValue::Int(EXPR)) or py_index(DepylerValue::Int(EXPR,))
+            if end + 1 < bytes.len() && bytes[end + 1] == b')' {
+                // Replace: py_index(DepylerValue::Int(EXPR)) → py_index((EXPR) as i64).unwrap_or_default()
+                // Vec<T>::py_index returns Option<T>, so we need to unwrap
+                result.push_str(&format!(
+                    "py_index(({}) as i64).unwrap_or_default()",
+                    inner_expr
+                ));
+                rest = &rest[end + 2..]; // skip past both `)`
+            } else {
+                // Outer `)` not immediately after — just copy and advance
+                result.push_str(needle);
+                rest = &rest[inner_start..];
+            }
+        } else {
+            // No matching paren found, copy remainder
+            result.push_str(&rest[pos..]);
+            rest = "";
+        }
+    }
+    result.push_str(rest);
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `self.field = expr` when field is `Option<T>` → `Some(expr)`.
+///
+/// When a struct field is declared as `Option<T>` but the assignment generates a bare
+/// `T` value, we need to wrap the RHS in `Some(...)`.
+fn fix_option_field_assignment(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Pass 1: collect struct fields that are Option<T>
+    let mut option_fields: Vec<String> = Vec::new();
+    let mut in_struct = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("pub struct ") {
+            in_struct = true;
+        } else if in_struct {
+            if trimmed == "}" {
+                in_struct = false;
+            } else if trimmed.contains(": Option<") {
+                // Extract field name: `pub field: Option<i32>,`
+                let field_part = trimmed.trim_start_matches("pub ");
+                if let Some(colon) = field_part.find(':') {
+                    let field_name = field_part[..colon].trim().to_string();
+                    option_fields.push(field_name);
+                }
+            }
+        }
+    }
+    if option_fields.is_empty() {
+        return code.to_string();
+    }
+    // Pass 2: fix assignments to option fields
+    for line in &lines {
+        let trimmed = line.trim();
+        let mut replaced = false;
+        for field in &option_fields {
+            // Pattern: self.field = EXPR;
+            let assign_pat = format!("self.{} = ", field);
+            if trimmed.starts_with(&assign_pat) || trimmed.contains(&format!("self.{} = ", field)) {
+                // Check if RHS already wrapped in Some() or is None
+                let after_assign = if let Some(pos) = trimmed.find(&assign_pat) {
+                    &trimmed[pos + assign_pat.len()..]
+                } else {
+                    continue;
+                };
+                let rhs = after_assign.trim_end_matches(';').trim();
+                if !rhs.starts_with("Some(") && rhs != "None" && !rhs.starts_with("None") {
+                    // Wrap in Some()
+                    let indent = &line[..line.len() - line.trim_start().len()];
+                    let new_rhs = format!("Some({})", rhs);
+                    result.push_str(&format!(
+                        "{}{}{};",
+                        indent, assign_pat, new_rhs
+                    ));
+                    replaced = true;
+                    break;
+                }
+            }
+        }
+        if !replaced {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `option_var.clone().to_string()` in is_some() guard → `unwrap().to_string()`.
+///
+/// When inside an `is_some()` guard, `.clone().to_string()` on an Option var should
+/// be `.unwrap().to_string()` since the value is guaranteed to be Some.
+/// Handles `self.field.clone().is_some()` and `var.is_some()` patterns.
+fn fix_option_to_string_in_is_some_guard(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Track variables that have is_some() guards
+    let mut is_some_vars: Vec<String> = Vec::new();
+    let mut guard_depth: i32 = 0;
+    let mut in_guard = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        // Detect is_some() guard: `if EXPR.is_some() {` or `if EXPR.clone().is_some() {`
+        if trimmed.starts_with("if ") && trimmed.contains(".is_some()") {
+            // Extract variable expression before .is_some() or .clone().is_some()
+            if let Some(is_some_pos) = trimmed.find(".is_some()") {
+                let before = &trimmed[3..is_some_pos]; // skip "if "
+                // Strip trailing .clone() if present
+                let var = if before.ends_with(".clone()") {
+                    &before[..before.len() - 8]
+                } else {
+                    before
+                };
+                let var = var.trim().to_string();
+                if !var.is_empty() {
+                    is_some_vars.push(var);
+                    in_guard = true;
+                    guard_depth = 0;
+                    for ch in trimmed.chars() {
+                        match ch {
+                            '{' => guard_depth += 1,
+                            '}' => guard_depth -= 1,
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        } else if in_guard {
+            for ch in trimmed.chars() {
+                match ch {
+                    '{' => guard_depth += 1,
+                    '}' => guard_depth -= 1,
+                    _ => {}
+                }
+            }
+            if guard_depth <= 0 {
+                in_guard = false;
+                is_some_vars.clear();
+            }
+        }
+        // Fix: var.clone().to_string() → var.unwrap().to_string() in guard
+        if in_guard {
+            let mut new_line = line.to_string();
+            for var in &is_some_vars {
+                let pat = format!("{}.clone().to_string()", var);
+                let rep = format!("{}.unwrap().to_string()", var);
+                if new_line.contains(&pat) {
+                    new_line = new_line.replace(&pat, &rep);
+                }
+            }
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `return value;` in is_some() guard when value is `&Option<T>` param.
+///
+/// When function takes `value: &Option<T>` and has `if value.is_some() { return value; }`,
+/// the return should be `return *value.as_ref().unwrap();`.
+fn fix_return_option_param_in_is_some(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Track &Option<T> parameters
+    let mut option_params: Vec<String> = Vec::new();
+    let mut is_some_param: Option<String> = None;
+    let mut guard_depth: i32 = 0;
+    let mut in_guard = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        // Detect fn with &Option<T> params
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && trimmed.contains("&Option<")
+        {
+            option_params.clear();
+            // Extract param names that are &Option<T>
+            if let Some(paren_start) = trimmed.find('(') {
+                if let Some(paren_end) = trimmed.rfind(')') {
+                    let params = &trimmed[paren_start + 1..paren_end];
+                    for param in params.split(',') {
+                        let param = param.trim();
+                        if param.contains(": &Option<") {
+                            if let Some(colon) = param.find(':') {
+                                let name = param[..colon].trim().to_string();
+                                option_params.push(name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Detect is_some() guard for option params
+        if !option_params.is_empty()
+            && trimmed.starts_with("if ")
+            && trimmed.contains(".is_some()")
+        {
+            for param in &option_params {
+                if trimmed.contains(&format!("{}.is_some()", param)) {
+                    is_some_param = Some(param.clone());
+                    in_guard = true;
+                    guard_depth = 0;
+                    for ch in trimmed.chars() {
+                        match ch {
+                            '{' => guard_depth += 1,
+                            '}' => guard_depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    break;
+                }
+            }
+        } else if in_guard {
+            for ch in trimmed.chars() {
+                match ch {
+                    '{' => guard_depth += 1,
+                    '}' => guard_depth -= 1,
+                    _ => {}
+                }
+            }
+            if guard_depth <= 0 {
+                in_guard = false;
+                is_some_param = None;
+            }
+        }
+        // Fix: `return param;` → `return *param.as_ref().unwrap();`
+        if in_guard {
+            if let Some(ref param) = is_some_param {
+                let pat = format!("return {};", param);
+                if trimmed == pat {
+                    let indent = &line[..line.len() - line.trim_start().len()];
+                    result.push_str(&format!(
+                        "{}return *{}.as_ref().unwrap();",
+                        indent, param
+                    ));
+                    result.push('\n');
+                    continue;
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `let _ = Ok(EXPR);` → `Ok(EXPR)` as tail expression.
+///
+/// When a function's last expression is `let _ = Ok(expr);`, the Result is discarded.
+/// It should be `Ok(expr)` as a tail expression (or `return Ok(expr);`).
+fn fix_let_discard_ok_return(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let len = lines.len();
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        // Pattern: `let _ = Ok(EXPR);` followed by `}` (end of function)
+        if trimmed.starts_with("let _ = Ok(") && trimmed.ends_with(");") {
+            // Check if next non-empty line is `}`
+            let mut next_is_close = false;
+            for j in (i + 1)..len {
+                let next = lines[j].trim();
+                if next.is_empty() {
+                    continue;
+                }
+                if next == "}" {
+                    next_is_close = true;
+                }
+                break;
+            }
+            if next_is_close {
+                // Convert `let _ = Ok(EXPR);` to `Ok(EXPR)`
+                let indent = &line[..line.len() - line.trim_start().len()];
+                let ok_expr = &trimmed[8..trimmed.len() - 1]; // strip "let _ = " and ";"
+                result.push_str(&format!("{}{}", indent, ok_expr));
+                result.push('\n');
+                continue;
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// DEPYLER-99MODE-S9: Fix `return fn_result_returning_void;` when fn returns `-> i32`.
+///
+/// When a void function's result is used in `return`, but the enclosing function returns i32,
+/// detect `return EXPR;` where no return type and add `-> i32` to the void function,
+/// OR detect missing return type when function body has `return EXPR as i32;`.
+fn fix_void_fn_with_return_value(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    // Find functions that have `return EXPR as i32;` but no return type
+    // Pattern: `pub fn name(...) {` followed later by `return EXPR as i32;`
+    let mut fix_fns: Vec<String> = Vec::new();
+    let mut current_fn: Option<(String, bool)> = None; // (name, has_return_type)
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            let has_arrow = trimmed.contains("-> ");
+            if let Some(name_start) = trimmed.find("fn ") {
+                let after = &trimmed[name_start + 3..];
+                if let Some(paren) = after.find('(') {
+                    let name = after[..paren].trim().to_string();
+                    current_fn = Some((name, has_arrow));
+                }
+            }
+        }
+        if let Some((ref name, false)) = current_fn {
+            if trimmed.starts_with("return ") && trimmed.contains(" as i32;") {
+                fix_fns.push(name.clone());
+                current_fn = None;
+            }
+        }
+        if trimmed == "}" {
+            current_fn = None;
+        }
+    }
+    // Apply fixes: add `-> i32` to signatures of identified functions
+    for line in &lines {
+        let trimmed = line.trim();
+        let mut replaced = false;
+        for fn_name in &fix_fns {
+            let pat = format!("fn {}(", fn_name);
+            if trimmed.contains(&pat) && !trimmed.contains("-> ") && trimmed.contains(") {") {
+                let new_line = line.replace(") {", ") -> i32 {");
+                result.push_str(&new_line);
+                replaced = true;
+                break;
+            }
+        }
+        if !replaced {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    result
 }
 
 #[cfg(test)]
