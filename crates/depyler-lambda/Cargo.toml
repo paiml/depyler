@@ -1,0 +1,22 @@
+[package]
+name = "depyler-lambda"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "AWS Lambda transpilation support for the Depyler Python-to-Rust transpiler"
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rustpython-parser.workspace = true
+rustpython-ast.workspace = true
+depyler-annotations = { version = "3.25.0", path = "../depyler-annotations" }

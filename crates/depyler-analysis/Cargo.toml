@@ -1,0 +1,35 @@
+[package]
+name = "depyler-analysis"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "Analysis, type inference, and optimization passes for the Depyler transpiler"
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+smallvec.workspace = true
+fnv.workspace = true
+rustpython-parser.workspace = true
+rustpython-ast.workspace = true
+colored.workspace = true
+tracing.workspace = true
+depyler-annotations = { version = "3.25.0", path = "../depyler-annotations" }
+depyler-hir = { version = "3.25.0", path = "../depyler-hir" }
+
+[features]
+default = []
+decision-tracing = ["depyler-hir/decision-tracing"]
+
+[dev-dependencies]
+proptest.workspace = true

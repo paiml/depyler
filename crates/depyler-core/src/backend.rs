@@ -116,30 +116,6 @@ impl std::str::FromStr for TranspilationTarget {
     }
 }
 
-/// Extended error types for backend operations
-impl TranspileError {
-    /// Create backend-specific error
-    pub fn backend_error(msg: impl Into<String>) -> Self {
-        Self::new(crate::error::ErrorKind::CodeGenerationError(msg.into()))
-    }
-
-    /// Create transformation error
-    pub fn transform_error(msg: impl Into<String>) -> Self {
-        Self::new(crate::error::ErrorKind::CodeGenerationError(format!(
-            "Transformation failed: {}",
-            msg.into()
-        )))
-    }
-
-    /// Create optimization error
-    pub fn optimization_error(msg: impl Into<String>) -> Self {
-        Self::new(crate::error::ErrorKind::InternalError(format!(
-            "Optimization failed: {}",
-            msg.into()
-        )))
-    }
-}
-
 // Re-export for convenience
 pub use crate::error::TranspileError as BackendError;
 

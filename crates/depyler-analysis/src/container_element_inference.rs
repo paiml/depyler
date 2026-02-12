@@ -98,7 +98,7 @@ fn iter_references_container(iter: &HirExpr, container_name: &str) -> bool {
     match iter {
         HirExpr::Var(name) => name == container_name,
         HirExpr::Call { func, args, .. } if func == "enumerate" => {
-            args.first().map_or(false, |a| matches!(a, HirExpr::Var(n) if n == container_name))
+            args.first().is_some_and(|a| matches!(a, HirExpr::Var(n) if n == container_name))
         }
         _ => false,
     }
