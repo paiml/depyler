@@ -26,6 +26,10 @@ proc-macro2.workspace = true
 indexmap.workspace = true
 smallvec.workspace = true
 depyler-annotations = { version = "3.19.18", path = "../depyler-annotations" }
+depyler-hir = { path = "../depyler-hir" }
+depyler-lambda = { path = "../depyler-lambda" }
+depyler-analysis = { path = "../depyler-analysis" }
+depyler-tooling = { path = "../depyler-tooling" }
 colored.workspace = true
 fnv.workspace = true
 tempfile.workspace = true

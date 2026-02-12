@@ -12,6 +12,10 @@ members = [
     "crates/depyler-corpus",
     "crates/depyler-knowledge",
     "crates/depyler-graph",
+    "crates/depyler-hir",
+    "crates/depyler-lambda",
+    "crates/depyler-analysis",
+    "crates/depyler-tooling",
 ]
 exclude = [
     "crates/depyler-mcp",
