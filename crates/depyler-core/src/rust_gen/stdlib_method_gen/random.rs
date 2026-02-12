@@ -54,6 +54,10 @@ pub fn convert_random_method(
             convert_expovariate(&arg_exprs)?
         }
         "seed" => convert_seed(&arg_exprs)?,
+        "triangular" => {
+            ctx.needs_rand_distr = true;
+            convert_triangular(&arg_exprs)?
+        }
         _ => bail!("random.{} not implemented yet", method),
     };
 
@@ -258,6 +262,24 @@ fn convert_seed(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
+/// random.triangular(low, high, mode) → triangular distribution
+fn convert_triangular(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    if arg_exprs.len() != 3 {
+        bail!("random.triangular() requires exactly 3 arguments");
+    }
+    let low = &arg_exprs[0];
+    let high = &arg_exprs[1];
+    let mode = &arg_exprs[2];
+    Ok(parse_quote! {
+        {
+            use rand::distributions::Distribution;
+            let tri = rand_distr::Triangular::new(#low as f64, #high as f64, #mode as f64)
+                .expect("random operation failed");
+            tri.sample(&mut rand::thread_rng())
+        }
+    })
+}
+
 /// DEPYLER-1018: NASA mode stub for random methods
 ///
 /// Returns deterministic values to enable std-only compilation.
@@ -358,6 +380,15 @@ fn convert_random_method_nasa_stub(
         }
         // seed is no-op
         "seed" => parse_quote! { () },
+        // triangular(low, high, mode) returns mode (peak of distribution)
+        "triangular" => {
+            if arg_exprs.len() >= 3 {
+                let mode = &arg_exprs[2];
+                parse_quote! { #mode as f64 }
+            } else {
+                parse_quote! { 0.5_f64 }
+            }
+        }
         _ => bail!("random.{} not implemented in NASA mode", method),
     };
 
