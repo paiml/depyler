@@ -24,8 +24,8 @@ rustpython-parser.workspace = true
 rustpython-ast.workspace = true
 colored.workspace = true
 tracing.workspace = true
-depyler-annotations = { version = "3.25.0", path = "../depyler-annotations" }
-depyler-hir = { version = "3.25.0", path = "../depyler-hir" }
+depyler-annotations = { path = "../depyler-annotations" }
+depyler-hir = { path = "../depyler-hir" }
 
 [features]
 default = []

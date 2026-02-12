@@ -19,4 +19,4 @@ serde.workspace = true
 serde_json.workspace = true
 rustpython-parser.workspace = true
 rustpython-ast.workspace = true
-depyler-annotations = { version = "3.25.0", path = "../depyler-annotations" }
+depyler-annotations = { path = "../depyler-annotations" }

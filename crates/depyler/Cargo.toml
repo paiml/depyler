@@ -29,14 +29,14 @@ interactive = [] # Interactive annotation UI (requires dialoguer dep - not shipp
 watch = [] # File system watching for agent mode (requires notify dep - not shipped)
 
 [dependencies]
-depyler-core = { version = "3.24.0", path = "../depyler-core" }
-depyler-analyzer = { version = "3.23.0", path = "../depyler-analyzer" }
-depyler-verify = { version = "3.23.0", path = "../depyler-verify" }
-depyler-annotations = { version = "3.23.0", path = "../depyler-annotations" }
-depyler-quality = { version = "3.23.0", path = "../depyler-quality" }
-depyler-oracle = { version = "3.24.0", path = "../depyler-oracle", default-features = false }
-depyler-graph = { version = "3.23.0", path = "../depyler-graph" }
-depyler-corpus = { version = "3.25.0", path = "../depyler-corpus" }
+depyler-core = { path = "../depyler-core" }
+depyler-analyzer = { path = "../depyler-analyzer" }
+depyler-verify = { path = "../depyler-verify" }
+depyler-annotations = { path = "../depyler-annotations" }
+depyler-quality = { path = "../depyler-quality" }
+depyler-oracle = { path = "../depyler-oracle", default-features = false }
+depyler-graph = { path = "../depyler-graph" }
+depyler-corpus = { path = "../depyler-corpus" }
 
 anyhow.workspace = true
 thiserror.workspace = true
