@@ -391,13 +391,21 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Dict { .. } => true,
             // Variables with common dict-like names or typed as dict
             HirExpr::Var(name) => {
-                // DEPYLER-99MODE: Check param_types and class_field_types first
+                // DEPYLER-99MODE-S9: Check if variable is explicitly typed as a set FIRST
+                // This prevents set variables named "visited", "seen", etc. from being
+                // misidentified as dicts by the name heuristic below
                 if let Some(t) = self.param_types.get(name) {
+                    if matches!(t, Type::Set(_)) {
+                        return false;
+                    }
                     if matches!(t, Type::Dict(_, _)) {
                         return true;
                     }
                 }
                 if let Some(t) = self.class_field_types.get(name) {
+                    if matches!(t, Type::Set(_)) {
+                        return false;
+                    }
                     if matches!(t, Type::Dict(_, _)) {
                         return true;
                     }
@@ -418,8 +426,6 @@ impl<'a> ExprConverter<'a> {
                     || n == "m"
                     // DEPYLER-99MODE: Common algorithm dict names
                     || n == "memo"
-                    || n == "seen"
-                    || n == "visited"
                     || n == "counts"
                     || n == "freq"
                     || n == "frequency"
