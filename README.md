@@ -206,6 +206,7 @@ Python AST → HIR → Type Inference → Rust AST → Code Generation
 - [Developer Prompts](docs/prompts/)
 - [Changelog](CHANGELOG.md)
 - [TDD Book](tdd-book/)
+- 🤖 [Coursera Hugging Face AI Development Specialization](https://www.coursera.org/specializations/hugging-face-ai-development) - Build Production AI systems with Hugging Face in Pure Rust
 
 ## Quality Metrics
 
