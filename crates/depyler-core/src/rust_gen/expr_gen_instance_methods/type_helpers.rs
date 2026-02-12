@@ -729,8 +729,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         || n.contains("map")
                         || n.contains("hash")
                         || n == "memo"
-                        || n == "seen"
-                        || n == "visited"
                         || n == "counts"
                         || n == "freq"
                         || n == "frequency"

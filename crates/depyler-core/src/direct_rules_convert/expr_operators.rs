@@ -34,8 +34,10 @@ impl<'a> ExprConverter<'a> {
             BinOp::In => {
                 // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
                 if self.is_dict_expr(right) {
-                    // Convert "x in dict" to "dict.contains_key(&x)" for dicts/maps
-                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    // DEPYLER-99MODE-S9: Use .get().is_some() instead of .contains_key()
+                    // This works for both HashMap AND HashSet, preventing false positives
+                    // from the name-based dict heuristic (e.g., "visited" can be a set)
+                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
                 } else if self.is_tuple_or_list_expr(right) {
                     // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
                     // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
@@ -62,16 +64,20 @@ impl<'a> ExprConverter<'a> {
                         }
                     };
                     Ok(parse_quote! { #right_expr.contains(#pattern) })
+                } else if self.is_set_expr(right) {
+                    // DEPYLER-99MODE-S9: HashSet uses .contains(), not .contains_key()
+                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                 } else {
-                    // Fallback: assume dict/HashMap
-                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    // Fallback: use .get().is_some() which works for both HashMap and HashSet
+                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
                 }
             }
             BinOp::NotIn => {
                 // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
                 if self.is_dict_expr(right) {
-                    // Convert "x not in dict" to "!dict.contains_key(&x)"
-                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    // DEPYLER-99MODE-S9: Use .get().is_none() instead of !.contains_key()
+                    // This works for both HashMap AND HashSet
+                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
                 } else if self.is_tuple_or_list_expr(right) {
                     // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
                     // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
@@ -97,9 +103,12 @@ impl<'a> ExprConverter<'a> {
                         }
                     };
                     Ok(parse_quote! { !#right_expr.contains(#pattern) })
+                } else if self.is_set_expr(right) {
+                    // DEPYLER-99MODE-S9: HashSet uses .contains(), not .contains_key()
+                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                 } else {
-                    // Fallback: assume dict/HashMap
-                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    // Fallback: use .get().is_none() which works for both HashMap and HashSet
+                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() })
                 }
             }
             // Set operators - check if both operands are sets
