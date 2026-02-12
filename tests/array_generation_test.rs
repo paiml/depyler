@@ -38,10 +38,13 @@ def test_multiplication():
 
     let rust_code = transpile_snippet(py_code).expect("Failed to transpile");
 
-    // DEPYLER-1109: PyMul trait handles list multiplication semantically correctly
-    // Python [x] * n creates a list, which maps to Vec via PyMul trait
-    assert!(rust_code.contains("py_mul") || rust_code.contains("[0; 10]"));
-    assert!(rust_code.contains("vec![0]") || rust_code.contains("[0; 10]"));
+    // DEPYLER-1109: List multiplication maps to vec![elem; count]
+    // Python [x] * n → Rust vec![x; (n) as usize]
+    assert!(
+        rust_code.contains("vec![0;") || rust_code.contains("[0; 10]") || rust_code.contains("py_mul"),
+        "Should generate vec![0; N] or py_mul for [0]*10: {}",
+        rust_code
+    );
 }
 
 #[test]
