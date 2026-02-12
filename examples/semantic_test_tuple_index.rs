@@ -4,6 +4,7 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
+use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -382,8 +383,8 @@ impl DepylerValue {
     pub fn set(&mut self, key: &str, value: &str) {
         if let DepylerValue::Dict(_dv_dict) = self {
             _dv_dict.insert(
-                DepylerValue::Str(key.to_string()),
-                DepylerValue::Str(value.to_string()),
+                DepylerValue::Str(String::from(key)),
+                DepylerValue::Str(String::from(value)),
             );
         }
     }
@@ -459,7 +460,7 @@ impl From<String> for DepylerValue {
 }
 impl From<&str> for DepylerValue {
     fn from(v: &str) -> Self {
-        DepylerValue::Str(v.to_string())
+        DepylerValue::Str(String::from(v))
     }
 }
 impl From<bool> for DepylerValue {
@@ -982,6 +983,66 @@ impl std::cmp::Ord for DepylerValue {
         self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
     }
 }
+impl std::cmp::PartialOrd<i32> for DepylerValue {
+    fn partial_cmp(&self, other: &i32) -> Option<std::cmp::Ordering> {
+        self.partial_cmp(&DepylerValue::Int(*other as i64))
+    }
+}
+impl std::cmp::PartialOrd<i64> for DepylerValue {
+    fn partial_cmp(&self, other: &i64) -> Option<std::cmp::Ordering> {
+        self.partial_cmp(&DepylerValue::Int(*other))
+    }
+}
+impl std::cmp::PartialOrd<f64> for DepylerValue {
+    fn partial_cmp(&self, other: &f64) -> Option<std::cmp::Ordering> {
+        self.partial_cmp(&DepylerValue::Float(*other))
+    }
+}
+impl std::cmp::PartialOrd<DepylerValue> for i32 {
+    fn partial_cmp(&self, other: &DepylerValue) -> Option<std::cmp::Ordering> {
+        DepylerValue::Int(*self as i64).partial_cmp(other)
+    }
+}
+impl std::cmp::PartialOrd<DepylerValue> for i64 {
+    fn partial_cmp(&self, other: &DepylerValue) -> Option<std::cmp::Ordering> {
+        DepylerValue::Int(*self).partial_cmp(other)
+    }
+}
+impl std::cmp::PartialOrd<DepylerValue> for f64 {
+    fn partial_cmp(&self, other: &DepylerValue) -> Option<std::cmp::Ordering> {
+        DepylerValue::Float(*self).partial_cmp(other)
+    }
+}
+impl std::cmp::PartialEq<i32> for DepylerValue {
+    fn eq(&self, other: &i32) -> bool {
+        self == &DepylerValue::Int(*other as i64)
+    }
+}
+impl std::cmp::PartialEq<i64> for DepylerValue {
+    fn eq(&self, other: &i64) -> bool {
+        self == &DepylerValue::Int(*other)
+    }
+}
+impl std::cmp::PartialEq<f64> for DepylerValue {
+    fn eq(&self, other: &f64) -> bool {
+        self == &DepylerValue::Float(*other)
+    }
+}
+impl std::cmp::PartialEq<DepylerValue> for i32 {
+    fn eq(&self, other: &DepylerValue) -> bool {
+        &DepylerValue::Int(*self as i64) == other
+    }
+}
+impl std::cmp::PartialEq<DepylerValue> for i64 {
+    fn eq(&self, other: &DepylerValue) -> bool {
+        &DepylerValue::Int(*self) == other
+    }
+}
+impl std::cmp::PartialEq<DepylerValue> for f64 {
+    fn eq(&self, other: &DepylerValue) -> bool {
+        &DepylerValue::Float(*self) == other
+    }
+}
 pub fn depyler_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
     if a.partial_cmp(&b).map_or(true, |c| {
         c == std::cmp::Ordering::Less || c == std::cmp::Ordering::Equal
@@ -1369,6 +1430,20 @@ impl PySub<DepylerValue> for f64 {
     #[inline]
     fn py_sub(self, rhs: DepylerValue) -> f64 {
         self - rhs.to_f64()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub for std::collections::HashSet<T> {
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: std::collections::HashSet<T>) -> Self::Output {
+        self.difference(&rhs).cloned().collect()
+    }
+}
+impl<T: Eq + std::hash::Hash + Clone> PySub<&std::collections::HashSet<T>>
+    for std::collections::HashSet<T>
+{
+    type Output = std::collections::HashSet<T>;
+    fn py_sub(self, rhs: &std::collections::HashSet<T>) -> Self::Output {
+        self.difference(rhs).cloned().collect()
     }
 }
 impl PyMul for i32 {
@@ -3111,6 +3186,6 @@ pub fn get_second(t: (i32, i32, i32)) -> Result<i32, Box<dyn std::error::Error>>
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data: (i32, i32, i32) = (10, 20, 30);
-    println!("{}", get_second(data).unwrap());
+    println!("{}", get_second(data).expect("operation failed"));
     Ok(())
 }
