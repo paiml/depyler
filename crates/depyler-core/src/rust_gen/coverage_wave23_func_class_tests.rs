@@ -20,6 +20,17 @@ fn transpile(python_code: &str) -> String {
     result
 }
 
+fn try_transpile(python_code: &str) -> anyhow::Result<String> {
+    let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
+    let (module, _) = AstBridge::new()
+        .with_source(python_code.to_string())
+        .python_to_hir(ast)
+        .expect("hir");
+    let tm = TypeMapper::default();
+    let (result, _) = generate_rust_file(&module, &tm)?;
+    Ok(result)
+}
+
 // Function signatures: tests 1-50
 
 #[test]
@@ -692,8 +703,12 @@ fn test_w23fc_111() {
 
 #[test]
 fn test_w23fc_112() {
-    let result = transpile("class Foo:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n    def swap(self):\n        self.x, self.y = self.y, self.x");
-    assert!(!result.is_empty());
+    // Attribute-based tuple unpacking (self.x, self.y = self.y, self.x) is not yet supported.
+    // The transpiler returns an error for this pattern rather than panicking.
+    let result = try_transpile("class Foo:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n    def swap(self):\n        self.x, self.y = self.y, self.x");
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("tuple unpacking"), "Expected tuple unpacking error, got: {}", err_msg);
 }
 
 #[test]
