@@ -854,12 +854,14 @@ mod tests {
 
     #[test]
     fn test_convert_itertools_groupby_wrong_args() {
+        // groupby now accepts 1 argument (iterable only, uses identity key function).
+        // Verify that 0 arguments still produces an error.
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Var("items".to_string())];
+        let args: Vec<HirExpr> = vec![];
         let result = convert_itertools_method("groupby", &args, &mut ctx);
         assert!(result.is_err());
         let err = result.err().unwrap();
-        assert!(err.to_string().contains("requires at least 2 arguments"));
+        assert!(err.to_string().contains("requires at least 1 argument"));
     }
 
     #[test]
@@ -887,8 +889,10 @@ mod tests {
 
     #[test]
     fn test_convert_groupby_direct_empty() {
+        // convert_groupby now accepts 1 argument (iterable only, uses identity key).
+        // Verify that 0 arguments produces an error.
         let mut ctx = CodeGenContext::default();
-        let arg_exprs: Vec<syn::Expr> = vec![parse_quote!(x)];
+        let arg_exprs: Vec<syn::Expr> = vec![];
         let result = convert_groupby(&arg_exprs, &mut ctx);
         assert!(result.is_err());
     }
