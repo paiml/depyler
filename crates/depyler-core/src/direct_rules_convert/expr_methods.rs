@@ -3,11 +3,9 @@
 //! Handles Python method calls (obj.method(args)) → Rust equivalents.
 //! This is the largest single conversion function.
 
-use crate::direct_rules::{make_ident, parse_target_pattern, safe_class_name};
+use crate::direct_rules::make_ident;
 use crate::hir::*;
-use crate::rust_gen::keywords::safe_ident;
 use anyhow::{bail, Result};
-use quote::quote;
 use syn::parse_quote;
 
 use super::ExprConverter;
@@ -32,8 +30,6 @@ impl<'a> ExprConverter<'a> {
         }
 
         // DEPYLER-0610: Handle Python stdlib module constructor calls
-        // threading.Semaphore(n) → std::sync::Mutex::new(n)
-        // queue.Queue() → std::collections::VecDeque::new()
         if let HirExpr::Var(module_name) = object {
             if let Some(rust_expr) = self.convert_module_constructor(module_name, method, args)? {
                 return Ok(rust_expr);
@@ -41,7 +37,6 @@ impl<'a> ExprConverter<'a> {
         }
 
         // DEPYLER-0200: Handle os module method calls in class methods
-        // This was missing - os.unlink() etc. weren't being converted inside class methods
         if let HirExpr::Var(module_name) = object {
             if module_name == "os" {
                 if let Some(rust_expr) = self.try_convert_os_method(method, args)? {
@@ -50,1009 +45,59 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
-        // DEPYLER-1097: Handle sys module method calls and attribute access
-        // sys.exit(code) → std::process::exit(code)
-        // sys.argv → std::env::args().collect::<Vec<_>>()
+        // Dispatch module-level method calls via match
         if let HirExpr::Var(module_name) = object {
-            if module_name == "sys" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "exit" => {
-                        let code = arg_exprs
-                            .first()
-                            .map(|e| quote::quote!(#e))
-                            .unwrap_or_else(|| quote::quote!(0));
-                        return Ok(parse_quote! { std::process::exit(#code as i32) });
+            match module_name.as_str() {
+                "sys" => {
+                    if let Some(e) = self.try_convert_sys_method(method, args)? {
+                        return Ok(e);
                     }
-                    "argv" => {
-                        // sys.argv is an attribute, but might be called as method via wrapper
-                        return Ok(parse_quote! { std::env::args().collect::<Vec<String>>() });
-                    }
-                    "version" | "version_info" => {
-                        // Stub: return Rust version string
-                        return Ok(parse_quote! { env!("CARGO_PKG_VERSION").to_string() });
-                    }
-                    "platform" => {
-                        return Ok(parse_quote! { std::env::consts::OS.to_string() });
-                    }
-                    "path" => {
-                        // sys.path → empty vec (no Python module system in Rust)
-                        return Ok(parse_quote! { Vec::<String>::new() });
-                    }
-                    "stdin" | "stdout" | "stderr" => {
-                        // Return appropriate std::io handle
-                        match method {
-                            "stdin" => return Ok(parse_quote! { std::io::stdin() }),
-                            "stdout" => return Ok(parse_quote! { std::io::stdout() }),
-                            "stderr" => return Ok(parse_quote! { std::io::stderr() }),
-                            _ => {}
-                        }
-                    }
-                    "getsizeof" if arg_exprs.len() == 1 => {
-                        let obj = &arg_exprs[0];
-                        return Ok(parse_quote! { std::mem::size_of_val(&#obj) as i32 });
-                    }
-                    _ => {} // Fall through for unhandled sys methods
                 }
-            }
-        }
-
-        // DEPYLER-1200: Handle re (regex) module method calls in class methods
-        // NASA mode: Uses DepylerRegexMatch helper struct (no external crate)
-        // Non-NASA mode: Uses regex crate for full regex support
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "re" {
-                // DEPYLER-1200: For regex methods, extract raw string literals where possible
-                let extract_str_literal = |hir: &HirExpr| -> Option<String> {
-                    if let HirExpr::Literal(Literal::String(s)) = hir {
-                        Some(s.clone())
-                    } else {
-                        None
+                "re" => {
+                    if let Some(e) = self.try_convert_re_method(method, args)? {
+                        return Ok(e);
                     }
-                };
-
-                let nasa_mode = self.type_mapper.nasa_mode;
-
-                match method {
-                    "search" if args.len() >= 2 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let text_str = extract_str_literal(&args[1]);
-
-                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
-                            return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::search(#pattern, #text) })
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(#pattern).expect("invalid regex").find(#text) },
-                                )
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let text_expr = self.convert(&args[1])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::search(&#pattern_expr, &#text_expr) },
-                                )
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex").find(&#text_expr) },
-                                )
-                            };
-                        }
-                    }
-                    "match" if args.len() >= 2 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let text_str = extract_str_literal(&args[1]);
-
-                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
-                            return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(#pattern).expect("invalid regex").find(#text) },
-                                )
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let text_expr = self.convert(&args[1])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) },
-                                )
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex").find(&#text_expr) },
-                                )
-                            };
-                        }
-                    }
-                    "fullmatch" if args.len() >= 2 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let text_str = extract_str_literal(&args[1]);
-
-                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
-                            return if nasa_mode {
-                                // NASA mode: use DepylerRegexMatch::match_start for simplicity
-                                Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).expect("invalid regex").find(#text) },
-                                )
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let text_expr = self.convert(&args[1])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) },
-                                )
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).expect("invalid regex").find(&#text_expr) },
-                                )
-                            };
-                        }
-                    }
-                    "findall" if args.len() >= 2 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let text_str = extract_str_literal(&args[1]);
-
-                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
-                            return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::findall(#pattern, #text) })
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(#pattern)
-                                        .expect("invalid regex")
-                                        .find_iter(#text)
-                                        .map(|m| m.as_str().to_string())
-                                        .collect::<Vec<_>>()
-                                })
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let text_expr = self.convert(&args[1])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr) },
-                                )
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(&#pattern_expr)
-                                        .expect("invalid regex")
-                                        .find_iter(&#text_expr)
-                                        .map(|m| m.as_str().to_string())
-                                        .collect::<Vec<_>>()
-                                })
-                            };
-                        }
-                    }
-                    "finditer" if args.len() >= 2 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let text_str = extract_str_literal(&args[1]);
-
-                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::findall(#pattern, #text).into_iter() },
-                                )
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(#pattern)
-                                        .expect("invalid regex")
-                                        .find_iter(#text)
-                                        .map(|m| m.as_str().to_string())
-                                        .collect::<Vec<_>>()
-                                })
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let text_expr = self.convert(&args[1])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr).into_iter() },
-                                )
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(&#pattern_expr)
-                                        .expect("invalid regex")
-                                        .find_iter(&#text_expr)
-                                        .map(|m| m.as_str().to_string())
-                                        .collect::<Vec<_>>()
-                                })
-                            };
-                        }
-                    }
-                    "sub" if args.len() >= 3 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let repl_str = extract_str_literal(&args[1]);
-                        let text_str = extract_str_literal(&args[2]);
-
-                        if let (Some(pattern), Some(repl), Some(text)) =
-                            (pattern_str, repl_str, text_str)
-                        {
-                            return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::sub(#pattern, #repl, #text) })
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(#pattern)
-                                        .expect("invalid regex")
-                                        .replace_all(#text, #repl)
-                                        .to_string()
-                                })
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let repl_expr = self.convert(&args[1])?;
-                            let text_expr = self.convert(&args[2])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr) },
-                                )
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(&#pattern_expr)
-                                        .expect("invalid regex")
-                                        .replace_all(&#text_expr, &#repl_expr)
-                                        .to_string()
-                                })
-                            };
-                        }
-                    }
-                    "subn" if args.len() >= 3 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let repl_str = extract_str_literal(&args[1]);
-                        let text_str = extract_str_literal(&args[2]);
-
-                        if let (Some(pattern), Some(repl), Some(text)) =
-                            (pattern_str, repl_str, text_str)
-                        {
-                            return if nasa_mode {
-                                Ok(parse_quote! {
-                                    {
-                                        let result = DepylerRegexMatch::sub(#pattern, #repl, #text);
-                                        let count = (#text).matches(#pattern).count();
-                                        (result, count)
-                                    }
-                                })
-                            } else {
-                                Ok(parse_quote! {
-                                    {
-                                        let re = regex::Regex::new(#pattern).expect("invalid regex");
-                                        let count = re.find_iter(#text).count();
-                                        let result = re.replace_all(#text, #repl).to_string();
-                                        (result, count)
-                                    }
-                                })
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let repl_expr = self.convert(&args[1])?;
-                            let text_expr = self.convert(&args[2])?;
-                            return if nasa_mode {
-                                Ok(parse_quote! {
-                                    {
-                                        let result = DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr);
-                                        let count = (&#text_expr).matches(&#pattern_expr).count();
-                                        (result, count)
-                                    }
-                                })
-                            } else {
-                                Ok(parse_quote! {
-                                    {
-                                        let re = regex::Regex::new(&#pattern_expr).expect("invalid regex");
-                                        let count = re.find_iter(&#text_expr).count();
-                                        let result = re.replace_all(&#text_expr, &#repl_expr).to_string();
-                                        (result, count)
-                                    }
-                                })
-                            };
-                        }
-                    }
-                    "split" if args.len() >= 2 => {
-                        let pattern_str = extract_str_literal(&args[0]);
-                        let text_str = extract_str_literal(&args[1]);
-
-                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
-                            return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::split(#pattern, #text) })
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(#pattern)
-                                        .expect("invalid regex")
-                                        .split(#text)
-                                        .map(|s| s.to_string())
-                                        .collect::<Vec<_>>()
-                                })
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            let text_expr = self.convert(&args[1])?;
-                            return if nasa_mode {
-                                Ok(
-                                    parse_quote! { DepylerRegexMatch::split(&#pattern_expr, &#text_expr) },
-                                )
-                            } else {
-                                Ok(parse_quote! {
-                                    regex::Regex::new(&#pattern_expr)
-                                        .expect("invalid regex")
-                                        .split(&#text_expr)
-                                        .map(|s| s.to_string())
-                                        .collect::<Vec<_>>()
-                                })
-                            };
-                        }
-                    }
-                    "compile" if !args.is_empty() => {
-                        let pattern_str = extract_str_literal(&args[0]);
-
-                        if let Some(pattern) = pattern_str {
-                            return if nasa_mode {
-                                // NASA mode: compile returns the pattern string
-                                Ok(parse_quote! { #pattern.to_string() })
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(#pattern).expect("invalid regex") },
-                                )
-                            };
-                        } else {
-                            let pattern_expr = self.convert(&args[0])?;
-                            return if nasa_mode {
-                                Ok(parse_quote! { (#pattern_expr).to_string() })
-                            } else {
-                                Ok(
-                                    parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex") },
-                                )
-                            };
-                        }
-                    }
-                    "escape" if !args.is_empty() => {
-                        let text_str = extract_str_literal(&args[0]);
-
-                        if let Some(text) = text_str {
-                            return if nasa_mode {
-                                // NASA mode: escape just returns the string as-is
-                                Ok(parse_quote! { #text.to_string() })
-                            } else {
-                                Ok(parse_quote! { regex::escape(#text).to_string() })
-                            };
-                        } else {
-                            let text_expr = self.convert(&args[0])?;
-                            return if nasa_mode {
-                                Ok(parse_quote! { (#text_expr).to_string() })
-                            } else {
-                                Ok(parse_quote! { regex::escape(&#text_expr).to_string() })
-                            };
-                        }
-                    }
-                    _ => {} // Fall through for unhandled re methods
                 }
-            }
-        }
-
-        // DEPYLER-0912: Handle colorsys module method calls in class methods
-        // colorsys.rgb_to_hsv(r, g, b) → inline color conversion
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "colorsys" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "rgb_to_hsv" if arg_exprs.len() == 3 => {
-                        let r = &arg_exprs[0];
-                        let g = &arg_exprs[1];
-                        let b = &arg_exprs[2];
-                        return Ok(parse_quote! {
-                            {
-                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
-                                let max_c = r.max(g).max(b);
-                                let min_c = r.min(g).min(b);
-                                let v = max_c;
-                                if min_c == max_c { (0.0, 0.0, v) }
-                                else {
-                                    let s = (max_c - min_c) / max_c;
-                                    let rc = (max_c - r) / (max_c - min_c);
-                                    let gc = (max_c - g) / (max_c - min_c);
-                                    let bc = (max_c - b) / (max_c - min_c);
-                                    let h = if r == max_c { bc - gc }
-                                        else if g == max_c { 2.0 + rc - bc }
-                                        else { 4.0 + gc - rc };
-                                    let h = (h / 6.0) % 1.0;
-                                    let h = if h < 0.0 { h + 1.0 } else { h };
-                                    (h, s, v)
-                                }
-                            }
-                        });
+                "colorsys" => {
+                    if let Some(e) = self.try_convert_colorsys_method(method, args)? {
+                        return Ok(e);
                     }
-                    "hsv_to_rgb" if arg_exprs.len() == 3 => {
-                        let h = &arg_exprs[0];
-                        let s = &arg_exprs[1];
-                        let v = &arg_exprs[2];
-                        return Ok(parse_quote! {
-                            {
-                                let (h, s, v) = (#h as f64, #s as f64, #v as f64);
-                                if s == 0.0 { (v, v, v) }
-                                else {
-                                    let i = (h * 6.0).floor();
-                                    let f = (h * 6.0) - i;
-                                    let p = v * (1.0 - s);
-                                    let q = v * (1.0 - s * f);
-                                    let t = v * (1.0 - s * (1.0 - f));
-                                    let i = i as i32 % 6;
-                                    match i { 0 => (v, t, p), 1 => (q, v, p), 2 => (p, v, t),
-                                              3 => (p, q, v), 4 => (t, p, v), _ => (v, p, q) }
-                                }
-                            }
-                        });
-                    }
-                    "rgb_to_hls" if arg_exprs.len() == 3 => {
-                        let r = &arg_exprs[0];
-                        let g = &arg_exprs[1];
-                        let b = &arg_exprs[2];
-                        return Ok(parse_quote! {
-                            {
-                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
-                                let max_c = r.max(g).max(b);
-                                let min_c = r.min(g).min(b);
-                                let l = (min_c + max_c) / 2.0;
-                                if min_c == max_c { (0.0, l, 0.0) }
-                                else {
-                                    let s = if l <= 0.5 { (max_c - min_c) / (max_c + min_c) }
-                                        else { (max_c - min_c) / (2.0 - max_c - min_c) };
-                                    let rc = (max_c - r) / (max_c - min_c);
-                                    let gc = (max_c - g) / (max_c - min_c);
-                                    let bc = (max_c - b) / (max_c - min_c);
-                                    let h = if r == max_c { bc - gc }
-                                        else if g == max_c { 2.0 + rc - bc }
-                                        else { 4.0 + gc - rc };
-                                    let h = (h / 6.0) % 1.0;
-                                    let h = if h < 0.0 { h + 1.0 } else { h };
-                                    (h, l, s)
-                                }
-                            }
-                        });
-                    }
-                    "hls_to_rgb" if arg_exprs.len() == 3 => {
-                        let h = &arg_exprs[0];
-                        let l = &arg_exprs[1];
-                        let s = &arg_exprs[2];
-                        return Ok(parse_quote! {
-                            {
-                                let (h, l, s) = (#h as f64, #l as f64, #s as f64);
-                                if s == 0.0 { (l, l, l) }
-                                else {
-                                    let m2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
-                                    let m1 = 2.0 * l - m2;
-                                    let _v = |hue: f64| {
-                                        let hue = hue % 1.0;
-                                        let hue = if hue < 0.0 { hue + 1.0 } else { hue };
-                                        if hue < 1.0/6.0 { m1 + (m2 - m1) * hue * 6.0 }
-                                        else if hue < 0.5 { m2 }
-                                        else if hue < 2.0/3.0 { m1 + (m2 - m1) * (2.0/3.0 - hue) * 6.0 }
-                                        else { m1 }
-                                    };
-                                    (_v(h + 1.0/3.0), _v(h), _v(h - 1.0/3.0))
-                                }
-                            }
-                        });
-                    }
-                    _ => {} // Fall through for other colorsys methods
                 }
-            }
-        }
-
-        // DEPYLER-1002: Handle base64 module method calls in class methods
-        // DEPYLER-1026: NASA mode uses stub implementations instead of base64 crate
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "base64" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                let nasa_mode = self.type_mapper.nasa_mode;
-                match method {
-                    "b64encode" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            // NASA mode: Return hex-encoded bytes as stub
-                            return Ok(parse_quote! {
-                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            base64::engine::general_purpose::STANDARD.encode(#data)
-                        });
+                "base64" => {
+                    if let Some(e) = self.try_convert_base64_method(method, args)? {
+                        return Ok(e);
                     }
-                    "b64decode" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            // NASA mode: Return input bytes as stub
-                            return Ok(parse_quote! {
-                                #data.as_bytes().to_vec()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            base64::engine::general_purpose::STANDARD.decode(#data).expect("decode failed")
-                        });
-                    }
-                    "urlsafe_b64encode" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            return Ok(parse_quote! {
-                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            base64::engine::general_purpose::URL_SAFE.encode(#data)
-                        });
-                    }
-                    "urlsafe_b64decode" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            return Ok(parse_quote! {
-                                #data.as_bytes().to_vec()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            base64::engine::general_purpose::URL_SAFE.decode(#data).expect("decode failed")
-                        });
-                    }
-                    "b32encode" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            return Ok(parse_quote! {
-                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            data_encoding::BASE32.encode(#data).into_bytes()
-                        });
-                    }
-                    "b32decode" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            return Ok(parse_quote! {
-                                #data.to_vec()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            data_encoding::BASE32.decode(#data).expect("decode failed")
-                        });
-                    }
-                    "b16encode" | "hexlify" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            // NASA mode: Can use std format for hex
-                            return Ok(parse_quote! {
-                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            hex::encode(#data).into_bytes()
-                        });
-                    }
-                    "b16decode" | "unhexlify" if arg_exprs.len() == 1 => {
-                        let data = &arg_exprs[0];
-                        if nasa_mode {
-                            // NASA mode: Return input as bytes stub
-                            return Ok(parse_quote! {
-                                #data.to_vec()
-                            });
-                        }
-                        return Ok(parse_quote! {
-                            hex::decode(#data).expect("decode failed")
-                        });
-                    }
-                    _ => {} // Fall through for unhandled base64 methods
                 }
-            }
-        }
-
-        // DEPYLER-1002: Handle hashlib module method calls in class methods
-        // hashlib.md5() → Md5::new()
-        // hashlib.sha256() → Sha256::new()
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "hashlib" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "md5" => {
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use md5::Digest;
-                                    Box::new(md5::Md5::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            let data = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use md5::Digest;
-                                    let mut h = Box::new(md5::Md5::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
+                "hashlib" => {
+                    if let Some(e) = self.try_convert_hashlib_method(method, args)? {
+                        return Ok(e);
                     }
-                    "sha1" => {
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha1::Digest;
-                                    Box::new(sha1::Sha1::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            let data = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha1::Digest;
-                                    let mut h = Box::new(sha1::Sha1::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
-                    }
-                    "sha256" => {
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            let data = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
-                    }
-                    "sha512" => {
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    Box::new(sha2::Sha512::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            let data = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    let mut h = Box::new(sha2::Sha512::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
-                    }
-                    "sha384" => {
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    Box::new(sha2::Sha384::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            let data = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    let mut h = Box::new(sha2::Sha384::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
-                    }
-                    "blake2b" | "blake2s" => {
-                        // For blake2, just use sha256 as fallback since blake2 crate API differs
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            let data = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
-                    }
-                    "new" => {
-                        // hashlib.new("algorithm", data) factory method
-                        // For simplicity, default to sha256 since we can't pattern match strings at compile time
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else if arg_exprs.len() == 1 {
-                            // Just algorithm name, no data
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
-                                }
-                            });
-                        } else {
-                            // Algorithm name + data
-                            let data = &arg_exprs[1];
-                            return Ok(parse_quote! {
-                                {
-                                    use digest::DynDigest;
-                                    use sha2::Digest;
-                                    let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
-                                    h.update(#data);
-                                    h
-                                }
-                            });
-                        }
-                    }
-                    _ => {} // Fall through for unhandled hashlib methods
                 }
-            }
-        }
-
-        // DEPYLER-1002: Handle json module method calls in class methods
-        // DEPYLER-1022: NASA mode uses std-only stubs
-        // json.dumps(obj) → serde_json::to_string(&obj).unwrap() (or format! in NASA mode)
-        // json.loads(s) → serde_json::from_str(&s).unwrap() (or empty HashMap in NASA mode)
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "json" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "dumps" if !arg_exprs.is_empty() => {
-                        let obj = &arg_exprs[0];
-                        // DEPYLER-1022: NASA mode uses format! instead of serde_json
-                        if self.type_mapper.nasa_mode {
-                            return Ok(parse_quote! { format!("{:?}", #obj) });
-                        }
-                        return Ok(
-                            parse_quote! { serde_json::to_string(&#obj).expect("JSON serialize failed") },
-                        );
+                "json" => {
+                    if let Some(e) = self.try_convert_json_method(method, args)? {
+                        return Ok(e);
                     }
-                    "loads" if !arg_exprs.is_empty() => {
-                        let _s = &arg_exprs[0];
-                        // DEPYLER-1022/1051: NASA mode returns empty HashMap stub with DepylerValue
-                        if self.type_mapper.nasa_mode {
-                            return Ok(
-                                parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() },
-                            );
-                        }
-                        return Ok(
-                            parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).expect("JSON parse failed") },
-                        );
-                    }
-                    _ => {} // Fall through
                 }
-            }
-        }
-
-        // DEPYLER-1002: Handle math module method calls in class methods
-        // math.sqrt(x) → x.sqrt()
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "math" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "sqrt" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).sqrt() });
+                "math" => {
+                    if let Some(e) = self.try_convert_math_method(method, args)? {
+                        return Ok(e);
                     }
-                    "sin" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).sin() });
-                    }
-                    "cos" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).cos() });
-                    }
-                    "tan" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).tan() });
-                    }
-                    "floor" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).floor() });
-                    }
-                    "ceil" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).ceil() });
-                    }
-                    "abs" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).abs() });
-                    }
-                    "pow" if arg_exprs.len() >= 2 => {
-                        let x = &arg_exprs[0];
-                        let y = &arg_exprs[1];
-                        return Ok(parse_quote! { (#x as f64).powf(#y as f64) });
-                    }
-                    "log" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        if arg_exprs.len() >= 2 {
-                            let base = &arg_exprs[1];
-                            return Ok(parse_quote! { (#x as f64).log(#base as f64) });
-                        }
-                        return Ok(parse_quote! { (#x as f64).ln() });
-                    }
-                    "exp" if !arg_exprs.is_empty() => {
-                        let x = &arg_exprs[0];
-                        return Ok(parse_quote! { (#x as f64).exp() });
-                    }
-                    _ => {} // Fall through
                 }
-            }
-        }
-
-        // DEPYLER-1002: Handle random module method calls in class methods
-        // random.randint(a, b) → rand::thread_rng().gen_range(a..=b)
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "random" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "randint" if arg_exprs.len() >= 2 => {
-                        let a = &arg_exprs[0];
-                        let b = &arg_exprs[1];
-                        return Ok(parse_quote! {
-                            {
-                                use rand::Rng;
-                                rand::thread_rng().gen_range(#a..=#b)
-                            }
-                        });
+                "random" => {
+                    if let Some(e) = self.try_convert_random_method(method, args)? {
+                        return Ok(e);
                     }
-                    "random" if arg_exprs.is_empty() => {
-                        return Ok(parse_quote! {
-                            {
-                                use rand::Rng;
-                                rand::thread_rng().gen::<f64>()
-                            }
-                        });
-                    }
-                    "choice" if !arg_exprs.is_empty() => {
-                        let seq = &arg_exprs[0];
-                        return Ok(parse_quote! {
-                            {
-                                use rand::seq::SliceRandom;
-                                #seq.choose(&mut rand::thread_rng()).cloned().expect("empty collection")
-                            }
-                        });
-                    }
-                    "shuffle" if !arg_exprs.is_empty() => {
-                        let seq = &arg_exprs[0];
-                        return Ok(parse_quote! {
-                            {
-                                use rand::seq::SliceRandom;
-                                #seq.shuffle(&mut rand::thread_rng())
-                            }
-                        });
-                    }
-                    _ => {} // Fall through
                 }
-            }
-        }
-
-        // DEPYLER-1049: Handle time module method calls in class methods
-        // time.time() → std::time::SystemTime::now().duration_since(UNIX_EPOCH).as_secs_f64()
-        // time.sleep(s) → std::thread::sleep(Duration::from_secs_f64(s))
-        if let HirExpr::Var(module_name) = object {
-            if module_name == "time" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
-                match method {
-                    "time" if arg_exprs.is_empty() => {
-                        return Ok(parse_quote! {
-                            std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .expect("time error")
-                                .as_secs_f64()
-                        });
+                "time" => {
+                    if let Some(e) = self.try_convert_time_method(method, args)? {
+                        return Ok(e);
                     }
-                    "sleep" if arg_exprs.len() == 1 => {
-                        let secs = &arg_exprs[0];
-                        return Ok(parse_quote! {
-                            std::thread::sleep(std::time::Duration::from_secs_f64(#secs))
-                        });
-                    }
-                    "monotonic" | "perf_counter" if arg_exprs.is_empty() => {
-                        return Ok(parse_quote! { std::time::Instant::now() });
-                    }
-                    "process_time" | "thread_time" if arg_exprs.is_empty() => {
-                        // Approximation using Instant
-                        return Ok(parse_quote! { std::time::Instant::now() });
-                    }
-                    "ctime" => {
-                        // NASA mode: return formatted string stub
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! {
-                                format!("{:?}", std::time::SystemTime::now())
-                            });
-                        } else {
-                            let timestamp = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                format!("{:?}", std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp))
-                            });
-                        }
-                    }
-                    "gmtime" | "localtime" => {
-                        // NASA mode: return SystemTime stub
-                        if arg_exprs.is_empty() {
-                            return Ok(parse_quote! { std::time::SystemTime::now() });
-                        } else {
-                            let timestamp = &arg_exprs[0];
-                            return Ok(parse_quote! {
-                                std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp)
-                            });
-                        }
-                    }
-                    "mktime" if !arg_exprs.is_empty() => {
-                        let _t = &arg_exprs[0];
-                        // NASA mode: return current timestamp as stub
-                        return Ok(parse_quote! {
-                            std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .expect("time error")
-                                .as_secs_f64()
-                        });
-                    }
-                    _ => {} // Fall through for unhandled time methods
                 }
+                _ => {}
             }
         }
 
         // DEPYLER-0200: Handle os.path.* and os.environ.* method calls in class methods
-        // Pattern: os.path.exists(path), os.environ.get("KEY") etc.
         if let HirExpr::Attribute { value, attr } = object {
             if let HirExpr::Var(module_name) = value.as_ref() {
                 if module_name == "os" && attr == "path" {
@@ -1069,7 +114,6 @@ impl<'a> ExprConverter<'a> {
         }
 
         // DEPYLER-0932: Handle dict.fromkeys(keys, default) class method
-        // dict.fromkeys(keys, default) → keys.iter().map(|k| (k.clone(), default)).collect()
         if let HirExpr::Var(var_name) = object {
             if var_name == "dict" && method == "fromkeys" {
                 let arg_exprs: Vec<syn::Expr> = args
@@ -1084,7 +128,6 @@ impl<'a> ExprConverter<'a> {
                         #keys_expr.iter().map(|k| (k.clone(), #default_expr)).collect()
                     });
                 } else if arg_exprs.len() == 1 {
-                    // dict.fromkeys(keys) with implicit None default
                     let keys_expr = &arg_exprs[0];
                     return Ok(parse_quote! {
                         #keys_expr.iter().map(|k| (k.clone(), ())).collect()
@@ -1093,9 +136,7 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
-        // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method in class methods
-        // int.from_bytes(bytes, "big") → i64::from_be_bytes(...)
-        // int.from_bytes(bytes, "little") → i64::from_le_bytes(...)
+        // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method
         if let HirExpr::Var(var_name) = object {
             if var_name == "int" && method == "from_bytes" {
                 let arg_exprs: Vec<syn::Expr> = args
@@ -1105,11 +146,10 @@ impl<'a> ExprConverter<'a> {
 
                 if arg_exprs.len() >= 2 {
                     let bytes_expr = &arg_exprs[0];
-                    // Check if second arg is "big" or "little" string literal
                     let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
                         s == "big"
                     } else {
-                        true // Default to big endian
+                        true
                     };
 
                     if is_big_endian {
@@ -1136,7 +176,7 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
-        // Check if this is a static method call on a class (e.g., Counter.create_with_value)
+        // Check if this is a static method call on a class
         if let HirExpr::Var(class_name) = object {
             if class_name
                 .chars()
@@ -1144,7 +184,6 @@ impl<'a> ExprConverter<'a> {
                 .map(|c| c.is_uppercase())
                 .unwrap_or(false)
             {
-                // This is likely a static method call - convert to ClassName::method(args)
                 let class_ident = make_ident(class_name);
                 let method_ident = make_ident(method);
                 let arg_exprs: Vec<syn::Expr> = args
@@ -1156,8 +195,6 @@ impl<'a> ExprConverter<'a> {
         }
 
         // DEPYLER-1008: Check if this is a mutating method call on self.field
-        // If so, we should NOT add .clone() to the object expression
-        // Mutating methods: append, push, insert, pop, clear, extend, remove, add, update, etc.
         let is_mutating_method = matches!(
             method,
             "append"
@@ -1176,15 +213,12 @@ impl<'a> ExprConverter<'a> {
                 | "discard"
         );
 
-        // Check if object is self.field pattern
         let is_self_field = matches!(
             object,
             HirExpr::Attribute { value, .. } if matches!(value.as_ref(), HirExpr::Var(name) if name == "self")
         );
 
         let object_expr = if is_mutating_method && is_self_field {
-            // DEPYLER-1008: For mutating calls on self.field, don't add .clone()
-            // Just generate self.field directly
             if let HirExpr::Attribute { value, attr } = object {
                 let attr_ident = make_ident(attr);
                 let value_expr = self.convert(value)?;
@@ -1200,6 +234,956 @@ impl<'a> ExprConverter<'a> {
             .map(|arg| self.convert(arg))
             .collect::<Result<Vec<_>>>()?;
 
+        self.convert_instance_method(object, method, args, object_expr, arg_exprs)
+    }
+
+    // ---- Module-level method handlers ----
+
+    /// DEPYLER-1097: Handle sys module method calls and attribute access
+    fn try_convert_sys_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "exit" => {
+                let code = arg_exprs
+                    .first()
+                    .map(|e| quote::quote!(#e))
+                    .unwrap_or_else(|| quote::quote!(0));
+                Ok(Some(parse_quote! { std::process::exit(#code as i32) }))
+            }
+            "argv" => {
+                Ok(Some(parse_quote! { std::env::args().collect::<Vec<String>>() }))
+            }
+            "version" | "version_info" => {
+                Ok(Some(parse_quote! { env!("CARGO_PKG_VERSION").to_string() }))
+            }
+            "platform" => {
+                Ok(Some(parse_quote! { std::env::consts::OS.to_string() }))
+            }
+            "path" => {
+                Ok(Some(parse_quote! { Vec::<String>::new() }))
+            }
+            "stdin" => Ok(Some(parse_quote! { std::io::stdin() })),
+            "stdout" => Ok(Some(parse_quote! { std::io::stdout() })),
+            "stderr" => Ok(Some(parse_quote! { std::io::stderr() })),
+            "getsizeof" if arg_exprs.len() == 1 => {
+                let obj = &arg_exprs[0];
+                Ok(Some(parse_quote! { std::mem::size_of_val(&#obj) as i32 }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// DEPYLER-1200: Handle re (regex) module method calls
+    fn try_convert_re_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let extract_str_literal = |hir: &HirExpr| -> Option<String> {
+            if let HirExpr::Literal(Literal::String(s)) = hir {
+                Some(s.clone())
+            } else {
+                None
+            }
+        };
+
+        let nasa_mode = self.type_mapper.nasa_mode;
+
+        match method {
+            "search" if args.len() >= 2 => {
+                self.convert_re_two_arg(args, &extract_str_literal, nasa_mode,
+                    "search", "search", "find")
+            }
+            "match" if args.len() >= 2 => {
+                self.convert_re_two_arg(args, &extract_str_literal, nasa_mode,
+                    "match_start", "match_start", "find")
+            }
+            "fullmatch" if args.len() >= 2 => {
+                self.convert_re_fullmatch(args, &extract_str_literal, nasa_mode)
+            }
+            "findall" if args.len() >= 2 => {
+                self.convert_re_findall(args, &extract_str_literal, nasa_mode)
+            }
+            "finditer" if args.len() >= 2 => {
+                self.convert_re_finditer(args, &extract_str_literal, nasa_mode)
+            }
+            "sub" if args.len() >= 3 => {
+                self.convert_re_sub(args, &extract_str_literal, nasa_mode)
+            }
+            "subn" if args.len() >= 3 => {
+                self.convert_re_subn(args, &extract_str_literal, nasa_mode)
+            }
+            "split" if args.len() >= 2 => {
+                self.convert_re_split(args, &extract_str_literal, nasa_mode)
+            }
+            "compile" if !args.is_empty() => {
+                self.convert_re_compile(args, &extract_str_literal, nasa_mode)
+            }
+            "escape" if !args.is_empty() => {
+                self.convert_re_escape(args, &extract_str_literal, nasa_mode)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// re.search / re.match helper — two-arg pattern+text methods
+    fn convert_re_two_arg(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+        nasa_method: &str,
+        _nasa_method_alt: &str,
+        regex_method: &str,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let text_str = extract_str_literal(&args[1]);
+        let nasa_ident = make_ident(nasa_method);
+        let regex_ident = make_ident(regex_method);
+
+        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::#nasa_ident(#pattern, #text) }
+            } else {
+                parse_quote! { regex::Regex::new(#pattern).expect("invalid regex").#regex_ident(#text) }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let text_expr = self.convert(&args[1])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::#nasa_ident(&#pattern_expr, &#text_expr) }
+            } else {
+                parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex").#regex_ident(&#text_expr) }
+            }))
+        }
+    }
+
+    /// re.fullmatch
+    fn convert_re_fullmatch(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let text_str = extract_str_literal(&args[1]);
+
+        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) }
+            } else {
+                parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).expect("invalid regex").find(#text) }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let text_expr = self.convert(&args[1])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) }
+            } else {
+                parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).expect("invalid regex").find(&#text_expr) }
+            }))
+        }
+    }
+
+    /// re.findall
+    fn convert_re_findall(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let text_str = extract_str_literal(&args[1]);
+
+        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::findall(#pattern, #text) }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .expect("invalid regex")
+                        .find_iter(#text)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<_>>()
+                }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let text_expr = self.convert(&args[1])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr) }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(&#pattern_expr)
+                        .expect("invalid regex")
+                        .find_iter(&#text_expr)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<_>>()
+                }
+            }))
+        }
+    }
+
+    /// re.finditer
+    fn convert_re_finditer(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let text_str = extract_str_literal(&args[1]);
+
+        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::findall(#pattern, #text).into_iter() }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .expect("invalid regex")
+                        .find_iter(#text)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<_>>()
+                }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let text_expr = self.convert(&args[1])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr).into_iter() }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(&#pattern_expr)
+                        .expect("invalid regex")
+                        .find_iter(&#text_expr)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<_>>()
+                }
+            }))
+        }
+    }
+
+    /// re.sub
+    fn convert_re_sub(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let repl_str = extract_str_literal(&args[1]);
+        let text_str = extract_str_literal(&args[2]);
+
+        if let (Some(pattern), Some(repl), Some(text)) = (pattern_str, repl_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::sub(#pattern, #repl, #text) }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .expect("invalid regex")
+                        .replace_all(#text, #repl)
+                        .to_string()
+                }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let repl_expr = self.convert(&args[1])?;
+            let text_expr = self.convert(&args[2])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr) }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(&#pattern_expr)
+                        .expect("invalid regex")
+                        .replace_all(&#text_expr, &#repl_expr)
+                        .to_string()
+                }
+            }))
+        }
+    }
+
+    /// re.subn
+    fn convert_re_subn(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let repl_str = extract_str_literal(&args[1]);
+        let text_str = extract_str_literal(&args[2]);
+
+        if let (Some(pattern), Some(repl), Some(text)) = (pattern_str, repl_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! {
+                    {
+                        let result = DepylerRegexMatch::sub(#pattern, #repl, #text);
+                        let count = (#text).matches(#pattern).count();
+                        (result, count)
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let re = regex::Regex::new(#pattern).expect("invalid regex");
+                        let count = re.find_iter(#text).count();
+                        let result = re.replace_all(#text, #repl).to_string();
+                        (result, count)
+                    }
+                }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let repl_expr = self.convert(&args[1])?;
+            let text_expr = self.convert(&args[2])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! {
+                    {
+                        let result = DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr);
+                        let count = (&#text_expr).matches(&#pattern_expr).count();
+                        (result, count)
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let re = regex::Regex::new(&#pattern_expr).expect("invalid regex");
+                        let count = re.find_iter(&#text_expr).count();
+                        let result = re.replace_all(&#text_expr, &#repl_expr).to_string();
+                        (result, count)
+                    }
+                }
+            }))
+        }
+    }
+
+    /// re.split
+    fn convert_re_split(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+        let text_str = extract_str_literal(&args[1]);
+
+        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::split(#pattern, #text) }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .expect("invalid regex")
+                        .split(#text)
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>()
+                }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            let text_expr = self.convert(&args[1])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { DepylerRegexMatch::split(&#pattern_expr, &#text_expr) }
+            } else {
+                parse_quote! {
+                    regex::Regex::new(&#pattern_expr)
+                        .expect("invalid regex")
+                        .split(&#text_expr)
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>()
+                }
+            }))
+        }
+    }
+
+    /// re.compile
+    fn convert_re_compile(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let pattern_str = extract_str_literal(&args[0]);
+
+        if let Some(pattern) = pattern_str {
+            Ok(Some(if nasa_mode {
+                parse_quote! { #pattern.to_string() }
+            } else {
+                parse_quote! { regex::Regex::new(#pattern).expect("invalid regex") }
+            }))
+        } else {
+            let pattern_expr = self.convert(&args[0])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { (#pattern_expr).to_string() }
+            } else {
+                parse_quote! { regex::Regex::new(&#pattern_expr).expect("invalid regex") }
+            }))
+        }
+    }
+
+    /// re.escape
+    fn convert_re_escape(
+        &self,
+        args: &[HirExpr],
+        extract_str_literal: &dyn Fn(&HirExpr) -> Option<String>,
+        nasa_mode: bool,
+    ) -> Result<Option<syn::Expr>> {
+        let text_str = extract_str_literal(&args[0]);
+
+        if let Some(text) = text_str {
+            Ok(Some(if nasa_mode {
+                parse_quote! { #text.to_string() }
+            } else {
+                parse_quote! { regex::escape(#text).to_string() }
+            }))
+        } else {
+            let text_expr = self.convert(&args[0])?;
+            Ok(Some(if nasa_mode {
+                parse_quote! { (#text_expr).to_string() }
+            } else {
+                parse_quote! { regex::escape(&#text_expr).to_string() }
+            }))
+        }
+    }
+
+    /// DEPYLER-0912: Handle colorsys module method calls
+    fn try_convert_colorsys_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "rgb_to_hsv" if arg_exprs.len() == 3 => {
+                let r = &arg_exprs[0];
+                let g = &arg_exprs[1];
+                let b = &arg_exprs[2];
+                Ok(Some(parse_quote! {
+                    {
+                        let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                        let max_c = r.max(g).max(b);
+                        let min_c = r.min(g).min(b);
+                        let v = max_c;
+                        if min_c == max_c { (0.0, 0.0, v) }
+                        else {
+                            let s = (max_c - min_c) / max_c;
+                            let rc = (max_c - r) / (max_c - min_c);
+                            let gc = (max_c - g) / (max_c - min_c);
+                            let bc = (max_c - b) / (max_c - min_c);
+                            let h = if r == max_c { bc - gc }
+                                else if g == max_c { 2.0 + rc - bc }
+                                else { 4.0 + gc - rc };
+                            let h = (h / 6.0) % 1.0;
+                            let h = if h < 0.0 { h + 1.0 } else { h };
+                            (h, s, v)
+                        }
+                    }
+                }))
+            }
+            "hsv_to_rgb" if arg_exprs.len() == 3 => {
+                let h = &arg_exprs[0];
+                let s = &arg_exprs[1];
+                let v = &arg_exprs[2];
+                Ok(Some(parse_quote! {
+                    {
+                        let (h, s, v) = (#h as f64, #s as f64, #v as f64);
+                        if s == 0.0 { (v, v, v) }
+                        else {
+                            let i = (h * 6.0).floor();
+                            let f = (h * 6.0) - i;
+                            let p = v * (1.0 - s);
+                            let q = v * (1.0 - s * f);
+                            let t = v * (1.0 - s * (1.0 - f));
+                            let i = i as i32 % 6;
+                            match i { 0 => (v, t, p), 1 => (q, v, p), 2 => (p, v, t),
+                                      3 => (p, q, v), 4 => (t, p, v), _ => (v, p, q) }
+                        }
+                    }
+                }))
+            }
+            "rgb_to_hls" if arg_exprs.len() == 3 => {
+                let r = &arg_exprs[0];
+                let g = &arg_exprs[1];
+                let b = &arg_exprs[2];
+                Ok(Some(parse_quote! {
+                    {
+                        let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                        let max_c = r.max(g).max(b);
+                        let min_c = r.min(g).min(b);
+                        let l = (min_c + max_c) / 2.0;
+                        if min_c == max_c { (0.0, l, 0.0) }
+                        else {
+                            let s = if l <= 0.5 { (max_c - min_c) / (max_c + min_c) }
+                                else { (max_c - min_c) / (2.0 - max_c - min_c) };
+                            let rc = (max_c - r) / (max_c - min_c);
+                            let gc = (max_c - g) / (max_c - min_c);
+                            let bc = (max_c - b) / (max_c - min_c);
+                            let h = if r == max_c { bc - gc }
+                                else if g == max_c { 2.0 + rc - bc }
+                                else { 4.0 + gc - rc };
+                            let h = (h / 6.0) % 1.0;
+                            let h = if h < 0.0 { h + 1.0 } else { h };
+                            (h, l, s)
+                        }
+                    }
+                }))
+            }
+            "hls_to_rgb" if arg_exprs.len() == 3 => {
+                let h = &arg_exprs[0];
+                let l = &arg_exprs[1];
+                let s = &arg_exprs[2];
+                Ok(Some(parse_quote! {
+                    {
+                        let (h, l, s) = (#h as f64, #l as f64, #s as f64);
+                        if s == 0.0 { (l, l, l) }
+                        else {
+                            let m2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
+                            let m1 = 2.0 * l - m2;
+                            let _v = |hue: f64| {
+                                let hue = hue % 1.0;
+                                let hue = if hue < 0.0 { hue + 1.0 } else { hue };
+                                if hue < 1.0/6.0 { m1 + (m2 - m1) * hue * 6.0 }
+                                else if hue < 0.5 { m2 }
+                                else if hue < 2.0/3.0 { m1 + (m2 - m1) * (2.0/3.0 - hue) * 6.0 }
+                                else { m1 }
+                            };
+                            (_v(h + 1.0/3.0), _v(h), _v(h - 1.0/3.0))
+                        }
+                    }
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// DEPYLER-1002/1026: Handle base64 module method calls
+    fn try_convert_base64_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        let nasa_mode = self.type_mapper.nasa_mode;
+        match method {
+            "b64encode" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    base64::engine::general_purpose::STANDARD.encode(#data)
+                }))
+            }
+            "b64decode" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.as_bytes().to_vec()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    base64::engine::general_purpose::STANDARD.decode(#data).expect("decode failed")
+                }))
+            }
+            "urlsafe_b64encode" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    base64::engine::general_purpose::URL_SAFE.encode(#data)
+                }))
+            }
+            "urlsafe_b64decode" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.as_bytes().to_vec()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    base64::engine::general_purpose::URL_SAFE.decode(#data).expect("decode failed")
+                }))
+            }
+            "b32encode" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    data_encoding::BASE32.encode(#data).into_bytes()
+                }))
+            }
+            "b32decode" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.to_vec()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    data_encoding::BASE32.decode(#data).expect("decode failed")
+                }))
+            }
+            "b16encode" | "hexlify" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    hex::encode(#data).into_bytes()
+                }))
+            }
+            "b16decode" | "unhexlify" if arg_exprs.len() == 1 => {
+                let data = &arg_exprs[0];
+                if nasa_mode {
+                    return Ok(Some(parse_quote! {
+                        #data.to_vec()
+                    }));
+                }
+                Ok(Some(parse_quote! {
+                    hex::decode(#data).expect("decode failed")
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// DEPYLER-1002: Handle hashlib module method calls
+    fn try_convert_hashlib_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "md5" => {
+                Ok(Some(self.make_hashlib_expr("md5", "Md5", "md5", &arg_exprs)))
+            }
+            "sha1" => {
+                Ok(Some(self.make_hashlib_expr("sha1", "Sha1", "sha1", &arg_exprs)))
+            }
+            "sha256" => {
+                Ok(Some(self.make_hashlib_expr("sha2", "Sha256", "sha2", &arg_exprs)))
+            }
+            "sha512" => {
+                Ok(Some(self.make_hashlib_expr("sha2", "Sha512", "sha2", &arg_exprs)))
+            }
+            "sha384" => {
+                Ok(Some(self.make_hashlib_expr("sha2", "Sha384", "sha2", &arg_exprs)))
+            }
+            "blake2b" | "blake2s" => {
+                // For blake2, use sha256 as fallback
+                Ok(Some(self.make_hashlib_expr("sha2", "Sha256", "sha2", &arg_exprs)))
+            }
+            "new" => {
+                // hashlib.new("algorithm", data) factory — default to sha256
+                if arg_exprs.len() <= 1 {
+                    Ok(Some(parse_quote! {
+                        {
+                            use digest::DynDigest;
+                            use sha2::Digest;
+                            Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
+                        }
+                    }))
+                } else {
+                    let data = &arg_exprs[1];
+                    Ok(Some(parse_quote! {
+                        {
+                            use digest::DynDigest;
+                            use sha2::Digest;
+                            let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
+                            h.update(#data);
+                            h
+                        }
+                    }))
+                }
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Helper to build hashlib digest expressions for a given crate/type.
+    fn make_hashlib_expr(
+        &self,
+        crate_name: &str,
+        type_name: &str,
+        digest_use_crate: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> syn::Expr {
+        let crate_ident = make_ident(crate_name);
+        let type_ident = make_ident(type_name);
+        let digest_crate_ident = make_ident(digest_use_crate);
+
+        if arg_exprs.is_empty() {
+            parse_quote! {
+                {
+                    use digest::DynDigest;
+                    use #digest_crate_ident::Digest;
+                    Box::new(#crate_ident::#type_ident::new()) as Box<dyn DynDigest>
+                }
+            }
+        } else {
+            let data = &arg_exprs[0];
+            parse_quote! {
+                {
+                    use digest::DynDigest;
+                    use #digest_crate_ident::Digest;
+                    let mut h = Box::new(#crate_ident::#type_ident::new()) as Box<dyn DynDigest>;
+                    h.update(#data);
+                    h
+                }
+            }
+        }
+    }
+
+    /// DEPYLER-1002/1022: Handle json module method calls
+    fn try_convert_json_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "dumps" if !arg_exprs.is_empty() => {
+                let obj = &arg_exprs[0];
+                if self.type_mapper.nasa_mode {
+                    return Ok(Some(parse_quote! { format!("{:?}", #obj) }));
+                }
+                Ok(Some(
+                    parse_quote! { serde_json::to_string(&#obj).expect("JSON serialize failed") },
+                ))
+            }
+            "loads" if !arg_exprs.is_empty() => {
+                let _s = &arg_exprs[0];
+                if self.type_mapper.nasa_mode {
+                    return Ok(Some(
+                        parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() },
+                    ));
+                }
+                Ok(Some(
+                    parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).expect("JSON parse failed") },
+                ))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// DEPYLER-1002: Handle math module method calls
+    fn try_convert_math_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "sqrt" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).sqrt() }))
+            }
+            "sin" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).sin() }))
+            }
+            "cos" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).cos() }))
+            }
+            "tan" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).tan() }))
+            }
+            "floor" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).floor() }))
+            }
+            "ceil" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).ceil() }))
+            }
+            "abs" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).abs() }))
+            }
+            "pow" if arg_exprs.len() >= 2 => {
+                let x = &arg_exprs[0];
+                let y = &arg_exprs[1];
+                Ok(Some(parse_quote! { (#x as f64).powf(#y as f64) }))
+            }
+            "log" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                if arg_exprs.len() >= 2 {
+                    let base = &arg_exprs[1];
+                    return Ok(Some(parse_quote! { (#x as f64).log(#base as f64) }));
+                }
+                Ok(Some(parse_quote! { (#x as f64).ln() }))
+            }
+            "exp" if !arg_exprs.is_empty() => {
+                let x = &arg_exprs[0];
+                Ok(Some(parse_quote! { (#x as f64).exp() }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// DEPYLER-1002: Handle random module method calls
+    fn try_convert_random_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "randint" if arg_exprs.len() >= 2 => {
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                Ok(Some(parse_quote! {
+                    {
+                        use rand::Rng;
+                        rand::thread_rng().gen_range(#a..=#b)
+                    }
+                }))
+            }
+            "random" if arg_exprs.is_empty() => {
+                Ok(Some(parse_quote! {
+                    {
+                        use rand::Rng;
+                        rand::thread_rng().gen::<f64>()
+                    }
+                }))
+            }
+            "choice" if !arg_exprs.is_empty() => {
+                let seq = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    {
+                        use rand::seq::SliceRandom;
+                        #seq.choose(&mut rand::thread_rng()).cloned().expect("empty collection")
+                    }
+                }))
+            }
+            "shuffle" if !arg_exprs.is_empty() => {
+                let seq = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    {
+                        use rand::seq::SliceRandom;
+                        #seq.shuffle(&mut rand::thread_rng())
+                    }
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// DEPYLER-1049: Handle time module method calls
+    fn try_convert_time_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+        match method {
+            "time" if arg_exprs.is_empty() => {
+                Ok(Some(parse_quote! {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .expect("time error")
+                        .as_secs_f64()
+                }))
+            }
+            "sleep" if arg_exprs.len() == 1 => {
+                let secs = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    std::thread::sleep(std::time::Duration::from_secs_f64(#secs))
+                }))
+            }
+            "monotonic" | "perf_counter" if arg_exprs.is_empty() => {
+                Ok(Some(parse_quote! { std::time::Instant::now() }))
+            }
+            "process_time" | "thread_time" if arg_exprs.is_empty() => {
+                Ok(Some(parse_quote! { std::time::Instant::now() }))
+            }
+            "ctime" => {
+                if arg_exprs.is_empty() {
+                    Ok(Some(parse_quote! {
+                        format!("{:?}", std::time::SystemTime::now())
+                    }))
+                } else {
+                    let timestamp = &arg_exprs[0];
+                    Ok(Some(parse_quote! {
+                        format!("{:?}", std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp))
+                    }))
+                }
+            }
+            "gmtime" | "localtime" => {
+                if arg_exprs.is_empty() {
+                    Ok(Some(parse_quote! { std::time::SystemTime::now() }))
+                } else {
+                    let timestamp = &arg_exprs[0];
+                    Ok(Some(parse_quote! {
+                        std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp)
+                    }))
+                }
+            }
+            "mktime" if !arg_exprs.is_empty() => {
+                let _t = &arg_exprs[0];
+                Ok(Some(parse_quote! {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .expect("time error")
+                        .as_secs_f64()
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    // ---- Instance method handler ----
+
+    /// Dispatch instance method calls (list/set/string/dict methods, fallback)
+    fn convert_instance_method(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+        object_expr: syn::Expr,
+        arg_exprs: Vec<syn::Expr>,
+    ) -> Result<syn::Expr> {
         // Map Python collection methods to Rust equivalents
         match method {
             // List/Deque methods
@@ -1210,10 +1194,6 @@ impl<'a> ExprConverter<'a> {
                 let arg = &arg_exprs[0];
 
                 // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
-                // If so, wrap the argument in appropriate DepylerValue variant
-                // DEPYLER-1207: Pattern matching correction - use **elem to dereference Box
-                // NOTE: DirectRulesConverter only has param_types and class_field_types,
-                // not local var_types - those are handled by expr_gen_instance_methods
                 let is_vec_depyler_value = if let HirExpr::Attribute { attr, .. } = object {
                     self.class_field_types
                         .get(attr)
@@ -1224,7 +1204,6 @@ impl<'a> ExprConverter<'a> {
                 };
 
                 if is_vec_depyler_value {
-                    // Wrap argument in DepylerValue based on argument type
                     let wrapped_arg: syn::Expr = if !args.is_empty() {
                         match &args[0] {
                             HirExpr::Literal(Literal::Int(_)) => {
@@ -1240,7 +1219,6 @@ impl<'a> ExprConverter<'a> {
                                 parse_quote! { DepylerValue::Bool(#arg) }
                             }
                             HirExpr::Var(name) => {
-                                // Check parameter type
                                 match self.param_types.get(name) {
                                     Some(Type::Int) => {
                                         parse_quote! { DepylerValue::Int(#arg as i64) }
@@ -1289,9 +1267,6 @@ impl<'a> ExprConverter<'a> {
                     bail!("remove() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                // Check if it's a list (using position) or set (using remove)
-                // For now, assume set behavior since we're working on sets
-                // DEPYLER-E0277-FIX: String literals are already &str, other values need &
                 if self.is_set_expr(object) {
                     let is_str_lit =
                         matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
@@ -1309,7 +1284,6 @@ impl<'a> ExprConverter<'a> {
                         })
                     }
                 } else {
-                    // List remove behavior
                     Ok(parse_quote! {
                         if let Some(pos) = #object_expr.iter().position(|x| x == &#arg) {
                             #object_expr.remove(pos);
@@ -1333,7 +1307,6 @@ impl<'a> ExprConverter<'a> {
                     bail!("discard() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                // DEPYLER-E0277-FIX: String literals are already &str, other values need &
                 let is_str_lit =
                     matches!(arg, syn::Expr::Lit(lit) if matches!(lit.lit, syn::Lit::Str(_)));
                 if is_str_lit {
@@ -1353,7 +1326,6 @@ impl<'a> ExprConverter<'a> {
                     if !arg_exprs.is_empty() {
                         bail!("pop() takes no arguments");
                     }
-                    // HashSet doesn't have pop(), simulate with iter().next() and remove
                     Ok(parse_quote! {
                         #object_expr.iter().next().cloned().map(|x| {
                             #object_expr.remove(&x);
@@ -1361,20 +1333,16 @@ impl<'a> ExprConverter<'a> {
                         }).expect("pop from empty set")
                     })
                 } else if self.is_deque_expr(object) {
-                    // DEPYLER-0742: VecDeque uses pop_back
                     if arg_exprs.is_empty() {
                         Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
                     } else {
                         bail!("deque.pop() does not accept an index argument");
                     }
+                } else if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
                 } else {
-                    // List pop
-                    if arg_exprs.is_empty() {
-                        Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
-                    } else {
-                        let idx = &arg_exprs[0];
-                        Ok(parse_quote! { #object_expr.remove(#idx as usize) })
-                    }
+                    let idx = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.remove(#idx as usize) })
                 }
             }
 
@@ -1413,7 +1381,6 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 1 {
                     bail!("startswith() requires exactly one argument");
                 }
-                // DEPYLER-0602: For starts_with(), use raw string literal for Pattern trait.
                 let prefix: syn::Expr = match &args[0] {
                     HirExpr::Literal(Literal::String(s)) => {
                         let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1427,7 +1394,6 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 1 {
                     bail!("endswith() requires exactly one argument");
                 }
-                // DEPYLER-0602: For ends_with(), use raw string literal for Pattern trait.
                 let suffix: syn::Expr = match &args[0] {
                     HirExpr::Literal(Literal::String(s)) => {
                         let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1443,7 +1409,6 @@ impl<'a> ExprConverter<'a> {
                         parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
                 } else if args.len() == 1 {
-                    // DEPYLER-0602: For split(), use raw string literal for Pattern trait.
                     let sep: syn::Expr = match &args[0] {
                         HirExpr::Literal(Literal::String(s)) => {
                             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1455,9 +1420,6 @@ impl<'a> ExprConverter<'a> {
                         parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
                 } else if args.len() == 2 {
-                    // DEPYLER-0188: split(sep, maxsplit) -> splitn(maxsplit+1, sep)
-                    // Python maxsplit=N means at most N splits → N+1 parts
-                    // Rust splitn(n, pat) returns at most n parts
                     let sep: syn::Expr = match &args[0] {
                         HirExpr::Literal(Literal::String(s)) => {
                             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1484,7 +1446,6 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 2 {
                     bail!("replace() requires exactly two arguments");
                 }
-                // DEPYLER-0602: For replace(), use raw string literals for Pattern trait.
                 let old: syn::Expr = match &args[0] {
                     HirExpr::Literal(Literal::String(s)) => {
                         let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1505,8 +1466,6 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 1 {
                     bail!("find() requires exactly one argument");
                 }
-                // DEPYLER-0602: For find(), use raw string literal for Pattern trait.
-                // String doesn't implement Pattern, but &str does.
                 let substring: syn::Expr = match &args[0] {
                     HirExpr::Literal(Literal::String(s)) => {
                         let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1520,7 +1479,6 @@ impl<'a> ExprConverter<'a> {
                 if args.len() != 1 {
                     bail!("rfind() requires exactly one argument");
                 }
-                // DEPYLER-0602: For rfind(), use raw string literal for Pattern trait.
                 let substring: syn::Expr = match &args[0] {
                     HirExpr::Literal(Literal::String(s)) => {
                         let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -1556,14 +1514,11 @@ impl<'a> ExprConverter<'a> {
             }
 
             // DEPYLER-0200/DEPYLER-0960: String/Dict contains method
-            // String: use .contains() with raw string literal for Pattern trait
-            // Dict/HashMap: use .contains_key() - E0599 fix
             "__contains__" | "contains" => {
                 if args.len() != 1 {
                     bail!("contains() requires exactly one argument");
                 }
 
-                // DEPYLER-0960: Detect if object is a dict/HashMap type
                 let is_dict_like = match object {
                     HirExpr::Var(name) => {
                         let n = name.as_str();
@@ -1591,18 +1546,15 @@ impl<'a> ExprConverter<'a> {
                 };
 
                 if is_dict_like {
-                    // HashMap uses contains_key(&key)
                     let key = self.convert(&args[0])?;
                     Ok(parse_quote! { #object_expr.contains_key(&#key) })
                 } else {
-                    // String uses .contains(pattern) with Pattern trait
                     let pattern: syn::Expr = match &args[0] {
                         HirExpr::Literal(Literal::String(s)) => {
                             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
                             parse_quote! { #lit }
                         }
                         _ => {
-                            // Use &* to deref-reborrow - works for both String and &str
                             let arg = self.convert(&args[0])?;
                             parse_quote! { &*#arg }
                         }
@@ -1612,20 +1564,14 @@ impl<'a> ExprConverter<'a> {
             }
 
             // DEPYLER-0613: Semaphore/Mutex method mappings
-            // Python: sem.acquire() → Rust: mutex.lock().unwrap() (returns guard)
             "acquire" => {
-                // Mutex.lock() returns a guard - acquire returns bool in Python but we adapt
                 Ok(parse_quote! { #object_expr.lock().is_ok() })
             }
-            // Python: sem.release() → Rust: drop guard (no-op if guard not held)
             "release" => {
-                // In Rust, release happens when guard is dropped
-                // For now, just return unit since we can't easily track the guard
                 Ok(parse_quote! { () })
             }
 
             // DEPYLER-0613: List/Dict copy method
-            // Python: list.copy() → Rust: vec.clone()
             "copy" => {
                 if !arg_exprs.is_empty() {
                     bail!("copy() takes no arguments");
@@ -1633,31 +1579,23 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { #object_expr.clone() })
             }
 
-            // DEPYLER-0613: Dict contains_key (may be called on wrong type)
-            // Python: dict.__contains__(key) sometimes transpiles as contains_key
+            // DEPYLER-0613: Dict contains_key
             "contains_key" => {
                 if arg_exprs.len() != 1 {
                     bail!("contains_key() requires exactly one argument");
                 }
                 let key = &arg_exprs[0];
-                // For HashMap this is correct, for Vec use contains
                 Ok(parse_quote! { #object_expr.contains(&#key) })
             }
 
-            // DEPYLER-1125: Dict get(key, default) - Python's dict.get with 2 args
-            // Python: d.get(key, default) returns value at key or default
-            // Rust: HashMap doesn't have 2-arg get, use .get(&key).cloned().unwrap_or(default)
+            // DEPYLER-1125: Dict get(key, default)
             "get" => {
                 if arg_exprs.len() == 1 {
-                    // Single arg: dict.get(key) → Option<&V>
                     let key = &arg_exprs[0];
                     Ok(parse_quote! { #object_expr.get(&#key).cloned() })
                 } else if arg_exprs.len() == 2 {
-                    // Two args: dict.get(key, default) → V
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    // GH-226: Check if default is a string literal - needs .to_string()
-                    // to match the cloned String type from HashMap<K, String>
                     let is_str_literal = matches!(&args[1], HirExpr::Literal(Literal::String(_)));
                     if is_str_literal {
                         Ok(
@@ -1675,12 +1613,9 @@ impl<'a> ExprConverter<'a> {
 
             // Generic method call fallback
             _ => {
-                // DEPYLER-0596: Validate method name before creating identifier
-                // Method names must be valid Rust identifiers (no empty, no special chars)
                 if method.is_empty() {
                     bail!("Empty method name in method call");
                 }
-                // Check if method is a valid identifier (starts with letter/underscore, alphanumeric)
                 let is_valid_ident = method
                     .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
                     && method
@@ -1693,18 +1628,13 @@ impl<'a> ExprConverter<'a> {
                     );
                 }
 
-                // DEPYLER-0823: Wrap cast expressions in parentheses before method calls
-                // Rust parses `x as i32.method()` as `x as (i32.method())` which is invalid
-                // Must be: `(x as i32).method()`
                 let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {
                     parse_quote! { (#object_expr) }
                 } else {
                     object_expr.clone()
                 };
 
-                // Debug: Check if method is a Rust keyword
                 if syn::parse_str::<syn::Ident>(method).is_err() {
-                    // Method is a Rust keyword - use raw identifier
                     let method_ident = syn::Ident::new_raw(method, proc_macro2::Span::call_site());
                     return Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) });
                 }
@@ -1713,6 +1643,4 @@ impl<'a> ExprConverter<'a> {
             }
         }
     }
-
-
 }

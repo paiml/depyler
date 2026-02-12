@@ -1905,9 +1905,11 @@ fn test_expr_converter_convert_binary_in() {
     };
     let result = converter.convert(&expr).unwrap();
     let code = quote::quote!(#result).to_string();
+    // DEPYLER-99MODE-S9: For unknown container types (like "items"), the fallback
+    // uses .get().is_some() which works for both HashMap and HashSet
     assert!(
-        code.contains("contains"),
-        "Should use contains for 'in': {}",
+        code.contains("contains") || code.contains("is_some"),
+        "Should use contains or get().is_some() for 'in': {}",
         code
     );
 }
@@ -1923,9 +1925,11 @@ fn test_expr_converter_convert_binary_not_in() {
     };
     let result = converter.convert(&expr).unwrap();
     let code = quote::quote!(#result).to_string();
+    // DEPYLER-99MODE-S9: For unknown container types, the fallback
+    // uses .get().is_none() which works for both HashMap and HashSet
     assert!(
-        code.contains("contains"),
-        "Should use contains for 'not in': {}",
+        code.contains("contains") || code.contains("is_none"),
+        "Should use contains or get().is_none() for 'not in': {}",
         code
     );
 }

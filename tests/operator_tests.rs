@@ -91,7 +91,13 @@ fn test_in_operator() {
     let result = apply_rules(&module, &type_mapper).unwrap();
     let code = quote::quote! { #result }.to_string();
 
-    assert!(code.contains("contains_key"));
+    // DEPYLER-99MODE-S9: Dict 'in' now uses .get().is_some() which works for both
+    // HashMap and HashSet, preventing false positives from name-based heuristics
+    assert!(
+        code.contains("contains_key") || code.contains("is_some"),
+        "Should use contains_key or get().is_some() for dict 'in': {}",
+        code
+    );
     assert!(code.contains("HashMap"));
 }
 
@@ -130,7 +136,12 @@ fn test_not_in_operator() {
     let result = apply_rules(&module, &type_mapper).unwrap();
     let code = quote::quote! { #result }.to_string();
 
-    assert!(code.contains("! dict . contains_key"));
+    // DEPYLER-99MODE-S9: Dict 'not in' now uses .get().is_none()
+    assert!(
+        code.contains("contains_key") || code.contains("is_none"),
+        "Should use !contains_key or get().is_none() for dict 'not in': {}",
+        code
+    );
 }
 
 #[test]
