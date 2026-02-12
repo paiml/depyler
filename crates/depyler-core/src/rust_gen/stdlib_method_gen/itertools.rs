@@ -264,22 +264,32 @@ fn convert_compress(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     })
 }
 
-/// itertools.groupby(iterable, key) - Group consecutive elements by key
+/// itertools.groupby(iterable, key=None) - Group consecutive elements by key
 fn convert_groupby(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
-    if arg_exprs.len() < 2 {
-        bail!("itertools.groupby() requires at least 2 arguments (iterable, key)");
+    if arg_exprs.is_empty() {
+        bail!("itertools.groupby() requires at least 1 argument (iterable)");
     }
     let iterable = &arg_exprs[0];
-    let key_func = &arg_exprs[1];
 
     ctx.needs_itertools = true;
 
-    Ok(parse_quote! {
-        {
-            use itertools::Itertools;
-            #iterable.into_iter().group_by(#key_func)
-        }
-    })
+    if arg_exprs.len() >= 2 {
+        let key_func = &arg_exprs[1];
+        Ok(parse_quote! {
+            {
+                use itertools::Itertools;
+                #iterable.into_iter().group_by(#key_func)
+            }
+        })
+    } else {
+        // No key function provided - use identity function (group by value)
+        Ok(parse_quote! {
+            {
+                use itertools::Itertools;
+                #iterable.into_iter().group_by(|x| x.clone())
+            }
+        })
+    }
 }
 
 /// itertools.product(iter1, iter2) - Cartesian product of iterables
