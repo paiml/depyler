@@ -124,13 +124,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         parse_quote! { DepylerValue::Str(#arg.to_string()) }
                                     }
                                     Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                                    _ => parse_quote! { DepylerValue::Str(format!("{}", #arg)) },
                                 }
                             }
-                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                            _ => parse_quote! { DepylerValue::Str(format!("{}", #arg)) },
                         }
                     } else {
-                        parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
+                        parse_quote! { DepylerValue::Str(format!("{}", #arg)) }
                     };
                     self.ctx.needs_depyler_value_enum = true;
                     return Ok(parse_quote! { #object_expr.push(#wrapped_arg) });

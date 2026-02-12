@@ -2867,7 +2867,12 @@ fn track_range_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGen
 /// For `for x in some_list` where some_list is List(Int), track x as Int.
 /// Also handles Index expressions like `for neighbor in adj[node]` where adj is Dict(_, List(Int)).
 #[inline]
-fn track_collection_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGenContext) {
+fn track_collection_loop_var(
+    target: &AssignTarget,
+    iter: &HirExpr,
+    body: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) {
     if let AssignTarget::Symbol(name) = target {
         let elem_type = match iter {
             HirExpr::Var(collection_name) => {
@@ -2901,9 +2906,15 @@ fn track_collection_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut Co
             _ => None,
         };
         if let Some(ty) = elem_type {
-            // Only track concrete types, not Unknown/UnificationVar
             if !matches!(ty, Type::Unknown | Type::UnificationVar(_)) {
                 ctx.var_types.insert(name.clone(), ty);
+            } else {
+                // Fallback: infer element type from loop body usage
+                if let Some(inferred) =
+                    crate::param_type_inference::infer_param_type_from_body(name, body)
+                {
+                    ctx.var_types.insert(name.clone(), inferred);
+                }
             }
         }
     }
@@ -3299,7 +3310,7 @@ pub(crate) fn codegen_for_stmt(
 
     // DEPYLER-REFACTOR: Use extracted helper functions for loop variable tracking
     track_range_loop_var(target, iter, ctx);
-    track_collection_loop_var(target, iter, ctx);
+    track_collection_loop_var(target, iter, body, ctx);
     track_char_counter_iter(target, iter, ctx);
 
     // DEPYLER-REFACTOR: Use extracted helper for target pattern generation

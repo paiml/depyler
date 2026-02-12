@@ -783,6 +783,23 @@ impl RustCodeGen for HirFunction {
             }
         }
 
+        // Refine container element types for params like `numbers: list` → Vec<i32>
+        // This handles List(Unknown), Dict(_, Unknown), Set(Unknown) etc.
+        for param in &mut inferred_params {
+            if crate::container_element_inference::has_unknown_inner_type(&param.ty) {
+                if let Some(refined) =
+                    crate::container_element_inference::infer_container_element_type(
+                        &param.name,
+                        &param.ty,
+                        &self.body,
+                    )
+                {
+                    param.ty = refined.clone();
+                    ctx.var_types.insert(param.name.clone(), refined);
+                }
+            }
+        }
+
         // Create a modified version of self with inferred params for generic inference
         let inferred_self = HirFunction {
             params: inferred_params,

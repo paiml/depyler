@@ -787,6 +787,13 @@ pub(crate) fn codegen_function_body(
         propagate_return_type_to_vars(&func.body, &mut ctx.var_types, ret_type);
     }
 
+    // Refine container element types for local vars like `result = []`
+    // where subsequent `result.append(42)` reveals the element type
+    crate::container_element_inference::refine_container_types_from_usage(
+        &func.body,
+        &mut ctx.var_types,
+    );
+
     // DEPYLER-0312 NOTE: analyze_mutable_vars is now called in impl RustCodeGen BEFORE
     // codegen_function_params, so ctx.mutable_vars is already populated here
 
