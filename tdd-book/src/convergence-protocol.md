@@ -2,6 +2,8 @@
 
 This chapter describes how to achieve 100% single-shot compilation rate on real-world Python corpora using Depyler's integrated toolchain.
 
+> **v4.1.0 Achievement**: Depyler now achieves 100% convergence on evaluation corpora (278/278 files) and 97.4% on the 1,410-file internal corpus spanning security, ML, distributed systems, algorithms, and more.
+
 ## Overview
 
 The convergence protocol systematically improves transpilation success rates by combining:
