@@ -45,69 +45,84 @@
 //! - [`Hir`] - High-level intermediate representation
 //! - [`TranspilationBackend`] - Backend trait for target languages
 
-pub mod annotation_aware_type_mapper;
+// Re-export macros from depyler-hir so `use crate::trace_decision` etc. continue to work
+pub use depyler_hir::trace_decision;
+pub use depyler_hir::emit_decision;
+pub use depyler_hir::transpile_error;
+pub use depyler_hir::transpile_bail;
+
+// Re-exports from depyler-hir
+pub use depyler_hir::decision_trace;
+pub use depyler_hir::error;
+pub use depyler_hir::hir;
+pub use depyler_hir::simplified_hir;
+
+// Re-exports from depyler-lambda
+pub use depyler_lambda::lambda_codegen;
+pub use depyler_lambda::lambda_errors;
+pub use depyler_lambda::lambda_inference;
+pub use depyler_lambda::lambda_optimizer;
+pub use depyler_lambda::lambda_testing;
+pub use depyler_lambda::lambda_types;
+
+// Re-exports from depyler-analysis
+pub use depyler_analysis::annotation_aware_type_mapper;
+pub use depyler_analysis::borrowing;
+pub use depyler_analysis::borrowing_context;
+pub use depyler_analysis::container_element_inference;
+pub use depyler_analysis::borrowing_shim;
+pub use depyler_analysis::const_generic_inference;
+pub use depyler_analysis::depylint;
+pub use depyler_analysis::error_reporting;
+pub use depyler_analysis::escape_analysis;
+pub use depyler_analysis::generator_state;
+pub use depyler_analysis::generator_yield_analysis;
+pub use depyler_analysis::generic_inference;
+pub use depyler_analysis::inlining;
+pub use depyler_analysis::lifetime_analysis;
+pub use depyler_analysis::migration_suggestions;
+pub use depyler_analysis::optimization;
+pub use depyler_analysis::optimizer;
+pub use depyler_analysis::param_type_inference;
+pub use depyler_analysis::performance_warnings;
+pub use depyler_analysis::profiling;
+pub use depyler_analysis::scoring;
+pub use depyler_analysis::string_optimization;
+pub use depyler_analysis::type_hints;
+pub use depyler_analysis::type_inference_telemetry;
+pub use depyler_analysis::type_mapper;
+pub use depyler_analysis::type_propagation;
+pub use depyler_analysis::type_system;
+
+// Re-exports from depyler-tooling
+pub use depyler_tooling::chaos;
+pub use depyler_tooling::codegen_shim;
+pub use depyler_tooling::debug;
+pub use depyler_tooling::doctest_extractor;
+pub use depyler_tooling::documentation;
+pub use depyler_tooling::generative_repair;
+pub use depyler_tooling::hunt_mode;
+pub use depyler_tooling::ide;
+pub use depyler_tooling::infrastructure;
+pub use depyler_tooling::library_mapping;
+pub use depyler_tooling::module_mapper;
+pub use depyler_tooling::module_mapper_phf;
+pub use depyler_tooling::pytest_extractor;
+pub use depyler_tooling::stdlib_mappings;
+pub use depyler_tooling::test_generation;
+pub use depyler_tooling::typeshed_ingest;
+
+// Modules that remain in depyler-core (codegen engine)
 pub mod ast_bridge;
 pub mod backend;
-pub mod borrowing;
-pub mod borrowing_context;
-pub mod borrowing_shim;
 pub mod cargo_first;
 pub mod cargo_toml_gen;
-pub mod chaos;
 pub mod codegen;
-pub mod codegen_shim;
-pub mod const_generic_inference;
-pub mod debug;
-pub mod decision_trace;
-pub mod depylint;
 pub mod direct_rules;
 mod direct_rules_convert; // DEPYLER-COVERAGE-95: Split from direct_rules.rs
-pub mod doctest_extractor;
-pub mod documentation;
-pub mod error;
-pub mod error_reporting;
-pub mod escape_analysis;
-pub mod generator_state;
-pub mod generator_yield_analysis;
-pub mod generic_inference;
-pub mod hir;
-pub mod hunt_mode;
-pub mod ide;
-pub mod infrastructure;
-pub mod inlining;
-pub mod lambda_codegen;
-pub mod lambda_errors;
-pub mod lambda_inference;
-pub mod lambda_optimizer;
-pub mod lambda_testing;
-pub mod lambda_types;
-pub mod library_mapping;
-pub mod lifetime_analysis;
 pub mod lsp;
-pub mod migration_suggestions;
-pub mod module_mapper;
-pub mod module_mapper_phf;
-pub mod optimization;
-pub mod optimizer;
-pub mod performance_warnings;
-pub mod profiling;
-pub mod pytest_extractor;
 pub mod rust_gen;
-pub mod scoring;
-pub mod simplified_hir;
-pub mod stdlib_mappings;
-pub mod string_optimization;
-pub mod test_generation;
-pub mod type_hints;
-pub mod type_inference_telemetry;
-pub mod type_mapper;
-pub mod type_propagation;
-pub mod type_system;
-pub mod typeshed_ingest;
 pub mod union_enum_gen;
-
-// Generative repair engine (DEPYLER-ENTRENAR-001)
-pub mod generative_repair;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
