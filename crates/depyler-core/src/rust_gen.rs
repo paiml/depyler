@@ -72,6 +72,11 @@ mod mutable_analysis;
 mod nasa_mode;
 mod runtime_types_gen;
 
+// Phase 4: Pipeline decomposition (DEPYLER-DECOMPOSE)
+mod context_init;
+mod pipeline_assembly;
+mod pre_analysis;
+
 // Test modules (DEPYLER-QUALITY-002: 95% coverage target)
 #[cfg(test)]
 mod argparse_transform_tests;
@@ -347,56 +352,7 @@ fn load_type_database() -> Option<std::sync::Arc<std::sync::Mutex<depyler_knowle
     None
 }
 
-fn param_is_mutated_in_body(param_name: &str, body: &[HirStmt]) -> bool {
-    use crate::hir::AssignTarget;
-    for stmt in body {
-        match stmt {
-            HirStmt::Assign { target, .. } => {
-                if let AssignTarget::Index { base, .. } = target {
-                    if let HirExpr::Var(name) = base.as_ref() {
-                        if name == param_name {
-                            return true;
-                        }
-                    }
-                }
-            }
-            HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) => {
-                if let HirExpr::Var(name) = object.as_ref() {
-                    if name == param_name
-                        && matches!(
-                            method.as_str(),
-                            "insert" | "pop" | "remove" | "clear" | "update"
-                                | "append" | "extend" | "add" | "discard"
-                        )
-                    {
-                        return true;
-                    }
-                }
-            }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                if param_is_mutated_in_body(param_name, then_body) {
-                    return true;
-                }
-                if let Some(eb) = else_body {
-                    if param_is_mutated_in_body(param_name, eb) {
-                        return true;
-                    }
-                }
-            }
-            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
-                if param_is_mutated_in_body(param_name, body) {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-    }
-    false
-}
+
 
 /// Analyze which variables are reassigned (mutated) in a list of statements
 ///
@@ -497,7 +453,7 @@ fn generate_lambda_as_function(
 /// These stubs allow compilation without the actual implementation.
 ///
 /// Complexity: 4 (loop + ident creation + quote)
-fn generate_stub_functions(
+pub(super) fn generate_stub_functions(
     unresolved_imports: &[import_gen::UnresolvedImport],
 ) -> Vec<proc_macro2::TokenStream> {
     let mut stubs = Vec::new();
@@ -599,432 +555,23 @@ fn generate_rust_file_internal(
     type_mapper: &crate::type_mapper::TypeMapper,
     initial_var_types: std::collections::HashMap<String, Type>,
 ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
-    let module_mapper = crate::module_mapper::ModuleMapper::new();
+    // DEPYLER-DECOMPOSE Phase 4: Use extracted modules for pipeline phases
+    
+    // Phase 1: Analyze module (imports, async detection, class metadata)
+    let analysis = context_init::analyze_module(module);
+    let type_mapper = analysis.resolve_type_mapper(type_mapper);
+    let type_mapper = &type_mapper;
 
-    // Process imports to populate the context
-    // DEPYLER-0615: Also track unresolved local imports for stub generation
-    // DEPYLER-1136: Also extract module-level aliases
-    let (imported_modules, imported_items, unresolved_imports, module_aliases) =
-        process_module_imports(&module.imports, &module_mapper);
+    // Phase 2: Build CodeGenContext from analysis
+    let (mut ctx, unresolved_imports) =
+        context_init::build_codegen_context(analysis, type_mapper, initial_var_types);
 
-    // DEPYLER-1115: Collect ALL imported module names (including external unmapped ones)
-    // This enables phantom binding generation with `module::function()` syntax
-    let all_imported_modules: std::collections::HashSet<String> = module
-        .imports
-        .iter()
-        .filter(|imp| imp.items.is_empty()) // Only whole-module imports
-        .map(|imp| imp.module.clone())
-        .collect();
+    // Phase 3: Populate function/class metadata into context
+    pre_analysis::populate_context_metadata(module, &mut ctx);
 
-    // DEPYLER-0490/0491: Set needs_* flags based on imported modules AND items
-    // This ensures Cargo.toml dependencies are generated for external crates
-    // Check both whole module imports (import X) and specific imports (from X import Y)
-    let needs_chrono = imported_modules.contains_key("datetime")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("chrono::"));
-    let needs_tempfile = imported_modules.contains_key("tempfile")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("tempfile::"));
-    let needs_itertools = imported_modules.contains_key("itertools")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("itertools::"));
-    // DEPYLER-1001: statrs crate for Python statistics module
-    let needs_statrs = imported_modules.contains_key("statistics")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("statrs::"));
-    // DEPYLER-1001: url crate for Python urllib.parse module
-    let needs_url = imported_modules.contains_key("urllib.parse")
-        || imported_modules.contains_key("urllib")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("url::"));
-
-    // DEPYLER-NASA-ASYNC: Detect async usage and resolve NASA Mode Paradox
-    // If ANY function or class method is async, we MUST disable NASA mode
-    // because async requires a runtime (tokio). NASA mode = no external deps.
-    // Async + NASA = contradiction. Async wins.
-    let has_async_functions = module.functions.iter().any(|f| f.properties.is_async);
-    let has_async_methods = module
-        .classes
-        .iter()
-        .any(|c| c.methods.iter().any(|m| m.is_async));
-    let has_asyncio_import = imported_modules.contains_key("asyncio");
-    let has_async_code = has_async_functions || has_async_methods || has_asyncio_import;
-
-    // Clone and modify type_mapper if async detected and NASA mode is on
-    let type_mapper = if has_async_code && type_mapper.nasa_mode {
-        let mut async_mapper = type_mapper.clone();
-        async_mapper.nasa_mode = false; // Disable NASA mode for async code
-        async_mapper
-    } else {
-        type_mapper.clone()
-    };
-    let type_mapper = &type_mapper; // Re-bind as reference for rest of function
-
-    // Track if we need tokio (will be set true if async code detected)
-    let needs_tokio_from_async = has_async_code;
-
-    // Extract class names from module (DEPYLER-0230: distinguish user classes from builtins)
-    let class_names: HashSet<String> = module
-        .classes
-        .iter()
-        .map(|class| class.name.clone())
-        .collect();
-
-    // DEPYLER-0231: Build map of mutating methods (class_name -> set of method names)
-    let mut mutating_methods: std::collections::HashMap<String, HashSet<String>> =
-        std::collections::HashMap::new();
-    for class in &module.classes {
-        let mut mut_methods = HashSet::new();
-        for method in &class.methods {
-            if crate::direct_rules::method_mutates_self(method) {
-                mut_methods.insert(method.name.clone());
-            }
-        }
-        mutating_methods.insert(class.name.clone(), mut_methods);
-    }
-
-    // DEPYLER-0737: Collect property method names from all classes
-    // In Python, @property allows method access without (), but Rust requires ()
-    let mut property_methods: HashSet<String> = HashSet::new();
-    for class in &module.classes {
-        for method in &class.methods {
-            if method.is_property {
-                property_methods.insert(method.name.clone());
-            }
-        }
-    }
-
-    // DEPYLER-0932: Collect dataclass field defaults for constructor call site generation
-    // Maps class name -> Vec of Option<HirExpr> where each element corresponds to a field
-    // None if field has no default, Some(default_expr) if it has a default value
-    let mut class_field_defaults: std::collections::HashMap<
-        String,
-        Vec<Option<crate::hir::HirExpr>>,
-    > = std::collections::HashMap::new();
-    for class in &module.classes {
-        let defaults: Vec<Option<crate::hir::HirExpr>> = class
-            .fields
-            .iter()
-            .map(|f| f.default_value.clone())
-            .collect();
-        class_field_defaults.insert(class.name.clone(), defaults);
-    }
-
-    let mut ctx = CodeGenContext {
-        type_mapper,
-        annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
-        string_optimizer: StringOptimizer::new(),
-        union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
-        generated_enums: Vec::new(),
-        needs_hashmap: false,
-        needs_hashset: false,
-        needs_vecdeque: false,
-        needs_fnv_hashmap: false,
-        needs_ahash_hashmap: false,
-        needs_arc: false,
-        needs_rc: false,
-        needs_cow: false,
-        needs_rand: false,
-        needs_slice_random: false, // GH-207
-        needs_rand_distr: false,   // GH-207
-        needs_serde_json: false,
-        needs_regex: false,
-        needs_chrono,    // DEPYLER-0490: Set from imports
-        needs_tempfile,  // DEPYLER-0490: Set from imports
-        needs_itertools, // DEPYLER-0490: Set from imports
-        needs_clap: false,
-        needs_csv: false,
-        needs_rust_decimal: false,
-        needs_num_rational: false,
-        needs_base64: false,
-        needs_md5: false,
-        needs_sha1: false,
-        needs_sha2: false,
-        needs_sha3: false,
-        needs_digest: false, // DEPYLER-0558
-        needs_blake2: false,
-        needs_hex: false,
-        needs_uuid: false,
-        needs_hmac: false,
-        needs_crc32: false,
-        needs_url_encoding: false,
-        needs_io_read: false,            // DEPYLER-0458
-        needs_io_write: false,           // DEPYLER-0458
-        needs_bufread: false,            // DEPYLER-0522
-        needs_once_cell: false,          // DEPYLER-REARCH-001
-        needs_lazy_lock: false,          // DEPYLER-1016
-        needs_depyler_value_enum: false, // DEPYLER-FIX-RC2
-        needs_python_string_ops: false,  // DEPYLER-1202: Python string ops trait
-        needs_python_int_ops: false,     // DEPYLER-1202: Python int ops trait
-        needs_depyler_date: false,
-        needs_depyler_datetime: false,
-        needs_depyler_timedelta: false,
-        needs_depyler_regex_match: false, // DEPYLER-1070: DepylerRegexMatch wrapper
-        needs_trueno: false,              // Phase 3: NumPy→Trueno codegen
-        numpy_vars: HashSet::new(),       // DEPYLER-0932: Track numpy array variables
-        needs_glob: false,                // DEPYLER-0829: glob crate for Path.glob()/rglob()
-        needs_statrs,                     // DEPYLER-1001: Set from imports
-        needs_url,                        // DEPYLER-1001: Set from imports
-        needs_tokio: needs_tokio_from_async, // DEPYLER-NASA-ASYNC: Auto-set from async detection
-        needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
-        vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
-        slice_params: HashSet::new(),   // DEPYLER-1150: Track slice params in current function
-        declared_vars: vec![HashSet::new()],
-        current_function_can_fail: false,
-        current_return_type: None,
-        module_mapper,
-        imported_modules,
-        imported_items,
-        all_imported_modules,
-        module_aliases, // DEPYLER-1136: Module-level aliases (e.g., `import X as Y`)
-        mutable_vars: HashSet::new(),
-        needs_zerodivisionerror: false,
-        needs_indexerror: false,
-        needs_valueerror: false,
-        needs_argumenttypeerror: false,
-        needs_runtimeerror: false,      // DEPYLER-0551
-        needs_filenotfounderror: false, // DEPYLER-0551
-        needs_syntaxerror: false,       // GH-204
-        needs_typeerror: false,         // GH-204
-        needs_keyerror: false,          // GH-204
-        needs_ioerror: false,           // GH-204
-        needs_attributeerror: false,    // GH-204
-        needs_stopiteration: false,     // GH-204
-        in_generator: false,
-        is_classmethod: false,
-        generator_state_vars: HashSet::new(),
-        generator_iterator_state_vars: HashSet::new(),
-        returns_impl_iterator: false,
-        // DEPYLER-1133: THE RESTORATION OF TRUTH
-        // Pre-seed var_types with Oracle-learned types if provided.
-        // This ensures the generator obeys the Oracle's constraints.
-        var_types: initial_var_types,
-        class_names,
-        mutating_methods,
-        property_methods, // DEPYLER-0737: Track @property methods for parenthesis insertion
-        function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
-        class_method_return_types: std::collections::HashMap::new(), // DEPYLER-1007: Track class method return types
-        function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
-        function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
-        function_param_defaults: std::collections::HashMap::new(),
-        class_field_defaults, // DEPYLER-0932: Dataclass field defaults for constructor call sites
-        function_param_optionals: std::collections::HashMap::new(), // DEPYLER-0737: Track Optional params
-        class_field_types: std::collections::HashMap::new(), // DEPYLER-0621: Track default param values
-        tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
-        iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
-        ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
-        mut_ref_params: HashSet::new(), // DEPYLER-1217: Track parameters passed by mutable reference
-        is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
-        result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
-        result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
-        option_returning_functions: HashSet::new(), // DEPYLER-0497: Track functions returning Option<T>
-        current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
-        exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
-        argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
-        generated_args_struct: None, // DEPYLER-0424: Args struct (hoisted to module level)
-        generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
-        current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
-        validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
-        in_json_context: false,      // DEPYLER-0461: Track json!() macro context for nested dicts
-        stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
-        hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 #2: Track hoisted variables needing String normalization
-        none_placeholder_vars: HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment for hoisting
-        cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 #2: Track CSE subcommand temps
-        precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks for argparse
-        nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
-        fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type (become &str in Rust)
-        in_cmd_handler: false,         // DEPYLER-0608: Track if in cmd_* handler function
-        cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
-        in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
-        subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
-        hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
-        is_main_function: false,       // DEPYLER-0617: Track if in main() for exit code handling
-        boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
-        function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
-        option_unwrap_map: HashMap::new(),   // DEPYLER-0627: Track Option unwrap substitutions
-        narrowed_option_vars: HashSet::new(), // DEPYLER-1151: Track narrowed Options after None check
-        type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions for generic inference
-        current_assign_type: None, // DEPYLER-0727: Track assignment target type for dict Value wrapping
-        force_dict_value_option_wrap: false, // DEPYLER-0741: Force dict values to use Option wrapping
-        char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
-        char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
-        adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
-        function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
-        mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
-        mut_option_params: HashSet::new(),    // DEPYLER-1126: Track ALL &mut Option<T> params
-        module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
-        #[cfg(feature = "sovereign-types")]
-        type_query: load_type_database(), // DEPYLER-1114: Auto-load Sovereign Type Database
-        last_external_call_return_type: None, // DEPYLER-1113: External call return type
-        type_overrides: HashMap::new(),       // DEPYLER-1101: Oracle-learned type overrides
-        vars_used_later: HashSet::new(),      // DEPYLER-1168: Call-site clone detection
-    };
-
-    // DEPYLER-1137: Enable DepylerValue enum when module aliases are present
-    // Module alias stubs use DepylerValue for dynamic dispatch compatibility
-    if !ctx.module_aliases.is_empty() {
-        ctx.needs_depyler_value_enum = true;
-    }
-
-    // Analyze all functions first for string optimization
-    validator_analysis::analyze_string_optimization(&mut ctx, &module.functions);
-
-    // Finalize interned string names (resolve collisions)
-    ctx.string_optimizer.finalize_interned_names();
-
-    // DEPYLER-0447: Scan all function bodies and constants for argparse validators
-    // Must run BEFORE function conversion so validator parameter types are correct
-    validator_analysis::analyze_validators(&mut ctx, &module.functions, &module.constants);
-
-    // DEPYLER-0789: Pre-register ALL argparse subcommands from ALL functions
-    // This ensures cmd_* functions have access to argument type info (e.g., store_true → bool)
-    // even when defined before the main() function that sets up argparse
-    for func in &module.functions {
-        argparse_transform::preregister_subcommands_from_hir(func, &mut ctx.argparser_tracker);
-    }
-
-    // DEPYLER-0270: Populate Result-returning functions map
-    // All functions that can_fail return Result<T, E> and need unwrapping at call sites
-    for func in &module.functions {
-        if func.properties.can_fail {
-            ctx.result_returning_functions.insert(func.name.clone());
-        }
-    }
-
-    // DEPYLER-0308: Populate Result<bool> functions map
-    // Functions that can_fail and return Bool need unwrapping in boolean contexts
-    for func in &module.functions {
-        if func.properties.can_fail && matches!(func.ret_type, Type::Bool) {
-            ctx.result_bool_functions.insert(func.name.clone());
-        }
-    }
-
-    // DEPYLER-0497: Populate Option-returning functions map and function return types
-    // Functions that return Option<T> need unwrapping in format! and other Display contexts
-    for func in &module.functions {
-        // Store all function return types for type tracking
-        ctx.function_return_types
-            .insert(func.name.clone(), func.ret_type.clone());
-
-        // Track Option-returning functions specifically
-        if matches!(func.ret_type, Type::Optional(_)) {
-            ctx.option_returning_functions.insert(func.name.clone());
-        }
-    }
-
-    // DEPYLER-0950: Populate function parameter types for literal coercion at call sites
-    // When calling add(1, 2.5) where add expects (f64, f64), we need to coerce 1 to 1.0
-    for func in &module.functions {
-        let param_types: Vec<Type> = func.params.iter().map(|p| p.ty.clone()).collect();
-        ctx.function_param_types
-            .insert(func.name.clone(), param_types);
-    }
-
-    // DEPYLER-0648: Pre-populate vararg functions before codegen
-    // Python *args functions become fn(args: &[String]) in Rust
-    // Call sites need to wrap arguments in &[...] slices
-    for func in &module.functions {
-        if func.params.iter().any(|p| p.is_vararg) {
-            ctx.vararg_functions.insert(func.name.clone());
-        }
-    }
-
-    // DEPYLER-99MODE-S9: Pre-populate function_param_muts for all functions
-    // This enables correct &mut passing at call sites for forward references
-    // (e.g., fibonacci_memo calls fib_helper which is defined later)
-    for func in &module.functions {
-        let param_muts: Vec<bool> = func
-            .params
-            .iter()
-            .map(|p| {
-                // A param needs &mut if: (a) it's a Dict/List type AND (b) body mutates it
-                let is_collection = matches!(
-                    p.ty,
-                    Type::Dict(_, _) | Type::List(_) | Type::Set(_)
-                );
-                if !is_collection {
-                    return false;
-                }
-                // Check if body has subscript assignment to this param
-                param_is_mutated_in_body(&p.name, &func.body)
-            })
-            .collect();
-        if param_muts.iter().any(|&m| m) {
-            ctx.function_param_muts
-                .insert(func.name.clone(), param_muts);
-        }
-    }
-
-    // DEPYLER-0737: Pre-populate Optional parameters for call site wrapping
-    // When a parameter has Optional type (from =None default), call sites need Some() wrapping
-    for func in &module.functions {
-        let optionals: Vec<bool> = func
-            .params
-            .iter()
-            .map(|p| matches!(p.ty, Type::Optional(_)))
-            .collect();
-        // Only track if any param is Optional
-        if optionals.iter().any(|&b| b) {
-            ctx.function_param_optionals
-                .insert(func.name.clone(), optionals);
-        }
-    }
-
-    // DEPYLER-0720: Pre-populate class field types for self.X attribute access
-    // This enables expr_returns_float() to recognize self.balance as float
-    for class in &module.classes {
-        for field in &class.fields {
-            ctx.class_field_types
-                .insert(field.name.clone(), field.field_type.clone());
-        }
-    }
-
-    // DEPYLER-1007: Pre-populate class method return types for return type inference
-    // This enables infer_expr_type_with_env() to recognize p.distance_squared() return type
-    for class in &module.classes {
-        // Track constructor return type: ClassName() -> Type::Custom("ClassName")
-        // This enables type inference for expressions like `p = Point(3, 4)`
-        ctx.function_return_types
-            .insert(class.name.clone(), Type::Custom(class.name.clone()));
-        // DEPYLER-99MODE-S9: Register class name so NASA mode type annotations
-        // use the struct type instead of HashMap<DepylerValue, DepylerValue>
-        ctx.class_names.insert(class.name.clone());
-
-        for method in &class.methods {
-            // Skip __init__ and __new__ which don't have meaningful return types for inference
-            if method.name == "__init__" || method.name == "__new__" {
-                continue;
-            }
-            // Only track methods with explicit return type annotations
-            if !matches!(method.ret_type, Type::Unknown | Type::None) {
-                ctx.class_method_return_types.insert(
-                    (class.name.clone(), method.name.clone()),
-                    method.ret_type.clone(),
-                );
-            }
-        }
-    }
-
-    // Convert classes first (they might be used by functions)
-    // DEPYLER-0648: Pass vararg_functions for proper call site generation
-    // DEPYLER-0936: Also get child→parent mapping for ADT type rewriting
-    let (classes, adt_child_to_parent) =
-        class_gen::convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
-    ctx.adt_child_to_parent = adt_child_to_parent;
-
+    // Phase 4: Convert module-level constants type registration
     // DEPYLER-1060: Pre-register module-level constant types BEFORE function conversion
-    // This enables is_dict_expr() to work for module-level statics like `d = {1: "a"}`
-    // when accessed from within functions (e.g., val = d[1])
-    // Uses module_constant_types (not var_types) because var_types is cleared per-function
     for constant in &module.constants {
-        // DEPYLER-99MODE-S9: Track ALL constant types, not just collections
-        // Scalar constants (PI: float, MAX_SIZE: int) need tracking too so
-        // call_generic doesn't misidentify them as DepylerValue
         let const_type = match &constant.value {
             HirExpr::Dict(_) => Some(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))),
             HirExpr::List(_) => Some(Type::List(Box::new(Type::Unknown))),
@@ -1034,7 +581,6 @@ fn generate_rust_file_internal(
             HirExpr::Literal(Literal::String(_)) => Some(Type::String),
             HirExpr::Literal(Literal::Bool(_)) => Some(Type::Bool),
             _ => {
-                // Use the constant's type annotation if available
                 if let Some(ty) = &constant.type_annotation {
                     if !matches!(ty, Type::Unknown) {
                         Some(ty.clone())
@@ -1052,275 +598,49 @@ fn generate_rust_file_internal(
         }
     }
 
-    // Convert all functions to detect what imports we need
+    // Phase 5: Convert classes and functions
+    let (classes, adt_child_to_parent) =
+        class_gen::convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
+    ctx.adt_child_to_parent = adt_child_to_parent;
+
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
 
-    // Build items list with all generated code
-    let mut items = Vec::new();
-
-    // Add module imports (create new mapper for token generation)
-    // DEPYLER-1016: Pass NASA mode to skip external crate imports
-    let import_mapper = crate::module_mapper::ModuleMapper::new();
+    // Phase 6: Assemble all items
     let nasa_mode = ctx.type_mapper.nasa_mode;
-    items.extend(module_gen::generate_import_tokens(
-        &module.imports,
-        &import_mapper,
+    let items = pipeline_assembly::assemble_module_items(
+        module,
+        &mut ctx,
+        classes,
+        functions,
+        &unresolved_imports,
         nasa_mode,
-    ));
-
-    // DEPYLER-197: Add type aliases (before constants, after imports)
-    // Python type aliases like `EventHandler = Callable[[str], None]`
-    // must be transpiled as Rust type aliases
-    items.extend(module_gen::generate_type_alias_tokens(
-        &module.type_aliases,
-        ctx.type_mapper,
-    ));
-
-    // Add interned string constants
-    items.extend(module_gen::generate_interned_string_tokens(&ctx.string_optimizer));
-
-    // Add module-level constants
-    items.extend(constant_gen::generate_constant_tokens(&module.constants, &mut ctx)?);
-
-    // Add collection imports if needed
-    items.extend(module_gen::generate_conditional_imports(&ctx));
-
-    // DEPYLER-0335 FIX #1: Deduplicate imports across all sources
-    // Both generate_import_tokens and generate_conditional_imports can add HashMap
-    items = module_gen::deduplicate_use_statements(items);
-
-    // Add error type definitions if needed
-    items.extend(generate_error_type_definitions(&ctx));
-
-    // DEPYLER-0627: Add CompletedProcess struct if subprocess.run is used
-    // DEPYLER-0931: Added Default derive for hoisting support in try/except blocks
-    if ctx.needs_completed_process {
-        let completed_process_struct = quote::quote! {
-            /// Result of subprocess.run()
-            #[derive(Debug, Clone, Default)]
-            pub struct CompletedProcess {
-                pub returncode: i32,
-                pub stdout: String,
-                pub stderr: String,
-            }
-        };
-        items.push(completed_process_struct);
-    }
-
-    // Add generated union enums
-    items.extend(ctx.generated_enums.clone());
-
-    // DEPYLER-FIX-RC2: Inject DepylerValue enum if heterogeneous dicts were detected
-    // OR if we are in NASA mode (since TypeMapper now defaults 'Any' to DepylerValue)
-    // DEPYLER-1043: Added trait implementations for Display, len, chars, insert, Index
-    // DEPYLER-1040b/1051: Added Hash/Eq for dict keys (Point 14 falsification fix)
-    if ctx.needs_depyler_value_enum || nasa_mode {
-        let depyler_value_enum = depyler_value_gen::generate_depyler_value_tokens();
-        items.push(depyler_value_enum);
-    }
-
-    // DEPYLER-DECOMPOSE: Inject runtime type items (PythonIntOps, date/time, regex) via extracted module
-    items.extend(runtime_types_gen::generate_runtime_type_items(&ctx));
-
-    // DEPYLER-1115: Generate phantom bindings for external library types
-    // This must come BEFORE classes so external type references resolve
-    #[cfg(feature = "sovereign-types")]
-    {
-        if let Some(ref tq) = ctx.type_query {
-            let mut type_query_guard = tq.lock().unwrap();
-            let mut binding_gen = binding_gen::BindingGenerator::new(&mut type_query_guard);
-            binding_gen.collect_symbols(module);
-            if let Ok(phantom_bindings) = binding_gen.generate_bindings() {
-                items.push(phantom_bindings);
-            }
-        }
-    }
-
-    // DEPYLER-1136: Generate module alias stubs
-    // DEPYLER-1137: Use DepylerValue for semantic proxy types (not serde_json::Value)
-    // DEPYLER-1139: Use minimal required args - accept anything via impl traits
-    // For `import xml.etree.ElementTree as ET`, generate `mod ET { ... }` stubs
-    for alias in ctx.module_aliases.keys() {
-        let alias_ident = syn::Ident::new(alias, proc_macro2::Span::call_site());
-        let alias_stub = quote::quote! {
-            /// DEPYLER-1136: Module alias stub for external library
-            /// DEPYLER-1137: Uses DepylerValue for dynamic dispatch compatibility
-            /// DEPYLER-1139: Minimal required args to avoid E0061
-            #[allow(non_snake_case)]
-            #[allow(unused_variables)]
-            pub mod #alias_ident {
-                use super::DepylerValue;
-
-                /// Phantom function stub - parses XML from string (1 arg)
-                pub fn fromstring<S: AsRef<str>>(_s: S) -> DepylerValue {
-                    DepylerValue::None
-                }
-
-                /// Phantom function stub - parses XML from file (1 arg)
-                pub fn parse<S: AsRef<str>>(_source: S) -> DepylerValue {
-                    DepylerValue::None
-                }
-
-                /// Phantom function stub - creates Element (1 arg only)
-                pub fn Element<S: Into<String>>(_tag: S) -> DepylerValue {
-                    DepylerValue::None
-                }
-
-                /// Phantom function stub - creates SubElement (2 args)
-                pub fn SubElement<P, S: Into<String>>(_parent: P, _tag: S) -> DepylerValue {
-                    DepylerValue::None
-                }
-
-                /// Phantom function stub - converts to string (1-2 args via generic)
-                pub fn tostring<E>(_elem: E) -> String {
-                    String::new()
-                }
-
-                /// Phantom function stub - tostring with encoding (2 args)
-                pub fn tostring_with_encoding<E, S: AsRef<str>>(_elem: E, _encoding: S) -> String {
-                    String::new()
-                }
-
-                /// Phantom function stub - creates ElementTree (1 arg)
-                pub fn ElementTree<E>(_element: E) -> DepylerValue {
-                    DepylerValue::None
-                }
-
-                /// Phantom function stub - iterparse (1 arg)
-                pub fn iterparse<S: AsRef<str>>(_source: S) -> DepylerValue {
-                    DepylerValue::None
-                }
-
-                /// DEPYLER-1139: Generic get function (like dict.get)
-                pub fn get<K, D>(_key: K, _default: D) -> DepylerValue {
-                    DepylerValue::None
-                }
-            }
-        };
-        items.push(alias_stub);
-    }
-
-    // Add classes
-    items.extend(classes);
-
-    // DEPYLER-0424: Add ArgumentParser-generated structs at module level
-    // (before functions so handler functions can reference Args type)
-    if let Some(ref commands_enum) = ctx.generated_commands_enum {
-        items.push(commands_enum.clone());
-    }
-    if let Some(ref args_struct) = ctx.generated_args_struct {
-        items.push(args_struct.clone());
-    }
-
-    // DEPYLER-0615: Generate stub functions for unresolved local imports
-    // This allows test files importing from local modules to compile standalone
-    items.extend(generate_stub_functions(&unresolved_imports));
-
-    // Add all functions
-    items.extend(functions);
-
-    // DEPYLER-1216: Generate main() for scripts without an explicit entry point
-    // A Rust binary MUST have fn main(). If the Python script has no main() or
-    // `if __name__ == "__main__":` block, we generate one that wraps top-level statements.
-    let has_main = module.functions.iter().any(|f| f.name == "main");
-    if !has_main {
-        // DEPYLER-1216: Check if there are top-level statements to wrap
-        if !module.top_level_stmts.is_empty() {
-            // Generate a semantic main() that wraps the top-level script statements
-            let mut main_body_tokens = Vec::new();
-            for stmt in &module.top_level_stmts {
-                match stmt.to_rust_tokens(&mut ctx) {
-                    Ok(tokens) => main_body_tokens.push(tokens),
-                    Err(e) => {
-                        // Log warning but continue - fallback to stub behavior for failed conversion
-                        eprintln!(
-                            "DEPYLER-1216: Warning - failed to convert top-level statement: {}",
-                            e
-                        );
-                    }
-                }
-            }
-            if !main_body_tokens.is_empty() {
-                let semantic_main = quote::quote! {
-                    /// DEPYLER-1216: Auto-generated entry point wrapping top-level script statements
-                    /// This file was transpiled from a Python script with executable top-level code.
-                    pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-                        #(#main_body_tokens)*
-                        Ok(())
-                    }
-                };
-                items.push(semantic_main);
-            } else {
-                // Fallback to stub if no statements converted successfully
-                let stub_main = quote::quote! {
-                    /// DEPYLER-1216: Auto-generated entry point for standalone compilation
-                    /// This file was transpiled from a Python module without an explicit main.
-                    /// Add a main() function or `if __name__ == "__main__":` block to customize.
-                    pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-                        Ok(())
-                    }
-                };
-                items.push(stub_main);
-            }
-        } else {
-            // No top-level statements - generate empty stub
-            let stub_main = quote::quote! {
-                /// DEPYLER-1216: Auto-generated entry point for standalone compilation
-                /// This file was transpiled from a Python module without an explicit main.
-                /// Add a main() function or `if __name__ == "__main__":` block to customize.
-                pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-                    Ok(())
-                }
-            };
-            items.push(stub_main);
-        }
-    }
-
-    // Generate tests for all functions in a single test module
-    // DEPYLER-0280 FIX: Use generate_tests_module() to create a single `mod tests {}` block
-    // instead of one per function, which caused "the name `tests` is defined multiple times" errors
-    let test_gen = crate::test_generation::TestGenerator::new(Default::default());
-    if let Some(test_module) = test_gen.generate_tests_module(&module.functions)? {
-        items.push(test_module);
-    }
+    )?;
 
     let file = quote! {
         #(#items)*
     };
 
-    // DEPYLER-0384: Extract dependencies from context (BEFORE post-processing)
+    // Phase 7: Post-processing (dependencies, NASA mode, text-level fixes)
     let mut dependencies = cargo_toml_gen::extract_dependencies(&ctx);
 
-    // Format the code first (this is when tokens become readable strings)
     let mut formatted_code = format_rust_code(file.to_string());
     // DEPYLER-0393: Post-process FORMATTED code to detect missed dependencies
-    // TokenStreams don't have literal strings - must scan AFTER formatting
-    // DEPYLER-1028: Skip in NASA mode - don't add external crate imports
     if !nasa_mode && formatted_code.contains("serde_json::") && !ctx.needs_serde_json {
-        // Add missing import at the beginning
         formatted_code = format!("use serde_json;\n{}", formatted_code);
-        // Add missing Cargo.toml dependencies
         dependencies.push(cargo_toml_gen::Dependency::new("serde_json", "1.0"));
         dependencies.push(
             cargo_toml_gen::Dependency::new("serde", "1.0")
                 .with_features(vec!["derive".to_string()]),
         );
-        // Re-format to ensure imports are properly ordered
         formatted_code = format_rust_code(formatted_code);
     }
 
-    // DEPYLER-DECOMPOSE: NASA mode post-processing via extracted module
     if nasa_mode {
         nasa_mode::apply_nasa_mode_fixes(&mut formatted_code);
     }
 
-    // DEPYLER-DECOMPOSE: Apply all text-level fixes via the extracted fixes pipeline.
     formatted_code = fixes::pipeline::apply_text_level_fixes(formatted_code);
 
-    // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
-    // Generated code may have unused imports (due to import mapping), unused mut (from conservative
-    // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
-    // (from CSE temporaries). These don't affect correctness, so suppress them.
     let allow_attrs = "\
 #![allow(unused_imports)]
 #![allow(unused_mut)]
@@ -1332,6 +652,7 @@ fn generate_rust_file_internal(
     formatted_code = format!("{}{}", allow_attrs, formatted_code);
 
     Ok((formatted_code, dependencies))
+
 }
 
 /// DEPYLER-1101: Generate Rust file with oracle-learned type overrides
