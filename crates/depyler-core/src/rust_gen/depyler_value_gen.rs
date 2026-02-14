@@ -1130,6 +1130,38 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
 
+            // DEPYLER-1404: Tuple and byte slice comparisons for DepylerValue
+            impl std::cmp::PartialEq<(i32, i32)> for DepylerValue {
+                fn eq(&self, other: &(i32, i32)) -> bool {
+                    if let DepylerValue::Tuple(_dv_t) = self {
+                        _dv_t.len() == 2 && _dv_t[0] == DepylerValue::Int(other.0 as i64) && _dv_t[1] == DepylerValue::Int(other.1 as i64)
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<(i64, i64)> for DepylerValue {
+                fn eq(&self, other: &(i64, i64)) -> bool {
+                    if let DepylerValue::Tuple(_dv_t) = self {
+                        _dv_t.len() == 2 && _dv_t[0] == DepylerValue::Int(other.0) && _dv_t[1] == DepylerValue::Int(other.1)
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<(f64, f64)> for DepylerValue {
+                fn eq(&self, other: &(f64, f64)) -> bool {
+                    if let DepylerValue::Tuple(_dv_t) = self {
+                        _dv_t.len() == 2 && _dv_t[0] == DepylerValue::Float(other.0) && _dv_t[1] == DepylerValue::Float(other.1)
+                    } else { false }
+                }
+            }
+            impl<const N: usize> std::cmp::PartialEq<&[u8; N]> for DepylerValue {
+                fn eq(&self, other: &&[u8; N]) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l.len() == N && _dv_l.iter().zip(other.iter()).all(|(a, b)| a == &DepylerValue::Int(*b as i64))
+                    } else if let DepylerValue::Str(_dv_s) = self {
+                        _dv_s.as_bytes() == other.as_slice()
+                    } else { false }
+                }
+            }
+
             // DEPYLER-1062: Safe min helper that handles f64 NaN correctly
             // Python: min(1.0, float('nan')) returns 1.0 (NaN is "ignored")
             pub fn depyler_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
