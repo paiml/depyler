@@ -112,6 +112,30 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                     self.len() == 0
                 }
 
+                /// DEPYLER-1404: Check if value is None variant
+                pub fn is_none(&self) -> bool {
+                    matches!(self, DepylerValue::None)
+                }
+
+                /// DEPYLER-1404: Check if value is not None variant
+                pub fn is_some(&self) -> bool {
+                    !self.is_none()
+                }
+
+                /// DEPYLER-1404: Push a value into list
+                pub fn push(&mut self, value: impl Into<DepylerValue>) {
+                    if let DepylerValue::List(_dv_list) = self {
+                        _dv_list.push(value.into());
+                    }
+                }
+
+                /// DEPYLER-1404: Extend list with another iterable
+                pub fn extend(&mut self, other: impl IntoIterator<Item = DepylerValue>) {
+                    if let DepylerValue::List(_dv_list) = self {
+                        _dv_list.extend(other);
+                    }
+                }
+
                 /// Get chars iterator for string values
                 pub fn chars(&self) -> std::str::Chars<'_> {
                     match self {
@@ -1048,6 +1072,62 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
             }
             impl std::cmp::PartialEq<DepylerValue> for bool {
                 fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Bool(*self) == other }
+            }
+            // DEPYLER-1404: Vec/HashMap comparisons for DepylerValue
+            // Use concrete types to avoid conflicting blanket impls (E0119).
+            impl std::cmp::PartialEq<Vec<DepylerValue>> for DepylerValue {
+                fn eq(&self, other: &Vec<DepylerValue>) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l == other
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<Vec<i32>> for DepylerValue {
+                fn eq(&self, other: &Vec<i32>) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l.len() == other.len() && _dv_l.iter().zip(other).all(|(a, b)| a == &DepylerValue::Int(*b as i64))
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<Vec<i64>> for DepylerValue {
+                fn eq(&self, other: &Vec<i64>) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l.len() == other.len() && _dv_l.iter().zip(other).all(|(a, b)| a == &DepylerValue::Int(*b))
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<Vec<f64>> for DepylerValue {
+                fn eq(&self, other: &Vec<f64>) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l.len() == other.len() && _dv_l.iter().zip(other).all(|(a, b)| a == &DepylerValue::Float(*b))
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<Vec<String>> for DepylerValue {
+                fn eq(&self, other: &Vec<String>) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l.len() == other.len() && _dv_l.iter().zip(other).all(|(a, b)| a == &DepylerValue::Str(b.clone()))
+                    } else { false }
+                }
+            }
+            impl std::cmp::PartialEq<Vec<Vec<String>>> for DepylerValue {
+                fn eq(&self, other: &Vec<Vec<String>>) -> bool {
+                    if let DepylerValue::List(_dv_l) = self {
+                        _dv_l.len() == other.len() && _dv_l.iter().zip(other).all(|(a, inner)| {
+                            a == &DepylerValue::List(inner.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+                        })
+                    } else { false }
+                }
+            }
+            impl<V: Into<DepylerValue> + Clone> std::cmp::PartialEq<std::collections::HashMap<String, V>> for DepylerValue {
+                fn eq(&self, other: &std::collections::HashMap<String, V>) -> bool {
+                    if let DepylerValue::Dict(_dv_dict) = self {
+                        if _dv_dict.len() != other.len() { return false; }
+                        other.iter().all(|(k, v)| {
+                            _dv_dict.get(&DepylerValue::Str(k.clone())).map_or(false, |dv| dv == &v.clone().into())
+                        })
+                    } else { false }
+                }
             }
 
             // DEPYLER-1062: Safe min helper that handles f64 NaN correctly

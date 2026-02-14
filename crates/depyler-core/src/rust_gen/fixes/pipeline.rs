@@ -89,6 +89,24 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     // Stubs generated with 1 param cause E0061 when called with multiple args.
     formatted_code = fix_stub_arities(&formatted_code);
 
+    // DEPYLER-1404: Replace bare UnionType with DepylerValue (E0425).
+    // Python Union[...] type aliases sometimes emit `UnionType` which doesn't exist.
+    formatted_code = formatted_code.replace("pub type JsonValue = UnionType;", "pub type JsonValue = DepylerValue;");
+    formatted_code = formatted_code.replace("= UnionType;", "= DepylerValue;");
+    formatted_code = formatted_code.replace(": UnionType", ": DepylerValue");
+    formatted_code = formatted_code.replace("<UnionType>", "<DepylerValue>");
+    formatted_code = formatted_code.replace("(UnionType)", "(DepylerValue)");
+
+    // DEPYLER-1404: Disambiguate empty vec![] comparisons with DepylerValue (E0283).
+    // Multiple PartialEq<Vec<T>> impls make `== vec![]` ambiguous.
+    formatted_code = formatted_code.replace("== vec![]", "== Vec::<DepylerValue>::new()");
+    formatted_code = formatted_code.replace("!= vec![]", "!= Vec::<DepylerValue>::new()");
+    // Also disambiguate empty HashMap::new() in comparisons (E0282).
+    formatted_code = formatted_code.replace(
+        "== {\n                let mut map = std::collections::HashMap::new();\n                map\n            }",
+        "== std::collections::HashMap::<String, DepylerValue>::new()"
+    );
+
     // DEPYLER-CONVERGE-MULTI-ITER5b: Inject missing std imports detected by usage.
     if formatted_code.contains(".write_all(") && !formatted_code.contains("use std::io::Write") {
         formatted_code = format!("use std::io::Write;\n{}", formatted_code);
@@ -540,6 +558,12 @@ fn fix_stub_arities(code: &str) -> String {
     let mut macros_to_prepend: Vec<String> = Vec::new();
 
     for name in &stub_names {
+        // DEPYLER-1404: Skip names used as types (e.g., Color::RED) — these are
+        // class imports, not function imports, and shouldn't become macros.
+        let type_path = format!("{}::", name);
+        if result.contains(&type_path) {
+            continue;
+        }
         if let Some((cleaned, macro_def)) = replace_stub_with_macro(&result, name) {
             result = cleaned;
             macros_to_prepend.push(macro_def);
@@ -626,20 +650,51 @@ fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
     Some((result, macro_def))
 }
 
-/// Rewrite call sites from `name(` to `name!(`, skipping macro definitions.
+/// Rewrite call sites from `name(` to `name!(`, with word-boundary awareness.
+///
+/// Only rewrites when `name(` appears at a word boundary (not preceded by
+/// an alphanumeric char or underscore), to avoid mangling identifiers like
+/// `test_basic_product(` when the stub name is `product`.
 fn rewrite_call_sites(code: &str, name: &str) -> String {
-    let call_pattern = format!("{}(", name);
-    let macro_call = format!("{}!(", name);
     let macro_def_marker = format!("macro_rules! {}", name);
 
     code.lines()
         .map(|line| {
-            if line.contains(&macro_def_marker) || !line.contains(&call_pattern) {
-                line.to_string()
-            } else {
-                line.replace(&call_pattern, &macro_call)
+            if line.contains(&macro_def_marker) {
+                return line.to_string();
             }
+            rewrite_line_call_sites(line, name)
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Replace `name(` with `name!(` in a single line, respecting word boundaries.
+fn rewrite_line_call_sites(line: &str, name: &str) -> String {
+    let pattern = format!("{}(", name);
+    let mut result = String::with_capacity(line.len());
+    let mut remaining = line;
+
+    while let Some(pos) = remaining.find(&pattern) {
+        // Check character before match for word boundary
+        let is_word_boundary = if pos == 0 {
+            true
+        } else {
+            let prev = remaining.as_bytes()[pos - 1];
+            !prev.is_ascii_alphanumeric() && prev != b'_'
+        };
+
+        if is_word_boundary {
+            result.push_str(&remaining[..pos]);
+            result.push_str(name);
+            result.push('!');
+            result.push('(');
+            remaining = &remaining[pos + pattern.len()..];
+        } else {
+            result.push_str(&remaining[..pos + pattern.len()]);
+            remaining = &remaining[pos + pattern.len()..];
+        }
+    }
+    result.push_str(remaining);
+    result
 }
