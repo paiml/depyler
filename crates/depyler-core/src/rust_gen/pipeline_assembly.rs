@@ -203,7 +203,7 @@ fn append_runtime_types(
 /// This must come BEFORE classes so external type references resolve.
 #[allow(unused_variables)]
 fn append_phantom_bindings(
-    items: &mut Vec<proc_macro2::TokenStream>,
+    items: &mut [proc_macro2::TokenStream],
     module: &HirModule,
     ctx: &CodeGenContext,
 ) {
