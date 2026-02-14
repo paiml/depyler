@@ -85,6 +85,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace("operator.add", "|a, b| a + b");
     formatted_code = formatted_code.replace("operator.sub", "|a, b| a - b");
 
+    // DEPYLER-1404: Fix stub function arities to match call sites.
+    // Stubs generated with 1 param cause E0061 when called with multiple args.
+    formatted_code = fix_stub_arities(&formatted_code);
+
     // DEPYLER-CONVERGE-MULTI-ITER5b: Inject missing std imports detected by usage.
     if formatted_code.contains(".write_all(") && !formatted_code.contains("use std::io::Write") {
         formatted_code = format!("use std::io::Write;\n{}", formatted_code);
@@ -519,4 +523,123 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     // formatted_code = fix_missing_ref_in_fn_call(&formatted_code);
 
     formatted_code
+}
+
+/// DEPYLER-1404: Convert stub functions to macros and rewrite call sites.
+///
+/// Stub functions accept only 1 parameter, causing E0061 when called with more.
+/// This converts stubs to `macro_rules!` (variadic args) and rewrites call sites
+/// to add `!` for macro invocation syntax.
+fn fix_stub_arities(code: &str) -> String {
+    let stub_names = find_stub_names(code);
+    if stub_names.is_empty() {
+        return code.to_string();
+    }
+
+    let mut result = code.to_string();
+    let mut macros_to_prepend: Vec<String> = Vec::new();
+
+    for name in &stub_names {
+        if let Some((cleaned, macro_def)) = replace_stub_with_macro(&result, name) {
+            result = cleaned;
+            macros_to_prepend.push(macro_def);
+            result = rewrite_call_sites(&result, name);
+        }
+    }
+
+    if !macros_to_prepend.is_empty() {
+        let prefix = macros_to_prepend.join("\n");
+        result = format!("{}\n{}", prefix, result);
+    }
+
+    result
+}
+
+/// Find stub function names by scanning for DEPYLER-0615 marker comments.
+fn find_stub_names(code: &str) -> Vec<String> {
+    let mut stub_names: Vec<String> = Vec::new();
+    let lines: Vec<&str> = code.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        if !line.contains("DEPYLER-0615") {
+            continue;
+        }
+        for j in (i + 1)..lines.len().min(i + 5) {
+            if let Some(fname) = extract_fn_name(lines[j]) {
+                stub_names.push(fname);
+                break;
+            }
+        }
+    }
+    stub_names
+}
+
+/// Extract function name from a `pub fn name(...)` declaration line.
+fn extract_fn_name(line: &str) -> Option<String> {
+    let fname = line
+        .trim()
+        .strip_prefix("pub fn ")?
+        .split('(')
+        .next()?
+        .split('<')
+        .next()?
+        .trim();
+    if fname.is_empty() {
+        return None;
+    }
+    Some(fname.to_string())
+}
+
+/// Remove a stub function and return the cleaned code + macro definition.
+fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
+    let fn_dv = format!(
+        "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}",
+        name
+    );
+    let fn_unit = format!(
+        "pub fn {}(_args: impl std::any::Any) -> () {{\n}}",
+        name
+    );
+
+    let is_unit = code.contains(&fn_unit);
+    let is_dv = code.contains(&fn_dv);
+    if !is_unit && !is_dv {
+        return None;
+    }
+
+    let mut result = if is_dv {
+        code.replace(&fn_dv, "")
+    } else {
+        code.replace(&fn_unit, "")
+    };
+    result = result.replace("/// DEPYLER-0615: Generated to allow standalone compilation", "");
+    result = result.replace("#[allow(dead_code, unused_variables)]", "");
+
+    let macro_def = if is_unit {
+        format!("macro_rules! {} {{ ($($args:expr),* $(,)?) => {{ () }}; }}", name)
+    } else {
+        format!(
+            "macro_rules! {} {{ ($($args:expr),* $(,)?) => {{ DepylerValue::default() }}; }}",
+            name
+        )
+    };
+
+    Some((result, macro_def))
+}
+
+/// Rewrite call sites from `name(` to `name!(`, skipping macro definitions.
+fn rewrite_call_sites(code: &str, name: &str) -> String {
+    let call_pattern = format!("{}(", name);
+    let macro_call = format!("{}!(", name);
+    let macro_def_marker = format!("macro_rules! {}", name);
+
+    code.lines()
+        .map(|line| {
+            if line.contains(&macro_def_marker) || !line.contains(&call_pattern) {
+                line.to_string()
+            } else {
+                line.replace(&call_pattern, &macro_call)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }

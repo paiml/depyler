@@ -502,12 +502,16 @@ pub(super) fn generate_stub_functions(
                 }
             }
         } else {
+            // DEPYLER-1404: Use DepylerValue return type instead of generic T: Default
+            // The generic <T: Default> causes E0283 (type annotations needed) when called
+            // in contexts like `assert!(imported_func(x) == 42)`. DepylerValue implements
+            // PartialEq<i32>, PartialEq<String>, etc. so it works for most comparisons.
             quote! {
                 /// Stub for local import from module: #module_name
                 /// DEPYLER-0615: Generated to allow standalone compilation
                 #[allow(dead_code, unused_variables)]
-                pub fn #func_ident<T: Default>(_args: impl std::any::Any) -> T {
-                    Default::default()
+                pub fn #func_ident(_args: impl std::any::Any) -> DepylerValue {
+                    DepylerValue::default()
                 }
             }
         };
