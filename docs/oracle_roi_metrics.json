@@ -1,26 +1,26 @@
 {
-  "timestamp": "2026-02-14T18:15:40.358648664Z",
-  "session": "converge-20260214-181540",
+  "timestamp": "2026-02-14T18:53:40.357739853Z",
+  "session": "converge-20260214-185340",
   "baseline": {
     "files_processed": 68,
-    "transpile_success": 58,
-    "transpile_rate": 0.8529411764705882,
-    "compile_errors": 84
+    "transpile_success": 61,
+    "transpile_rate": 0.8970588235294118,
+    "compile_errors": 72
   },
   "error_distribution": {
-    "E0271_unknown": 2,
-    "E0599_missing_method": 9,
-    "E0277_trait_bound": 1,
-    "E0428_unknown": 1,
-    "E0618_unknown": 18,
-    "E0425_undefined_variable": 17,
-    "E0423_unknown": 1,
-    "TRANSPILE_unknown": 4,
-    "E0308_type_inference": 4,
+    "E????_unknown": 6,
+    "E0605_unknown": 2,
     "E0282_unknown": 10,
+    "E0428_unknown": 1,
+    "TRANSPILE_unknown": 4,
+    "E0308_type_inference": 3,
     "E0369_unknown": 6,
-    "E0609_unknown": 9,
-    "E0605_unknown": 2
+    "E0618_unknown": 18,
+    "E0609_unknown": 6,
+    "E0423_unknown": 1,
+    "E0425_undefined_variable": 10,
+    "E0277_trait_bound": 1,
+    "E0599_missing_method": 4
   },
   "oracle_performance": {
     "type_mismatch_confidence": 0.85,
@@ -29,11 +29,11 @@
     "missing_import_confidence": 0.0
   },
   "roi_metrics": {
-    "high_confidence_errors": 13,
-    "medium_confidence_errors": 18,
-    "total_classifiable": 31,
-    "classifiable_rate": 0.36904761904761907,
-    "estimated_savings_cents": 52,
+    "high_confidence_errors": 7,
+    "medium_confidence_errors": 11,
+    "total_classifiable": 18,
+    "classifiable_rate": 0.25,
+    "estimated_savings_cents": 28,
     "fixes_available": 0,
     "fix_availability_rate": 0.0,
     "concrete_type_usages": 0,
