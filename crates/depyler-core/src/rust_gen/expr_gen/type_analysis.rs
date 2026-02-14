@@ -4,9 +4,6 @@
 //! is_int_expr, is_float_var, infer_iterable_element_type, borrow helpers.
 
 use crate::hir::*;
-use crate::rust_gen::context::CodeGenContext;
-use crate::rust_gen::return_type_expects_float;
-use anyhow::Result;
 use syn::parse_quote;
 
 use super::ExpressionConverter;

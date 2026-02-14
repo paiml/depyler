@@ -17,7 +17,6 @@ use crate::rust_gen::truthiness_helpers::{
     is_option_var_name, is_string_var_name,
 };
 use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
 impl<'a, 'b> ExpressionConverter<'a, 'b> {

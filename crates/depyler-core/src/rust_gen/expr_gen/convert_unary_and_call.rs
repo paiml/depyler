@@ -12,14 +12,10 @@ use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::array_initialization;
 use crate::rust_gen::builtin_conversions;
 use crate::rust_gen::collection_constructors;
-use crate::rust_gen::context::CodeGenContext;
-use crate::rust_gen::expr_analysis::{self, get_wrapped_chained_pyops};
-use crate::rust_gen::keywords;
+use crate::rust_gen::expr_analysis::get_wrapped_chained_pyops;
 use crate::rust_gen::stdlib_method_gen;
-use crate::string_optimization::{StringContext, StringOptimizer};
 use crate::trace_decision;
 use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
 use super::ExpressionConverter;

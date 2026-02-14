@@ -2,10 +2,8 @@
 //!
 //! Handles len, ord, chr, list, bytes, tuple, enumerate, zip, sorted, sum, etc.
 
-use crate::direct_rules::make_ident;
 use crate::hir::*;
 use anyhow::{bail, Result};
-use quote::quote;
 use syn::parse_quote;
 
 use super::ExprConverter;

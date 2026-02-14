@@ -6,14 +6,9 @@
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::ToRustExpr;
-use crate::rust_gen::builtin_conversions;
-use crate::rust_gen::context::CodeGenContext;
-use crate::rust_gen::keywords;
-use crate::rust_gen::numpy_gen;
 use crate::rust_gen::stdlib_method_gen;
-use crate::trace_decision;
 use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{self, parse_quote};
 
 use super::ExpressionConverter;
@@ -398,7 +393,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // DEPYLER-99MODE-S9: Also check module_constant_types - constants like PI
                         // are already concrete types, not DepylerValue
                         let is_known_concrete =
-                            self.ctx.module_constant_types.get(var_name).is_some();
+                            self.ctx.module_constant_types.contains_key(var_name);
                         let is_depyler_value = !is_known_concrete
                             && (matches!(var_type, Some(Type::Unknown) | None)
                                 || matches!(var_type, Some(Type::Custom(s)) if s == "DepylerValue"));

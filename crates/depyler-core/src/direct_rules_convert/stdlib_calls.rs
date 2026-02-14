@@ -4,9 +4,7 @@
 
 use crate::direct_rules::{make_ident, safe_class_name};
 use crate::hir::*;
-use crate::rust_gen::keywords::safe_ident;
 use anyhow::{bail, Result};
-use quote::quote;
 use syn::parse_quote;
 
 use super::ExprConverter;

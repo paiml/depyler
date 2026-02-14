@@ -3,8 +3,7 @@
 use crate::direct_rules::make_ident;
 use crate::hir::*;
 use crate::rust_gen::precedence;
-use anyhow::{bail, Result};
-use quote::quote;
+use anyhow::Result;
 use syn::parse_quote;
 
 use super::operators::*;
