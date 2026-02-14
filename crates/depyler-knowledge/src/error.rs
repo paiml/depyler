@@ -114,7 +114,8 @@ mod tests {
     #[test]
     fn test_result_type_alias_ok() {
         let result: Result<i32> = Ok(42);
-        assert_eq!(result.unwrap(), 42);
+        assert!(result.is_ok());
+        assert_eq!(*result.as_ref().unwrap(), 42);
     }
 
     #[test]
@@ -185,7 +186,7 @@ mod tests {
     #[test]
     fn test_s9b7_result_type_with_complex_value() {
         let result: Result<Vec<String>> = Ok(vec!["a".to_string(), "b".to_string()]);
-        assert_eq!(result.unwrap().len(), 2);
+        assert_eq!(result.as_ref().unwrap().len(), 2);
     }
 
     #[test]
