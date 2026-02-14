@@ -31,72 +31,108 @@ pub(super) fn extract_bool_typed_vars(code: &str) -> Vec<String> {
         let trimmed = line.trim();
         // Extract from function signatures: `fn foo(x: bool, values: &Vec<bool>)`
         if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
-            if let Some(start) = trimmed.find('(') {
-                if let Some(end) = trimmed.find(')') {
-                    let params = &trimmed[start + 1..end];
-                    for param in params.split(',') {
-                        let p = param.trim();
-                        if p.ends_with(": bool") {
-                            if let Some(name) = p.strip_suffix(": bool") {
-                                let name = name.trim();
-                                if !name.is_empty() {
-                                    vars.push(name.to_string());
-                                }
-                            }
-                        }
-                        // DEPYLER-99MODE-S9: Track Vec<bool> params for loop var inference
-                        if p.contains("Vec<bool>") || p.contains("Vec < bool >") {
-                            if let Some(colon_pos) = p.find(':') {
-                                let name = p[..colon_pos].trim();
-                                if !name.is_empty() {
-                                    vec_bool_params.push(name.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            extract_bool_vars_from_fn_sig(trimmed, &mut vars, &mut vec_bool_params);
             continue;
         }
         // DEPYLER-99MODE-S9: Extract from local variable declarations
         // Patterns: `let mut result: bool = ...` or `let result: bool = ...`
         if trimmed.starts_with("let ") {
-            let rest = trimmed.strip_prefix("let ").unwrap_or("");
-            let rest = rest.strip_prefix("mut ").unwrap_or(rest);
-            if let Some(colon_pos) = rest.find(": bool") {
-                let name = rest[..colon_pos].trim();
-                if !name.is_empty()
-                    && name
-                        .chars()
-                        .all(|c| c.is_alphanumeric() || c == '_')
-                {
-                    vars.push(name.to_string());
-                }
-            }
+            extract_bool_var_from_let(trimmed, &mut vars);
         }
         // DEPYLER-99MODE-S9: Extract loop variables over Vec<bool> params
         // Pattern: `for VAR in PARAM.iter()` where PARAM is Vec<bool>
         if trimmed.starts_with("for ") {
-            if let Some(in_pos) = trimmed.find(" in ") {
-                let loop_var = trimmed[4..in_pos].trim();
-                let iter_part = &trimmed[in_pos + 4..];
-                for param in &vec_bool_params {
-                    if iter_part.starts_with(&format!("{param}."))
-                        || iter_part.starts_with(&format!("{param} "))
-                    {
-                        if !loop_var.is_empty()
-                            && loop_var
-                                .chars()
-                                .all(|c| c.is_alphanumeric() || c == '_')
-                        {
-                            vars.push(loop_var.to_string());
-                        }
-                    }
-                }
-            }
+            extract_bool_var_from_for_loop(trimmed, &vec_bool_params, &mut vars);
         }
     }
     vars
+}
+
+/// Extract bool-typed variables and Vec<bool> params from a function signature line.
+fn extract_bool_vars_from_fn_sig(
+    trimmed: &str,
+    vars: &mut Vec<String>,
+    vec_bool_params: &mut Vec<String>,
+) {
+    let Some(start) = trimmed.find('(') else {
+        return;
+    };
+    let Some(end) = trimmed.find(')') else {
+        return;
+    };
+    let params = &trimmed[start + 1..end];
+    for param in params.split(',') {
+        let p = param.trim();
+        extract_bool_param(p, vars);
+        extract_vec_bool_param(p, vec_bool_params);
+    }
+}
+
+/// Extract a single bool-typed parameter name from a parameter string like `x: bool`.
+fn extract_bool_param(p: &str, vars: &mut Vec<String>) {
+    if !p.ends_with(": bool") {
+        return;
+    }
+    if let Some(name) = p.strip_suffix(": bool") {
+        let name = name.trim();
+        if !name.is_empty() {
+            vars.push(name.to_string());
+        }
+    }
+}
+
+/// Extract a Vec<bool> parameter name for loop variable inference.
+fn extract_vec_bool_param(p: &str, vec_bool_params: &mut Vec<String>) {
+    // DEPYLER-99MODE-S9: Track Vec<bool> params for loop var inference
+    if !p.contains("Vec<bool>") && !p.contains("Vec < bool >") {
+        return;
+    }
+    if let Some(colon_pos) = p.find(':') {
+        let name = p[..colon_pos].trim();
+        if !name.is_empty() {
+            vec_bool_params.push(name.to_string());
+        }
+    }
+}
+
+/// Extract a bool variable from a `let` declaration line.
+fn extract_bool_var_from_let(trimmed: &str, vars: &mut Vec<String>) {
+    let rest = trimmed.strip_prefix("let ").unwrap_or("");
+    let rest = rest.strip_prefix("mut ").unwrap_or(rest);
+    if let Some(colon_pos) = rest.find(": bool") {
+        let name = rest[..colon_pos].trim();
+        if !name.is_empty()
+            && name
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_')
+        {
+            vars.push(name.to_string());
+        }
+    }
+}
+
+/// Extract a loop variable from a `for` loop if the iterator is a Vec<bool> param.
+fn extract_bool_var_from_for_loop(
+    trimmed: &str,
+    vec_bool_params: &[String],
+    vars: &mut Vec<String>,
+) {
+    let Some(in_pos) = trimmed.find(" in ") else {
+        return;
+    };
+    let loop_var = trimmed[4..in_pos].trim();
+    let iter_part = &trimmed[in_pos + 4..];
+    for param in vec_bool_params {
+        let matches_param = iter_part.starts_with(&format!("{param}."))
+            || iter_part.starts_with(&format!("{param} "));
+        let is_valid_ident = !loop_var.is_empty()
+            && loop_var
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_');
+        if matches_param && is_valid_ident {
+            vars.push(loop_var.to_string());
+        }
+    }
 }
 
 /// Fix a single line's Python truthiness negation patterns.
@@ -191,27 +227,34 @@ pub(super) fn fix_negation_on_non_bool(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<String> = Vec::with_capacity(lines.len());
     for line in &lines {
-        let mut fixed = line.to_string();
-        for var in &sorted_vars {
-            let neg_pattern = format!("!{}", var);
-            // Check that the char AFTER the var name is not alphanumeric (word boundary)
-            if let Some(pos) = fixed.find(&neg_pattern) {
-                let after_pos = pos + neg_pattern.len();
-                let next_char = fixed[after_pos..].chars().next();
-                // DEPYLER-99MODE-S9: Don't replace `!var.method()` - that's boolean negation
-                // of the method result, NOT truthiness of the variable.
-                let is_word_boundary = next_char
-                    .map(|c| !c.is_alphanumeric() && c != '_' && c != '.')
-                    .unwrap_or(true);
-                if is_word_boundary {
-                    let empty_check = format!("{}.is_empty()", var);
-                    fixed = format!("{}{}{}", &fixed[..pos], empty_check, &fixed[after_pos..]);
-                }
-            }
-        }
+        let fixed = replace_negation_with_is_empty(line, &sorted_vars);
         result.push(fixed);
     }
     result.join("\n")
+}
+
+/// Replace `!var` with `var.is_empty()` for string-typed variables in a single line.
+fn replace_negation_with_is_empty(line: &str, sorted_vars: &[String]) -> String {
+    let mut fixed = line.to_string();
+    for var in sorted_vars {
+        let neg_pattern = format!("!{}", var);
+        // Check that the char AFTER the var name is not alphanumeric (word boundary)
+        let Some(pos) = fixed.find(&neg_pattern) else {
+            continue;
+        };
+        let after_pos = pos + neg_pattern.len();
+        let next_char = fixed[after_pos..].chars().next();
+        // DEPYLER-99MODE-S9: Don't replace `!var.method()` - that's boolean negation
+        // of the method result, NOT truthiness of the variable.
+        let is_word_boundary = next_char
+            .map(|c| !c.is_alphanumeric() && c != '_' && c != '.')
+            .unwrap_or(true);
+        if is_word_boundary {
+            let empty_check = format!("{}.is_empty()", var);
+            fixed = format!("{}{}{}", &fixed[..pos], empty_check, &fixed[after_pos..]);
+        }
+    }
+    fixed
 }
 
 pub(super) fn fix_field_access_truthiness(code: &str) -> String {
@@ -243,73 +286,106 @@ pub(super) fn find_and_replace_field_negation(line: &str) -> Option<String> {
     let mut i = 0;
     while i < len {
         if bytes[i] == b'!' {
-            // Check if preceded by a valid context (space, `(`, `=`, `{`, start of line)
-            let valid_prefix = i == 0
-                || matches!(
-                    bytes[i - 1],
-                    b' ' | b'(' | b'=' | b'{' | b'|' | b'&' | b'\t'
-                );
-            if !valid_prefix {
-                i += 1;
-                continue;
+            if let Some(replacement) = try_replace_field_negation_at(line, i) {
+                return Some(replacement);
             }
-            // Parse first identifier after `!`
-            let start = i + 1;
-            let mut j = start;
-            while j < len && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
-                j += 1;
-            }
-            if j == start || j >= len || bytes[j] != b'.' {
-                i += 1;
-                continue;
-            }
-            let ident1 = &line[start..j];
-            // Parse second identifier after `.`
-            j += 1;
-            let field_start = j;
-            while j < len && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
-                j += 1;
-            }
-            if j == field_start {
-                i += 1;
-                continue;
-            }
-            let field = &line[field_start..j];
-            // Check what follows: if `(` it's a method call - skip
-            if j < len && bytes[j] == b'(' {
-                i = j;
-                continue;
-            }
-            // Also skip if it's another `.` (chained access like `!self.field.method()`)
-            if j < len && bytes[j] == b'.' {
-                i = j;
-                continue;
-            }
-            // DEPYLER-99MODE-S9: Skip numeric tuple indices (e.g., `!bf_result.1`)
-            // Tuple field access like `.0`, `.1` returns the element type (often bool),
-            // not a collection. Applying `.is_empty()` to a bool is E0599.
-            if field.chars().all(|c| c.is_ascii_digit()) {
-                i = j;
-                continue;
-            }
-            // Skip known bool-returning or bool-typed fields
-            if is_likely_bool_field(field) {
-                i = j;
-                continue;
-            }
-            // Replace `!ident.field` with `ident.field.is_empty()`
-            let replacement = format!(
-                "{}{}.{}.is_empty(){}",
-                &line[..i],
-                ident1,
-                field,
-                &line[j..]
-            );
-            return Some(replacement);
         }
         i += 1;
     }
     None
+}
+
+/// Try to replace a `!ident.field` negation starting at position `bang_pos`.
+/// Returns `Some(replaced_line)` if a replacement was made, `None` otherwise.
+fn try_replace_field_negation_at(line: &str, bang_pos: usize) -> Option<String> {
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+
+    if !is_valid_negation_prefix(bytes, bang_pos) {
+        return None;
+    }
+
+    // Parse first identifier after `!`
+    let (_ident1, dot_pos) = parse_ident_before_dot(bytes, line, bang_pos + 1, len)?;
+
+    // Parse second identifier (field) after `.`
+    let field_start = dot_pos + 1;
+    let (field, field_end): (&str, usize) = parse_field_name(bytes, line, field_start, len)?;
+
+    // Check what follows: if `(` it's a method call - skip
+    if field_end < len && bytes[field_end] == b'(' {
+        return None;
+    }
+    // Also skip if it's another `.` (chained access like `!self.field.method()`)
+    if field_end < len && bytes[field_end] == b'.' {
+        return None;
+    }
+    // DEPYLER-99MODE-S9: Skip numeric tuple indices (e.g., `!bf_result.1`)
+    // Tuple field access like `.0`, `.1` returns the element type (often bool),
+    // not a collection. Applying `.is_empty()` to a bool is E0599.
+    if field.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    // Skip known bool-returning or bool-typed fields
+    if is_likely_bool_field(field) {
+        return None;
+    }
+
+    // Replace `!ident.field` with `ident.field.is_empty()`
+    let ident1 = &line[bang_pos + 1..dot_pos];
+    let replacement = format!(
+        "{}{}.{}.is_empty(){}",
+        &line[..bang_pos],
+        ident1,
+        field,
+        &line[field_end..]
+    );
+    Some(replacement)
+}
+
+/// Check if the byte before `bang_pos` is a valid prefix for negation.
+fn is_valid_negation_prefix(bytes: &[u8], bang_pos: usize) -> bool {
+    bang_pos == 0
+        || matches!(
+            bytes[bang_pos - 1],
+            b' ' | b'(' | b'=' | b'{' | b'|' | b'&' | b'\t'
+        )
+}
+
+/// Parse an identifier starting at `start`, returning `(ident_str, dot_position)`.
+/// Returns `None` if no valid identifier followed by `.` is found.
+fn parse_ident_before_dot<'a>(
+    bytes: &[u8],
+    line: &'a str,
+    start: usize,
+    len: usize,
+) -> Option<(&'a str, usize)> {
+    let mut j = start;
+    while j < len && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+        j += 1;
+    }
+    if j == start || j >= len || bytes[j] != b'.' {
+        return None;
+    }
+    Some((&line[start..j], j))
+}
+
+/// Parse a field name starting at `start`, returning `(field_str, end_position)`.
+/// Returns `None` if no valid field name is found.
+fn parse_field_name<'a>(
+    bytes: &[u8],
+    line: &'a str,
+    start: usize,
+    len: usize,
+) -> Option<(&'a str, usize)> {
+    let mut j = start;
+    while j < len && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+        j += 1;
+    }
+    if j == start {
+        return None;
+    }
+    Some((&line[start..j], j))
 }
 
 /// DEPYLER-CONVERGE-MULTI-ITER9: Generalize DepylerValue insert wrapping.
@@ -317,34 +393,40 @@ pub(super) fn find_and_replace_field_negation(line: &str) -> Option<String> {
 /// Extends beyond just `map.insert()` to handle `kwargs.insert()`,
 /// `config.insert()`, `params.insert()`, and other common variable names.
 pub(super) fn is_likely_bool_field(field: &str) -> bool {
-    field.starts_with("is_")
-        || field.starts_with("has_")
-        || field.starts_with("should_")
-        || field.starts_with("can_")
-        || field.starts_with("enable")
-        || field.starts_with("disable")
-        || field.starts_with("use_")
-        || field.starts_with("load_in_")
-        || field.starts_with("allow_")
-        || field.starts_with("do_")
-        || field.starts_with("with_")
-        || field.starts_with("no_")
-        || field.starts_with("skip_")
-        || field.starts_with("force_")
-        || field.starts_with("apply_")
-        || field.starts_with("generate_")
-        || field.starts_with("include_")
-        || field.starts_with("exclude_")
-        || field.ends_with("_enabled")
-        || field.ends_with("_flag")
-        || field.ends_with("_only")
-        || field == "verbose"
-        || field == "debug"
-        || field == "quiet"
-        || field == "overwrite"
-        || field == "resume"
-        || field == "fp16"
-        || field == "bf16"
+    const BOOL_PREFIXES: &[&str] = &[
+        "is_",
+        "has_",
+        "should_",
+        "can_",
+        "enable",
+        "disable",
+        "use_",
+        "load_in_",
+        "allow_",
+        "do_",
+        "with_",
+        "no_",
+        "skip_",
+        "force_",
+        "apply_",
+        "generate_",
+        "include_",
+        "exclude_",
+    ];
+    const BOOL_SUFFIXES: &[&str] = &["_enabled", "_flag", "_only"];
+    const BOOL_EXACT: &[&str] = &[
+        "verbose",
+        "debug",
+        "quiet",
+        "overwrite",
+        "resume",
+        "fp16",
+        "bf16",
+    ];
+
+    BOOL_PREFIXES.iter().any(|p| field.starts_with(p))
+        || BOOL_SUFFIXES.iter().any(|s| field.ends_with(s))
+        || BOOL_EXACT.iter().any(|e| field == *e)
 }
 
 pub(super) fn fix_not_string_truthiness(code: &str) -> String {
@@ -419,34 +501,8 @@ pub(super) fn fix_not_to_string(code: &str) -> String {
 pub(super) fn fix_bitwise_and_truthiness(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("if ")
-            && trimmed.contains(" & ")
-            && trimmed.ends_with('{')
-            && !trimmed.contains("!=")
-            && !trimmed.contains("==")
-            && !trimmed.contains("&&")
-            && !trimmed.contains("||")
-            // DEPYLER-99MODE-S9: Skip lines with borrow patterns (& var)
-            // to avoid confusing Rust borrow `& var` with bitwise AND `x & mask`
-            && !trimmed.contains("(& ")
-            && !trimmed.contains(", & ")
-        {
-            // Extract: "if EXPR {"
-            if let Some(rest) = trimmed.strip_prefix("if ") {
-                if let Some(expr) = rest.strip_suffix('{') {
-                    let expr = expr.trim();
-                    // Only fix if expr contains &  and looks like bitwise
-                    if expr.contains(" & ") {
-                        let indent = line.len() - line.trim_start().len();
-                        let pad: String = " ".repeat(indent);
-                        result.push_str(&format!("{}if ({}) != 0 {{\n", pad, expr));
-                        continue;
-                    }
-                }
-            }
-        }
-        result.push_str(line);
+        let fixed = fix_bitwise_and_line(line);
+        result.push_str(&fixed);
         result.push('\n');
     }
     if code.ends_with('\n') {
@@ -455,4 +511,43 @@ pub(super) fn fix_bitwise_and_truthiness(code: &str) -> String {
         result.truncate(result.len().saturating_sub(1));
         result
     }
+}
+
+/// Process a single line for bitwise AND truthiness conversion.
+/// Converts `if EXPR & MASK {` to `if (EXPR & MASK) != 0 {` when appropriate.
+fn fix_bitwise_and_line(line: &str) -> String {
+    let trimmed = line.trim();
+    if !is_bitwise_and_candidate(trimmed) {
+        return line.to_string();
+    }
+    // Extract: "if EXPR {"
+    let Some(rest) = trimmed.strip_prefix("if ") else {
+        return line.to_string();
+    };
+    let Some(expr) = rest.strip_suffix('{') else {
+        return line.to_string();
+    };
+    let expr = expr.trim();
+    // Only fix if expr contains & and looks like bitwise
+    if !expr.contains(" & ") {
+        return line.to_string();
+    }
+    let indent = line.len() - line.trim_start().len();
+    let pad: String = " ".repeat(indent);
+    format!("{}if ({}) != 0 {{", pad, expr)
+}
+
+/// Check if a trimmed line is a candidate for bitwise AND truthiness fix.
+fn is_bitwise_and_candidate(trimmed: &str) -> bool {
+    trimmed.starts_with("if ")
+        && trimmed.contains(" & ")
+        && trimmed.ends_with('{')
+        && !trimmed.contains("!=")
+        && !trimmed.contains("==")
+        && !trimmed.contains("&&")
+        && !trimmed.contains("||")
+        // DEPYLER-99MODE-S9: Skip lines with borrow patterns (& var)
+        // to avoid confusing Rust borrow `& var` with bitwise AND `x & mask`
+        && !trimmed.contains("(& ")
+        && !trimmed.contains(", & ")
 }

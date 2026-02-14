@@ -630,8 +630,8 @@ fn find_stub_names(code: &str) -> Vec<String> {
         if !line.contains("DEPYLER-0615") {
             continue;
         }
-        for j in (i + 1)..lines.len().min(i + 5) {
-            if let Some(fname) = extract_fn_name(lines[j]) {
+        for next_line in lines.iter().take(lines.len().min(i + 5)).skip(i + 1) {
+            if let Some(fname) = extract_fn_name(next_line) {
                 stub_names.push(fname);
                 break;
             }
@@ -840,54 +840,82 @@ fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
     let mut instance_vars: Vec<String> = Vec::new();
 
     for line in code.lines() {
-        // Scan for Name::MEMBER patterns
-        let mut search = line;
-        while let Some(pos) = search.find(&prefix) {
-            let after = &search[pos + prefix.len()..];
-            let member: String = after
-                .chars()
-                .take_while(|c| c.is_alphanumeric() || *c == '_')
-                .collect();
-            if !member.is_empty() && !members.contains(&member) {
-                members.push(member.clone());
-            }
-            let after_member = &after[member.len()..];
-            if let Some(rest) = after_member.strip_prefix('.') {
-                let method: String = rest
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
-                if !method.is_empty() && !instance_methods.contains(&method) {
-                    instance_methods.push(method);
-                }
-            }
-            search = &search[pos + prefix.len()..];
-        }
+        scan_static_members(line, &prefix, &mut members, &mut instance_methods);
+        scan_constructor_vars(line, name, &ctor_macro, &mut instance_vars);
+    }
 
-        // Scan for variables assigned from Name::new() or Name_new!() constructor
-        let trimmed = line.trim();
-        let ctor_call = format!("{}::new(", name);
-        if let Some(rest) = trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
-            if rest.contains(&ctor_macro) || rest.contains(&ctor_call) {
-                let var_name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-                if !var_name.is_empty() && !instance_vars.contains(&var_name) {
-                    instance_vars.push(var_name);
-                }
+    scan_instance_var_methods(code, &instance_vars, &mut instance_methods);
+
+    (members, instance_methods)
+}
+
+/// Extract an identifier (alphanumeric + underscore) from the start of `text`.
+fn extract_identifier(text: &str) -> String {
+    text.chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect()
+}
+
+/// Scan a single line for `Name::MEMBER` patterns and chained `.method` accesses.
+fn scan_static_members(
+    line: &str,
+    prefix: &str,
+    members: &mut Vec<String>,
+    instance_methods: &mut Vec<String>,
+) {
+    let mut search = line;
+    while let Some(pos) = search.find(prefix) {
+        let after = &search[pos + prefix.len()..];
+        let member = extract_identifier(after);
+        if !member.is_empty() && !members.contains(&member) {
+            members.push(member.clone());
+        }
+        let after_member = &after[member.len()..];
+        if let Some(rest) = after_member.strip_prefix('.') {
+            let method = extract_identifier(rest);
+            if !method.is_empty() && !instance_methods.contains(&method) {
+                instance_methods.push(method);
+            }
+        }
+        search = &search[pos + prefix.len()..];
+    }
+}
+
+/// Scan a line for variables assigned from `Name::new()` or `Name_new!()` constructors.
+fn scan_constructor_vars(
+    line: &str,
+    name: &str,
+    ctor_macro: &str,
+    instance_vars: &mut Vec<String>,
+) {
+    let trimmed = line.trim();
+    let ctor_call = format!("{}::new(", name);
+    let rest = trimmed
+        .strip_prefix("let mut ")
+        .or_else(|| trimmed.strip_prefix("let "));
+    if let Some(rest) = rest {
+        if rest.contains(ctor_macro) || rest.contains(&ctor_call) {
+            let var_name = extract_identifier(rest);
+            if !var_name.is_empty() && !instance_vars.contains(&var_name) {
+                instance_vars.push(var_name);
             }
         }
     }
+}
 
-    // Scan for field/method access on instance variables: var.field or var.method(
+/// Scan all lines for field/method access on instance variables (`var.field` or `var.method(`).
+fn scan_instance_var_methods(
+    code: &str,
+    instance_vars: &[String],
+    instance_methods: &mut Vec<String>,
+) {
     for line in code.lines() {
-        for var in &instance_vars {
+        for var in instance_vars {
             let dot_prefix = format!("{}.", var);
             let mut search = line;
             while let Some(pos) = search.find(&dot_prefix) {
                 let after = &search[pos + dot_prefix.len()..];
-                let member: String = after
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
+                let member = extract_identifier(after);
                 if !member.is_empty() && !instance_methods.contains(&member) {
                     instance_methods.push(member);
                 }
@@ -895,8 +923,6 @@ fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
             }
         }
     }
-
-    (members, instance_methods)
 }
 
 /// Build impl items for the stub struct (associated constants, methods, instance methods).
@@ -909,71 +935,155 @@ fn build_struct_impl_items(
     let mut items = Vec::new();
 
     for member in members {
-        // Skip `new` — handled via constructor macro
         if member == "new" {
             continue;
         }
-        let call_pattern = format!("{}::{}(", name, member);
-        let is_method = code.contains(&call_pattern);
-        if !is_method {
-            items.push(format!(
-                "pub const {}: {} = {} {{ value: DepylerValue::None }};",
-                member, name, name
-            ));
-            continue;
-        }
-        // Check if called with 0 args: Name::method() vs Name::method(arg)
-        let no_arg_pattern = format!("{}::{}()", name, member);
-        let has_no_args = code.contains(&no_arg_pattern);
-        // Check if result is cast to numeric (e.g., `Color::len() as i32`)
-        let cast_pattern = format!("{}::{}() as ", name, member);
-        let is_cast_to_numeric = code.contains(&cast_pattern);
-        if has_no_args {
-            let ret_type = if is_cast_to_numeric { "usize" } else { "DepylerValue" };
-            let ret_val = if is_cast_to_numeric { "0" } else { "DepylerValue::default()" };
-            items.push(format!("pub fn {}() -> {} {{ {} }}", member, ret_type, ret_val));
-        } else {
-            // Use a variadic approach: define as single-arg, but also check multi-arg
-            // If called with multiple args, we'll generate a macro_rules! instead
-            items.push(format!(
-                "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
-                member
-            ));
+        if let Some(item) = build_associated_member_item(name, code, member) {
+            items.push(item);
         }
     }
 
-    // Generate instance methods and fields
     for method in instance_methods {
-        if method == "value" {
-            continue; // Already a field on the struct
-        }
-        // Check if it's used as a method call (has `(` after) or a field access
-        let method_call = format!(".{}(", method);
-        let is_method_call = code.contains(&method_call);
-        let field_assign = format!(".{} =", method);
-        let is_field_assign = code.contains(&field_assign);
-
-        if is_field_assign || !is_method_call {
-            // It's a field — add to struct definition (handled separately)
-            continue;
-        }
-        // Check if method is always called with 0 args: .method() with no content
-        let zero_arg_call = format!(".{}()", method);
-        let has_zero_args = code.contains(&zero_arg_call);
-        if has_zero_args {
-            items.push(format!(
-                "pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}",
-                method
-            ));
-        } else {
-            items.push(format!(
-                "pub fn {}(&self, _args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
-                method
-            ));
+        if let Some(item) = build_instance_method_item(code, method) {
+            items.push(item);
         }
     }
 
     items
+}
+
+/// Build a single associated constant or static method for a member.
+///
+/// Returns `None` for `new` (handled via constructor macro).
+fn build_associated_member_item(name: &str, code: &str, member: &str) -> Option<String> {
+    let call_pattern = format!("{}::{}(", name, member);
+    let is_method = code.contains(&call_pattern);
+    if !is_method {
+        return Some(format!(
+            "pub const {}: {} = {} {{ value: DepylerValue::None }};",
+            member, name, name
+        ));
+    }
+    let no_arg_pattern = format!("{}::{}()", name, member);
+    let has_no_args = code.contains(&no_arg_pattern);
+    if !has_no_args {
+        return Some(format!(
+            "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
+            member
+        ));
+    }
+    let cast_pattern = format!("{}::{}() as ", name, member);
+    let is_cast_to_numeric = code.contains(&cast_pattern);
+    let ret_type = if is_cast_to_numeric { "usize" } else { "DepylerValue" };
+    let ret_val = if is_cast_to_numeric { "0" } else { "DepylerValue::default()" };
+    Some(format!("pub fn {}() -> {} {{ {} }}", member, ret_type, ret_val))
+}
+
+/// Build a single instance method item for a method name.
+///
+/// Returns `None` if the method is `value` (already a field) or is a field access.
+fn build_instance_method_item(code: &str, method: &str) -> Option<String> {
+    if method == "value" {
+        return None;
+    }
+    let method_call = format!(".{}(", method);
+    let is_method_call = code.contains(&method_call);
+    let field_assign = format!(".{} =", method);
+    let is_field_assign = code.contains(&field_assign);
+
+    if is_field_assign || !is_method_call {
+        return None;
+    }
+    let zero_arg_call = format!(".{}()", method);
+    let has_zero_args = code.contains(&zero_arg_call);
+    if has_zero_args {
+        Some(format!(
+            "pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}",
+            method
+        ))
+    } else {
+        Some(format!(
+            "pub fn {}(&self, _args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
+            method
+        ))
+    }
+}
+
+/// Find the index of the line containing the matching closing brace.
+///
+/// Starts scanning from `start` with initial `depth`, tracking `{` and `}` characters.
+/// Returns the index of the line where depth reaches zero.
+fn find_closing_brace(lines: &[&str], start: usize, initial_depth: usize) -> Option<usize> {
+    let mut depth = initial_depth;
+    for (j, line) in lines.iter().enumerate().skip(start) {
+        for ch in line.trim().chars() {
+            match ch {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+        }
+        if depth == 0 {
+            return Some(j);
+        }
+    }
+    None
+}
+
+/// Try to wrap a bare integer value inside a `.insert(...)` line with `DepylerValue::Int`.
+///
+/// Returns `Some(new_line)` if the line was an insert with a bare integer, `None` otherwise.
+fn try_wrap_insert_integer(original_line: &str) -> Option<String> {
+    let inner = original_line.trim();
+    if !inner.contains(".insert(") || !inner.ends_with(");") {
+        return None;
+    }
+    let cp = inner.rfind(", ")?;
+    let val = &inner[cp + 2..inner.len() - 2];
+    if val.parse::<i64>().is_ok() && !val.contains("DepylerValue") {
+        Some(original_line.replace(
+            &format!(", {});", val),
+            &format!(", DepylerValue::Int({}));", val),
+        ))
+    } else {
+        None
+    }
+}
+
+/// Process a single inner line of a nested HashMap block.
+///
+/// Wraps bare integer inserts with `DepylerValue::Int` and wraps the final
+/// bare `map` return with `DepylerValue::Dict(...)`.
+fn process_inner_hashmap_line(original_line: &str, line_idx: usize, close_idx: usize) -> String {
+    if let Some(wrapped) = try_wrap_insert_integer(original_line) {
+        return wrapped;
+    }
+
+    let inner = original_line.trim();
+    if inner == "map" && line_idx + 1 == close_idx {
+        let indent = original_line.len() - original_line.trim_start().len();
+        return format!(
+            "{}DepylerValue::Dict(map.into_iter().map(|(k, v)| (DepylerValue::Str(k), v)).collect())",
+            " ".repeat(indent)
+        );
+    }
+
+    original_line.to_string()
+}
+
+/// Detect a nested HashMap insert pattern starting at line `i`.
+///
+/// Looks for `.insert("key", {` followed by `HashMap::new()` and returns the
+/// index of the closing brace if found.
+fn detect_nested_hashmap_insert(lines: &[&str], i: usize) -> Option<usize> {
+    let trimmed = lines[i].trim();
+    if !trimmed.contains(".insert(") || !trimmed.ends_with('{') || i + 1 >= lines.len() {
+        return None;
+    }
+    if !lines[i + 1].trim().contains("HashMap::new()") {
+        return None;
+    }
+    find_closing_brace(lines, i + 2, 1)
 }
 
 /// Wrap nested HashMap block expressions as DepylerValue::Dict.
@@ -990,66 +1100,14 @@ fn fix_nested_hashmap_to_depyler_value(code: &str) -> String {
     let mut i = 0;
 
     while i < lines.len() {
-        let trimmed = lines[i].trim();
-
-        // Detect pattern: `map.insert("key", {`
-        // followed by `let mut map = HashMap::new();`
-        // ... inserts ...
-        // `map` (return)
-        // `});`
-        if trimmed.contains(".insert(") && trimmed.ends_with('{') && i + 1 < lines.len() {
-            let next = lines[i + 1].trim();
-            if next.contains("HashMap::new()") {
-                // Find the closing `});` and wrap: inject DepylerValue::Dict around the inner map
-                let mut depth = 1;
-                let mut close = None;
-                for j in (i + 2)..lines.len() {
-                    let t = lines[j].trim();
-                    for ch in t.chars() {
-                        match ch {
-                            '{' => depth += 1,
-                            '}' => depth -= 1,
-                            _ => {}
-                        }
-                    }
-                    if depth == 0 {
-                        close = Some(j);
-                        break;
-                    }
-                }
-                if let Some(close_idx) = close {
-                    // The line before `});` should be `map` — wrap it
-                    // Also wrap integer inserts inside the block
-                    result.push(lines[i].to_string());
-                    for j in (i + 1)..close_idx {
-                        let inner = lines[j].trim();
-                        // Wrap bare integer values in inserts
-                        if inner.contains(".insert(") && inner.ends_with(");") {
-                            if let Some(cp) = inner.rfind(", ") {
-                                let val = &inner[cp + 2..inner.len() - 2];
-                                if val.parse::<i64>().is_ok() && !val.contains("DepylerValue") {
-                                    let new_line = lines[j].replace(
-                                        &format!(", {});", val),
-                                        &format!(", DepylerValue::Int({}));", val),
-                                    );
-                                    result.push(new_line);
-                                    continue;
-                                }
-                            }
-                        }
-                        // The return statement (bare `map`) — wrap in DepylerValue::Dict
-                        if inner == "map" && j + 1 == close_idx {
-                            let indent = lines[j].len() - lines[j].trim_start().len();
-                            result.push(format!("{}DepylerValue::Dict(map.into_iter().map(|(k, v)| (DepylerValue::Str(k), v)).collect())", " ".repeat(indent)));
-                            continue;
-                        }
-                        result.push(lines[j].to_string());
-                    }
-                    result.push(lines[close_idx].to_string());
-                    i = close_idx + 1;
-                    continue;
-                }
+        if let Some(close_idx) = detect_nested_hashmap_insert(&lines, i) {
+            result.push(lines[i].to_string());
+            for (j, line) in lines.iter().enumerate().take(close_idx).skip(i + 1) {
+                result.push(process_inner_hashmap_line(line, j, close_idx));
             }
+            result.push(lines[close_idx].to_string());
+            i = close_idx + 1;
+            continue;
         }
 
         result.push(lines[i].to_string());
@@ -1057,6 +1115,80 @@ fn fix_nested_hashmap_to_depyler_value(code: &str) -> String {
     }
 
     result.join("\n")
+}
+
+/// Extract the receiver identifier immediately before a dot position in a string.
+///
+/// Scans backwards from `dot_pos` collecting alphanumeric/underscore characters.
+fn extract_receiver(text: &str, dot_pos: usize) -> String {
+    text[..dot_pos]
+        .chars()
+        .rev()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect()
+}
+
+/// Extract the method name and argument from a `receiver.method(arg)` pattern.
+///
+/// Given text after the dot, returns `(method, arg, rest_after_arg)`
+/// if the pattern is a valid identifier method call with an identifier argument.
+fn extract_method_and_arg(after_dot: &str) -> Option<(&str, String, &str)> {
+    let paren = after_dot.find('(')?;
+    let method = &after_dot[..paren];
+    if method.is_empty() || !method.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return None;
+    }
+    let args_rest = &after_dot[paren + 1..];
+    let arg: String = args_rest
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if arg.is_empty() {
+        return None;
+    }
+    let after_arg = &args_rest[arg.len()..];
+    Some((method, arg, after_arg))
+}
+
+/// Apply `.clone()` to a method call argument if ownership cloning is needed.
+///
+/// Handles two cases:
+/// - Same variable as receiver and argument: `a.method(a)` -> `a.method(a.clone())`
+/// - Argument reused later on the line: `a.f(b) == b.f(a)` -> `a.f(b.clone()) == b.f(a)`
+fn apply_clone_to_method_call(line: &str, trimmed: &str) -> String {
+    let dot_pos = match trimmed.find('.') {
+        Some(p) => p,
+        None => return line.to_string(),
+    };
+
+    let receiver = extract_receiver(trimmed, dot_pos);
+    if receiver.is_empty() {
+        return line.to_string();
+    }
+
+    let after_dot = &trimmed[dot_pos + 1..];
+    let (method, arg, after_arg) = match extract_method_and_arg(after_dot) {
+        Some(parts) => parts,
+        None => return line.to_string(),
+    };
+
+    // Case 1: same variable as receiver and arg
+    if arg == receiver && after_arg.starts_with(')') {
+        let old = format!("{}.{}({})", receiver, method, arg);
+        let new = format!("{}.{}({}.clone())", receiver, method, arg);
+        return line.replace(&old, &new);
+    }
+    // Case 2: arg is used again on the same line (e.g., a.f(b) == b.f(a))
+    if after_arg.contains(&format!("{}.{}", arg, method)) {
+        let old = format!(".{}({})", method, arg);
+        let new = format!(".{}({}.clone())", method, arg);
+        return line.replacen(&old, &new, 1);
+    }
+
+    line.to_string()
 }
 
 /// Add `.clone()` to arguments of stub struct instance methods to fix ownership.
@@ -1071,60 +1203,94 @@ fn fix_stub_method_ownership(code: &str) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut result: Vec<String> = Vec::with_capacity(lines.len());
 
-    for (_i, line) in lines.iter().enumerate() {
+    for line in &lines {
         let trimmed = line.trim();
-        let mut new_line = line.to_string();
-
-        // Only apply in assert contexts to avoid false positives
-        if !trimmed.starts_with("assert") {
-            result.push(new_line);
-            continue;
+        if trimmed.starts_with("assert") {
+            result.push(apply_clone_to_method_call(line, trimmed));
+        } else {
+            result.push(line.to_string());
         }
-
-        // Find `.METHOD(IDENT)` patterns
-        if let Some(dot_pos) = trimmed.find('.') {
-            let before_dot = &trimmed[..dot_pos];
-            let receiver: String = before_dot.chars().rev()
-                .take_while(|c| c.is_alphanumeric() || *c == '_')
-                .collect::<String>().chars().rev().collect();
-
-            if !receiver.is_empty() {
-                let after_dot = &trimmed[dot_pos + 1..];
-                if let Some(paren) = after_dot.find('(') {
-                    let method = &after_dot[..paren];
-                    if method.chars().all(|c| c.is_alphanumeric() || c == '_') && !method.is_empty() {
-                        let args_start = dot_pos + 1 + paren + 1;
-                        if args_start < trimmed.len() {
-                            let rest = &trimmed[args_start..];
-                            let arg: String = rest.chars()
-                                .take_while(|c| c.is_alphanumeric() || *c == '_')
-                                .collect();
-
-                            if !arg.is_empty() {
-                                let after_arg = &rest[arg.len()..];
-                                // Case 1: same variable as receiver and arg
-                                if arg == receiver && after_arg.starts_with(')') {
-                                    let old = format!("{}.{}({})", receiver, method, arg);
-                                    let new = format!("{}.{}({}.clone())", receiver, method, arg);
-                                    new_line = new_line.replace(&old, &new);
-                                }
-                                // Case 2: arg is used again on the same line (e.g., a.f(b) == b.f(a))
-                                else if after_arg.contains(&format!("{}.{}", arg, method)) {
-                                    let old = format!(".{}({})", method, arg);
-                                    let new = format!(".{}({}.clone())", method, arg);
-                                    new_line = new_line.replacen(&old, &new, 1);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        result.push(new_line);
     }
 
     result.join("\n")
+}
+
+/// Find the matching closing brace at the same indentation level.
+///
+/// Like `find_closing_brace` but also requires the closing line to have the
+/// same indentation as `expected_indent`.
+fn find_closing_brace_at_indent(
+    lines: &[&str],
+    start: usize,
+    expected_indent: usize,
+) -> Option<usize> {
+    let mut depth: usize = 1;
+    for (j, line) in lines.iter().enumerate().skip(start) {
+        for ch in line.trim().chars() {
+            match ch {
+                '{' => depth += 1,
+                '}' => depth -= 1,
+                _ => {}
+            }
+        }
+        if depth == 0 {
+            let j_indent = line.len() - line.trim_start().len();
+            return if j_indent == expected_indent {
+                Some(j)
+            } else {
+                None
+            };
+        }
+    }
+    None
+}
+
+/// Extract the variable name from a `let [mut] VAR = EXPR;` line.
+fn extract_let_var_name(let_trimmed: &str) -> String {
+    let var_rest = let_trimmed
+        .strip_prefix("let mut ")
+        .or_else(|| let_trimmed.strip_prefix("let "))
+        .unwrap_or("");
+    var_rest
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect()
+}
+
+/// Check if `var_name` appears in any line after index `close` in the given lines.
+fn is_var_used_after(lines: &[&str], close: usize, var_name: &str) -> bool {
+    (close + 1..lines.len()).any(|k| lines[k].trim().contains(var_name))
+}
+
+/// Try to hoist a let-binding out of a with-block at line `i`.
+///
+/// If the pattern matches and hoisting is needed, pushes the hoisted let and
+/// opening brace to `result`, and returns `Some(next_i)` to skip past them.
+/// Returns `None` if no hoisting applies.
+fn try_hoist_with_block(lines: &[&str], i: usize, result: &mut Vec<String>) -> Option<usize> {
+    let trimmed = lines[i].trim();
+    if trimmed != "{" || i + 1 >= lines.len() {
+        return None;
+    }
+
+    let next_trimmed = lines[i + 1].trim();
+    if !next_trimmed.starts_with("let mut ") && !next_trimmed.starts_with("let ") {
+        return None;
+    }
+
+    let indent = lines[i].len() - lines[i].trim_start().len();
+    let close = find_closing_brace_at_indent(lines, i + 2, indent)?;
+
+    let var_name = extract_let_var_name(next_trimmed);
+    if var_name.is_empty() || !is_var_used_after(lines, close, &var_name) {
+        return None;
+    }
+
+    // Hoist: emit `let mut VAR = EXPR;` before `{`
+    let let_indent = " ".repeat(indent + 4);
+    result.push(format!("{}{}", let_indent, next_trimmed));
+    result.push(lines[i].to_string()); // the `{`
+    Some(i + 2)
 }
 
 /// Hoist variable declarations out of with-statement blocks.
@@ -1138,56 +1304,9 @@ fn fix_with_block_scope(code: &str) -> String {
     let mut i = 0;
 
     while i < lines.len() {
-        let trimmed = lines[i].trim();
-        // Look for `{` on its own line, followed by `let mut VAR = EXPR;`
-        if trimmed == "{" && i + 1 < lines.len() {
-            let next_trimmed = lines[i + 1].trim();
-            if next_trimmed.starts_with("let mut ") || next_trimmed.starts_with("let ") {
-                // Check if there's a variable used after the closing `}` of this block
-                // Find the matching closing brace
-                let indent = lines[i].len() - lines[i].trim_start().len();
-                let mut brace_depth = 1;
-                let mut close_idx = None;
-                for j in (i + 2)..lines.len() {
-                    let t = lines[j].trim();
-                    for ch in t.chars() {
-                        match ch {
-                            '{' => brace_depth += 1,
-                            '}' => brace_depth -= 1,
-                            _ => {}
-                        }
-                    }
-                    if brace_depth == 0 {
-                        let j_indent = lines[j].len() - lines[j].trim_start().len();
-                        if j_indent == indent {
-                            close_idx = Some(j);
-                        }
-                        break;
-                    }
-                }
-                if let Some(close) = close_idx {
-                    // Extract variable name
-                    let let_line = next_trimmed;
-                    let var_rest = let_line.strip_prefix("let mut ").or(let_line.strip_prefix("let ")).unwrap();
-                    let var_name: String = var_rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-
-                    // Check if variable is used anywhere after the closing brace
-                    let used_after = (close + 1..lines.len()).any(|k| {
-                        let after_line = lines[k].trim();
-                        after_line.contains(&var_name)
-                    });
-
-                    if used_after && !var_name.is_empty() {
-                        // Hoist: emit `let mut VAR = EXPR;` before `{`
-                        let let_indent = " ".repeat(indent + 4);
-                        result.push(format!("{}{}", let_indent, next_trimmed));
-                        result.push(lines[i].to_string()); // the `{`
-                        // Skip the let line (already hoisted)
-                        i += 2;
-                        continue;
-                    }
-                }
-            }
+        if let Some(skip_to) = try_hoist_with_block(&lines, i, &mut result) {
+            i = skip_to;
+            continue;
         }
         result.push(lines[i].to_string());
         i += 1;
@@ -1202,39 +1321,46 @@ fn fix_with_block_scope(code: &str) -> String {
 fn fix_struct_field_literal_assignment(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
-        let trimmed = line.trim();
-        // Match pattern: IDENT.FIELD = LITERAL;
-        if let Some(eq_pos) = trimmed.find(" = ") {
-            let lhs = &trimmed[..eq_pos];
-            let rhs = trimmed[eq_pos + 3..].trim_end_matches(';').trim();
-            // Only fix if LHS is a field access (contains `.` but not `::`)
-            if lhs.contains('.') && !lhs.contains("::") {
-                // Check if RHS is a float literal (e.g., 5.0, -3.14)
-                if rhs.parse::<f64>().is_ok() && rhs.contains('.') {
-                    let new_line = line.replace(
-                        &format!("= {};", rhs),
-                        &format!("= DepylerValue::Float({});", rhs),
-                    );
-                    result.push_str(&new_line);
-                    result.push('\n');
-                    continue;
-                }
-                // Check if RHS is an integer literal
-                if rhs.parse::<i64>().is_ok() {
-                    let new_line = line.replace(
-                        &format!("= {};", rhs),
-                        &format!("= DepylerValue::Int({});", rhs),
-                    );
-                    result.push_str(&new_line);
-                    result.push('\n');
-                    continue;
-                }
-            }
+        if let Some(new_line) = try_wrap_field_literal(line) {
+            result.push_str(&new_line);
+        } else {
+            result.push_str(line);
         }
-        result.push_str(line);
         result.push('\n');
     }
     result
+}
+
+/// Try to wrap a raw literal in a field assignment with the appropriate DepylerValue variant.
+///
+/// Returns `Some(new_line)` if the line matches `ident.field = LITERAL;` and was wrapped,
+/// `None` if the line does not match or no wrapping is needed.
+fn try_wrap_field_literal(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    let eq_pos = trimmed.find(" = ")?;
+    let lhs = &trimmed[..eq_pos];
+    let rhs = trimmed[eq_pos + 3..].trim_end_matches(';').trim();
+
+    if !lhs.contains('.') || lhs.contains("::") {
+        return None;
+    }
+
+    // Float literal (e.g., 5.0, -3.14)
+    if rhs.parse::<f64>().is_ok() && rhs.contains('.') {
+        return Some(line.replace(
+            &format!("= {};", rhs),
+            &format!("= DepylerValue::Float({});", rhs),
+        ));
+    }
+    // Integer literal
+    if rhs.parse::<i64>().is_ok() {
+        return Some(line.replace(
+            &format!("= {};", rhs),
+            &format!("= DepylerValue::Int({});", rhs),
+        ));
+    }
+
+    None
 }
 
 /// Fix `(expr as f64)` and `(expr as i32)` patterns involving DepylerValue.

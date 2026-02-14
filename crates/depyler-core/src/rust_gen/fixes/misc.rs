@@ -604,17 +604,19 @@ pub(super) fn fix_closure_to_dyn_fn_ref(code: &str) -> String {
         if trimmed.contains("&dyn Fn") {
             if let Some(let_idx) = trimmed.find("let ") {
                 let after_let = &trimmed[let_idx + 4..];
-                if let Some(eq_or_colon) = after_let.find(|c: char| c == '=' || c == ':') {
+                if let Some(eq_or_colon) = after_let.find(['=', ':']) {
                     let name = after_let[..eq_or_colon].trim().to_string();
                     if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
                         dyn_fn_names.push(name);
                     }
                 }
             } else if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
-                let after_fn = if trimmed.starts_with("pub fn ") {
-                    &trimmed[7..]
+                let after_fn = if let Some(stripped) = trimmed.strip_prefix("pub fn ") {
+                    stripped
+                } else if let Some(stripped) = trimmed.strip_prefix("fn ") {
+                    stripped
                 } else {
-                    &trimmed[3..]
+                    continue;
                 };
                 if let Some(paren) = after_fn.find('(') {
                     let name = after_fn[..paren].trim().to_string();
@@ -688,7 +690,7 @@ pub(super) fn fix_pyrange_iteration(code: &str) -> String {
         {
             let after_let = trimmed.strip_prefix("let ").unwrap_or("");
             let after_let = after_let.strip_prefix("mut ").unwrap_or(after_let);
-            if let Some(sep) = after_let.find(|c: char| c == ':' || c == ' ') {
+            if let Some(sep) = after_let.find([':', ' ']) {
                 let var = after_let[..sep].trim().to_string();
                 if !var.is_empty() && var.chars().all(|c| c.is_alphanumeric() || c == '_') {
                     pyrange_vars.push(var);
@@ -785,10 +787,25 @@ pub(super) fn fix_missing_inherited_fields(code: &str) -> String {
     if !code.contains("pub struct ") || !code.contains("self.") {
         return code.to_string();
     }
-    // Collect all struct definitions with their fields
     let lines: Vec<&str> = code.lines().collect();
-    let mut struct_fields: Vec<(String, Vec<(String, String)>)> = Vec::new(); // (name, [(field, type)])
+    let struct_fields = collect_struct_fields(&lines);
 
+    if struct_fields.len() < 2 {
+        return code.to_string();
+    }
+
+    let additions = find_missing_inherited_fields_all(&lines, &struct_fields);
+
+    if additions.is_empty() {
+        return code.to_string();
+    }
+
+    apply_inherited_field_additions(code, &additions)
+}
+
+/// Parse all `pub struct Name { ... }` blocks and collect their field names and types.
+fn collect_struct_fields<'a>(lines: &[&'a str]) -> Vec<(String, Vec<(String, String)>)> {
+    let mut struct_fields = Vec::new();
     let mut i = 0;
     while i < lines.len() {
         let trimmed = lines[i].trim();
@@ -796,7 +813,7 @@ pub(super) fn fix_missing_inherited_fields(code: &str) -> String {
             let name = trimmed
                 .strip_prefix("pub struct ")
                 .unwrap_or("")
-                .split(|c: char| c == ' ' || c == '{')
+                .split([' ', '{'])
                 .next()
                 .unwrap_or("")
                 .to_string();
@@ -807,16 +824,8 @@ pub(super) fn fix_missing_inherited_fields(code: &str) -> String {
                 if field_line == "}" {
                     break;
                 }
-                if field_line.starts_with("pub ") && field_line.contains(':') {
-                    let after_pub = field_line.strip_prefix("pub ").unwrap_or("");
-                    if let Some(colon) = after_pub.find(':') {
-                        let field_name = after_pub[..colon].trim().to_string();
-                        let field_type = after_pub[colon + 1..]
-                            .trim()
-                            .trim_end_matches(',')
-                            .to_string();
-                        fields.push((field_name, field_type));
-                    }
+                if let Some(pair) = parse_pub_field(field_line) {
+                    fields.push(pair);
                 }
                 i += 1;
             }
@@ -826,138 +835,185 @@ pub(super) fn fix_missing_inherited_fields(code: &str) -> String {
         }
         i += 1;
     }
+    struct_fields
+}
 
-    if struct_fields.len() < 2 {
-        return code.to_string();
+/// Parse a single `pub field_name: FieldType,` line into (name, type).
+fn parse_pub_field(field_line: &str) -> Option<(String, String)> {
+    if !field_line.starts_with("pub ") || !field_line.contains(':') {
+        return None;
     }
+    let after_pub = field_line.strip_prefix("pub ").unwrap_or("");
+    let colon = after_pub.find(':')?;
+    let field_name = after_pub[..colon].trim().to_string();
+    let field_type = after_pub[colon + 1..]
+        .trim()
+        .trim_end_matches(',')
+        .to_string();
+    Some((field_name, field_type))
+}
 
-    // Find structs that access self.field where field isn't in their definition
-    let mut additions: Vec<(String, Vec<(String, String)>)> = Vec::new(); // (struct_name, fields_to_add)
+/// For every struct, find `self.field` accesses in its impl block that reference
+/// fields not present in the struct itself but present in other structs.
+fn find_missing_inherited_fields_all(
+    lines: &[&str],
+    struct_fields: &[(String, Vec<(String, String)>)],
+) -> Vec<(String, Vec<(String, String)>)> {
+    let mut additions = Vec::new();
+    for (struct_name, fields) in struct_fields {
+        let missing = find_missing_fields_for_struct(lines, struct_name, fields, struct_fields);
+        if !missing.is_empty() {
+            additions.push((struct_name.clone(), missing));
+        }
+    }
+    additions
+}
 
-    for (struct_name, fields) in &struct_fields {
-        // Find the impl block for this struct
-        let impl_pattern = format!("impl {} {{", struct_name);
-        let field_names: Vec<&str> = fields.iter().map(|(n, _)| n.as_str()).collect();
+/// Scan the impl block for `struct_name` and find self.field references not in `own_fields`,
+/// resolving them from other structs.
+fn find_missing_fields_for_struct(
+    lines: &[&str],
+    struct_name: &str,
+    own_fields: &[(String, String)],
+    all_structs: &[(String, Vec<(String, String)>)],
+) -> Vec<(String, String)> {
+    let impl_pattern = format!("impl {} {{", struct_name);
+    let field_names: Vec<&str> = own_fields.iter().map(|(n, _)| n.as_str()).collect();
+    let mut missing_fields: Vec<(String, String)> = Vec::new();
+    let mut in_impl = false;
+    let mut impl_brace_depth: i32 = 0;
 
-        let mut missing_fields: Vec<(String, String)> = Vec::new();
-        let mut in_impl = false;
-        let mut impl_brace_depth: i32 = 0;
-
-        for line in &lines {
-            let trimmed = line.trim();
-            if !in_impl && trimmed.contains(&impl_pattern) {
-                in_impl = true;
-                impl_brace_depth = 1;
+    for line in lines {
+        let trimmed = line.trim();
+        if !in_impl && trimmed.contains(&impl_pattern) {
+            in_impl = true;
+            impl_brace_depth = 1;
+            continue;
+        }
+        if in_impl {
+            impl_brace_depth += trimmed.chars().filter(|&c| c == '{').count() as i32;
+            impl_brace_depth -= trimmed.chars().filter(|&c| c == '}').count() as i32;
+            if impl_brace_depth <= 0 {
+                in_impl = false;
                 continue;
             }
-            if in_impl {
-                for ch in trimmed.chars() {
-                    if ch == '{' {
-                        impl_brace_depth += 1;
-                    } else if ch == '}' {
-                        impl_brace_depth -= 1;
-                    }
-                }
-                if impl_brace_depth <= 0 {
-                    in_impl = false;
-                    continue;
-                }
-            }
-            if in_impl && trimmed.contains("self.") {
-                // Extract field accesses
-                let mut pos = 0;
-                while let Some(self_idx) = trimmed[pos..].find("self.") {
-                    let abs_idx = pos + self_idx + 5;
-                    let field_end = trimmed[abs_idx..]
-                        .find(|c: char| !c.is_alphanumeric() && c != '_')
-                        .unwrap_or(trimmed.len() - abs_idx);
-                    let field = &trimmed[abs_idx..abs_idx + field_end];
-                    if !field.is_empty()
-                        && !field_names.contains(&field)
-                        && !missing_fields.iter().any(|(n, _)| n == field)
-                    {
-                        // Find this field in OTHER structs
-                        for (other_name, other_fields) in &struct_fields {
-                            if other_name != struct_name {
-                                for (f_name, f_type) in other_fields {
-                                    if f_name == field {
-                                        missing_fields
-                                            .push((f_name.clone(), f_type.clone()));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    pos = abs_idx + field_end;
-                }
+        }
+        if in_impl && trimmed.contains("self.") {
+            collect_missing_self_fields(
+                trimmed,
+                &field_names,
+                &mut missing_fields,
+                struct_name,
+                all_structs,
+            );
+        }
+    }
+    missing_fields
+}
+
+/// Extract all `self.field` accesses from a line and resolve missing ones from other structs.
+fn collect_missing_self_fields(
+    trimmed: &str,
+    field_names: &[&str],
+    missing_fields: &mut Vec<(String, String)>,
+    struct_name: &str,
+    all_structs: &[(String, Vec<(String, String)>)],
+) {
+    let mut pos = 0;
+    while let Some(self_idx) = trimmed[pos..].find("self.") {
+        let abs_idx = pos + self_idx + 5;
+        let field_end = trimmed[abs_idx..]
+            .find(|c: char| !c.is_alphanumeric() && c != '_')
+            .unwrap_or(trimmed.len() - abs_idx);
+        let field = &trimmed[abs_idx..abs_idx + field_end];
+        if !field.is_empty()
+            && !field_names.contains(&field)
+            && !missing_fields.iter().any(|(n, _)| n == field)
+        {
+            if let Some(pair) = resolve_field_from_other_structs(field, struct_name, all_structs) {
+                missing_fields.push(pair);
             }
         }
+        pos = abs_idx + field_end;
+    }
+}
 
-        if !missing_fields.is_empty() {
-            additions.push((struct_name.clone(), missing_fields));
+/// Look up a field name in structs other than `struct_name`.
+fn resolve_field_from_other_structs(
+    field: &str,
+    struct_name: &str,
+    all_structs: &[(String, Vec<(String, String)>)],
+) -> Option<(String, String)> {
+    for (other_name, other_fields) in all_structs {
+        if other_name != struct_name {
+            for (f_name, f_type) in other_fields {
+                if f_name == field {
+                    return Some((f_name.clone(), f_type.clone()));
+                }
+            }
         }
     }
+    None
+}
 
-    if additions.is_empty() {
-        return code.to_string();
-    }
-
-    // Apply the additions
-    let mut result = String::with_capacity(code.len() + 200);
-    for line in &lines {
-        let trimmed = line.trim();
-        // Check if this is a struct closing brace that needs fields added before it
-        for (struct_name, fields_to_add) in &additions {
-            let struct_start = format!("pub struct {} {{", struct_name);
-            // We need to add fields before the `}` that closes this struct
-            // Check if the previous non-empty line started the struct
-        }
-        result.push_str(line);
-        result.push('\n');
-    }
-
-    // Simpler approach: use string replacement on the struct definition
+/// Insert missing fields into struct definitions and add Default::default()
+/// initializers into constructor literals.
+fn apply_inherited_field_additions(
+    code: &str,
+    additions: &[(String, Vec<(String, String)>)],
+) -> String {
     let mut result = code.to_string();
-    for (struct_name, fields_to_add) in &additions {
-        for (field_name, field_type) in fields_to_add {
-            // Find the struct definition and add the field
-            let struct_pattern = format!("pub struct {} {{", struct_name);
-            if let Some(struct_idx) = result.find(&struct_pattern) {
-                let insert_point = struct_idx + struct_pattern.len();
-                let field_line = format!("\n    pub {}: {},", field_name, field_type);
-                result.insert_str(insert_point, &field_line);
-            }
-        }
-
-        // Also fix the constructor to initialize the field with Default.
-        // Find `Self {` constructor literal (NOT `-> Self {` function signature).
-        let impl_pattern = format!("impl {} {{", struct_name);
-        if let Some(impl_idx) = result.find(&impl_pattern) {
-            let after_impl = &result[impl_idx..];
-            // Search for "Self {" that is the constructor literal, not "-> Self {"
-            let mut search_pos = 0;
-            while let Some(self_idx) = after_impl[search_pos..].find("Self {") {
-                let abs_in_slice = search_pos + self_idx;
-                // Check if preceded by "-> " (function return type, not constructor)
-                let before = &after_impl[..abs_in_slice];
-                let before_trimmed = before.trim_end();
-                if before_trimmed.ends_with("->") {
-                    search_pos = abs_in_slice + 6;
-                    continue;
-                }
-                // This is the constructor literal
-                let abs_self = impl_idx + abs_in_slice + 6; // after "Self {"
-                let mut extra_fields = String::new();
-                for (field_name, _field_type) in fields_to_add {
-                    extra_fields
-                        .push_str(&format!(" {}: Default::default(),", field_name));
-                }
-                result.insert_str(abs_self, &extra_fields);
-                break;
-            }
-        }
+    for (struct_name, fields_to_add) in additions {
+        insert_fields_into_struct(&mut result, struct_name, fields_to_add);
+        insert_defaults_into_constructor(&mut result, struct_name, fields_to_add);
     }
     result
+}
+
+/// Insert field declarations into a struct definition.
+fn insert_fields_into_struct(
+    result: &mut String,
+    struct_name: &str,
+    fields_to_add: &[(String, String)],
+) {
+    for (field_name, field_type) in fields_to_add {
+        let struct_pattern = format!("pub struct {} {{", struct_name);
+        if let Some(struct_idx) = result.find(&struct_pattern) {
+            let insert_point = struct_idx + struct_pattern.len();
+            let field_line = format!("\n    pub {}: {},", field_name, field_type);
+            result.insert_str(insert_point, &field_line);
+        }
+    }
+}
+
+/// Find the `Self { ... }` constructor literal (not `-> Self {`) in an impl block
+/// and insert Default::default() initializers for inherited fields.
+fn insert_defaults_into_constructor(
+    result: &mut String,
+    struct_name: &str,
+    fields_to_add: &[(String, String)],
+) {
+    let impl_pattern = format!("impl {} {{", struct_name);
+    let Some(impl_idx) = result.find(&impl_pattern) else {
+        return;
+    };
+    let after_impl = &result[impl_idx..];
+    let mut search_pos = 0;
+    while let Some(self_idx) = after_impl[search_pos..].find("Self {") {
+        let abs_in_slice = search_pos + self_idx;
+        let before = &after_impl[..abs_in_slice];
+        if before.trim_end().ends_with("->") {
+            search_pos = abs_in_slice + 6;
+            continue;
+        }
+        let abs_self = impl_idx + abs_in_slice + 6;
+        let mut extra_fields = String::new();
+        for (field_name, _field_type) in fields_to_add {
+            extra_fields.push_str(&format!(" {}: Default::default(),", field_name));
+        }
+        result.insert_str(abs_self, &extra_fields);
+        break;
+    }
 }
 
 pub(super) fn fix_ambiguous_into_on_chain(code: &str) -> String {
@@ -1317,9 +1373,8 @@ pub(super) fn fix_write_all_on_custom_struct(code: &str) -> String {
             };
             // Also check for .expect("...") after the close paren
             let after_close = &after[close + 1..];
-            let expect_len = if after_close.starts_with(".expect(") {
+            let expect_len = if let Some(expect_inner) = after_close.strip_prefix(".expect(") {
                 // Find matching close paren for .expect(
-                let expect_inner = &after_close[8..];
                 let mut d = 1i32;
                 let mut eend = expect_inner.len();
                 for (i, ch) in expect_inner.char_indices() {
@@ -1351,84 +1406,98 @@ pub(super) fn fix_write_all_on_custom_struct(code: &str) -> String {
 }
 
 pub(super) fn fix_let_type_from_fn_return(code: &str) -> String {
-    use std::collections::HashMap;
-    // Build map of fn_name -> return_type (only for custom types, not primitives)
-    let mut fn_returns: HashMap<String, String> = HashMap::new();
-    for line in code.lines() {
-        let trimmed = line.trim();
-        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) && trimmed.contains("-> ") {
-            // Extract function name
-            let after_fn = if trimmed.starts_with("pub fn ") {
-                &trimmed[7..]
-            } else {
-                &trimmed[3..]
-            };
-            if let Some(paren_pos) = after_fn.find('(') {
-                let fn_name = after_fn[..paren_pos].trim().to_string();
-                // Extract return type (after -> , before {)
-                if let Some(arrow_pos) = trimmed.find("-> ") {
-                    let after_arrow = &trimmed[arrow_pos + 3..];
-                    let ret_type = after_arrow
-                        .trim_end_matches('{')
-                        .trim_end_matches("where")
-                        .trim()
-                        .to_string();
-                    // Only store custom types (PascalCase, not primitives)
-                    // Exclude Self::Output and other Self-prefixed types
-                    if !ret_type.is_empty()
-                        && ret_type.chars().next().map_or(false, |c| c.is_uppercase())
-                        && !ret_type.contains("Self")
-                        && !matches!(ret_type.as_str(), "String" | "Vec" | "HashMap" | "Option" | "Result" | "Box")
-                        && !ret_type.starts_with("Vec<")
-                        && !ret_type.starts_with("Result<")
-                        && !ret_type.starts_with("Option<")
-                        && !ret_type.starts_with("Box<")
-                        && !ret_type.starts_with("HashMap<")
-                        && !ret_type.starts_with("std::")
-                    {
-                        fn_returns.insert(fn_name, ret_type);
-                    }
-                }
-            }
-        }
-    }
+    let fn_returns = build_custom_fn_return_map(code);
     if fn_returns.is_empty() {
         return code.to_string();
     }
-    // Now fix let bindings
     let lines: Vec<&str> = code.lines().collect();
     let mut result = Vec::with_capacity(lines.len());
     for line in &lines {
         let trimmed = line.trim();
-        // Match: let VAR: TYPE = fn_name(ARGS);
-        if trimmed.starts_with("let ") && trimmed.contains(": ") && trimmed.contains(" = ") {
-            let after_let = &trimmed[4..];
-            if let Some(colon_pos) = after_let.find(": ") {
-                let var_name = &after_let[..colon_pos];
-                let after_colon = &after_let[colon_pos + 2..];
-                if let Some(eq_pos) = after_colon.find(" = ") {
-                    let declared_type = after_colon[..eq_pos].trim();
-                    let rhs = after_colon[eq_pos + 3..].trim();
-                    // Check if RHS is a simple function call: fn_name(args);
-                    if let Some(paren) = rhs.find('(') {
-                        let called_fn = rhs[..paren].trim();
-                        if let Some(correct_type) = fn_returns.get(called_fn) {
-                            if declared_type != correct_type {
-                                let indent = &line[..line.len() - trimmed.len()];
-                                result.push(format!(
-                                    "{}let {}: {} = {}",
-                                    indent, var_name, correct_type, rhs
-                                ));
-                                continue;
-                            }
-                        }
-                    }
-                }
-            }
+        if let Some(fixed) = try_fix_let_binding_type(line, trimmed, &fn_returns) {
+            result.push(fixed);
+        } else {
+            result.push(line.to_string());
         }
-        result.push(line.to_string());
     }
     result.join("\n")
+}
+
+/// Build a map of fn_name -> return_type for functions returning custom types.
+fn build_custom_fn_return_map(code: &str) -> std::collections::HashMap<String, String> {
+    let mut fn_returns = std::collections::HashMap::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if !(trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) || !trimmed.contains("-> ") {
+            continue;
+        }
+        if let Some((fn_name, ret_type)) = extract_fn_name_and_return(trimmed) {
+            if is_custom_return_type(&ret_type) {
+                fn_returns.insert(fn_name, ret_type);
+            }
+        }
+    }
+    fn_returns
+}
+
+/// Extract function name and return type from a function signature line.
+fn extract_fn_name_and_return(trimmed: &str) -> Option<(String, String)> {
+    let after_fn = trimmed
+        .strip_prefix("pub fn ")
+        .or_else(|| trimmed.strip_prefix("fn "))?;
+    let paren_pos = after_fn.find('(')?;
+    let fn_name = after_fn[..paren_pos].trim().to_string();
+    let arrow_pos = trimmed.find("-> ")?;
+    let after_arrow = &trimmed[arrow_pos + 3..];
+    let ret_type = after_arrow
+        .trim_end_matches('{')
+        .trim_end_matches("where")
+        .trim()
+        .to_string();
+    Some((fn_name, ret_type))
+}
+
+/// Check if a return type is a custom (PascalCase) type, not a standard library type.
+fn is_custom_return_type(ret_type: &str) -> bool {
+    if ret_type.is_empty() {
+        return false;
+    }
+    let starts_upper = ret_type.chars().next().is_some_and(|c| c.is_uppercase());
+    if !starts_upper || ret_type.contains("Self") {
+        return false;
+    }
+    let excluded_exact = ["String", "Vec", "HashMap", "Option", "Result", "Box"];
+    if excluded_exact.contains(&ret_type) {
+        return false;
+    }
+    let excluded_prefixes = ["Vec<", "Result<", "Option<", "Box<", "HashMap<", "std::"];
+    !excluded_prefixes.iter().any(|p| ret_type.starts_with(p))
+}
+
+/// Try to fix a `let VAR: TYPE = fn_name(ARGS);` binding to use the correct return type.
+fn try_fix_let_binding_type(
+    line: &str,
+    trimmed: &str,
+    fn_returns: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    if !trimmed.starts_with("let ") || !trimmed.contains(": ") || !trimmed.contains(" = ") {
+        return None;
+    }
+    let after_let = &trimmed[4..];
+    let colon_pos = after_let.find(": ")?;
+    let var_name = &after_let[..colon_pos];
+    let after_colon = &after_let[colon_pos + 2..];
+    let eq_pos = after_colon.find(" = ")?;
+    let declared_type = after_colon[..eq_pos].trim();
+    let rhs = after_colon[eq_pos + 3..].trim();
+    let paren = rhs.find('(')?;
+    let called_fn = rhs[..paren].trim();
+    let correct_type = fn_returns.get(called_fn)?;
+    if declared_type == correct_type {
+        return None;
+    }
+    let indent = &line[..line.len() - trimmed.len()];
+    Some(format!("{}let {}: {} = {}", indent, var_name, correct_type, rhs))
 }
 
 /// DEPYLER-99MODE-S9: Fix Vec type in assert_eq by inferring from function return type.
@@ -1437,45 +1506,72 @@ pub(super) fn fix_let_type_from_fn_return(code: &str) -> String {
 /// looks up fn_name's return type `Result<Vec<CORRECT>, ...>` and replaces
 /// `Vec::<WRONG>::new()` with `Vec::<CORRECT>::new()`.
 pub(super) fn fix_assert_vec_type_from_fn_return(code: &str) -> String {
-    use std::collections::HashMap;
     if !code.contains("assert_eq!") || !code.contains("Vec::<") {
         return code.to_string();
     }
-    // Build map of fn_name -> inner Vec type from Result<Vec<T>, E> signatures
-    let mut fn_vec_type: HashMap<String, String> = HashMap::new();
-    for line in code.lines() {
-        let trimmed = line.trim();
-        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) && trimmed.contains("-> Result<Vec<") {
-            let after_fn = if trimmed.starts_with("pub fn ") { &trimmed[7..] } else { &trimmed[3..] };
-            if let Some(paren_pos) = after_fn.find('(') {
-                let fn_name = after_fn[..paren_pos].trim().to_string();
-                if let Some(vec_start) = trimmed.find("-> Result<Vec<") {
-                    let inner_start = vec_start + 14; // after "-> Result<Vec<"
-                    let after_inner = &trimmed[inner_start..];
-                    // Find matching > with depth tracking
-                    let mut depth = 1;
-                    for (i, ch) in after_inner.char_indices() {
-                        match ch {
-                            '<' => depth += 1,
-                            '>' => {
-                                depth -= 1;
-                                if depth == 0 {
-                                    let inner_type = &after_inner[..i];
-                                    fn_vec_type.insert(fn_name.clone(), inner_type.to_string());
-                                    break;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
-    }
+    let fn_vec_type = build_fn_vec_inner_type_map(code);
     if fn_vec_type.is_empty() {
         return code.to_string();
     }
-    // Fix assert_eq! lines
+    fix_assert_vec_lines(code, &fn_vec_type)
+}
+
+/// Build a map of fn_name -> inner Vec element type from `Result<Vec<T>, E>` signatures.
+fn build_fn_vec_inner_type_map(code: &str) -> std::collections::HashMap<String, String> {
+    let mut fn_vec_type = std::collections::HashMap::new();
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if let Some((name, inner)) = extract_result_vec_inner_type(trimmed) {
+            fn_vec_type.insert(name, inner);
+        }
+    }
+    fn_vec_type
+}
+
+/// From a function signature like `fn foo(...) -> Result<Vec<MyType>, E>`,
+/// extract ("foo", "MyType").
+fn extract_result_vec_inner_type(trimmed: &str) -> Option<(String, String)> {
+    if !(trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) {
+        return None;
+    }
+    if !trimmed.contains("-> Result<Vec<") {
+        return None;
+    }
+    let after_fn = trimmed
+        .strip_prefix("pub fn ")
+        .or_else(|| trimmed.strip_prefix("fn "))?;
+    let paren_pos = after_fn.find('(')?;
+    let fn_name = after_fn[..paren_pos].trim().to_string();
+    let vec_start = trimmed.find("-> Result<Vec<")?;
+    let inner_start = vec_start + 14;
+    let after_inner = &trimmed[inner_start..];
+    let inner_type = extract_balanced_angle_content(after_inner)?;
+    Some((fn_name, inner_type))
+}
+
+/// Extract content up to the matching closing `>`, handling nested angle brackets.
+fn extract_balanced_angle_content(s: &str) -> Option<String> {
+    let mut depth = 1;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '<' => depth += 1,
+            '>' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(s[..i].to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Scan assert_eq!/assert_ne! blocks and fix Vec::<WRONG>::new() with correct inner types.
+fn fix_assert_vec_lines(
+    code: &str,
+    fn_vec_type: &std::collections::HashMap<String, String>,
+) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut result = Vec::with_capacity(lines.len());
     let mut current_fn_call: Option<String> = None;
@@ -1484,37 +1580,19 @@ pub(super) fn fix_assert_vec_type_from_fn_return(code: &str) -> String {
         let trimmed = line.trim();
         if trimmed.starts_with("assert_eq!(") || trimmed.starts_with("assert_ne!(") {
             in_assert = true;
-            current_fn_call = None;
-            // Check if first line contains a fn call
-            for fn_name in fn_vec_type.keys() {
-                if trimmed.contains(&format!("{}(", fn_name)) && trimmed.contains(".unwrap()") {
-                    current_fn_call = Some(fn_name.clone());
-                    break;
-                }
-            }
+            current_fn_call = find_fn_call_in_line(trimmed, fn_vec_type);
         }
         if in_assert {
-            if let Some(ref fn_name) = current_fn_call {
-                // Check if this line has Vec::<T>::new() standalone
-                let content = trimmed.trim_end_matches(',');
-                if content.starts_with("Vec::<") && content.ends_with(">::new()") {
-                    if let Some(correct_inner) = fn_vec_type.get(fn_name) {
-                        let indent = &line[..line.len() - trimmed.len()];
-                        let trailing = if trimmed.ends_with(',') { "," } else { "" };
-                        result.push(format!("{}Vec::<{}>::new(){}", indent, correct_inner, trailing));
-                        if trimmed.ends_with(");") { in_assert = false; }
-                        continue;
-                    }
+            if let Some(fixed) = try_fix_vec_new_line(line, trimmed, &current_fn_call, fn_vec_type)
+            {
+                result.push(fixed);
+                if trimmed.ends_with(");") {
+                    in_assert = false;
                 }
+                continue;
             }
-            // Also check for fn_name on subsequent lines
             if current_fn_call.is_none() {
-                for fn_name in fn_vec_type.keys() {
-                    if trimmed.contains(&format!("{}(", fn_name)) && trimmed.contains(".unwrap()") {
-                        current_fn_call = Some(fn_name.clone());
-                        break;
-                    }
-                }
+                current_fn_call = find_fn_call_in_line(trimmed, fn_vec_type);
             }
             if trimmed.ends_with(");") {
                 in_assert = false;
@@ -1524,6 +1602,40 @@ pub(super) fn fix_assert_vec_type_from_fn_return(code: &str) -> String {
         result.push(line.to_string());
     }
     result.join("\n")
+}
+
+/// Check if a line contains a known function call with .unwrap().
+fn find_fn_call_in_line(
+    trimmed: &str,
+    fn_vec_type: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    for fn_name in fn_vec_type.keys() {
+        if trimmed.contains(&format!("{}(", fn_name)) && trimmed.contains(".unwrap()") {
+            return Some(fn_name.clone());
+        }
+    }
+    None
+}
+
+/// If the line is a standalone `Vec::<T>::new()` inside an assert, fix the inner type.
+fn try_fix_vec_new_line(
+    line: &str,
+    trimmed: &str,
+    current_fn_call: &Option<String>,
+    fn_vec_type: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    let fn_name = current_fn_call.as_ref()?;
+    let content = trimmed.trim_end_matches(',');
+    if !content.starts_with("Vec::<") || !content.ends_with(">::new()") {
+        return None;
+    }
+    let correct_inner = fn_vec_type.get(fn_name)?;
+    let indent = &line[..line.len() - trimmed.len()];
+    let trailing = if trimmed.ends_with(',') { "," } else { "" };
+    Some(format!(
+        "{}Vec::<{}>::new(){}",
+        indent, correct_inner, trailing
+    ))
 }
 
 pub(super) fn fix_let_unit_type_annotation(code: &str) -> String {
@@ -1547,77 +1659,89 @@ pub(super) fn fix_let_unit_type_annotation(code: &str) -> String {
 
 fn extract_bool_typed_vars(code: &str) -> Vec<String> {
     let mut vars = Vec::new();
-    // Track parameter names that are Vec<bool> for loop variable inference
     let mut vec_bool_params: Vec<String> = Vec::new();
 
     for line in code.lines() {
         let trimmed = line.trim();
-        // Extract from function signatures: `fn foo(x: bool, values: &Vec<bool>)`
         if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
-            if let Some(start) = trimmed.find('(') {
-                if let Some(end) = trimmed.find(')') {
-                    let params = &trimmed[start + 1..end];
-                    for param in params.split(',') {
-                        let p = param.trim();
-                        if p.ends_with(": bool") {
-                            if let Some(name) = p.strip_suffix(": bool") {
-                                let name = name.trim();
-                                if !name.is_empty() {
-                                    vars.push(name.to_string());
-                                }
-                            }
-                        }
-                        // DEPYLER-99MODE-S9: Track Vec<bool> params for loop var inference
-                        if p.contains("Vec<bool>") || p.contains("Vec < bool >") {
-                            if let Some(colon_pos) = p.find(':') {
-                                let name = p[..colon_pos].trim();
-                                if !name.is_empty() {
-                                    vec_bool_params.push(name.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            extract_bool_params_from_signature(trimmed, &mut vars, &mut vec_bool_params);
             continue;
         }
-        // DEPYLER-99MODE-S9: Extract from local variable declarations
-        // Patterns: `let mut result: bool = ...` or `let result: bool = ...`
         if trimmed.starts_with("let ") {
-            let rest = trimmed.strip_prefix("let ").unwrap_or("");
-            let rest = rest.strip_prefix("mut ").unwrap_or(rest);
-            if let Some(colon_pos) = rest.find(": bool") {
-                let name = rest[..colon_pos].trim();
-                if !name.is_empty()
-                    && name
-                        .chars()
-                        .all(|c| c.is_alphanumeric() || c == '_')
-                {
-                    vars.push(name.to_string());
-                }
+            extract_bool_from_let_binding(trimmed, &mut vars);
+        }
+        if trimmed.starts_with("for ") {
+            extract_bool_from_for_loop(trimmed, &vec_bool_params, &mut vars);
+        }
+    }
+    vars
+}
+
+/// Extract bool-typed parameter names and Vec<bool> parameter names from a function signature.
+fn extract_bool_params_from_signature(
+    trimmed: &str,
+    vars: &mut Vec<String>,
+    vec_bool_params: &mut Vec<String>,
+) {
+    let Some(start) = trimmed.find('(') else {
+        return;
+    };
+    let Some(end) = trimmed.find(')') else {
+        return;
+    };
+    let params = &trimmed[start + 1..end];
+    for param in params.split(',') {
+        let p = param.trim();
+        if let Some(name) = p.strip_suffix(": bool") {
+            let name = name.trim();
+            if !name.is_empty() {
+                vars.push(name.to_string());
             }
         }
-        // DEPYLER-99MODE-S9: Extract loop variables over Vec<bool> params
-        // Pattern: `for VAR in PARAM.iter()` where PARAM is Vec<bool>
-        if trimmed.starts_with("for ") {
-            if let Some(in_pos) = trimmed.find(" in ") {
-                let loop_var = trimmed[4..in_pos].trim();
-                let iter_part = &trimmed[in_pos + 4..];
-                for param in &vec_bool_params {
-                    if iter_part.starts_with(&format!("{param}."))
-                        || iter_part.starts_with(&format!("{param} "))
-                    {
-                        if !loop_var.is_empty()
-                            && loop_var
-                                .chars()
-                                .all(|c| c.is_alphanumeric() || c == '_')
-                        {
-                            vars.push(loop_var.to_string());
-                        }
-                    }
+        if p.contains("Vec<bool>") || p.contains("Vec < bool >") {
+            if let Some(colon_pos) = p.find(':') {
+                let name = p[..colon_pos].trim();
+                if !name.is_empty() {
+                    vec_bool_params.push(name.to_string());
                 }
             }
         }
     }
-    vars
+}
+
+/// Extract bool-typed variable names from `let [mut] name: bool = ...` declarations.
+fn extract_bool_from_let_binding(trimmed: &str, vars: &mut Vec<String>) {
+    let rest = trimmed.strip_prefix("let ").unwrap_or("");
+    let rest = rest.strip_prefix("mut ").unwrap_or(rest);
+    if let Some(colon_pos) = rest.find(": bool") {
+        let name = rest[..colon_pos].trim();
+        if is_valid_identifier(name) {
+            vars.push(name.to_string());
+        }
+    }
+}
+
+/// Extract loop variables iterating over Vec<bool> parameters.
+fn extract_bool_from_for_loop(
+    trimmed: &str,
+    vec_bool_params: &[String],
+    vars: &mut Vec<String>,
+) {
+    let Some(in_pos) = trimmed.find(" in ") else {
+        return;
+    };
+    let loop_var = trimmed[4..in_pos].trim();
+    let iter_part = &trimmed[in_pos + 4..];
+    for param in vec_bool_params {
+        let matches_param = iter_part.starts_with(&format!("{param}."))
+            || iter_part.starts_with(&format!("{param} "));
+        if matches_param && is_valid_identifier(loop_var) {
+            vars.push(loop_var.to_string());
+        }
+    }
+}
+
+/// Check if a string is a non-empty valid Rust identifier (alphanumeric + underscore).
+fn is_valid_identifier(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
