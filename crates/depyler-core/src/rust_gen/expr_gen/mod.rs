@@ -7,21 +7,15 @@
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
-use crate::rust_gen::array_initialization; // DEPYLER-REFACTOR-001: Extracted array/range
-use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
-use crate::rust_gen::collection_constructors; // DEPYLER-REFACTOR-001: Extracted constructors
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
-use crate::rust_gen::expr_analysis::{self, get_wrapped_chained_pyops}; // DEPYLER-COVERAGE-95: Use extracted helpers
-use crate::rust_gen::keywords; // DEPYLER-COVERAGE-95: Use centralized keywords module
+#[cfg(test)]
+use crate::rust_gen::expr_analysis;
+use crate::rust_gen::keywords;
 use crate::rust_gen::numpy_gen; // Phase 3: NumPy→Trueno codegen
-use crate::rust_gen::precedence; // DEPYLER-COVERAGE-95: Use extracted helpers
-use crate::rust_gen::return_type_expects_float;
-use crate::rust_gen::stdlib_method_gen; // DEPYLER-COVERAGE-95: Extracted stdlib handlers
-use crate::rust_gen::type_gen::convert_binop;
+#[cfg(test)]
+use crate::rust_gen::precedence;
 use crate::string_optimization::{StringContext, StringOptimizer};
-use crate::trace_decision;
 use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 mod binary_ops;
 mod call_dispatch;
@@ -377,43 +371,34 @@ impl ToRustExpr for HirExpr {
     }
 }
 
+fn int_literal_to_rust_expr(val: i64) -> syn::Expr {
+    if val > i64::from(i32::MAX) && val <= i64::from(u32::MAX) {
+        let wrapped = val as i32;
+        if wrapped == i32::MIN {
+            parse_quote! { i32::MIN }
+        } else {
+            let abs_val = wrapped.unsigned_abs();
+            let lit_tok = syn::LitInt::new(&abs_val.to_string(), proc_macro2::Span::call_site());
+            parse_quote! { -#lit_tok }
+        }
+    } else if val > i64::from(u32::MAX) || val < i64::from(i32::MIN) {
+        let lit = syn::LitInt::new(&format!("{}i64", val), proc_macro2::Span::call_site());
+        parse_quote! { #lit }
+    } else {
+        let lit = syn::LitInt::new(&val.to_string(), proc_macro2::Span::call_site());
+        parse_quote! { #lit }
+    }
+}
+
 fn literal_to_rust_expr(
     lit: &Literal,
     string_optimizer: &StringOptimizer,
     _needs_cow: &bool,
     ctx: &CodeGenContext,
 ) -> syn::Expr {
-    // Note: We intentionally use unsuffixed literals to let Rust's type inference
-    // determine the appropriate type from context. Adding explicit suffixes (like _i32)
-    // caused more problems than it solved - trait resolution failures, overflow for
-    // large numbers, and type mismatches with DepylerValue containers.
-    let _ = ctx; // Suppress unused warning
+    let _ = ctx;
     match lit {
-        Literal::Int(n) => {
-            let val = *n;
-            if val > i64::from(i32::MAX) && val <= i64::from(u32::MAX) {
-                // DEPYLER-99MODE-S9: Value exceeds i32 but fits in u32 — bitmask pattern
-                // Generate wrapping negative equivalent for i32 compatibility
-                // e.g., 0xFFFFFFFF (4294967295) → -1 (same bit pattern as i32)
-                let wrapped = val as i32;
-                if wrapped == i32::MIN {
-                    parse_quote! { i32::MIN }
-                } else {
-                    let abs_val = wrapped.unsigned_abs();
-                    let lit_tok =
-                        syn::LitInt::new(&abs_val.to_string(), proc_macro2::Span::call_site());
-                    parse_quote! { -#lit_tok }
-                }
-            } else if val > i64::from(u32::MAX) || val < i64::from(i32::MIN) {
-                // Very large value — must use i64 suffix
-                let lit =
-                    syn::LitInt::new(&format!("{}i64", val), proc_macro2::Span::call_site());
-                parse_quote! { #lit }
-            } else {
-                let lit = syn::LitInt::new(&val.to_string(), proc_macro2::Span::call_site());
-                parse_quote! { #lit }
-            }
-        }
+        Literal::Int(n) => int_literal_to_rust_expr(*n),
         Literal::Float(f) => {
             // Ensure float literals always have a decimal point
             // f64::to_string() outputs "0" for 0.0, which parses as integer
