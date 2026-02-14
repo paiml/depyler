@@ -2910,9 +2910,11 @@ def full_function():
     #[test]
     fn test_s9b7_validator_thread_safety_refcell_conflict() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.thread_safety = ThreadSafety::Required;
-        annotations.interior_mutability = InteriorMutability::RefCell;
+        let annotations = TranspilationAnnotations {
+            thread_safety: ThreadSafety::Required,
+            interior_mutability: InteriorMutability::RefCell,
+            ..Default::default()
+        };
         let result = validator.validate(&annotations);
         assert!(result.is_err());
         let errors = result.unwrap_err();
@@ -2922,9 +2924,11 @@ def full_function():
     #[test]
     fn test_s9b7_validator_panic_error_conflict() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.panic_behavior = PanicBehavior::ReturnError;
-        annotations.error_strategy = ErrorStrategy::Panic;
+        let annotations = TranspilationAnnotations {
+            panic_behavior: PanicBehavior::ReturnError,
+            error_strategy: ErrorStrategy::Panic,
+            ..Default::default()
+        };
         let result = validator.validate(&annotations);
         assert!(result.is_err());
         let errors = result.unwrap_err();
@@ -2934,9 +2938,11 @@ def full_function():
     #[test]
     fn test_s9b7_validator_aggressive_opt_bounds_conflict() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.optimization_level = OptimizationLevel::Aggressive;
-        annotations.bounds_checking = BoundsChecking::Explicit;
+        let annotations = TranspilationAnnotations {
+            optimization_level: OptimizationLevel::Aggressive,
+            bounds_checking: BoundsChecking::Explicit,
+            ..Default::default()
+        };
         let result = validator.validate(&annotations);
         assert!(result.is_err());
         let errors = result.unwrap_err();
@@ -2957,9 +2963,11 @@ def full_function():
     #[test]
     fn test_s9b7_suggest_improvements_thread_safety_shared() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.thread_safety = ThreadSafety::Required;
-        annotations.ownership_model = OwnershipModel::Owned;
+        let annotations = TranspilationAnnotations {
+            thread_safety: ThreadSafety::Required,
+            ownership_model: OwnershipModel::Owned,
+            ..Default::default()
+        };
         let suggestions = validator.suggest_improvements(&annotations);
         assert!(suggestions.iter().any(|s| s.contains("shared")));
     }
@@ -2967,8 +2975,10 @@ def full_function():
     #[test]
     fn test_s9b7_suggest_improvements_web_api_latency() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.service_type = Some(ServiceType::WebApi);
+        let annotations = TranspilationAnnotations {
+            service_type: Some(ServiceType::WebApi),
+            ..Default::default()
+        };
         let suggestions = validator.suggest_improvements(&annotations);
         assert!(suggestions.iter().any(|s| s.contains("latency")));
     }
@@ -3112,7 +3122,7 @@ def full_function():
 
     #[test]
     fn test_s9b7_annotation_validator_default() {
-        let v = AnnotationValidator::default();
+        let v = AnnotationValidator;
         let debug = format!("{:?}", v);
         assert!(debug.contains("AnnotationValidator"));
     }
@@ -3411,10 +3421,11 @@ class MyService(BaseService):
     #[test]
     fn test_s12_suggest_improvements_thread_with_shared() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.thread_safety = ThreadSafety::Required;
-        annotations.ownership_model = OwnershipModel::Shared;
-
+        let annotations = TranspilationAnnotations {
+            thread_safety: ThreadSafety::Required,
+            ownership_model: OwnershipModel::Shared,
+            ..Default::default()
+        };
         let suggestions = validator.suggest_improvements(&annotations);
         assert!(
             !suggestions
@@ -3490,10 +3501,11 @@ def serve():
     #[test]
     fn test_s12_validate_annotations_unsafe_with_bounds() {
         let validator = AnnotationValidator::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.safety_level = SafetyLevel::UnsafeAllowed;
-        annotations.bounds_checking = BoundsChecking::Explicit;
-        // This combination may or may not be valid
+        let annotations = TranspilationAnnotations {
+            safety_level: SafetyLevel::UnsafeAllowed,
+            bounds_checking: BoundsChecking::Explicit,
+            ..Default::default()
+        };
         let _ = validator.validate(&annotations);
     }
 

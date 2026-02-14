@@ -624,7 +624,7 @@ mod tests {
         let harvester = Harvester::temp().unwrap();
         let dir = harvester.target_dir().to_path_buf();
         assert!(dir.exists());
-        harvester.cleanup();
+        let _ = harvester.cleanup();
         assert!(!dir.exists());
     }
 }
