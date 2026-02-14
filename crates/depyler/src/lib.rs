@@ -427,7 +427,18 @@ pub fn transpile_command(
     let pipeline = DepylerPipeline::new();
 
     // DEPYLER-0384: Use transpile_with_dependencies for automatic Cargo.toml emission
-    let (rust_code, dependencies) = pipeline.transpile_with_dependencies(&python_source)?;
+    let (rust_code, dependencies) = match pipeline.transpile_with_dependencies(&python_source) {
+        Ok(result) => result,
+        Err(err) => {
+            let diagnostic = depyler_core::diagnostic::Diagnostic::from_anyhow(
+                &err,
+                Some(input.display().to_string()),
+                Some(&python_source),
+            );
+            eprintln!("{}", diagnostic);
+            anyhow::bail!("transpilation failed");
+        }
+    };
 
     let output_path = output.unwrap_or_else(|| input.with_extension("rs"));
     fs::write(&output_path, &rust_code)?;
@@ -523,13 +534,13 @@ pub fn check_command(input: PathBuf) -> Result<()> {
             Ok(())
         }
         Err(e) => {
-            println!(
-                "{} {} cannot be transpiled: {}",
-                "✗".red(),
-                input.display(),
-                e
+            let diagnostic = depyler_core::diagnostic::Diagnostic::from_anyhow(
+                &e,
+                Some(input.display().to_string()),
+                Some(&python_source),
             );
-            Err(e)
+            eprintln!("{}", diagnostic);
+            anyhow::bail!("check failed")
         }
     }
 }
