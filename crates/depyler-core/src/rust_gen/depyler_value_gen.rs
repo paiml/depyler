@@ -1030,6 +1030,25 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
             impl std::cmp::PartialEq<DepylerValue> for f64 {
                 fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Float(*self) == other }
             }
+            // DEPYLER-1404: Cross-type equality for String/&str/bool
+            impl std::cmp::PartialEq<String> for DepylerValue {
+                fn eq(&self, other: &String) -> bool { self == &DepylerValue::Str(other.clone()) }
+            }
+            impl std::cmp::PartialEq<&str> for DepylerValue {
+                fn eq(&self, other: &&str) -> bool { self == &DepylerValue::Str((*other).to_string()) }
+            }
+            impl std::cmp::PartialEq<bool> for DepylerValue {
+                fn eq(&self, other: &bool) -> bool { self == &DepylerValue::Bool(*other) }
+            }
+            impl std::cmp::PartialEq<DepylerValue> for String {
+                fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Str(self.clone()) == other }
+            }
+            impl std::cmp::PartialEq<DepylerValue> for &str {
+                fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Str(self.to_string()) == other }
+            }
+            impl std::cmp::PartialEq<DepylerValue> for bool {
+                fn eq(&self, other: &DepylerValue) -> bool { &DepylerValue::Bool(*self) == other }
+            }
 
             // DEPYLER-1062: Safe min helper that handles f64 NaN correctly
             // Python: min(1.0, float('nan')) returns 1.0 (NaN is "ignored")
