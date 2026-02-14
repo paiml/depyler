@@ -1,27 +1,26 @@
 {
-  "timestamp": "2026-02-14T18:09:03.882967627Z",
-  "session": "converge-20260214-180903",
+  "timestamp": "2026-02-14T18:15:40.358648664Z",
+  "session": "converge-20260214-181540",
   "baseline": {
     "files_processed": 68,
-    "transpile_success": 57,
-    "transpile_rate": 0.8382352941176471,
-    "compile_errors": 98
+    "transpile_success": 58,
+    "transpile_rate": 0.8529411764705882,
+    "compile_errors": 84
   },
   "error_distribution": {
-    "TRANSPILE_unknown": 4,
-    "E0282_unknown": 10,
-    "E0609_unknown": 9,
-    "E0277_trait_bound": 1,
-    "E0599_missing_method": 9,
-    "E0423_unknown": 1,
-    "E0369_unknown": 6,
-    "E0308_type_inference": 4,
     "E0271_unknown": 2,
+    "E0599_missing_method": 9,
+    "E0277_trait_bound": 1,
     "E0428_unknown": 1,
-    "E0061_unknown": 13,
-    "E0605_unknown": 3,
+    "E0618_unknown": 18,
     "E0425_undefined_variable": 17,
-    "E0618_unknown": 18
+    "E0423_unknown": 1,
+    "TRANSPILE_unknown": 4,
+    "E0308_type_inference": 4,
+    "E0282_unknown": 10,
+    "E0369_unknown": 6,
+    "E0609_unknown": 9,
+    "E0605_unknown": 2
   },
   "oracle_performance": {
     "type_mismatch_confidence": 0.85,
@@ -33,7 +32,7 @@
     "high_confidence_errors": 13,
     "medium_confidence_errors": 18,
     "total_classifiable": 31,
-    "classifiable_rate": 0.3163265306122449,
+    "classifiable_rate": 0.36904761904761907,
     "estimated_savings_cents": 52,
     "fixes_available": 0,
     "fix_availability_rate": 0.0,

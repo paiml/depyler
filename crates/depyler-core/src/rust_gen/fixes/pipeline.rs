@@ -569,7 +569,15 @@ fn fix_stub_arities(code: &str) -> String {
         if result.contains(&type_path) {
             if let Some(cleaned) = remove_stub_function(&result, name) {
                 result = cleaned;
-                struct_stubs_to_prepend.push(generate_stub_struct(name, &result));
+                let (struct_def, ctor_macro) = generate_stub_struct(name, &result);
+                struct_stubs_to_prepend.push(struct_def);
+                if let Some(mac) = ctor_macro {
+                    macros_to_prepend.push(mac);
+                    // Rewrite Name::new( to Name_new!( directly
+                    let new_call = format!("{}::new(", name);
+                    let macro_call = format!("{}_new!(", name);
+                    result = result.replace(&new_call, &macro_call);
+                }
             }
             continue;
         }
@@ -738,7 +746,7 @@ fn remove_stub_function(code: &str, name: &str) -> Option<String> {
 ///
 /// Scans the code for `Name::CONSTANT`, `Name::method()`, and instance
 /// method calls (`.method()` on constants) to generate a compilable stub.
-fn generate_stub_struct(name: &str, code: &str) -> String {
+fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
     let (members, instance_methods) = scan_class_usage(name, code);
 
     let mut parts = Vec::new();
@@ -754,7 +762,17 @@ fn generate_stub_struct(name: &str, code: &str) -> String {
         name
     ));
 
-    parts.join("\n")
+    // If `new` is used, generate a constructor macro for variadic args
+    let ctor_macro = if members.contains(&"new".to_string()) {
+        Some(format!(
+            "macro_rules! {}_new {{ ($($args:expr),* $(,)?) => {{ {} {{ value: DepylerValue::default() }} }}; }}",
+            name, name
+        ))
+    } else {
+        None
+    };
+
+    (parts.join("\n"), ctor_macro)
 }
 
 /// Scan code for `Name::MEMBER` patterns and instance methods called on them.
@@ -801,21 +819,35 @@ fn build_struct_impl_items(
     let mut items = Vec::new();
 
     for member in members {
-        let is_method = code.contains(&format!("{}::{}(", name, member));
-        if is_method && member == "new" {
-            items.push(format!(
-                "pub fn new(_args: impl std::any::Any) -> Self {{ {} {{ value: DepylerValue::default() }} }}",
-                name
-            ));
-        } else if is_method {
-            items.push(format!(
-                "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
-                member
-            ));
-        } else {
+        // Skip `new` — handled via constructor macro
+        if member == "new" {
+            continue;
+        }
+        let call_pattern = format!("{}::{}(", name, member);
+        let is_method = code.contains(&call_pattern);
+        if !is_method {
             items.push(format!(
                 "pub const {}: {} = {} {{ value: DepylerValue::None }};",
                 member, name, name
+            ));
+            continue;
+        }
+        // Check if called with 0 args: Name::method() vs Name::method(arg)
+        let no_arg_pattern = format!("{}::{}()", name, member);
+        let has_no_args = code.contains(&no_arg_pattern);
+        // Check if result is cast to numeric (e.g., `Color::len() as i32`)
+        let cast_pattern = format!("{}::{}() as ", name, member);
+        let is_cast_to_numeric = code.contains(&cast_pattern);
+        if has_no_args {
+            let ret_type = if is_cast_to_numeric { "usize" } else { "DepylerValue" };
+            let ret_val = if is_cast_to_numeric { "0" } else { "DepylerValue::default()" };
+            items.push(format!("pub fn {}() -> {} {{ {} }}", member, ret_type, ret_val));
+        } else {
+            // Use a variadic approach: define as single-arg, but also check multi-arg
+            // If called with multiple args, we'll generate a macro_rules! instead
+            items.push(format!(
+                "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
+                member
             ));
         }
     }
