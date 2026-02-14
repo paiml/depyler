@@ -5,7 +5,6 @@
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
-use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::stdlib_method_gen;
 use anyhow::{bail, Result};
 use quote::quote;
