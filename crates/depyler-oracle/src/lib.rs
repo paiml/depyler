@@ -29,7 +29,6 @@ pub mod github_corpus;
 #[cfg(feature = "api-fallback")]
 pub mod hybrid;
 pub mod moe_oracle;
-// pub mod mlp_classifier; // GH-XXX: Implement GPU-accelerated MLP classifier
 #[cfg(feature = "training")]
 pub mod acceleration_pipeline;
 pub mod ast_embeddings; // Issue #210: Code2Vec-style AST embeddings
@@ -283,45 +282,53 @@ pub struct Oracle {
 /// Default model filename
 const DEFAULT_MODEL_NAME: &str = "depyler_oracle.apr";
 
-/// Get training corpus file paths for hash computation.
-///
-/// Issue #211: Used to detect when training data has changed.
-#[must_use]
-pub fn get_training_corpus_paths() -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-
-    // Find project root
+/// Find the project root by walking up from cwd looking for Cargo.toml.
+fn find_project_root() -> Option<PathBuf> {
     let mut root = std::env::current_dir().unwrap_or_default();
     for _ in 0..5 {
         if root.join("Cargo.toml").exists() {
-            break;
+            return Some(root);
         }
         if !root.pop() {
-            return paths;
+            return None;
         }
     }
+    None
+}
 
-    // Collect corpus directories
+/// Collect .rs and .json files from a directory (non-recursive).
+fn collect_corpus_files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "rs" || e == "json"))
+        .collect()
+}
+
+/// Get training corpus file paths for hash computation.
+///
+/// Used to detect when training data has changed for retraining decisions.
+#[must_use]
+pub fn get_training_corpus_paths() -> Vec<PathBuf> {
+    let Some(root) = find_project_root() else {
+        return Vec::new();
+    };
+
     let corpus_dirs = [
         root.join("crates/depyler-oracle/src"),
         root.join("verificar/corpus"),
         root.join("training_data"),
     ];
 
-    for dir in corpus_dirs {
-        if dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.extension().is_some_and(|e| e == "rs" || e == "json") {
-                        paths.push(path);
-                    }
-                }
-            }
-        }
-    }
+    let mut paths: Vec<PathBuf> = corpus_dirs
+        .iter()
+        .filter(|d| d.exists())
+        .flat_map(|d| collect_corpus_files(d))
+        .collect();
 
-    // Sort for deterministic hashing
     paths.sort();
     paths
 }
