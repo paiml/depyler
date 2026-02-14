@@ -724,55 +724,56 @@ fn detect_hir_self_reference(stmt: &depyler_hir::hir::HirStmt) -> Option<PokaYok
     use depyler_hir::hir::{HirExpr, HirStmt};
 
     match stmt {
-        HirStmt::Assign { target, value, .. } => {
-            // Check for self-reference through index: d["x"] = d
-            if let Some(target_var) = find_base_var_in_assign(target) {
-                if let HirExpr::Var(value_var) = value {
-                    if target_var == value_var {
-                        return Some(PokaYokeViolation {
-                            code: "DPL101".to_string(),
-                            description: format!(
-                                "Self-referential assignment to '{}' is not allowed",
-                                target_var
-                            ),
-                            offset: 0,
-                            suggestion: "Use indices or separate structures".to_string(),
-                        });
-                    }
-                }
-            }
-        }
+        HirStmt::Assign { target, value, .. } => check_self_assign(target, value),
         HirStmt::Expr(HirExpr::MethodCall {
             object,
             method,
             args,
             ..
-        }) => {
-            // Check for self-appending: lst.append(lst)
-            if method == "append" || method == "add" || method == "extend" {
-                if let HirExpr::Var(recv_name) = object.as_ref() {
-                    for arg in args {
-                        if let HirExpr::Var(arg_name) = arg {
-                            if recv_name == arg_name {
-                                return Some(PokaYokeViolation {
-                                    code: "DPL101".to_string(),
-                                    description: format!(
-                                        "Adding '{}' to itself creates a cycle",
-                                        recv_name
-                                    ),
-                                    offset: 0,
-                                    suggestion: "Use a copy to store duplicate data".to_string(),
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _ => {}
+        }) => check_self_method_call(object, method, args),
+        _ => None,
     }
+}
 
-    None
+fn check_self_assign(
+    target: &depyler_hir::hir::AssignTarget,
+    value: &depyler_hir::hir::HirExpr,
+) -> Option<PokaYokeViolation> {
+    let target_var = find_base_var_in_assign(target)?;
+    let depyler_hir::hir::HirExpr::Var(value_var) = value else {
+        return None;
+    };
+    if target_var != value_var {
+        return None;
+    }
+    Some(PokaYokeViolation {
+        code: "DPL101".to_string(),
+        description: format!("Self-referential assignment to '{target_var}' is not allowed"),
+        offset: 0,
+        suggestion: "Use indices or separate structures".to_string(),
+    })
+}
+
+fn check_self_method_call(
+    object: &depyler_hir::hir::HirExpr,
+    method: &str,
+    args: &[depyler_hir::hir::HirExpr],
+) -> Option<PokaYokeViolation> {
+    if !matches!(method, "append" | "add" | "extend") {
+        return None;
+    }
+    let depyler_hir::hir::HirExpr::Var(recv_name) = object else {
+        return None;
+    };
+    let self_arg = args.iter().find(|arg| {
+        matches!(arg, depyler_hir::hir::HirExpr::Var(name) if name == recv_name)
+    });
+    self_arg.map(|_| PokaYokeViolation {
+        code: "DPL101".to_string(),
+        description: format!("Adding '{recv_name}' to itself creates a cycle"),
+        offset: 0,
+        suggestion: "Use a copy to store duplicate data".to_string(),
+    })
 }
 
 /// Helper to find the base variable in an assignment target
@@ -1729,7 +1730,7 @@ class Foo:
 
     #[test]
     fn test_s12_detect_hir_self_reference_no_match() {
-        use depyler_hir::hir::{HirExpr, HirStmt, Literal};
+        use depyler_hir::hir::{HirExpr, HirStmt};
 
         let stmt = HirStmt::Expr(HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("a".to_string())),
