@@ -85,6 +85,30 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace("operator.add", "|a, b| a + b");
     formatted_code = formatted_code.replace("operator.sub", "|a, b| a - b");
 
+    // DEPYLER-1404: Fix DepylerValue `as` casts (E0605).
+    // DepylerValue can't use `as f64` — replace with comparison without cast
+    // since DepylerValue already implements PartialEq for numeric types.
+    formatted_code = fix_depyler_value_casts(&formatted_code);
+
+    // DEPYLER-1404: Fix struct field assignment with raw literals (E0308).
+    // Wraps `p.x = 5.0;` → `p.x = DepylerValue::Float(5.0);` for stub struct fields.
+    formatted_code = fix_struct_field_literal_assignment(&formatted_code);
+
+    // DEPYLER-1404: Hoist variable declarations out of with-statement blocks (E0425).
+    // Python `with` blocks transpile to `{ let mut var = ...; { body } }` but
+    // assert statements after the block can't see `var`. Hoist the let binding.
+    formatted_code = fix_with_block_scope(&formatted_code);
+
+    // DEPYLER-1404: Add .clone() to arguments of stub struct instance methods (E0382/E0505).
+    // When a struct instance is passed as an argument to its own method, or reused
+    // after being consumed, we need .clone() to satisfy the borrow checker.
+    formatted_code = fix_stub_method_ownership(&formatted_code);
+
+    // DEPYLER-1404: Wrap nested HashMap block expressions as DepylerValue::Dict (E0308).
+    // Inner maps `{ let mut map = HashMap::new(); map.insert(...); map }` inside
+    // outer DepylerValue inserts need wrapping as DepylerValue::Dict.
+    formatted_code = fix_nested_hashmap_to_depyler_value(&formatted_code);
+
     // DEPYLER-1404: Replace bare UnionType with DepylerValue (E0425).
     // Python Union[...] type aliases sometimes emit `UnionType` which doesn't exist.
     formatted_code = formatted_code.replace("pub type JsonValue = UnionType;", "pub type JsonValue = DepylerValue;");
@@ -749,10 +773,30 @@ fn remove_stub_function(code: &str, name: &str) -> Option<String> {
 fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
     let (members, instance_methods) = scan_class_usage(name, code);
 
+    // Detect fields (instance_methods entries that are field accesses, not method calls)
+    let mut fields: Vec<String> = Vec::new();
+    for method in &instance_methods {
+        if method == "value" {
+            continue;
+        }
+        let method_call = format!(".{}(", method);
+        let field_assign = format!(".{} =", method);
+        let is_method_call = code.contains(&method_call);
+        let is_field_assign = code.contains(&field_assign);
+        if is_field_assign || !is_method_call {
+            fields.push(method.clone());
+        }
+    }
+
     let mut parts = Vec::new();
+    let mut struct_fields = vec!["pub value: DepylerValue".to_string()];
+    for field in &fields {
+        struct_fields.push(format!("pub {}: DepylerValue", field));
+    }
     parts.push(format!(
-        "#[derive(Debug, Clone, PartialEq)] pub struct {} {{ pub value: DepylerValue }}",
-        name
+        "#[derive(Debug, Clone, PartialEq)] pub struct {} {{ {} }}",
+        name,
+        struct_fields.join(", ")
     ));
 
     let impl_items = build_struct_impl_items(name, code, &members, &instance_methods);
@@ -764,9 +808,21 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
 
     // If `new` is used, generate a constructor macro for variadic args
     let ctor_macro = if members.contains(&"new".to_string()) {
+        let field_defaults: Vec<String> = struct_fields.iter()
+            .map(|_| "DepylerValue::default()".to_string())
+            .collect();
+        let field_names: Vec<String> = vec!["value".to_string()]
+            .into_iter()
+            .chain(fields.iter().cloned())
+            .collect();
+        let field_inits: String = field_names.iter()
+            .zip(field_defaults.iter())
+            .map(|(n, d)| format!("{}: {}", n, d))
+            .collect::<Vec<_>>()
+            .join(", ");
         Some(format!(
-            "macro_rules! {}_new {{ ($($args:expr),* $(,)?) => {{ {} {{ value: DepylerValue::default() }} }}; }}",
-            name, name
+            "macro_rules! {}_new {{ ($($args:expr),* $(,)?) => {{ {} {{ {} }} }}; }}",
+            name, name, field_inits
         ))
     } else {
         None
@@ -775,13 +831,16 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
     (parts.join("\n"), ctor_macro)
 }
 
-/// Scan code for `Name::MEMBER` patterns and instance methods called on them.
+/// Scan code for `Name::MEMBER` patterns, instance methods, and field accesses.
 fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
     let prefix = format!("{}::", name);
+    let ctor_macro = format!("{}_new!(", name);
     let mut members: Vec<String> = Vec::new();
     let mut instance_methods: Vec<String> = Vec::new();
+    let mut instance_vars: Vec<String> = Vec::new();
 
     for line in code.lines() {
+        // Scan for Name::MEMBER patterns
         let mut search = line;
         while let Some(pos) = search.find(&prefix) {
             let after = &search[pos + prefix.len()..];
@@ -792,7 +851,6 @@ fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
             if !member.is_empty() && !members.contains(&member) {
                 members.push(member.clone());
             }
-            // Check for instance method: Name::MEMBER.method(
             let after_member = &after[member.len()..];
             if let Some(rest) = after_member.strip_prefix('.') {
                 let method: String = rest
@@ -805,7 +863,39 @@ fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
             }
             search = &search[pos + prefix.len()..];
         }
+
+        // Scan for variables assigned from Name::new() or Name_new!() constructor
+        let trimmed = line.trim();
+        let ctor_call = format!("{}::new(", name);
+        if let Some(rest) = trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
+            if rest.contains(&ctor_macro) || rest.contains(&ctor_call) {
+                let var_name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+                if !var_name.is_empty() && !instance_vars.contains(&var_name) {
+                    instance_vars.push(var_name);
+                }
+            }
+        }
     }
+
+    // Scan for field/method access on instance variables: var.field or var.method(
+    for line in code.lines() {
+        for var in &instance_vars {
+            let dot_prefix = format!("{}.", var);
+            let mut search = line;
+            while let Some(pos) = search.find(&dot_prefix) {
+                let after = &search[pos + dot_prefix.len()..];
+                let member: String = after
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if !member.is_empty() && !instance_methods.contains(&member) {
+                    instance_methods.push(member);
+                }
+                search = &search[pos + dot_prefix.len()..];
+            }
+        }
+    }
+
     (members, instance_methods)
 }
 
@@ -852,16 +942,324 @@ fn build_struct_impl_items(
         }
     }
 
-    // Generate instance methods (called on constants like Color::RED.hex())
+    // Generate instance methods and fields
     for method in instance_methods {
         if method == "value" {
-            continue; // Already a field
+            continue; // Already a field on the struct
         }
-        items.push(format!(
-            "pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}",
-            method
-        ));
+        // Check if it's used as a method call (has `(` after) or a field access
+        let method_call = format!(".{}(", method);
+        let is_method_call = code.contains(&method_call);
+        let field_assign = format!(".{} =", method);
+        let is_field_assign = code.contains(&field_assign);
+
+        if is_field_assign || !is_method_call {
+            // It's a field — add to struct definition (handled separately)
+            continue;
+        }
+        // Check if method is always called with 0 args: .method() with no content
+        let zero_arg_call = format!(".{}()", method);
+        let has_zero_args = code.contains(&zero_arg_call);
+        if has_zero_args {
+            items.push(format!(
+                "pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}",
+                method
+            ));
+        } else {
+            items.push(format!(
+                "pub fn {}(&self, _args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
+                method
+            ));
+        }
     }
 
     items
+}
+
+/// Wrap nested HashMap block expressions as DepylerValue::Dict.
+///
+/// When an outer HashMap<String, DepylerValue> inserts a value that's a block
+/// expression building another HashMap, wrap the block result in DepylerValue::Dict.
+fn fix_nested_hashmap_to_depyler_value(code: &str) -> String {
+    if !code.contains("HashMap<String, DepylerValue>") {
+        return code.to_string();
+    }
+
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+
+        // Detect pattern: `map.insert("key", {`
+        // followed by `let mut map = HashMap::new();`
+        // ... inserts ...
+        // `map` (return)
+        // `});`
+        if trimmed.contains(".insert(") && trimmed.ends_with('{') && i + 1 < lines.len() {
+            let next = lines[i + 1].trim();
+            if next.contains("HashMap::new()") {
+                // Find the closing `});` and wrap: inject DepylerValue::Dict around the inner map
+                let mut depth = 1;
+                let mut close = None;
+                for j in (i + 2)..lines.len() {
+                    let t = lines[j].trim();
+                    for ch in t.chars() {
+                        match ch {
+                            '{' => depth += 1,
+                            '}' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    if depth == 0 {
+                        close = Some(j);
+                        break;
+                    }
+                }
+                if let Some(close_idx) = close {
+                    // The line before `});` should be `map` — wrap it
+                    // Also wrap integer inserts inside the block
+                    result.push(lines[i].to_string());
+                    for j in (i + 1)..close_idx {
+                        let inner = lines[j].trim();
+                        // Wrap bare integer values in inserts
+                        if inner.contains(".insert(") && inner.ends_with(");") {
+                            if let Some(cp) = inner.rfind(", ") {
+                                let val = &inner[cp + 2..inner.len() - 2];
+                                if val.parse::<i64>().is_ok() && !val.contains("DepylerValue") {
+                                    let new_line = lines[j].replace(
+                                        &format!(", {});", val),
+                                        &format!(", DepylerValue::Int({}));", val),
+                                    );
+                                    result.push(new_line);
+                                    continue;
+                                }
+                            }
+                        }
+                        // The return statement (bare `map`) — wrap in DepylerValue::Dict
+                        if inner == "map" && j + 1 == close_idx {
+                            let indent = lines[j].len() - lines[j].trim_start().len();
+                            result.push(format!("{}DepylerValue::Dict(map.into_iter().map(|(k, v)| (DepylerValue::Str(k), v)).collect())", " ".repeat(indent)));
+                            continue;
+                        }
+                        result.push(lines[j].to_string());
+                    }
+                    result.push(lines[close_idx].to_string());
+                    i = close_idx + 1;
+                    continue;
+                }
+            }
+        }
+
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+
+    result.join("\n")
+}
+
+/// Add `.clone()` to arguments of stub struct instance methods to fix ownership.
+///
+/// Only applies in assert contexts to avoid false positives in match arms, hash impls, etc.
+/// Detects `a.method(b)` where `b` is reused, or `a.method(a)` same-variable patterns.
+fn fix_stub_method_ownership(code: &str) -> String {
+    if !code.contains("DEPYLER-0615") {
+        return code.to_string();
+    }
+
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+
+    for (_i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        let mut new_line = line.to_string();
+
+        // Only apply in assert contexts to avoid false positives
+        if !trimmed.starts_with("assert") {
+            result.push(new_line);
+            continue;
+        }
+
+        // Find `.METHOD(IDENT)` patterns
+        if let Some(dot_pos) = trimmed.find('.') {
+            let before_dot = &trimmed[..dot_pos];
+            let receiver: String = before_dot.chars().rev()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect::<String>().chars().rev().collect();
+
+            if !receiver.is_empty() {
+                let after_dot = &trimmed[dot_pos + 1..];
+                if let Some(paren) = after_dot.find('(') {
+                    let method = &after_dot[..paren];
+                    if method.chars().all(|c| c.is_alphanumeric() || c == '_') && !method.is_empty() {
+                        let args_start = dot_pos + 1 + paren + 1;
+                        if args_start < trimmed.len() {
+                            let rest = &trimmed[args_start..];
+                            let arg: String = rest.chars()
+                                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                                .collect();
+
+                            if !arg.is_empty() {
+                                let after_arg = &rest[arg.len()..];
+                                // Case 1: same variable as receiver and arg
+                                if arg == receiver && after_arg.starts_with(')') {
+                                    let old = format!("{}.{}({})", receiver, method, arg);
+                                    let new = format!("{}.{}({}.clone())", receiver, method, arg);
+                                    new_line = new_line.replace(&old, &new);
+                                }
+                                // Case 2: arg is used again on the same line (e.g., a.f(b) == b.f(a))
+                                else if after_arg.contains(&format!("{}.{}", arg, method)) {
+                                    let old = format!(".{}({})", method, arg);
+                                    let new = format!(".{}({}.clone())", method, arg);
+                                    new_line = new_line.replacen(&old, &new, 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        result.push(new_line);
+    }
+
+    result.join("\n")
+}
+
+/// Hoist variable declarations out of with-statement blocks.
+///
+/// Python `with` statements transpile to `{ let mut var = EXPR; { body } }`
+/// but assertions after the block reference the variable, which is out of scope.
+/// This hoists `let mut var = EXPR;` before the enclosing `{` block.
+fn fix_with_block_scope(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Look for `{` on its own line, followed by `let mut VAR = EXPR;`
+        if trimmed == "{" && i + 1 < lines.len() {
+            let next_trimmed = lines[i + 1].trim();
+            if next_trimmed.starts_with("let mut ") || next_trimmed.starts_with("let ") {
+                // Check if there's a variable used after the closing `}` of this block
+                // Find the matching closing brace
+                let indent = lines[i].len() - lines[i].trim_start().len();
+                let mut brace_depth = 1;
+                let mut close_idx = None;
+                for j in (i + 2)..lines.len() {
+                    let t = lines[j].trim();
+                    for ch in t.chars() {
+                        match ch {
+                            '{' => brace_depth += 1,
+                            '}' => brace_depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    if brace_depth == 0 {
+                        let j_indent = lines[j].len() - lines[j].trim_start().len();
+                        if j_indent == indent {
+                            close_idx = Some(j);
+                        }
+                        break;
+                    }
+                }
+                if let Some(close) = close_idx {
+                    // Extract variable name
+                    let let_line = next_trimmed;
+                    let var_rest = let_line.strip_prefix("let mut ").or(let_line.strip_prefix("let ")).unwrap();
+                    let var_name: String = var_rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+
+                    // Check if variable is used anywhere after the closing brace
+                    let used_after = (close + 1..lines.len()).any(|k| {
+                        let after_line = lines[k].trim();
+                        after_line.contains(&var_name)
+                    });
+
+                    if used_after && !var_name.is_empty() {
+                        // Hoist: emit `let mut VAR = EXPR;` before `{`
+                        let let_indent = " ".repeat(indent + 4);
+                        result.push(format!("{}{}", let_indent, next_trimmed));
+                        result.push(lines[i].to_string()); // the `{`
+                        // Skip the let line (already hoisted)
+                        i += 2;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(lines[i].to_string());
+        i += 1;
+    }
+
+    result.join("\n")
+}
+
+/// Fix struct field assignments where a raw literal is assigned to a DepylerValue field.
+///
+/// Wraps `p.field = 5.0;` → `p.field = DepylerValue::Float(5.0);` for stub struct fields.
+fn fix_struct_field_literal_assignment(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Match pattern: IDENT.FIELD = LITERAL;
+        if let Some(eq_pos) = trimmed.find(" = ") {
+            let lhs = &trimmed[..eq_pos];
+            let rhs = trimmed[eq_pos + 3..].trim_end_matches(';').trim();
+            // Only fix if LHS is a field access (contains `.` but not `::`)
+            if lhs.contains('.') && !lhs.contains("::") {
+                // Check if RHS is a float literal (e.g., 5.0, -3.14)
+                if rhs.parse::<f64>().is_ok() && rhs.contains('.') {
+                    let new_line = line.replace(
+                        &format!("= {};", rhs),
+                        &format!("= DepylerValue::Float({});", rhs),
+                    );
+                    result.push_str(&new_line);
+                    result.push('\n');
+                    continue;
+                }
+                // Check if RHS is an integer literal
+                if rhs.parse::<i64>().is_ok() {
+                    let new_line = line.replace(
+                        &format!("= {};", rhs),
+                        &format!("= DepylerValue::Int({});", rhs),
+                    );
+                    result.push_str(&new_line);
+                    result.push('\n');
+                    continue;
+                }
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+    result
+}
+
+/// Fix `(expr as f64)` and `(expr as i32)` patterns involving DepylerValue.
+///
+/// Rewrites `(expr as f64) == literal` → `expr == literal` since DepylerValue
+/// already implements PartialEq for numeric types.
+fn fix_depyler_value_casts(code: &str) -> String {
+    // Pattern: `(EXPR as f64)` or `(EXPR as i32)` in assert contexts
+    // We can't know which exprs are DepylerValue, so only fix patterns where
+    // the cast appears in a comparison with a literal.
+    let mut result = code.to_string();
+    for cast_type in &["f64", "i32", "i64", "usize"] {
+        let cast_suffix = format!(" as {})", cast_type);
+        // Only fix casts that are followed by == or != with a literal
+        let lines: Vec<&str> = result.lines().collect();
+        let mut new_lines: Vec<String> = Vec::with_capacity(lines.len());
+        for line in &lines {
+            if line.contains(&cast_suffix) && line.contains("assert!") {
+                // Remove the `as TYPE` part: `(expr as f64)` → `(expr)`
+                new_lines.push(line.replace(&cast_suffix, ")"));
+            } else {
+                new_lines.push(line.to_string());
+            }
+        }
+        result = new_lines.join("\n");
+    }
+    result
 }

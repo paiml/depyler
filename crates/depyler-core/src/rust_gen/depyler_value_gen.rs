@@ -130,9 +130,9 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
 
                 /// DEPYLER-1404: Extend list with another iterable
-                pub fn extend(&mut self, other: impl IntoIterator<Item = DepylerValue>) {
+                pub fn extend<T: Into<DepylerValue>>(&mut self, other: impl IntoIterator<Item = T>) {
                     if let DepylerValue::List(_dv_list) = self {
-                        _dv_list.extend(other);
+                        _dv_list.extend(other.into_iter().map(|x| x.into()));
                     }
                 }
 
