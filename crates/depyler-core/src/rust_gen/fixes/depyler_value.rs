@@ -179,11 +179,31 @@ pub(super) fn collect_depyler_value_map_names(code: &str) -> Vec<String> {
     names
 }
 
+/// Try to wrap the value of a single insert call at `abs` position.
+/// Returns the new search position if a replacement was made, or `None`.
+fn try_wrap_single_insert(
+    result: &mut String,
+    abs: usize,
+    after_insert: usize,
+) -> Option<usize> {
+    let close = find_matching_close(&result[after_insert..])?;
+    let args = result[after_insert..after_insert + close].to_string();
+    let comma = find_top_level_comma(&args)?;
+    let value_part = args[comma + 1..].trim();
+    if value_part.starts_with("DepylerValue::") || !is_field_access(value_part) {
+        return None;
+    }
+    let new_val = format!("DepylerValue::Str({})", value_part);
+    let old_full = format!("{}{}", &result[abs..after_insert], args);
+    let new_args = format!("{}, {}", &args[..comma], new_val);
+    let new_full = format!("{}{}", &result[abs..after_insert], new_args);
+    *result = result.replacen(&old_full, &new_full, 1);
+    Some(abs + new_full.len())
+}
+
 pub(super) fn wrap_string_inserts_in_dv_maps(code: &str, vars: &[String]) -> String {
     let mut result = code.to_string();
     for var in vars {
-        // Pattern: `var.insert("key".to_string(), config.field);`
-        // where config.field is a String, needs DepylerValue::Str() wrapping
         let insert_pat = format!("{}.insert(", var);
         let mut search_from = 0;
         while search_from < result.len() {
@@ -192,29 +212,11 @@ pub(super) fn wrap_string_inserts_in_dv_maps(code: &str, vars: &[String]) -> Str
             };
             let abs = search_from + pos;
             let after_insert = abs + insert_pat.len();
-            // Find the closing `);` for this insert call
-            if let Some(close) = find_matching_close(&result[after_insert..]) {
-                let args = &result[after_insert..after_insert + close];
-                // Split on first comma to get key and value
-                if let Some(comma) = find_top_level_comma(args) {
-                    let value_part = args[comma + 1..].trim();
-                    // If value is already wrapped in DepylerValue::, skip
-                    if !value_part.starts_with("DepylerValue::") {
-                        // If value looks like a field access (config.X) ending with )
-                        if is_field_access(value_part) {
-                            let old_val = value_part.to_string();
-                            let new_val = format!("DepylerValue::Str({})", old_val);
-                            let old_full = format!("{}{}", &result[abs..after_insert], args);
-                            let new_args = format!("{}, {}", &args[..comma], new_val);
-                            let new_full = format!("{}{}", &result[abs..after_insert], new_args);
-                            result = result.replacen(&old_full, &new_full, 1);
-                            search_from = abs + new_full.len();
-                            continue;
-                        }
-                    }
-                }
+            if let Some(new_pos) = try_wrap_single_insert(&mut result, abs, after_insert) {
+                search_from = new_pos;
+            } else {
+                search_from = abs + insert_pat.len();
             }
-            search_from = abs + insert_pat.len();
         }
     }
     result
@@ -464,121 +466,174 @@ pub(super) fn wrap_generic_insert_value(line: &str, var_name: &str) -> String {
     line.to_string()
 }
 
+const TYPED_TYPES: &[&str] = &["i32", "f64", "i64", "usize", "String", "bool"];
+const DV_TERMINATORS: &[&str] = &[
+    ".expect(\"IndexError: list index out of range\")",
+    ".expect(\"value is None\")",
+    ".unwrap_or_default()",
+];
+
+/// Strip `let [mut] ` prefix and return the remainder, or `None`.
+fn strip_let_prefix(trimmed: &str) -> Option<&str> {
+    trimmed
+        .strip_prefix("let mut ")
+        .or_else(|| trimmed.strip_prefix("let "))
+}
+
+/// If the line is a `let` declaration with a concrete type annotation, insert the
+/// variable name into `typed_vars`.
+fn track_typed_var_declaration(
+    trimmed: &str,
+    typed_vars: &mut std::collections::HashSet<String>,
+) {
+    let after_let = match strip_let_prefix(trimmed) {
+        Some(rest) => rest,
+        None => return,
+    };
+    if let Some(colon) = after_let.find(':') {
+        let var_name = after_let[..colon].trim().to_string();
+        let after_colon = &after_let[colon + 1..];
+        let type_part = if let Some(eq) = after_colon.find('=') {
+            after_colon[..eq].trim()
+        } else {
+            after_colon.trim().trim_end_matches(';')
+        };
+        if TYPED_TYPES.contains(&type_part) {
+            typed_vars.insert(var_name);
+        }
+    }
+}
+
+/// Return `true` (and write the fixed line to `result`) when the line is a
+/// single-line `let` binding whose RHS ends with a DV terminator.
+fn try_fix_single_line_let(
+    line: &str,
+    trimmed: &str,
+    result: &mut String,
+) -> bool {
+    let has_typed_ann = TYPED_TYPES.iter().any(|t| {
+        trimmed.contains(&format!(": {} ", t)) || trimmed.contains(&format!(": {} =", t))
+    });
+    if !has_typed_ann || !trimmed.ends_with(';') {
+        return false;
+    }
+    let before_semi = &trimmed[..trimmed.len() - 1];
+    for term in DV_TERMINATORS {
+        if before_semi.ends_with(term) {
+            let indent = &line[..line.len() - trimmed.len()];
+            result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+            return true;
+        }
+    }
+    false
+}
+
+/// Check whether the current or preceding lines represent a typed assignment.
+fn is_typed_assignment_in_context(
+    trimmed: &str,
+    i: usize,
+    lines: &[&str],
+    typed_vars: &std::collections::HashSet<String>,
+) -> bool {
+    // Check the current line for a bare assignment to a typed var
+    if let Some(eq_idx) = trimmed.find(" = ") {
+        let var_part = trimmed[..eq_idx].trim();
+        if typed_vars.contains(var_part) {
+            return true;
+        }
+    }
+    // Check lines above for the start of a multi-line chained assignment
+    if i > 0 {
+        for back in (0..i).rev() {
+            let prev = lines[back].trim();
+            if prev.is_empty() || prev.starts_with("//") {
+                break;
+            }
+            if let Some(eq_idx) = prev.find(" = ") {
+                return typed_vars.contains(prev[..eq_idx].trim());
+            }
+            if !prev.starts_with('.') && !prev.ends_with('.') {
+                break;
+            }
+        }
+    }
+    false
+}
+
+/// Return `true` (and write the fixed line) when the line ends with a DV
+/// terminator and belongs to a typed assignment.
+fn try_fix_multiline_dv_terminator(
+    line: &str,
+    trimmed: &str,
+    i: usize,
+    lines: &[&str],
+    typed_vars: &std::collections::HashSet<String>,
+    result: &mut String,
+) -> bool {
+    if !trimmed.ends_with(';') || trimmed.starts_with("let ") || trimmed.starts_with("//") {
+        return false;
+    }
+    let before_semi = &trimmed[..trimmed.len() - 1];
+    for term in DV_TERMINATORS {
+        if before_semi.ends_with(term.trim_start_matches('.')) || before_semi.ends_with(term) {
+            if is_typed_assignment_in_context(trimmed, i, lines, typed_vars) {
+                let indent = &line[..line.len() - trimmed.len()];
+                result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+                return true;
+            }
+            break;
+        }
+    }
+    false
+}
+
+/// Return `true` (and write the fixed line) when the line is `var = expr.clone();`
+/// and `var` was previously declared with a concrete type.
+fn try_fix_clone_for_typed_var(
+    line: &str,
+    trimmed: &str,
+    typed_vars: &std::collections::HashSet<String>,
+    result: &mut String,
+) -> bool {
+    if !trimmed.ends_with(".clone();") || trimmed.starts_with("let ") {
+        return false;
+    }
+    if let Some(eq_idx) = trimmed.find(" = ") {
+        let var_part = trimmed[..eq_idx].trim();
+        if typed_vars.contains(var_part) {
+            let indent = &line[..line.len() - trimmed.len()];
+            let before_semi = &trimmed[..trimmed.len() - 1];
+            result.push_str(&format!("{}{}.into();\n", indent, before_semi));
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn fix_depyler_value_to_typed_assignment(code: &str) -> String {
     use std::collections::HashSet;
     let mut result = String::with_capacity(code.len());
-    let typed_types = ["i32", "f64", "i64", "usize", "String", "bool"];
-    let dv_terminators = [
-        ".expect(\"IndexError: list index out of range\")",
-        ".expect(\"value is None\")",
-        ".unwrap_or_default()",
-    ];
-    // Track variables declared with concrete types
     let mut typed_vars: HashSet<String> = HashSet::new();
     let lines: Vec<&str> = code.lines().collect();
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
         let trimmed = line.trim();
-        let mut handled = false;
 
-        // Track typed variable declarations: `let [mut] VAR: TYPE = ...`
-        if trimmed.starts_with("let ") || trimmed.starts_with("let mut ") {
-            let after_let = if trimmed.starts_with("let mut ") {
-                &trimmed[8..]
-            } else {
-                &trimmed[4..]
-            };
-            if let Some(colon) = after_let.find(':') {
-                let var_name = after_let[..colon].trim().to_string();
-                let after_colon = &after_let[colon + 1..];
-                let type_part = if let Some(eq) = after_colon.find('=') {
-                    after_colon[..eq].trim()
-                } else {
-                    after_colon.trim().trim_end_matches(';')
-                };
-                if typed_types.iter().any(|t| type_part == *t) {
-                    typed_vars.insert(var_name);
-                }
-            }
+        // Track typed variable declarations
+        track_typed_var_declaration(trimmed, &mut typed_vars);
 
-            // Check single-line let with DV terminator
-            let has_typed_ann = typed_types
-                .iter()
-                .any(|t| trimmed.contains(&format!(": {} ", t)) || trimmed.contains(&format!(": {} =", t)));
-            if has_typed_ann && trimmed.ends_with(';') {
-                let before_semi = &trimmed[..trimmed.len() - 1];
-                for term in &dv_terminators {
-                    if before_semi.ends_with(term) {
-                        let indent = &line[..line.len() - trimmed.len()];
-                        result.push_str(&format!("{}{}.into();\n", indent, before_semi));
-                        handled = true;
-                        break;
-                    }
-                }
-            }
+        // Try each fix strategy in order
+        let handled = if trimmed.starts_with("let ") || trimmed.starts_with("let mut ") {
+            try_fix_single_line_let(line, trimmed, &mut result)
+        } else {
+            false
+        };
 
-            // Note: ambiguous .into() annotation is handled by fix_ambiguous_into_type_annotation
-        }
-
-        // Handle multi-line expressions ending with DV terminator
-        // Pattern: last line of a chained expression ends with `.expect("...");`
-        if !handled && trimmed.ends_with(';') && !trimmed.starts_with("let ") && !trimmed.starts_with("//") {
-            for term in &dv_terminators {
-                let before_semi = &trimmed[..trimmed.len() - 1];
-                if before_semi.ends_with(term.trim_start_matches('.')) || before_semi.ends_with(term) {
-                    // Look back to find the assignment start
-                    let mut is_typed_assign = false;
-                    // Check if this line itself is a bare assignment to a typed var
-                    if let Some(eq_idx) = trimmed.find(" = ") {
-                        let var_part = trimmed[..eq_idx].trim();
-                        if typed_vars.contains(var_part) {
-                            is_typed_assign = true;
-                        }
-                    }
-                    // Also check lines above for the start of a multi-line assignment
-                    if !is_typed_assign && i > 0 {
-                        for back in (0..i).rev() {
-                            let prev = lines[back].trim();
-                            if prev.is_empty() || prev.starts_with("//") {
-                                break;
-                            }
-                            if let Some(eq_idx) = prev.find(" = ") {
-                                let var_part = prev[..eq_idx].trim();
-                                if typed_vars.contains(var_part) {
-                                    is_typed_assign = true;
-                                }
-                                break;
-                            }
-                            // If this line starts with `.` it's part of a chain, keep looking back
-                            if !prev.starts_with('.') && !prev.ends_with('.') {
-                                break;
-                            }
-                        }
-                    }
-                    if is_typed_assign {
-                        let indent = &line[..line.len() - trimmed.len()];
-                        let before_semi_full = &trimmed[..trimmed.len() - 1];
-                        result.push_str(&format!("{}{}.into();\n", indent, before_semi_full));
-                        handled = true;
-                    }
-                    break;
-                }
-            }
-        }
-
-        // Handle `var = expr.clone();` for typed vars
-        if !handled && trimmed.ends_with(".clone();") && !trimmed.starts_with("let ") {
-            if let Some(eq_idx) = trimmed.find(" = ") {
-                let var_part = trimmed[..eq_idx].trim();
-                if typed_vars.contains(var_part) {
-                    let indent = &line[..line.len() - trimmed.len()];
-                    let before_semi = &trimmed[..trimmed.len() - 1];
-                    result.push_str(&format!("{}{}.into();\n", indent, before_semi));
-                    handled = true;
-                }
-            }
-        }
+        let handled = handled
+            || try_fix_multiline_dv_terminator(line, trimmed, i, &lines, &typed_vars, &mut result);
+        let handled = handled
+            || try_fix_clone_for_typed_var(line, trimmed, &typed_vars, &mut result);
 
         if !handled {
             result.push_str(line);
@@ -589,75 +644,102 @@ pub(super) fn fix_depyler_value_to_typed_assignment(code: &str) -> String {
     result
 }
 
-pub(super) fn fix_return_depyler_value_param(code: &str) -> String {
-    let mut result = String::with_capacity(code.len());
-    let lines: Vec<&str> = code.lines().collect();
-    let mut current_return_type: Option<&str> = None;
-    let mut dv_params: Vec<String> = Vec::new();
-    for (i, line) in lines.iter().enumerate() {
-        let trimmed = line.trim();
-        // Track function signatures to know return type and DV params
-        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
-            dv_params.clear();
-            current_return_type = None;
-            if let Some(arrow) = trimmed.find("-> ") {
-                let ret = &trimmed[arrow + 3..];
-                let ret = ret.split('{').next().unwrap_or(ret).trim();
-                if ret == "i32" || ret == "f64" || ret == "String" {
-                    current_return_type = Some(if ret == "i32" {
-                        "i32"
-                    } else if ret == "f64" {
-                        "f64"
-                    } else {
-                        "String"
-                    });
-                }
-                // Collect DepylerValue params
-                if let Some(paren_start) = trimmed.find('(') {
-                    if let Some(paren_end) = trimmed.rfind(')') {
-                        let params_str = &trimmed[paren_start + 1..paren_end];
-                        for param in params_str.split(',') {
-                            let param = param.trim();
-                            if param.contains("DepylerValue") && !param.contains("&") {
-                                if let Some(colon) = param.find(':') {
-                                    let name = param[..colon].trim().to_string();
-                                    dv_params.push(name);
-                                }
-                            }
-                        }
+/// Parse a function signature line, returning (return_type, dv_param_names).
+/// Returns `None` if the function has no concrete return type we care about.
+fn parse_fn_sig_for_dv_return(trimmed: &str) -> Option<(&str, Vec<String>)> {
+    let arrow = trimmed.find("-> ")?;
+    let ret = &trimmed[arrow + 3..];
+    let ret = ret.split('{').next().unwrap_or(ret).trim();
+    let return_type = match ret {
+        "i32" => "i32",
+        "f64" => "f64",
+        "String" => "String",
+        _ => return None,
+    };
+    let mut dv_params = Vec::new();
+    if let Some(paren_start) = trimmed.find('(') {
+        if let Some(paren_end) = trimmed.rfind(')') {
+            for param in trimmed[paren_start + 1..paren_end].split(',') {
+                let param = param.trim();
+                if param.contains("DepylerValue") && !param.contains('&') {
+                    if let Some(colon) = param.find(':') {
+                        dv_params.push(param[..colon].trim().to_string());
                     }
                 }
             }
         }
-        if let Some(_ret_ty) = current_return_type {
-            // Check `return VAR;` where VAR is a DV param
-            if trimmed.starts_with("return ") && trimmed.ends_with(';') {
-                let expr = trimmed[7..trimmed.len() - 1].trim();
-                if dv_params.iter().any(|p| p == expr) {
-                    let indent = &line[..line.len() - trimmed.len()];
-                    result.push_str(&format!("{}return {}.into();", indent, expr));
-                    result.push('\n');
-                    continue;
-                }
+    }
+    Some((return_type, dv_params))
+}
+
+/// Try to rewrite `return VAR;` to `return VAR.into();` for a DV param.
+fn try_rewrite_return_stmt(
+    line: &str,
+    trimmed: &str,
+    dv_params: &[String],
+    result: &mut String,
+) -> bool {
+    if !trimmed.starts_with("return ") || !trimmed.ends_with(';') {
+        return false;
+    }
+    let expr = trimmed[7..trimmed.len() - 1].trim();
+    if dv_params.iter().any(|p| p == expr) {
+        let indent = &line[..line.len() - trimmed.len()];
+        result.push_str(&format!("{}return {}.into();", indent, expr));
+        result.push('\n');
+        return true;
+    }
+    false
+}
+
+/// Try to rewrite a tail expression (DV param name before closing `}`) with `.into()`.
+fn try_rewrite_tail_expr(
+    line: &str,
+    trimmed: &str,
+    next_line: Option<&&str>,
+    dv_params: &[String],
+    result: &mut String,
+) -> bool {
+    if trimmed.starts_with("return ")
+        || trimmed.ends_with(';')
+        || trimmed.contains('{')
+        || trimmed.contains('}')
+        || trimmed.is_empty()
+    {
+        return false;
+    }
+    let is_tail = next_line.map(|nl| nl.trim() == "}").unwrap_or(false);
+    if is_tail && dv_params.iter().any(|p| p == trimmed) {
+        let indent = &line[..line.len() - trimmed.len()];
+        result.push_str(&format!("{}{}.into()", indent, trimmed));
+        result.push('\n');
+        return true;
+    }
+    false
+}
+
+pub(super) fn fix_return_depyler_value_param(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let lines: Vec<&str> = code.lines().collect();
+    let mut has_concrete_return = false;
+    let mut dv_params: Vec<String> = Vec::new();
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        // Track function signatures
+        if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
+            dv_params.clear();
+            has_concrete_return = false;
+            if let Some((_ret, params)) = parse_fn_sig_for_dv_return(trimmed) {
+                has_concrete_return = true;
+                dv_params = params;
             }
-            // Check tail expression (no return keyword, no semicolon, just the var)
-            if !trimmed.starts_with("return ")
-                && !trimmed.ends_with(';')
-                && !trimmed.contains('{')
-                && !trimmed.contains('}')
-                && !trimmed.is_empty()
-            {
-                // Check if next non-empty line is `}` (tail expression)
-                let is_tail = lines
-                    .get(i + 1)
-                    .map(|nl| nl.trim() == "}")
-                    .unwrap_or(false);
-                if is_tail && dv_params.iter().any(|p| p == trimmed) {
-                    let indent = &line[..line.len() - trimmed.len()];
-                    result.push_str(&format!("{}{}.into()", indent, trimmed));
-                    result.push('\n');
-                    continue;
-                }
+        }
+        if has_concrete_return {
+            if try_rewrite_return_stmt(line, trimmed, &dv_params, &mut result) {
+                continue;
+            }
+            if try_rewrite_tail_expr(line, trimmed, lines.get(i + 1), &dv_params, &mut result) {
+                continue;
             }
         }
         result.push_str(line);
@@ -767,8 +849,8 @@ pub(super) fn fix_pyindex_depyler_value_wrapper(code: &str) -> String {
         let bytes = rest.as_bytes();
         let mut depth = 1i32;
         let mut inner_end = None;
-        for i in inner_start..bytes.len() {
-            match bytes[i] {
+        for (i, &byte) in bytes.iter().enumerate().skip(inner_start) {
+            match byte {
                 b'(' => depth += 1,
                 b')' => {
                     depth -= 1;
@@ -846,8 +928,9 @@ pub(super) fn fix_into_in_depyler_value_chain(code: &str) -> String {
 /// When the transpiler wraps values in `DepylerValue::from()` but the surrounding
 /// context expects a concrete type (e.g., in a tuple `(i32, i32)`), this causes E0308.
 /// This fix replaces `DepylerValue::from(EXPR)` with `EXPR` when the expression is:
-/// - An integer literal (positive or negative)
-/// - A variable that was declared as a concrete type (i32, f64, etc.)
+///   - An integer literal (positive or negative)
+///   - A variable that was declared as a concrete type (i32, f64, etc.)
+///
 /// Only applies when the `DepylerValue::from()` appears as a standalone expression
 /// in a tuple, function argument, or assignment to a concrete-typed variable.
 #[allow(dead_code)]
@@ -883,71 +966,85 @@ pub(super) fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
 /// Only applies when:
 /// - The function body doesn't use DepylerValue-specific methods
 /// - There's a matching call site with a concrete vector type
-pub(super) fn fix_vec_depyler_value_param_from_callsite(code: &str) -> String {
-    if !code.contains("&Vec<DepylerValue>") {
-        return code.to_string();
+/// Extract function name and `&Vec<DepylerValue>` param names from a fn signature line.
+fn extract_dv_vec_fn_params(trimmed: &str) -> Option<(String, Vec<String>)> {
+    let after_fn = trimmed
+        .strip_prefix("pub fn ")
+        .or_else(|| trimmed.strip_prefix("fn "))?;
+    let paren_pos = after_fn.find('(')?;
+    let name = after_fn[..paren_pos].trim().to_string();
+    let params_str = &after_fn[paren_pos + 1..];
+    let param_names: Vec<String> = params_str
+        .split(',')
+        .filter_map(|part| {
+            let pt = part.trim();
+            if pt.contains("&Vec<DepylerValue>") {
+                pt.find(':').map(|c| pt[..c].trim().to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    if param_names.is_empty() {
+        None
+    } else {
+        Some((name, param_names))
     }
-    use std::collections::HashMap;
-    // Step 1: Find functions with &Vec<DepylerValue> params
-    let mut fn_params: HashMap<String, Vec<String>> = HashMap::new(); // fn_name -> param_names
+}
+
+/// Collect all functions that have `&Vec<DepylerValue>` parameters.
+fn collect_dv_vec_fn_params(
+    code: &str,
+) -> std::collections::HashMap<String, Vec<String>> {
+    let mut fn_params = std::collections::HashMap::new();
     for line in code.lines() {
         let trimmed = line.trim();
         if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
             && trimmed.contains("&Vec<DepylerValue>")
         {
-            let after_fn = if trimmed.starts_with("pub fn ") {
-                &trimmed[7..]
-            } else {
-                &trimmed[3..]
-            };
-            if let Some(paren_pos) = after_fn.find('(') {
-                let name = after_fn[..paren_pos].trim().to_string();
-                // Extract param names that have &Vec<DepylerValue> type
-                let params_str = &after_fn[paren_pos + 1..];
-                let mut param_names = Vec::new();
-                for part in params_str.split(',') {
-                    let pt = part.trim();
-                    if pt.contains("&Vec<DepylerValue>") {
-                        if let Some(colon) = pt.find(':') {
-                            let pname = pt[..colon].trim().to_string();
-                            param_names.push(pname);
-                        }
-                    }
-                }
-                if !param_names.is_empty() {
-                    fn_params.insert(name, param_names);
-                }
+            if let Some((name, params)) = extract_dv_vec_fn_params(trimmed) {
+                fn_params.insert(name, params);
             }
         }
     }
-    if fn_params.is_empty() {
-        return code.to_string();
-    }
-    // Step 2: Find call sites and their argument types
-    // Look for patterns: fn_name(&var_name) where var_name is declared as Vec<TYPE>
-    let mut var_types: HashMap<String, String> = HashMap::new(); // var_name -> element_type
+    fn_params
+}
+
+/// Collect concrete `Vec<T>` variable declarations (excluding DepylerValue).
+fn collect_concrete_vec_var_types(
+    code: &str,
+) -> std::collections::HashMap<String, String> {
+    let mut var_types = std::collections::HashMap::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        // Match: let VAR: Vec<TYPE> = ...
-        if trimmed.starts_with("let ") && trimmed.contains("Vec<") && !trimmed.contains("DepylerValue") {
-            if let Some(colon) = trimmed.find(':') {
-                let var_name = trimmed[4..colon].trim().trim_start_matches("mut ").to_string();
-                if let Some(vec_start) = trimmed.find("Vec<") {
-                    if let Some(gt) = trimmed[vec_start + 4..].find('>') {
-                        let elem_type = trimmed[vec_start + 4..vec_start + 4 + gt].to_string();
-                        if !elem_type.contains("DepylerValue") {
-                            var_types.insert(var_name, elem_type);
-                        }
+        if !trimmed.starts_with("let ") || !trimmed.contains("Vec<") || trimmed.contains("DepylerValue") {
+            continue;
+        }
+        if let Some(colon) = trimmed.find(':') {
+            let var_name = trimmed[4..colon].trim().trim_start_matches("mut ").to_string();
+            if let Some(vec_start) = trimmed.find("Vec<") {
+                if let Some(gt) = trimmed[vec_start + 4..].find('>') {
+                    let elem_type = trimmed[vec_start + 4..vec_start + 4 + gt].to_string();
+                    if !elem_type.contains("DepylerValue") {
+                        var_types.insert(var_name, elem_type);
                     }
                 }
             }
         }
     }
-    // Step 3: Match call sites to functions
-    let mut fn_replacements: HashMap<String, String> = HashMap::new(); // fn_name -> concrete element type
+    var_types
+}
+
+/// Match call sites to functions, returning fn_name -> concrete element type.
+fn match_callsite_types(
+    code: &str,
+    fn_params: &std::collections::HashMap<String, Vec<String>>,
+    var_types: &std::collections::HashMap<String, String>,
+) -> std::collections::HashMap<String, String> {
+    let mut fn_replacements = std::collections::HashMap::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        for (fn_name, _) in &fn_params {
+        for fn_name in fn_params.keys() {
             let call_pattern = format!("{}(&", fn_name);
             if let Some(call_pos) = trimmed.find(&call_pattern) {
                 let after_call = &trimmed[call_pos + call_pattern.len()..];
@@ -960,13 +1057,16 @@ pub(super) fn fix_vec_depyler_value_param_from_callsite(code: &str) -> String {
             }
         }
     }
-    if fn_replacements.is_empty() {
-        return code.to_string();
-    }
-    // Step 4: Replace &Vec<DepylerValue> with &Vec<CONCRETE> in function signatures
+    fn_replacements
+}
+
+/// Apply the signature replacements to the code.
+fn apply_vec_signature_replacements(
+    code: &str,
+    fn_replacements: &std::collections::HashMap<String, String>,
+) -> String {
     let mut result = code.to_string();
-    for (fn_name, elem_type) in &fn_replacements {
-        // Find the function declaration line and replace the param type
+    for (fn_name, elem_type) in fn_replacements {
         let search = format!("fn {}(", fn_name);
         if let Some(fn_pos) = result.find(&search) {
             let after = &result[fn_pos..];
@@ -982,4 +1082,20 @@ pub(super) fn fix_vec_depyler_value_param_from_callsite(code: &str) -> String {
         }
     }
     result
+}
+
+pub(super) fn fix_vec_depyler_value_param_from_callsite(code: &str) -> String {
+    if !code.contains("&Vec<DepylerValue>") {
+        return code.to_string();
+    }
+    let fn_params = collect_dv_vec_fn_params(code);
+    if fn_params.is_empty() {
+        return code.to_string();
+    }
+    let var_types = collect_concrete_vec_var_types(code);
+    let fn_replacements = match_callsite_types(code, &fn_params, &var_types);
+    if fn_replacements.is_empty() {
+        return code.to_string();
+    }
+    apply_vec_signature_replacements(code, &fn_replacements)
 }

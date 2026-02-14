@@ -6241,10 +6241,7 @@ pub(crate) fn codegen_assign_index(
                 resolved
             } else {
                 // No type info — fall through to heuristic
-                match index {
-                    HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
-                    _ => false,
-                }
+                matches!(index, HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)))
             }
         } else {
         // DEPYLER-0449: Check if index looks like a string key before assuming numeric

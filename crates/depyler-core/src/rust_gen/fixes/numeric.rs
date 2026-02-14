@@ -184,168 +184,249 @@ pub(super) fn fix_cse_int_float_comparison(code: &str) -> String {
     let mut float_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
     // Pass 1: collect typed variables
     for line in code.lines() {
-        let t = line.trim();
-        if !t.starts_with("let ") {
-            continue;
-        }
-        let rest = &t[4..];
-        // `let var: TYPE = ...`
-        if let Some(colon) = rest.find(": ") {
-            let var = rest[..colon].trim().trim_start_matches("mut ");
-            let after_colon = &rest[colon + 2..];
-            let type_name = after_colon.split([' ', '=', ';']).next().unwrap_or("");
-            match type_name {
-                "i32" | "i64" | "isize" | "usize" | "u32" | "u64" => {
-                    int_vars.insert(var.to_string());
-                }
-                "f64" | "f32" => {
-                    float_vars.insert(var.to_string());
-                }
-                _ => {}
-            }
-        }
-        // `let var = expr as i32;`
-        if let Some(eq) = rest.find(" = ") {
-            let var = rest[..eq].trim().trim_start_matches("mut ");
-            let rhs = &rest[eq + 3..];
-            if rhs.trim_end_matches(';').ends_with("as i32")
-                || rhs.trim_end_matches(';').ends_with("as i64")
-                || rhs.trim_end_matches(';').ends_with("as usize")
-            {
-                int_vars.insert(var.to_string());
-            }
-        }
+        collect_typed_var_from_line(line, &mut int_vars, &mut float_vars);
     }
     // Pass 2: propagate types through simple assignments
-    // `let var = other_var;` or `let var = _cse_temp_N;`
     for line in code.lines() {
-        let t = line.trim();
-        if !t.starts_with("let ") || t.contains(": ") {
-            continue;
-        }
-        if let Some(eq) = t.find(" = ") {
-            let var = t[4..eq].trim().trim_start_matches("mut ");
-            let rhs = t[eq + 3..].trim().trim_end_matches(';').trim();
-            // Simple assignment from known var
-            if int_vars.contains(rhs) {
-                int_vars.insert(var.to_string());
-            } else if float_vars.contains(rhs) {
-                float_vars.insert(var.to_string());
-            }
-        }
+        propagate_var_type_from_line(line, &mut int_vars, &mut float_vars);
     }
     // Pass 3: fix comparisons
     let lines: Vec<&str> = code.lines().collect();
     let mut result = Vec::with_capacity(lines.len());
     for line in &lines {
-        let mut fixed = line.to_string();
-        let trimmed = fixed.trim_start();
-        if trimmed.starts_with("let ") {
-            for op in &[" == ", " != ", " < ", " > ", " <= ", " >= "] {
-                if let Some(op_pos) = fixed.find(op) {
-                    // Extract LHS variable name
-                    let before_op = fixed[..op_pos].trim();
-                    let lhs_var = before_op.rsplit([' ', '(']).next().unwrap_or("").trim();
-                    // Only fix if LHS is known integer (not float)
-                    if int_vars.contains(lhs_var) && !float_vars.contains(lhs_var) {
-                        let after_op = op_pos + op.len();
-                        let rest = &fixed[after_op..];
-                        let lit_end = rest
-                            .find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'f')
-                            .unwrap_or(rest.len());
-                        let literal = &rest[..lit_end];
-                        if literal.ends_with("f64") && lit_end > 3 {
-                            let int_lit = literal.trim_end_matches("f64").trim_end_matches('.');
-                            if !int_lit.is_empty() {
-                                let before = &fixed[..after_op];
-                                let after = &fixed[after_op + lit_end..];
-                                fixed = format!("{}{}{}", before, int_lit, after);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        result.push(fixed);
+        result.push(fix_int_float_comparison_in_line(line, &int_vars, &float_vars));
     }
     result.join("\n")
+}
+
+/// Collect typed variable declarations from a single line into int/float sets.
+fn collect_typed_var_from_line(
+    line: &str,
+    int_vars: &mut std::collections::HashSet<String>,
+    float_vars: &mut std::collections::HashSet<String>,
+) {
+    let t = line.trim();
+    if !t.starts_with("let ") {
+        return;
+    }
+    let rest = &t[4..];
+    // `let var: TYPE = ...`
+    if let Some(colon) = rest.find(": ") {
+        let var = rest[..colon].trim().trim_start_matches("mut ");
+        let after_colon = &rest[colon + 2..];
+        let type_name = after_colon.split([' ', '=', ';']).next().unwrap_or("");
+        classify_type_name(type_name, var, int_vars, float_vars);
+    }
+    // `let var = expr as i32;`
+    if let Some(eq) = rest.find(" = ") {
+        let var = rest[..eq].trim().trim_start_matches("mut ");
+        let rhs = &rest[eq + 3..];
+        let rhs_trimmed = rhs.trim_end_matches(';');
+        if rhs_trimmed.ends_with("as i32")
+            || rhs_trimmed.ends_with("as i64")
+            || rhs_trimmed.ends_with("as usize")
+        {
+            int_vars.insert(var.to_string());
+        }
+    }
+}
+
+/// Classify a type name and insert the variable into the appropriate set.
+fn classify_type_name(
+    type_name: &str,
+    var: &str,
+    int_vars: &mut std::collections::HashSet<String>,
+    float_vars: &mut std::collections::HashSet<String>,
+) {
+    match type_name {
+        "i32" | "i64" | "isize" | "usize" | "u32" | "u64" => {
+            int_vars.insert(var.to_string());
+        }
+        "f64" | "f32" => {
+            float_vars.insert(var.to_string());
+        }
+        _ => {}
+    }
+}
+
+/// Propagate types through simple assignments like `let var = other_var;`.
+fn propagate_var_type_from_line(
+    line: &str,
+    int_vars: &mut std::collections::HashSet<String>,
+    float_vars: &mut std::collections::HashSet<String>,
+) {
+    let t = line.trim();
+    if !t.starts_with("let ") || t.contains(": ") {
+        return;
+    }
+    let Some(eq) = t.find(" = ") else { return };
+    let var = t[4..eq].trim().trim_start_matches("mut ");
+    let rhs = t[eq + 3..].trim().trim_end_matches(';').trim();
+    if int_vars.contains(rhs) {
+        int_vars.insert(var.to_string());
+    } else if float_vars.contains(rhs) {
+        float_vars.insert(var.to_string());
+    }
+}
+
+/// Fix a single comparison line by replacing f64 literals with int literals
+/// when the LHS variable is a known integer type.
+fn fix_int_float_comparison_in_line(
+    line: &str,
+    int_vars: &std::collections::HashSet<String>,
+    float_vars: &std::collections::HashSet<String>,
+) -> String {
+    let mut fixed = line.to_string();
+    let trimmed = fixed.trim_start();
+    if !trimmed.starts_with("let ") {
+        return fixed;
+    }
+    for op in &[" == ", " != ", " < ", " > ", " <= ", " >= "] {
+        fixed = try_fix_f64_literal_for_op(&fixed, op, int_vars, float_vars);
+    }
+    fixed
+}
+
+/// Attempt to replace an f64 literal on the RHS of a comparison operator
+/// with an integer literal, if the LHS variable is a known int.
+fn try_fix_f64_literal_for_op(
+    line: &str,
+    op: &str,
+    int_vars: &std::collections::HashSet<String>,
+    float_vars: &std::collections::HashSet<String>,
+) -> String {
+    let Some(op_pos) = line.find(op) else {
+        return line.to_string();
+    };
+    let before_op = line[..op_pos].trim();
+    let lhs_var = before_op.rsplit([' ', '(']).next().unwrap_or("").trim();
+    if !int_vars.contains(lhs_var) || float_vars.contains(lhs_var) {
+        return line.to_string();
+    }
+    let after_op = op_pos + op.len();
+    let rest = &line[after_op..];
+    let lit_end = rest
+        .find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'f')
+        .unwrap_or(rest.len());
+    let literal = &rest[..lit_end];
+    if !literal.ends_with("f64") || lit_end <= 3 {
+        return line.to_string();
+    }
+    let int_lit = literal.trim_end_matches("f64").trim_end_matches('.');
+    if int_lit.is_empty() {
+        return line.to_string();
+    }
+    format!("{}{}{}", &line[..after_op], int_lit, &line[after_op + lit_end..])
 }
 
 pub(super) fn fix_mixed_numeric_min_max(code: &str) -> String {
     let mut int_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut float_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
     for line in code.lines() {
-        let t = line.trim();
-        for int_type in &["i32", "i64", "isize", "usize"] {
-            let pat = format!(": {} ", int_type);
-            if t.starts_with("let ") && t.contains(&pat) {
-                if let Some(name) = t.strip_prefix("let ") {
-                    let var = name.split(':').next().unwrap_or("").trim();
-                    let var = var.trim_start_matches("mut ");
-                    if !var.is_empty() {
-                        int_vars.insert(var.to_string());
-                    }
-                }
-            }
-        }
-        for float_type in &["f64", "f32"] {
-            let pat = format!(": {} ", float_type);
-            if t.starts_with("let ") && t.contains(&pat) {
-                if let Some(name) = t.strip_prefix("let ") {
-                    let var = name.split(':').next().unwrap_or("").trim();
-                    let var = var.trim_start_matches("mut ");
-                    if !var.is_empty() {
-                        float_vars.insert(var.to_string());
-                    }
-                }
-            }
-        }
+        collect_min_max_typed_var(line, &mut int_vars, &mut float_vars);
     }
     if int_vars.is_empty() || float_vars.is_empty() {
         return code.to_string();
     }
     let mut result = code.to_string();
     for func in &["depyler_min", "depyler_max"] {
-        let pattern = format!("{}(", func);
-        let mut search_from = 0;
-        while let Some(pos) = result[search_from..].find(&pattern) {
-            let abs_pos = search_from + pos;
-            let args_start = abs_pos + pattern.len();
-            if let Some(close) = find_matching_close(&result[args_start..]) {
-                let args_str = result[args_start..args_start + close].to_string();
-                // Split on the top-level comma
-                if let Some(comma) = find_top_level_comma(&args_str) {
-                    let arg1 = args_str[..comma].trim().to_string();
-                    let arg2 = args_str[comma + 1..].trim().to_string();
-                    let a1_base = arg1
-                        .trim_start_matches('(')
-                        .trim_end_matches(')')
-                        .replace(".clone()", "");
-                    let a2_base = arg2
-                        .trim_start_matches('(')
-                        .trim_end_matches(')')
-                        .replace(".clone()", "");
-                    let a1_is_int = int_vars.contains(a1_base.trim());
-                    let a2_is_int = int_vars.contains(a2_base.trim());
-                    let a1_is_float = float_vars.contains(a1_base.trim());
-                    let a2_is_float = float_vars.contains(a2_base.trim());
-                    if a1_is_int && a2_is_float {
-                        let new_arg1 = format!("{} as f64", arg1);
-                        let old_call = format!("{}({}, {})", func, arg1, arg2);
-                        let new_call = format!("{}({}, {})", func, new_arg1, arg2);
-                        result = result.replacen(&old_call, &new_call, 1);
-                    } else if a1_is_float && a2_is_int {
-                        let new_arg2 = format!("{} as f64", arg2);
-                        let old_call = format!("{}({}, {})", func, arg1, arg2);
-                        let new_call = format!("{}({}, {})", func, arg1, new_arg2);
-                        result = result.replacen(&old_call, &new_call, 1);
-                    }
-                }
-            }
-            search_from = abs_pos + pattern.len();
-        }
+        result = fix_all_min_max_calls_for_func(&result, func, &int_vars, &float_vars);
     }
     result
+}
+
+/// Collect int/float variable declarations for min/max fix from a single line.
+fn collect_min_max_typed_var(
+    line: &str,
+    int_vars: &mut std::collections::HashSet<String>,
+    float_vars: &mut std::collections::HashSet<String>,
+) {
+    let t = line.trim();
+    if !t.starts_with("let ") {
+        return;
+    }
+    let name = &t[4..];
+    let types_and_sets: &[(&[&str], bool)] = &[
+        (&["i32", "i64", "isize", "usize"], true),
+        (&["f64", "f32"], false),
+    ];
+    for &(type_names, is_int) in types_and_sets {
+        for type_name in type_names {
+            let pat = format!(": {} ", type_name);
+            if !t.contains(&pat) {
+                continue;
+            }
+            let var = name.split(':').next().unwrap_or("").trim();
+            let var = var.trim_start_matches("mut ");
+            if !var.is_empty() {
+                if is_int {
+                    int_vars.insert(var.to_string());
+                } else {
+                    float_vars.insert(var.to_string());
+                }
+            }
+        }
+    }
+}
+
+/// Fix all occurrences of a single min/max function in the code.
+fn fix_all_min_max_calls_for_func(
+    code: &str,
+    func: &str,
+    int_vars: &std::collections::HashSet<String>,
+    float_vars: &std::collections::HashSet<String>,
+) -> String {
+    let pattern = format!("{}(", func);
+    let mut result = code.to_string();
+    let mut search_from = 0;
+    while let Some(pos) = result[search_from..].find(&pattern) {
+        let abs_pos = search_from + pos;
+        let args_start = abs_pos + pattern.len();
+        if let Some(close) = find_matching_close(&result[args_start..]) {
+            let args_str = result[args_start..args_start + close].to_string();
+            result = try_cast_min_max_args(&result, func, &args_str, int_vars, float_vars);
+        }
+        search_from = abs_pos + pattern.len();
+    }
+    result
+}
+
+/// Try to insert an `as f64` cast on the int argument of a mixed int/float min/max call.
+fn try_cast_min_max_args(
+    code: &str,
+    func: &str,
+    args_str: &str,
+    int_vars: &std::collections::HashSet<String>,
+    float_vars: &std::collections::HashSet<String>,
+) -> String {
+    let Some(comma) = find_top_level_comma(args_str) else {
+        return code.to_string();
+    };
+    let arg1 = args_str[..comma].trim().to_string();
+    let arg2 = args_str[comma + 1..].trim().to_string();
+    let a1_base = arg1
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .replace(".clone()", "");
+    let a2_base = arg2
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .replace(".clone()", "");
+    let a1_is_int = int_vars.contains(a1_base.trim());
+    let a1_is_float = float_vars.contains(a1_base.trim());
+    let a2_is_int = int_vars.contains(a2_base.trim());
+    let a2_is_float = float_vars.contains(a2_base.trim());
+    if a1_is_int && a2_is_float {
+        let old_call = format!("{}({}, {})", func, arg1, arg2);
+        let new_call = format!("{}({} as f64, {})", func, arg1, arg2);
+        return code.replacen(&old_call, &new_call, 1);
+    }
+    if a1_is_float && a2_is_int {
+        let old_call = format!("{}({}, {})", func, arg1, arg2);
+        let new_call = format!("{}({}, {} as f64)", func, arg1, arg2);
+        return code.replacen(&old_call, &new_call, 1);
+    }
+    code.to_string()
 }
 
 pub(super) fn fix_spurious_i64_conversion(code: &str) -> String {
@@ -407,57 +488,12 @@ pub(super) fn fix_trailing_comma_in_arith_parens(code: &str) -> String {
     let mut lines_to_fix: Vec<usize> = Vec::new();
 
     for start in 0..lines.len() {
-        let trimmed = lines[start].trim();
-        let is_arith = trimmed.ends_with("- (")
-            || trimmed.ends_with("+ (")
-            || trimmed.ends_with("* (")
-            || trimmed.ends_with("/ (");
-        if !is_arith {
+        if !is_arith_paren_line(lines[start]) {
             continue;
         }
-        // Compute paren depth at end of start line
-        let mut depth = 0i32;
-        for ch in lines[start].chars() {
-            match ch {
-                '(' => depth += 1,
-                ')' => depth -= 1,
-                _ => {}
-            }
-        }
-        let arith_inner = depth;
-        let target = depth - 1;
-        let mut j = start + 1;
-        let mut last_trailing_comma: Option<usize> = None;
-        let mut comma_count = 0u32;
-
-        while j < lines.len() {
-            let mut found_close = false;
-            for ch in lines[j].chars() {
-                match ch {
-                    '(' => depth += 1,
-                    ')' => {
-                        depth -= 1;
-                        if depth == target {
-                            found_close = true;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            if found_close {
-                if comma_count == 1 {
-                    if let Some(fix) = last_trailing_comma {
-                        lines_to_fix.push(fix);
-                    }
-                }
-                break;
-            }
-            if lines[j].trim().ends_with(',') && depth == arith_inner {
-                last_trailing_comma = Some(j);
-                comma_count += 1;
-            }
-            j += 1;
+        let initial_depth = compute_paren_depth(lines[start]);
+        if let Some(fix_idx) = find_trailing_comma_in_block(&lines, start, initial_depth) {
+            lines_to_fix.push(fix_idx);
         }
     }
     for &idx in &lines_to_fix {
@@ -470,6 +506,68 @@ pub(super) fn fix_trailing_comma_in_arith_parens(code: &str) -> String {
         result.push('\n');
     }
     result
+}
+
+/// Check if a line ends with an arithmetic operator followed by `(`.
+fn is_arith_paren_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    trimmed.ends_with("- (")
+        || trimmed.ends_with("+ (")
+        || trimmed.ends_with("* (")
+        || trimmed.ends_with("/ (")
+}
+
+/// Compute the net paren depth at the end of a line.
+fn compute_paren_depth(line: &str) -> i32 {
+    let mut depth = 0i32;
+    for ch in line.chars() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            _ => {}
+        }
+    }
+    depth
+}
+
+/// Scan lines after `start` to find a trailing comma that creates a single-element tuple.
+/// Returns the line index of the trailing comma to fix, if any.
+fn find_trailing_comma_in_block(lines: &[&str], start: usize, initial_depth: i32) -> Option<usize> {
+    let arith_inner = initial_depth;
+    let target = initial_depth - 1;
+    let mut depth = initial_depth;
+    let mut j = start + 1;
+    let mut last_trailing_comma: Option<usize> = None;
+    let mut comma_count = 0u32;
+
+    while j < lines.len() {
+        if scan_line_for_close(lines[j], &mut depth, target) {
+            return if comma_count == 1 { last_trailing_comma } else { None };
+        }
+        if lines[j].trim().ends_with(',') && depth == arith_inner {
+            last_trailing_comma = Some(j);
+            comma_count += 1;
+        }
+        j += 1;
+    }
+    None
+}
+
+/// Scan a line's chars for paren depth changes. Returns true if the target depth is reached.
+fn scan_line_for_close(line: &str, depth: &mut i32, target: i32) -> bool {
+    for ch in line.chars() {
+        match ch {
+            '(' => *depth += 1,
+            ')' => {
+                *depth -= 1;
+                if *depth == target {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 pub(super) fn fix_spurious_to_string_in_numeric_call(code: &str) -> String {
@@ -552,46 +650,53 @@ pub(super) fn fix_usize_to_string_in_constructor(code: &str) -> String {
 pub(super) fn fix_negative_literal_type_annotation(code: &str) -> String {
     let mut result = String::with_capacity(code.len());
     for line in code.lines() {
-        let trimmed = line.trim();
-        // Match: `let VAR = -DIGITS;` without type annotation
-        let prefix = if trimmed.starts_with("let mut ") {
-            Some("let mut ")
-        } else if trimmed.starts_with("let ") {
-            Some("let ")
+        if let Some(fixed) = try_annotate_negative_literal(line) {
+            result.push_str(&fixed);
         } else {
-            None
-        };
-        if let Some(pfx) = prefix {
-            let after = &trimmed[pfx.len()..];
-            // Check for `VAR = -DIGITS;` pattern (no colon = no type annotation)
-            if let Some(eq_pos) = after.find(" = ") {
-                let var_part = &after[..eq_pos];
-                let rhs = after[eq_pos + 3..].trim();
-                // Only if no existing type annotation (no `:` in var part)
-                if !var_part.contains(':') {
-                    // Check if RHS is a negative integer literal like `-1;` or `-1i32;`
-                    if rhs.starts_with('-') {
-                        let digits_part = rhs[1..].trim_end_matches(';').trim();
-                        if !digits_part.is_empty()
-                            && digits_part.chars().all(|c| c.is_ascii_digit())
-                        {
-                            let indent = &line[..line.len() - trimmed.len()];
-                            let new_line = format!(
-                                "{}{}{}: i32 = {}",
-                                indent, pfx, var_part, rhs
-                            );
-                            result.push_str(&new_line);
-                            result.push('\n');
-                            continue;
-                        }
-                    }
-                }
-            }
+            result.push_str(line);
         }
-        result.push_str(line);
         result.push('\n');
     }
     result
+}
+
+/// Try to add `: i32` type annotation to a `let VAR = -DIGITS;` line.
+/// Returns `Some(fixed_line)` if the annotation was added, `None` otherwise.
+fn try_annotate_negative_literal(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    let pfx = detect_let_prefix(trimmed)?;
+    let after = &trimmed[pfx.len()..];
+    let eq_pos = after.find(" = ")?;
+    let var_part = &after[..eq_pos];
+    if var_part.contains(':') {
+        return None;
+    }
+    let rhs = after[eq_pos + 3..].trim();
+    if !is_negative_integer_literal(rhs) {
+        return None;
+    }
+    let indent = &line[..line.len() - trimmed.len()];
+    Some(format!("{}{}{}: i32 = {}", indent, pfx, var_part, rhs))
+}
+
+/// Detect the `let ` or `let mut ` prefix of a line.
+fn detect_let_prefix(trimmed: &str) -> Option<&'static str> {
+    if trimmed.starts_with("let mut ") {
+        Some("let mut ")
+    } else if trimmed.starts_with("let ") {
+        Some("let ")
+    } else {
+        None
+    }
+}
+
+/// Check if a string is a negative integer literal like `-1;` or `-42;`.
+fn is_negative_integer_literal(rhs: &str) -> bool {
+    let Some(stripped) = rhs.strip_prefix('-') else {
+        return false;
+    };
+    let digits_part = stripped.trim_end_matches(';').trim();
+    !digits_part.is_empty() && digits_part.chars().all(|c| c.is_ascii_digit())
 }
 
 pub(super) fn fix_floor_div_type_annotation(code: &str) -> String {
