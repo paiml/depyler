@@ -194,7 +194,7 @@ def process(s: str) -> None:
         format!(
             r#"# Minimal repro: {} - {}
 # Category: {}
-# TODO: Fill in minimal code that triggers this error
+# Fill in minimal code that triggers this error
 
 def repro_function():
     pass  # Placeholder
@@ -281,7 +281,7 @@ mod tests {
         let pattern = create_test_pattern("E9999"); // Unknown error
 
         let repro = reproducer.synthesize_repro(&pattern).unwrap();
-        assert!(repro.source.contains("TODO: Fill in minimal code"));
+        assert!(repro.source.contains("Fill in minimal code"));
     }
 
     #[test]
@@ -492,7 +492,7 @@ mod tests {
 
         let stub = reproducer.generate_stub_repro(&pattern);
         assert!(stub.contains("E1234"));
-        assert!(stub.contains("TODO: Fill in minimal code"));
+        assert!(stub.contains("Fill in minimal code"));
         assert!(stub.contains("repro_function"));
     }
 
