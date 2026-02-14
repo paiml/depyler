@@ -242,60 +242,34 @@ fn populate_class_method_return_types(ctx: &mut CodeGenContext, classes: &[HirCl
 /// Looks for subscript assignments (`param[key] = val`) and mutating method calls
 /// (`param.insert(...)`, `param.append(...)`, etc.) recursively through control flow.
 fn param_is_mutated_in_body(param_name: &str, body: &[HirStmt]) -> bool {
-    for stmt in body {
-        match stmt {
-            HirStmt::Assign { target, .. } => {
-                if let AssignTarget::Index { base, .. } = target {
-                    if let HirExpr::Var(name) = base.as_ref() {
-                        if name == param_name {
-                            return true;
-                        }
-                    }
-                }
-            }
-            HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) => {
-                if let HirExpr::Var(name) = object.as_ref() {
-                    if name == param_name
-                        && matches!(
-                            method.as_str(),
-                            "insert"
-                                | "pop"
-                                | "remove"
-                                | "clear"
-                                | "update"
-                                | "append"
-                                | "extend"
-                                | "add"
-                                | "discard"
-                        )
-                    {
-                        return true;
-                    }
-                }
-            }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                if param_is_mutated_in_body(param_name, then_body) {
-                    return true;
-                }
-                if let Some(eb) = else_body {
-                    if param_is_mutated_in_body(param_name, eb) {
-                        return true;
-                    }
-                }
-            }
-            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
-                if param_is_mutated_in_body(param_name, body) {
-                    return true;
-                }
-            }
-            _ => {}
+    body.iter().any(|stmt| stmt_mutates_param(param_name, stmt))
+}
+
+fn is_mutating_method(method: &str) -> bool {
+    matches!(
+        method,
+        "insert" | "pop" | "remove" | "clear" | "update" | "append" | "extend" | "add" | "discard"
+    )
+}
+
+fn stmt_mutates_param(param_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { target: AssignTarget::Index { base, .. }, .. } => {
+            matches!(base.as_ref(), HirExpr::Var(name) if name == param_name)
         }
+        HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) => {
+            matches!(object.as_ref(), HirExpr::Var(name) if name == param_name)
+                && is_mutating_method(method)
+        }
+        HirStmt::If { then_body, else_body, .. } => {
+            param_is_mutated_in_body(param_name, then_body)
+                || else_body.as_ref().is_some_and(|eb| param_is_mutated_in_body(param_name, eb))
+        }
+        HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
+            param_is_mutated_in_body(param_name, body)
+        }
+        _ => false,
     }
-    false
 }
 
 #[cfg(test)]
