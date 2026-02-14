@@ -114,6 +114,7 @@ pub use depyler_tooling::typeshed_ingest;
 
 // Modules that remain in depyler-core (codegen engine)
 pub mod ast_bridge;
+pub mod diagnostic;
 pub mod backend;
 pub mod cargo_first;
 pub mod cargo_toml_gen;
