@@ -384,11 +384,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         | Type::Optional(_) // DEPYLER-0497: Options need {:?}
                                 )
                             } else {
-                                // DEPYLER-0497 WORKAROUND: Unknown type - default to {:?} (defensive)
-                                // This is safer because Debug is more universally implemented than Display
-                                // Most types implement Debug: Option<T>, Result<T,E>, Vec<T>, primitives
-                                // Only a few types need Display: i32, String, etc (which also have Debug)
-                                // This prevents E0277 errors for Option/Result/Vec variables
+                                // Unknown type defaults to {:?} because Debug is more universally
+                                // implemented than Display, preventing E0277 for Option/Result/Vec
                                 true
                             }
                         }

@@ -91,7 +91,7 @@ impl PatternStore {
 
     /// Find k most similar patterns to query embedding
     ///
-    /// Uses brute-force search for now. TODO: Implement HNSW for O(log n).
+    /// Uses brute-force linear scan. Consider HNSW indexing for large pattern sets.
     pub fn find_similar(&self, query: &[f32], k: usize) -> Vec<&TranspilationPattern> {
         let mut similarities: Vec<_> = self
             .patterns

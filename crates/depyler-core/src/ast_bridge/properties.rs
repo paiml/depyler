@@ -254,10 +254,9 @@ impl FunctionAnalyzer {
                     .iter()
                     .any(|raised| !caught_exceptions.contains(raised));
 
-                // DEPYLER-0XXX: Result<> Inference Fix
-                // If try body contains I/O operations (with open()), function must return Result<>
-                // even if all exceptions are caught, because Rust version uses `?` operator
-                // which propagates errors (unlike Python sys.exit() which terminates)
+                // When the try body contains I/O operations (with open()), the function must
+                // return Result<> even if all exceptions are caught, because the Rust version
+                // uses the `?` operator which propagates errors (unlike Python sys.exit())
                 let body_has_io = all_errors.iter().any(|e| e.contains("io::Error"));
 
                 (
