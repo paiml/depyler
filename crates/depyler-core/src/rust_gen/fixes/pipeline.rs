@@ -85,10 +85,6 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace("operator.add", "|a, b| a + b");
     formatted_code = formatted_code.replace("operator.sub", "|a, b| a - b");
 
-    // DEPYLER-1404: Fix stub function arities to match call sites.
-    // Stubs generated with 1 param cause E0061 when called with multiple args.
-    formatted_code = fix_stub_arities(&formatted_code);
-
     // DEPYLER-1404: Replace bare UnionType with DepylerValue (E0425).
     // Python Union[...] type aliases sometimes emit `UnionType` which doesn't exist.
     formatted_code = formatted_code.replace("pub type JsonValue = UnionType;", "pub type JsonValue = DepylerValue;");
@@ -117,6 +113,8 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
         formatted_code = format!("use std::collections::HashMap;\n{}", formatted_code);
     }
     formatted_code = formatted_code.replace(".py_sub(", " - (");
+    // DEPYLER-1404: Fix py_div on PathBuf — Python `/` operator for path joining.
+    formatted_code = formatted_code.replace(".py_div(", ".join(");
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix TypeError::new in broader contexts (E0433).
     formatted_code = formatted_code.replace(
@@ -141,6 +139,11 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix dot-access on enum variants (E0423/E0573).
     formatted_code = fix_enum_dot_to_path_separator(&formatted_code);
+
+    // DEPYLER-1404: Fix stub function arities to match call sites.
+    // Must run AFTER fix_enum_dot_to_path_separator so class-type stubs
+    // see `Color::` notation (not `Color.`) when scanning for usage.
+    formatted_code = fix_stub_arities(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix pathlib::PurePosixPath (E0425).
     formatted_code = formatted_code.replace("pathlib::PurePosixPath(", "std::path::Path::new(");
@@ -557,11 +560,17 @@ fn fix_stub_arities(code: &str) -> String {
     let mut result = code.to_string();
     let mut macros_to_prepend: Vec<String> = Vec::new();
 
+    let mut struct_stubs_to_prepend: Vec<String> = Vec::new();
+
     for name in &stub_names {
-        // DEPYLER-1404: Skip names used as types (e.g., Color::RED) — these are
-        // class imports, not function imports, and shouldn't become macros.
+        // DEPYLER-1404: Names used with `::` syntax are class imports.
+        // Replace function stub with a stub struct that supports field/method access.
         let type_path = format!("{}::", name);
         if result.contains(&type_path) {
+            if let Some(cleaned) = remove_stub_function(&result, name) {
+                result = cleaned;
+                struct_stubs_to_prepend.push(generate_stub_struct(name, &result));
+            }
             continue;
         }
         if let Some((cleaned, macro_def)) = replace_stub_with_macro(&result, name) {
@@ -571,8 +580,10 @@ fn fix_stub_arities(code: &str) -> String {
         }
     }
 
-    if !macros_to_prepend.is_empty() {
-        let prefix = macros_to_prepend.join("\n");
+    if !macros_to_prepend.is_empty() || !struct_stubs_to_prepend.is_empty() {
+        let mut prefix_parts = macros_to_prepend;
+        prefix_parts.extend(struct_stubs_to_prepend);
+        let prefix = prefix_parts.join("\n");
         result = format!("{}\n{}", prefix, result);
     }
 
@@ -697,4 +708,128 @@ fn rewrite_line_call_sites(line: &str, name: &str) -> String {
     }
     result.push_str(remaining);
     result
+}
+
+/// Remove a stub function declaration (for class-type stubs that will become structs).
+fn remove_stub_function(code: &str, name: &str) -> Option<String> {
+    let fn_dv = format!(
+        "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}",
+        name
+    );
+    let fn_unit = format!(
+        "pub fn {}(_args: impl std::any::Any) -> () {{\n}}",
+        name
+    );
+
+    let mut result = if code.contains(&fn_dv) {
+        code.replace(&fn_dv, "")
+    } else if code.contains(&fn_unit) {
+        code.replace(&fn_unit, "")
+    } else {
+        return None;
+    };
+    // Clean up associated doc/attribute lines
+    result = result.replace("/// DEPYLER-0615: Generated to allow standalone compilation", "");
+    result = result.replace("#[allow(dead_code, unused_variables)]", "");
+    Some(result)
+}
+
+/// Generate a stub struct for class-type imports.
+///
+/// Scans the code for `Name::CONSTANT`, `Name::method()`, and instance
+/// method calls (`.method()` on constants) to generate a compilable stub.
+fn generate_stub_struct(name: &str, code: &str) -> String {
+    let (members, instance_methods) = scan_class_usage(name, code);
+
+    let mut parts = Vec::new();
+    parts.push(format!(
+        "#[derive(Debug, Clone, PartialEq)] pub struct {} {{ pub value: DepylerValue }}",
+        name
+    ));
+
+    let impl_items = build_struct_impl_items(name, code, &members, &instance_methods);
+    parts.push(format!("impl {} {{ {} }}", name, impl_items.join("\n")));
+    parts.push(format!(
+        "impl std::ops::Deref for {} {{ type Target = DepylerValue; fn deref(&self) -> &Self::Target {{ &self.value }} }}",
+        name
+    ));
+
+    parts.join("\n")
+}
+
+/// Scan code for `Name::MEMBER` patterns and instance methods called on them.
+fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
+    let prefix = format!("{}::", name);
+    let mut members: Vec<String> = Vec::new();
+    let mut instance_methods: Vec<String> = Vec::new();
+
+    for line in code.lines() {
+        let mut search = line;
+        while let Some(pos) = search.find(&prefix) {
+            let after = &search[pos + prefix.len()..];
+            let member: String = after
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if !member.is_empty() && !members.contains(&member) {
+                members.push(member.clone());
+            }
+            // Check for instance method: Name::MEMBER.method(
+            let after_member = &after[member.len()..];
+            if let Some(rest) = after_member.strip_prefix('.') {
+                let method: String = rest
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if !method.is_empty() && !instance_methods.contains(&method) {
+                    instance_methods.push(method);
+                }
+            }
+            search = &search[pos + prefix.len()..];
+        }
+    }
+    (members, instance_methods)
+}
+
+/// Build impl items for the stub struct (associated constants, methods, instance methods).
+fn build_struct_impl_items(
+    name: &str,
+    code: &str,
+    members: &[String],
+    instance_methods: &[String],
+) -> Vec<String> {
+    let mut items = Vec::new();
+
+    for member in members {
+        let is_method = code.contains(&format!("{}::{}(", name, member));
+        if is_method && member == "new" {
+            items.push(format!(
+                "pub fn new(_args: impl std::any::Any) -> Self {{ {} {{ value: DepylerValue::default() }} }}",
+                name
+            ));
+        } else if is_method {
+            items.push(format!(
+                "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
+                member
+            ));
+        } else {
+            items.push(format!(
+                "pub const {}: {} = {} {{ value: DepylerValue::None }};",
+                member, name, name
+            ));
+        }
+    }
+
+    // Generate instance methods (called on constants like Color::RED.hex())
+    for method in instance_methods {
+        if method == "value" {
+            continue; // Already a field
+        }
+        items.push(format!(
+            "pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}",
+            method
+        ));
+    }
+
+    items
 }
