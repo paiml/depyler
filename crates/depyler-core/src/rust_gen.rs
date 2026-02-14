@@ -1,11 +1,9 @@
-use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
 use crate::cargo_toml_gen; // DEPYLER-0384: Cargo.toml generation
 use crate::hir::*;
-use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
-use quote::{quote, ToTokens};
+use quote::quote;
 use std::collections::{HashMap, HashSet};
-use syn::{self, parse_quote};
+use syn;
 
 // Module declarations for rust_gen refactoring (v3.18.0 Phases 2-7)
 mod argparse_transform;
@@ -289,10 +287,10 @@ mod coverage_wave23_func_class_tests;
 
 // Internal imports
 #[cfg(test)]
+use crate::string_optimization::StringOptimizer;
+#[cfg(test)]
 use control_stmt_helpers::{codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt};
-use error_gen::generate_error_type_definitions;
 use format::format_rust_code;
-use import_gen::process_module_imports;
 #[cfg(test)]
 use stmt_gen::{
     codegen_assign_attribute, codegen_assign_index, codegen_assign_symbol, codegen_assign_tuple,
@@ -708,41 +706,39 @@ pub fn generate_rust_file_with_overrides(
 pub fn rust_type_string_to_hir(rust_type: &str) -> Type {
     let trimmed = rust_type.trim();
 
-    // Handle common primitives
     match trimmed {
-        "i32" | "i64" | "isize" => Type::Int,
-        "u32" | "u64" | "usize" => Type::Int, // Approximate
+        "i32" | "i64" | "isize" | "u32" | "u64" | "usize" => Type::Int,
         "f32" | "f64" => Type::Float,
         "bool" => Type::Bool,
         "String" | "&str" | "str" => Type::String,
         "()" => Type::None,
-        _ => {
-            // Handle generic types
-            if trimmed.starts_with("Vec<") && trimmed.ends_with('>') {
-                let inner = &trimmed[4..trimmed.len() - 1];
-                Type::List(Box::new(rust_type_string_to_hir(inner)))
-            } else if trimmed.starts_with("HashMap<") && trimmed.ends_with('>') {
-                // Parse HashMap<K, V>
-                let inner = &trimmed[8..trimmed.len() - 1];
-                if let Some(comma_idx) = find_balanced_comma(inner) {
-                    let key_type = rust_type_string_to_hir(&inner[..comma_idx]);
-                    let val_type = rust_type_string_to_hir(&inner[comma_idx + 1..]);
-                    Type::Dict(Box::new(key_type), Box::new(val_type))
-                } else {
-                    Type::Unknown
-                }
-            } else if trimmed.starts_with("Option<") && trimmed.ends_with('>') {
-                let inner = &trimmed[7..trimmed.len() - 1];
-                Type::Optional(Box::new(rust_type_string_to_hir(inner)))
-            } else if trimmed.starts_with("HashSet<") && trimmed.ends_with('>') {
-                let inner = &trimmed[8..trimmed.len() - 1];
-                Type::Set(Box::new(rust_type_string_to_hir(inner)))
-            } else {
-                // Unknown type - use Unknown
-                Type::Unknown
-            }
-        }
+        _ => parse_generic_rust_type(trimmed),
     }
+}
+
+fn parse_generic_rust_type(trimmed: &str) -> Type {
+    if let Some(inner) = strip_generic(trimmed, "Vec<") {
+        return Type::List(Box::new(rust_type_string_to_hir(inner)));
+    }
+    if let Some(inner) = strip_generic(trimmed, "HashMap<") {
+        if let Some(comma_idx) = find_balanced_comma(inner) {
+            let key = rust_type_string_to_hir(&inner[..comma_idx]);
+            let val = rust_type_string_to_hir(&inner[comma_idx + 1..]);
+            return Type::Dict(Box::new(key), Box::new(val));
+        }
+        return Type::Unknown;
+    }
+    if let Some(inner) = strip_generic(trimmed, "Option<") {
+        return Type::Optional(Box::new(rust_type_string_to_hir(inner)));
+    }
+    if let Some(inner) = strip_generic(trimmed, "HashSet<") {
+        return Type::Set(Box::new(rust_type_string_to_hir(inner)));
+    }
+    Type::Unknown
+}
+
+fn strip_generic<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
+    s.strip_prefix(prefix).and_then(|rest| rest.strip_suffix('>'))
 }
 
 /// Find the comma that separates type parameters at the top level

@@ -17,15 +17,12 @@ mod stdlib_calls;
 mod stmt_convert;
 pub(crate) use body_convert::*;
 pub(crate) use method_stmt_convert::*;
+#[cfg(test)]
 pub(crate) use operators::*;
 pub(crate) use stmt_convert::*;
 
-use crate::direct_rules::{
-    extract_nested_indices, make_ident, parse_target_pattern, safe_class_name, type_to_rust_type,
-};
+use crate::direct_rules::make_ident;
 use crate::hir::*;
-use crate::rust_gen::keywords::safe_ident;
-use crate::rust_gen::precedence;
 use crate::type_mapper::TypeMapper;
 use anyhow::{bail, Result};
 use quote::quote;
