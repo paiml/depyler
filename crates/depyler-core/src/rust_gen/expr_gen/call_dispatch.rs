@@ -8,13 +8,8 @@
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::ToRustExpr;
-use crate::rust_gen::builtin_conversions;
-use crate::rust_gen::context::CodeGenContext;
-use crate::rust_gen::expr_analysis;
-use crate::string_optimization::{StringContext, StringOptimizer};
-use crate::trace_decision;
-use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
+use anyhow::Result;
+use quote::quote;
 use syn::{self, parse_quote};
 
 use super::ExpressionConverter;

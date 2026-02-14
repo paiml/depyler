@@ -3,11 +3,9 @@
 //! Handles list/set/dict comprehensions, module constructors, lambda, fstring,
 //! attribute access, and dynamic calls.
 
-use crate::direct_rules::{make_ident, parse_target_pattern, safe_class_name, type_to_rust_type};
+use crate::direct_rules::{make_ident, parse_target_pattern};
 use crate::hir::*;
-use crate::rust_gen::keywords::safe_ident;
-use anyhow::{bail, Result};
-use quote::quote;
+use anyhow::Result;
 use syn::parse_quote;
 
 use super::ExprConverter;

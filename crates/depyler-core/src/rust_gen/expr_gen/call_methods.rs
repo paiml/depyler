@@ -5,11 +5,9 @@
 
 use crate::hir::*;
 use crate::rust_gen::context::ToRustExpr;
-use crate::rust_gen::context::CodeGenContext;
-use crate::rust_gen::keywords;
 use crate::rust_gen::stdlib_method_gen;
 use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{self, parse_quote};
 
 use super::ExpressionConverter;

@@ -7,14 +7,12 @@
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::ToRustExpr;
-use crate::rust_gen::context::CodeGenContext;
 use crate::trace_decision;
 use crate::rust_gen::expr_analysis;
 use crate::rust_gen::precedence;
 use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
-use crate::string_optimization::{StringContext, StringOptimizer};
-use anyhow::{bail, Result};
+use anyhow::Result;
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 

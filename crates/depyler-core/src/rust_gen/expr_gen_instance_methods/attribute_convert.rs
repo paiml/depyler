@@ -5,7 +5,7 @@
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
-use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
+use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::keywords;
 use crate::trace_decision;

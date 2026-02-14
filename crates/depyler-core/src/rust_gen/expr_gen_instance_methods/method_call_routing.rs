@@ -6,16 +6,10 @@
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
-use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
+use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_gen::ExpressionConverter;
-use crate::rust_gen::keywords;
-use crate::rust_gen::truthiness_helpers::{
-    is_collection_generic_base, is_collection_type_name, is_collection_var_name,
-    is_option_var_name, is_string_var_name,
-};
 use crate::trace_decision;
-use anyhow::{bail, Result};
-use quote::{quote, ToTokens};
+use anyhow::Result;
 use syn::{self, parse_quote};
 
 impl<'a, 'b> ExpressionConverter<'a, 'b> {

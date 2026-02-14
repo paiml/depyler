@@ -21,14 +21,13 @@
 //! ```
 
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
-use crate::hir::{HirExpr, HirFunction, HirModule, HirStmt, Type};
+use crate::hir::{HirExpr, HirModule, Type};
 use crate::string_optimization::StringOptimizer;
 use std::collections::{HashMap, HashSet};
 
 use super::argparse_transform;
 use super::context::CodeGenContext;
 use super::import_gen;
-use super::validator_analysis;
 
 // ============================================================================
 // Phase 1: Module Analysis (pure data extraction, no lifetimes)

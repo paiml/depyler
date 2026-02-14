@@ -2,10 +2,8 @@
 //!
 //! Handles list, dict, tuple, set, frozenset literals and type checking helpers.
 
-use crate::direct_rules::{make_ident, safe_class_name, type_to_rust_type};
 use crate::hir::*;
 use anyhow::{bail, Result};
-use quote::quote;
 use syn::parse_quote;
 
 use super::ExprConverter;
