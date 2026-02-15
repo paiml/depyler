@@ -19,7 +19,7 @@ thiserror.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
 fnv.workspace = true
-depyler-annotations = { path = "../depyler-annotations" }
+depyler-annotations = { path = "../depyler-annotations", version = "4.1.1" }
 
 [dependencies.rmp-serde]
 version = "1.1"

@@ -15,7 +15,7 @@ anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 
 # Internal dependencies
-depyler-core = { path = "../depyler-core" }
+depyler-core = { path = "../depyler-core", version = "4.1.1" }
 
 [dev-dependencies]
 pretty_assertions = "1.4"

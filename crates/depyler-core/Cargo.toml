@@ -25,18 +25,18 @@ quote.workspace = true
 proc-macro2.workspace = true
 indexmap.workspace = true
 smallvec.workspace = true
-depyler-annotations = { path = "../depyler-annotations" }
-depyler-hir = { path = "../depyler-hir" }
-depyler-lambda = { path = "../depyler-lambda" }
-depyler-analysis = { path = "../depyler-analysis" }
-depyler-tooling = { path = "../depyler-tooling" }
+depyler-annotations = { path = "../depyler-annotations", version = "4.1.1" }
+depyler-hir = { path = "../depyler-hir", version = "4.1.1" }
+depyler-lambda = { path = "../depyler-lambda", version = "4.1.1" }
+depyler-analysis = { path = "../depyler-analysis", version = "4.1.1" }
+depyler-tooling = { path = "../depyler-tooling", version = "4.1.1" }
 colored.workspace = true
 fnv.workspace = true
 tempfile.workspace = true
 toml.workspace = true
 
 # DEPYLER-1112: Sovereign Type Database integration (optional)
-depyler-knowledge = { path = "../depyler-knowledge", optional = true }
+depyler-knowledge = { path = "../depyler-knowledge", version = "4.1.1", optional = true }
 
 [features]
 default = []
