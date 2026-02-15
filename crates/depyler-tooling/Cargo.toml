@@ -28,8 +28,8 @@ indexmap.workspace = true
 smallvec.workspace = true
 fnv.workspace = true
 toml.workspace = true
-depyler-annotations = { path = "../depyler-annotations" }
-depyler-hir = { path = "../depyler-hir" }
+depyler-annotations = { path = "../depyler-annotations", version = "4.1.1" }
+depyler-hir = { path = "../depyler-hir", version = "4.1.1" }
 
 [features]
 default = []

@@ -17,9 +17,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 smallvec = { version = "1.0", features = ["serde"] }
-depyler-core = { path = "../depyler-core" }
-depyler-analyzer = { path = "../depyler-analyzer" }
-depyler-annotations = { path = "../depyler-annotations" }
+depyler-core = { path = "../depyler-core", version = "4.1.1" }
+depyler-analyzer = { path = "../depyler-analyzer", version = "4.1.1" }
+depyler-annotations = { path = "../depyler-annotations", version = "4.1.1" }
 tempfile = "3.2"
 clap = { version = "4.0", features = ["derive"] }
 log = "0.4"

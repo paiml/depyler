@@ -13,8 +13,8 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-depyler-core = { path = "../depyler-core" }
-depyler-annotations = { path = "../depyler-annotations" }
+depyler-core = { path = "../depyler-core", version = "4.1.1" }
+depyler-annotations = { path = "../depyler-annotations", version = "4.1.1" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

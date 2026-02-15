@@ -18,7 +18,7 @@ api-fallback = []  # HTTP API fallback for hybrid transpiler (requires ureq dep 
 
 [dependencies]
 # Depyler core for error types
-depyler-core = { path = "../depyler-core" }
+depyler-core = { path = "../depyler-core", version = "4.1.1" }
 
 # ML models from aprender
 # Features: parallel (rayon), gpu (wgpu via trueno)
