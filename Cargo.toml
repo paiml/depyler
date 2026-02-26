@@ -156,3 +156,7 @@ opt-level = 1
 
 [package.metadata.release]
 shared-version = true
+
+[[bench]]
+name = "binary_size"
+harness = false
