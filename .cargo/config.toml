@@ -1,0 +1,11 @@
+# Temporary coverage config - DO NOT COMMIT
+# Replaces project config during coverage runs
+[build]
+incremental = true
+target-dir = "/mnt/nvme-raid0/coverage/depyler"
+
+[alias]
+t = "test"
+c = "check"
+b = "build --release"
+cl = "clippy --all-targets -- -D warnings"
