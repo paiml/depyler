@@ -1,6 +1,32 @@
 //! Formal Verification Specifications for depyler
 //!
 //! Design-by-contract specifications using Verus-style pre/postconditions.
+//!
+//! # Examples
+//!
+//! ```rust,ignore
+//! use crate::verification_specs::config_contracts;
+//! assert!(config_contracts::validate_size(5, 10));
+//! ```
+//!
+//! ```rust,ignore
+//! use crate::verification_specs::numeric_contracts;
+//! assert!(numeric_contracts::is_valid_float(1.0));
+//! ```
+//!
+//! ```rust,ignore
+//! let result = numeric_contracts::normalize(5.0, 0.0, 10.0);
+//! assert!((result - 0.5).abs() < f64::EPSILON);
+//! ```
+//!
+//! ```rust,ignore
+//! assert_eq!(numeric_contracts::checked_add(1, 2), Some(3));
+//! ```
+//!
+//! ```rust,ignore
+//! assert!(config_contracts::validate_index(3, 5));
+//! ```
+
 
 /// Configuration validation invariants
 ///

@@ -1,0 +1,8 @@
+# cargo-mutants configuration
+# See: https://mutants.rs/
+
+# Timeout per mutant (seconds)
+timeout = 300
+
+# Exclude test files from mutation
+exclude_re = ["tests/", "benches/", "examples/"]
