@@ -133,6 +133,7 @@ incremental = true
 codegen-units = 16
 
 [profile.dev]
+panic = "abort"
 opt-level = 0
 debug = true
 incremental = true

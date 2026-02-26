@@ -234,6 +234,11 @@ Contributions welcome! Please follow the quality standards:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
+
+## MSRV
+
+Minimum Supported Rust Version: **1.83**
+
 ## License
 
 Licensed under MIT License. See [LICENSE](LICENSE) for details.
