@@ -74,14 +74,8 @@ fn test_golden_exception_example_transpiles() {
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
     // Basic sanity checks - these should pass even with codegen bugs
-    assert!(
-        rust_code.contains("pub fn parse_int_safe"),
-        "Should contain parse_int_safe function"
-    );
-    assert!(
-        rust_code.contains("pub fn divide_safe"),
-        "Should contain divide_safe function"
-    );
+    assert!(rust_code.contains("pub fn parse_int_safe"), "Should contain parse_int_safe function");
+    assert!(rust_code.contains("pub fn divide_safe"), "Should contain divide_safe function");
     assert!(
         rust_code.contains("pub fn multiple_handlers"),
         "Should contain multiple_handlers function"

@@ -4,9 +4,7 @@
 use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> Result<String, String> {
-    DepylerPipeline::new()
-        .transpile(code)
-        .map_err(|e| e.to_string())
+    DepylerPipeline::new().transpile(code).map_err(|e| e.to_string())
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -89,9 +87,7 @@ fn test_expr_binary_mul() {
 
 #[test]
 fn test_expr_binary_div() {
-    assert!(transpile_ok(
-        "def f(a: float, b: float) -> float: return a / b"
-    ));
+    assert!(transpile_ok("def f(a: float, b: float) -> float: return a / b"));
 }
 
 #[test]
@@ -106,9 +102,7 @@ fn test_expr_binary_mod() {
 
 #[test]
 fn test_expr_binary_pow() {
-    assert!(transpile_ok(
-        "def f(a: float, b: float) -> float: return a ** b"
-    ));
+    assert!(transpile_ok("def f(a: float, b: float) -> float: return a ** b"));
 }
 
 #[test]
@@ -143,16 +137,12 @@ fn test_expr_binary_ge() {
 
 #[test]
 fn test_expr_binary_and() {
-    assert!(transpile_ok(
-        "def f(a: bool, b: bool) -> bool: return a and b"
-    ));
+    assert!(transpile_ok("def f(a: bool, b: bool) -> bool: return a and b"));
 }
 
 #[test]
 fn test_expr_binary_or() {
-    assert!(transpile_ok(
-        "def f(a: bool, b: bool) -> bool: return a or b"
-    ));
+    assert!(transpile_ok("def f(a: bool, b: bool) -> bool: return a or b"));
 }
 
 #[test]
@@ -211,16 +201,12 @@ fn test_expr_call_abs() {
 
 #[test]
 fn test_expr_call_min() {
-    assert!(transpile_ok(
-        "def f(a: int, b: int) -> int: return min(a, b)"
-    ));
+    assert!(transpile_ok("def f(a: int, b: int) -> int: return min(a, b)"));
 }
 
 #[test]
 fn test_expr_call_max() {
-    assert!(transpile_ok(
-        "def f(a: int, b: int) -> int: return max(a, b)"
-    ));
+    assert!(transpile_ok("def f(a: int, b: int) -> int: return max(a, b)"));
 }
 
 #[test]
@@ -250,16 +236,12 @@ fn test_expr_call_bool() {
 
 #[test]
 fn test_expr_call_sorted() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return sorted(items)"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return sorted(items)"));
 }
 
 #[test]
 fn test_expr_call_reversed() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return list(reversed(items))"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return list(reversed(items))"));
 }
 
 #[test]
@@ -322,37 +304,27 @@ fn test_expr_method_str_split() {
 
 #[test]
 fn test_expr_method_str_join() {
-    assert!(transpile_ok(
-        "def f(items: list) -> str: return \",\".join(items)"
-    ));
+    assert!(transpile_ok("def f(items: list) -> str: return \",\".join(items)"));
 }
 
 #[test]
 fn test_expr_method_str_replace() {
-    assert!(transpile_ok(
-        "def f(s: str) -> str: return s.replace(\"a\", \"b\")"
-    ));
+    assert!(transpile_ok("def f(s: str) -> str: return s.replace(\"a\", \"b\")"));
 }
 
 #[test]
 fn test_expr_method_str_startswith() {
-    assert!(transpile_ok(
-        "def f(s: str) -> bool: return s.startswith(\"hello\")"
-    ));
+    assert!(transpile_ok("def f(s: str) -> bool: return s.startswith(\"hello\")"));
 }
 
 #[test]
 fn test_expr_method_str_endswith() {
-    assert!(transpile_ok(
-        "def f(s: str) -> bool: return s.endswith(\"world\")"
-    ));
+    assert!(transpile_ok("def f(s: str) -> bool: return s.endswith(\"world\")"));
 }
 
 #[test]
 fn test_expr_method_str_find() {
-    assert!(transpile_ok(
-        "def f(s: str, sub: str) -> int: return s.find(sub)"
-    ));
+    assert!(transpile_ok("def f(s: str, sub: str) -> int: return s.find(sub)"));
 }
 
 #[test]
@@ -367,9 +339,7 @@ def f(items: list, x: int) -> list:
 
 #[test]
 fn test_expr_method_list_pop() {
-    assert!(transpile_ok(
-        "def f(items: list) -> int: return items.pop()"
-    ));
+    assert!(transpile_ok("def f(items: list) -> int: return items.pop()"));
 }
 
 #[test]
@@ -404,30 +374,22 @@ def f(items: list) -> list:
 
 #[test]
 fn test_expr_method_dict_get() {
-    assert!(transpile_ok(
-        "def f(d: dict, k: str) -> int: return d.get(k, 0)"
-    ));
+    assert!(transpile_ok("def f(d: dict, k: str) -> int: return d.get(k, 0)"));
 }
 
 #[test]
 fn test_expr_method_dict_keys() {
-    assert!(transpile_ok(
-        "def f(d: dict) -> list: return list(d.keys())"
-    ));
+    assert!(transpile_ok("def f(d: dict) -> list: return list(d.keys())"));
 }
 
 #[test]
 fn test_expr_method_dict_values() {
-    assert!(transpile_ok(
-        "def f(d: dict) -> list: return list(d.values())"
-    ));
+    assert!(transpile_ok("def f(d: dict) -> list: return list(d.values())"));
 }
 
 #[test]
 fn test_expr_method_dict_items() {
-    assert!(transpile_ok(
-        "def f(d: dict) -> list: return list(d.items())"
-    ));
+    assert!(transpile_ok("def f(d: dict) -> list: return list(d.items())"));
 }
 
 // ============ List/Dict/Tuple literals to tokens ============
@@ -444,9 +406,7 @@ fn test_expr_list_ints() {
 
 #[test]
 fn test_expr_list_strings() {
-    assert!(transpile_ok(
-        "def f() -> list: return [\"a\", \"b\", \"c\"]"
-    ));
+    assert!(transpile_ok("def f() -> list: return [\"a\", \"b\", \"c\"]"));
 }
 
 #[test]
@@ -497,37 +457,27 @@ fn test_expr_set_literal() {
 
 #[test]
 fn test_expr_list_comp_simple() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return [x * 2 for x in items]"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return [x * 2 for x in items]"));
 }
 
 #[test]
 fn test_expr_list_comp_with_if() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return [x for x in items if x > 0]"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return [x for x in items if x > 0]"));
 }
 
 #[test]
 fn test_expr_list_comp_with_call() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return [str(x) for x in items]"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return [str(x) for x in items]"));
 }
 
 #[test]
 fn test_expr_dict_comp() {
-    assert!(transpile_ok(
-        "def f(items: list) -> dict: return {x: x * 2 for x in items}"
-    ));
+    assert!(transpile_ok("def f(items: list) -> dict: return {x: x * 2 for x in items}"));
 }
 
 #[test]
 fn test_expr_set_comp() {
-    assert!(transpile_ok(
-        "def f(items: list) -> set: return {x * 2 for x in items}"
-    ));
+    assert!(transpile_ok("def f(items: list) -> set: return {x * 2 for x in items}"));
 }
 
 // ============ Subscript to tokens ============
@@ -544,9 +494,7 @@ fn test_expr_subscript_list_negative() {
 
 #[test]
 fn test_expr_subscript_dict() {
-    assert!(transpile_ok(
-        "def f(data: dict) -> int: return data[\"key\"]"
-    ));
+    assert!(transpile_ok("def f(data: dict) -> int: return data[\"key\"]"));
 }
 
 #[test]
@@ -568,32 +516,24 @@ fn test_expr_slice_end() {
 
 #[test]
 fn test_expr_slice_both() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return items[1:3]"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return items[1:3]"));
 }
 
 #[test]
 fn test_expr_slice_step() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return items[::2]"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return items[::2]"));
 }
 
 #[test]
 fn test_expr_slice_reverse() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return items[::-1]"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return items[::-1]"));
 }
 
 // ============ Ternary to tokens ============
 
 #[test]
 fn test_expr_ternary() {
-    assert!(transpile_ok(
-        "def f(x: int) -> int: return x if x > 0 else -x"
-    ));
+    assert!(transpile_ok("def f(x: int) -> int: return x if x > 0 else -x"));
 }
 
 #[test]
@@ -609,37 +549,27 @@ def f(x: int) -> str:
 
 #[test]
 fn test_expr_lambda_in_sorted() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list: return sorted(items, key=lambda x: -x)"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list: return sorted(items, key=lambda x: -x)"));
 }
 
 // ============ Complex expressions ============
 
 #[test]
 fn test_expr_nested_calls() {
-    assert!(transpile_ok(
-        "def f(s: str) -> str: return s.upper().strip().lower()"
-    ));
+    assert!(transpile_ok("def f(s: str) -> str: return s.upper().strip().lower()"));
 }
 
 #[test]
 fn test_expr_complex_arithmetic() {
-    assert!(transpile_ok(
-        "def f(a: int, b: int, c: int) -> int: return (a + b) * c - a % b"
-    ));
+    assert!(transpile_ok("def f(a: int, b: int, c: int) -> int: return (a + b) * c - a % b"));
 }
 
 #[test]
 fn test_expr_in_operator() {
-    assert!(transpile_ok(
-        "def f(x: int, items: list) -> bool: return x in items"
-    ));
+    assert!(transpile_ok("def f(x: int, items: list) -> bool: return x in items"));
 }
 
 #[test]
 fn test_expr_not_in_operator() {
-    assert!(transpile_ok(
-        "def f(x: int, items: list) -> bool: return x not in items"
-    ));
+    assert!(transpile_ok("def f(x: int, items: list) -> bool: return x not in items"));
 }

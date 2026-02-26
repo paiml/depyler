@@ -23,23 +23,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_string = self.is_string_base(base);
 
         // Convert slice parameters
-        let start_expr = if let Some(s) = start {
-            Some(s.to_rust_expr(self.ctx)?)
-        } else {
-            None
-        };
+        let start_expr = if let Some(s) = start { Some(s.to_rust_expr(self.ctx)?) } else { None };
 
-        let stop_expr = if let Some(s) = stop {
-            Some(s.to_rust_expr(self.ctx)?)
-        } else {
-            None
-        };
+        let stop_expr = if let Some(s) = stop { Some(s.to_rust_expr(self.ctx)?) } else { None };
 
-        let step_expr = if let Some(s) = step {
-            Some(s.to_rust_expr(self.ctx)?)
-        } else {
-            None
-        };
+        let step_expr = if let Some(s) = step { Some(s.to_rust_expr(self.ctx)?) } else { None };
 
         // DEPYLER-0302 Phase 3: Generate string-specific slice code
         if is_string {

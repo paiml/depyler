@@ -10,9 +10,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -27,49 +25,37 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_param_infer_strip_method_implies_str() {
-    let code = transpile(
-        "def clean(data):\n    return data.strip()",
-    );
+    let code = transpile("def clean(data):\n    return data.strip()");
     assert!(!code.is_empty(), "strip implies str param: {}", code);
 }
 
 #[test]
 fn test_param_infer_append_method_implies_list() {
-    let code = transpile(
-        "def add_item(items, val: int):\n    items.append(val)\n    return items",
-    );
+    let code = transpile("def add_item(items, val: int):\n    items.append(val)\n    return items");
     assert!(!code.is_empty(), "append implies list param: {}", code);
 }
 
 #[test]
 fn test_param_infer_upper_method_implies_str() {
-    let code = transpile(
-        "def shout(text):\n    return text.upper()",
-    );
+    let code = transpile("def shout(text):\n    return text.upper()");
     assert!(!code.is_empty(), "upper implies str param: {}", code);
 }
 
 #[test]
 fn test_param_infer_split_method_implies_str() {
-    let code = transpile(
-        "def tokenize(line):\n    return line.split(',')",
-    );
+    let code = transpile("def tokenize(line):\n    return line.split(',')");
     assert!(!code.is_empty(), "split implies str param: {}", code);
 }
 
 #[test]
 fn test_param_infer_keys_method_implies_dict() {
-    let code = transpile(
-        "def get_keys(mapping):\n    return list(mapping.keys())",
-    );
+    let code = transpile("def get_keys(mapping):\n    return list(mapping.keys())");
     assert!(!code.is_empty(), "keys implies dict param: {}", code);
 }
 
 #[test]
 fn test_param_infer_values_method_implies_dict() {
-    let code = transpile(
-        "def get_vals(mapping):\n    return list(mapping.values())",
-    );
+    let code = transpile("def get_vals(mapping):\n    return list(mapping.values())");
     assert!(!code.is_empty(), "values implies dict param: {}", code);
 }
 
@@ -83,41 +69,31 @@ fn test_param_infer_items_method_implies_dict() {
 
 #[test]
 fn test_param_infer_arithmetic_implies_int() {
-    let code = transpile(
-        "def double(n):\n    return n * 2",
-    );
+    let code = transpile("def double(n):\n    return n * 2");
     assert!(!code.is_empty(), "arithmetic implies int param: {}", code);
 }
 
 #[test]
 fn test_param_infer_subtraction_implies_int() {
-    let code = transpile(
-        "def decrement(n):\n    return n - 1",
-    );
+    let code = transpile("def decrement(n):\n    return n - 1");
     assert!(!code.is_empty(), "subtraction implies int param: {}", code);
 }
 
 #[test]
 fn test_param_infer_floor_div_implies_int() {
-    let code = transpile(
-        "def halve(n):\n    return n // 2",
-    );
+    let code = transpile("def halve(n):\n    return n // 2");
     assert!(!code.is_empty(), "floor div implies int param: {}", code);
 }
 
 #[test]
 fn test_param_infer_modulo_implies_int() {
-    let code = transpile(
-        "def is_even(n):\n    return n % 2 == 0",
-    );
+    let code = transpile("def is_even(n):\n    return n % 2 == 0");
     assert!(!code.is_empty(), "modulo implies int param: {}", code);
 }
 
 #[test]
 fn test_param_infer_comparison_with_string_literal() {
-    let code = transpile(
-        "def is_admin(role):\n    return role == 'admin'",
-    );
+    let code = transpile("def is_admin(role):\n    return role == 'admin'");
     assert!(!code.is_empty(), "comparison with str literal implies str: {}", code);
 }
 
@@ -131,81 +107,61 @@ fn test_param_infer_comparison_string_on_right() {
 
 #[test]
 fn test_param_infer_logical_and_implies_bool() {
-    let code = transpile(
-        "def both_true(a, b):\n    return a and b",
-    );
+    let code = transpile("def both_true(a, b):\n    return a and b");
     assert!(!code.is_empty(), "logical and implies bool param: {}", code);
 }
 
 #[test]
 fn test_param_infer_logical_or_implies_bool() {
-    let code = transpile(
-        "def either_true(a, b):\n    return a or b",
-    );
+    let code = transpile("def either_true(a, b):\n    return a or b");
     assert!(!code.is_empty(), "logical or implies bool param: {}", code);
 }
 
 #[test]
 fn test_param_infer_in_operator_implies_str() {
-    let code = transpile(
-        "def contains_hello(text):\n    return 'hello' in text",
-    );
+    let code = transpile("def contains_hello(text):\n    return 'hello' in text");
     assert!(!code.is_empty(), "in operator implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_index_with_string_key_implies_dict() {
-    let code = transpile(
-        "def get_name(data):\n    return data['name']",
-    );
+    let code = transpile("def get_name(data):\n    return data['name']");
     assert!(!code.is_empty(), "string index implies dict param: {}", code);
 }
 
 #[test]
 fn test_param_infer_index_with_int_implies_list() {
-    let code = transpile(
-        "def first_elem(data):\n    return data[0]",
-    );
+    let code = transpile("def first_elem(data):\n    return data[0]");
     assert!(!code.is_empty(), "int index implies list param: {}", code);
 }
 
 #[test]
 fn test_param_infer_slice_implies_str() {
-    let code = transpile(
-        "def head(data):\n    return data[:5]",
-    );
+    let code = transpile("def head(data):\n    return data[:5]");
     assert!(!code.is_empty(), "slice implies str/list param: {}", code);
 }
 
 #[test]
 fn test_param_infer_fstring_usage_implies_str() {
-    let code = transpile(
-        "def greet(name):\n    return f'Hello, {name}!'",
-    );
+    let code = transpile("def greet(name):\n    return f'Hello, {name}!'");
     assert!(!code.is_empty(), "fstring usage implies str param: {}", code);
 }
 
 #[test]
 fn test_param_infer_print_arg_implies_str() {
-    let code = transpile(
-        "def show(msg):\n    print(msg)",
-    );
+    let code = transpile("def show(msg):\n    print(msg)");
     assert!(!code.is_empty(), "print arg implies str param: {}", code);
 }
 
 #[test]
 fn test_param_infer_as_callable() {
-    let code = transpile(
-        "def apply(func, x: int) -> int:\n    return func(x)",
-    );
+    let code = transpile("def apply(func, x: int) -> int:\n    return func(x)");
     assert!(!code.is_empty(), "callable param: {}", code);
 }
 
 #[test]
 fn test_param_infer_tuple_unpacking() {
-    let code = transpile(
-        "def unpack(pair):\n    a, b = pair\n    return a",
-    );
+    let code = transpile("def unpack(pair):\n    a, b = pair\n    return a");
     assert!(!code.is_empty(), "tuple unpacking infers tuple type: {}", code);
 }
 
@@ -219,9 +175,8 @@ fn test_param_infer_in_if_condition() {
 
 #[test]
 fn test_param_infer_in_while_condition() {
-    let code = transpile(
-        "def drain(items):\n    while items:\n        items.pop()\n    return items",
-    );
+    let code =
+        transpile("def drain(items):\n    while items:\n        items.pop()\n    return items");
     assert!(!code.is_empty(), "param in while condition: {}", code);
 }
 
@@ -235,9 +190,8 @@ fn test_param_infer_in_for_loop_body() {
 
 #[test]
 fn test_param_infer_in_with_block() {
-    let code = transpile(
-        "def read_file(path):\n    with open(path) as f:\n        return f.read()",
-    );
+    let code =
+        transpile("def read_file(path):\n    with open(path) as f:\n        return f.read()");
     assert!(!code.is_empty(), "param in with block: {}", code);
 }
 
@@ -251,33 +205,25 @@ fn test_param_infer_in_try_block() {
 
 #[test]
 fn test_param_infer_file_object_write() {
-    let code = transpile(
-        "def write_data(output):\n    output.write('hello')\n    output.flush()",
-    );
+    let code = transpile("def write_data(output):\n    output.write('hello')\n    output.flush()");
     assert!(!code.is_empty(), "file object write: {}", code);
 }
 
 #[test]
 fn test_param_infer_file_object_read() {
-    let code = transpile(
-        "def read_all(source):\n    return source.read()",
-    );
+    let code = transpile("def read_all(source):\n    return source.read()");
     assert!(!code.is_empty(), "file object read: {}", code);
 }
 
 #[test]
 fn test_param_infer_listcomp_iter() {
-    let code = transpile(
-        "def squares(nums):\n    return [x * x for x in nums]",
-    );
+    let code = transpile("def squares(nums):\n    return [x * x for x in nums]");
     assert!(!code.is_empty(), "listcomp iter param: {}", code);
 }
 
 #[test]
 fn test_param_infer_generator_expr_iter() {
-    let code = transpile(
-        "def total(nums):\n    return sum(x * 2 for x in nums)",
-    );
+    let code = transpile("def total(nums):\n    return sum(x * 2 for x in nums)");
     assert!(!code.is_empty(), "genexp iter param: {}", code);
 }
 
@@ -288,49 +234,38 @@ fn test_param_infer_generator_expr_iter() {
 
 #[test]
 fn test_const_generic_fixed_list_literal() {
-    let code = transpile(
-        "def fixed_array() -> list[int]:\n    return [1, 2, 3, 4, 5]",
-    );
+    let code = transpile("def fixed_array() -> list[int]:\n    return [1, 2, 3, 4, 5]");
     assert!(!code.is_empty(), "fixed list literal: {}", code);
 }
 
 #[test]
 fn test_const_generic_list_multiply() {
-    let code = transpile(
-        "def zeros() -> list[int]:\n    return [0] * 10",
-    );
+    let code = transpile("def zeros() -> list[int]:\n    return [0] * 10");
     assert!(!code.is_empty(), "list multiply pattern: {}", code);
 }
 
 #[test]
 fn test_const_generic_nested_fixed_list() {
-    let code = transpile(
-        "def matrix() -> list[list[int]]:\n    return [[1, 2], [3, 4], [5, 6]]",
-    );
+    let code = transpile("def matrix() -> list[list[int]]:\n    return [[1, 2], [3, 4], [5, 6]]");
     assert!(!code.is_empty(), "nested fixed list: {}", code);
 }
 
 #[test]
 fn test_const_generic_tuple_known_size() {
-    let code = transpile(
-        "def point() -> tuple[int, int, int]:\n    return (1, 2, 3)",
-    );
+    let code = transpile("def point() -> tuple[int, int, int]:\n    return (1, 2, 3)");
     assert!(!code.is_empty(), "tuple known size: {}", code);
 }
 
 #[test]
 fn test_const_generic_assign_fixed_list() {
-    let code = transpile(
-        "def init() -> list[int]:\n    arr = [0, 0, 0]\n    arr[1] = 5\n    return arr",
-    );
+    let code =
+        transpile("def init() -> list[int]:\n    arr = [0, 0, 0]\n    arr[1] = 5\n    return arr");
     assert!(!code.is_empty(), "assign fixed list: {}", code);
 }
 
 #[test]
 fn test_const_generic_range_len() {
-    let code = transpile(
-        "def indices(n: int) -> list[int]:\n    return list(range(n))",
-    );
+    let code = transpile("def indices(n: int) -> list[int]:\n    return list(range(n))");
     assert!(!code.is_empty(), "range with len: {}", code);
 }
 
@@ -349,9 +284,8 @@ fn test_const_generic_if_branch_arrays() {
 
 #[test]
 fn test_escape_variable_returned() {
-    let code = transpile(
-        "def create_list() -> list[int]:\n    items = [1, 2, 3]\n    return items",
-    );
+    let code =
+        transpile("def create_list() -> list[int]:\n    items = [1, 2, 3]\n    return items");
     assert!(!code.is_empty(), "variable returned escapes: {}", code);
 }
 
@@ -442,9 +376,7 @@ fn test_lifetime_iterator_borrow() {
 
 #[test]
 fn test_lifetime_parameter_read_only() {
-    let code = transpile(
-        "def peek(items: list[int]) -> int:\n    return items[0]",
-    );
+    let code = transpile("def peek(items: list[int]) -> int:\n    return items[0]");
     assert!(!code.is_empty(), "read-only parameter: {}", code);
 }
 
@@ -458,9 +390,7 @@ fn test_lifetime_parameter_mutated_and_returned() {
 
 #[test]
 fn test_lifetime_string_borrow_slice() {
-    let code = transpile(
-        "def prefix(s: str) -> str:\n    return s[:3]",
-    );
+    let code = transpile("def prefix(s: str) -> str:\n    return s[:3]");
     assert!(!code.is_empty(), "string borrow slice: {}", code);
 }
 
@@ -535,9 +465,7 @@ fn test_generic_set_type_from_add() {
 
 #[test]
 fn test_generic_sorted_preserves_type() {
-    let code = transpile(
-        "def sort_ints(items: list[int]) -> list[int]:\n    return sorted(items)",
-    );
+    let code = transpile("def sort_ints(items: list[int]) -> list[int]:\n    return sorted(items)");
     assert!(!code.is_empty(), "sorted preserves type: {}", code);
 }
 
@@ -596,9 +524,8 @@ fn test_inline_trivial_identity() {
 
 #[test]
 fn test_inline_lambda_single_use() {
-    let code = transpile(
-        "def apply_once(x: int) -> int:\n    fn = lambda a: a + 10\n    return fn(x)",
-    );
+    let code =
+        transpile("def apply_once(x: int) -> int:\n    fn = lambda a: a + 10\n    return fn(x)");
     assert!(!code.is_empty(), "lambda single use: {}", code);
 }
 
@@ -641,9 +568,7 @@ fn test_inline_nested_function_definitions() {
 
 #[test]
 fn test_type_hint_dict_str_list_int() {
-    let code = transpile(
-        "def process(data: dict[str, list[int]]) -> int:\n    return len(data)",
-    );
+    let code = transpile("def process(data: dict[str, list[int]]) -> int:\n    return len(data)");
     assert!(!code.is_empty(), "dict[str, list[int]] hint: {}", code);
 }
 
@@ -657,73 +582,55 @@ fn test_type_hint_optional_str() {
 
 #[test]
 fn test_type_hint_list_of_tuples() {
-    let code = transpile(
-        "def pairs(items: list[tuple[str, int]]) -> int:\n    return len(items)",
-    );
+    let code = transpile("def pairs(items: list[tuple[str, int]]) -> int:\n    return len(items)");
     assert!(!code.is_empty(), "list of tuples hint: {}", code);
 }
 
 #[test]
 fn test_type_hint_nested_dict() {
-    let code = transpile(
-        "def deep(data: dict[str, dict[str, int]]) -> int:\n    return 0",
-    );
+    let code = transpile("def deep(data: dict[str, dict[str, int]]) -> int:\n    return 0");
     assert!(!code.is_empty(), "nested dict hint: {}", code);
 }
 
 #[test]
 fn test_type_hint_set_str() {
-    let code = transpile(
-        "def unique_words(words: set[str]) -> int:\n    return len(words)",
-    );
+    let code = transpile("def unique_words(words: set[str]) -> int:\n    return len(words)");
     assert!(!code.is_empty(), "set[str] hint: {}", code);
 }
 
 #[test]
 fn test_type_hint_tuple_mixed() {
-    let code = transpile(
-        "def record(entry: tuple[str, int, float]) -> str:\n    return entry[0]",
-    );
+    let code = transpile("def record(entry: tuple[str, int, float]) -> str:\n    return entry[0]");
     assert!(!code.is_empty(), "tuple mixed types hint: {}", code);
 }
 
 #[test]
 fn test_type_hint_return_none() {
-    let code = transpile(
-        "def side_effect(x: int) -> None:\n    print(x)",
-    );
+    let code = transpile("def side_effect(x: int) -> None:\n    print(x)");
     assert!(!code.is_empty(), "return None hint: {}", code);
 }
 
 #[test]
 fn test_type_hint_bool_return() {
-    let code = transpile(
-        "def is_valid(x: int) -> bool:\n    return x > 0",
-    );
+    let code = transpile("def is_valid(x: int) -> bool:\n    return x > 0");
     assert!(!code.is_empty(), "bool return hint: {}", code);
 }
 
 #[test]
 fn test_type_hint_infer_from_default_value_int() {
-    let code = transpile(
-        "def with_default(count=0):\n    return count + 1",
-    );
+    let code = transpile("def with_default(count=0):\n    return count + 1");
     assert!(!code.is_empty(), "default int value: {}", code);
 }
 
 #[test]
 fn test_type_hint_infer_from_default_value_str() {
-    let code = transpile(
-        "def with_default_str(name='world'):\n    return f'Hello {name}'",
-    );
+    let code = transpile("def with_default_str(name='world'):\n    return f'Hello {name}'");
     assert!(!code.is_empty(), "default str value: {}", code);
 }
 
 #[test]
 fn test_type_hint_infer_from_default_value_bool() {
-    let code = transpile(
-        "def with_flag(verbose=False):\n    if verbose:\n        print('debug')",
-    );
+    let code = transpile("def with_flag(verbose=False):\n    if verbose:\n        print('debug')");
     assert!(!code.is_empty(), "default bool value: {}", code);
 }
 
@@ -737,9 +644,7 @@ fn test_type_hint_variable_used_as_iterator() {
 
 #[test]
 fn test_type_hint_variable_numeric_ops() {
-    let code = transpile(
-        "def calc(x):\n    y = x + 1\n    z = y * 2\n    return z - x",
-    );
+    let code = transpile("def calc(x):\n    y = x + 1\n    z = y * 2\n    return z - x");
     assert!(!code.is_empty(), "variable numeric ops: {}", code);
 }
 
@@ -774,17 +679,13 @@ fn test_type_hint_for_loop_dict_items() {
 
 #[test]
 fn test_borrow_param_read_only_access() {
-    let code = transpile(
-        "def readonly(items: list[int]) -> int:\n    return items[0] + items[1]",
-    );
+    let code = transpile("def readonly(items: list[int]) -> int:\n    return items[0] + items[1]");
     assert!(!code.is_empty(), "read only access: {}", code);
 }
 
 #[test]
 fn test_borrow_param_mutated_in_place() {
-    let code = transpile(
-        "def mutate(items: list[int]):\n    items.append(99)\n    items.sort()",
-    );
+    let code = transpile("def mutate(items: list[int]):\n    items.append(99)\n    items.sort()");
     assert!(!code.is_empty(), "mutated in place: {}", code);
 }
 
@@ -827,49 +728,37 @@ fn test_borrow_method_call_tracking() {
 
 #[test]
 fn test_type_extract_list_int() {
-    let code = transpile(
-        "def foo(x: list[int]) -> list[int]:\n    return x",
-    );
+    let code = transpile("def foo(x: list[int]) -> list[int]:\n    return x");
     assert!(!code.is_empty(), "list[int] extraction: {}", code);
 }
 
 #[test]
 fn test_type_extract_dict_str_str() {
-    let code = transpile(
-        "def foo(x: dict[str, str]) -> dict[str, str]:\n    return x",
-    );
+    let code = transpile("def foo(x: dict[str, str]) -> dict[str, str]:\n    return x");
     assert!(!code.is_empty(), "dict[str, str] extraction: {}", code);
 }
 
 #[test]
 fn test_type_extract_tuple_int_str() {
-    let code = transpile(
-        "def foo(x: tuple[int, str]) -> tuple[int, str]:\n    return x",
-    );
+    let code = transpile("def foo(x: tuple[int, str]) -> tuple[int, str]:\n    return x");
     assert!(!code.is_empty(), "tuple[int, str] extraction: {}", code);
 }
 
 #[test]
 fn test_type_extract_set_float() {
-    let code = transpile(
-        "def foo(x: set[float]) -> set[float]:\n    return x",
-    );
+    let code = transpile("def foo(x: set[float]) -> set[float]:\n    return x");
     assert!(!code.is_empty(), "set[float] extraction: {}", code);
 }
 
 #[test]
 fn test_type_extract_nested_list_of_lists() {
-    let code = transpile(
-        "def foo(x: list[list[int]]) -> list[list[int]]:\n    return x",
-    );
+    let code = transpile("def foo(x: list[list[int]]) -> list[list[int]]:\n    return x");
     assert!(!code.is_empty(), "list[list[int]] extraction: {}", code);
 }
 
 #[test]
 fn test_type_extract_dict_str_list_str() {
-    let code = transpile(
-        "def foo(x: dict[str, list[str]]) -> int:\n    return len(x)",
-    );
+    let code = transpile("def foo(x: dict[str, list[str]]) -> int:\n    return len(x)");
     assert!(!code.is_empty(), "dict[str, list[str]] extraction: {}", code);
 }
 
@@ -880,17 +769,13 @@ fn test_type_extract_dict_str_list_str() {
 
 #[test]
 fn test_codegen_module_constant_int() {
-    let code = transpile(
-        "MAX_SIZE = 100\n\ndef get_max() -> int:\n    return MAX_SIZE",
-    );
+    let code = transpile("MAX_SIZE = 100\n\ndef get_max() -> int:\n    return MAX_SIZE");
     assert!(!code.is_empty(), "module constant int: {}", code);
 }
 
 #[test]
 fn test_codegen_module_constant_str() {
-    let code = transpile(
-        "GREETING = 'hello'\n\ndef greet() -> str:\n    return GREETING",
-    );
+    let code = transpile("GREETING = 'hello'\n\ndef greet() -> str:\n    return GREETING");
     assert!(!code.is_empty(), "module constant str: {}", code);
 }
 
@@ -912,17 +797,14 @@ fn test_codegen_function_calling_another() {
 
 #[test]
 fn test_codegen_module_constant_float() {
-    let code = transpile(
-        "RATE = 0.05\n\ndef calculate(base: float) -> float:\n    return base * RATE",
-    );
+    let code =
+        transpile("RATE = 0.05\n\ndef calculate(base: float) -> float:\n    return base * RATE");
     assert!(!code.is_empty(), "module constant float: {}", code);
 }
 
 #[test]
 fn test_codegen_module_constant_bool() {
-    let code = transpile(
-        "DEBUG = True\n\ndef is_debug() -> bool:\n    return DEBUG",
-    );
+    let code = transpile("DEBUG = True\n\ndef is_debug() -> bool:\n    return DEBUG");
     assert!(!code.is_empty(), "module constant bool: {}", code);
 }
 
@@ -1005,9 +887,8 @@ fn test_complex_with_statement_file() {
 
 #[test]
 fn test_complex_with_statement_no_as() {
-    let code = transpile(
-        "def use_context(path: str):\n    with open(path):\n        print('opened')",
-    );
+    let code =
+        transpile("def use_context(path: str):\n    with open(path):\n        print('opened')");
     assert!(!code.is_empty(), "with statement no as: {}", code);
 }
 
@@ -1050,17 +931,14 @@ fn test_complex_raise_runtime_error() {
 
 #[test]
 fn test_var_analysis_immutable_binding() {
-    let code = transpile(
-        "def immut() -> int:\n    x = 42\n    return x",
-    );
+    let code = transpile("def immut() -> int:\n    x = 42\n    return x");
     assert!(!code.is_empty(), "immutable binding: {}", code);
 }
 
 #[test]
 fn test_var_analysis_mutable_reassignment() {
-    let code = transpile(
-        "def mutate() -> int:\n    x = 0\n    x = x + 1\n    x = x * 2\n    return x",
-    );
+    let code =
+        transpile("def mutate() -> int:\n    x = 0\n    x = x + 1\n    x = x * 2\n    return x");
     assert!(!code.is_empty(), "mutable reassignment: {}", code);
 }
 
@@ -1106,9 +984,7 @@ fn test_var_analysis_try_except_scope() {
 
 #[test]
 fn test_var_analysis_multiple_targets() {
-    let code = transpile(
-        "def multi_assign() -> int:\n    a, b, c = 1, 2, 3\n    return a + b + c",
-    );
+    let code = transpile("def multi_assign() -> int:\n    a, b, c = 1, 2, 3\n    return a + b + c");
     assert!(!code.is_empty(), "multiple targets: {}", code);
 }
 
@@ -1199,9 +1075,7 @@ fn test_complex_boolean_expression() {
 
 #[test]
 fn test_ternary_expression() {
-    let code = transpile(
-        "def abs_val(x: int) -> int:\n    return x if x >= 0 else -x",
-    );
+    let code = transpile("def abs_val(x: int) -> int:\n    return x if x >= 0 else -x");
     assert!(!code.is_empty(), "ternary expression: {}", code);
 }
 
@@ -1239,9 +1113,7 @@ fn test_nested_list_comprehension() {
 
 #[test]
 fn test_string_join_method() {
-    let code = transpile(
-        "def join_words(words: list[str]) -> str:\n    return ', '.join(words)",
-    );
+    let code = transpile("def join_words(words: list[str]) -> str:\n    return ', '.join(words)");
     assert!(!code.is_empty(), "string join method: {}", code);
 }
 
@@ -1263,9 +1135,8 @@ fn test_multiple_return_values() {
 
 #[test]
 fn test_assert_statement() {
-    let code = transpile(
-        "def checked_sqrt(x: float) -> float:\n    assert x >= 0.0\n    return x ** 0.5",
-    );
+    let code =
+        transpile("def checked_sqrt(x: float) -> float:\n    assert x >= 0.0\n    return x ** 0.5");
     assert!(!code.is_empty(), "assert statement: {}", code);
 }
 
@@ -1279,9 +1150,7 @@ fn test_assert_with_message() {
 
 #[test]
 fn test_chained_comparison() {
-    let code = transpile(
-        "def in_range(x: int) -> bool:\n    return 0 < x < 100",
-    );
+    let code = transpile("def in_range(x: int) -> bool:\n    return 0 < x < 100");
     assert!(!code.is_empty(), "chained comparison: {}", code);
 }
 
@@ -1311,17 +1180,13 @@ fn test_class_with_class_variable() {
 
 #[test]
 fn test_pass_statement() {
-    let code = transpile(
-        "def noop():\n    pass",
-    );
+    let code = transpile("def noop():\n    pass");
     assert!(!code.is_empty(), "pass statement: {}", code);
 }
 
 #[test]
 fn test_delete_statement() {
-    let code = transpile(
-        "def remove_key(d: dict[str, int], key: str):\n    del d[key]",
-    );
+    let code = transpile("def remove_key(d: dict[str, int], key: str):\n    del d[key]");
     assert!(!code.is_empty(), "delete statement: {}", code);
 }
 
@@ -1335,9 +1200,7 @@ fn test_global_variable_usage() {
 
 #[test]
 fn test_multiple_assignment_same_value() {
-    let code = transpile(
-        "def init_zeros() -> int:\n    a = b = c = 0\n    return a + b + c",
-    );
+    let code = transpile("def init_zeros() -> int:\n    a = b = c = 0\n    return a + b + c");
     assert!(!code.is_empty(), "multiple assignment same value: {}", code);
 }
 
@@ -1367,89 +1230,69 @@ fn test_string_startswith_endswith() {
 
 #[test]
 fn test_min_max_builtins() {
-    let code = transpile(
-        "def clamp(x: int, lo: int, hi: int) -> int:\n    return max(lo, min(x, hi))",
-    );
+    let code =
+        transpile("def clamp(x: int, lo: int, hi: int) -> int:\n    return max(lo, min(x, hi))");
     assert!(!code.is_empty(), "min/max builtins: {}", code);
 }
 
 #[test]
 fn test_abs_builtin() {
-    let code = transpile(
-        "def distance(a: int, b: int) -> int:\n    return abs(a - b)",
-    );
+    let code = transpile("def distance(a: int, b: int) -> int:\n    return abs(a - b)");
     assert!(!code.is_empty(), "abs builtin: {}", code);
 }
 
 #[test]
 fn test_isinstance_check() {
-    let code = transpile(
-        "def is_string(val) -> bool:\n    return isinstance(val, str)",
-    );
+    let code = transpile("def is_string(val) -> bool:\n    return isinstance(val, str)");
     assert!(!code.is_empty(), "isinstance check: {}", code);
 }
 
 #[test]
 fn test_type_conversion_chain() {
-    let code = transpile(
-        "def convert(x: str) -> float:\n    return float(int(x))",
-    );
+    let code = transpile("def convert(x: str) -> float:\n    return float(int(x))");
     assert!(!code.is_empty(), "type conversion chain: {}", code);
 }
 
 #[test]
 fn test_power_operator() {
-    let code = transpile(
-        "def cube(x: int) -> int:\n    return x ** 3",
-    );
+    let code = transpile("def cube(x: int) -> int:\n    return x ** 3");
     assert!(!code.is_empty(), "power operator: {}", code);
 }
 
 #[test]
 fn test_unary_not() {
-    let code = transpile(
-        "def invert(flag: bool) -> bool:\n    return not flag",
-    );
+    let code = transpile("def invert(flag: bool) -> bool:\n    return not flag");
     assert!(!code.is_empty(), "unary not: {}", code);
 }
 
 #[test]
 fn test_unary_negative() {
-    let code = transpile(
-        "def negate(x: int) -> int:\n    return -x",
-    );
+    let code = transpile("def negate(x: int) -> int:\n    return -x");
     assert!(!code.is_empty(), "unary negative: {}", code);
 }
 
 #[test]
 fn test_bitwise_operations() {
-    let code = transpile(
-        "def bitwise(a: int, b: int) -> int:\n    return (a & b) | (a ^ b)",
-    );
+    let code = transpile("def bitwise(a: int, b: int) -> int:\n    return (a & b) | (a ^ b)");
     assert!(!code.is_empty(), "bitwise operations: {}", code);
 }
 
 #[test]
 fn test_string_multiplication() {
-    let code = transpile(
-        "def repeat(s: str, n: int) -> str:\n    return s * n",
-    );
+    let code = transpile("def repeat(s: str, n: int) -> str:\n    return s * n");
     assert!(!code.is_empty(), "string multiplication: {}", code);
 }
 
 #[test]
 fn test_list_extend_operator() {
-    let code = transpile(
-        "def merge(a: list[int], b: list[int]) -> list[int]:\n    return a + b",
-    );
+    let code = transpile("def merge(a: list[int], b: list[int]) -> list[int]:\n    return a + b");
     assert!(!code.is_empty(), "list extend operator: {}", code);
 }
 
 #[test]
 fn test_generator_expression_sum() {
-    let code = transpile(
-        "def sum_squares(n: int) -> int:\n    return sum(x * x for x in range(n))",
-    );
+    let code =
+        transpile("def sum_squares(n: int) -> int:\n    return sum(x * x for x in range(n))");
     assert!(!code.is_empty(), "generator expression sum: {}", code);
 }
 
@@ -1503,9 +1346,8 @@ fn test_complex_dict_operations() {
 
 #[test]
 fn test_dict_get_with_default() {
-    let code = transpile(
-        "def safe_get(d: dict[str, int], key: str) -> int:\n    return d.get(key, 0)",
-    );
+    let code =
+        transpile("def safe_get(d: dict[str, int], key: str) -> int:\n    return d.get(key, 0)");
     assert!(!code.is_empty(), "dict get with default: {}", code);
 }
 
@@ -1519,9 +1361,7 @@ fn test_string_split_and_join() {
 
 #[test]
 fn test_string_strip_variations() {
-    let code = transpile(
-        "def clean(s: str) -> str:\n    return s.strip().lstrip('x').rstrip('y')",
-    );
+    let code = transpile("def clean(s: str) -> str:\n    return s.strip().lstrip('x').rstrip('y')");
     assert!(!code.is_empty(), "string strip variations: {}", code);
 }
 
@@ -1600,145 +1440,110 @@ fn test_complex_param_type_infer_from_body_with_untyped_dict() {
 #[test]
 fn test_param_infer_regex_module_usage() {
     // Exercises the re.match/re.search path in param_type_inference
-    let code = transpile(
-        "def matches(pattern, text):\n    import re\n    return re.match(pattern, text)",
-    );
+    let code =
+        transpile("def matches(pattern, text):\n    import re\n    return re.match(pattern, text)");
     assert!(!code.is_empty(), "regex module usage: {}", code);
 }
 
 #[test]
 fn test_param_infer_not_equal_comparison() {
-    let code = transpile(
-        "def is_not_admin(role):\n    return role != 'admin'",
-    );
+    let code = transpile("def is_not_admin(role):\n    return role != 'admin'");
     assert!(!code.is_empty(), "not equal comparison: {}", code);
 }
 
 #[test]
 fn test_param_infer_in_list_of_strings() {
-    let code = transpile(
-        "def is_color(name):\n    return name in ['red', 'green', 'blue']",
-    );
+    let code = transpile("def is_color(name):\n    return name in ['red', 'green', 'blue']");
     assert!(!code.is_empty(), "in list of strings: {}", code);
 }
 
 #[test]
 fn test_param_infer_not_in_operator() {
-    let code = transpile(
-        "def is_excluded(item):\n    return item not in ['banned', 'blocked']",
-    );
+    let code = transpile("def is_excluded(item):\n    return item not in ['banned', 'blocked']");
     assert!(!code.is_empty(), "not in operator: {}", code);
 }
 
 #[test]
 fn test_param_infer_unary_negation() {
-    let code = transpile(
-        "def negate_val(x):\n    return -x",
-    );
+    let code = transpile("def negate_val(x):\n    return -x");
     assert!(!code.is_empty(), "unary negation inference: {}", code);
 }
 
 #[test]
 fn test_param_infer_encode_method() {
-    let code = transpile(
-        "def encode_str(text):\n    return text.encode('utf-8')",
-    );
+    let code = transpile("def encode_str(text):\n    return text.encode('utf-8')");
     assert!(!code.is_empty(), "encode method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_capitalize_method() {
-    let code = transpile(
-        "def cap(text):\n    return text.capitalize()",
-    );
+    let code = transpile("def cap(text):\n    return text.capitalize()");
     assert!(!code.is_empty(), "capitalize method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_isdigit_method() {
-    let code = transpile(
-        "def check_numeric(text):\n    return text.isdigit()",
-    );
+    let code = transpile("def check_numeric(text):\n    return text.isdigit()");
     assert!(!code.is_empty(), "isdigit method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_isalpha_method() {
-    let code = transpile(
-        "def check_alpha(text):\n    return text.isalpha()",
-    );
+    let code = transpile("def check_alpha(text):\n    return text.isalpha()");
     assert!(!code.is_empty(), "isalpha method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_zfill_method() {
-    let code = transpile(
-        "def pad_zeros(text):\n    return text.zfill(10)",
-    );
+    let code = transpile("def pad_zeros(text):\n    return text.zfill(10)");
     assert!(!code.is_empty(), "zfill method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_center_method() {
-    let code = transpile(
-        "def centered(text):\n    return text.center(20)",
-    );
+    let code = transpile("def centered(text):\n    return text.center(20)");
     assert!(!code.is_empty(), "center method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_swapcase_method() {
-    let code = transpile(
-        "def swap(text):\n    return text.swapcase()",
-    );
+    let code = transpile("def swap(text):\n    return text.swapcase()");
     assert!(!code.is_empty(), "swapcase method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_casefold_method() {
-    let code = transpile(
-        "def fold(text):\n    return text.casefold()",
-    );
+    let code = transpile("def fold(text):\n    return text.casefold()");
     assert!(!code.is_empty(), "casefold method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_expandtabs_method() {
-    let code = transpile(
-        "def expand(text):\n    return text.expandtabs(4)",
-    );
+    let code = transpile("def expand(text):\n    return text.expandtabs(4)");
     assert!(!code.is_empty(), "expandtabs method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_partition_method() {
-    let code = transpile(
-        "def split_at(text):\n    return text.partition(':')",
-    );
+    let code = transpile("def split_at(text):\n    return text.partition(':')");
     assert!(!code.is_empty(), "partition method implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_pop_method_implies_dict() {
-    let code = transpile(
-        "def remove_key(mapping):\n    return mapping.pop('key')",
-    );
+    let code = transpile("def remove_key(mapping):\n    return mapping.pop('key')");
     assert!(!code.is_empty(), "pop implies dict param: {}", code);
 }
 
 #[test]
 fn test_param_infer_setdefault_implies_dict() {
-    let code = transpile(
-        "def ensure_key(mapping):\n    return mapping.setdefault('key', 0)",
-    );
+    let code = transpile("def ensure_key(mapping):\n    return mapping.setdefault('key', 0)");
     assert!(!code.is_empty(), "setdefault implies dict: {}", code);
 }
 
 #[test]
 fn test_param_infer_dict_clear() {
-    let code = transpile(
-        "def wipe(mapping):\n    mapping.clear()\n    return mapping",
-    );
+    let code = transpile("def wipe(mapping):\n    mapping.clear()\n    return mapping");
     assert!(!code.is_empty(), "clear implies dict: {}", code);
 }
 
@@ -1753,57 +1558,43 @@ fn test_param_infer_dict_update() {
 #[test]
 fn test_param_infer_index_with_key_var() {
     // Tests the is_likely_string_key branch
-    let code = transpile(
-        "def lookup(data, key):\n    return data[key]",
-    );
+    let code = transpile("def lookup(data, key):\n    return data[key]");
     assert!(!code.is_empty(), "index with key variable: {}", code);
 }
 
 #[test]
 fn test_param_infer_seekable_file() {
-    let code = transpile(
-        "def rewind(handle):\n    handle.seek(0)\n    return handle.tell()",
-    );
+    let code = transpile("def rewind(handle):\n    handle.seek(0)\n    return handle.tell()");
     assert!(!code.is_empty(), "seek/tell implies file: {}", code);
 }
 
 #[test]
 fn test_param_infer_writelines_file() {
-    let code = transpile(
-        "def write_all(handle, lines: list[str]):\n    handle.writelines(lines)",
-    );
+    let code = transpile("def write_all(handle, lines: list[str]):\n    handle.writelines(lines)");
     assert!(!code.is_empty(), "writelines implies file: {}", code);
 }
 
 #[test]
 fn test_param_infer_readline_file() {
-    let code = transpile(
-        "def first_line(handle):\n    return handle.readline()",
-    );
+    let code = transpile("def first_line(handle):\n    return handle.readline()");
     assert!(!code.is_empty(), "readline implies file: {}", code);
 }
 
 #[test]
 fn test_param_infer_truncate_file() {
-    let code = transpile(
-        "def truncate_file(handle):\n    handle.truncate(0)",
-    );
+    let code = transpile("def truncate_file(handle):\n    handle.truncate(0)");
     assert!(!code.is_empty(), "truncate implies file: {}", code);
 }
 
 #[test]
 fn test_param_infer_close_file() {
-    let code = transpile(
-        "def cleanup(handle):\n    handle.close()",
-    );
+    let code = transpile("def cleanup(handle):\n    handle.close()");
     assert!(!code.is_empty(), "close implies file: {}", code);
 }
 
 #[test]
 fn test_param_infer_title_method() {
-    let code = transpile(
-        "def title_case(text):\n    return text.title()",
-    );
+    let code = transpile("def title_case(text):\n    return text.title()");
     assert!(!code.is_empty(), "title implies str: {}", code);
 }
 
@@ -1817,41 +1608,31 @@ fn test_param_infer_ljust_rjust() {
 
 #[test]
 fn test_param_infer_isspace_method() {
-    let code = transpile(
-        "def check_whitespace(ch):\n    return ch.isspace()",
-    );
+    let code = transpile("def check_whitespace(ch):\n    return ch.isspace()");
     assert!(!code.is_empty(), "isspace implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_isupper_islower() {
-    let code = transpile(
-        "def check_case(text):\n    return text.isupper() or text.islower()",
-    );
+    let code = transpile("def check_case(text):\n    return text.isupper() or text.islower()");
     assert!(!code.is_empty(), "isupper/islower implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_isalnum_method() {
-    let code = transpile(
-        "def check_alnum(text):\n    return text.isalnum()",
-    );
+    let code = transpile("def check_alnum(text):\n    return text.isalnum()");
     assert!(!code.is_empty(), "isalnum implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_splitlines_method() {
-    let code = transpile(
-        "def get_lines(text):\n    return text.splitlines()",
-    );
+    let code = transpile("def get_lines(text):\n    return text.splitlines()");
     assert!(!code.is_empty(), "splitlines implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_rpartition_method() {
-    let code = transpile(
-        "def split_last(text):\n    return text.rpartition('/')",
-    );
+    let code = transpile("def split_last(text):\n    return text.rpartition('/')");
     assert!(!code.is_empty(), "rpartition implies str: {}", code);
 }
 
@@ -1865,25 +1646,19 @@ fn test_param_infer_find_rfind_methods() {
 
 #[test]
 fn test_param_infer_count_method() {
-    let code = transpile(
-        "def occurrences(text):\n    return text.count('a')",
-    );
+    let code = transpile("def occurrences(text):\n    return text.count('a')");
     assert!(!code.is_empty(), "count implies str: {}", code);
 }
 
 #[test]
 fn test_param_infer_dict_copy() {
-    let code = transpile(
-        "def clone_dict(original):\n    return original.copy()",
-    );
+    let code = transpile("def clone_dict(original):\n    return original.copy()");
     assert!(!code.is_empty(), "copy implies dict: {}", code);
 }
 
 #[test]
 fn test_param_infer_dict_popitem() {
-    let code = transpile(
-        "def remove_last(d):\n    return d.popitem()",
-    );
+    let code = transpile("def remove_last(d):\n    return d.popitem()");
     assert!(!code.is_empty(), "popitem implies dict: {}", code);
 }
 
@@ -1913,9 +1688,7 @@ fn test_escape_multiple_returns() {
 
 #[test]
 fn test_type_hint_infer_from_default_value_list() {
-    let code = transpile(
-        "def with_items(items=[]):\n    items.append(1)\n    return items",
-    );
+    let code = transpile("def with_items(items=[]):\n    items.append(1)\n    return items");
     assert!(!code.is_empty(), "default list value: {}", code);
 }
 
@@ -1937,9 +1710,7 @@ fn test_var_analysis_accumulator_in_nested_loop() {
 
 #[test]
 fn test_codegen_empty_function() {
-    let code = transpile(
-        "def empty():\n    pass\n\ndef also_empty():\n    pass",
-    );
+    let code = transpile("def empty():\n    pass\n\ndef also_empty():\n    pass");
     assert!(!code.is_empty(), "empty functions: {}", code);
 }
 

@@ -146,10 +146,7 @@ impl HanseiReport {
     /// Get issues filtered by minimum severity
     #[must_use]
     pub fn issues_by_severity(&self, min_severity: IssueSeverity) -> Vec<&TranspileIssue> {
-        self.issues
-            .iter()
-            .filter(|i| i.severity >= min_severity)
-            .collect()
+        self.issues.iter().filter(|i| i.severity >= min_severity).collect()
     }
 
     /// Get critical and error issues only
@@ -290,9 +287,7 @@ impl TranspileHanseiAnalyzer {
         let mut feature_failures: HashMap<String, usize> = HashMap::new();
 
         for outcome in outcomes {
-            let entry = category_stats
-                .entry(outcome.category.clone())
-                .or_insert((0, 0));
+            let entry = category_stats.entry(outcome.category.clone()).or_insert((0, 0));
             if outcome.success {
                 entry.0 += 1;
             } else {
@@ -317,11 +312,8 @@ impl TranspileHanseiAnalyzer {
         let pareto_categories = self.pareto_analysis(&category_summaries, failures);
 
         // Identify issues
-        let issues = self.identify_issues(
-            &category_summaries,
-            &feature_failures,
-            suspiciousness_scores,
-        );
+        let issues =
+            self.identify_issues(&category_summaries, &feature_failures, suspiciousness_scores);
 
         // Generate recommendations
         let recommendations = self.generate_recommendations(&issues, success_rate);
@@ -364,11 +356,8 @@ impl TranspileHanseiAnalyzer {
         for (category, (successes, failures)) in category_stats {
             let total = successes + failures;
             let success_rate = *successes as f32 / total as f32;
-            let failure_share = if total_failures > 0 {
-                *failures as f32 / total_failures as f32
-            } else {
-                0.0
-            };
+            let failure_share =
+                if total_failures > 0 { *failures as f32 / total_failures as f32 } else { 0.0 };
 
             let suspiciousness = suspiciousness_scores
                 .and_then(|scores| scores.get(category))
@@ -421,14 +410,10 @@ impl TranspileHanseiAnalyzer {
         }
 
         // Sort categories by failure share descending
-        let mut categories: Vec<_> = summaries
-            .iter()
-            .filter(|(_, s)| s.failure_share > 0.0)
-            .collect();
+        let mut categories: Vec<_> =
+            summaries.iter().filter(|(_, s)| s.failure_share > 0.0).collect();
         categories.sort_by(|a, b| {
-            b.1.failure_share
-                .partial_cmp(&a.1.failure_share)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.1.failure_share.partial_cmp(&a.1.failure_share).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Collect categories until we reach 80% of failures
@@ -488,10 +473,8 @@ impl TranspileHanseiAnalyzer {
                 continue;
             }
 
-            let suspiciousness = suspiciousness_scores
-                .and_then(|s| s.get(feature))
-                .copied()
-                .unwrap_or(0.5);
+            let suspiciousness =
+                suspiciousness_scores.and_then(|s| s.get(feature)).copied().unwrap_or(0.5);
 
             let severity = self.severity_from_suspiciousness(suspiciousness);
 
@@ -507,9 +490,7 @@ impl TranspileHanseiAnalyzer {
 
         // Sort by severity (Critical first) then by occurrences
         issues.sort_by(|a, b| {
-            b.severity
-                .cmp(&a.severity)
-                .then_with(|| b.occurrences.cmp(&a.occurrences))
+            b.severity.cmp(&a.severity).then_with(|| b.occurrences.cmp(&a.occurrences))
         });
 
         // Deduplicate by category (keep highest severity)
@@ -588,14 +569,9 @@ impl TranspileHanseiAnalyzer {
         }
 
         // Count issues by severity
-        let critical_count = issues
-            .iter()
-            .filter(|i| i.severity == IssueSeverity::Critical)
-            .count();
-        let error_count = issues
-            .iter()
-            .filter(|i| i.severity == IssueSeverity::Error)
-            .count();
+        let critical_count =
+            issues.iter().filter(|i| i.severity == IssueSeverity::Critical).count();
+        let error_count = issues.iter().filter(|i| i.severity == IssueSeverity::Error).count();
 
         if critical_count > 0 {
             recommendations.push(format!(
@@ -690,10 +666,7 @@ mod tests {
 
     #[test]
     fn test_analyzer_with_config() {
-        let config = HanseiConfig {
-            critical_threshold: 0.95,
-            ..Default::default()
-        };
+        let config = HanseiConfig { critical_threshold: 0.95, ..Default::default() };
         let analyzer = TranspileHanseiAnalyzer::with_config(config);
         assert_eq!(analyzer.config.critical_threshold, 0.95);
     }
@@ -804,37 +777,25 @@ mod tests {
     #[test]
     fn test_severity_from_suspiciousness_critical() {
         let analyzer = TranspileHanseiAnalyzer::new();
-        assert_eq!(
-            analyzer.severity_from_suspiciousness(0.95),
-            IssueSeverity::Critical
-        );
+        assert_eq!(analyzer.severity_from_suspiciousness(0.95), IssueSeverity::Critical);
     }
 
     #[test]
     fn test_severity_from_suspiciousness_error() {
         let analyzer = TranspileHanseiAnalyzer::new();
-        assert_eq!(
-            analyzer.severity_from_suspiciousness(0.75),
-            IssueSeverity::Error
-        );
+        assert_eq!(analyzer.severity_from_suspiciousness(0.75), IssueSeverity::Error);
     }
 
     #[test]
     fn test_severity_from_suspiciousness_warning() {
         let analyzer = TranspileHanseiAnalyzer::new();
-        assert_eq!(
-            analyzer.severity_from_suspiciousness(0.55),
-            IssueSeverity::Warning
-        );
+        assert_eq!(analyzer.severity_from_suspiciousness(0.55), IssueSeverity::Warning);
     }
 
     #[test]
     fn test_severity_from_suspiciousness_info() {
         let analyzer = TranspileHanseiAnalyzer::new();
-        assert_eq!(
-            analyzer.severity_from_suspiciousness(0.3),
-            IssueSeverity::Info
-        );
+        assert_eq!(analyzer.severity_from_suspiciousness(0.3), IssueSeverity::Info);
     }
 
     // ========================================================================
@@ -921,11 +882,7 @@ mod tests {
             .map(|i| TranspileOutcome {
                 category: "async_feature".to_string(),
                 success: i < 1, // Only 1 success
-                error_message: if i >= 1 {
-                    Some("async not supported".to_string())
-                } else {
-                    None
-                },
+                error_message: if i >= 1 { Some("async not supported".to_string()) } else { None },
                 python_features: vec!["async_await".to_string()],
             })
             .collect();
@@ -936,11 +893,8 @@ mod tests {
         let report = analyzer.analyze("suspiciousness-test", &outcomes, Some(&scores));
 
         // Should have critical issue due to high suspiciousness
-        let critical_issues: Vec<_> = report
-            .issues
-            .iter()
-            .filter(|i| i.severity == IssueSeverity::Critical)
-            .collect();
+        let critical_issues: Vec<_> =
+            report.issues.iter().filter(|i| i.severity == IssueSeverity::Critical).collect();
 
         assert!(!critical_issues.is_empty());
     }
@@ -1102,9 +1056,7 @@ mod tests {
         let recs = analyzer.generate_recommendations(&issues, 0.3);
 
         // Should have recommendation about low success rate
-        assert!(recs
-            .iter()
-            .any(|r| r.contains("50%") || r.contains("CRITICAL")));
+        assert!(recs.iter().any(|r| r.contains("50%") || r.contains("CRITICAL")));
     }
 
     // ========================================================================
@@ -1233,11 +1185,7 @@ mod tests {
             outcomes.push(TranspileOutcome {
                 category: "async_example".to_string(),
                 success: i == 0,
-                error_message: if i > 0 {
-                    Some("async not supported".to_string())
-                } else {
-                    None
-                },
+                error_message: if i > 0 { Some("async not supported".to_string()) } else { None },
                 python_features: vec!["async_await".to_string()],
             });
         }
@@ -1247,11 +1195,7 @@ mod tests {
             outcomes.push(TranspileOutcome {
                 category: "generator_example".to_string(),
                 success: i == 0,
-                error_message: if i > 0 {
-                    Some("yield not supported".to_string())
-                } else {
-                    None
-                },
+                error_message: if i > 0 { Some("yield not supported".to_string()) } else { None },
                 python_features: vec!["generator".to_string()],
             });
         }
@@ -1261,11 +1205,7 @@ mod tests {
             outcomes.push(TranspileOutcome {
                 category: "simple_example".to_string(),
                 success: i < 9,
-                error_message: if i >= 9 {
-                    Some("edge case".to_string())
-                } else {
-                    None
-                },
+                error_message: if i >= 9 { Some("edge case".to_string()) } else { None },
                 python_features: vec![],
             });
         }
@@ -1285,11 +1225,8 @@ mod tests {
         assert!(!report.pareto_categories.is_empty());
 
         // Verify issues include critical ones for high-suspiciousness features
-        let critical_issues: Vec<_> = report
-            .issues
-            .iter()
-            .filter(|i| i.severity == IssueSeverity::Critical)
-            .collect();
+        let critical_issues: Vec<_> =
+            report.issues.iter().filter(|i| i.severity == IssueSeverity::Critical).collect();
         assert!(!critical_issues.is_empty());
 
         // Verify text output

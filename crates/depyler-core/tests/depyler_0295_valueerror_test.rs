@@ -66,9 +66,7 @@ def check_positive(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should generate ValueError struct
     assert!(
@@ -106,9 +104,7 @@ def validate_range(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Function should return Result<i32, ValueError>
     assert!(
@@ -117,10 +113,7 @@ def validate_range(x: int) -> int:
     );
 
     // Should use Err(ValueError::new(...))
-    assert!(
-        rust_code.contains("Err(ValueError::new("),
-        "Should use Err(ValueError::new(...))"
-    );
+    assert!(rust_code.contains("Err(ValueError::new("), "Should use Err(ValueError::new(...))");
 }
 
 #[test]
@@ -144,23 +137,15 @@ def validate(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should generate ValueError only once
     let valueerror_count = rust_code.matches("struct ValueError").count();
-    assert_eq!(
-        valueerror_count, 1,
-        "Should generate ValueError struct exactly once"
-    );
+    assert_eq!(valueerror_count, 1, "Should generate ValueError struct exactly once");
 
     // All functions should use Result<i32, ValueError>
     let result_count = rust_code.matches("Result<i32, ValueError>").count();
-    assert_eq!(
-        result_count, 3,
-        "All three functions should return Result<i32, ValueError>"
-    );
+    assert_eq!(result_count, 3, "All three functions should return Result<i32, ValueError>");
 }
 
 #[test]
@@ -173,9 +158,7 @@ def check_positive(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file (strip auto-generated main to avoid duplicate)
     let test_code = format!(
@@ -219,9 +202,7 @@ def check_positive(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file (strip auto-generated main to avoid duplicate)
     let test_code = format!(
@@ -289,25 +270,14 @@ def validate_age(age: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should generate ValueError
-    assert!(
-        rust_code.contains("struct ValueError"),
-        "Should generate ValueError struct"
-    );
+    assert!(rust_code.contains("struct ValueError"), "Should generate ValueError struct");
 
     // Should have both error messages in the generated code
-    assert!(
-        rust_code.contains("age cannot be negative"),
-        "Should preserve first error message"
-    );
-    assert!(
-        rust_code.contains("age too high"),
-        "Should preserve second error message"
-    );
+    assert!(rust_code.contains("age cannot be negative"), "Should preserve first error message");
+    assert!(rust_code.contains("age too high"), "Should preserve second error message");
 }
 
 #[test]
@@ -318,9 +288,7 @@ def add(x: int, y: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT generate ValueError when not used
     assert!(
@@ -341,9 +309,7 @@ def safe_divide(x: int, y: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // NOTE: When multiple different exception types are raised in a single function,
     // the transpiler currently uses Box<dyn std::error::Error> and doesn't generate
@@ -357,14 +323,8 @@ def safe_divide(x: int, y: int) -> int:
     );
 
     // Should still reference both error types (even if not generating the structs)
-    assert!(
-        rust_code.contains("ValueError::new"),
-        "Should use ValueError::new"
-    );
-    assert!(
-        rust_code.contains("ZeroDivisionError::new"),
-        "Should use ZeroDivisionError::new"
-    );
+    assert!(rust_code.contains("ValueError::new"), "Should use ValueError::new");
+    assert!(rust_code.contains("ZeroDivisionError::new"), "Should use ZeroDivisionError::new");
 }
 
 #[test]
@@ -377,9 +337,7 @@ def check(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Display implementation should use "value error:" prefix
     assert!(

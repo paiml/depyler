@@ -497,12 +497,7 @@ mod tests {
 
     #[test]
     fn test_bisection_state_new() {
-        let files = vec![
-            "a".to_string(),
-            "b".to_string(),
-            "c".to_string(),
-            "d".to_string(),
-        ];
+        let files = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()];
         let state = BisectionState::new(files);
 
         assert_eq!(state.low, 0);
@@ -569,10 +564,8 @@ mod tests {
 
     #[test]
     fn test_report_summary_improvement_needed() {
-        let results = vec![
-            CompileResult::success("a.py"),
-            CompileResult::failure("b.py", "E0308", "error"),
-        ];
+        let results =
+            vec![CompileResult::success("a.py"), CompileResult::failure("b.py", "E0308", "error")];
 
         let summary = ReportSummary::from_results(&results, 0.80);
         assert!((summary.improvement_needed() - 30.0).abs() < 0.1);
@@ -600,10 +593,7 @@ mod tests {
         assert_eq!(SemanticTag::from_str("Dict"), SemanticTag::Dict);
         assert_eq!(SemanticTag::from_str("list"), SemanticTag::List);
         assert_eq!(SemanticTag::from_str("argparse"), SemanticTag::Argparse);
-        assert!(matches!(
-            SemanticTag::from_str("unknown"),
-            SemanticTag::Other(_)
-        ));
+        assert!(matches!(SemanticTag::from_str("unknown"), SemanticTag::Other(_)));
     }
 
     #[test]
@@ -687,10 +677,7 @@ mod tests {
 
     #[test]
     fn test_analyze_results_all_success() {
-        let results = vec![
-            CompileResult::success("a.py"),
-            CompileResult::success("b.py"),
-        ];
+        let results = vec![CompileResult::success("a.py"), CompileResult::success("b.py")];
         let (pass, fail, taxonomy) = analyze_results(&results);
         assert_eq!(pass, 2);
         assert_eq!(fail, 0);
@@ -874,9 +861,8 @@ error[E0277]: trait bound not satisfied"#;
 
     #[test]
     fn test_report_summary_files_to_fix_achieved() {
-        let results: Vec<_> = (0..100)
-            .map(|i| CompileResult::success(format!("f{}.py", i)))
-            .collect();
+        let results: Vec<_> =
+            (0..100).map(|i| CompileResult::success(format!("f{}.py", i))).collect();
         let summary = ReportSummary::from_results(&results, 0.80);
         assert_eq!(summary.files_to_fix(), 0);
     }

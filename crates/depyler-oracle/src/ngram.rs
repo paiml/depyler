@@ -189,9 +189,7 @@ impl NgramFixPredictor {
             ));
         }
 
-        self.vectorizer
-            .fit(&all_patterns)
-            .map_err(|e| OracleError::Model(e.to_string()))?;
+        self.vectorizer.fit(&all_patterns).map_err(|e| OracleError::Model(e.to_string()))?;
 
         self.is_fitted = true;
         Ok(())
@@ -231,9 +229,7 @@ impl NgramFixPredictor {
 
         // Sort by confidence descending
         suggestions.sort_by(|a, b| {
-            b.confidence
-                .partial_cmp(&a.confidence)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         suggestions.truncate(top_k);
@@ -249,10 +245,7 @@ impl NgramFixPredictor {
         top_k: usize,
     ) -> Vec<FixSuggestion> {
         let all = self.predict_fixes(error_message, top_k * 2);
-        all.into_iter()
-            .filter(|s| s.category == category)
-            .take(top_k)
-            .collect()
+        all.into_iter().filter(|s| s.category == category).take(top_k).collect()
     }
 
     /// Compute cosine similarity between two error messages using N-gram overlap.
@@ -346,10 +339,7 @@ impl NgramFixPredictor {
         for (category, patterns) in loaded {
             let existing = self.patterns.entry(category).or_default();
             for pattern in patterns {
-                if !existing
-                    .iter()
-                    .any(|p| p.error_pattern == pattern.error_pattern)
-                {
+                if !existing.iter().any(|p| p.error_pattern == pattern.error_pattern) {
                     existing.push(pattern);
                 }
             }
@@ -436,11 +426,8 @@ mod tests {
 
     #[test]
     fn test_fix_pattern_creation() {
-        let pattern = FixPattern::new(
-            "expected i32, found str",
-            "Use .parse()",
-            ErrorCategory::TypeMismatch,
-        );
+        let pattern =
+            FixPattern::new("expected i32, found str", "Use .parse()", ErrorCategory::TypeMismatch);
 
         assert_eq!(pattern.error_pattern, "expected i32, found str");
         assert_eq!(pattern.fix_template, "Use .parse()");
@@ -520,16 +507,8 @@ mod tests {
         let mut predictor = NgramFixPredictor::new();
 
         let training = vec![
-            (
-                "expected i32".to_string(),
-                "use .parse()".to_string(),
-                ErrorCategory::TypeMismatch,
-            ),
-            (
-                "cannot borrow".to_string(),
-                "use .clone()".to_string(),
-                ErrorCategory::BorrowChecker,
-            ),
+            ("expected i32".to_string(), "use .parse()".to_string(), ErrorCategory::TypeMismatch),
+            ("cannot borrow".to_string(), "use .clone()".to_string(), ErrorCategory::BorrowChecker),
             (
                 "not found".to_string(),
                 "add use statement".to_string(),
@@ -604,11 +583,7 @@ mod tests {
             "Use .parse::<u32>()",
             ErrorCategory::TypeMismatch,
         );
-        predictor.learn_pattern(
-            "cannot borrow",
-            "Use .clone()",
-            ErrorCategory::BorrowChecker,
-        );
+        predictor.learn_pattern("cannot borrow", "Use .clone()", ErrorCategory::BorrowChecker);
 
         predictor.fit().expect("fit should succeed");
 
@@ -667,10 +642,8 @@ mod tests {
 
     #[test]
     fn test_generate_ngrams() {
-        let tokens: Vec<String> = vec!["hello", "world", "rust"]
-            .into_iter()
-            .map(String::from)
-            .collect();
+        let tokens: Vec<String> =
+            vec!["hello", "world", "rust"].into_iter().map(String::from).collect();
 
         let ngrams = generate_ngrams(&tokens, 1, 2);
 
@@ -694,10 +667,8 @@ mod tests {
     fn test_similarity_different() {
         let predictor = NgramFixPredictor::new();
 
-        let sim = predictor.compute_similarity(
-            "expected i32 found str",
-            "completely different error message",
-        );
+        let sim = predictor
+            .compute_similarity("expected i32 found str", "completely different error message");
 
         // Different strings should have low similarity
         assert!(sim < 0.5);
@@ -754,11 +725,7 @@ mod tests {
 
         // Learn same pattern multiple times
         for _ in 0..5 {
-            predictor.learn_pattern(
-                "frequent error",
-                "frequent fix",
-                ErrorCategory::TypeMismatch,
-            );
+            predictor.learn_pattern("frequent error", "frequent fix", ErrorCategory::TypeMismatch);
         }
 
         // Learn another pattern once
@@ -806,26 +773,12 @@ mod tests {
         predictor.learn_pattern("type error", "type fix", ErrorCategory::TypeMismatch);
         predictor.learn_pattern("borrow error", "borrow fix", ErrorCategory::BorrowChecker);
         predictor.learn_pattern("import error", "import fix", ErrorCategory::MissingImport);
-        predictor.learn_pattern(
-            "lifetime error",
-            "lifetime fix",
-            ErrorCategory::LifetimeError,
-        );
+        predictor.learn_pattern("lifetime error", "lifetime fix", ErrorCategory::LifetimeError);
 
         assert_eq!(predictor.pattern_count(), 4);
 
         // Each category should have 1 pattern
-        assert_eq!(
-            predictor
-                .patterns_for_category(ErrorCategory::TypeMismatch)
-                .len(),
-            1
-        );
-        assert_eq!(
-            predictor
-                .patterns_for_category(ErrorCategory::BorrowChecker)
-                .len(),
-            1
-        );
+        assert_eq!(predictor.patterns_for_category(ErrorCategory::TypeMismatch).len(), 1);
+        assert_eq!(predictor.patterns_for_category(ErrorCategory::BorrowChecker).len(), 1);
     }
 }

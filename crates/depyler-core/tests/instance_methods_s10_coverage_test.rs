@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -85,7 +83,9 @@ def ensure_key(d: dict, key: str):
 "#;
     let result = transpile(code);
     assert!(result.contains("fn ensure_key"));
-    assert!(result.contains("entry") || result.contains("setdefault") || result.contains("or_insert"));
+    assert!(
+        result.contains("entry") || result.contains("setdefault") || result.contains("or_insert")
+    );
 }
 
 #[test]

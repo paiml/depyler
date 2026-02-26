@@ -8,48 +8,46 @@ use proptest::prelude::*;
 
 // Generate valid Python identifiers
 fn identifier() -> impl Strategy<Value = String> {
-    prop::string::string_regex("[a-z][a-z0-9_]{0,10}")
-        .unwrap()
-        .prop_filter("not keyword", |s| {
-            !matches!(
-                s.as_str(),
-                "and"
-                    | "as"
-                    | "assert"
-                    | "async"
-                    | "await"
-                    | "break"
-                    | "class"
-                    | "continue"
-                    | "def"
-                    | "del"
-                    | "elif"
-                    | "else"
-                    | "except"
-                    | "finally"
-                    | "for"
-                    | "from"
-                    | "global"
-                    | "if"
-                    | "import"
-                    | "in"
-                    | "is"
-                    | "lambda"
-                    | "nonlocal"
-                    | "not"
-                    | "or"
-                    | "pass"
-                    | "raise"
-                    | "return"
-                    | "try"
-                    | "while"
-                    | "with"
-                    | "yield"
-                    | "None"
-                    | "True"
-                    | "False"
-            )
-        })
+    prop::string::string_regex("[a-z][a-z0-9_]{0,10}").unwrap().prop_filter("not keyword", |s| {
+        !matches!(
+            s.as_str(),
+            "and"
+                | "as"
+                | "assert"
+                | "async"
+                | "await"
+                | "break"
+                | "class"
+                | "continue"
+                | "def"
+                | "del"
+                | "elif"
+                | "else"
+                | "except"
+                | "finally"
+                | "for"
+                | "from"
+                | "global"
+                | "if"
+                | "import"
+                | "in"
+                | "is"
+                | "lambda"
+                | "nonlocal"
+                | "not"
+                | "or"
+                | "pass"
+                | "raise"
+                | "return"
+                | "try"
+                | "while"
+                | "with"
+                | "yield"
+                | "None"
+                | "True"
+                | "False"
+        )
+    })
 }
 
 // Generate valid integers
@@ -461,9 +459,7 @@ fn test_many_elif() {
 
 #[test]
 fn test_tuple_in_for() {
-    assert!(transpiles_ok(
-        "def f():\n    for a, b, c in [(1, 2, 3)]:\n        print(a, b, c)"
-    ));
+    assert!(transpiles_ok("def f():\n    for a, b, c in [(1, 2, 3)]:\n        print(a, b, c)"));
 }
 
 #[test]

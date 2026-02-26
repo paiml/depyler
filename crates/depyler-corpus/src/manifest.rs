@@ -196,11 +196,7 @@ mod tests {
     #[test]
     fn test_add_artifact() {
         let mut manifest = ReportManifest::new("test", Path::new("."), 0);
-        manifest.add_artifact(
-            Path::new("report.json"),
-            b"test content",
-            "application/json",
-        );
+        manifest.add_artifact(Path::new("report.json"), b"test content", "application/json");
 
         assert_eq!(manifest.artifacts.len(), 1);
         assert_eq!(manifest.artifacts[0].path, "report.json");

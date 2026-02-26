@@ -49,3 +49,6 @@ default = []
 # Future: integration with external tools
 pmat-integration = []
 aprender-integration = []
+
+[lints]
+workspace = true

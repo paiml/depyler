@@ -30,10 +30,7 @@ mod marco_polo_tests {
             eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
             eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
         }
-        assert!(
-            output.status.success(),
-            "Transpilation should succeed for marco_polo_simple.py"
-        );
+        assert!(output.status.success(), "Transpilation should succeed for marco_polo_simple.py");
 
         // Verify output contains expected elements
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -55,18 +52,9 @@ mod marco_polo_tests {
         let content = std::fs::read_to_string(&example_path).expect("Should read example file");
 
         // Verify the example contains Depyler annotations
-        assert!(
-            content.contains("@depyler:"),
-            "Example should include Depyler annotations"
-        );
-        assert!(
-            content.contains("optimization_level"),
-            "Should have optimization annotations"
-        );
-        assert!(
-            content.contains("string_strategy"),
-            "Should have string strategy annotations"
-        );
+        assert!(content.contains("@depyler:"), "Example should include Depyler annotations");
+        assert!(content.contains("optimization_level"), "Should have optimization annotations");
+        assert!(content.contains("string_strategy"), "Should have string strategy annotations");
     }
 
     #[test]
@@ -80,10 +68,7 @@ mod marco_polo_tests {
             .unwrap()
             .join("examples/marco_polo_cli");
         let cargo_path = project_dir.join("Cargo.toml");
-        assert!(
-            cargo_path.exists(),
-            "Marco Polo Rust project should exist at {cargo_path:?}"
-        );
+        assert!(cargo_path.exists(), "Marco Polo Rust project should exist at {cargo_path:?}");
 
         // Verify the Rust project builds
         let output = Command::new("cargo")
@@ -92,9 +77,6 @@ mod marco_polo_tests {
             .output()
             .expect("Failed to check Rust project");
 
-        assert!(
-            output.status.success(),
-            "Marco Polo Rust project should compile successfully"
-        );
+        assert!(output.status.success(), "Marco Polo Rust project should compile successfully");
     }
 }

@@ -4,9 +4,9 @@
 //! idiomatic Rust code with proper borrowing and ownership patterns.
 
 use crate::borrowing_context::{BorrowingContext, BorrowingStrategy};
-use depyler_hir::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
 use crate::param_type_inference::infer_param_type_from_body;
 use crate::type_mapper::RustType;
+use depyler_hir::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 
@@ -132,10 +132,7 @@ impl LifetimeInference {
     /// Add a lifetime constraint (from outlives to)
     #[allow(dead_code)]
     fn add_constraint(&mut self, from: &str, to: &str, _constraint: LifetimeConstraint) {
-        self.lifetime_constraints
-            .entry(from.to_string())
-            .or_default()
-            .insert(to.to_string());
+        self.lifetime_constraints.entry(from.to_string()).or_default().insert(to.to_string());
     }
 
     /// Analyze a function to infer parameter lifetimes
@@ -207,12 +204,7 @@ impl LifetimeInference {
 
             param_lifetimes.insert(
                 param.name.clone(),
-                InferredParam {
-                    should_borrow,
-                    needs_mut,
-                    lifetime,
-                    rust_type,
-                },
+                InferredParam { should_borrow, needs_mut, lifetime, rust_type },
             );
         }
 
@@ -275,9 +267,7 @@ impl LifetimeInference {
                         }
                     }
                     // DEPYLER-1217: Attribute assignment (obj.field = value) mutates the base
-                    AssignTarget::Attribute {
-                        value: attr_base, ..
-                    } => {
+                    AssignTarget::Attribute { value: attr_base, .. } => {
                         if let HirExpr::Var(var_name) = attr_base.as_ref() {
                             if var_name == param {
                                 usage.is_mutated = true;
@@ -299,11 +289,7 @@ impl LifetimeInference {
                     self.analyze_expr_for_param(param, expr, usage, in_loop, true);
                 }
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_expr_for_param(param, condition, usage, in_loop, false);
                 for stmt in then_body {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);
@@ -350,12 +336,7 @@ impl LifetimeInference {
                     self.analyze_expr_for_param(param, message, usage, in_loop, false);
                 }
             }
-            HirStmt::With {
-                context,
-                target: _,
-                body,
-                ..
-            } => {
+            HirStmt::With { context, target: _, body, .. } => {
                 // Analyze context expression
                 self.analyze_expr_for_param(param, context, usage, in_loop, false);
 
@@ -364,12 +345,7 @@ impl LifetimeInference {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 // Analyze try body
                 for stmt in body {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);
@@ -512,12 +488,7 @@ impl LifetimeInference {
                     self.analyze_expr_for_param(param, arg, usage, in_loop, in_return);
                 }
             }
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 self.analyze_expr_for_param(param, base, usage, in_loop, in_return);
                 if let Some(s) = start {
                     self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
@@ -532,10 +503,7 @@ impl LifetimeInference {
             HirExpr::Borrow { expr, .. } => {
                 self.analyze_expr_for_param(param, expr, usage, in_loop, in_return);
             }
-            HirExpr::ListComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators } => {
                 // DEPYLER-0504: Support multiple generators
                 // List comprehensions create a new scope, so the target variable
                 // shadows any outer variable with the same name
@@ -567,10 +535,7 @@ impl LifetimeInference {
                     self.analyze_expr_for_param(param, elem, usage, in_loop, in_return);
                 }
             }
-            HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::SetComp { element, generators } => {
                 // DEPYLER-0504: Support multiple generators
                 // Set comprehensions create a new scope, so the target variable
                 // shadows any outer variable with the same name
@@ -592,11 +557,7 @@ impl LifetimeInference {
                 // Analyze element expression (after all generators)
                 self.analyze_expr_for_param(param, element, usage, true, in_return);
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 // DEPYLER-0504: Support multiple generators
                 // Dict comprehensions create a new scope, so the target variable
                 // shadows any outer variable with the same name
@@ -638,17 +599,12 @@ impl LifetimeInference {
                 self.analyze_expr_for_param(param, body, usage, in_loop, in_return);
                 self.analyze_expr_for_param(param, orelse, usage, in_loop, in_return);
             }
-            HirExpr::SortByKey {
-                iterable, key_body, ..
-            } => {
+            HirExpr::SortByKey { iterable, key_body, .. } => {
                 // Analyze the iterable and key lambda body
                 self.analyze_expr_for_param(param, iterable, usage, in_loop, in_return);
                 self.analyze_expr_for_param(param, key_body, usage, in_loop, in_return);
             }
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::GeneratorExp { element, generators } => {
                 // Analyze element and all generator components
                 self.analyze_expr_for_param(param, element, usage, in_loop, in_return);
                 for gen in generators {
@@ -682,11 +638,7 @@ impl LifetimeInference {
         let mut result = IndexMap::new();
 
         for param in &func.params {
-            let usage = self
-                .param_analysis
-                .get(&param.name)
-                .cloned()
-                .unwrap_or_default();
+            let usage = self.param_analysis.get(&param.name).cloned().unwrap_or_default();
 
             // DEPYLER-0518: Try to infer type from body usage for Unknown parameters
             let param_type = if matches!(param.ty, Type::Unknown) {
@@ -742,12 +694,7 @@ impl LifetimeInference {
 
             result.insert(
                 param.name.clone(),
-                InferredParam {
-                    should_borrow,
-                    needs_mut,
-                    lifetime,
-                    rust_type,
-                },
+                InferredParam { should_borrow, needs_mut, lifetime, rust_type },
             );
         }
 
@@ -823,11 +770,8 @@ impl LifetimeInference {
         let full_result = self.analyze_function(func, type_mapper);
 
         // Count reference parameters
-        let ref_params: Vec<_> = full_result
-            .param_lifetimes
-            .iter()
-            .filter(|(_, param)| param.should_borrow)
-            .collect();
+        let ref_params: Vec<_> =
+            full_result.param_lifetimes.iter().filter(|(_, param)| param.should_borrow).collect();
 
         let return_needs_lifetime = full_result.return_lifetime.is_some();
 
@@ -892,12 +836,12 @@ impl Default for LifetimeInference {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::type_mapper::PrimitiveType;
+    use depyler_annotations::TranspilationAnnotations;
     use depyler_hir::hir::{
         BinOp, FunctionProperties, HirComprehension, HirFunction, HirParam, Literal, Symbol,
         Type as PythonType, UnaryOp,
     };
-    use crate::type_mapper::PrimitiveType;
-    use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
     #[test]
@@ -1232,9 +1176,7 @@ mod tests {
     #[test]
     fn test_return_type_needs_lifetime_cow() {
         let inference = LifetimeInference::new();
-        let cow_type = RustType::Cow {
-            lifetime: "'a".to_string(),
-        };
+        let cow_type = RustType::Cow { lifetime: "'a".to_string() };
         assert!(inference.return_type_needs_lifetime(&cow_type));
     }
 
@@ -1295,9 +1237,7 @@ mod tests {
         };
         assert!(inference.is_reference_type(&ref_type));
 
-        let cow_type = RustType::Cow {
-            lifetime: "'a".to_string(),
-        };
+        let cow_type = RustType::Cow { lifetime: "'a".to_string() };
         assert!(inference.is_reference_type(&cow_type));
 
         assert!(!inference.is_reference_type(&RustType::String));
@@ -1411,10 +1351,7 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let stmt = HirStmt::Raise {
-            exception: Some(HirExpr::Var("x".to_string())),
-            cause: None,
-        };
+        let stmt = HirStmt::Raise { exception: Some(HirExpr::Var("x".to_string())), cause: None };
         inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
         assert!(usage.is_read_only);
     }
@@ -1465,10 +1402,8 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let expr = HirExpr::List(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Literal(Literal::Int(1)),
-        ]);
+        let expr =
+            HirExpr::List(vec![HirExpr::Var("x".to_string()), HirExpr::Literal(Literal::Int(1))]);
         inference.analyze_expr_for_param("x", &expr, &mut usage, false, true);
         assert!(usage.is_read_only);
         assert!(usage.escapes);
@@ -1506,10 +1441,8 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("x".to_string())) };
         inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
         assert!(usage.is_read_only);
     }
@@ -1549,10 +1482,8 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: false,
-        };
+        let expr =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: false };
         inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
         assert!(usage.is_read_only);
     }
@@ -1603,10 +1534,8 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let expr = HirExpr::Lambda {
-            params: vec![],
-            body: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Lambda { params: vec![], body: Box::new(HirExpr::Var("x".to_string())) };
         inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
         assert!(usage.is_read_only);
     }
@@ -1616,9 +1545,7 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let expr = HirExpr::Await {
-            value: Box::new(HirExpr::Var("future".to_string())),
-        };
+        let expr = HirExpr::Await { value: Box::new(HirExpr::Var("future".to_string())) };
         inference.analyze_expr_for_param("future", &expr, &mut usage, false, true);
         assert!(usage.escapes);
     }
@@ -1628,9 +1555,7 @@ mod tests {
         let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
-        let expr = HirExpr::Yield {
-            value: Some(Box::new(HirExpr::Var("val".to_string()))),
-        };
+        let expr = HirExpr::Yield { value: Some(Box::new(HirExpr::Var("val".to_string()))) };
         inference.analyze_expr_for_param("val", &expr, &mut usage, false, true);
         assert!(usage.escapes);
     }

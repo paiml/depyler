@@ -26,10 +26,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -41,25 +39,30 @@ mod tests {
 
     #[test]
     fn test_w21ic_001_from_datetime_import_datetime() {
-        let result = transpile("from datetime import datetime\ndef now() -> str:\n    return \"now\"\n");
+        let result =
+            transpile("from datetime import datetime\ndef now() -> str:\n    return \"now\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_002_from_datetime_import_timedelta() {
-        let result = transpile("from datetime import timedelta\ndef delta() -> int:\n    return 1\n");
+        let result =
+            transpile("from datetime import timedelta\ndef delta() -> int:\n    return 1\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_003_from_datetime_import_date() {
-        let result = transpile("from datetime import date\ndef today() -> str:\n    return \"today\"\n");
+        let result =
+            transpile("from datetime import date\ndef today() -> str:\n    return \"today\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_004_from_datetime_import_multiple() {
-        let result = transpile("from datetime import datetime, timedelta, date\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "from datetime import datetime, timedelta, date\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -71,25 +74,29 @@ mod tests {
 
     #[test]
     fn test_w21ic_006_from_itertools_import_combinations() {
-        let result = transpile("from itertools import combinations\ndef combo() -> list:\n    return []\n");
+        let result =
+            transpile("from itertools import combinations\ndef combo() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_007_from_itertools_import_permutations() {
-        let result = transpile("from itertools import permutations\ndef perm() -> list:\n    return []\n");
+        let result =
+            transpile("from itertools import permutations\ndef perm() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_008_from_itertools_import_product() {
-        let result = transpile("from itertools import product\ndef prod() -> list:\n    return []\n");
+        let result =
+            transpile("from itertools import product\ndef prod() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_009_from_itertools_import_chain() {
-        let result = transpile("from itertools import chain\ndef chained() -> list:\n    return []\n");
+        let result =
+            transpile("from itertools import chain\ndef chained() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
@@ -101,49 +108,61 @@ mod tests {
 
     #[test]
     fn test_w21ic_011_from_statistics_import_mean() {
-        let result = transpile("from statistics import mean\ndef avg() -> float:\n    return 0.0\n");
+        let result =
+            transpile("from statistics import mean\ndef avg() -> float:\n    return 0.0\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_012_from_statistics_import_median() {
-        let result = transpile("from statistics import median\ndef mid() -> float:\n    return 0.0\n");
+        let result =
+            transpile("from statistics import median\ndef mid() -> float:\n    return 0.0\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_013_from_statistics_import_stdev() {
-        let result = transpile("from statistics import stdev\ndef sd() -> float:\n    return 0.0\n");
+        let result =
+            transpile("from statistics import stdev\ndef sd() -> float:\n    return 0.0\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_014_from_statistics_import_variance() {
-        let result = transpile("from statistics import variance\ndef var() -> float:\n    return 0.0\n");
+        let result =
+            transpile("from statistics import variance\ndef var() -> float:\n    return 0.0\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_015_from_statistics_import_multiple() {
-        let result = transpile("from statistics import mean, median, stdev, variance\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "from statistics import mean, median, stdev, variance\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_016_from_urllib_parse_import_urlparse() {
-        let result = transpile("from urllib.parse import urlparse\ndef parse_url() -> str:\n    return \"\"\n");
+        let result = transpile(
+            "from urllib.parse import urlparse\ndef parse_url() -> str:\n    return \"\"\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_017_from_urllib_parse_import_parse_qs() {
-        let result = transpile("from urllib.parse import parse_qs\ndef parse_query() -> dict:\n    return {}\n");
+        let result = transpile(
+            "from urllib.parse import parse_qs\ndef parse_query() -> dict:\n    return {}\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_018_from_urllib_parse_import_urlencode() {
-        let result = transpile("from urllib.parse import urlencode\ndef encode() -> str:\n    return \"\"\n");
+        let result = transpile(
+            "from urllib.parse import urlencode\ndef encode() -> str:\n    return \"\"\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -161,31 +180,37 @@ mod tests {
 
     #[test]
     fn test_w21ic_021_from_collections_import_defaultdict() {
-        let result = transpile("from collections import defaultdict\ndef make() -> dict:\n    return {}\n");
+        let result =
+            transpile("from collections import defaultdict\ndef make() -> dict:\n    return {}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_022_from_collections_import_counter() {
-        let result = transpile("from collections import Counter\ndef count() -> dict:\n    return {}\n");
+        let result =
+            transpile("from collections import Counter\ndef count() -> dict:\n    return {}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_023_from_collections_import_ordereddict() {
-        let result = transpile("from collections import OrderedDict\ndef ordered() -> dict:\n    return {}\n");
+        let result = transpile(
+            "from collections import OrderedDict\ndef ordered() -> dict:\n    return {}\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_024_from_collections_import_deque() {
-        let result = transpile("from collections import deque\ndef make_deque() -> list:\n    return []\n");
+        let result =
+            transpile("from collections import deque\ndef make_deque() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_025_from_collections_import_namedtuple() {
-        let result = transpile("from collections import namedtuple\ndef make() -> str:\n    return \"\"\n");
+        let result =
+            transpile("from collections import namedtuple\ndef make() -> str:\n    return \"\"\n");
         assert!(!result.is_empty());
     }
 
@@ -227,37 +252,45 @@ mod tests {
 
     #[test]
     fn test_w21ic_032_from_pathlib_import_path() {
-        let result = transpile("from pathlib import Path\ndef get_path() -> str:\n    return \"/\"\n");
+        let result =
+            transpile("from pathlib import Path\ndef get_path() -> str:\n    return \"/\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_033_from_typing_import_list() {
-        let result = transpile("from typing import List\ndef items() -> List[int]:\n    return []\n");
+        let result =
+            transpile("from typing import List\ndef items() -> List[int]:\n    return []\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_034_from_typing_import_dict() {
-        let result = transpile("from typing import Dict\ndef mapping() -> Dict[str, int]:\n    return {}\n");
+        let result =
+            transpile("from typing import Dict\ndef mapping() -> Dict[str, int]:\n    return {}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_035_from_typing_import_optional() {
-        let result = transpile("from typing import Optional\ndef maybe() -> Optional[int]:\n    return None\n");
+        let result = transpile(
+            "from typing import Optional\ndef maybe() -> Optional[int]:\n    return None\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_036_from_typing_import_tuple() {
-        let result = transpile("from typing import Tuple\ndef pair() -> Tuple[int, str]:\n    return (1, \"a\")\n");
+        let result = transpile(
+            "from typing import Tuple\ndef pair() -> Tuple[int, str]:\n    return (1, \"a\")\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_037_from_typing_import_set() {
-        let result = transpile("from typing import Set\ndef uniq() -> Set[int]:\n    return set()\n");
+        let result =
+            transpile("from typing import Set\ndef uniq() -> Set[int]:\n    return set()\n");
         assert!(!result.is_empty());
     }
 
@@ -269,7 +302,9 @@ mod tests {
 
     #[test]
     fn test_w21ic_039_from_typing_import_union() {
-        let result = transpile("from typing import Union\ndef flexible() -> Union[int, str]:\n    return 1\n");
+        let result = transpile(
+            "from typing import Union\ndef flexible() -> Union[int, str]:\n    return 1\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -293,13 +328,15 @@ mod tests {
 
     #[test]
     fn test_w21ic_043_from_dataclasses_import_field() {
-        let result = transpile("from dataclasses import dataclass, field\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("from dataclasses import dataclass, field\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_044_from_functools_import_lru_cache() {
-        let result = transpile("from functools import lru_cache\ndef cached() -> int:\n    return 42\n");
+        let result =
+            transpile("from functools import lru_cache\ndef cached() -> int:\n    return 42\n");
         assert!(!result.is_empty());
     }
 
@@ -317,7 +354,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_047_from_enum_import_auto() {
-        let result = transpile("from enum import Enum, auto\ndef get_auto() -> int:\n    return 1\n");
+        let result =
+            transpile("from enum import Enum, auto\ndef get_auto() -> int:\n    return 1\n");
         assert!(!result.is_empty());
     }
 
@@ -347,13 +385,15 @@ mod tests {
 
     #[test]
     fn test_w21ic_052_from_contextlib_import_contextmanager() {
-        let result = transpile("from contextlib import contextmanager\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("from contextlib import contextmanager\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_053_from_contextlib_import_suppress() {
-        let result = transpile("from contextlib import suppress\ndef safe_op() -> None:\n    pass\n");
+        let result =
+            transpile("from contextlib import suppress\ndef safe_op() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
@@ -417,7 +457,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_063_dict_constant_nested() {
-        let result = transpile("NESTED = {\"a\": \"b\", \"c\": \"d\"}\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("NESTED = {\"a\": \"b\", \"c\": \"d\"}\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
@@ -429,7 +470,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_065_list_constant_strings() {
-        let result = transpile("NAMES = [\"alice\", \"bob\", \"carol\"]\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("NAMES = [\"alice\", \"bob\", \"carol\"]\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
@@ -447,7 +489,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_068_set_constant_strings() {
-        let result = transpile("TAGS = {\"alpha\", \"beta\", \"gamma\"}\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("TAGS = {\"alpha\", \"beta\", \"gamma\"}\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
@@ -597,25 +640,31 @@ mod tests {
 
     #[test]
     fn test_w21ic_092_list_comprehension_constant() {
-        let result = transpile("SQUARES = [x * x for x in range(10)]\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("SQUARES = [x * x for x in range(10)]\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_093_list_comprehension_constant_with_filter() {
-        let result = transpile("EVENS = [x for x in range(20) if x % 2 == 0]\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "EVENS = [x for x in range(20) if x % 2 == 0]\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_094_set_comprehension_constant() {
-        let result = transpile("EVEN_SET = {x for x in range(10) if x % 2 == 0}\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "EVEN_SET = {x for x in range(10) if x % 2 == 0}\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_095_dict_comprehension_constant() {
-        let result = transpile("SQUARED = {x: x * x for x in range(5)}\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("SQUARED = {x: x * x for x in range(5)}\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
@@ -627,7 +676,9 @@ mod tests {
 
     #[test]
     fn test_w21ic_097_multiple_string_constants() {
-        let result = transpile("FIRST = \"hello\"\nSECOND = \"world\"\ndef run() -> str:\n    return FIRST\n");
+        let result = transpile(
+            "FIRST = \"hello\"\nSECOND = \"world\"\ndef run() -> str:\n    return FIRST\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -639,7 +690,9 @@ mod tests {
 
     #[test]
     fn test_w21ic_099_constant_large_list() {
-        let result = transpile("VALS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "VALS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -687,7 +740,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_107_constant_string_with_spaces() {
-        let result = transpile("LABEL = \"hello world test\"\ndef run() -> str:\n    return LABEL\n");
+        let result =
+            transpile("LABEL = \"hello world test\"\ndef run() -> str:\n    return LABEL\n");
         assert!(!result.is_empty());
     }
 
@@ -723,7 +777,9 @@ mod tests {
 
     #[test]
     fn test_w21ic_113_constant_list_comp_strings() {
-        let result = transpile("UPPER = [x.upper() for x in [\"a\", \"b\", \"c\"]]\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "UPPER = [x.upper() for x in [\"a\", \"b\", \"c\"]]\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -759,13 +815,16 @@ mod tests {
 
     #[test]
     fn test_w21ic_119_constant_dict_string_to_int() {
-        let result = transpile("SCORES = {\"math\": 95, \"science\": 88}\ndef run() -> None:\n    pass\n");
+        let result =
+            transpile("SCORES = {\"math\": 95, \"science\": 88}\ndef run() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_120_constant_multiple_lambdas() {
-        let result = transpile("square = lambda x: x * x\ncube = lambda x: x * x * x\ndef run() -> None:\n    pass\n");
+        let result = transpile(
+            "square = lambda x: x * x\ncube = lambda x: x * x * x\ndef run() -> None:\n    pass\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn square"));
         assert!(result.contains("fn cube"));
@@ -819,7 +878,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_126_class_classmethod() {
-        let code = "class Factory:\n    @classmethod\n    def create(cls) -> int:\n        return 0\n";
+        let code =
+            "class Factory:\n    @classmethod\n    def create(cls) -> int:\n        return 0\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("fn create"));
@@ -974,14 +1034,16 @@ mod tests {
 
     #[test]
     fn test_w21ic_146_class_with_class_variable() {
-        let code = "class Config:\n    VERSION = 1\n    def __init__(self) -> None:\n        pass\n";
+        let code =
+            "class Config:\n    VERSION = 1\n    def __init__(self) -> None:\n        pass\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21ic_147_class_with_class_variable_string() {
-        let code = "class App:\n    NAME = \"myapp\"\n    def __init__(self) -> None:\n        pass\n";
+        let code =
+            "class App:\n    NAME = \"myapp\"\n    def __init__(self) -> None:\n        pass\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1205,7 +1267,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_176_class_classmethod_returns_string() {
-        let code = "class Info:\n    @classmethod\n    def version(cls) -> str:\n        return \"1.0\"\n";
+        let code =
+            "class Info:\n    @classmethod\n    def version(cls) -> str:\n        return \"1.0\"\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1289,7 +1352,8 @@ mod tests {
 
     #[test]
     fn test_w21ic_187_dataclass_single_field() {
-        let code = "from dataclasses import dataclass\n\n@dataclass\nclass Wrapper:\n    value: int\n";
+        let code =
+            "from dataclasses import dataclass\n\n@dataclass\nclass Wrapper:\n    value: int\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

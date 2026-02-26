@@ -42,12 +42,7 @@ pub(crate) fn codegen_try_stmt(
         category = DecisionCategory::ErrorHandling,
         name = "try_except",
         chosen = "match_result",
-        alternatives = [
-            "unwrap_or",
-            "question_mark",
-            "anyhow_context",
-            "custom_error"
-        ],
+        alternatives = ["unwrap_or", "question_mark", "anyhow_context", "custom_error"],
         confidence = 0.80
     );
 
@@ -56,18 +51,13 @@ pub(crate) fn codegen_try_stmt(
     // In Python, variables defined in try/except escape their scope. In Rust, they don't.
     // We hoist variable declarations before the try block to fix this.
     let try_vars = extract_toplevel_assigned_symbols(body);
-    let handler_vars: std::collections::HashSet<String> = handlers
-        .iter()
-        .flat_map(|h| extract_toplevel_assigned_symbols(&h.body))
-        .collect();
+    let handler_vars: std::collections::HashSet<String> =
+        handlers.iter().flat_map(|h| extract_toplevel_assigned_symbols(&h.body)).collect();
 
     // Variables assigned in try body that might be assigned in handlers too (common pattern)
     // or any variable assigned in try that's not just a loop variable
-    let hoisted_try_vars: Vec<String> = try_vars
-        .union(&handler_vars)
-        .filter(|v| !ctx.is_declared(v))
-        .cloned()
-        .collect();
+    let hoisted_try_vars: Vec<String> =
+        try_vars.union(&handler_vars).filter(|v| !ctx.is_declared(v)).cloned().collect();
 
     // Generate hoisted variable declarations
     let mut hoisted_decls = Vec::new();
@@ -75,11 +65,8 @@ pub(crate) fn codegen_try_stmt(
         let var_ident = safe_ident(var_name);
 
         // Find the variable's type from the first assignment in either try block or handlers
-        let var_type = find_variable_type(var_name, body).or_else(|| {
-            handlers
-                .iter()
-                .find_map(|h| find_variable_type(var_name, &h.body))
-        });
+        let var_type = find_variable_type(var_name, body)
+            .or_else(|| handlers.iter().find_map(|h| find_variable_type(var_name, &h.body)));
 
         if let Some(ty) = var_type {
             // DEPYLER-0931: Check if type implements Default
@@ -180,19 +167,16 @@ pub(crate) fn codegen_try_stmt(
     };
 
     // DEPYLER-0333: Extract handled exception types for scope tracking
-    let handled_types: Vec<String> = handlers
-        .iter()
-        .filter_map(|h| h.exception_type.clone())
-        .collect();
+    let handled_types: Vec<String> =
+        handlers.iter().filter_map(|h| h.exception_type.clone()).collect();
 
     // DEPYLER-0333: Enter try block scope with handled exception types
     // Empty list means bare except (catches all exceptions)
     ctx.enter_try_scope(handled_types.clone());
 
     // DEPYLER-0360: Check for floor division with ZeroDivisionError handler BEFORE generating try_stmts
-    let has_zero_div_handler = handlers
-        .iter()
-        .any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
+    let has_zero_div_handler =
+        handlers.iter().any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
 
     if has_zero_div_handler && body.len() == 1 {
         if let HirStmt::Return(Some(expr)) = &body[0] {
@@ -291,10 +275,8 @@ pub(crate) fn codegen_try_stmt(
     ctx.is_final_statement = false;
 
     ctx.enter_scope();
-    let try_stmts: Vec<_> = body
-        .iter()
-        .map(|s| s.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let try_stmts: Vec<_> =
+        body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
     // Restore is_final_statement flag
@@ -321,11 +303,8 @@ pub(crate) fn codegen_try_stmt(
         let saved_is_final = ctx.is_final_statement;
         ctx.is_final_statement = false;
 
-        let handler_stmts: Vec<_> = handler
-            .body
-            .iter()
-            .map(|s| s.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let handler_stmts: Vec<_> =
+            handler.body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
 
         // Restore is_final_statement flag
         ctx.is_final_statement = saved_is_final;
@@ -361,10 +340,8 @@ pub(crate) fn codegen_try_stmt(
 
     // Generate finally clause if present
     let finally_stmts = if let Some(finally_body) = finalbody {
-        let stmts: Vec<_> = finally_body
-            .iter()
-            .map(|s| s.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let stmts: Vec<_> =
+            finally_body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
         Some(quote! { #(#stmts)* })
     } else {
         None
@@ -458,10 +435,7 @@ pub(crate) fn codegen_try_stmt(
                         "unwrap_or_default ()",
                         &format!("unwrap_or ({})", exception_value_str),
                     )
-                    .replace(
-                        "unwrap_or_default()",
-                        &format!("unwrap_or({})", exception_value_str),
-                    );
+                    .replace("unwrap_or_default()", &format!("unwrap_or({})", exception_value_str));
 
                 // Parse back to token stream
                 let fixed_tokens: proc_macro2::TokenStream = fixed_code.parse().unwrap_or(try_code);
@@ -794,10 +768,8 @@ fn extract_accessed_subcommand_fields(
         })
         .unwrap_or_default();
 
-    let mut result: Vec<_> = fields
-        .into_iter()
-        .filter(|f| subcommand_arg_names.contains(f))
-        .collect();
+    let mut result: Vec<_> =
+        fields.into_iter().filter(|f| subcommand_arg_names.contains(f)).collect();
     result.sort(); // Deterministic order
     result
 }
@@ -820,11 +792,7 @@ pub(crate) fn extract_fields_recursive(
             HirStmt::Assign { value, .. } => {
                 extract_fields_from_expr(value, args_var, dest_field, fields)
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 // DEPYLER-0518: Also extract fields from condition
                 // Example: `if not validate_email(args.address)` has args.address in condition
                 extract_fields_from_expr(condition, args_var, dest_field, fields);
@@ -834,28 +802,16 @@ pub(crate) fn extract_fields_recursive(
                 }
             }
             // DEPYLER-0577: Recurse into While condition (may contain args.field)
-            HirStmt::While {
-                condition,
-                body: loop_body,
-            } => {
+            HirStmt::While { condition, body: loop_body } => {
                 extract_fields_from_expr(condition, args_var, dest_field, fields);
                 extract_fields_recursive(loop_body, args_var, dest_field, fields);
             }
             // DEPYLER-0577: Recurse into For iterator (may contain args.field)
-            HirStmt::For {
-                iter,
-                body: loop_body,
-                ..
-            } => {
+            HirStmt::For { iter, body: loop_body, .. } => {
                 extract_fields_from_expr(iter, args_var, dest_field, fields);
                 extract_fields_recursive(loop_body, args_var, dest_field, fields);
             }
-            HirStmt::Try {
-                body: try_body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body: try_body, handlers, orelse, finalbody } => {
                 extract_fields_recursive(try_body, args_var, dest_field, fields);
                 for handler in handlers {
                     extract_fields_recursive(&handler.body, args_var, dest_field, fields);
@@ -867,11 +823,7 @@ pub(crate) fn extract_fields_recursive(
                     extract_fields_recursive(finally_stmts, args_var, dest_field, fields);
                 }
             }
-            HirStmt::With {
-                context,
-                body: with_body,
-                ..
-            } => {
+            HirStmt::With { context, body: with_body, .. } => {
                 // DEPYLER-0931: Extract fields from With context expression
                 // Pattern: `with open(args.file) as f:` - args.file is in context
                 // This was missing, causing E0425 errors for fields used in context
@@ -911,9 +863,7 @@ pub(crate) fn extract_fields_from_expr(
             }
         }
         // Recurse into nested expressions
-        HirExpr::Call {
-            args: call_args, ..
-        } => {
+        HirExpr::Call { args: call_args, .. } => {
             for arg in call_args {
                 extract_fields_from_expr(arg, args_var, dest_field, fields);
             }
@@ -945,11 +895,7 @@ pub(crate) fn extract_fields_from_expr(
                 extract_fields_from_expr(value, args_var, dest_field, fields);
             }
         }
-        HirExpr::MethodCall {
-            object,
-            args: method_args,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args: method_args, .. } => {
             extract_fields_from_expr(object, args_var, dest_field, fields);
             for arg in method_args {
                 extract_fields_from_expr(arg, args_var, dest_field, fields);
@@ -1027,11 +973,7 @@ pub(crate) fn try_generate_subcommand_match(
         } else if else_stmts.len() == 2 {
             // CSE-optimized elif: [assignment, if]
             // Extract command name from the CSE assignment
-            if let HirStmt::Assign {
-                target: AssignTarget::Symbol(var),
-                value,
-                ..
-            } = &else_stmts[0]
+            if let HirStmt::Assign { target: AssignTarget::Symbol(var), value, .. } = &else_stmts[0]
             {
                 if var.starts_with("_cse_temp") {
                     // Extract command name from the assignment value
@@ -1051,11 +993,8 @@ pub(crate) fn try_generate_subcommand_match(
         };
 
         // Check if this is an If statement with subcommand check
-        if let HirStmt::If {
-            condition: elif_cond,
-            then_body: elif_then,
-            else_body: elif_else,
-        } = elif_stmt
+        if let HirStmt::If { condition: elif_cond, then_body: elif_then, else_body: elif_else } =
+            elif_stmt
         {
             // Use command name from CSE assignment if available, otherwise check condition
             let elif_name =
@@ -1074,10 +1013,9 @@ pub(crate) fn try_generate_subcommand_match(
 
     // DEPYLER-0482: Check if any branch has an early return
     // If so, don't add wildcard unreachable!() because execution continues to next match
-    let has_early_return = branches.iter().any(|(_, body)| {
-        body.iter()
-            .any(|stmt| matches!(stmt, HirStmt::Return { .. }))
-    });
+    let has_early_return = branches
+        .iter()
+        .any(|(_, body)| body.iter().any(|stmt| matches!(stmt, HirStmt::Return { .. })));
 
     // Generate match arms
     // DEPYLER-0940: Filter out empty command names to prevent panic in format_ident!()
@@ -1609,11 +1547,7 @@ pub(crate) fn is_subcommand_check(
 ) -> Option<String> {
     match expr {
         // Direct comparison: args.action == "init"
-        HirExpr::Binary {
-            op: BinOp::Eq,
-            left,
-            right,
-        } => {
+        HirExpr::Binary { op: BinOp::Eq, left, right } => {
             // DEPYLER-0456 #2: Check if left side is args.<dest_field>
             // (e.g., args.action, args.command, etc.)
             let is_dest_field_attr = matches!(
@@ -1642,38 +1576,25 @@ pub(crate) fn is_subcommand_check(
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
-            HirStmt::Assign {
-                target,
-                value,
-                type_annotation,
-            } => codegen_assign_stmt(target, value, type_annotation, ctx),
+            HirStmt::Assign { target, value, type_annotation } => {
+                codegen_assign_stmt(target, value, type_annotation, ctx)
+            }
             HirStmt::Return(expr) => codegen_return_stmt(expr, ctx),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => codegen_if_stmt(condition, then_body, else_body, ctx),
+            HirStmt::If { condition, then_body, else_body } => {
+                codegen_if_stmt(condition, then_body, else_body, ctx)
+            }
             HirStmt::While { condition, body } => codegen_while_stmt(condition, body, ctx),
             HirStmt::For { target, iter, body } => codegen_for_stmt(target, iter, body, ctx),
             HirStmt::Expr(expr) => codegen_expr_stmt(expr, ctx),
-            HirStmt::Raise {
-                exception,
-                cause: _,
-            } => codegen_raise_stmt(exception, ctx),
+            HirStmt::Raise { exception, cause: _ } => codegen_raise_stmt(exception, ctx),
             HirStmt::Break { label } => codegen_break_stmt(label),
             HirStmt::Continue { label } => codegen_continue_stmt(label),
-            HirStmt::With {
-                context,
-                target,
-                body,
-                is_async,
-            } => codegen_with_stmt(context, target, body, *is_async, ctx),
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse: _,
-                finalbody,
-            } => codegen_try_stmt(body, handlers, finalbody, ctx),
+            HirStmt::With { context, target, body, is_async } => {
+                codegen_with_stmt(context, target, body, *is_async, ctx)
+            }
+            HirStmt::Try { body, handlers, orelse: _, finalbody } => {
+                codegen_try_stmt(body, handlers, finalbody, ctx)
+            }
             HirStmt::Assert { test, msg } => codegen_assert_stmt(test, msg, ctx),
             HirStmt::Pass => codegen_pass_stmt(),
             // DEPYLER-0614: Handle Block of statements (for multi-target assignment: i = j = 0)
@@ -1684,13 +1605,9 @@ impl RustCodeGen for HirStmt {
                 }
                 Ok(tokens)
             }
-            HirStmt::FunctionDef {
-                name,
-                params,
-                ret_type,
-                body,
-                docstring: _,
-            } => codegen_nested_function_def(name, params, ret_type, body, ctx),
+            HirStmt::FunctionDef { name, params, ret_type, body, docstring: _ } => {
+                codegen_nested_function_def(name, params, ret_type, body, ctx)
+            }
         }
     }
 }
@@ -1743,11 +1660,8 @@ fn codegen_nested_function_def(
 
     // GH-70: Use inferred parameters from context if available
     // DEPYLER-0687: Clone params to avoid borrow conflicts with ctx.declare_var
-    let effective_params: Vec<HirParam> = ctx
-        .nested_function_params
-        .get(name)
-        .cloned()
-        .unwrap_or_else(|| params.to_vec());
+    let effective_params: Vec<HirParam> =
+        ctx.nested_function_params.get(name).cloned().unwrap_or_else(|| params.to_vec());
 
     // GH-70: Populate ctx.var_types with inferred param types so that
     // expressions in body (like item[0]) can use proper type info
@@ -1842,10 +1756,8 @@ fn codegen_nested_function_def(
     propagate_return_type_to_vars(body, &mut ctx.var_types, ret_type);
 
     // Generate body
-    let body_tokens: Vec<proc_macro2::TokenStream> = body
-        .iter()
-        .map(|stmt| stmt.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let body_tokens: Vec<proc_macro2::TokenStream> =
+        body.iter().map(|stmt| stmt.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
 
     // Exit scope before restoring context
     ctx.exit_scope();
@@ -1871,11 +1783,8 @@ fn codegen_nested_function_def(
 
     // Get outer scope variables to check for captures
     // Collect all declared vars from all scopes
-    let outer_vars: std::collections::HashSet<String> = ctx
-        .declared_vars
-        .iter()
-        .flat_map(|scope| scope.iter().cloned())
-        .collect();
+    let outer_vars: std::collections::HashSet<String> =
+        ctx.declared_vars.iter().flat_map(|scope| scope.iter().cloned()).collect();
     let has_captures = captures_outer_scope(params, body, &outer_vars);
 
     // GH-70 FIX: Generate as closure instead of fn item
@@ -1976,10 +1885,7 @@ pub(crate) fn captures_outer_scope(
     // Collect locally defined variables from assignments
     fn collect_local_vars<'a>(stmt: &'a HirStmt, locals: &mut std::collections::HashSet<&'a str>) {
         match stmt {
-            HirStmt::Assign {
-                target: crate::hir::AssignTarget::Symbol(name),
-                ..
-            } => {
+            HirStmt::Assign { target: crate::hir::AssignTarget::Symbol(name), .. } => {
                 locals.insert(name.as_str());
             }
             HirStmt::Assign { .. } => {}
@@ -1991,11 +1897,7 @@ pub(crate) fn captures_outer_scope(
                     collect_local_vars(s, locals);
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 for s in then_body {
                     collect_local_vars(s, locals);
                 }
@@ -2018,12 +1920,7 @@ pub(crate) fn captures_outer_scope(
                     collect_local_vars(s, locals);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 for s in body {
                     collect_local_vars(s, locals);
                 }
@@ -2081,46 +1978,23 @@ pub(crate) fn captures_outer_scope(
             HirExpr::Unary { operand, .. } => {
                 check_expr_for_capture(operand, local_vars, outer_vars)
             }
-            HirExpr::Call {
-                func, args, kwargs, ..
-            } => {
+            HirExpr::Call { func, args, kwargs, .. } => {
                 // Check if calling a function defined in outer scope
                 let captures_func =
                     !local_vars.contains(func.as_str()) && outer_vars.contains(func);
                 captures_func
-                    || args
-                        .iter()
-                        .any(|a| check_expr_for_capture(a, local_vars, outer_vars))
-                    || kwargs
-                        .iter()
-                        .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
+                    || args.iter().any(|a| check_expr_for_capture(a, local_vars, outer_vars))
+                    || kwargs.iter().any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
             }
-            HirExpr::DynamicCall {
-                callee,
-                args,
-                kwargs,
-            } => {
+            HirExpr::DynamicCall { callee, args, kwargs } => {
                 check_expr_for_capture(callee, local_vars, outer_vars)
-                    || args
-                        .iter()
-                        .any(|a| check_expr_for_capture(a, local_vars, outer_vars))
-                    || kwargs
-                        .iter()
-                        .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
+                    || args.iter().any(|a| check_expr_for_capture(a, local_vars, outer_vars))
+                    || kwargs.iter().any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
             }
-            HirExpr::MethodCall {
-                object,
-                args,
-                kwargs,
-                ..
-            } => {
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
                 check_expr_for_capture(object, local_vars, outer_vars)
-                    || args
-                        .iter()
-                        .any(|a| check_expr_for_capture(a, local_vars, outer_vars))
-                    || kwargs
-                        .iter()
-                        .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
+                    || args.iter().any(|a| check_expr_for_capture(a, local_vars, outer_vars))
+                    || kwargs.iter().any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
             }
             HirExpr::Attribute { value, .. } => {
                 check_expr_for_capture(value, local_vars, outer_vars)
@@ -2137,25 +2011,16 @@ pub(crate) fn captures_outer_scope(
             HirExpr::List(items)
             | HirExpr::Tuple(items)
             | HirExpr::Set(items)
-            | HirExpr::FrozenSet(items) => items
-                .iter()
-                .any(|i| check_expr_for_capture(i, local_vars, outer_vars)),
+            | HirExpr::FrozenSet(items) => {
+                items.iter().any(|i| check_expr_for_capture(i, local_vars, outer_vars))
+            }
             HirExpr::Dict(pairs) => pairs.iter().any(|(k, v)| {
                 check_expr_for_capture(k, local_vars, outer_vars)
                     || check_expr_for_capture(v, local_vars, outer_vars)
             }),
-            HirExpr::ListComp {
-                element,
-                generators,
-            }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            }
-            | HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators }
+            | HirExpr::GeneratorExp { element, generators } => {
                 check_expr_for_capture(element, local_vars, outer_vars)
                     || generators.iter().any(|g| {
                         check_expr_for_capture(&g.iter, local_vars, outer_vars)
@@ -2164,11 +2029,7 @@ pub(crate) fn captures_outer_scope(
                                 .any(|c| check_expr_for_capture(c, local_vars, outer_vars))
                     })
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 check_expr_for_capture(key, local_vars, outer_vars)
                     || check_expr_for_capture(value, local_vars, outer_vars)
                     || generators.iter().any(|g| {
@@ -2180,12 +2041,7 @@ pub(crate) fn captures_outer_scope(
             }
             HirExpr::Lambda { body, .. } => check_expr_for_capture(body, local_vars, outer_vars),
             HirExpr::Await { value } => check_expr_for_capture(value, local_vars, outer_vars),
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 check_expr_for_capture(base, local_vars, outer_vars)
                     || start
                         .as_ref()
@@ -2205,15 +2061,10 @@ pub(crate) fn captures_outer_scope(
                     false
                 }
             }),
-            HirExpr::Yield { value } => value
-                .as_ref()
-                .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars)),
-            HirExpr::SortByKey {
-                iterable,
-                key_body,
-                reverse_expr,
-                ..
-            } => {
+            HirExpr::Yield { value } => {
+                value.as_ref().is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars))
+            }
+            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
                 check_expr_for_capture(iterable, local_vars, outer_vars)
                     || check_expr_for_capture(key_body, local_vars, outer_vars)
                     || reverse_expr
@@ -2237,66 +2088,43 @@ pub(crate) fn captures_outer_scope(
                 check_expr_for_capture(expr, local_vars, outer_vars)
             }
             HirStmt::Assign { value, .. } => check_expr_for_capture(value, local_vars, outer_vars),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 check_expr_for_capture(condition, local_vars, outer_vars)
-                    || then_body
-                        .iter()
-                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    || then_body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     || else_body.as_ref().is_some_and(|b| {
-                        b.iter()
-                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                        b.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
             }
             HirStmt::While { condition, body } => {
                 check_expr_for_capture(condition, local_vars, outer_vars)
-                    || body
-                        .iter()
-                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    || body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
             }
             HirStmt::For { iter, body, .. } => {
                 check_expr_for_capture(iter, local_vars, outer_vars)
-                    || body
-                        .iter()
-                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    || body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
             }
             HirStmt::With { context, body, .. } => {
                 check_expr_for_capture(context, local_vars, outer_vars)
-                    || body
-                        .iter()
-                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    || body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
-                body.iter()
-                    .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     || handlers.iter().any(|h| {
-                        h.body
-                            .iter()
-                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                        h.body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
                     || orelse.as_ref().is_some_and(|b| {
-                        b.iter()
-                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                        b.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
                     || finalbody.as_ref().is_some_and(|b| {
-                        b.iter()
-                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                        b.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
             }
-            HirStmt::FunctionDef { body, .. } => body
-                .iter()
-                .any(|s| check_stmt_for_capture(s, local_vars, outer_vars)),
-            HirStmt::Block(stmts) => stmts
-                .iter()
-                .any(|s| check_stmt_for_capture(s, local_vars, outer_vars)),
+            HirStmt::FunctionDef { body, .. } => {
+                body.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+            }
+            HirStmt::Block(stmts) => {
+                stmts.iter().any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+            }
             HirStmt::Assert { test, msg } => {
                 check_expr_for_capture(test, local_vars, outer_vars)
                     || msg
@@ -2315,8 +2143,7 @@ pub(crate) fn captures_outer_scope(
         }
     }
 
-    body.iter()
-        .any(|stmt| check_stmt_for_capture(stmt, &local_vars, outer_vars))
+    body.iter().any(|stmt| check_stmt_for_capture(stmt, &local_vars, outer_vars))
 }
 
 #[cfg(test)]
@@ -2760,8 +2587,7 @@ mod tests {
     #[test]
     fn test_is_subcommand_check_cse_temp() {
         let mut ctx = CodeGenContext::default();
-        ctx.cse_subcommand_temps
-            .insert("_cse_0".to_string(), "build".to_string());
+        ctx.cse_subcommand_temps.insert("_cse_0".to_string(), "build".to_string());
         let expr = HirExpr::Var("_cse_0".to_string());
         let result = is_subcommand_check(&expr, "command", &ctx);
         assert_eq!(result, Some("build".to_string()));
@@ -2846,10 +2672,8 @@ mod tests {
         use rustpython_parser::{parse, Mode};
 
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -3024,11 +2848,7 @@ def parent() -> int:
     return add(2, 3) + mul(4, 5)
 "#;
         let rust = transpile(code);
-        assert!(
-            rust.contains("fn parent"),
-            "Should contain parent function: {}",
-            rust
-        );
+        assert!(rust.contains("fn parent"), "Should contain parent function: {}", rust);
     }
 
     #[test]
@@ -3083,10 +2903,8 @@ def parse_int(s: str) -> int:
     #[test]
     fn test_captures_outer_scope_in_while_condition() {
         let params = vec![];
-        let body = vec![HirStmt::While {
-            condition: HirExpr::Var("running".to_string()),
-            body: vec![],
-        }];
+        let body =
+            vec![HirStmt::While { condition: HirExpr::Var("running".to_string()), body: vec![] }];
         let outer_vars: HashSet<String> = ["running".to_string()].into_iter().collect();
         assert!(captures_outer_scope(&params, &body, &outer_vars));
     }
@@ -3316,11 +3134,7 @@ def check_msg(x: int) -> None:
 "#;
         let rust = transpile(code);
         assert!(rust.contains("fn check_msg"), "output: {}", rust);
-        assert!(
-            rust.contains("assert") || rust.contains("panic"),
-            "output: {}",
-            rust
-        );
+        assert!(rust.contains("assert") || rust.contains("panic"), "output: {}", rust);
     }
 
     #[test]
@@ -3442,11 +3256,7 @@ def skip_evens(n: int) -> int:
 "#;
         let rust = transpile(code);
         assert!(rust.contains("fn skip_evens"), "output: {}", rust);
-        assert!(
-            rust.contains("continue"),
-            "Should contain continue: {}",
-            rust
-        );
+        assert!(rust.contains("continue"), "Should contain continue: {}", rust);
     }
 
     // ================================================================
@@ -3617,11 +3427,7 @@ def outer() -> int:
 "#;
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
-        assert!(
-            rust.contains("factorial"),
-            "Should contain factorial: {}",
-            rust
-        );
+        assert!(rust.contains("factorial"), "Should contain factorial: {}", rust);
     }
 
     #[test]
@@ -3679,11 +3485,7 @@ def read_until_done() -> int:
     return count
 "#;
         let rust = transpile(code);
-        assert!(
-            rust.contains("fn read_until_done"),
-            "output: {}",
-            rust
-        );
+        assert!(rust.contains("fn read_until_done"), "output: {}", rust);
         assert!(rust.contains("loop") || rust.contains("while"), "output: {}", rust);
         assert!(rust.contains("break"), "Should contain break: {}", rust);
     }
@@ -3728,9 +3530,7 @@ def read_until_done() -> int:
         let body = vec![HirStmt::Try {
             body: vec![],
             handlers: vec![],
-            orelse: Some(vec![HirStmt::Expr(HirExpr::Var(
-                "else_var".to_string(),
-            ))]),
+            orelse: Some(vec![HirStmt::Expr(HirExpr::Var("else_var".to_string()))]),
             finalbody: None,
         }];
         let outer_vars: HashSet<String> = ["else_var".to_string()].into_iter().collect();
@@ -3744,9 +3544,7 @@ def read_until_done() -> int:
             body: vec![],
             handlers: vec![],
             orelse: None,
-            finalbody: Some(vec![HirStmt::Expr(HirExpr::Var(
-                "fin_var".to_string(),
-            ))]),
+            finalbody: Some(vec![HirStmt::Expr(HirExpr::Var("fin_var".to_string()))]),
         }];
         let outer_vars: HashSet<String> = ["fin_var".to_string()].into_iter().collect();
         assert!(captures_outer_scope(&params, &body, &outer_vars));
@@ -3813,9 +3611,7 @@ def read_until_done() -> int:
     #[test]
     fn test_captures_outer_scope_in_list_literal() {
         let params = vec![];
-        let body = vec![HirStmt::Expr(HirExpr::List(vec![HirExpr::Var(
-            "outer_elem".to_string(),
-        )]))];
+        let body = vec![HirStmt::Expr(HirExpr::List(vec![HirExpr::Var("outer_elem".to_string())]))];
         let outer_vars: HashSet<String> = ["outer_elem".to_string()].into_iter().collect();
         assert!(captures_outer_scope(&params, &body, &outer_vars));
     }
@@ -3834,10 +3630,7 @@ def read_until_done() -> int:
     #[test]
     fn test_captures_outer_scope_in_assert() {
         let params = vec![];
-        let body = vec![HirStmt::Assert {
-            test: HirExpr::Var("invariant".to_string()),
-            msg: None,
-        }];
+        let body = vec![HirStmt::Assert { test: HirExpr::Var("invariant".to_string()), msg: None }];
         let outer_vars: HashSet<String> = ["invariant".to_string()].into_iter().collect();
         assert!(captures_outer_scope(&params, &body, &outer_vars));
     }
@@ -3882,9 +3675,7 @@ def read_until_done() -> int:
             name: "nested".to_string(),
             params: Box::new(smallvec::smallvec![]),
             ret_type: Type::Int,
-            body: vec![HirStmt::Return(Some(HirExpr::Var(
-                "outer_val".to_string(),
-            )))],
+            body: vec![HirStmt::Return(Some(HirExpr::Var("outer_val".to_string())))],
             docstring: None,
         }];
         let outer_vars: HashSet<String> = ["outer_val".to_string()].into_iter().collect();
@@ -3894,9 +3685,8 @@ def read_until_done() -> int:
     #[test]
     fn test_captures_outer_scope_in_block() {
         let params = vec![];
-        let body = vec![HirStmt::Block(vec![HirStmt::Expr(HirExpr::Var(
-            "outer_block".to_string(),
-        ))])];
+        let body =
+            vec![HirStmt::Block(vec![HirStmt::Expr(HirExpr::Var("outer_block".to_string()))])];
         let outer_vars: HashSet<String> = ["outer_block".to_string()].into_iter().collect();
         assert!(captures_outer_scope(&params, &body, &outer_vars));
     }
@@ -4067,8 +3857,7 @@ def safe_op() -> str:
 
     #[test]
     fn test_extract_parse_from_tokens_non_parse_stmt() {
-        let tokens: proc_macro2::TokenStream =
-            "let x = 42 ;".parse().unwrap();
+        let tokens: proc_macro2::TokenStream = "let x = 42 ;".parse().unwrap();
         let result = extract_parse_from_tokens(&[tokens]);
         assert!(result.is_none());
     }
@@ -4378,9 +4167,7 @@ def multi_try(a: str, b: str) -> int:
     fn test_captures_outer_scope_in_fstring() {
         let params = vec![];
         let body = vec![HirStmt::Return(Some(HirExpr::FString {
-            parts: vec![FStringPart::Expr(Box::new(HirExpr::Var(
-                "name".to_string(),
-            )))],
+            parts: vec![FStringPart::Expr(Box::new(HirExpr::Var("name".to_string())))],
         }))];
         let outer_vars: HashSet<String> = ["name".to_string()].into_iter().collect();
         assert!(captures_outer_scope(&params, &body, &outer_vars));
@@ -4631,11 +4418,7 @@ def increment() -> int:
     return counter
 "#;
         let rust = transpile(code);
-        assert!(
-            rust.contains("fn increment") || rust.contains("counter"),
-            "output: {}",
-            rust
-        );
+        assert!(rust.contains("fn increment") || rust.contains("counter"), "output: {}", rust);
     }
 
     #[test]

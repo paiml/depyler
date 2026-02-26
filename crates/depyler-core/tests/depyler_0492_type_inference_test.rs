@@ -197,10 +197,7 @@ def run_command(cmd, capture=False, check=False, cwd=None):
     );
     assert!(rust.contains("capture: bool"), "capture should be bool");
     assert!(rust.contains("check: bool"), "check should be bool");
-    assert!(
-        rust.contains("cwd: Option<String>"),
-        "cwd should be Option<String>"
-    );
+    assert!(rust.contains("cwd: Option<String>"), "cwd should be Option<String>");
 
     // Should NOT contain any serde_json::Value for parameters
     // Get the function signature line

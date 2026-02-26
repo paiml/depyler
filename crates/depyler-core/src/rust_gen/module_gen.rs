@@ -59,9 +59,7 @@ pub(super) fn deduplicate_use_statements(
 /// Adds imports for collections and smart pointers as needed.
 /// Complexity: 1 (data-driven approach, well within <=10 target)
 /// DEPYLER-1016: Added nasa_mode to skip external crate imports
-pub(super) fn generate_conditional_imports(
-    ctx: &CodeGenContext,
-) -> Vec<proc_macro2::TokenStream> {
+pub(super) fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
     let mut imports = Vec::new();
     let nasa_mode = ctx.type_mapper.nasa_mode;
 
@@ -69,10 +67,7 @@ pub(super) fn generate_conditional_imports(
     let std_imports = [
         (ctx.needs_hashmap, quote! { use std::collections::HashMap; }),
         (ctx.needs_hashset, quote! { use std::collections::HashSet; }),
-        (
-            ctx.needs_vecdeque,
-            quote! { use std::collections::VecDeque; },
-        ),
+        (ctx.needs_vecdeque, quote! { use std::collections::VecDeque; }),
         (ctx.needs_arc, quote! { use std::sync::Arc; }),
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
         (ctx.needs_cow, quote! { use std::borrow::Cow; }),
@@ -91,10 +86,7 @@ pub(super) fn generate_conditional_imports(
         (ctx.needs_once_cell, quote! { use once_cell::sync::Lazy; }), // DEPYLER-REARCH-001
         (ctx.needs_trueno, quote! { use trueno::Vector; }), // Phase 3: NumPy->Trueno
         // DEPYLER-1004: chrono methods like .month(), .minute() need Datelike/Timelike traits
-        (
-            ctx.needs_chrono,
-            quote! { use chrono::{Datelike, Timelike}; },
-        ),
+        (ctx.needs_chrono, quote! { use chrono::{Datelike, Timelike}; }),
     ];
 
     // Add std imports (always)
@@ -291,8 +283,5 @@ pub(super) fn generate_interned_string_tokens(
     optimizer: &StringOptimizer,
 ) -> Vec<proc_macro2::TokenStream> {
     let interned_constants = optimizer.generate_interned_constants();
-    interned_constants
-        .into_iter()
-        .filter_map(|constant| constant.parse().ok())
-        .collect()
+    interned_constants.into_iter().filter_map(|constant| constant.parse().ok()).collect()
 }

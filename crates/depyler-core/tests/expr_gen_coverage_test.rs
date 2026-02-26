@@ -28,10 +28,7 @@ def test_list():
     println!("Generated list append code:\n{}", rust_code);
 
     // Should generate .push() for list.append()
-    assert!(
-        rust_code.contains(".push("),
-        "list.append() should transpile to .push()"
-    );
+    assert!(rust_code.contains(".push("), "list.append() should transpile to .push()");
 }
 
 #[test]
@@ -126,10 +123,7 @@ def set_create():
     println!("Generated set creation code:\n{}", rust_code);
 
     // Should use HashSet
-    assert!(
-        rust_code.contains("HashSet"),
-        "Set literals should generate HashSet"
-    );
+    assert!(rust_code.contains("HashSet"), "Set literals should generate HashSet");
 }
 
 // ============================================================================
@@ -168,10 +162,7 @@ def reverse_slice():
     println!("Generated reverse slice code:\n{}", rust_code);
 
     // Should use .rev() for negative step
-    assert!(
-        rust_code.contains(".rev()"),
-        "Slice [::-1] should use .rev()"
-    );
+    assert!(rust_code.contains(".rev()"), "Slice [::-1] should use .rev()");
 }
 
 // ============================================================================
@@ -445,10 +436,7 @@ def make_set():
         let rust_code = pipeline.transpile(python_code).unwrap();
 
         // Mutation Kill: Using Vec instead of HashSet would fail
-        assert!(
-            rust_code.contains("HashSet"),
-            "MUTATION KILL: Set literals must use HashSet"
-        );
+        assert!(rust_code.contains("HashSet"), "MUTATION KILL: Set literals must use HashSet");
 
         // Mutation Kill: Using .push() instead of .insert() would fail
         assert!(
@@ -550,10 +538,7 @@ def make_deque(items):
     println!("Generated deque() code:\n{}", rust_code);
 
     // Should NOT generate: VecDeque(items) - tuple struct error
-    assert!(
-        !rust_code.contains("VecDeque(items)"),
-        "deque(items) should NOT use VecDeque(items)"
-    );
+    assert!(!rust_code.contains("VecDeque(items)"), "deque(items) should NOT use VecDeque(items)");
 
     // Should generate proper conversion
     assert!(
@@ -624,10 +609,7 @@ def test_set():
     println!("Generated set.add() code:\n{}", rust_code);
 
     // Should generate .insert() for set.add()
-    assert!(
-        rust_code.contains(".insert("),
-        "set.add() should transpile to .insert()"
-    );
+    assert!(rust_code.contains(".insert("), "set.add() should transpile to .insert()");
 }
 
 #[test]
@@ -645,10 +627,7 @@ def test_set():
     println!("Generated set.remove() code:\n{}", rust_code);
 
     // Should generate .remove() for set.remove()
-    assert!(
-        rust_code.contains(".remove("),
-        "set.remove() should transpile to .remove()"
-    );
+    assert!(rust_code.contains(".remove("), "set.remove() should transpile to .remove()");
 }
 
 #[test]
@@ -665,10 +644,7 @@ def make_frozenset():
     println!("Generated frozenset code:\n{}", rust_code);
 
     // Should use HashSet for frozenset
-    assert!(
-        rust_code.contains("HashSet"),
-        "frozenset should use HashSet in Rust"
-    );
+    assert!(rust_code.contains("HashSet"), "frozenset should use HashSet in Rust");
 }
 
 #[test]
@@ -705,10 +681,7 @@ def test_str():
     println!("Generated string.split() code:\n{}", rust_code);
 
     // Should generate .split() method
-    assert!(
-        rust_code.contains(".split("),
-        "str.split() should transpile to .split()"
-    );
+    assert!(rust_code.contains(".split("), "str.split() should transpile to .split()");
 }
 
 #[test]
@@ -725,10 +698,7 @@ def test_str():
     println!("Generated string.replace() code:\n{}", rust_code);
 
     // Should generate .replace() method
-    assert!(
-        rust_code.contains(".replace("),
-        "str.replace() should transpile to .replace()"
-    );
+    assert!(rust_code.contains(".replace("), "str.replace() should transpile to .replace()");
 }
 
 #[test]
@@ -745,10 +715,7 @@ def test_str():
     println!("Generated string.strip() code:\n{}", rust_code);
 
     // Should generate .trim() method
-    assert!(
-        rust_code.contains(".trim()"),
-        "str.strip() should transpile to .trim()"
-    );
+    assert!(rust_code.contains(".trim()"), "str.strip() should transpile to .trim()");
 }
 
 #[test]
@@ -785,10 +752,7 @@ def test_str():
     println!("Generated string.endswith() code:\n{}", rust_code);
 
     // Should generate .ends_with() method
-    assert!(
-        rust_code.contains(".ends_with("),
-        "str.endswith() should transpile to .ends_with()"
-    );
+    assert!(rust_code.contains(".ends_with("), "str.endswith() should transpile to .ends_with()");
 }
 
 #[test]
@@ -805,10 +769,7 @@ def test_dict():
     println!("Generated dict.keys() code:\n{}", rust_code);
 
     // Should generate .keys() method
-    assert!(
-        rust_code.contains(".keys()"),
-        "dict.keys() should transpile to .keys()"
-    );
+    assert!(rust_code.contains(".keys()"), "dict.keys() should transpile to .keys()");
 }
 
 #[test]
@@ -825,10 +786,7 @@ def test_dict():
     println!("Generated dict.values() code:\n{}", rust_code);
 
     // Should generate .values() method
-    assert!(
-        rust_code.contains(".values()"),
-        "dict.values() should transpile to .values()"
-    );
+    assert!(rust_code.contains(".values()"), "dict.values() should transpile to .values()");
 }
 
 #[test]
@@ -868,10 +826,7 @@ def test_list():
     println!("Generated list.extend() code:\n{}", rust_code);
 
     // Should generate .extend() for list.extend()
-    assert!(
-        rust_code.contains(".extend("),
-        "list.extend() should transpile to .extend()"
-    );
+    assert!(rust_code.contains(".extend("), "list.extend() should transpile to .extend()");
 }
 
 #[test]
@@ -910,10 +865,7 @@ def test_list():
     println!("Generated list.pop(1) code:\n{}", rust_code);
 
     // Should generate .remove(index) for list.pop(i)
-    assert!(
-        rust_code.contains(".remove("),
-        "list.pop(index) should transpile to .remove(index)"
-    );
+    assert!(rust_code.contains(".remove("), "list.pop(index) should transpile to .remove(index)");
 }
 
 #[test]
@@ -931,10 +883,7 @@ def test_list():
     println!("Generated list.clear() code:\n{}", rust_code);
 
     // Should generate .clear() for list.clear()
-    assert!(
-        rust_code.contains(".clear()"),
-        "list.clear() should transpile to .clear()"
-    );
+    assert!(rust_code.contains(".clear()"), "list.clear() should transpile to .clear()");
 }
 
 #[test]
@@ -955,10 +904,7 @@ def get_x(p: Point) -> int:
     println!("Generated attribute access code:\n{}", rust_code);
 
     // Should generate field access syntax
-    assert!(
-        rust_code.contains(".x"),
-        "Attribute access p.x should transpile to .x field access"
-    );
+    assert!(rust_code.contains(".x"), "Attribute access p.x should transpile to .x field access");
 }
 
 #[test]
@@ -1095,10 +1041,7 @@ def check_output(result):
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!(
-        "Generated string attribute containment code:\n{}",
-        rust_code
-    );
+    println!("Generated string attribute containment code:\n{}", rust_code);
 
     // Should use .contains() for string containment, NOT .get().is_some()
     assert!(

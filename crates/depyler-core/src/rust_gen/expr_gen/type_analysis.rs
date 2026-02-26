@@ -104,10 +104,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Arithmetic operations between integers return integers
                 // (Add, Sub, Mul produce Int if both operands are Int)
                 // Division in Python returns Float, so we don't include Div
-                if matches!(
-                    op,
-                    BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv
-                ) {
+                if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv)
+                {
                     self.is_int_expr(left) && self.is_int_expr(right)
                 } else {
                     false
@@ -272,10 +270,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Variables like output_path that are created from PathBuf::from() are NOT Option-typed
             // This heuristic should only apply to function parameters that might be optional
             // Removed output_path as it's commonly a local PathBuf variable, not an Optional parameter
-            if matches!(
-                var_name.as_str(),
-                "output_file" | "out_file" | "outfile" | "out_path"
-            ) && self.ctx.fn_str_params.contains(var_name.as_str())
+            if matches!(var_name.as_str(), "output_file" | "out_file" | "outfile" | "out_path")
+                && self.ctx.fn_str_params.contains(var_name.as_str())
             {
                 return parse_quote! { #path_expr.as_ref().expect("value is None") };
             }
@@ -283,6 +279,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Fall back to standard borrow
         Self::borrow_if_needed(path_expr)
     }
-
-
 }

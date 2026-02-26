@@ -83,8 +83,7 @@ impl CodePathCoverageAnalyzer {
                 .collect(),
         };
 
-        self.coverage_data
-            .insert(test_name.to_string(), coverage_data.clone());
+        self.coverage_data.insert(test_name.to_string(), coverage_data.clone());
         coverage_data
     }
 
@@ -124,8 +123,7 @@ impl CodePathCoverageAnalyzer {
             branch_conditions: conditions,
         };
 
-        self.branch_coverage
-            .insert(test_name.to_string(), branch_data.clone());
+        self.branch_coverage.insert(test_name.to_string(), branch_data.clone());
         branch_data
     }
 
@@ -145,34 +143,17 @@ impl CodePathCoverageAnalyzer {
     pub fn get_coverage_report(&self) -> CoverageReport {
         let total_tests = self.coverage_data.len();
         let total_paths: usize = self.coverage_data.values().map(|d| d.total_paths).sum();
-        let total_covered: usize = self
-            .coverage_data
-            .values()
-            .map(|d| d.covered_paths.len())
-            .sum();
+        let total_covered: usize = self.coverage_data.values().map(|d| d.covered_paths.len()).sum();
 
-        let average_path_coverage = if total_paths > 0 {
-            total_covered as f64 / total_paths as f64
-        } else {
-            0.0
-        };
+        let average_path_coverage =
+            if total_paths > 0 { total_covered as f64 / total_paths as f64 } else { 0.0 };
 
-        let total_branches: usize = self
-            .branch_coverage
-            .values()
-            .map(|d| d.total_branches)
-            .sum();
-        let total_taken: usize = self
-            .branch_coverage
-            .values()
-            .map(|d| d.taken_branches.len())
-            .sum();
+        let total_branches: usize = self.branch_coverage.values().map(|d| d.total_branches).sum();
+        let total_taken: usize =
+            self.branch_coverage.values().map(|d| d.taken_branches.len()).sum();
 
-        let average_branch_coverage = if total_branches > 0 {
-            total_taken as f64 / total_branches as f64
-        } else {
-            0.0
-        };
+        let average_branch_coverage =
+            if total_branches > 0 { total_taken as f64 / total_branches as f64 } else { 0.0 };
 
         CoverageReport {
             total_tests,
@@ -209,11 +190,7 @@ impl CodePathCoverageAnalyzer {
 
     fn simulate_path_execution(&self, paths: &[String]) -> HashSet<String> {
         // Simulate executing most paths (in real implementation, this would use actual execution)
-        paths
-            .iter()
-            .take(paths.len().saturating_sub(1))
-            .cloned()
-            .collect()
+        paths.iter().take(paths.len().saturating_sub(1)).cloned().collect()
     }
 
     fn identify_branches(&self, code: &str) -> Vec<String> {
@@ -251,11 +228,7 @@ impl CodePathCoverageAnalyzer {
 
     fn simulate_branch_execution(&self, branches: &[String]) -> HashSet<String> {
         // Simulate taking most branches
-        branches
-            .iter()
-            .take((branches.len() * 3) / 4)
-            .cloned()
-            .collect()
+        branches.iter().take((branches.len() * 3) / 4).cloned().collect()
     }
 }
 
@@ -307,10 +280,7 @@ impl MutationCoverageIntegration {
     /// assert!(result.fault_detection_rate <= 1.0);
     /// ```
     pub fn new() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            mutation_results: HashMap::new(),
-        }
+        Self { pipeline: DepylerPipeline::new(), mutation_results: HashMap::new() }
     }
 
     /// Analyzes mutation coverage and fault detection capabilities
@@ -325,11 +295,8 @@ impl MutationCoverageIntegration {
 
         let total_mutations = mutations.len();
         let coverage_impact = self.calculate_coverage_impact(&mutations);
-        let fault_detection_rate = if total_mutations > 0 {
-            killed as f64 / total_mutations as f64
-        } else {
-            0.0
-        };
+        let fault_detection_rate =
+            if total_mutations > 0 { killed as f64 / total_mutations as f64 } else { 0.0 };
 
         let result = MutationCoverageResult {
             total_mutations,
@@ -339,36 +306,22 @@ impl MutationCoverageIntegration {
             fault_detection_rate,
         };
 
-        self.mutation_results
-            .insert(test_name.to_string(), result.clone());
+        self.mutation_results.insert(test_name.to_string(), result.clone());
         result
     }
 
     /// Gets mutation coverage summary for all tests
     pub fn get_mutation_summary(&self) -> MutationSummary {
         let total_tests = self.mutation_results.len();
-        let total_mutations: usize = self
-            .mutation_results
-            .values()
-            .map(|r| r.total_mutations)
-            .sum();
-        let total_killed: usize = self
-            .mutation_results
-            .values()
-            .map(|r| r.killed_mutations)
-            .sum();
+        let total_mutations: usize =
+            self.mutation_results.values().map(|r| r.total_mutations).sum();
+        let total_killed: usize = self.mutation_results.values().map(|r| r.killed_mutations).sum();
 
-        let overall_detection_rate = if total_mutations > 0 {
-            total_killed as f64 / total_mutations as f64
-        } else {
-            0.0
-        };
+        let overall_detection_rate =
+            if total_mutations > 0 { total_killed as f64 / total_mutations as f64 } else { 0.0 };
 
         let average_coverage_impact: f64 = if total_tests > 0 {
-            self.mutation_results
-                .values()
-                .map(|r| r.coverage_impact)
-                .sum::<f64>()
+            self.mutation_results.values().map(|r| r.coverage_impact).sum::<f64>()
                 / total_tests as f64
         } else {
             0.0
@@ -596,10 +549,7 @@ impl ConcurrencyTester {
         };
 
         let thread_safety_percentage = if total_tests > 0 {
-            results
-                .values()
-                .filter(|r| r.thread_safety_validated)
-                .count() as f64
+            results.values().filter(|r| r.thread_safety_validated).count() as f64
                 / total_tests as f64
         } else {
             0.0
@@ -659,10 +609,7 @@ impl ResourceExhaustionTester {
     /// assert!(result.graceful_degradation || result.failure_threshold.is_some());
     /// ```
     pub fn new() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            exhaustion_results: HashMap::new(),
-        }
+        Self { pipeline: DepylerPipeline::new(), exhaustion_results: HashMap::new() }
     }
 
     /// Tests memory exhaustion scenarios
@@ -715,8 +662,7 @@ impl ResourceExhaustionTester {
             recovery_successful,
         };
 
-        self.exhaustion_results
-            .insert(test_name.to_string(), result.clone());
+        self.exhaustion_results.insert(test_name.to_string(), result.clone());
         result
     }
 
@@ -776,36 +722,23 @@ impl ResourceExhaustionTester {
             recovery_successful,
         };
 
-        self.exhaustion_results
-            .insert(test_name.to_string(), result.clone());
+        self.exhaustion_results.insert(test_name.to_string(), result.clone());
         result
     }
 
     /// Gets resource exhaustion summary
     pub fn get_exhaustion_summary(&self) -> ExhaustionSummary {
         let total_tests = self.exhaustion_results.len();
-        let graceful_count = self
-            .exhaustion_results
-            .values()
-            .filter(|r| r.graceful_degradation)
-            .count();
-        let recovery_count = self
-            .exhaustion_results
-            .values()
-            .filter(|r| r.recovery_successful)
-            .count();
+        let graceful_count =
+            self.exhaustion_results.values().filter(|r| r.graceful_degradation).count();
+        let recovery_count =
+            self.exhaustion_results.values().filter(|r| r.recovery_successful).count();
 
-        let graceful_degradation_rate = if total_tests > 0 {
-            graceful_count as f64 / total_tests as f64
-        } else {
-            0.0
-        };
+        let graceful_degradation_rate =
+            if total_tests > 0 { graceful_count as f64 / total_tests as f64 } else { 0.0 };
 
-        let recovery_rate = if total_tests > 0 {
-            recovery_count as f64 / total_tests as f64
-        } else {
-            0.0
-        };
+        let recovery_rate =
+            if total_tests > 0 { recovery_count as f64 / total_tests as f64 } else { 0.0 };
 
         ExhaustionSummary {
             total_tests,
@@ -1170,10 +1103,7 @@ def complex_logic(x: int, y: int) -> str:
         let exhaustion_summary = exhaustion_tester.get_exhaustion_summary();
 
         println!("Comprehensive Coverage Summary:");
-        println!(
-            "  Path Coverage: {:.1}% average",
-            path_report.average_path_coverage * 100.0
-        );
+        println!("  Path Coverage: {:.1}% average", path_report.average_path_coverage * 100.0);
         println!(
             "  Mutation Detection: {:.1}% overall",
             mutation_summary.overall_detection_rate * 100.0
@@ -1182,10 +1112,7 @@ def complex_logic(x: int, y: int) -> str:
             "  Thread Safety: {:.1}% validated",
             concurrency_summary.thread_safety_percentage * 100.0
         );
-        println!(
-            "  Recovery Rate: {:.1}% successful",
-            exhaustion_summary.recovery_rate * 100.0
-        );
+        println!("  Recovery Rate: {:.1}% successful", exhaustion_summary.recovery_rate * 100.0);
 
         // All coverage metrics should show meaningful results
         assert!(path_report.average_path_coverage > 0.0);

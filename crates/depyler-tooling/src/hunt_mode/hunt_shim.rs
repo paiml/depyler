@@ -113,12 +113,7 @@ pub struct WhyAnalysis {
 
 impl WhyAnalysis {
     pub fn new(level: u8, question: impl Into<String>, answer: impl Into<String>) -> Self {
-        Self {
-            level,
-            question: question.into(),
-            answer: answer.into(),
-            is_root_cause: false,
-        }
+        Self { level, question: question.into(), answer: answer.into(), is_root_cause: false }
     }
 
     pub fn mark_root_cause(mut self) -> Self {
@@ -207,12 +202,7 @@ pub struct ErrorClusterStats {
 
 impl ErrorClusterStats {
     pub fn new(pattern_class: PatternClass) -> Self {
-        Self {
-            pattern_class,
-            count: 0,
-            sample_codes: Vec::new(),
-            affected_files: Vec::new(),
-        }
+        Self { pattern_class, count: 0, sample_codes: Vec::new(), affected_files: Vec::new() }
     }
 
     pub fn add_occurrence(&mut self, code: &str, file: &str) {
@@ -240,9 +230,7 @@ pub fn cluster_errors(
 
     for (code, _message, file) in errors {
         let class = PatternClass::from_error_code(code);
-        let stats = clusters
-            .entry(class.clone())
-            .or_insert_with(|| ErrorClusterStats::new(class));
+        let stats = clusters.entry(class.clone()).or_insert_with(|| ErrorClusterStats::new(class));
         stats.add_occurrence(code, file);
     }
 
@@ -254,9 +242,7 @@ pub fn select_priority_cluster(
     clusters: &HashMap<PatternClass, ErrorClusterStats>,
 ) -> Option<&ErrorClusterStats> {
     clusters.values().max_by(|a, b| {
-        a.priority_score()
-            .partial_cmp(&b.priority_score())
-            .unwrap_or(std::cmp::Ordering::Equal)
+        a.priority_score().partial_cmp(&b.priority_score()).unwrap_or(std::cmp::Ordering::Equal)
     })
 }
 
@@ -266,34 +252,13 @@ mod tests {
 
     #[test]
     fn test_pattern_class_from_error_code() {
-        assert_eq!(
-            PatternClass::from_error_code("E0308"),
-            PatternClass::TypeMismatch
-        );
-        assert_eq!(
-            PatternClass::from_error_code("E0412"),
-            PatternClass::MissingImport
-        );
-        assert_eq!(
-            PatternClass::from_error_code("E0502"),
-            PatternClass::BorrowError
-        );
-        assert_eq!(
-            PatternClass::from_error_code("E0106"),
-            PatternClass::LifetimeError
-        );
-        assert_eq!(
-            PatternClass::from_error_code("E0277"),
-            PatternClass::TraitBound
-        );
-        assert_eq!(
-            PatternClass::from_error_code("E0061"),
-            PatternClass::SyntaxError
-        );
-        assert_eq!(
-            PatternClass::from_error_code("E9999"),
-            PatternClass::Unknown
-        );
+        assert_eq!(PatternClass::from_error_code("E0308"), PatternClass::TypeMismatch);
+        assert_eq!(PatternClass::from_error_code("E0412"), PatternClass::MissingImport);
+        assert_eq!(PatternClass::from_error_code("E0502"), PatternClass::BorrowError);
+        assert_eq!(PatternClass::from_error_code("E0106"), PatternClass::LifetimeError);
+        assert_eq!(PatternClass::from_error_code("E0277"), PatternClass::TraitBound);
+        assert_eq!(PatternClass::from_error_code("E0061"), PatternClass::SyntaxError);
+        assert_eq!(PatternClass::from_error_code("E9999"), PatternClass::Unknown);
     }
 
     #[test]
@@ -424,16 +389,8 @@ mod tests {
     #[test]
     fn test_cluster_errors() {
         let errors = vec![
-            (
-                "E0308".to_string(),
-                "mismatch".to_string(),
-                "a.rs".to_string(),
-            ),
-            (
-                "E0308".to_string(),
-                "mismatch".to_string(),
-                "b.rs".to_string(),
-            ),
+            ("E0308".to_string(), "mismatch".to_string(), "a.rs".to_string()),
+            ("E0308".to_string(), "mismatch".to_string(), "b.rs".to_string()),
             ("E0277".to_string(), "trait".to_string(), "c.rs".to_string()),
         ];
 
@@ -446,16 +403,8 @@ mod tests {
     #[test]
     fn test_select_priority_cluster() {
         let errors = vec![
-            (
-                "E0308".to_string(),
-                "mismatch".to_string(),
-                "a.rs".to_string(),
-            ),
-            (
-                "E0308".to_string(),
-                "mismatch".to_string(),
-                "b.rs".to_string(),
-            ),
+            ("E0308".to_string(), "mismatch".to_string(), "a.rs".to_string()),
+            ("E0308".to_string(), "mismatch".to_string(), "b.rs".to_string()),
             ("E0277".to_string(), "trait".to_string(), "c.rs".to_string()),
         ];
 

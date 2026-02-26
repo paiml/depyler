@@ -379,11 +379,8 @@ fn generate_generator_body(
     use crate::rust_gen::RustCodeGen;
 
     ctx.in_generator = true;
-    let generator_body_stmts: Vec<_> = func
-        .body
-        .iter()
-        .map(|stmt| stmt.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let generator_body_stmts: Vec<_> =
+        func.body.iter().map(|stmt| stmt.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.in_generator = false;
     ctx.generator_state_vars.clear();
     ctx.generator_iterator_state_vars.clear();
@@ -575,11 +572,7 @@ fn extract_loop_info(func: &HirFunction) -> Result<LoopInfo> {
         }
     }
 
-    Ok(LoopInfo {
-        pre_loop_stmts,
-        condition,
-        body_stmts,
-    })
+    Ok(LoopInfo { pre_loop_stmts, condition, body_stmts })
 }
 
 /// Loop information structure
@@ -707,10 +700,7 @@ pub fn codegen_generator_function(
     populate_generator_state_vars(ctx, &state_info, func);
 
     // DEPYLER-0262 Phase 3B: Check if we have simple loop with yield pattern
-    let has_while_loop = func
-        .body
-        .iter()
-        .any(|stmt| matches!(stmt, HirStmt::While { .. }));
+    let has_while_loop = func.body.iter().any(|stmt| matches!(stmt, HirStmt::While { .. }));
     let has_loop_yields =
         yield_analysis.has_yields() && yield_analysis.yield_points.iter().any(|yp| yp.depth > 0);
 
@@ -824,10 +814,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_depyler_0259_multiple_words_naming() {
-        let input_name = syn::Ident::new(
-            "fibonacci_generator_with_memo",
-            proc_macro2::Span::call_site(),
-        );
+        let input_name =
+            syn::Ident::new("fibonacci_generator_with_memo", proc_macro2::Span::call_site());
         let result = generate_state_struct_name(&input_name);
         assert_eq!(result.to_string(), "FibonacciGeneratorWithMemoState");
     }
@@ -1127,11 +1115,7 @@ mod tests {
 
     #[test]
     fn test_infer_yield_type_call() {
-        let expr = HirExpr::Call {
-            func: "foo".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "foo".to_string(), args: vec![], kwargs: vec![] };
         let result = infer_yield_type(&expr);
         // Calls default to String
         assert!(matches!(result, Type::String));
@@ -1218,10 +1202,7 @@ mod tests {
         use crate::generator_state::StateVariable;
         let mut ctx = CodeGenContext::default();
         let state_info = GeneratorStateInfo {
-            state_variables: vec![StateVariable {
-                name: "counter".to_string(),
-                ty: Type::Int,
-            }],
+            state_variables: vec![StateVariable { name: "counter".to_string(), ty: Type::Int }],
             captured_params: vec![],
             yield_count: 1,
             has_loops: false,
@@ -1252,14 +1233,8 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         let state_info = GeneratorStateInfo {
             state_variables: vec![
-                StateVariable {
-                    name: "i".to_string(),
-                    ty: Type::Int,
-                },
-                StateVariable {
-                    name: "acc".to_string(),
-                    ty: Type::Float,
-                },
+                StateVariable { name: "i".to_string(), ty: Type::Int },
+                StateVariable { name: "acc".to_string(), ty: Type::Float },
             ],
             captured_params: vec!["start".to_string()],
             yield_count: 2,
@@ -1279,10 +1254,7 @@ mod tests {
         ctx.generator_state_vars.insert("old_var".to_string());
 
         let state_info = GeneratorStateInfo {
-            state_variables: vec![StateVariable {
-                name: "new_var".to_string(),
-                ty: Type::Int,
-            }],
+            state_variables: vec![StateVariable { name: "new_var".to_string(), ty: Type::Int }],
             captured_params: vec![],
             yield_count: 1,
             has_loops: false,
@@ -1471,10 +1443,8 @@ mod tests {
         use crate::type_mapper::TypeMapper;
         use rustpython_parser::{parse, Mode};
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -1494,11 +1464,7 @@ mod tests {
     fn test_transpile_simple_yield_generates_state_struct() {
         let code = "def gen():\n    yield 1";
         let rust = transpile(code);
-        assert!(
-            rust.contains("GenState"),
-            "should create PascalCase state struct: got {}",
-            rust
-        );
+        assert!(rust.contains("GenState"), "should create PascalCase state struct: got {}", rust);
         assert!(rust.contains("state:"), "state struct should have state field");
     }
 
@@ -1533,33 +1499,21 @@ mod tests {
             "multiple yields should produce state machine: got {}",
             rust
         );
-        assert!(
-            rust.contains("match"),
-            "state machine should use match: got {}",
-            rust
-        );
+        assert!(rust.contains("match"), "state machine should use match: got {}", rust);
     }
 
     #[test]
     fn test_transpile_multiple_yields_returns_none_when_exhausted() {
         let code = "def gen():\n    yield 1\n    yield 2";
         let rust = transpile(code);
-        assert!(
-            rust.contains("None"),
-            "exhausted generator should return None: got {}",
-            rust
-        );
+        assert!(rust.contains("None"), "exhausted generator should return None: got {}", rust);
     }
 
     #[test]
     fn test_transpile_yield_produces_some() {
         let code = "def gen():\n    yield 10";
         let rust = transpile(code);
-        assert!(
-            rust.contains("Some("),
-            "yield should produce Some(...): got {}",
-            rust
-        );
+        assert!(rust.contains("Some("), "yield should produce Some(...): got {}", rust);
     }
 
     // --- Yield from ---
@@ -1669,27 +1623,15 @@ mod tests {
         let code =
             "def gen(n: int):\n    total = 0\n    for i in range(n):\n        total += i\n        yield total";
         let rust = transpile(code);
-        assert!(
-            rust.contains("GenState"),
-            "generator should create state struct: got {}",
-            rust
-        );
-        assert!(
-            rust.contains("impl Iterator"),
-            "should implement Iterator: got {}",
-            rust
-        );
+        assert!(rust.contains("GenState"), "generator should create state struct: got {}", rust);
+        assert!(rust.contains("impl Iterator"), "should implement Iterator: got {}", rust);
     }
 
     #[test]
     fn test_transpile_generator_fibonacci() {
         let code = "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b";
         let rust = transpile(code);
-        assert!(
-            rust.contains("FibState"),
-            "fibonacci gen should produce FibState: got {}",
-            rust
-        );
+        assert!(rust.contains("FibState"), "fibonacci gen should produce FibState: got {}", rust);
     }
 
     // --- Generator with while loops ---
@@ -1715,11 +1657,7 @@ mod tests {
             "infinite gen should produce CountState: got {}",
             rust
         );
-        assert!(
-            rust.contains("impl Iterator"),
-            "should implement Iterator: got {}",
-            rust
-        );
+        assert!(rust.contains("impl Iterator"), "should implement Iterator: got {}", rust);
     }
 
     // --- Generator with parameters ---
@@ -1830,14 +1768,9 @@ mod tests {
 
     #[test]
     fn test_transpile_iterator_str_return_type() {
-        let code =
-            "from typing import Iterator\n\ndef gen() -> Iterator[str]:\n    yield 'hello'";
+        let code = "from typing import Iterator\n\ndef gen() -> Iterator[str]:\n    yield 'hello'";
         let rust = transpile(code);
-        assert!(
-            rust.contains("String"),
-            "Iterator[str] should produce String type: got {}",
-            rust
-        );
+        assert!(rust.contains("String"), "Iterator[str] should produce String type: got {}", rust);
     }
 
     // --- State struct naming ---
@@ -1857,11 +1790,7 @@ mod tests {
     fn test_transpile_single_word_generator_name() {
         let code = "def counter():\n    yield 1";
         let rust = transpile(code);
-        assert!(
-            rust.contains("CounterState"),
-            "single word should be PascalCased: got {}",
-            rust
-        );
+        assert!(rust.contains("CounterState"), "single word should be PascalCased: got {}", rust);
     }
 
     // --- StopIteration handling ---
@@ -1884,11 +1813,7 @@ mod tests {
     fn test_transpile_generator_with_break() {
         let code = "def gen(n: int):\n    for i in range(100):\n        if i >= n:\n            break\n        yield i";
         let rust = transpile(code);
-        assert!(
-            rust.contains("break"),
-            "generator with break should preserve break: got {}",
-            rust
-        );
+        assert!(rust.contains("break"), "generator with break should preserve break: got {}", rust);
     }
 
     // --- Generator consuming ---
@@ -1921,11 +1846,7 @@ mod tests {
     fn test_transpile_generator_public_fn() {
         let code = "def gen():\n    yield 1";
         let rust = transpile(code);
-        assert!(
-            rust.contains("pub fn gen"),
-            "generator function should be public: got {}",
-            rust
-        );
+        assert!(rust.contains("pub fn gen"), "generator function should be public: got {}", rust);
     }
 
     #[test]
@@ -1958,11 +1879,7 @@ mod tests {
     fn test_transpile_yield_none() {
         let code = "def gen():\n    yield None";
         let rust = transpile(code);
-        assert!(
-            rust.contains("None"),
-            "yield None should produce None in output: got {}",
-            rust
-        );
+        assert!(rust.contains("None"), "yield None should produce None in output: got {}", rust);
     }
 
     // --- Yield expression ---
@@ -1971,11 +1888,7 @@ mod tests {
     fn test_transpile_yield_binary_expression() {
         let code = "def gen(a: int, b: int):\n    yield a + b";
         let rust = transpile(code);
-        assert!(
-            rust.contains("+"),
-            "yield a+b should preserve addition: got {}",
-            rust
-        );
+        assert!(rust.contains("+"), "yield a+b should preserve addition: got {}", rust);
     }
 
     // --- Generator with list state ---

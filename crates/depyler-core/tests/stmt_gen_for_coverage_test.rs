@@ -400,16 +400,8 @@ def nested_sum(matrix: list[list[int]]) -> int:
 /// Property: All documented string patterns should use .chars()
 #[test]
 fn test_property_string_patterns() {
-    let string_names = vec![
-        "s",
-        "string",
-        "text",
-        "word",
-        "line",
-        "str_data",
-        "input_str",
-        "text_input",
-    ];
+    let string_names =
+        vec!["s", "string", "text", "word", "line", "str_data", "input_str", "text_input"];
 
     let pipeline = DepylerPipeline::new();
 

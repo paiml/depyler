@@ -70,11 +70,7 @@ def get_headers(filepath):
     // Should handle Result from headers()
     let has_result_handling =
         rust_code.contains("headers()?") || rust_code.contains("headers().unwrap()");
-    assert!(
-        has_result_handling,
-        "Expected Result handling for headers(). Got:\n{}",
-        rust_code
-    );
+    assert!(has_result_handling, "Expected Result handling for headers(). Got:\n{}", rust_code);
 }
 
 // ====================================================================================
@@ -107,11 +103,7 @@ def print_rows(filepath):
     // Should handle Result from deserialize iteration
     let has_result_handling =
         rust_code.contains("result?") || rust_code.contains("result.unwrap()");
-    assert!(
-        has_result_handling,
-        "Expected Result handling in iteration. Got:\n{}",
-        rust_code
-    );
+    assert!(has_result_handling, "Expected Result handling in iteration. Got:\n{}", rust_code);
 
     // Should NOT use incorrect .iter() method
     assert_not_contains(&rust_code, "reader.iter()");
@@ -158,11 +150,7 @@ def filter_csv(filepath, column, value):
 
     // Should collect results into Vec
     let has_collect = rust_code.contains(".collect()") || rust_code.contains("results.push(");
-    assert!(
-        has_collect,
-        "Expected collect() or push() for results. Got:\n{}",
-        rust_code
-    );
+    assert!(has_collect, "Expected collect() or push() for results. Got:\n{}", rust_code);
 }
 
 // ====================================================================================
@@ -202,11 +190,7 @@ def filter_csv_generator(filepath, column, value):
 
     // Should use filter pattern for filtering rows
     let has_filter = rust_code.contains(".filter(") || rust_code.contains("if ");
-    assert!(
-        has_filter,
-        "Expected filter pattern for list comprehension. Got:\n{}",
-        rust_code
-    );
+    assert!(has_filter, "Expected filter pattern for list comprehension. Got:\n{}", rust_code);
 
     // Should handle HashMap for DictReader rows
     assert_contains(&rust_code, "HashMap");
@@ -245,11 +229,7 @@ def filter_and_map_csv(filepath):
 
     // Should handle Result type from deserialize iterator
     let has_result_handling = rust_code.contains("?") || rust_code.contains(".unwrap()");
-    assert!(
-        has_result_handling,
-        "Expected Result handling. Got:\n{}",
-        rust_code
-    );
+    assert!(has_result_handling, "Expected Result handling. Got:\n{}", rust_code);
 }
 
 // ====================================================================================
@@ -281,11 +261,7 @@ def read_lines(filepath):
         || rust_code.contains("line?")
         || rust_code.contains(".unwrap()")
         || rust_code.contains(".unwrap_or_default()");
-    assert!(
-        has_result_handling,
-        "Expected Result handling for lines(). Got:\n{}",
-        rust_code
-    );
+    assert!(has_result_handling, "Expected Result handling for lines(). Got:\n{}", rust_code);
 
     // Should use proper file iteration pattern (not File.iter())
     let has_proper_iteration = rust_code.contains(".lines()") || rust_code.contains("BufReader");

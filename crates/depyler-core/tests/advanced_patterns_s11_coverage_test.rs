@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -62,11 +60,7 @@ def unique_vals(items: list) -> set:
     return {x for x in items}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn unique_vals"),
-        "Should transpile set comp. Got: {}",
-        result
-    );
+    assert!(result.contains("fn unique_vals"), "Should transpile set comp. Got: {}", result);
 }
 
 #[test]
@@ -94,11 +88,7 @@ def flatten(matrix: list) -> list:
     return [x for row in matrix for x in row]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn flatten"),
-        "Should transpile nested list comp. Got: {}",
-        result
-    );
+    assert!(result.contains("fn flatten"), "Should transpile nested list comp. Got: {}", result);
 }
 
 #[test]
@@ -148,11 +138,7 @@ def find_max(items: list) -> int:
     return best
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_max"),
-        "Should transpile return after loop. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_max"), "Should transpile return after loop. Got: {}", result);
 }
 
 // ============================================================================
@@ -219,11 +205,7 @@ def sum_even(n: int) -> int:
     return sum(x for x in range(n) if x % 2 == 0)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sum_even"),
-        "Should transpile generator with sum. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sum_even"), "Should transpile generator with sum. Got: {}", result);
 }
 
 #[test]
@@ -283,11 +265,7 @@ def clean_text(text: str) -> str:
     return result.strip()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("replace"),
-        "Should transpile multiple replace. Got: {}",
-        result
-    );
+    assert!(result.contains("replace"), "Should transpile multiple replace. Got: {}", result);
 }
 
 #[test]
@@ -297,11 +275,7 @@ def to_csv(items: list) -> str:
     return ",".join(str(x) for x in items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_csv"),
-        "Should transpile join with generator. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_csv"), "Should transpile join with generator. Got: {}", result);
 }
 
 // ============================================================================
@@ -317,11 +291,7 @@ def factorial(n: int) -> int:
     return n * factorial(n - 1)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("factorial"),
-        "Should transpile recursive factorial. Got: {}",
-        result
-    );
+    assert!(result.contains("factorial"), "Should transpile recursive factorial. Got: {}", result);
 }
 
 #[test]
@@ -358,11 +328,7 @@ def safe_parse(data: str) -> int:
         return -2
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_parse"),
-        "Should transpile try with returns. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_parse"), "Should transpile try with returns. Got: {}", result);
 }
 
 #[test]
@@ -380,11 +346,7 @@ def robust_process(data: str) -> str:
         return ""
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn robust_process"),
-        "Should transpile nested try. Got: {}",
-        result
-    );
+    assert!(result.contains("fn robust_process"), "Should transpile nested try. Got: {}", result);
 }
 
 // ============================================================================
@@ -400,11 +362,7 @@ def process(items: list) -> int:
     return sum(doubled)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should transpile map/filter/reduce. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should transpile map/filter/reduce. Got: {}", result);
 }
 
 #[test]
@@ -462,11 +420,7 @@ def transpose(matrix: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn transpose"),
-        "Should transpile matrix transpose. Got: {}",
-        result
-    );
+    assert!(result.contains("fn transpose"), "Should transpile matrix transpose. Got: {}", result);
 }
 
 #[test]
@@ -502,11 +456,7 @@ def sort_pair(a: int, b: int) -> tuple:
     return (a, b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sort_pair"),
-        "Should transpile variable swap. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sort_pair"), "Should transpile variable swap. Got: {}", result);
 }
 
 #[test]
@@ -540,11 +490,7 @@ def sign(x: int) -> int:
     return 1 if x > 0 else (-1 if x < 0 else 0)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sign"),
-        "Should transpile nested ternary. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sign"), "Should transpile nested ternary. Got: {}", result);
 }
 
 #[test]
@@ -578,11 +524,7 @@ def dedup(items: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn dedup"),
-        "Should transpile dedup pattern. Got: {}",
-        result
-    );
+    assert!(result.contains("fn dedup"), "Should transpile dedup pattern. Got: {}", result);
 }
 
 #[test]
@@ -597,11 +539,7 @@ def merge(a: dict, b: dict) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn merge"),
-        "Should transpile dict merge. Got: {}",
-        result
-    );
+    assert!(result.contains("fn merge"), "Should transpile dict merge. Got: {}", result);
 }
 
 // ============================================================================
@@ -633,11 +571,7 @@ def clamp_byte(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("255"),
-        "Should transpile integer bounds. Got: {}",
-        result
-    );
+    assert!(result.contains("255"), "Should transpile integer bounds. Got: {}", result);
 }
 
 // ============================================================================
@@ -664,11 +598,7 @@ def rle(text: str) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn rle"),
-        "Should transpile run-length encoding. Got: {}",
-        result
-    );
+    assert!(result.contains("fn rle"), "Should transpile run-length encoding. Got: {}", result);
 }
 
 #[test]
@@ -686,9 +616,5 @@ def two_sum(nums: list, target: int) -> Optional[Tuple[int, int]]:
     return None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn two_sum"),
-        "Should transpile two-sum. Got: {}",
-        result
-    );
+    assert!(result.contains("fn two_sum"), "Should transpile two-sum. Got: {}", result);
 }

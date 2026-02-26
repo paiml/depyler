@@ -81,10 +81,7 @@ pub fn is_int_expr(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
         // Binary operations on integers produce integers
         HirExpr::Binary { left, right, op } => {
             // Division in Python returns Float, so we don't include Div
-            if matches!(
-                op,
-                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv
-            ) {
+            if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv) {
                 is_int_expr(left, var_types) && is_int_expr(right, var_types)
             } else {
                 false
@@ -126,10 +123,7 @@ pub fn expr_returns_float(expr: &HirExpr, var_types: &HashMap<String, Type>) -> 
         HirExpr::Unary { operand, .. } => expr_returns_float(operand, var_types),
         HirExpr::Call { func, .. } => {
             // Math functions typically return float
-            matches!(
-                func.as_str(),
-                "sin" | "cos" | "tan" | "sqrt" | "log" | "exp" | "pow" | "abs"
-            )
+            matches!(func.as_str(), "sin" | "cos" | "tan" | "sqrt" | "log" | "exp" | "pow" | "abs")
         }
         _ => false,
     }
@@ -205,10 +199,7 @@ mod tests {
     #[test]
     fn test_is_int_var_not_in_map() {
         let var_types = make_var_types();
-        assert!(!is_int_var(
-            &HirExpr::Var("unknown".to_string()),
-            &var_types
-        ));
+        assert!(!is_int_var(&HirExpr::Var("unknown".to_string()), &var_types));
     }
 
     #[test]
@@ -234,10 +225,7 @@ mod tests {
     #[test]
     fn test_is_float_var_type_custom_f64() {
         let var_types = make_var_types();
-        assert!(is_float_var(
-            &HirExpr::Var("f64_var".to_string()),
-            &var_types
-        ));
+        assert!(is_float_var(&HirExpr::Var("f64_var".to_string()), &var_types));
     }
 
     #[test]
@@ -262,10 +250,7 @@ mod tests {
     #[test]
     fn test_is_float_var_heuristic_lr() {
         let var_types = HashMap::new();
-        assert!(is_float_var(
-            &HirExpr::Var("learning_lr".to_string()),
-            &var_types
-        ));
+        assert!(is_float_var(&HirExpr::Var("learning_lr".to_string()), &var_types));
     }
 
     #[test]
@@ -277,19 +262,13 @@ mod tests {
     #[test]
     fn test_is_float_var_heuristic_rate() {
         let var_types = HashMap::new();
-        assert!(is_float_var(
-            &HirExpr::Var("rate_decay".to_string()),
-            &var_types
-        ));
+        assert!(is_float_var(&HirExpr::Var("rate_decay".to_string()), &var_types));
     }
 
     #[test]
     fn test_is_float_var_heuristic_momentum() {
         let var_types = HashMap::new();
-        assert!(is_float_var(
-            &HirExpr::Var("momentum".to_string()),
-            &var_types
-        ));
+        assert!(is_float_var(&HirExpr::Var("momentum".to_string()), &var_types));
     }
 
     #[test]
@@ -326,10 +305,7 @@ mod tests {
     #[test]
     fn test_is_float_var_not_var() {
         let var_types = make_var_types();
-        assert!(!is_float_var(
-            &HirExpr::Literal(Literal::Float(3.15)),
-            &var_types
-        ));
+        assert!(!is_float_var(&HirExpr::Literal(Literal::Float(3.15)), &var_types));
     }
 
     // ============ is_common_float_name tests ============
@@ -429,10 +405,7 @@ mod tests {
     #[test]
     fn test_is_int_expr_float_literal() {
         let var_types = HashMap::new();
-        assert!(!is_int_expr(
-            &HirExpr::Literal(Literal::Float(3.15)),
-            &var_types
-        ));
+        assert!(!is_int_expr(&HirExpr::Literal(Literal::Float(3.15)), &var_types));
     }
 
     #[test]
@@ -528,21 +501,15 @@ mod tests {
     #[test]
     fn test_is_int_expr_unary() {
         let var_types = make_var_types();
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(is_int_expr(&expr, &var_types));
     }
 
     #[test]
     fn test_is_int_expr_call() {
         let var_types = HashMap::new();
-        let expr = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_int_expr(&expr, &var_types));
     }
 
@@ -551,37 +518,25 @@ mod tests {
     #[test]
     fn test_expr_returns_float_literal() {
         let var_types = HashMap::new();
-        assert!(expr_returns_float(
-            &HirExpr::Literal(Literal::Float(3.15)),
-            &var_types
-        ));
+        assert!(expr_returns_float(&HirExpr::Literal(Literal::Float(3.15)), &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_int_literal() {
         let var_types = HashMap::new();
-        assert!(!expr_returns_float(
-            &HirExpr::Literal(Literal::Int(42)),
-            &var_types
-        ));
+        assert!(!expr_returns_float(&HirExpr::Literal(Literal::Int(42)), &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_var() {
         let var_types = make_var_types();
-        assert!(expr_returns_float(
-            &HirExpr::Var("y".to_string()),
-            &var_types
-        ));
+        assert!(expr_returns_float(&HirExpr::Var("y".to_string()), &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_var_custom_f64() {
         let var_types = make_var_types();
-        assert!(expr_returns_float(
-            &HirExpr::Var("f64_var".to_string()),
-            &var_types
-        ));
+        assert!(expr_returns_float(&HirExpr::Var("f64_var".to_string()), &var_types));
     }
 
     #[test]
@@ -620,54 +575,36 @@ mod tests {
     #[test]
     fn test_expr_returns_float_unary() {
         let var_types = make_var_types();
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("y".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("y".to_string())) };
         assert!(expr_returns_float(&expr, &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_call_sin() {
         let var_types = HashMap::new();
-        let expr = HirExpr::Call {
-            func: "sin".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "sin".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_returns_float(&expr, &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_call_cos() {
         let var_types = HashMap::new();
-        let expr = HirExpr::Call {
-            func: "cos".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "cos".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_returns_float(&expr, &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_call_sqrt() {
         let var_types = HashMap::new();
-        let expr = HirExpr::Call {
-            func: "sqrt".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "sqrt".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_returns_float(&expr, &var_types));
     }
 
     #[test]
     fn test_expr_returns_float_call_not_math() {
         let var_types = HashMap::new();
-        let expr = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_returns_float(&expr, &var_types));
     }
 

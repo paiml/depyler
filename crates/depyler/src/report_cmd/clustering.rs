@@ -171,9 +171,7 @@ pub struct ErrorClusterAnalyzer {
 impl ErrorClusterAnalyzer {
     /// Create new analyzer with default config
     pub fn new() -> Self {
-        Self {
-            config: ClusterConfig::default(),
-        }
+        Self { config: ClusterConfig::default() }
     }
 
     /// Create with custom config
@@ -186,11 +184,7 @@ impl ErrorClusterAnalyzer {
     /// Returns cluster analysis with auto-labeled clusters
     pub fn cluster_errors(&self, results: &[ExtendedAnalysisResult]) -> ClusterAnalysis {
         // Filter to failed results only
-        let failed: Vec<_> = results
-            .iter()
-            .enumerate()
-            .filter(|(_, r)| !r.base.success)
-            .collect();
+        let failed: Vec<_> = results.iter().enumerate().filter(|(_, r)| !r.base.success).collect();
 
         if failed.is_empty() {
             return ClusterAnalysis {
@@ -202,10 +196,8 @@ impl ErrorClusterAnalyzer {
         }
 
         // Build feature matrix
-        let features: Vec<ErrorFeatureVector> = failed
-            .iter()
-            .map(|(_, r)| ErrorFeatureVector::from_result(r))
-            .collect();
+        let features: Vec<ErrorFeatureVector> =
+            failed.iter().map(|(_, r)| ErrorFeatureVector::from_result(r)).collect();
 
         let feature_matrix: Vec<Vec<f64>> = features.iter().map(|f| f.to_flat_vector()).collect();
 
@@ -354,11 +346,7 @@ fn simple_kmeans(data: &[Vec<f64>], k: usize, max_iter: usize) -> (Vec<usize>, V
 
 /// Euclidean distance between two vectors
 fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y).powi(2))
-        .sum::<f64>()
-        .sqrt()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum::<f64>().sqrt()
 }
 
 /// Find most common error code in cluster
@@ -470,10 +458,7 @@ fn calculate_silhouette(data: &[Vec<f64>], labels: &[usize]) -> f64 {
         let a_i = if same_cluster.is_empty() {
             0.0
         } else {
-            same_cluster
-                .iter()
-                .map(|&j| euclidean_distance(&data[i], &data[j]))
-                .sum::<f64>()
+            same_cluster.iter().map(|&j| euclidean_distance(&data[i], &data[j])).sum::<f64>()
                 / same_cluster.len() as f64
         };
 
@@ -512,11 +497,7 @@ fn calculate_silhouette(data: &[Vec<f64>], labels: &[usize]) -> f64 {
                 .fold(f64::MAX, |a, b| a.min(b))
         };
 
-        let s_i = if a_i.max(b_i) == 0.0 {
-            0.0
-        } else {
-            (b_i - a_i) / a_i.max(b_i)
-        };
+        let s_i = if a_i.max(b_i) == 0.0 { 0.0 } else { (b_i - a_i) / a_i.max(b_i) };
 
         total_score += s_i;
     }
@@ -634,12 +615,7 @@ mod tests {
 
     #[test]
     fn test_simple_kmeans_basic() {
-        let data = vec![
-            vec![0.0, 0.0],
-            vec![0.1, 0.1],
-            vec![10.0, 10.0],
-            vec![10.1, 10.1],
-        ];
+        let data = vec![vec![0.0, 0.0], vec![0.1, 0.1], vec![10.0, 10.0], vec![10.1, 10.1]];
         let (labels, _) = simple_kmeans(&data, 2, 100);
 
         // Points 0,1 should be in same cluster, 2,3 in another
@@ -663,10 +639,7 @@ mod tests {
 
     #[test]
     fn test_cluster_analyzer_with_config() {
-        let config = ClusterConfig {
-            n_clusters: 5,
-            ..Default::default()
-        };
+        let config = ClusterConfig { n_clusters: 5, ..Default::default() };
         let analyzer = ErrorClusterAnalyzer::with_config(config);
         assert_eq!(analyzer.config.n_clusters, 5);
     }

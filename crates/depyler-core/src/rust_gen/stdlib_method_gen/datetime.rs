@@ -50,10 +50,8 @@ pub fn convert_datetime_method(
     let nasa_mode = ctx.type_mapper.nasa_mode;
 
     // Convert arguments
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match (class_name, method) {
         // datetime.datetime class methods
@@ -96,10 +94,8 @@ pub fn convert_datetime_instance_method(
 ) -> Result<Option<syn::Expr>> {
     let nasa_mode = ctx.type_mapper.nasa_mode;
 
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         "date" => convert_instance_date(nasa_mode, ctx)?,
@@ -632,11 +628,7 @@ mod tests {
         for component in &["year", "month", "day", "hour", "minute", "second"] {
             let result = convert_instance_component(component, false, &mut ctx).unwrap();
             let code = quote::quote!(#result).to_string();
-            assert!(
-                code.contains(component),
-                "Component {} not found",
-                component
-            );
+            assert!(code.contains(component), "Component {} not found", component);
         }
     }
 

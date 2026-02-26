@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -37,11 +35,7 @@ def get_name(name: str) -> str:
     return name or "default"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_name"),
-        "Should transpile string or fallback. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_name"), "Should transpile string or fallback. Got: {}", result);
 }
 
 #[test]
@@ -51,11 +45,7 @@ def all_positive(a: int, b: int, c: int) -> bool:
     return a > 0 and b > 0 and c > 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("&&"),
-        "Should use && for chained and. Got: {}",
-        result
-    );
+    assert!(result.contains("&&"), "Should use && for chained and. Got: {}", result);
 }
 
 #[test]
@@ -65,11 +55,7 @@ def any_positive(a: int, b: int, c: int) -> bool:
     return a > 0 or b > 0 or c > 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("||"),
-        "Should use || for chained or. Got: {}",
-        result
-    );
+    assert!(result.contains("||"), "Should use || for chained or. Got: {}", result);
 }
 
 #[test]
@@ -188,11 +174,7 @@ def max_val(a: int, b: int) -> int:
     return a if a > b else b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn max_val"),
-        "Should transpile ternary with vars. Got: {}",
-        result
-    );
+    assert!(result.contains("fn max_val"), "Should transpile ternary with vars. Got: {}", result);
 }
 
 // ============================================================================
@@ -206,11 +188,7 @@ def area_msg(w: int, h: int) -> str:
     return f"Area is {w * h}"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("format!"),
-        "Should use format! for f-string. Got: {}",
-        result
-    );
+    assert!(result.contains("format!"), "Should use format! for f-string. Got: {}", result);
 }
 
 #[test]
@@ -252,11 +230,7 @@ def in_range(x: int) -> bool:
     return 0 <= x and x < 100
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("&&"),
-        "Should use && for chained comparison. Got: {}",
-        result
-    );
+    assert!(result.contains("&&"), "Should use && for chained comparison. Got: {}", result);
 }
 
 #[test]
@@ -266,11 +240,7 @@ def different(a: int, b: int) -> bool:
     return a != b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("!="),
-        "Should use != comparison. Got: {}",
-        result
-    );
+    assert!(result.contains("!="), "Should use != comparison. Got: {}", result);
 }
 
 #[test]
@@ -280,11 +250,7 @@ def at_least(a: int, b: int) -> bool:
     return a >= b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains(">="),
-        "Should use >= comparison. Got: {}",
-        result
-    );
+    assert!(result.contains(">="), "Should use >= comparison. Got: {}", result);
 }
 
 // ============================================================================
@@ -326,11 +292,7 @@ def bitwise_not(x: int) -> int:
     return ~x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn bitwise_not"),
-        "Should transpile bitwise not. Got: {}",
-        result
-    );
+    assert!(result.contains("fn bitwise_not"), "Should transpile bitwise not. Got: {}", result);
 }
 
 // ============================================================================
@@ -372,11 +334,7 @@ def shift_left(x: int, n: int) -> int:
     return x << n
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("<<"),
-        "Should transpile left shift. Got: {}",
-        result
-    );
+    assert!(result.contains("<<"), "Should transpile left shift. Got: {}", result);
 }
 
 #[test]
@@ -386,11 +344,7 @@ def shift_right(x: int, n: int) -> int:
     return x >> n
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains(">>"),
-        "Should transpile right shift. Got: {}",
-        result
-    );
+    assert!(result.contains(">>"), "Should transpile right shift. Got: {}", result);
 }
 
 // ============================================================================
@@ -404,11 +358,7 @@ def repeat_zeros(n: int) -> list:
     return [0] * n
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn repeat_zeros"),
-        "Should transpile list multiply. Got: {}",
-        result
-    );
+    assert!(result.contains("fn repeat_zeros"), "Should transpile list multiply. Got: {}", result);
 }
 
 #[test]
@@ -464,11 +414,7 @@ def size(items: list) -> int:
     return len(items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("len()"),
-        "Should transpile len(). Got: {}",
-        result
-    );
+    assert!(result.contains("len()"), "Should transpile len(). Got: {}", result);
 }
 
 #[test]
@@ -566,11 +512,7 @@ def to_bool(x: int) -> bool:
     return bool(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_bool"),
-        "Should transpile bool(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_bool"), "Should transpile bool(). Got: {}", result);
 }
 
 #[test]
@@ -612,11 +554,7 @@ def is_even(x: int) -> bool:
     return x % 2 == 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("%"),
-        "Should transpile modulo. Got: {}",
-        result
-    );
+    assert!(result.contains("%"), "Should transpile modulo. Got: {}", result);
 }
 
 #[test]
@@ -658,11 +596,7 @@ def index_map(items: list) -> dict:
     return {i: item for i, item in enumerate(items)}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn index_map"),
-        "Should transpile dict comp. Got: {}",
-        result
-    );
+    assert!(result.contains("fn index_map"), "Should transpile dict comp. Got: {}", result);
 }
 
 #[test]
@@ -672,11 +606,7 @@ def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn unique_lengths"),
-        "Should transpile set comp. Got: {}",
-        result
-    );
+    assert!(result.contains("fn unique_lengths"), "Should transpile set comp. Got: {}", result);
 }
 
 // ============================================================================
@@ -690,11 +620,7 @@ def join_words(words: list) -> str:
     return " ".join(words)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("join"),
-        "Should transpile join. Got: {}",
-        result
-    );
+    assert!(result.contains("join"), "Should transpile join. Got: {}", result);
 }
 
 #[test]
@@ -704,11 +630,7 @@ def clean(text: str) -> str:
     return text.replace("old", "new")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("replace"),
-        "Should transpile replace. Got: {}",
-        result
-    );
+    assert!(result.contains("replace"), "Should transpile replace. Got: {}", result);
 }
 
 #[test]
@@ -830,11 +752,7 @@ def divmod_result(a: int, b: int) -> Tuple[int, int]:
     return (a // b, a % b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn divmod_result"),
-        "Should transpile tuple return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn divmod_result"), "Should transpile tuple return. Got: {}", result);
 }
 
 #[test]
@@ -845,11 +763,7 @@ def swap(a: int, b: int) -> int:
     return y
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn swap"),
-        "Should transpile tuple unpack. Got: {}",
-        result
-    );
+    assert!(result.contains("fn swap"), "Should transpile tuple unpack. Got: {}", result);
 }
 
 // ============================================================================
@@ -863,11 +777,7 @@ def process(text: str) -> str:
     return text.strip().lower().replace(" ", "_")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should transpile chained methods. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should transpile chained methods. Got: {}", result);
 }
 
 #[test]
@@ -891,11 +801,7 @@ def check_bounds(x: int, y: int, w: int, h: int) -> bool:
     return 0 <= x and x < w and 0 <= y and y < h
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("&&"),
-        "Should transpile bounds check. Got: {}",
-        result
-    );
+    assert!(result.contains("&&"), "Should transpile bounds check. Got: {}", result);
 }
 
 #[test]
@@ -908,11 +814,7 @@ def find_long(words: list) -> str:
     return ""
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_long"),
-        "Should transpile search pattern. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_long"), "Should transpile search pattern. Got: {}", result);
 }
 
 #[test]
@@ -922,11 +824,7 @@ def has_substring(text: str, sub: str) -> bool:
     return sub in text
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("contains"),
-        "Should transpile string contains. Got: {}",
-        result
-    );
+    assert!(result.contains("contains"), "Should transpile string contains. Got: {}", result);
 }
 
 #[test]
@@ -938,9 +836,5 @@ def type_name(x: int) -> str:
     return "unknown"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn type_name"),
-        "Should transpile isinstance. Got: {}",
-        result
-    );
+    assert!(result.contains("fn type_name"), "Should transpile isinstance. Got: {}", result);
 }

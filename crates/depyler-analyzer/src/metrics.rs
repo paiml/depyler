@@ -40,12 +40,7 @@ impl Default for ComplexityDistribution {
 
 impl ComplexityDistribution {
     pub fn new() -> Self {
-        Self {
-            low: 0,
-            medium: 0,
-            high: 0,
-            very_high: 0,
-        }
+        Self { low: 0, medium: 0, high: 0, very_high: 0 }
     }
 
     pub fn add(&mut self, complexity: u32) {
@@ -268,19 +263,9 @@ mod tests {
 
     #[test]
     fn test_quality_metrics_creation() {
-        let cyclomatic_dist = ComplexityDistribution {
-            low: 5,
-            medium: 3,
-            high: 2,
-            very_high: 1,
-        };
+        let cyclomatic_dist = ComplexityDistribution { low: 5, medium: 3, high: 2, very_high: 1 };
 
-        let cognitive_dist = ComplexityDistribution {
-            low: 6,
-            medium: 2,
-            high: 2,
-            very_high: 1,
-        };
+        let cognitive_dist = ComplexityDistribution { low: 6, medium: 2, high: 2, very_high: 1 };
 
         let quality_metrics = QualityMetrics {
             cyclomatic_distribution: cyclomatic_dist.clone(),
@@ -301,12 +286,7 @@ mod tests {
 
     #[test]
     fn test_complexity_distribution_serialization() {
-        let dist = ComplexityDistribution {
-            low: 10,
-            medium: 5,
-            high: 2,
-            very_high: 1,
-        };
+        let dist = ComplexityDistribution { low: 10, medium: 5, high: 2, very_high: 1 };
 
         // Test that it can be serialized to JSON
         let json = serde_json::to_string(&dist).unwrap();
@@ -454,12 +434,7 @@ mod tests {
 
     #[test]
     fn test_complexity_distribution_clone() {
-        let dist = ComplexityDistribution {
-            low: 1,
-            medium: 2,
-            high: 3,
-            very_high: 4,
-        };
+        let dist = ComplexityDistribution { low: 1, medium: 2, high: 3, very_high: 4 };
         let cloned = dist.clone();
         assert_eq!(cloned.low, 1);
         assert_eq!(cloned.medium, 2);
@@ -709,12 +684,8 @@ mod tests {
 
     #[test]
     fn test_s12_perf_profile_mixed_zero_times() {
-        let metrics = make_metrics(
-            5000,
-            Duration::from_millis(10),
-            Duration::ZERO,
-            Duration::from_millis(5),
-        );
+        let metrics =
+            make_metrics(5000, Duration::from_millis(10), Duration::ZERO, Duration::from_millis(5));
         let profile = PerformanceProfile::calculate(&metrics, 4096);
         assert!(profile.parsing_throughput_mbps > 0.0);
         assert!((profile.hir_generation_throughput_mbps).abs() < f64::EPSILON);

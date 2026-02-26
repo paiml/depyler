@@ -19,10 +19,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<syn::Expr> {
         let callee_expr = callee.to_rust_expr(self.ctx)?;
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         if arg_exprs.is_empty() {
             Ok(parse_quote! { (#callee_expr)() })
@@ -314,8 +312,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     && self.ctx.current_function_can_fail
                 {
                     let object_expr = object.to_rust_expr(self.ctx)?;
-                    let method_ident =
-                        syn::Ident::new(method, proc_macro2::Span::call_site());
+                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                     return Ok(parse_quote! { #object_expr?.#method_ident() });
                 }
             }
@@ -361,10 +358,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // This prevents E0599 cascades when Type::Unknown maps to serde_json::Value
         if self.is_serde_json_value_expr(object) || self.is_serde_json_value(object) {
             let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             match method {
                 // value.len() → value.as_array().map(|a| a.len()).unwrap_or_else(|| value.as_object().map(|o| o.len()).unwrap_or(0))
                 "len" if args.is_empty() => {
@@ -808,10 +803,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // counter.most_common(n) → sort HashMap by value descending, take n
         if method == "most_common" {
             let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
             if let Some(n_arg) = arg_exprs.first() {
                 // With n argument: take top n
@@ -842,10 +835,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             && !self.is_set_expr(object)
         {
             let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             let data = &arg_exprs[0];
             // DEPYLER-0558: hasher.update(data) needs borrow for DynDigest trait
             // DynDigest::update takes &[u8], so always add borrow
@@ -924,10 +915,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             )
         {
             let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             return self.convert_string_method(object, &object_expr, method, &arg_exprs, args);
         }
 
@@ -962,10 +951,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             )
         {
             let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             return self.convert_pathlib_instance_method(&object_expr, method, &arg_exprs);
         }
 
@@ -987,10 +974,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "replace"
         ) {
             let object_expr = object.to_rust_expr(self.ctx)?;
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             return self.convert_datetime_instance_method(&object_expr, method, args, &arg_exprs);
         }
 
@@ -1000,11 +985,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Constants like DEFAULT_CONFIG should use instance methods (.clone()) not static (::copy())
         if let HirExpr::Var(class_name) = object {
             let is_const = class_name.chars().all(|c| c.is_uppercase() || c == '_');
-            let starts_uppercase = class_name
-                .chars()
-                .next()
-                .map(|c| c.is_uppercase())
-                .unwrap_or(false);
+            let starts_uppercase =
+                class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
 
             if starts_uppercase && !is_const {
                 // DEPYLER-0900: Rename class if it shadows stdlib type (e.g., Box -> PyBox)
@@ -1034,12 +1016,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0200: Handle .decode() on base64 encode calls
         // base64.b64encode() in Rust returns String, not bytes - no decode needed
         if method == "decode" {
-            if let HirExpr::MethodCall {
-                object: inner_obj,
-                method: inner_method,
-                ..
-            } = object
-            {
+            if let HirExpr::MethodCall { object: inner_obj, method: inner_method, .. } = object {
                 if let HirExpr::Var(module) = inner_obj.as_ref() {
                     if module == "base64"
                         && (inner_method.contains("b64encode")
@@ -1197,16 +1174,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             object.to_rust_expr(self.ctx)?
         };
 
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // DEPYLER-0445: Pass original args and kwargs separately to convert_instance_method
         // Some methods like sort(key=func) need to preserve keyword argument names
         // For other methods, they can merge kwargs as positional if needed
         self.convert_instance_method(object, &object_expr, method, &arg_exprs, args, kwargs)
     }
-
-
 }

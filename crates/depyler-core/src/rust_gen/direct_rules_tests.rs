@@ -6,9 +6,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -55,9 +53,7 @@ fn test_class_with_property() {
 
 #[test]
 fn test_class_inheritance() {
-    assert!(transpile_ok(
-        "class Animal:\n    pass\n\nclass Dog(Animal):\n    pass"
-    ));
+    assert!(transpile_ok("class Animal:\n    pass\n\nclass Dog(Animal):\n    pass"));
 }
 
 #[test]
@@ -192,17 +188,13 @@ fn test_class_named_string() {
 #[test]
 fn test_class_named_vec() {
     // Class named Vec should get renamed
-    assert!(transpile_ok(
-        "class Vec:\n    def __init__(self):\n        pass"
-    ));
+    assert!(transpile_ok("class Vec:\n    def __init__(self):\n        pass"));
 }
 
 #[test]
 fn test_class_named_option() {
     // Class named Option should get renamed
-    assert!(transpile_ok(
-        "class Option:\n    def __init__(self):\n        pass"
-    ));
+    assert!(transpile_ok("class Option:\n    def __init__(self):\n        pass"));
 }
 
 // ============================================================================
@@ -369,9 +361,7 @@ fn test_method_named_match() {
 #[test]
 fn test_field_named_loop() {
     // "loop" is a Rust keyword
-    assert!(transpile_ok(
-        "class Cycler:\n    def __init__(self):\n        self.loop = 0"
-    ));
+    assert!(transpile_ok("class Cycler:\n    def __init__(self):\n        self.loop = 0"));
 }
 
 // ============================================================================
@@ -442,33 +432,25 @@ fn test_class_referencing_another() {
 #[test]
 fn test_class_with_keyword_field() {
     // Field named with Rust keyword
-    assert!(transpile_ok(
-        "class Foo:\n    def __init__(self):\n        self.type = 'int'"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __init__(self):\n        self.type = 'int'"));
 }
 
 #[test]
 fn test_class_with_keyword_method() {
     // Method named with Rust keyword
-    assert!(transpile_ok(
-        "class Foo:\n    def match(self, pattern):\n        return pattern"
-    ));
+    assert!(transpile_ok("class Foo:\n    def match(self, pattern):\n        return pattern"));
 }
 
 // --- is_stdlib_shadowing_name helper ---
 #[test]
 fn test_class_shadowing_stdlib() {
     // Class name that shadows stdlib type
-    assert!(transpile_ok(
-        "class Vec:\n    def __init__(self):\n        self.data = []"
-    ));
+    assert!(transpile_ok("class Vec:\n    def __init__(self):\n        self.data = []"));
 }
 
 #[test]
 fn test_class_shadowing_string() {
-    assert!(transpile_ok(
-        "class String:\n    def __init__(self, s):\n        self.value = s"
-    ));
+    assert!(transpile_ok("class String:\n    def __init__(self, s):\n        self.value = s"));
 }
 
 #[test]

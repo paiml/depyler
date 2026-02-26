@@ -26,10 +26,7 @@ def test_match_keyword() -> int:
     let result = pipeline.transpile(python_code);
 
     // Should NOT panic
-    assert!(
-        result.is_ok(),
-        "Transpilation should not panic on Rust keyword 'match'"
-    );
+    assert!(result.is_ok(), "Transpilation should not panic on Rust keyword 'match'");
 
     let rust_code = result.unwrap();
 
@@ -53,10 +50,7 @@ def test_type_keyword() -> int:
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
 
-    assert!(
-        result.is_ok(),
-        "Transpilation should not panic on Rust keyword 'type'"
-    );
+    assert!(result.is_ok(), "Transpilation should not panic on Rust keyword 'type'");
 
     let rust_code = result.unwrap();
     assert!(
@@ -78,10 +72,7 @@ def test_impl_keyword() -> int:
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
 
-    assert!(
-        result.is_ok(),
-        "Transpilation should not panic on Rust keyword 'impl'"
-    );
+    assert!(result.is_ok(), "Transpilation should not panic on Rust keyword 'impl'");
 
     let rust_code = result.unwrap();
     assert!(

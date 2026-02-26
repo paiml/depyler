@@ -1,8 +1,8 @@
-use depyler_hir::hir::Type as PythonType;
 use crate::type_mapper::{RustType, TypeMapper};
 use depyler_annotations::{
     OwnershipModel, StringStrategy as AnnotationStringStrategy, TranspilationAnnotations,
 };
+use depyler_hir::hir::Type as PythonType;
 
 /// An enhanced type mapper that considers annotations when mapping types
 pub struct AnnotationAwareTypeMapper {
@@ -17,9 +17,7 @@ impl Default for AnnotationAwareTypeMapper {
 
 impl AnnotationAwareTypeMapper {
     pub fn new() -> Self {
-        Self {
-            base_mapper: TypeMapper::new(),
-        }
+        Self { base_mapper: TypeMapper::new() }
     }
 
     pub fn with_base_mapper(base_mapper: TypeMapper) -> Self {
@@ -46,17 +44,13 @@ impl AnnotationAwareTypeMapper {
         match annotations.string_strategy {
             AnnotationStringStrategy::AlwaysOwned => RustType::String,
             AnnotationStringStrategy::ZeroCopy => match annotations.ownership_model {
-                OwnershipModel::Borrowed => RustType::Str {
-                    lifetime: Some("'a".to_string()),
-                },
+                OwnershipModel::Borrowed => RustType::Str { lifetime: Some("'a".to_string()) },
                 _ => RustType::String, // Can't do zero-copy without borrowing
             },
             AnnotationStringStrategy::Conservative => {
                 // Conservative defaults to owned unless explicitly borrowed
                 match annotations.ownership_model {
-                    OwnershipModel::Borrowed => RustType::Str {
-                        lifetime: Some("'a".to_string()),
-                    },
+                    OwnershipModel::Borrowed => RustType::Str { lifetime: Some("'a".to_string()) },
                     _ => RustType::String,
                 }
             }
@@ -298,12 +292,7 @@ mod tests {
         annotations.string_strategy = StringStrategy::Conservative;
         annotations.ownership_model = OwnershipModel::Borrowed;
         let result = mapper.map_type_with_annotations(&PythonType::String, &annotations);
-        assert_eq!(
-            result,
-            RustType::Str {
-                lifetime: Some("'a".to_string())
-            }
-        );
+        assert_eq!(result, RustType::Str { lifetime: Some("'a".to_string()) });
     }
 
     #[test]
@@ -336,10 +325,7 @@ mod tests {
         let annotations = create_test_annotations();
         let list_type = PythonType::List(Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&list_type, &annotations);
-        assert_eq!(
-            result,
-            RustType::Vec(Box::new(RustType::Custom("DepylerValue".to_string())))
-        );
+        assert_eq!(result, RustType::Vec(Box::new(RustType::Custom("DepylerValue".to_string()))));
     }
 
     // === Dict ownership tests ===
@@ -352,18 +338,11 @@ mod tests {
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
         match result {
-            RustType::Reference {
-                lifetime,
-                mutable,
-                inner,
-            } => {
+            RustType::Reference { lifetime, mutable, inner } => {
                 assert_eq!(lifetime, Some("'a".to_string()));
                 assert!(!mutable);
                 // String is mapped to &'a str when borrowed
-                assert_eq!(
-                    *inner,
-                    RustType::Custom("HashMap<&'a str, i32>".to_string())
-                );
+                assert_eq!(*inner, RustType::Custom("HashMap<&'a str, i32>".to_string()));
             }
             _ => panic!("Expected reference type"),
         }
@@ -377,10 +356,7 @@ mod tests {
         annotations.thread_safety = ThreadSafety::NotRequired;
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            result,
-            RustType::Custom("Rc<HashMap<String, i32>>".to_string())
-        );
+        assert_eq!(result, RustType::Custom("Rc<HashMap<String, i32>>".to_string()));
     }
 
     #[test]
@@ -391,10 +367,7 @@ mod tests {
         annotations.thread_safety = ThreadSafety::Required;
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            result,
-            RustType::Custom("Arc<HashMap<String, i32>>".to_string())
-        );
+        assert_eq!(result, RustType::Custom("Arc<HashMap<String, i32>>".to_string()));
     }
 
     #[test]
@@ -415,10 +388,7 @@ mod tests {
         let dict_type =
             PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            result,
-            RustType::Custom("HashMap<String, DepylerValue>".to_string())
-        );
+        assert_eq!(result, RustType::Custom("HashMap<String, DepylerValue>".to_string()));
     }
 
     #[test]
@@ -429,10 +399,7 @@ mod tests {
         let dict_type =
             PythonType::Dict(Box::new(PythonType::Unknown), Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            result,
-            RustType::Custom("HashMap<String, DepylerValue>".to_string())
-        );
+        assert_eq!(result, RustType::Custom("HashMap<String, DepylerValue>".to_string()));
     }
 
     // === needs_reference_with_annotations tests ===
@@ -514,12 +481,7 @@ mod tests {
         annotations.string_strategy = StringStrategy::ZeroCopy;
         annotations.ownership_model = OwnershipModel::Borrowed;
         let rust_type = mapper.map_type_with_annotations(&PythonType::String, &annotations);
-        assert_eq!(
-            rust_type,
-            RustType::Str {
-                lifetime: Some("'a".to_string())
-            }
-        );
+        assert_eq!(rust_type, RustType::Str { lifetime: Some("'a".to_string()) });
 
         // Test zero copy without borrowing falls back to owned
         annotations.ownership_model = OwnershipModel::Owned;
@@ -536,20 +498,13 @@ mod tests {
         let mut annotations = create_test_annotations();
         annotations.ownership_model = OwnershipModel::Owned;
         let rust_type = mapper.map_type_with_annotations(&list_type, &annotations);
-        assert_eq!(
-            rust_type,
-            RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)))
-        );
+        assert_eq!(rust_type, RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32))));
 
         // Test borrowed
         annotations.ownership_model = OwnershipModel::Borrowed;
         let rust_type = mapper.map_type_with_annotations(&list_type, &annotations);
         match rust_type {
-            RustType::Reference {
-                lifetime,
-                mutable,
-                inner,
-            } => {
+            RustType::Reference { lifetime, mutable, inner } => {
                 assert_eq!(lifetime, Some("'a".to_string()));
                 assert!(!mutable);
                 assert_eq!(
@@ -576,10 +531,7 @@ mod tests {
         let mut annotations = create_test_annotations();
         annotations.hash_strategy = HashStrategy::Standard;
         let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            rust_type,
-            RustType::Custom("HashMap<String, i32>".to_string())
-        );
+        assert_eq!(rust_type, RustType::Custom("HashMap<String, i32>".to_string()));
 
         // DEPYLER-0278: hash_strategy annotation is ignored for standalone transpilation
         // All hash strategies now map to HashMap (compilation success over optimization)
@@ -587,18 +539,12 @@ mod tests {
         // Test Fnv strategy (ignored, uses HashMap)
         annotations.hash_strategy = HashStrategy::Fnv;
         let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            rust_type,
-            RustType::Custom("HashMap<String, i32>".to_string())
-        );
+        assert_eq!(rust_type, RustType::Custom("HashMap<String, i32>".to_string()));
 
         // Test AHash strategy (ignored, uses HashMap)
         annotations.hash_strategy = HashStrategy::AHash;
         let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(
-            rust_type,
-            RustType::Custom("HashMap<String, i32>".to_string())
-        );
+        assert_eq!(rust_type, RustType::Custom("HashMap<String, i32>".to_string()));
     }
 
     #[test]

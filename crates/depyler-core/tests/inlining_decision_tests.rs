@@ -144,10 +144,7 @@ fn test_decision_should_inline_optimization() {
         cost_benefit: 3.0,
     };
     assert!(decision.should_inline);
-    assert!(matches!(
-        decision.reason,
-        InliningReason::EnablesOptimization
-    ));
+    assert!(matches!(decision.reason, InliningReason::EnablesOptimization));
 }
 
 #[test]
@@ -323,11 +320,8 @@ fn test_positive_reasons() {
         InliningReason::EnablesOptimization,
     ];
     for reason in &positive_reasons {
-        let decision = InliningDecision {
-            should_inline: true,
-            reason: reason.clone(),
-            cost_benefit: 1.0,
-        };
+        let decision =
+            InliningDecision { should_inline: true, reason: reason.clone(), cost_benefit: 1.0 };
         assert!(decision.should_inline);
     }
 }
@@ -342,11 +336,8 @@ fn test_negative_reasons() {
         InliningReason::CostTooHigh,
     ];
     for reason in &negative_reasons {
-        let decision = InliningDecision {
-            should_inline: false,
-            reason: reason.clone(),
-            cost_benefit: 0.0,
-        };
+        let decision =
+            InliningDecision { should_inline: false, reason: reason.clone(), cost_benefit: 0.0 };
         assert!(!decision.should_inline);
     }
 }
@@ -426,17 +417,10 @@ fn test_decision_true_with_positive_reasons() {
     ];
 
     for reason in &positive_reasons {
-        let decision = InliningDecision {
-            should_inline: true,
-            reason: reason.clone(),
-            cost_benefit: 2.0,
-        };
+        let decision =
+            InliningDecision { should_inline: true, reason: reason.clone(), cost_benefit: 2.0 };
         // Positive reasons imply should_inline = true
-        assert!(
-            decision.should_inline,
-            "Reason {:?} should allow inlining",
-            reason
-        );
+        assert!(decision.should_inline, "Reason {:?} should allow inlining", reason);
     }
 }
 
@@ -451,16 +435,9 @@ fn test_decision_false_with_negative_reasons() {
     ];
 
     for reason in &negative_reasons {
-        let decision = InliningDecision {
-            should_inline: false,
-            reason: reason.clone(),
-            cost_benefit: 0.0,
-        };
+        let decision =
+            InliningDecision { should_inline: false, reason: reason.clone(), cost_benefit: 0.0 };
         // Negative reasons imply should_inline = false
-        assert!(
-            !decision.should_inline,
-            "Reason {:?} should prevent inlining",
-            reason
-        );
+        assert!(!decision.should_inline, "Reason {:?} should prevent inlining", reason);
     }
 }

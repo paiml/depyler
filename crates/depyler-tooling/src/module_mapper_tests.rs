@@ -1,5 +1,5 @@
-use depyler_hir::hir::{Import, ImportItem};
 use crate::module_mapper::{ModuleMapper, ModuleMapping, RustImport};
+use depyler_hir::hir::{Import, ImportItem};
 use std::collections::HashMap;
 
 #[test]
@@ -32,10 +32,7 @@ fn test_stdlib_mappings() {
     assert_eq!(os_mapping.rust_path, "std");
     assert!(!os_mapping.is_external);
     assert!(os_mapping.version.is_none());
-    assert_eq!(
-        os_mapping.item_map.get("getcwd").unwrap(),
-        "env::current_dir"
-    );
+    assert_eq!(os_mapping.item_map.get("getcwd").unwrap(), "env::current_dir");
     assert_eq!(os_mapping.item_map.get("environ").unwrap(), "env::vars");
 
     // Test sys module
@@ -132,11 +129,7 @@ fn test_map_whole_module_import() {
 
     // Test "import os" style
     // DEPYLER-0363: Now generates actual use statement with alias
-    let import = Import {
-        alias: None,
-        module: "os".to_string(),
-        items: vec![],
-    };
+    let import = Import { alias: None, module: "os".to_string(), items: vec![] };
 
     let rust_imports = mapper.map_import(&import);
     assert_eq!(rust_imports.len(), 1);
@@ -170,10 +163,7 @@ fn test_map_multiple_items() {
         items: vec![
             ImportItem::Named("getcwd".to_string()),
             ImportItem::Named("environ".to_string()),
-            ImportItem::Aliased {
-                name: "path".to_string(),
-                alias: "os_path".to_string(),
-            },
+            ImportItem::Aliased { name: "path".to_string(), alias: "os_path".to_string() },
         ],
     };
 
@@ -240,15 +230,9 @@ fn test_collections_mapping() {
 
     let collections_mapping = mapper.get_mapping("collections").unwrap();
     assert_eq!(collections_mapping.rust_path, "std::collections");
-    assert_eq!(
-        collections_mapping.item_map.get("deque").unwrap(),
-        "VecDeque"
-    );
+    assert_eq!(collections_mapping.item_map.get("deque").unwrap(), "VecDeque");
     // DEPYLER-0936: OrderedDict maps to HashMap (Rust 1.36+ preserves insertion order)
-    assert_eq!(
-        collections_mapping.item_map.get("OrderedDict").unwrap(),
-        "HashMap"
-    );
+    assert_eq!(collections_mapping.item_map.get("OrderedDict").unwrap(), "HashMap");
 }
 
 #[test]
@@ -260,10 +244,7 @@ fn test_itertools_mapping() {
     assert!(itertools_mapping.is_external);
     assert_eq!(itertools_mapping.version.as_ref().unwrap(), "0.11");
     assert_eq!(itertools_mapping.item_map.get("chain").unwrap(), "chain");
-    assert_eq!(
-        itertools_mapping.item_map.get("product").unwrap(),
-        "iproduct"
-    );
+    assert_eq!(itertools_mapping.item_map.get("product").unwrap(), "iproduct");
 }
 
 #[test]
@@ -307,10 +288,7 @@ fn test_tempfile_mapping() {
     let tempfile_mapping = mapper.get_mapping("tempfile").unwrap();
     assert_eq!(tempfile_mapping.rust_path, "tempfile");
     assert!(tempfile_mapping.is_external);
-    assert_eq!(
-        tempfile_mapping.item_map.get("NamedTemporaryFile").unwrap(),
-        "NamedTempFile"
-    );
+    assert_eq!(tempfile_mapping.item_map.get("NamedTemporaryFile").unwrap(), "NamedTempFile");
 }
 
 #[test]
@@ -442,10 +420,7 @@ fn test_sklearn_linear_model_mapping() {
     let mapping = mapper.get_mapping("sklearn.linear_model").unwrap();
     assert_eq!(mapping.rust_path, "aprender::linear");
     assert!(mapping.is_external);
-    assert_eq!(
-        mapping.item_map.get("LinearRegression").unwrap(),
-        "LinearRegression"
-    );
+    assert_eq!(mapping.item_map.get("LinearRegression").unwrap(), "LinearRegression");
     assert_eq!(
         mapping.constructor_patterns.get("LinearRegression"),
         Some(&ConstructorPattern::New)
@@ -465,10 +440,7 @@ fn test_sklearn_tree_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.tree").unwrap();
     assert_eq!(mapping.rust_path, "aprender::tree");
-    assert_eq!(
-        mapping.item_map.get("DecisionTreeClassifier").unwrap(),
-        "DecisionTree"
-    );
+    assert_eq!(mapping.item_map.get("DecisionTreeClassifier").unwrap(), "DecisionTree");
 }
 
 #[test]
@@ -476,10 +448,7 @@ fn test_sklearn_ensemble_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.ensemble").unwrap();
     assert_eq!(mapping.rust_path, "aprender::ensemble");
-    assert_eq!(
-        mapping.item_map.get("RandomForestClassifier").unwrap(),
-        "RandomForest"
-    );
+    assert_eq!(mapping.item_map.get("RandomForestClassifier").unwrap(), "RandomForest");
 }
 
 #[test]
@@ -487,10 +456,7 @@ fn test_sklearn_preprocessing_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.preprocessing").unwrap();
     assert_eq!(mapping.rust_path, "aprender::preprocessing");
-    assert_eq!(
-        mapping.item_map.get("StandardScaler").unwrap(),
-        "StandardScaler"
-    );
+    assert_eq!(mapping.item_map.get("StandardScaler").unwrap(), "StandardScaler");
 }
 
 #[test]
@@ -504,10 +470,7 @@ fn test_sklearn_decomposition_mapping() {
 fn test_sklearn_model_selection_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.model_selection").unwrap();
-    assert_eq!(
-        mapping.item_map.get("train_test_split").unwrap(),
-        "train_test_split"
-    );
+    assert_eq!(mapping.item_map.get("train_test_split").unwrap(), "train_test_split");
     assert_eq!(mapping.item_map.get("KFold").unwrap(), "KFold");
 }
 
@@ -578,10 +541,7 @@ fn test_statistics_mapping() {
     let mapping = mapper.get_mapping("statistics").unwrap();
     assert_eq!(mapping.rust_path, "statrs");
     assert!(mapping.is_external);
-    assert_eq!(
-        mapping.item_map.get("mean").unwrap(),
-        "statistics::Statistics::mean"
-    );
+    assert_eq!(mapping.item_map.get("mean").unwrap(), "statistics::Statistics::mean");
 }
 
 #[test]
@@ -591,10 +551,7 @@ fn test_io_module_mapping() {
     assert_eq!(mapping.rust_path, "std::io");
     assert!(!mapping.is_external);
     assert_eq!(mapping.item_map.get("BufferedReader").unwrap(), "BufReader");
-    assert_eq!(
-        mapping.constructor_patterns.get("BufReader"),
-        Some(&ConstructorPattern::New)
-    );
+    assert_eq!(mapping.constructor_patterns.get("BufReader"), Some(&ConstructorPattern::New));
 }
 
 #[test]
@@ -697,11 +654,7 @@ fn test_constructor_pattern_eq() {
 #[test]
 fn test_map_argparse_import_whole_module() {
     let mapper = ModuleMapper::new();
-    let import = Import {
-        alias: None,
-        module: "argparse".to_string(),
-        items: vec![],
-    };
+    let import = Import { alias: None, module: "argparse".to_string(), items: vec![] };
     let rust_imports = mapper.map_import(&import);
     assert_eq!(rust_imports.len(), 1);
     assert_eq!(rust_imports[0].path, "clap::Parser");
@@ -711,11 +664,7 @@ fn test_map_argparse_import_whole_module() {
 #[test]
 fn test_map_typing_whole_module() {
     let mapper = ModuleMapper::new();
-    let import = Import {
-        alias: None,
-        module: "typing".to_string(),
-        items: vec![],
-    };
+    let import = Import { alias: None, module: "typing".to_string(), items: vec![] };
     let rust_imports = mapper.map_import(&import);
     // typing has empty rust_path, should generate comment
     assert!(rust_imports[0].path.contains("no Rust equivalent"));
@@ -725,22 +674,10 @@ fn test_map_typing_whole_module() {
 fn test_tempfile_constructor_patterns() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("tempfile").unwrap();
-    assert_eq!(
-        mapping.constructor_patterns.get("NamedTempFile"),
-        Some(&ConstructorPattern::New)
-    );
-    assert_eq!(
-        mapping.constructor_patterns.get("TempDir"),
-        Some(&ConstructorPattern::New)
-    );
-    assert_eq!(
-        mapping.constructor_patterns.get("tempfile"),
-        Some(&ConstructorPattern::Function)
-    );
-    assert_eq!(
-        mapping.constructor_patterns.get("tempdir"),
-        Some(&ConstructorPattern::Function)
-    );
+    assert_eq!(mapping.constructor_patterns.get("NamedTempFile"), Some(&ConstructorPattern::New));
+    assert_eq!(mapping.constructor_patterns.get("TempDir"), Some(&ConstructorPattern::New));
+    assert_eq!(mapping.constructor_patterns.get("tempfile"), Some(&ConstructorPattern::Function));
+    assert_eq!(mapping.constructor_patterns.get("tempdir"), Some(&ConstructorPattern::Function));
 }
 
 #[test]

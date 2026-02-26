@@ -34,9 +34,7 @@ pub fn generate_quickcheck_tests(func: &HirFunction, _iterations: usize) -> Resu
 }
 
 fn has_numeric_types(params: &[depyler_core::hir::HirParam]) -> bool {
-    params
-        .iter()
-        .any(|param| matches!(param.ty, Type::Int | Type::Float))
+    params.iter().any(|param| matches!(param.ty, Type::Int | Type::Float))
 }
 
 fn has_container_params(params: &[depyler_core::hir::HirParam]) -> bool {
@@ -82,17 +80,17 @@ fn generate_numeric_property_test(func: &HirFunction) -> Result<String> {
 
     // Call the function
     test.push_str(&format!("            let result = {func_name}("));
-    let args: Vec<String> = func
-        .params
-        .iter()
-        .map(|param| {
-            if param.ty.is_container() {
-                format!("&{}", param.name)
-            } else {
-                param.name.clone()
-            }
-        })
-        .collect();
+    let args: Vec<String> =
+        func.params
+            .iter()
+            .map(|param| {
+                if param.ty.is_container() {
+                    format!("&{}", param.name)
+                } else {
+                    param.name.clone()
+                }
+            })
+            .collect();
     test.push_str(&args.join(", "));
     test.push_str(");\n");
 
@@ -140,17 +138,17 @@ fn generate_bounds_property_test(func: &HirFunction) -> Result<String> {
 
     // Call the function
     test.push_str(&format!("            let result = {func_name}("));
-    let args: Vec<String> = func
-        .params
-        .iter()
-        .map(|param| {
-            if param.ty.is_container() {
-                format!("&{}", param.name)
-            } else {
-                param.name.clone()
-            }
-        })
-        .collect();
+    let args: Vec<String> =
+        func.params
+            .iter()
+            .map(|param| {
+                if param.ty.is_container() {
+                    format!("&{}", param.name)
+                } else {
+                    param.name.clone()
+                }
+            })
+            .collect();
     test.push_str(&args.join(", "));
     test.push_str(");\n");
 
@@ -320,16 +318,12 @@ mod tests {
         let params_with_int = vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)];
         assert!(has_numeric_types(&params_with_int));
 
-        let params_with_float = vec![depyler_core::hir::HirParam::new(
-            "x".to_string(),
-            Type::Float,
-        )];
+        let params_with_float =
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Float)];
         assert!(has_numeric_types(&params_with_float));
 
-        let params_without_numeric = vec![depyler_core::hir::HirParam::new(
-            "x".to_string(),
-            Type::String,
-        )];
+        let params_without_numeric =
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::String)];
         assert!(!has_numeric_types(&params_without_numeric));
     }
 
@@ -418,20 +412,14 @@ mod tests {
         assert_eq!(type_to_rust_string(&Type::Bool), "bool");
         assert_eq!(type_to_rust_string(&Type::None), "()");
 
-        assert_eq!(
-            type_to_rust_string(&Type::List(Box::new(Type::Int))),
-            "Vec<i32>"
-        );
+        assert_eq!(type_to_rust_string(&Type::List(Box::new(Type::Int))), "Vec<i32>");
 
         assert_eq!(
             type_to_rust_string(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
             "HashMap<String, i32>"
         );
 
-        assert_eq!(
-            type_to_rust_string(&Type::Optional(Box::new(Type::String))),
-            "Option<String>"
-        );
+        assert_eq!(type_to_rust_string(&Type::Optional(Box::new(Type::String))), "Option<String>");
 
         // Test unknown type fallback
         assert_eq!(type_to_rust_string(&Type::Unknown), "i32");
@@ -441,10 +429,7 @@ mod tests {
     fn test_generate_quickcheck_tests_no_properties() {
         let func = create_test_function(
             "simple",
-            vec![depyler_core::hir::HirParam::new(
-                "x".to_string(),
-                Type::String,
-            )],
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::String)],
             Type::String,
             FunctionProperties::default(),
         );

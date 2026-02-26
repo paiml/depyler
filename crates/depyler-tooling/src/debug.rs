@@ -470,11 +470,8 @@ mod tests {
 
     #[test]
     fn test_debug_info_generator_add_mapping_none_level() {
-        let mut gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::None,
-        );
+        let mut gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::None);
         gen.add_mapping(10, 0, Some("test".to_string()));
         // Should not add mappings when debug level is None
         assert!(gen.source_map().mappings.is_empty());
@@ -508,11 +505,8 @@ mod tests {
 
     #[test]
     fn test_generate_function_debug_none_level() {
-        let gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::None,
-        );
+        let gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::None);
         let func = HirFunction {
             name: "test".to_string(),
             params: smallvec![],
@@ -549,11 +543,8 @@ mod tests {
 
     #[test]
     fn test_generate_function_debug_full_level() {
-        let gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::Full,
-        );
+        let gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::Full);
         let func = HirFunction {
             name: "calc".to_string(),
             params: smallvec![HirParam::new("x".to_string(), Type::Int)],
@@ -571,11 +562,8 @@ mod tests {
 
     #[test]
     fn test_generate_debug_print_none_level() {
-        let gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::None,
-        );
+        let gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::None);
         let debug = gen.generate_debug_print("x", &Type::Int);
         assert!(debug.is_empty());
     }
@@ -594,11 +582,8 @@ mod tests {
 
     #[test]
     fn test_generate_debug_print_bool() {
-        let gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::Full,
-        );
+        let gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::Full);
         let debug = gen.generate_debug_print("flag", &Type::Bool);
         assert!(debug.contains("flag = {}"));
     }
@@ -616,11 +601,8 @@ mod tests {
 
     #[test]
     fn test_add_function_mapping_none_level() {
-        let mut gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::None,
-        );
+        let mut gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::None);
         let func = HirFunction {
             name: "test".to_string(),
             params: smallvec![],
@@ -636,11 +618,8 @@ mod tests {
 
     #[test]
     fn test_add_function_mapping_full_level() {
-        let mut gen = DebugInfoGenerator::new(
-            PathBuf::from("a.py"),
-            PathBuf::from("a.rs"),
-            DebugLevel::Full,
-        );
+        let mut gen =
+            DebugInfoGenerator::new(PathBuf::from("a.py"), PathBuf::from("a.rs"), DebugLevel::Full);
         gen.new_line(); // line 2
         gen.new_line(); // line 3
         let func = HirFunction {

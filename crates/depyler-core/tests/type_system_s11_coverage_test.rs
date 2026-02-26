@@ -11,10 +11,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -37,7 +35,9 @@ def sum_list(items: List[int]) -> int:
 "#;
     let result = transpile(code);
     assert!(
-        result.contains("Vec<i32>") || result.contains("Vec<i64>") || result.contains("fn sum_list"),
+        result.contains("Vec<i32>")
+            || result.contains("Vec<i64>")
+            || result.contains("fn sum_list"),
         "Should type List[int]. Got: {}",
         result
     );
@@ -175,11 +175,7 @@ def swap(a: int, b: int) -> Tuple[int, int]:
     return (b, a)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn swap"),
-        "Should type Tuple[int, int]. Got: {}",
-        result
-    );
+    assert!(result.contains("fn swap"), "Should type Tuple[int, int]. Got: {}", result);
 }
 
 #[test]
@@ -191,11 +187,7 @@ def rgb(r: int, g: int, b: int) -> Tuple[int, int, int]:
     return (r, g, b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn rgb"),
-        "Should type Tuple[int, int, int]. Got: {}",
-        result
-    );
+    assert!(result.contains("fn rgb"), "Should type Tuple[int, int, int]. Got: {}", result);
 }
 
 // ============================================================================
@@ -302,11 +294,7 @@ def label(name: str, idx: int) -> str:
     return f"{name}_{idx}"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("format!"),
-        "Should handle string+int format. Got: {}",
-        result
-    );
+    assert!(result.contains("format!"), "Should handle string+int format. Got: {}", result);
 }
 
 // ============================================================================
@@ -347,11 +335,7 @@ def group(items: List[int]) -> Dict[str, List[int]]:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn group"),
-        "Should handle Dict[str, List[int]]. Got: {}",
-        result
-    );
+    assert!(result.contains("fn group"), "Should handle Dict[str, List[int]]. Got: {}", result);
 }
 
 // ============================================================================
@@ -365,11 +349,7 @@ def repeat(text: str, times: int = 1) -> str:
     return text * times
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn repeat"),
-        "Should handle default int param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn repeat"), "Should handle default int param. Got: {}", result);
 }
 
 #[test]
@@ -379,11 +359,7 @@ def greet(name: str = "World") -> str:
     return f"Hello, {name}!"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn greet"),
-        "Should handle default str param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn greet"), "Should handle default str param. Got: {}", result);
 }
 
 #[test]
@@ -395,11 +371,7 @@ def process(data: str, verbose: bool = False) -> str:
     return data.strip()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should handle default bool param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should handle default bool param. Got: {}", result);
 }
 
 #[test]
@@ -414,11 +386,7 @@ def find(items: list, target: int, default: Optional[int] = None) -> Optional[in
     return default
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find"),
-        "Should handle default None param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find"), "Should handle default None param. Got: {}", result);
 }
 
 // ============================================================================
@@ -433,11 +401,7 @@ def do_work(x: int) -> None:
         print(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn do_work"),
-        "Should handle None return type. Got: {}",
-        result
-    );
+    assert!(result.contains("fn do_work"), "Should handle None return type. Got: {}", result);
 }
 
 #[test]
@@ -449,11 +413,7 @@ def range_list(n: int) -> List[int]:
     return list(range(n))
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn range_list"),
-        "Should handle List return type. Got: {}",
-        result
-    );
+    assert!(result.contains("fn range_list"), "Should handle List return type. Got: {}", result);
 }
 
 #[test]
@@ -471,11 +431,7 @@ def count_chars(text: str) -> Dict[str, int]:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_chars"),
-        "Should handle Dict return type. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_chars"), "Should handle Dict return type. Got: {}", result);
 }
 
 #[test]
@@ -486,9 +442,5 @@ def is_palindrome(s: str) -> bool:
     return cleaned == cleaned[::-1]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_palindrome"),
-        "Should handle bool return type. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_palindrome"), "Should handle bool return type. Got: {}", result);
 }

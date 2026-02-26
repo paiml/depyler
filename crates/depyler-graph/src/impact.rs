@@ -53,12 +53,7 @@ pub struct ImpactScorer<'a> {
 impl<'a> ImpactScorer<'a> {
     /// Create a new impact scorer
     pub fn new(graph: &'a DependencyGraph, errors: &'a [OverlaidError]) -> Self {
-        Self {
-            graph,
-            errors,
-            damping: 0.85,
-            iterations: 20,
-        }
+        Self { graph, errors, damping: 0.85, iterations: 20 }
     }
 
     /// Set damping factor
@@ -132,10 +127,8 @@ impl<'a> ImpactScorer<'a> {
         }
 
         // Initialize scores uniformly
-        let mut scores: HashMap<String, f64> = node_ids
-            .iter()
-            .map(|id| (id.clone(), 1.0 / n as f64))
-            .collect();
+        let mut scores: HashMap<String, f64> =
+            node_ids.iter().map(|id| (id.clone(), 1.0 / n as f64)).collect();
 
         // Calculate out-degrees
         let mut out_degrees: HashMap<String, usize> = HashMap::new();
@@ -196,9 +189,7 @@ impl<'a> ImpactScorer<'a> {
     pub fn identify_patient_zeros(&self, scores: &[ImpactScore], top_n: usize) -> Vec<PatientZero> {
         let mut sorted_scores: Vec<_> = scores.iter().collect();
         sorted_scores.sort_by(|a, b| {
-            b.total_impact
-                .partial_cmp(&a.total_impact)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.total_impact.partial_cmp(&a.total_impact).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         sorted_scores
@@ -679,11 +670,7 @@ def c():
 
         // All PageRank scores should be non-negative
         for score in &scores {
-            assert!(
-                score.pagerank_score >= 0.0,
-                "Negative pagerank for {}",
-                score.node_id
-            );
+            assert!(score.pagerank_score >= 0.0, "Negative pagerank for {}", score.node_id);
         }
         // Chain: a -> b -> c. c is most depended-upon, should have highest pagerank
         let a_pr = scores.iter().find(|s| s.node_id == "a").unwrap().pagerank_score;
@@ -732,9 +719,7 @@ def b():
         let graph = builder.build_from_source(python).unwrap();
 
         let errors: Vec<OverlaidError> = vec![];
-        let scorer = ImpactScorer::new(&graph, &errors)
-            .with_damping(0.0)
-            .with_iterations(20);
+        let scorer = ImpactScorer::new(&graph, &errors).with_damping(0.0).with_iterations(20);
         let scores = scorer.calculate_impact();
 
         // With damping=0, pagerank = (1-0)/n = 1/n for all nodes
@@ -744,7 +729,9 @@ def b():
             assert!(
                 (score.pagerank_score - expected).abs() < 0.01,
                 "Node {} expected pagerank ~{}, got {}",
-                score.node_id, expected, score.pagerank_score
+                score.node_id,
+                expected,
+                score.pagerank_score
             );
         }
     }
@@ -761,9 +748,7 @@ def sink():
         let graph = builder.build_from_source(python).unwrap();
 
         let errors: Vec<OverlaidError> = vec![];
-        let scorer = ImpactScorer::new(&graph, &errors)
-            .with_damping(1.0)
-            .with_iterations(50);
+        let scorer = ImpactScorer::new(&graph, &errors).with_damping(1.0).with_iterations(50);
         let scores = scorer.calculate_impact();
 
         for score in &scores {

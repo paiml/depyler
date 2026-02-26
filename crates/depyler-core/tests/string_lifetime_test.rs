@@ -15,10 +15,7 @@ def process_string(s: str) -> int:
 
     // DEPYLER-0357: Uses lifetime elision (&str) instead of explicit lifetimes
     // String doesn't escape, so we can borrow immutably
-    assert!(
-        rust_code.contains("s: &str"),
-        "Should use &str with lifetime elision"
-    );
+    assert!(rust_code.contains("s: &str"), "Should use &str with lifetime elision");
     assert!(rust_code.contains("-> i32"), "Should return i32");
 }
 
@@ -92,12 +89,6 @@ def append_exclamation(s: str) -> str:
     println!("Generated code for append_exclamation:\n{}", rust_code);
 
     // Should take ownership since string is reassigned
-    assert!(
-        !rust_code.contains("&"),
-        "Should not borrow when reassigning"
-    );
-    assert!(
-        rust_code.contains("mut s: String"),
-        "Should take ownership as mutable String"
-    );
+    assert!(!rust_code.contains("&"), "Should not borrow when reassigning");
+    assert!(rust_code.contains("mut s: String"), "Should take ownership as mutable String");
 }

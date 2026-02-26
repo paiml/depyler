@@ -85,11 +85,7 @@ impl YieldAnalysis {
             HirStmt::Expr(expr) => {
                 Self::analyze_expr_stmt(expr, analysis, state_counter, depth, stmt_idx);
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 Self::analyze_if_stmt(
                     then_body,
                     else_body,
@@ -102,12 +98,7 @@ impl YieldAnalysis {
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 Self::analyze_loop_stmt(body, analysis, state_counter, depth, stmt_idx);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 Self::analyze_try_stmt(
                     body,
                     handlers,
@@ -139,12 +130,8 @@ impl YieldAnalysis {
         stmt_idx: usize,
     ) {
         if let Some(yield_expr) = Self::extract_yield_expr(expr) {
-            let yield_point = YieldPoint {
-                state_id: *state_counter,
-                yield_expr,
-                live_vars: Vec::new(),
-                depth,
-            };
+            let yield_point =
+                YieldPoint { state_id: *state_counter, yield_expr, live_vars: Vec::new(), depth };
             analysis.yield_points.push(yield_point);
             analysis.resume_points.insert(*state_counter, stmt_idx + 1);
             *state_counter += 1;
@@ -280,8 +267,8 @@ impl Default for YieldAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::*;
     use depyler_annotations::TranspilationAnnotations;
+    use depyler_hir::hir::*;
     use smallvec::smallvec;
 
     // === YieldPoint tests ===
@@ -462,10 +449,7 @@ mod tests {
                 })],
                 else_body: None,
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -489,10 +473,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Literal(Literal::Int(2)))),
                 })]),
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -514,10 +495,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Var("i".to_string()))),
                 })],
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -543,10 +521,7 @@ mod tests {
                     })],
                 }],
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -570,10 +545,7 @@ mod tests {
                 orelse: None,
                 finalbody: None,
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -600,10 +572,7 @@ mod tests {
                 orelse: None,
                 finalbody: None,
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -626,10 +595,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Literal(Literal::Int(0)))),
                 })]),
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -652,10 +618,7 @@ mod tests {
                 })],
                 is_async: false,
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -678,10 +641,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Literal(Literal::Int(2)))),
                 }),
             ],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -701,10 +661,7 @@ mod tests {
             params: smallvec![],
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Yield { value: None })],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -728,10 +685,7 @@ mod tests {
             body: vec![HirStmt::Expr(HirExpr::Yield {
                 value: Some(Box::new(HirExpr::Literal(Literal::Int(42)))),
             })],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -757,10 +711,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Var("i".to_string()))),
                 })],
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -790,10 +741,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Literal(Literal::Int(3)))),
                 }),
             ],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -811,9 +759,7 @@ mod tests {
 
     #[test]
     fn test_extract_yield_expr_with_value() {
-        let expr = HirExpr::Yield {
-            value: Some(Box::new(HirExpr::Literal(Literal::Int(42)))),
-        };
+        let expr = HirExpr::Yield { value: Some(Box::new(HirExpr::Literal(Literal::Int(42)))) };
         let result = YieldAnalysis::extract_yield_expr(&expr);
         assert!(result.is_some());
         if let Some(HirExpr::Literal(Literal::Int(n))) = result {
@@ -851,10 +797,7 @@ mod tests {
                 })]),
                 finalbody: None,
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -887,10 +830,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Literal(Literal::Int(4)))),
                 })]),
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -954,10 +894,7 @@ mod tests {
                     value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
                 })],
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -1032,10 +969,7 @@ mod tests {
                 orelse: None,
                 finalbody: None,
             }],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
@@ -1053,10 +987,7 @@ mod tests {
             body: vec![HirStmt::Expr(HirExpr::Yield {
                 value: Some(Box::new(HirExpr::Var("result".to_string()))),
             })],
-            properties: FunctionProperties {
-                is_generator: true,
-                ..Default::default()
-            },
+            properties: FunctionProperties { is_generator: true, ..Default::default() },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };

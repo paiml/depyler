@@ -330,9 +330,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let first_char = var_name.chars().next().unwrap_or('a');
             let is_type_name = first_char.is_uppercase();
             // DEPYLER-CONVERGE-MULTI: Allow digits in constant names (e.g. FP8_E4M3)
-            let is_constant = attr
-                .chars()
-                .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
+            let is_constant =
+                attr.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
 
             if is_type_name && is_constant {
                 let type_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
@@ -472,16 +471,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0335 FIX #2: Get rust_path and rust_name (clone to avoid borrow issues)
-            let module_info = self
-                .ctx
-                .imported_modules
-                .get(module_name)
-                .and_then(|mapping| {
-                    mapping
-                        .item_map
-                        .get(attr)
-                        .map(|rust_name| (mapping.rust_path.clone(), rust_name.clone()))
-                });
+            let module_info = self.ctx.imported_modules.get(module_name).and_then(|mapping| {
+                mapping
+                    .item_map
+                    .get(attr)
+                    .map(|rust_name| (mapping.rust_path.clone(), rust_name.clone()))
+            });
 
             if let Some((rust_path, rust_name)) = module_info {
                 // Map to the Rust equivalent
@@ -681,6 +676,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             _ => expr, // No wrapping needed for other expressions
         }
     }
-
-
 }

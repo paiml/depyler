@@ -145,10 +145,7 @@ mod tests {
 
     #[test]
     fn test_corpus_analyzer_config_accessor() {
-        let config = CorpusConfig {
-            skip_clean: true,
-            ..Default::default()
-        };
+        let config = CorpusConfig { skip_clean: true, ..Default::default() };
         let analyzer = CorpusAnalyzer::new(config);
         assert!(analyzer.config().skip_clean);
     }
@@ -161,67 +158,25 @@ mod tests {
 
     #[test]
     fn test_corpus_config_skip_clean() {
-        let config = CorpusConfig {
-            skip_clean: true,
-            ..Default::default()
-        };
+        let config = CorpusConfig { skip_clean: true, ..Default::default() };
         assert!(config.skip_clean);
     }
 
     #[test]
     fn test_error_category_all_variants() {
-        assert_eq!(
-            ErrorCategory::from_error_code("E0308"),
-            ErrorCategory::TypeMismatch
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0412"),
-            ErrorCategory::UndefinedType
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0425"),
-            ErrorCategory::UndefinedValue
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0282"),
-            ErrorCategory::TypeAnnotation
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0277"),
-            ErrorCategory::TraitBound
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0502"),
-            ErrorCategory::BorrowCheck
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0503"),
-            ErrorCategory::BorrowCheck
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0505"),
-            ErrorCategory::BorrowCheck
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0106"),
-            ErrorCategory::Lifetime
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0621"),
-            ErrorCategory::Lifetime
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0061"),
-            ErrorCategory::Syntax
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0433"),
-            ErrorCategory::Syntax
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E9999"),
-            ErrorCategory::Other
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0308"), ErrorCategory::TypeMismatch);
+        assert_eq!(ErrorCategory::from_error_code("E0412"), ErrorCategory::UndefinedType);
+        assert_eq!(ErrorCategory::from_error_code("E0425"), ErrorCategory::UndefinedValue);
+        assert_eq!(ErrorCategory::from_error_code("E0282"), ErrorCategory::TypeAnnotation);
+        assert_eq!(ErrorCategory::from_error_code("E0277"), ErrorCategory::TraitBound);
+        assert_eq!(ErrorCategory::from_error_code("E0502"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0503"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0505"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0106"), ErrorCategory::Lifetime);
+        assert_eq!(ErrorCategory::from_error_code("E0621"), ErrorCategory::Lifetime);
+        assert_eq!(ErrorCategory::from_error_code("E0061"), ErrorCategory::Syntax);
+        assert_eq!(ErrorCategory::from_error_code("E0433"), ErrorCategory::Syntax);
+        assert_eq!(ErrorCategory::from_error_code("E9999"), ErrorCategory::Other);
     }
 
     #[test]
@@ -248,22 +203,10 @@ mod tests {
 
     #[test]
     fn test_blocker_priority_edge_cases() {
-        assert_eq!(
-            BlockerPriority::from_frequency(0, 0),
-            BlockerPriority::P3Low
-        );
-        assert_eq!(
-            BlockerPriority::from_frequency(100, 100),
-            BlockerPriority::P0Critical
-        );
-        assert_eq!(
-            BlockerPriority::from_frequency(11, 100),
-            BlockerPriority::P1High
-        );
-        assert_eq!(
-            BlockerPriority::from_frequency(6, 100),
-            BlockerPriority::P2Medium
-        );
+        assert_eq!(BlockerPriority::from_frequency(0, 0), BlockerPriority::P3Low);
+        assert_eq!(BlockerPriority::from_frequency(100, 100), BlockerPriority::P0Critical);
+        assert_eq!(BlockerPriority::from_frequency(11, 100), BlockerPriority::P1High);
+        assert_eq!(BlockerPriority::from_frequency(6, 100), BlockerPriority::P2Medium);
     }
 
     #[test]

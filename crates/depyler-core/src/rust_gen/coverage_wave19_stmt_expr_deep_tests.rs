@@ -18,10 +18,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -193,9 +191,7 @@ mod tests {
         let code = "def func(x: int) -> str:\n    return str(x)";
         let result = transpile(code);
         assert!(
-            result.contains("to_string")
-                || result.contains("Display")
-                || result.contains("format")
+            result.contains("to_string") || result.contains("Display") || result.contains("format")
         );
     }
 
@@ -347,8 +343,7 @@ mod tests {
 
     #[test]
     fn test_w19se_041_math_sqrt() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.sqrt(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.sqrt(x)";
         let result = transpile(code);
         assert!(result.contains("sqrt"));
     }
@@ -362,56 +357,49 @@ mod tests {
 
     #[test]
     fn test_w19se_043_math_floor() {
-        let code =
-            "import math\ndef func(x: float) -> int:\n    return math.floor(x)";
+        let code = "import math\ndef func(x: float) -> int:\n    return math.floor(x)";
         let result = transpile(code);
         assert!(result.contains("floor"));
     }
 
     #[test]
     fn test_w19se_044_math_log() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.log(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.log(x)";
         let result = transpile(code);
         assert!(result.contains("ln") || result.contains("log"));
     }
 
     #[test]
     fn test_w19se_045_math_log10() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.log10(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.log10(x)";
         let result = transpile(code);
         assert!(result.contains("log10") || result.contains("log"));
     }
 
     #[test]
     fn test_w19se_046_math_log2() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.log2(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.log2(x)";
         let result = transpile(code);
         assert!(result.contains("log2") || result.contains("log"));
     }
 
     #[test]
     fn test_w19se_047_math_sin() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.sin(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.sin(x)";
         let result = transpile(code);
         assert!(result.contains("sin"));
     }
 
     #[test]
     fn test_w19se_048_math_cos() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.cos(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.cos(x)";
         let result = transpile(code);
         assert!(result.contains("cos"));
     }
 
     #[test]
     fn test_w19se_049_math_tan() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.tan(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.tan(x)";
         let result = transpile(code);
         assert!(result.contains("tan"));
     }
@@ -420,9 +408,7 @@ mod tests {
     fn test_w19se_050_math_pi_constant() {
         let code = "import math\ndef func() -> float:\n    return math.pi";
         let result = transpile(code);
-        assert!(
-            result.contains("PI") || result.contains("pi") || result.contains("std::f64")
-        );
+        assert!(result.contains("PI") || result.contains("pi") || result.contains("std::f64"));
     }
 
     #[test]
@@ -439,8 +425,7 @@ mod tests {
 
     #[test]
     fn test_w19se_052_math_factorial() {
-        let code =
-            "import math\ndef func(n: int) -> int:\n    return math.factorial(n)";
+        let code = "import math\ndef func(n: int) -> int:\n    return math.factorial(n)";
         let result = transpile(code);
         assert!(result.contains("factorial") || result.contains("fn ") || !result.is_empty());
     }
@@ -461,39 +446,31 @@ mod tests {
 
     #[test]
     fn test_w19se_055_math_exp() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.exp(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.exp(x)";
         let result = transpile(code);
         assert!(result.contains("exp"));
     }
 
     #[test]
     fn test_w19se_056_math_fabs() {
-        let code =
-            "import math\ndef func(x: float) -> float:\n    return math.fabs(x)";
+        let code = "import math\ndef func(x: float) -> float:\n    return math.fabs(x)";
         let result = transpile(code);
         assert!(result.contains("abs") || result.contains("fabs"));
     }
 
     #[test]
     fn test_w19se_057_math_isnan() {
-        let code =
-            "import math\ndef func(x: float) -> bool:\n    return math.isnan(x)";
+        let code = "import math\ndef func(x: float) -> bool:\n    return math.isnan(x)";
         let result = transpile(code);
-        assert!(
-            result.contains("is_nan") || result.contains("isnan") || result.contains("nan")
-        );
+        assert!(result.contains("is_nan") || result.contains("isnan") || result.contains("nan"));
     }
 
     #[test]
     fn test_w19se_058_math_isinf() {
-        let code =
-            "import math\ndef func(x: float) -> bool:\n    return math.isinf(x)";
+        let code = "import math\ndef func(x: float) -> bool:\n    return math.isinf(x)";
         let result = transpile(code);
         assert!(
-            result.contains("is_infinite")
-                || result.contains("isinf")
-                || result.contains("inf")
+            result.contains("is_infinite") || result.contains("isinf") || result.contains("inf")
         );
     }
 
@@ -502,16 +479,13 @@ mod tests {
         let code = "import json\ndef func(data: dict) -> str:\n    return json.dumps(data)";
         let result = transpile(code);
         assert!(
-            result.contains("json")
-                || result.contains("serialize")
-                || result.contains("to_string")
+            result.contains("json") || result.contains("serialize") || result.contains("to_string")
         );
     }
 
     #[test]
     fn test_w19se_060_json_loads() {
-        let code =
-            "import json\ndef func(text: str) -> dict:\n    return json.loads(text)";
+        let code = "import json\ndef func(text: str) -> dict:\n    return json.loads(text)";
         let result = transpile(code);
         assert!(
             result.contains("json")
@@ -523,7 +497,8 @@ mod tests {
 
     #[test]
     fn test_w19se_061_random_randint() {
-        let code = "import random\ndef func(a: int, b: int) -> int:\n    return random.randint(a, b)";
+        let code =
+            "import random\ndef func(a: int, b: int) -> int:\n    return random.randint(a, b)";
         let result = transpile(code);
         assert!(
             result.contains("random")
@@ -536,38 +511,37 @@ mod tests {
 
     #[test]
     fn test_w19se_062_random_choice() {
-        let code =
-            "import random\ndef func(lst: list) -> int:\n    return random.choice(lst)";
+        let code = "import random\ndef func(lst: list) -> int:\n    return random.choice(lst)";
         let result = transpile(code);
         assert!(result.contains("choose") || result.contains("random") || !result.is_empty());
     }
 
     #[test]
     fn test_w19se_063_random_shuffle() {
-        let code =
-            "import random\ndef func(lst: list) -> None:\n    random.shuffle(lst)";
+        let code = "import random\ndef func(lst: list) -> None:\n    random.shuffle(lst)";
         let result = transpile(code);
         assert!(result.contains("shuffle") || !result.is_empty());
     }
 
     #[test]
     fn test_w19se_064_random_random_call() {
-        let code =
-            "import random\ndef func() -> float:\n    return random.random()";
+        let code = "import random\ndef func() -> float:\n    return random.random()";
         let result = transpile(code);
         assert!(result.contains("random") || result.contains("gen") || !result.is_empty());
     }
 
     #[test]
     fn test_w19se_065_math_atan2() {
-        let code = "import math\ndef func(y: float, x: float) -> float:\n    return math.atan2(y, x)";
+        let code =
+            "import math\ndef func(y: float, x: float) -> float:\n    return math.atan2(y, x)";
         let result = transpile(code);
         assert!(result.contains("atan2") || result.contains("atan"));
     }
 
     #[test]
     fn test_w19se_066_math_hypot() {
-        let code = "import math\ndef func(x: float, y: float) -> float:\n    return math.hypot(x, y)";
+        let code =
+            "import math\ndef func(x: float, y: float) -> float:\n    return math.hypot(x, y)";
         let result = transpile(code);
         assert!(result.contains("hypot") || !result.is_empty());
     }
@@ -576,27 +550,20 @@ mod tests {
     fn test_w19se_067_math_radians() {
         let code = "import math\ndef func(deg: float) -> float:\n    return math.radians(deg)";
         let result = transpile(code);
-        assert!(
-            result.contains("to_radians")
-                || result.contains("radians")
-                || !result.is_empty()
-        );
+        assert!(result.contains("to_radians") || result.contains("radians") || !result.is_empty());
     }
 
     #[test]
     fn test_w19se_068_math_degrees() {
         let code = "import math\ndef func(rad: float) -> float:\n    return math.degrees(rad)";
         let result = transpile(code);
-        assert!(
-            result.contains("to_degrees")
-                || result.contains("degrees")
-                || !result.is_empty()
-        );
+        assert!(result.contains("to_degrees") || result.contains("degrees") || !result.is_empty());
     }
 
     #[test]
     fn test_w19se_069_math_copysign() {
-        let code = "import math\ndef func(x: float, y: float) -> float:\n    return math.copysign(x, y)";
+        let code =
+            "import math\ndef func(x: float, y: float) -> float:\n    return math.copysign(x, y)";
         let result = transpile(code);
         assert!(result.contains("copysign") || !result.is_empty());
     }
@@ -605,9 +572,7 @@ mod tests {
     fn test_w19se_070_math_trunc() {
         let code = "import math\ndef func(x: float) -> int:\n    return math.trunc(x)";
         let result = transpile(code);
-        assert!(
-            result.contains("trunc") || result.contains("as i") || !result.is_empty()
-        );
+        assert!(result.contains("trunc") || result.contains("as i") || !result.is_empty());
     }
 
     // ========================================================================
@@ -857,9 +822,7 @@ mod tests {
     fn test_w19se_103_annotated_dict() {
         let code = "def func() -> dict:\n    x: dict = {}\n    return x";
         let result = transpile(code);
-        assert!(
-            result.contains("HashMap") || result.contains("new") || result.contains("dict")
-        );
+        assert!(result.contains("HashMap") || result.contains("new") || result.contains("dict"));
     }
 
     #[test]
@@ -906,7 +869,8 @@ mod tests {
 
     #[test]
     fn test_w19se_110_function_default_none() {
-        let code = "def func(x: int = None) -> int:\n    if x is None:\n        return 0\n    return x";
+        let code =
+            "def func(x: int = None) -> int:\n    if x is None:\n        return 0\n    return x";
         let result = transpile(code);
         assert!(result.contains("fn") || result.contains("Option") || result.contains("None"));
     }
@@ -927,12 +891,9 @@ mod tests {
 
     #[test]
     fn test_w19se_113_string_concat_assign() {
-        let code =
-            "def func() -> str:\n    s = \"hello\"\n    s = s + \" world\"\n    return s";
+        let code = "def func() -> str:\n    s = \"hello\"\n    s = s + \" world\"\n    return s";
         let result = transpile(code);
-        assert!(
-            result.contains("hello") || result.contains("world") || result.contains("+")
-        );
+        assert!(result.contains("hello") || result.contains("world") || result.contains("+"));
     }
 
     #[test]
@@ -944,12 +905,9 @@ mod tests {
 
     #[test]
     fn test_w19se_115_dict_setitem_pattern() {
-        let code =
-            "def func() -> dict:\n    d = {}\n    d[\"key\"] = \"value\"\n    return d";
+        let code = "def func() -> dict:\n    d = {}\n    d[\"key\"] = \"value\"\n    return d";
         let result = transpile(code);
-        assert!(
-            result.contains("insert") || result.contains("HashMap") || result.contains("key")
-        );
+        assert!(result.contains("insert") || result.contains("HashMap") || result.contains("key"));
     }
 
     #[test]
@@ -961,8 +919,7 @@ mod tests {
 
     #[test]
     fn test_w19se_117_swap_pattern() {
-        let code =
-            "def func(a: int, b: int) -> tuple:\n    a, b = b, a\n    return (a, b)";
+        let code = "def func(a: int, b: int) -> tuple:\n    a, b = b, a\n    return (a, b)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1027,18 +984,14 @@ mod tests {
     fn test_w19se_126_dict_literal_assign() {
         let code = "def func() -> dict:\n    d = {\"a\": 1, \"b\": 2}\n    return d";
         let result = transpile(code);
-        assert!(
-            result.contains("HashMap") || result.contains("insert") || result.contains("a")
-        );
+        assert!(result.contains("HashMap") || result.contains("insert") || result.contains("a"));
     }
 
     #[test]
     fn test_w19se_127_set_literal_assign() {
         let code = "def func() -> set:\n    s = {1, 2, 3}\n    return s";
         let result = transpile(code);
-        assert!(
-            result.contains("HashSet") || result.contains("set") || result.contains("1")
-        );
+        assert!(result.contains("HashSet") || result.contains("set") || result.contains("1"));
     }
 
     #[test]
@@ -1182,18 +1135,14 @@ mod tests {
     fn test_w19se_147_is_none_check() {
         let code = "def func(x: int) -> bool:\n    return x is None";
         let result = transpile(code);
-        assert!(
-            result.contains("is_none") || result.contains("None") || result.contains("==")
-        );
+        assert!(result.contains("is_none") || result.contains("None") || result.contains("=="));
     }
 
     #[test]
     fn test_w19se_148_is_not_none_check() {
         let code = "def func(x: int) -> bool:\n    return x is not None";
         let result = transpile(code);
-        assert!(
-            result.contains("is_some") || result.contains("None") || result.contains("!=")
-        );
+        assert!(result.contains("is_some") || result.contains("None") || result.contains("!="));
     }
 
     #[test]
@@ -1207,9 +1156,7 @@ mod tests {
     fn test_w19se_150_fstring_basic() {
         let code = "def func(name: str) -> str:\n    return f\"hello {name}\"";
         let result = transpile(code);
-        assert!(
-            result.contains("format!") || result.contains("hello") || result.contains("name")
-        );
+        assert!(result.contains("format!") || result.contains("hello") || result.contains("name"));
     }
 
     #[test]
@@ -1233,18 +1180,14 @@ mod tests {
 
     #[test]
     fn test_w19se_153_list_comp_with_filter() {
-        let code =
-            "def func(n: int) -> list:\n    return [x for x in range(n) if x % 2 == 0]";
+        let code = "def func(n: int) -> list:\n    return [x for x in range(n) if x % 2 == 0]";
         let result = transpile(code);
-        assert!(
-            result.contains("filter") || result.contains("collect") || result.contains("iter")
-        );
+        assert!(result.contains("filter") || result.contains("collect") || result.contains("iter"));
     }
 
     #[test]
     fn test_w19se_154_dict_comprehension() {
-        let code =
-            "def func(n: int) -> dict:\n    return {str(i): i for i in range(n)}";
+        let code = "def func(n: int) -> dict:\n    return {str(i): i for i in range(n)}";
         let result = transpile(code);
         assert!(
             result.contains("collect")
@@ -1259,9 +1202,7 @@ mod tests {
         let code = "def func(n: int) -> set:\n    return {x * x for x in range(n)}";
         let result = transpile(code);
         assert!(
-            result.contains("collect")
-                || result.contains("HashSet")
-                || result.contains("iter")
+            result.contains("collect") || result.contains("HashSet") || result.contains("iter")
         );
     }
 
@@ -1379,9 +1320,7 @@ mod tests {
     fn test_w19se_169_class_field_default() {
         let code = "class Config:\n    def __init__(self):\n        self.debug = False\n        self.count = 0";
         let result = transpile(code);
-        assert!(
-            result.contains("struct") || result.contains("Config") || result.contains("impl")
-        );
+        assert!(result.contains("struct") || result.contains("Config") || result.contains("impl"));
     }
 
     #[test]
@@ -1395,15 +1334,12 @@ mod tests {
     fn test_w19se_171_nested_function() {
         let code = "def outer(x: int) -> int:\n    def inner(y: int) -> int:\n        return y * 2\n    return inner(x)";
         let result = transpile(code);
-        assert!(
-            result.contains("fn") || result.contains("inner") || result.contains("outer")
-        );
+        assert!(result.contains("fn") || result.contains("inner") || result.contains("outer"));
     }
 
     #[test]
     fn test_w19se_172_lambda_basic() {
-        let code =
-            "def func(lst: list) -> list:\n    return sorted(lst, key=lambda x: x)";
+        let code = "def func(lst: list) -> list:\n    return sorted(lst, key=lambda x: x)";
         let result = transpile(code);
         assert!(
             result.contains("|")
@@ -1415,8 +1351,7 @@ mod tests {
 
     #[test]
     fn test_w19se_173_lambda_with_expression() {
-        let code =
-            "def func(lst: list) -> list:\n    return list(map(lambda x: x * 2, lst))";
+        let code = "def func(lst: list) -> list:\n    return list(map(lambda x: x * 2, lst))";
         let result = transpile(code);
         assert!(result.contains("|") || result.contains("map") || result.contains("*"));
     }
@@ -1444,18 +1379,14 @@ mod tests {
     fn test_w19se_176_function_returns_list() {
         let code = "def func(n: int) -> list:\n    return [i for i in range(n)]";
         let result = transpile(code);
-        assert!(
-            result.contains("Vec") || result.contains("collect") || result.contains("vec")
-        );
+        assert!(result.contains("Vec") || result.contains("collect") || result.contains("vec"));
     }
 
     #[test]
     fn test_w19se_177_function_returns_dict() {
         let code = "def func() -> dict:\n    return {\"a\": 1, \"b\": 2}";
         let result = transpile(code);
-        assert!(
-            result.contains("HashMap") || result.contains("insert") || result.contains("a")
-        );
+        assert!(result.contains("HashMap") || result.contains("insert") || result.contains("a"));
     }
 
     #[test]
@@ -1530,12 +1461,9 @@ mod tests {
 
     #[test]
     fn test_w19se_188_string_method_replace() {
-        let code =
-            "def func(s: str) -> str:\n    return s.replace(\"old\", \"new\")";
+        let code = "def func(s: str) -> str:\n    return s.replace(\"old\", \"new\")";
         let result = transpile(code);
-        assert!(
-            result.contains("replace") || result.contains("old") || result.contains("new")
-        );
+        assert!(result.contains("replace") || result.contains("old") || result.contains("new"));
     }
 
     #[test]
@@ -1554,20 +1482,15 @@ mod tests {
         let code = "def func(s: str) -> bool:\n    return s.endswith(\"suf\")";
         let result = transpile(code);
         assert!(
-            result.contains("ends_with")
-                || result.contains("endswith")
-                || result.contains("suf")
+            result.contains("ends_with") || result.contains("endswith") || result.contains("suf")
         );
     }
 
     #[test]
     fn test_w19se_191_list_method_extend() {
-        let code =
-            "def func() -> list:\n    a = [1, 2]\n    a.extend([3, 4])\n    return a";
+        let code = "def func() -> list:\n    a = [1, 2]\n    a.extend([3, 4])\n    return a";
         let result = transpile(code);
-        assert!(
-            result.contains("extend") || result.contains("push") || result.contains("append")
-        );
+        assert!(result.contains("extend") || result.contains("push") || result.contains("append"));
     }
 
     #[test]
@@ -1579,8 +1502,7 @@ mod tests {
 
     #[test]
     fn test_w19se_193_list_method_insert() {
-        let code =
-            "def func() -> list:\n    a = [1, 3]\n    a.insert(1, 2)\n    return a";
+        let code = "def func() -> list:\n    a = [1, 3]\n    a.insert(1, 2)\n    return a";
         let result = transpile(code);
         assert!(result.contains("insert") || result.contains("push") || result.contains("1"));
     }
@@ -1589,27 +1511,21 @@ mod tests {
     fn test_w19se_194_dict_method_get() {
         let code = "def func(d: dict) -> int:\n    return d.get(\"key\", 0)";
         let result = transpile(code);
-        assert!(
-            result.contains("get") || result.contains("unwrap_or") || result.contains("key")
-        );
+        assert!(result.contains("get") || result.contains("unwrap_or") || result.contains("key"));
     }
 
     #[test]
     fn test_w19se_195_dict_method_keys() {
         let code = "def func(d: dict) -> list:\n    return list(d.keys())";
         let result = transpile(code);
-        assert!(
-            result.contains("keys") || result.contains("iter") || result.contains("collect")
-        );
+        assert!(result.contains("keys") || result.contains("iter") || result.contains("collect"));
     }
 
     #[test]
     fn test_w19se_196_dict_method_values() {
         let code = "def func(d: dict) -> list:\n    return list(d.values())";
         let result = transpile(code);
-        assert!(
-            result.contains("values") || result.contains("iter") || result.contains("collect")
-        );
+        assert!(result.contains("values") || result.contains("iter") || result.contains("collect"));
     }
 
     #[test]
@@ -1628,9 +1544,7 @@ mod tests {
     fn test_w19se_198_chained_method_calls() {
         let code = "def func(s: str) -> str:\n    return s.strip().lower().replace(\" \", \"_\")";
         let result = transpile(code);
-        assert!(
-            result.contains("trim") || result.contains("lower") || result.contains("replace")
-        );
+        assert!(result.contains("trim") || result.contains("lower") || result.contains("replace"));
     }
 
     #[test]

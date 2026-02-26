@@ -27,11 +27,7 @@ def sort_by_length(words: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -43,19 +39,11 @@ def sort_by_length(words: list) -> list:
 
     // Should have closure syntax
     let has_closure = rust_code.contains("|x|") || rust_code.contains("| x |");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have sort_by_key
     let has_sort_by_key = rust_code.contains("sort_by_key");
-    assert!(
-        has_sort_by_key,
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_sort_by_key, "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have .len() call
     let has_len = rust_code.contains(".len()");
@@ -71,31 +59,19 @@ def sort_by_doubled(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have closure
     let has_closure = rust_code.contains("|x|") || rust_code.contains("| x |");
     assert!(has_closure, "Should have closure.\nGot:\n{}", rust_code);
 
     // Should have multiplication
-    assert!(
-        rust_code.contains("* 2"),
-        "Should have multiplication.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("* 2"), "Should have multiplication.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -107,28 +83,16 @@ def sort_by_complex(items: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should preserve the complex expression
     let has_arithmetic = rust_code.contains("* 2") && rust_code.contains("+ 10");
-    assert!(
-        has_arithmetic,
-        "Should preserve arithmetic.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_arithmetic, "Should preserve arithmetic.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -140,29 +104,17 @@ def simple_sort(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should NOT have sort_by_key for simple sorted()
     let has_sort_by_key = rust_code.contains("sort_by_key");
-    assert!(
-        !has_sort_by_key,
-        "Simple sorted() should not use sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(!has_sort_by_key, "Simple sorted() should not use sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have some form of sorting
     let has_sort = rust_code.contains(".sort()") || rust_code.contains("sorted");
-    assert!(
-        has_sort,
-        "Should have sorting operation.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_sort, "Should have sorting operation.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -175,27 +127,15 @@ def sort_by_name(people: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have attribute access
-    assert!(
-        rust_code.contains(".name"),
-        "Should access .name attribute.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains(".name"), "Should access .name attribute.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -207,20 +147,12 @@ def sort_descending(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort operation
-    assert!(
-        rust_code.contains("sort"),
-        "Should have sort.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort"), "Should have sort.\nGot:\n{}", rust_code);
 
     // Should have reverse logic
     let has_reverse = rust_code.contains(".rev()")
@@ -238,20 +170,12 @@ def sort_by_first(pairs: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have indexing
     let has_index = rust_code.contains("[0]") || rust_code.contains(".get(0");
@@ -267,27 +191,15 @@ def sort_uppercase(words: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have len call
-    assert!(
-        rust_code.contains(".len()"),
-        "Should have .len().\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains(".len()"), "Should have .len().\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -299,28 +211,16 @@ def sort_custom(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have conditional logic
     let has_conditional = rust_code.contains("if") || rust_code.contains("match");
-    assert!(
-        has_conditional,
-        "Should have conditional.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_conditional, "Should have conditional.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -332,20 +232,12 @@ def sort_by_negative(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have sort_by_key
-    assert!(
-        rust_code.contains("sort_by_key"),
-        "Should have sort_by_key.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("sort_by_key"), "Should have sort_by_key.\nGot:\n{}", rust_code);
 
     // Should have negation
     let has_negation = rust_code.contains("-x") || rust_code.contains("- x");

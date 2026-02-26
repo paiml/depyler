@@ -123,11 +123,7 @@ def process_format(use_json, format_str):
         (rust_code.contains(r#""json".to_string()"#)
          && rust_code.contains(".to_lowercase()"));
 
-    assert!(
-        has_consistent_types,
-        "Expected consistent String type handling. Got:\n{}",
-        rust_code
-    );
+    assert!(has_consistent_types, "Expected consistent String type handling. Got:\n{}", rust_code);
 
     // Should handle .to_lowercase() correctly
     assert_contains(&rust_code, ".to_lowercase()");

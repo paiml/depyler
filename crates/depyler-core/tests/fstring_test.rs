@@ -17,21 +17,13 @@ def greet(name: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should contain format! macro (flexible whitespace)
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "F-string should generate format!() macro.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "F-string should generate format!() macro.\nGot:\n{}", rust_code);
 
     // Should have the format string template
     assert!(
@@ -57,20 +49,12 @@ def describe(name: str, age: int) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "Should generate format!().\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "Should generate format!().\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("{} is {} years old"),
@@ -90,20 +74,12 @@ def test() -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "F-string in assignment should work.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "F-string in assignment should work.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -115,11 +91,7 @@ def test() -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -140,11 +112,7 @@ def test() -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -165,20 +133,12 @@ def test(x: int, y: float) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "F-string with numbers should work.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "F-string with numbers should work.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("x={}, y={}"),
@@ -196,11 +156,7 @@ def test() -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -222,21 +178,13 @@ def test(first: str, last: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should contain string concatenation with format!
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "Concatenated f-strings should work.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "Concatenated f-strings should work.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -251,20 +199,12 @@ def test(name: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "F-string as function argument should work.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "F-string as function argument should work.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -278,18 +218,10 @@ You are {age} years old"""
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     let has_format = rust_code.contains("format!") || rust_code.contains("format !");
-    assert!(
-        has_format,
-        "Multiline f-string should work.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_format, "Multiline f-string should work.\nGot:\n{}", rust_code);
 }

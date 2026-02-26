@@ -16,7 +16,7 @@ test-threads = "num-cpus"
 [profile.coverage]
 # Coverage profile - excludes tests requiring external binary
 default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(~find_best_config) and not test(~differential)"
-slow-timeout = { period = "60s", grace-period = "10s" }
+slow-timeout = { period = "60s", grace-period = "10s", terminate-after = 1 }
 retries = 0
 test-threads = "num-cpus"
 

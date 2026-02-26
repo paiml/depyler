@@ -3,11 +3,11 @@
 //! This module provides comprehensive analysis of parameter usage patterns
 //! to determine optimal borrowing strategies for function parameters.
 
+use crate::type_mapper::{RustType, TypeMapper};
 #[cfg(feature = "decision-tracing")]
 use depyler_hir::decision_trace::DecisionCategory;
 use depyler_hir::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type as PythonType};
 use depyler_hir::trace_decision;
-use crate::type_mapper::{RustType, TypeMapper};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 
@@ -133,10 +133,7 @@ pub enum BorrowingInsight {
     /// Parameter access pattern suggests Copy trait
     SuggestCopyDerive(String),
     /// Multiple mutable borrows detected
-    PotentialBorrowConflict {
-        param: String,
-        locations: Vec<String>,
-    },
+    PotentialBorrowConflict { param: String, locations: Vec<String> },
 }
 
 impl BorrowingContext {
@@ -159,8 +156,7 @@ impl BorrowingContext {
     ) -> BorrowingAnalysisResult {
         // Initialize parameter tracking
         for param in &func.params {
-            self.param_usage
-                .insert(param.name.clone(), ParameterUsagePattern::default());
+            self.param_usage.insert(param.name.clone(), ParameterUsagePattern::default());
         }
 
         // Analyze function body
@@ -188,11 +184,7 @@ impl BorrowingContext {
                     self.analyze_expression_for_return(e);
                 }
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_expression(condition, 0);
                 self.context_stack.push(AnalysisContext::Conditional);
                 for stmt in then_body {
@@ -213,11 +205,7 @@ impl BorrowingContext {
                 }
                 self.context_stack.pop();
             }
-            HirStmt::For {
-                target: _,
-                iter,
-                body,
-            } => {
+            HirStmt::For { target: _, iter, body } => {
                 self.context_stack.push(AnalysisContext::Loop);
                 self.analyze_expression(iter, 0);
                 for stmt in body {
@@ -252,12 +240,7 @@ impl BorrowingContext {
                     self.analyze_expression(message, 0);
                 }
             }
-            HirStmt::With {
-                context,
-                target: _,
-                body,
-                ..
-            } => {
+            HirStmt::With { context, target: _, body, .. } => {
                 // Analyze context expression
                 self.analyze_expression(context, 0);
 
@@ -269,12 +252,7 @@ impl BorrowingContext {
                     self.analyze_statement(stmt);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 // Analyze try body
                 for stmt in body {
                     self.analyze_statement(stmt);
@@ -478,12 +456,7 @@ impl BorrowingContext {
                     self.analyze_expression(arg, borrow_depth);
                 }
             }
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 self.analyze_expression(base, borrow_depth);
                 if let Some(s) = start {
                     self.analyze_expression(s, borrow_depth);
@@ -496,10 +469,7 @@ impl BorrowingContext {
                 }
             }
             HirExpr::Literal(_) => {}
-            HirExpr::ListComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators } => {
                 // List comprehensions create a new scope
                 self.context_stack.push(AnalysisContext::Loop);
 
@@ -532,10 +502,7 @@ impl BorrowingContext {
                     self.analyze_expression(elem, borrow_depth);
                 }
             }
-            HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::SetComp { element, generators } => {
                 // Set comprehensions create a new scope
                 self.context_stack.push(AnalysisContext::Loop);
 
@@ -555,11 +522,7 @@ impl BorrowingContext {
 
                 self.context_stack.pop();
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 // Dict comprehensions create a new scope
                 self.context_stack.push(AnalysisContext::Loop);
 
@@ -596,17 +559,12 @@ impl BorrowingContext {
                 self.analyze_expression(body, borrow_depth);
                 self.analyze_expression(orelse, borrow_depth);
             }
-            HirExpr::SortByKey {
-                iterable, key_body, ..
-            } => {
+            HirExpr::SortByKey { iterable, key_body, .. } => {
                 // Analyze the iterable and the key lambda body
                 self.analyze_expression(iterable, borrow_depth);
                 self.analyze_expression(key_body, borrow_depth);
             }
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::GeneratorExp { element, generators } => {
                 // Analyze element expression and all generator iterables
                 self.analyze_expression(element, borrow_depth);
                 for gen in generators {
@@ -712,16 +670,12 @@ impl BorrowingContext {
 
     /// Check if currently in a loop context
     fn is_in_loop(&self) -> bool {
-        self.context_stack
-            .iter()
-            .any(|ctx| matches!(ctx, AnalysisContext::Loop))
+        self.context_stack.iter().any(|ctx| matches!(ctx, AnalysisContext::Loop))
     }
 
     /// Check if currently in a conditional context
     fn is_in_conditional(&self) -> bool {
-        self.context_stack
-            .iter()
-            .any(|ctx| matches!(ctx, AnalysisContext::Conditional))
+        self.context_stack.iter().any(|ctx| matches!(ctx, AnalysisContext::Conditional))
     }
 
     /// Determine optimal borrowing strategies based on usage patterns
@@ -734,11 +688,7 @@ impl BorrowingContext {
         let mut insights = Vec::new();
 
         for param in &func.params {
-            let usage = self
-                .param_usage
-                .get(&param.name)
-                .cloned()
-                .unwrap_or_default();
+            let usage = self.param_usage.get(&param.name).cloned().unwrap_or_default();
             let rust_type = type_mapper.map_type(&param.ty);
 
             let strategy = self.determine_parameter_strategy(
@@ -752,10 +702,7 @@ impl BorrowingContext {
             strategies.insert(param.name.clone(), strategy);
         }
 
-        BorrowingAnalysisResult {
-            param_strategies: strategies,
-            insights,
-        }
+        BorrowingAnalysisResult { param_strategies: strategies, insights }
     }
 
     /// Determine strategy for a single parameter
@@ -802,9 +749,7 @@ impl BorrowingContext {
 
         // If parameter is stored in a structure, consider shared ownership
         if usage.is_stored {
-            return BorrowingStrategy::UseSharedOwnership {
-                is_thread_safe: false,
-            };
+            return BorrowingStrategy::UseSharedOwnership { is_thread_safe: false };
         }
 
         // If used in closure, determine capture strategy
@@ -997,8 +942,8 @@ pub enum OwnershipFixType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::{FunctionProperties, HirParam, Literal};
     use depyler_annotations::TranspilationAnnotations;
+    use depyler_hir::hir::{FunctionProperties, HirParam, Literal};
     use smallvec::smallvec;
 
     #[test]
@@ -1050,10 +995,7 @@ mod tests {
 
         // String parameter should be borrowed (not moved)
         let s_strategy = result.param_strategies.get("s").unwrap();
-        assert!(matches!(
-            s_strategy,
-            BorrowingStrategy::BorrowImmutable { .. }
-        ));
+        assert!(matches!(s_strategy, BorrowingStrategy::BorrowImmutable { .. }));
     }
 
     #[test]
@@ -1070,10 +1012,7 @@ mod tests {
             ret_type: PythonType::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "append".to_string(),
-                args: vec![
-                    HirExpr::Var("lst".to_string()),
-                    HirExpr::Literal(Literal::Int(42)),
-                ],
+                args: vec![HirExpr::Var("lst".to_string()), HirExpr::Literal(Literal::Int(42))],
                 kwargs: vec![],
             })],
             properties: FunctionProperties::default(),
@@ -1122,11 +1061,8 @@ mod tests {
 
     #[test]
     fn test_parameter_usage_pattern_clone() {
-        let pattern = ParameterUsagePattern {
-            is_read: true,
-            is_mutated: true,
-            ..Default::default()
-        };
+        let pattern =
+            ParameterUsagePattern { is_read: true, is_mutated: true, ..Default::default() };
         let cloned = pattern.clone();
         assert_eq!(pattern.is_read, cloned.is_read);
         assert_eq!(pattern.is_mutated, cloned.is_mutated);
@@ -1180,28 +1116,14 @@ mod tests {
 
     #[test]
     fn test_usage_type_function_arg_owned() {
-        let usage = UsageType::FunctionArg {
-            takes_ownership: true,
-        };
-        assert!(matches!(
-            usage,
-            UsageType::FunctionArg {
-                takes_ownership: true
-            }
-        ));
+        let usage = UsageType::FunctionArg { takes_ownership: true };
+        assert!(matches!(usage, UsageType::FunctionArg { takes_ownership: true }));
     }
 
     #[test]
     fn test_usage_type_function_arg_borrowed() {
-        let usage = UsageType::FunctionArg {
-            takes_ownership: false,
-        };
-        assert!(matches!(
-            usage,
-            UsageType::FunctionArg {
-                takes_ownership: false
-            }
-        ));
+        let usage = UsageType::FunctionArg { takes_ownership: false };
+        assert!(matches!(usage, UsageType::FunctionArg { takes_ownership: false }));
     }
 
     #[test]
@@ -1218,15 +1140,8 @@ mod tests {
 
     #[test]
     fn test_usage_type_closure() {
-        let usage = UsageType::Closure {
-            captures_by_value: true,
-        };
-        assert!(matches!(
-            usage,
-            UsageType::Closure {
-                captures_by_value: true
-            }
-        ));
+        let usage = UsageType::Closure { captures_by_value: true };
+        assert!(matches!(usage, UsageType::Closure { captures_by_value: true }));
     }
 
     #[test]
@@ -1258,17 +1173,12 @@ mod tests {
     #[test]
     fn test_borrowing_strategy_borrow_immutable() {
         let strategy = BorrowingStrategy::BorrowImmutable { lifetime: None };
-        assert!(matches!(
-            strategy,
-            BorrowingStrategy::BorrowImmutable { .. }
-        ));
+        assert!(matches!(strategy, BorrowingStrategy::BorrowImmutable { .. }));
     }
 
     #[test]
     fn test_borrowing_strategy_borrow_immutable_with_lifetime() {
-        let strategy = BorrowingStrategy::BorrowImmutable {
-            lifetime: Some("'a".to_string()),
-        };
+        let strategy = BorrowingStrategy::BorrowImmutable { lifetime: Some("'a".to_string()) };
         if let BorrowingStrategy::BorrowImmutable { lifetime } = &strategy {
             assert_eq!(lifetime, &Some("'a".to_string()));
         }
@@ -1282,9 +1192,7 @@ mod tests {
 
     #[test]
     fn test_borrowing_strategy_use_cow() {
-        let strategy = BorrowingStrategy::UseCow {
-            lifetime: "'a".to_string(),
-        };
+        let strategy = BorrowingStrategy::UseCow { lifetime: "'a".to_string() };
         if let BorrowingStrategy::UseCow { lifetime } = &strategy {
             assert_eq!(lifetime, "'a");
         }
@@ -1292,9 +1200,7 @@ mod tests {
 
     #[test]
     fn test_borrowing_strategy_use_shared_ownership_arc() {
-        let strategy = BorrowingStrategy::UseSharedOwnership {
-            is_thread_safe: true,
-        };
+        let strategy = BorrowingStrategy::UseSharedOwnership { is_thread_safe: true };
         if let BorrowingStrategy::UseSharedOwnership { is_thread_safe } = strategy {
             assert!(is_thread_safe);
         }
@@ -1302,9 +1208,7 @@ mod tests {
 
     #[test]
     fn test_borrowing_strategy_use_shared_ownership_rc() {
-        let strategy = BorrowingStrategy::UseSharedOwnership {
-            is_thread_safe: false,
-        };
+        let strategy = BorrowingStrategy::UseSharedOwnership { is_thread_safe: false };
         if let BorrowingStrategy::UseSharedOwnership { is_thread_safe } = strategy {
             assert!(!is_thread_safe);
         }
@@ -1330,10 +1234,7 @@ mod tests {
             param: "s".to_string(),
             suggestion: "Use 'a".to_string(),
         };
-        assert!(matches!(
-            insight,
-            BorrowingInsight::LifetimeOptimization { .. }
-        ));
+        assert!(matches!(insight, BorrowingInsight::LifetimeOptimization { .. }));
     }
 
     #[test]
@@ -1348,10 +1249,7 @@ mod tests {
             param: "data".to_string(),
             locations: vec!["line 10".to_string(), "line 20".to_string()],
         };
-        assert!(matches!(
-            insight,
-            BorrowingInsight::PotentialBorrowConflict { .. }
-        ));
+        assert!(matches!(insight, BorrowingInsight::PotentialBorrowConflict { .. }));
     }
 
     #[test]
@@ -1364,10 +1262,8 @@ mod tests {
     // BorrowingAnalysisResult tests
     #[test]
     fn test_borrowing_analysis_result_creation() {
-        let result = BorrowingAnalysisResult {
-            param_strategies: IndexMap::new(),
-            insights: Vec::new(),
-        };
+        let result =
+            BorrowingAnalysisResult { param_strategies: IndexMap::new(), insights: Vec::new() };
         assert!(result.param_strategies.is_empty());
         assert!(result.insights.is_empty());
     }
@@ -1376,10 +1272,7 @@ mod tests {
     fn test_borrowing_analysis_result_with_strategies() {
         let mut strategies = IndexMap::new();
         strategies.insert("x".to_string(), BorrowingStrategy::TakeOwnership);
-        let result = BorrowingAnalysisResult {
-            param_strategies: strategies,
-            insights: Vec::new(),
-        };
+        let result = BorrowingAnalysisResult { param_strategies: strategies, insights: Vec::new() };
         assert_eq!(result.param_strategies.len(), 1);
         assert!(result.param_strategies.contains_key("x"));
     }
@@ -1546,9 +1439,7 @@ mod tests {
 
     #[test]
     fn test_analysis_context_clone() {
-        let ctx = AnalysisContext::Closure {
-            captures: HashSet::from(["var".to_string()]),
-        };
+        let ctx = AnalysisContext::Closure { captures: HashSet::from(["var".to_string()]) };
         let cloned = ctx.clone();
         if let AnalysisContext::Closure { captures } = cloned {
             assert!(captures.contains("var"));
@@ -1643,21 +1534,14 @@ mod tests {
 
     #[test]
     fn test_usage_type_closure_variants() {
-        let by_value = UsageType::Closure {
-            captures_by_value: true,
-        };
-        let by_ref = UsageType::Closure {
-            captures_by_value: false,
-        };
+        let by_value = UsageType::Closure { captures_by_value: true };
+        let by_ref = UsageType::Closure { captures_by_value: false };
         assert_ne!(by_value, by_ref);
     }
 
     #[test]
     fn test_borrowing_strategy_eq() {
-        assert_eq!(
-            BorrowingStrategy::TakeOwnership,
-            BorrowingStrategy::TakeOwnership
-        );
+        assert_eq!(BorrowingStrategy::TakeOwnership, BorrowingStrategy::TakeOwnership);
         assert_ne!(
             BorrowingStrategy::TakeOwnership,
             BorrowingStrategy::BorrowMutable { lifetime: None }
@@ -1669,16 +1553,10 @@ mod tests {
         let strategies = [
             BorrowingStrategy::TakeOwnership,
             BorrowingStrategy::BorrowImmutable { lifetime: None },
-            BorrowingStrategy::BorrowImmutable {
-                lifetime: Some("a".to_string()),
-            },
+            BorrowingStrategy::BorrowImmutable { lifetime: Some("a".to_string()) },
             BorrowingStrategy::BorrowMutable { lifetime: None },
-            BorrowingStrategy::UseCow {
-                lifetime: "b".to_string(),
-            },
-            BorrowingStrategy::UseSharedOwnership {
-                is_thread_safe: true,
-            },
+            BorrowingStrategy::UseCow { lifetime: "b".to_string() },
+            BorrowingStrategy::UseSharedOwnership { is_thread_safe: true },
         ];
         for strategy in strategies {
             let debug = format!("{:?}", strategy);
@@ -1708,10 +1586,8 @@ mod tests {
 
     #[test]
     fn test_borrowing_analysis_result_debug() {
-        let result = BorrowingAnalysisResult {
-            param_strategies: IndexMap::new(),
-            insights: vec![],
-        };
+        let result =
+            BorrowingAnalysisResult { param_strategies: IndexMap::new(), insights: vec![] };
         let debug = format!("{:?}", result);
         assert!(debug.contains("BorrowingAnalysisResult"));
     }

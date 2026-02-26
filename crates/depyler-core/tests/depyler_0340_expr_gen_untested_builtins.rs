@@ -249,10 +249,7 @@ def test_next(items: list):
     println!("Generated next() code:\n{}", rust_code);
 
     // next(iter) should generate .next() method call
-    assert!(
-        rust_code.contains(".next("),
-        "next() should generate iterator .next() call"
-    );
+    assert!(rust_code.contains(".next("), "next() should generate iterator .next() call");
 }
 
 #[test]
@@ -364,10 +361,7 @@ def test_frozenset():
     println!("Generated frozenset literal code:\n{}", rust_code);
 
     // frozenset({...}) should generate HashSet
-    assert!(
-        rust_code.contains("HashSet"),
-        "frozenset literal should generate HashSet"
-    );
+    assert!(rust_code.contains("HashSet"), "frozenset literal should generate HashSet");
 }
 
 // ============================================================================
@@ -404,10 +398,7 @@ def test_range():
     println!("Generated range(0, 20, 2) code:\n{}", rust_code);
 
     // range(start, stop, step) should generate .step_by(step)
-    assert!(
-        rust_code.contains("step_by("),
-        "range(0, 20, 2) should generate .step_by()"
-    );
+    assert!(rust_code.contains("step_by("), "range(0, 20, 2) should generate .step_by()");
 }
 
 #[test]

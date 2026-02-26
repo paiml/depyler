@@ -16,11 +16,7 @@ def check_none(x: int | None) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should use is_none() method
@@ -41,11 +37,7 @@ def check_some(x: int | None) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should use is_some() method
@@ -68,11 +60,7 @@ def greet(name: str | None = None) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Parameter should be Option<String>
@@ -93,11 +81,7 @@ def get_optional() -> int | None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Return type should be Option<i64>
@@ -118,11 +102,7 @@ def maybe_value(flag: bool) -> int | None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should properly handle Some/None in conditional
@@ -146,19 +126,11 @@ def process(x: int | None) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should generate valid code that compiles
-    assert!(
-        code.contains("fn process"),
-        "Should generate process function: {}",
-        code
-    );
+    assert!(code.contains("fn process"), "Should generate process function: {}", code);
 }
 
 /// Test dict.get() returning Option
@@ -171,11 +143,7 @@ def lookup(d: dict, key: str) -> int | None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // dict.get() returns Option in Rust

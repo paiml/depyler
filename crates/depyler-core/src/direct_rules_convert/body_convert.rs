@@ -75,11 +75,7 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
             HirStmt::Expr(expr) => {
                 check_mutating_methods(expr, mutable);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 check_mutating_methods(condition, mutable);
                 for s in then_body {
                     analyze_stmt(s, declared, mutable);
@@ -106,13 +102,7 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
                     analyze_stmt(s, declared, mutable);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
                 for s in body {
                     analyze_stmt(s, declared, mutable);
                 }
@@ -138,12 +128,7 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
 
     fn check_mutating_methods(expr: &HirExpr, mutable: &mut std::collections::HashSet<String>) {
         match expr {
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 // Check if this is a mutating method
                 // DEPYLER-1002: Added hexdigest/digest for hashlib - finalize_reset() requires &mut self
                 let is_mutating = matches!(
@@ -252,11 +237,7 @@ pub(crate) fn convert_symbol_assignment(
 ) -> Result<syn::Stmt> {
     let target_ident = make_ident(symbol);
     // DEPYLER-0713: Only add mut if variable is reassigned or has mutating method calls
-    let mutability = if mutable_vars.contains(symbol) {
-        Some(Default::default())
-    } else {
-        None
-    };
+    let mutability = if mutable_vars.contains(symbol) { Some(Default::default()) } else { None };
     let stmt = syn::Stmt::Local(syn::Local {
         attrs: vec![],
         let_token: Default::default(),
@@ -496,10 +477,8 @@ pub(crate) fn convert_assign_stmt_with_mutable_vars(
                             return Ok(stmts.remove(0));
                         } else {
                             // Wrap in a block expression
-                            let block = syn::Block {
-                                brace_token: syn::token::Brace::default(),
-                                stmts,
-                            };
+                            let block =
+                                syn::Block { brace_token: syn::token::Brace::default(), stmts };
                             return Ok(syn::Stmt::Expr(
                                 syn::Expr::Block(syn::ExprBlock {
                                     attrs: vec![],

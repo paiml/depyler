@@ -161,10 +161,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             "pair" | "entry" | "item" | "elem" | "tuple" | "row"
                         )
                     }
-                } else if let HirExpr::Index {
-                    base: inner_base, ..
-                } = base
-                {
+                } else if let HirExpr::Index { base: inner_base, .. } = base {
                     // DEPYLER-0422 Fix #4: Case 2: Chained indexing (e.g., word_counts[j][1])
                     // Check if we're indexing into a List[Tuple]
                     if let HirExpr::Var(var_name) = &**inner_base {
@@ -456,11 +453,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let index_expr = index.to_rust_expr(self.ctx)?;
 
             // Check if index is a negative literal
-            if let HirExpr::Unary {
-                op: UnaryOp::Neg,
-                operand,
-            } = index
-            {
+            if let HirExpr::Unary { op: UnaryOp::Neg, operand } = index {
                 if let HirExpr::Literal(Literal::Int(n)) = **operand {
                     // Negative index literal: arr[-1] → arr.get(arr.len() - 1)
                     let offset = n as usize;

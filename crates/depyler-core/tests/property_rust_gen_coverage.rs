@@ -24,9 +24,7 @@ fn simple_python_expr() -> impl Strategy<Value = String> {
         // Integer literals
         any::<i32>().prop_map(|n| n.to_string()),
         // Float literals
-        any::<f64>()
-            .prop_filter("finite", |f| f.is_finite())
-            .prop_map(|n| format!("{:.2}", n)),
+        any::<f64>().prop_filter("finite", |f| f.is_finite()).prop_map(|n| format!("{:.2}", n)),
         // String literals
         "[a-zA-Z_][a-zA-Z0-9_]{0,10}".prop_map(|s| format!("\"{}\"", s)),
         // Boolean literals
@@ -63,15 +61,9 @@ fn annotated_python_function() -> impl Strategy<Value = String> {
         "[a-z][a-z0-9]{0,8}",                              // function name
         prop::collection::vec(simple_python_stmt(), 1..5), // body statements
     )
-        .prop_filter("not rust keyword", |(name, _)| {
-            !RUST_KEYWORDS.contains(&name.as_str())
-        })
+        .prop_filter("not rust keyword", |(name, _)| !RUST_KEYWORDS.contains(&name.as_str()))
         .prop_map(|(name, body)| {
-            let body_str = body
-                .iter()
-                .map(|s| format!("    {}", s))
-                .collect::<Vec<_>>()
-                .join("\n");
+            let body_str = body.iter().map(|s| format!("    {}", s)).collect::<Vec<_>>().join("\n");
             format!("def {}() -> None:\n{}", name, body_str)
         })
 }
@@ -87,9 +79,7 @@ fn typed_python_function() -> impl Strategy<Value = String> {
             Just(("a: bool", "bool")),
         ],
     )
-        .prop_filter("not rust keyword", |(name, _)| {
-            !RUST_KEYWORDS.contains(&name.as_str())
-        })
+        .prop_filter("not rust keyword", |(name, _)| !RUST_KEYWORDS.contains(&name.as_str()))
         .prop_map(|(name, (params, ret))| {
             format!("def {}({}) -> {}:\n    return a", name, params, ret)
         })

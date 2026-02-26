@@ -114,51 +114,29 @@ pub(crate) fn convert_stmt_with_context(
     vararg_functions: &std::collections::HashSet<String>,
     param_types: &std::collections::HashMap<String, Type>,
 ) -> Result<syn::Stmt> {
-    let ctx = StmtContext {
-        type_mapper,
-        is_classmethod,
-        vararg_functions,
-        param_types,
-    };
+    let ctx = StmtContext { type_mapper, is_classmethod, vararg_functions, param_types };
     match stmt {
         HirStmt::Assign { target, value, .. } => convert_assign(&ctx, target, value),
         HirStmt::Return(expr) => convert_return(&ctx, expr),
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => convert_if(&ctx, condition, then_body, else_body),
+        HirStmt::If { condition, then_body, else_body } => {
+            convert_if(&ctx, condition, then_body, else_body)
+        }
         HirStmt::While { condition, body } => convert_while(&ctx, condition, body),
         HirStmt::For { target, iter, body } => convert_for(&ctx, target, iter, body),
         HirStmt::Expr(expr) => convert_expr_stmt(&ctx, expr),
-        HirStmt::Raise {
-            exception,
-            cause: _,
-        } => convert_raise(&ctx, exception),
+        HirStmt::Raise { exception, cause: _ } => convert_raise(&ctx, exception),
         HirStmt::Break { label } => convert_break(label),
         HirStmt::Continue { label } => convert_continue(label),
-        HirStmt::With {
-            context,
-            target,
-            body,
-            ..
-        } => convert_with(&ctx, context, target, body),
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse: _,
-            finalbody,
-        } => convert_try(&ctx, body, handlers, finalbody),
+        HirStmt::With { context, target, body, .. } => convert_with(&ctx, context, target, body),
+        HirStmt::Try { body, handlers, orelse: _, finalbody } => {
+            convert_try(&ctx, body, handlers, finalbody)
+        }
         HirStmt::Assert { test, msg } => convert_assert(&ctx, test, msg),
         HirStmt::Pass => convert_pass(),
         HirStmt::Block(stmts) => convert_block_stmt(&ctx, stmts),
-        HirStmt::FunctionDef {
-            name,
-            params,
-            ret_type,
-            body,
-            ..
-        } => convert_function_def(&ctx, name, params, ret_type, body),
+        HirStmt::FunctionDef { name, params, ret_type, body, .. } => {
+            convert_function_def(&ctx, name, params, ret_type, body)
+        }
     }
 }
 
@@ -180,10 +158,7 @@ fn convert_return(ctx: &StmtContext<'_>, expr: &Option<HirExpr>) -> Result<syn::
     } else {
         parse_quote! { () }
     };
-    Ok(syn::Stmt::Expr(
-        parse_quote! { return #ret_expr },
-        Some(Default::default()),
-    ))
+    Ok(syn::Stmt::Expr(parse_quote! { return #ret_expr }, Some(Default::default())))
 }
 
 fn convert_if(
@@ -384,10 +359,7 @@ fn convert_try(
     let try_stmts = ctx.convert_block(body)?;
 
     // Convert finally block if present
-    let finally_block = finalbody
-        .as_ref()
-        .map(|fb| ctx.convert_block(fb))
-        .transpose()?;
+    let finally_block = finalbody.as_ref().map(|fb| ctx.convert_block(fb)).transpose()?;
 
     // Convert except handlers (use first handler for simplicity)
     if let Some(handler) = handlers.first() {
@@ -584,8 +556,5 @@ pub(crate) fn convert_block_with_context(
         vararg_functions,
         param_types,
     )?;
-    Ok(syn::Block {
-        brace_token: Default::default(),
-        stmts: rust_stmts,
-    })
+    Ok(syn::Block { brace_token: Default::default(), stmts: rust_stmts })
 }

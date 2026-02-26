@@ -151,11 +151,7 @@ def read_binary(filepath):
     let has_read_to_end = rust_code.contains("read_to_end");
     let has_vec_u8 = rust_code.contains("Vec<u8>");
 
-    assert!(
-        has_read_to_end || has_vec_u8,
-        "Expected read_to_end or Vec<u8>, got:\n{}",
-        rust_code
-    );
+    assert!(has_read_to_end || has_vec_u8, "Expected read_to_end or Vec<u8>, got:\n{}", rust_code);
 }
 
 // ====================================================================================
@@ -327,11 +323,7 @@ def main():
     // Pattern: Stdin, (unit variant) OR Stdin { } (empty struct)
     let has_stdin_variant = rust_code.contains("Stdin,") || rust_code.contains("Stdin {");
 
-    assert!(
-        has_stdin_variant,
-        "Expected Stdin enum variant, got:\n{}",
-        rust_code
-    );
+    assert!(has_stdin_variant, "Expected Stdin enum variant, got:\n{}", rust_code);
 
     // Should also generate Read variant with file field
     assert_contains(&rust_code, "Read");

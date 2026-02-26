@@ -235,35 +235,11 @@ fn test_edge_case_operations() {
     server.did_open("empty.py".to_string(), "".to_string(), 1);
 
     // These should not panic
-    let _ = server.completion(
-        "empty.py",
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
-    let _ = server.hover(
-        "empty.py",
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
+    let _ = server.completion("empty.py", Position { line: 0, character: 0 });
+    let _ = server.hover("empty.py", Position { line: 0, character: 0 });
     let _ = server.diagnostics("empty.py");
-    let _ = server.goto_definition(
-        "empty.py",
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
-    let _ = server.find_references(
-        "empty.py",
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
+    let _ = server.goto_definition("empty.py", Position { line: 0, character: 0 });
+    let _ = server.find_references("empty.py", Position { line: 0, character: 0 });
 }
 
 #[test]
@@ -282,39 +258,15 @@ fn test_document_lifecycle() {
     server.did_change(uri.clone(), text2, 2);
 
     // Use various features
-    let _ = server.completion(
-        &uri,
-        Position {
-            line: 1,
-            character: 4,
-        },
-    );
-    let _ = server.hover(
-        &uri,
-        Position {
-            line: 0,
-            character: 4,
-        },
-    );
+    let _ = server.completion(&uri, Position { line: 1, character: 4 });
+    let _ = server.hover(&uri, Position { line: 0, character: 4 });
     let _ = server.diagnostics(&uri);
 
     // Close
     server.did_close(uri.clone());
 
     // After close, operations should handle gracefully
-    let _ = server.completion(
-        &uri,
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
-    let _ = server.hover(
-        &uri,
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
+    let _ = server.completion(&uri, Position { line: 0, character: 0 });
+    let _ = server.hover(&uri, Position { line: 0, character: 0 });
     let _ = server.diagnostics(&uri);
 }

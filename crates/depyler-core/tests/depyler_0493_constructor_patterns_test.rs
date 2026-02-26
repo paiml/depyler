@@ -79,11 +79,7 @@ def create_with_args():
     println!("Generated Rust code:\n{}", rust);
 
     // Should use ::new() pattern (kwargs like delete=False are handled separately)
-    assert!(
-        rust.contains("::new()"),
-        "Expected ::new() constructor pattern, got:\n{}",
-        rust
-    );
+    assert!(rust.contains("::new()"), "Expected ::new() constructor pattern, got:\n{}", rust);
 }
 
 #[test]
@@ -103,17 +99,9 @@ def create_multiple():
     println!("Generated Rust code:\n{}", rust);
 
     // Should generate ::new() for both types
-    assert!(
-        rust.contains("NamedTempFile::new()"),
-        "Expected NamedTempFile::new(), got:\n{}",
-        rust
-    );
+    assert!(rust.contains("NamedTempFile::new()"), "Expected NamedTempFile::new(), got:\n{}", rust);
 
-    assert!(
-        rust.contains("TempDir::new()"),
-        "Expected TempDir::new(), got:\n{}",
-        rust
-    );
+    assert!(rust.contains("TempDir::new()"), "Expected TempDir::new(), got:\n{}", rust);
 }
 
 #[test]
@@ -171,11 +159,7 @@ def create_bufreader(file):
     );
 
     // Should NOT call struct as function
-    assert!(
-        !rust.contains("BufReader()"),
-        "Should not call BufReader as function, got:\n{}",
-        rust
-    );
+    assert!(!rust.contains("BufReader()"), "Should not call BufReader as function, got:\n{}", rust);
 }
 
 #[test]

@@ -48,11 +48,7 @@ pub struct SourceSpan {
 
 impl Default for SourceSpan {
     fn default() -> Self {
-        Self {
-            line: 1,
-            column: 1,
-            stmt_index: 0,
-        }
+        Self { line: 1, column: 1, stmt_index: 0 }
     }
 }
 
@@ -222,8 +218,7 @@ impl UseAfterMoveAnalysis {
 
         // Initialize parameters as available
         for param in &func.params {
-            self.move_states
-                .insert(param.name.clone(), MoveState::Available);
+            self.move_states.insert(param.name.clone(), MoveState::Available);
         }
 
         // Analyze each statement in order
@@ -252,8 +247,7 @@ impl UseAfterMoveAnalysis {
 
                 // Make target available
                 if let AssignTarget::Symbol(target_name) = target {
-                    self.move_states
-                        .insert(target_name.clone(), MoveState::Available);
+                    self.move_states.insert(target_name.clone(), MoveState::Available);
                 }
             }
 
@@ -263,11 +257,7 @@ impl UseAfterMoveAnalysis {
 
             HirStmt::Return(None) => {}
 
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_expression_for_use(condition);
 
                 // Save state before branches
@@ -312,8 +302,7 @@ impl UseAfterMoveAnalysis {
 
                 // Target is fresh each iteration
                 if let AssignTarget::Symbol(target_name) = target {
-                    self.move_states
-                        .insert(target_name.clone(), MoveState::Available);
+                    self.move_states.insert(target_name.clone(), MoveState::Available);
                 }
 
                 let state_before = self.move_states.clone();
@@ -336,12 +325,7 @@ impl UseAfterMoveAnalysis {
                 self.analyze_expression_for_use(expr);
             }
 
-            HirStmt::Try {
-                body,
-                handlers: _,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers: _, orelse, finalbody } => {
                 for stmt in body {
                     self.analyze_statement(stmt);
                     self.current_stmt_index += 1;
@@ -422,12 +406,7 @@ impl UseAfterMoveAnalysis {
                 }
             }
 
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 let takes_ownership = self.ownership_functions.contains(method);
                 self.analyze_expression_for_use(object);
 
@@ -454,12 +433,7 @@ impl UseAfterMoveAnalysis {
                 self.analyze_expression_for_use(index);
             }
 
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 self.analyze_expression_for_use(base);
                 if let Some(s) = start {
                     self.analyze_expression_for_use(s);
@@ -489,14 +463,8 @@ impl UseAfterMoveAnalysis {
                 }
             }
 
-            HirExpr::ListComp {
-                element,
-                generators,
-            }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
                 for gen in generators {
                     self.analyze_expression_for_use(&gen.iter);
                     for cond in &gen.conditions {
@@ -506,11 +474,7 @@ impl UseAfterMoveAnalysis {
                 self.analyze_expression_for_use(element);
             }
 
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 for gen in generators {
                     self.analyze_expression_for_use(&gen.iter);
                     for cond in &gen.conditions {
@@ -521,10 +485,7 @@ impl UseAfterMoveAnalysis {
                 self.analyze_expression_for_use(value);
             }
 
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::GeneratorExp { element, generators } => {
                 for gen in generators {
                     self.analyze_expression_for_use(&gen.iter);
                     for cond in &gen.conditions {
@@ -618,10 +579,7 @@ impl UseAfterMoveAnalysis {
 
     /// Record that a variable was moved
     fn record_move(&mut self, name: &str, moved_by: &str) {
-        let move_site = SourceSpan {
-            stmt_index: self.current_stmt_index,
-            ..Default::default()
-        };
+        let move_site = SourceSpan { stmt_index: self.current_stmt_index, ..Default::default() };
 
         for error in &mut self.errors {
             if error.var == name && error.moved_by.is_empty() {
@@ -629,8 +587,7 @@ impl UseAfterMoveAnalysis {
             }
         }
 
-        self.move_states
-            .insert(name.to_string(), MoveState::Moved(move_site));
+        self.move_states.insert(name.to_string(), MoveState::Moved(move_site));
     }
 
     /// Record potential alias pattern
@@ -654,12 +611,8 @@ impl UseAfterMoveAnalysis {
         after_then: &HashMap<String, MoveState>,
         after_else: &HashMap<String, MoveState>,
     ) {
-        let all_vars: HashSet<_> = before
-            .keys()
-            .chain(after_then.keys())
-            .chain(after_else.keys())
-            .cloned()
-            .collect();
+        let all_vars: HashSet<_> =
+            before.keys().chain(after_then.keys()).chain(after_else.keys()).cloned().collect();
 
         for var in all_vars {
             let then_state = after_then.get(&var);
@@ -686,11 +639,7 @@ impl UseAfterMoveAnalysis {
 
         for (var, state) in &current {
             if let MoveState::Moved(span) = state {
-                if before
-                    .get(var)
-                    .map(|s| s == &MoveState::Available)
-                    .unwrap_or(false)
-                {
+                if before.get(var).map(|s| s == &MoveState::Available).unwrap_or(false) {
                     self.move_states
                         .insert(var.clone(), MoveState::ConditionallyMoved(span.clone()));
                 }
@@ -786,10 +735,7 @@ impl Default for StrategicCloneAnalysis {
 
 impl StrategicCloneAnalysis {
     pub fn new() -> Self {
-        Self {
-            aliases: Vec::new(),
-            clone_assignments: Vec::new(),
-        }
+        Self { aliases: Vec::new(), clone_assignments: Vec::new() }
     }
 
     pub fn analyze_function(&mut self, func: &HirFunction) -> Vec<AliasingPattern> {
@@ -845,16 +791,9 @@ impl StrategicCloneAnalysis {
         aliases: &mut Vec<(String, String, usize, Type)>,
     ) {
         match stmt {
-            HirStmt::Assign {
-                target,
-                value,
-                type_annotation,
-            } => {
+            HirStmt::Assign { target, value, type_annotation } => {
                 if let AssignTarget::Symbol(target_name) = target {
-                    assignments
-                        .entry(target_name.clone())
-                        .or_default()
-                        .push(stmt_idx);
+                    assignments.entry(target_name.clone()).or_default().push(stmt_idx);
 
                     if let HirExpr::Var(source_name) = value {
                         let ty = type_annotation.clone().unwrap_or(Type::Unknown);
@@ -872,11 +811,7 @@ impl StrategicCloneAnalysis {
                 self.collect_uses_in_expr(expr, stmt_idx, uses);
             }
 
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.collect_uses_in_expr(condition, stmt_idx, uses);
                 for s in then_body {
                     self.collect_var_info(s, stmt_idx, assignments, uses, aliases);
@@ -1001,10 +936,7 @@ pub fn analyze_ownership(func: &HirFunction) -> OwnershipAnalysisResult {
     for error in &use_after_move_errors {
         match &error.fix {
             OwnershipFix::Borrow => {
-                borrow_sites
-                    .entry(error.var.clone())
-                    .or_default()
-                    .push(error.move_site.stmt_index);
+                borrow_sites.entry(error.var.clone()).or_default().push(error.move_site.stmt_index);
             }
             OwnershipFix::MutableBorrow => {
                 mut_borrow_sites
@@ -1013,10 +945,7 @@ pub fn analyze_ownership(func: &HirFunction) -> OwnershipAnalysisResult {
                     .push(error.move_site.stmt_index);
             }
             OwnershipFix::Clone | OwnershipFix::CloneAtAssignment { .. } => {
-                clone_sites
-                    .entry(error.var.clone())
-                    .or_default()
-                    .push(error.move_site.stmt_index);
+                clone_sites.entry(error.var.clone()).or_default().push(error.move_site.stmt_index);
             }
             OwnershipFix::Reject { .. } => {}
         }
@@ -1135,12 +1064,8 @@ mod tests {
         let borrow = OwnershipFix::Borrow;
         let mut_borrow = OwnershipFix::MutableBorrow;
         let clone = OwnershipFix::Clone;
-        let clone_assign = OwnershipFix::CloneAtAssignment {
-            var: "x".to_string(),
-        };
-        let reject = OwnershipFix::Reject {
-            reason: "test".to_string(),
-        };
+        let clone_assign = OwnershipFix::CloneAtAssignment { var: "x".to_string() };
+        let reject = OwnershipFix::Reject { reason: "test".to_string() };
 
         assert_eq!(borrow, OwnershipFix::Borrow);
         assert_eq!(mut_borrow, OwnershipFix::MutableBorrow);
@@ -1245,10 +1170,7 @@ mod tests {
         };
 
         let result = analyze_ownership(&func);
-        assert!(
-            result.use_after_move_errors.is_empty(),
-            "print should borrow"
-        );
+        assert!(result.use_after_move_errors.is_empty(), "print should borrow");
     }
 
     #[test]
@@ -1455,11 +1377,7 @@ mod tests {
     fn test_analyze_pass_break_continue() {
         let func = make_function(
             "test",
-            vec![
-                HirStmt::Pass,
-                HirStmt::Break { label: None },
-                HirStmt::Continue { label: None },
-            ],
+            vec![HirStmt::Pass, HirStmt::Break { label: None }, HirStmt::Continue { label: None }],
         );
         let mut analysis = UseAfterMoveAnalysis::new();
         let errors = analysis.analyze_function(&func);
@@ -1573,14 +1491,8 @@ mod tests {
         let func = make_function(
             "test",
             vec![
-                HirStmt::Expr(HirExpr::List(vec![
-                    make_literal_int(1),
-                    make_literal_int(2),
-                ])),
-                HirStmt::Expr(HirExpr::Tuple(vec![
-                    make_literal_int(3),
-                    make_literal_int(4),
-                ])),
+                HirStmt::Expr(HirExpr::List(vec![make_literal_int(1), make_literal_int(2)])),
+                HirStmt::Expr(HirExpr::Tuple(vec![make_literal_int(3), make_literal_int(4)])),
                 HirStmt::Expr(HirExpr::Set(vec![make_literal_int(5)])),
                 HirStmt::Expr(HirExpr::Dict(vec![(
                     HirExpr::Literal(depyler_hir::hir::Literal::String("k".to_string())),
@@ -1731,9 +1643,7 @@ mod tests {
         let func = make_function(
             "test",
             vec![
-                HirStmt::Expr(HirExpr::Yield {
-                    value: Some(Box::new(make_literal_int(42))),
-                }),
+                HirStmt::Expr(HirExpr::Yield { value: Some(Box::new(make_literal_int(42))) }),
                 HirStmt::Expr(HirExpr::Yield { value: None }),
             ],
         );
@@ -1759,9 +1669,7 @@ mod tests {
     #[test]
     fn test_merge_branch_states_moved_in_then() {
         let mut analysis = UseAfterMoveAnalysis::new();
-        analysis
-            .move_states
-            .insert("x".to_string(), MoveState::Available);
+        analysis.move_states.insert("x".to_string(), MoveState::Available);
 
         let before = analysis.move_states.clone();
         let mut after_then = before.clone();
@@ -1770,10 +1678,7 @@ mod tests {
 
         analysis.merge_branch_states(&before, &after_then, &after_else);
 
-        assert!(matches!(
-            analysis.move_states.get("x"),
-            Some(MoveState::ConditionallyMoved(_))
-        ));
+        assert!(matches!(analysis.move_states.get("x"), Some(MoveState::ConditionallyMoved(_))));
     }
 
     #[test]
@@ -1783,16 +1688,11 @@ mod tests {
         before.insert("x".to_string(), MoveState::Available);
 
         analysis.move_states = before.clone();
-        analysis
-            .move_states
-            .insert("x".to_string(), MoveState::Moved(SourceSpan::default()));
+        analysis.move_states.insert("x".to_string(), MoveState::Moved(SourceSpan::default()));
 
         analysis.merge_loop_state(&before);
 
-        assert!(matches!(
-            analysis.move_states.get("x"),
-            Some(MoveState::ConditionallyMoved(_))
-        ));
+        assert!(matches!(analysis.move_states.get("x"), Some(MoveState::ConditionallyMoved(_))));
     }
 
     #[test]

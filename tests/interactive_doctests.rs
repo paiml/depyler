@@ -73,26 +73,19 @@ impl InteractiveDoctest {
     pub fn execute(&mut self, python_code: &str) -> Result<String, String> {
         let start = Instant::now();
 
-        let result = self
-            .pipeline
-            .transpile(python_code)
-            .map_err(|e| e.to_string());
+        let result = self.pipeline.transpile(python_code).map_err(|e| e.to_string());
 
         let duration = start.elapsed().as_micros();
-        self.performance_metrics.insert(
-            format!("execution_{}", self.session_history.len()),
-            duration,
-        );
+        self.performance_metrics
+            .insert(format!("execution_{}", self.session_history.len()), duration);
 
         // Store in session history
         match &result {
             Ok(rust_code) => {
-                self.session_history
-                    .push((python_code.to_string(), Ok(rust_code.clone())));
+                self.session_history.push((python_code.to_string(), Ok(rust_code.clone())));
             }
             Err(error) => {
-                self.session_history
-                    .push((python_code.to_string(), Err(error.clone())));
+                self.session_history.push((python_code.to_string(), Err(error.clone())));
             }
         }
 
@@ -184,10 +177,7 @@ impl PerformanceBenchmarkDoctest {
     /// assert!(duration < 200_000); // Less than 200ms
     /// ```
     pub fn new() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            benchmarks: HashMap::new(),
-        }
+        Self { pipeline: DepylerPipeline::new(), benchmarks: HashMap::new() }
     }
 
     /// Benchmarks a function transpilation and returns duration in microseconds
@@ -218,10 +208,7 @@ impl PerformanceBenchmarkDoctest {
         let duration = start.elapsed().as_micros();
 
         // Store benchmark result
-        self.benchmarks
-            .entry(benchmark_name.to_string())
-            .or_default()
-            .push(duration);
+        self.benchmarks.entry(benchmark_name.to_string()).or_default().push(duration);
 
         duration
     }
@@ -331,10 +318,7 @@ impl ErrorConditionDoctest {
     /// assert!(catalog.contains_key("unsupported_feature"));
     /// ```
     pub fn new() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            error_catalog: HashMap::new(),
-        }
+        Self { pipeline: DepylerPipeline::new(), error_catalog: HashMap::new() }
     }
 
     /// Tests an error condition and catalogs the result
@@ -366,10 +350,7 @@ impl ErrorConditionDoctest {
         python_code: &str,
         error_category: &str,
     ) -> Result<String, String> {
-        let result = self
-            .pipeline
-            .transpile(python_code)
-            .map_err(|e| e.to_string());
+        let result = self.pipeline.transpile(python_code).map_err(|e| e.to_string());
 
         // Catalog the error if it occurred
         if let Err(ref error_msg) = result {
@@ -491,21 +472,14 @@ impl WorkflowDoctest {
     /// assert_eq!(results.failed_steps, 0);
     /// ```
     pub fn new() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            workflow_steps: Vec::new(),
-        }
+        Self { pipeline: DepylerPipeline::new(), workflow_steps: Vec::new() }
     }
 
     /// Adds a step to the workflow
     pub fn add_step(&mut self, step_name: &str, python_code: &str) {
-        let result = self
-            .pipeline
-            .transpile(python_code)
-            .map_err(|e| e.to_string());
+        let result = self.pipeline.transpile(python_code).map_err(|e| e.to_string());
 
-        self.workflow_steps
-            .push((step_name.to_string(), python_code.to_string(), result));
+        self.workflow_steps.push((step_name.to_string(), python_code.to_string(), result));
     }
 
     /// Executes the complete workflow and returns results
@@ -539,32 +513,19 @@ impl WorkflowDoctest {
     /// ```
     pub fn execute_workflow(&self) -> WorkflowResults {
         let total_steps = self.workflow_steps.len();
-        let successful_steps = self
-            .workflow_steps
-            .iter()
-            .filter(|(_, _, result)| result.is_ok())
-            .count();
+        let successful_steps =
+            self.workflow_steps.iter().filter(|(_, _, result)| result.is_ok()).count();
         let failed_steps = total_steps - successful_steps;
 
         let step_details: Vec<_> = self
             .workflow_steps
             .iter()
             .map(|(name, code, result)| {
-                (
-                    name.clone(),
-                    code.clone(),
-                    result.is_ok(),
-                    result.as_ref().err().cloned(),
-                )
+                (name.clone(), code.clone(), result.is_ok(), result.as_ref().err().cloned())
             })
             .collect();
 
-        WorkflowResults {
-            total_steps,
-            successful_steps,
-            failed_steps,
-            step_details,
-        }
+        WorkflowResults { total_steps, successful_steps, failed_steps, step_details }
     }
 
     /// Gets all workflow steps
@@ -690,10 +651,7 @@ def fibonacci(n: int) -> int:
             ("def broken_function(\n    return 42", "syntax_error"),
             ("if condition\n    print('missing colon')", "missing_colon"),
             ("def f(): return x y", "invalid_expression"),
-            (
-                "async def unsupported(): await something()",
-                "unsupported_feature",
-            ),
+            ("async def unsupported(): await something()", "unsupported_feature"),
             ("def f(: pass", "invalid_parameter"),
         ];
 
@@ -736,10 +694,7 @@ def fibonacci(n: int) -> int:
         let mut workflow = WorkflowDoctest::new();
 
         // Build a complete workflow
-        workflow.add_step(
-            "Simple Function",
-            "def add(a: int, b: int) -> int: return a + b",
-        );
+        workflow.add_step("Simple Function", "def add(a: int, b: int) -> int: return a + b");
         workflow.add_step(
             "Control Flow",
             "def max_val(a: int, b: int) -> int: return a if a > b else b",
@@ -777,12 +732,7 @@ def process_data(data: list) -> dict:
 
         // Check step details
         for (i, (name, _code, success, error)) in results.step_details.iter().enumerate() {
-            println!(
-                "Step {}: '{}' - {}",
-                i + 1,
-                name,
-                if *success { "✓" } else { "✗" }
-            );
+            println!("Step {}: '{}' - {}", i + 1, name, if *success { "✓" } else { "✗" });
             if let Some(err) = error {
                 println!("  Error: {}", err.chars().take(100).collect::<String>());
             }
@@ -848,18 +798,12 @@ def process_data(data: list) -> dict:
         let test_cases = vec![
             ("def empty(): pass", "empty_function"),
             ("def simple(x: int) -> int: return x", "identity_function"),
-            (
-                "def arithmetic(a: int, b: int) -> int: return a + b * 2",
-                "arithmetic_function",
-            ),
+            ("def arithmetic(a: int, b: int) -> int: return a + b * 2", "arithmetic_function"),
             (
                 "def conditional(x: int) -> str: return 'positive' if x > 0 else 'non-positive'",
                 "conditional_function",
             ),
-            (
-                "def loop_function(n: int) -> int: return sum(range(n))",
-                "loop_function",
-            ),
+            ("def loop_function(n: int) -> int: return sum(range(n))", "loop_function"),
         ];
 
         let mut durations = Vec::new();
@@ -872,12 +816,7 @@ def process_data(data: list) -> dict:
 
         // Verify all tests complete quickly
         for (name, duration) in &durations {
-            assert!(
-                duration < &100_000,
-                "{} took too long: {} μs",
-                name,
-                duration
-            );
+            assert!(duration < &100_000, "{} took too long: {} μs", name, duration);
         }
 
         // Check that complexity generally correlates with time (allowing variance)
@@ -892,10 +831,7 @@ def process_data(data: list) -> dict:
         );
 
         // Allow significant variance but ensure loop isn't dramatically slower
-        assert!(
-            loop_time <= empty_time * 20,
-            "Loop function too slow compared to empty function"
-        );
+        assert!(loop_time <= empty_time * 20, "Loop function too slow compared to empty function");
 
         // Test statistical consistency
         let stats = benchmark.benchmark_iterations(

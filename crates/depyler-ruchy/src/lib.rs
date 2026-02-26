@@ -96,9 +96,7 @@ impl RuchyBackend {
     /// Executes Ruchy code directly using the integrated interpreter
     #[cfg(feature = "interpreter")]
     pub fn execute(&self, code: &str) -> Result<String, TranspileError> {
-        self.interpreter
-            .execute(code)
-            .map_err(|e| TranspileError::backend_error(e.to_string()))
+        self.interpreter.execute(code).map_err(|e| TranspileError::backend_error(e.to_string()))
     }
 
     /// Validates Ruchy syntax using the integrated parser
@@ -156,9 +154,7 @@ impl TranspilationBackend for RuchyBackend {
                 if let Some(error) = get_parse_error(code) {
                     return Err(ValidationError::InvalidSyntax(error));
                 }
-                return Err(ValidationError::InvalidSyntax(
-                    "Invalid Ruchy syntax".to_string(),
-                ));
+                return Err(ValidationError::InvalidSyntax("Invalid Ruchy syntax".to_string()));
             }
         }
 
@@ -182,9 +178,7 @@ impl TranspilationBackend for RuchyBackend {
             }
 
             if paren_count != 0 || brace_count != 0 || bracket_count != 0 {
-                return Err(ValidationError::InvalidSyntax(
-                    "Unmatched brackets".to_string(),
-                ));
+                return Err(ValidationError::InvalidSyntax("Unmatched brackets".to_string()));
             }
         }
 

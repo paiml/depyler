@@ -26,11 +26,7 @@ def normalize(a: float, b: float, c: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -60,11 +56,7 @@ def zero_array(a: float, b: float, c: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -95,11 +87,7 @@ def double_array(a: float, b: float, c: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -133,11 +121,7 @@ def minmax_normalize(a: float, b: float, c: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -172,11 +156,7 @@ def test_min(a: float, b: float, c: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -205,11 +185,7 @@ def add_offset(a: float, b: float, c: float, offset: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -237,11 +213,7 @@ def scale_down(a: float, b: float, c: float, factor: float):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -270,11 +242,7 @@ def conditional_zero(a: float, b: float, condition: bool):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 

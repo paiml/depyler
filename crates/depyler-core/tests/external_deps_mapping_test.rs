@@ -18,129 +18,83 @@ mod numpy_to_trueno {
     #[test]
     fn test_numpy_module_maps_to_trueno() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
         assert_eq!(mapping.rust_path, "trueno");
         assert!(mapping.is_external, "trueno is an external crate");
-        assert_eq!(
-            mapping.version.as_ref().unwrap(),
-            "0.7",
-            "trueno version should be 0.7"
-        );
+        assert_eq!(mapping.version.as_ref().unwrap(), "0.7", "trueno version should be 0.7");
     }
 
     /// Test: np.array maps to Vector::from_slice
     #[test]
     fn test_numpy_array_maps_to_vector_from_slice() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("array"),
-            Some(&"Vector::from_slice".to_string())
-        );
+        assert_eq!(mapping.item_map.get("array"), Some(&"Vector::from_slice".to_string()));
     }
 
     /// Test: np.zeros maps to Vector::zeros
     #[test]
     fn test_numpy_zeros_maps_to_vector_zeros() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("zeros"),
-            Some(&"Vector::zeros".to_string())
-        );
+        assert_eq!(mapping.item_map.get("zeros"), Some(&"Vector::zeros".to_string()));
     }
 
     /// Test: np.ones maps to Vector::ones
     #[test]
     fn test_numpy_ones_maps_to_vector_ones() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("ones"),
-            Some(&"Vector::ones".to_string())
-        );
+        assert_eq!(mapping.item_map.get("ones"), Some(&"Vector::ones".to_string()));
     }
 
     /// Test: np.add maps to Vector::add
     #[test]
     fn test_numpy_add_maps_to_vector_add() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("add"),
-            Some(&"Vector::add".to_string())
-        );
+        assert_eq!(mapping.item_map.get("add"), Some(&"Vector::add".to_string()));
     }
 
     /// Test: np.dot maps to Vector::dot
     #[test]
     fn test_numpy_dot_maps_to_vector_dot() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("dot"),
-            Some(&"Vector::dot".to_string())
-        );
+        assert_eq!(mapping.item_map.get("dot"), Some(&"Vector::dot".to_string()));
     }
 
     /// Test: np.sum maps to Vector::sum
     #[test]
     fn test_numpy_sum_maps_to_vector_sum() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("sum"),
-            Some(&"Vector::sum".to_string())
-        );
+        assert_eq!(mapping.item_map.get("sum"), Some(&"Vector::sum".to_string()));
     }
 
     /// Test: np.mean maps to Vector::mean
     #[test]
     fn test_numpy_mean_maps_to_vector_mean() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("mean"),
-            Some(&"Vector::mean".to_string())
-        );
+        assert_eq!(mapping.item_map.get("mean"), Some(&"Vector::mean".to_string()));
     }
 
     /// Test: np.matmul maps to Matrix::matmul
     #[test]
     fn test_numpy_matmul_maps_to_matrix_matmul() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("numpy")
-            .expect("numpy mapping should exist");
+        let mapping = mapper.get_mapping("numpy").expect("numpy mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("matmul"),
-            Some(&"Matrix::matmul".to_string())
-        );
+        assert_eq!(mapping.item_map.get("matmul"), Some(&"Matrix::matmul".to_string()));
     }
 
     /// Test: import numpy generates correct Rust import
@@ -170,10 +124,7 @@ mod numpy_to_trueno {
         }];
 
         let deps = mapper.get_dependencies(&imports);
-        assert!(
-            deps.iter().any(|(name, _)| name == "trueno"),
-            "Should generate trueno dependency"
-        );
+        assert!(deps.iter().any(|(name, _)| name == "trueno"), "Should generate trueno dependency");
     }
 }
 
@@ -188,10 +139,7 @@ mod sklearn_to_aprender {
 
         // Check various sklearn submodules
         let linear_mapping = mapper.get_mapping("sklearn.linear_model");
-        assert!(
-            linear_mapping.is_some(),
-            "sklearn.linear_model mapping should exist"
-        );
+        assert!(linear_mapping.is_some(), "sklearn.linear_model mapping should exist");
 
         let mapping = linear_mapping.unwrap();
         assert_eq!(mapping.rust_path, "aprender::linear");
@@ -202,23 +150,17 @@ mod sklearn_to_aprender {
     #[test]
     fn test_sklearn_linear_regression_maps_to_aprender() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("sklearn.linear_model")
-            .expect("sklearn.linear_model should exist");
+        let mapping =
+            mapper.get_mapping("sklearn.linear_model").expect("sklearn.linear_model should exist");
 
-        assert_eq!(
-            mapping.item_map.get("LinearRegression"),
-            Some(&"LinearRegression".to_string())
-        );
+        assert_eq!(mapping.item_map.get("LinearRegression"), Some(&"LinearRegression".to_string()));
     }
 
     /// Test: KMeans maps to aprender::cluster::KMeans
     #[test]
     fn test_sklearn_kmeans_maps_to_aprender() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("sklearn.cluster")
-            .expect("sklearn.cluster should exist");
+        let mapping = mapper.get_mapping("sklearn.cluster").expect("sklearn.cluster should exist");
 
         assert_eq!(mapping.item_map.get("KMeans"), Some(&"KMeans".to_string()));
     }
@@ -253,9 +195,7 @@ mod subprocess_to_std_process {
     #[test]
     fn test_subprocess_module_maps_to_std_process() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("subprocess")
-            .expect("subprocess mapping should exist");
+        let mapping = mapper.get_mapping("subprocess").expect("subprocess mapping should exist");
 
         assert_eq!(mapping.rust_path, "std::process");
         assert!(!mapping.is_external, "std::process is in stdlib");
@@ -265,9 +205,7 @@ mod subprocess_to_std_process {
     #[test]
     fn test_subprocess_run_maps_to_command() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("subprocess")
-            .expect("subprocess should exist");
+        let mapping = mapper.get_mapping("subprocess").expect("subprocess should exist");
 
         assert_eq!(mapping.item_map.get("run"), Some(&"Command".to_string()));
     }
@@ -276,9 +214,7 @@ mod subprocess_to_std_process {
     #[test]
     fn test_subprocess_popen_maps_to_command() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("subprocess")
-            .expect("subprocess should exist");
+        let mapping = mapper.get_mapping("subprocess").expect("subprocess should exist");
 
         assert_eq!(mapping.item_map.get("Popen"), Some(&"Command".to_string()));
     }
@@ -287,23 +223,16 @@ mod subprocess_to_std_process {
     #[test]
     fn test_subprocess_pipe_maps_to_stdio_piped() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("subprocess")
-            .expect("subprocess should exist");
+        let mapping = mapper.get_mapping("subprocess").expect("subprocess should exist");
 
-        assert_eq!(
-            mapping.item_map.get("PIPE"),
-            Some(&"Stdio::piped".to_string())
-        );
+        assert_eq!(mapping.item_map.get("PIPE"), Some(&"Stdio::piped".to_string()));
     }
 
     /// Test: subprocess.call maps to Command status
     #[test]
     fn test_subprocess_call_maps_to_command_status() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("subprocess")
-            .expect("subprocess should exist");
+        let mapping = mapper.get_mapping("subprocess").expect("subprocess should exist");
 
         assert_eq!(mapping.item_map.get("call"), Some(&"Command".to_string()));
     }
@@ -312,14 +241,9 @@ mod subprocess_to_std_process {
     #[test]
     fn test_subprocess_check_output_maps_to_command_output() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("subprocess")
-            .expect("subprocess should exist");
+        let mapping = mapper.get_mapping("subprocess").expect("subprocess should exist");
 
-        assert_eq!(
-            mapping.item_map.get("check_output"),
-            Some(&"Command".to_string())
-        );
+        assert_eq!(mapping.item_map.get("check_output"), Some(&"Command".to_string()));
     }
 }
 
@@ -332,10 +256,7 @@ mod re_to_regex_enhanced {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("re").expect("re mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("sub"),
-            Some(&"Regex::replace_all".to_string())
-        );
+        assert_eq!(mapping.item_map.get("sub"), Some(&"Regex::replace_all".to_string()));
     }
 
     /// Test: re.split maps to Regex::split
@@ -344,10 +265,7 @@ mod re_to_regex_enhanced {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("re").expect("re mapping should exist");
 
-        assert_eq!(
-            mapping.item_map.get("split"),
-            Some(&"Regex::split".to_string())
-        );
+        assert_eq!(mapping.item_map.get("split"), Some(&"Regex::split".to_string()));
     }
 
     /// Test: re.IGNORECASE maps to RegexBuilder with case_insensitive
@@ -392,18 +310,12 @@ mod dependency_versions {
     fn test_external_crate_versions_are_semver() {
         let mapper = ModuleMapper::new();
 
-        let external_modules = [
-            "json", "re", "datetime", "random", "tempfile", "csv", "base64",
-        ];
+        let external_modules = ["json", "re", "datetime", "random", "tempfile", "csv", "base64"];
 
         for module in external_modules {
             if let Some(mapping) = mapper.get_mapping(module) {
                 if mapping.is_external {
-                    assert!(
-                        mapping.version.is_some(),
-                        "{} should have a version",
-                        module
-                    );
+                    assert!(mapping.version.is_some(), "{} should have a version", module);
                     let version = mapping.version.as_ref().unwrap();
                     // Basic semver check: should contain a number
                     assert!(
@@ -433,9 +345,7 @@ mod random_to_rand {
     #[test]
     fn test_random_module_maps_to_rand() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("random")
-            .expect("random mapping should exist");
+        let mapping = mapper.get_mapping("random").expect("random mapping should exist");
 
         assert_eq!(mapping.rust_path, "rand");
         assert!(mapping.is_external);
@@ -457,10 +367,7 @@ mod random_to_rand {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("random").expect("random should exist");
 
-        assert_eq!(
-            mapping.item_map.get("randint"),
-            Some(&"gen_range".to_string())
-        );
+        assert_eq!(mapping.item_map.get("randint"), Some(&"gen_range".to_string()));
     }
 
     /// Test: random.uniform maps to gen_range for floats
@@ -469,10 +376,7 @@ mod random_to_rand {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("random").expect("random should exist");
 
-        assert!(
-            mapping.item_map.contains_key("uniform"),
-            "uniform should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("uniform"), "uniform should be mapped");
     }
 
     /// Test: random.seed maps to thread_rng seed
@@ -481,10 +385,7 @@ mod random_to_rand {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("random").expect("random should exist");
 
-        assert!(
-            mapping.item_map.contains_key("seed"),
-            "seed should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("seed"), "seed should be mapped");
     }
 }
 
@@ -495,9 +396,7 @@ mod threading_to_std_thread {
     #[test]
     fn test_threading_module_maps_to_std_thread() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("threading")
-            .expect("threading mapping should exist");
+        let mapping = mapper.get_mapping("threading").expect("threading mapping should exist");
 
         assert_eq!(mapping.rust_path, "std::thread");
         assert!(!mapping.is_external);
@@ -507,9 +406,7 @@ mod threading_to_std_thread {
     #[test]
     fn test_threading_thread_maps_to_spawn() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("threading")
-            .expect("threading should exist");
+        let mapping = mapper.get_mapping("threading").expect("threading should exist");
 
         assert_eq!(mapping.item_map.get("Thread"), Some(&"spawn".to_string()));
     }
@@ -518,9 +415,7 @@ mod threading_to_std_thread {
     #[test]
     fn test_threading_lock_maps_to_mutex() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("threading")
-            .expect("threading should exist");
+        let mapping = mapper.get_mapping("threading").expect("threading should exist");
 
         assert_eq!(mapping.item_map.get("Lock"), Some(&"Mutex".to_string()));
     }
@@ -529,9 +424,7 @@ mod threading_to_std_thread {
     #[test]
     fn test_threading_event_maps_to_condvar() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("threading")
-            .expect("threading should exist");
+        let mapping = mapper.get_mapping("threading").expect("threading should exist");
 
         assert_eq!(mapping.item_map.get("Event"), Some(&"Condvar".to_string()));
     }
@@ -540,14 +433,9 @@ mod threading_to_std_thread {
     #[test]
     fn test_threading_semaphore_maps_correctly() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("threading")
-            .expect("threading should exist");
+        let mapping = mapper.get_mapping("threading").expect("threading should exist");
 
-        assert!(
-            mapping.item_map.contains_key("Semaphore"),
-            "Semaphore should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("Semaphore"), "Semaphore should be mapped");
     }
 }
 
@@ -558,9 +446,7 @@ mod asyncio_to_tokio {
     #[test]
     fn test_asyncio_module_maps_to_tokio() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("asyncio")
-            .expect("asyncio mapping should exist");
+        let mapping = mapper.get_mapping("asyncio").expect("asyncio mapping should exist");
 
         assert_eq!(mapping.rust_path, "tokio");
         assert!(mapping.is_external);
@@ -582,10 +468,7 @@ mod asyncio_to_tokio {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("asyncio").expect("asyncio should exist");
 
-        assert_eq!(
-            mapping.item_map.get("sleep"),
-            Some(&"time::sleep".to_string())
-        );
+        assert_eq!(mapping.item_map.get("sleep"), Some(&"time::sleep".to_string()));
     }
 
     /// Test: asyncio.gather maps to tokio::join
@@ -594,10 +477,7 @@ mod asyncio_to_tokio {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("asyncio").expect("asyncio should exist");
 
-        assert!(
-            mapping.item_map.contains_key("gather"),
-            "gather should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("gather"), "gather should be mapped");
     }
 
     /// Test: asyncio.Queue maps to tokio channel
@@ -606,10 +486,7 @@ mod asyncio_to_tokio {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("asyncio").expect("asyncio should exist");
 
-        assert!(
-            mapping.item_map.contains_key("Queue"),
-            "Queue should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("Queue"), "Queue should be mapped");
     }
 }
 
@@ -620,9 +497,7 @@ mod struct_to_byteorder {
     #[test]
     fn test_struct_module_maps_to_byteorder() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("struct")
-            .expect("struct mapping should exist");
+        let mapping = mapper.get_mapping("struct").expect("struct mapping should exist");
 
         assert_eq!(mapping.rust_path, "byteorder");
         assert!(mapping.is_external);
@@ -634,10 +509,7 @@ mod struct_to_byteorder {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("struct").expect("struct should exist");
 
-        assert!(
-            mapping.item_map.contains_key("pack"),
-            "pack should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("pack"), "pack should be mapped");
     }
 
     /// Test: struct.unpack maps to ReadBytesExt
@@ -646,10 +518,7 @@ mod struct_to_byteorder {
         let mapper = ModuleMapper::new();
         let mapping = mapper.get_mapping("struct").expect("struct should exist");
 
-        assert!(
-            mapping.item_map.contains_key("unpack"),
-            "unpack should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("unpack"), "unpack should be mapped");
     }
 }
 
@@ -660,9 +529,7 @@ mod statistics_to_statrs {
     #[test]
     fn test_statistics_module_maps_to_statrs() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("statistics")
-            .expect("statistics mapping should exist");
+        let mapping = mapper.get_mapping("statistics").expect("statistics mapping should exist");
 
         assert_eq!(mapping.rust_path, "statrs");
         assert!(mapping.is_external);
@@ -672,42 +539,27 @@ mod statistics_to_statrs {
     #[test]
     fn test_statistics_mean_maps_correctly() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("statistics")
-            .expect("statistics should exist");
+        let mapping = mapper.get_mapping("statistics").expect("statistics should exist");
 
-        assert!(
-            mapping.item_map.contains_key("mean"),
-            "mean should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("mean"), "mean should be mapped");
     }
 
     /// Test: statistics.stdev maps correctly
     #[test]
     fn test_statistics_stdev_maps_correctly() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("statistics")
-            .expect("statistics should exist");
+        let mapping = mapper.get_mapping("statistics").expect("statistics should exist");
 
-        assert!(
-            mapping.item_map.contains_key("stdev"),
-            "stdev should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("stdev"), "stdev should be mapped");
     }
 
     /// Test: statistics.median maps correctly
     #[test]
     fn test_statistics_median_maps_correctly() {
         let mapper = ModuleMapper::new();
-        let mapping = mapper
-            .get_mapping("statistics")
-            .expect("statistics should exist");
+        let mapping = mapper.get_mapping("statistics").expect("statistics should exist");
 
-        assert!(
-            mapping.item_map.contains_key("median"),
-            "median should be mapped"
-        );
+        assert!(mapping.item_map.contains_key("median"), "median should be mapped");
     }
 }
 
@@ -789,9 +641,6 @@ mod integration {
         assert!(dep_names.contains(&"regex"));
 
         // stdlib should NOT generate deps
-        assert!(
-            !dep_names.contains(&"std"),
-            "stdlib should not generate dependency"
-        );
+        assert!(!dep_names.contains(&"std"), "stdlib should not generate dependency");
     }
 }

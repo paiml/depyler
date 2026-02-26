@@ -195,10 +195,7 @@ pub fn extract_subscript_pattern(
             }
             Expr::Name(name) => {
                 if name.id.as_str() == "event" {
-                    return Ok(Some(Pattern {
-                        access_chain,
-                        pattern_type: PatternType::Mixed,
-                    }));
+                    return Ok(Some(Pattern { access_chain, pattern_type: PatternType::Mixed }));
                 }
                 break;
             }
@@ -294,9 +291,7 @@ def handler(event, context):
     x = event['Records']['s3']
 "#,
         );
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain == vec!["Records", "s3"]));
+        assert!(patterns.iter().any(|p| p.access_chain == vec!["Records", "s3"]));
     }
 
     #[test]
@@ -307,9 +302,7 @@ def handler(event, context):
     x = event['Records']['s3']['bucket']['name']
 "#,
         );
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain == vec!["Records", "s3", "bucket", "name"]));
+        assert!(patterns.iter().any(|p| p.access_chain == vec!["Records", "s3", "bucket", "name"]));
     }
 
     #[test]
@@ -321,9 +314,7 @@ def handler(event, context):
 "#,
         );
         // Numeric indices should be skipped
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain == vec!["Records", "s3"]));
+        assert!(patterns.iter().any(|p| p.access_chain == vec!["Records", "s3"]));
     }
 
     #[test]
@@ -364,9 +355,7 @@ def handler(event, context):
 "#,
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
-        assert!(patterns
-            .iter()
-            .any(|p| p.pattern_type == PatternType::Attribute));
+        assert!(patterns.iter().any(|p| p.pattern_type == PatternType::Attribute));
     }
 
     #[test]
@@ -377,9 +366,7 @@ def handler(event, context):
     x = event.body.data
 "#,
         );
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain == vec!["body", "data"]));
+        assert!(patterns.iter().any(|p| p.access_chain == vec!["body", "data"]));
     }
 
     #[test]
@@ -766,9 +753,7 @@ def handler(event, context):
 "#,
         );
         // Only outer patterns are extracted
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain == vec!["outer_data"]));
+        assert!(patterns.iter().any(|p| p.access_chain == vec!["outer_data"]));
     }
 
     #[test]
@@ -782,12 +767,8 @@ def handler(event, context):
 "#,
         );
         assert!(patterns.len() >= 2);
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain.contains(&"bucket".to_string())));
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain.contains(&"object".to_string())));
+        assert!(patterns.iter().any(|p| p.access_chain.contains(&"bucket".to_string())));
+        assert!(patterns.iter().any(|p| p.access_chain.contains(&"object".to_string())));
     }
 
     #[test]
@@ -802,9 +783,7 @@ def handler(event, context):
 "#,
         );
         assert!(patterns.len() >= 3);
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain.contains(&"requestContext".to_string())));
+        assert!(patterns.iter().any(|p| p.access_chain.contains(&"requestContext".to_string())));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
     }
 
@@ -819,9 +798,7 @@ def handler(event, context):
     return None
 "#,
         );
-        assert!(patterns
-            .iter()
-            .any(|p| p.access_chain == vec!["detail-type"]));
+        assert!(patterns.iter().any(|p| p.access_chain == vec!["detail-type"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["detail"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["source"]));
     }
@@ -834,9 +811,7 @@ def handler(event, context):
     x = event['data']
 "#,
         );
-        assert!(patterns
-            .iter()
-            .all(|p| p.pattern_type == PatternType::Mixed));
+        assert!(patterns.iter().all(|p| p.pattern_type == PatternType::Mixed));
     }
 
     #[test]
@@ -847,9 +822,7 @@ def handler(event, context):
     x = event.data
 "#,
         );
-        assert!(patterns
-            .iter()
-            .any(|p| p.pattern_type == PatternType::Attribute));
+        assert!(patterns.iter().any(|p| p.pattern_type == PatternType::Attribute));
     }
 
     #[test]

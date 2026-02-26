@@ -91,10 +91,8 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
             quote! { std::collections::HashMap<#key_ty, #val_ty> }
         }
         Type::Tuple(types) => {
-            let elem_types: Vec<_> = types
-                .iter()
-                .map(|t| hir_type_to_tokens_with_mode(t, nasa_mode))
-                .collect();
+            let elem_types: Vec<_> =
+                types.iter().map(|t| hir_type_to_tokens_with_mode(t, nasa_mode)).collect();
             quote! { (#(#elem_types),*) }
         }
         Type::Optional(inner) => {
@@ -128,10 +126,9 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
         // DEPYLER-0770: Handle Callable[[T1, T2], R] -> &dyn Fn(T1, T2) -> R
         Type::Generic { base, params } if base == "Callable" && params.len() == 2 => {
             let param_types: Vec<proc_macro2::TokenStream> = match &params[0] {
-                Type::Tuple(inner) => inner
-                    .iter()
-                    .map(|t| hir_type_to_tokens_with_mode(t, nasa_mode))
-                    .collect(),
+                Type::Tuple(inner) => {
+                    inner.iter().map(|t| hir_type_to_tokens_with_mode(t, nasa_mode)).collect()
+                }
                 Type::List(inner) => vec![hir_type_to_tokens_with_mode(inner, nasa_mode)],
                 Type::None | Type::Unknown => vec![],
                 _ => vec![hir_type_to_tokens_with_mode(&params[0], nasa_mode)],
@@ -154,10 +151,8 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
             if params.is_empty() {
                 quote! { #base_ident }
             } else {
-                let param_tokens: Vec<_> = params
-                    .iter()
-                    .map(|t| hir_type_to_tokens_with_mode(t, nasa_mode))
-                    .collect();
+                let param_tokens: Vec<_> =
+                    params.iter().map(|t| hir_type_to_tokens_with_mode(t, nasa_mode)).collect();
                 quote! { #base_ident<#(#param_tokens),*> }
             }
         }
@@ -278,28 +273,19 @@ mod tests {
     #[test]
     fn test_dict_string_int() {
         let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
-        assert_eq!(
-            tokens_to_string(result),
-            "std::collections::HashMap<String,i32>"
-        );
+        assert_eq!(tokens_to_string(result), "std::collections::HashMap<String,i32>");
     }
 
     #[test]
     fn test_dict_int_string() {
         let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::Int), Box::new(Type::String)));
-        assert_eq!(
-            tokens_to_string(result),
-            "std::collections::HashMap<i32,String>"
-        );
+        assert_eq!(tokens_to_string(result), "std::collections::HashMap<i32,String>");
     }
 
     #[test]
     fn test_dict_string_float() {
         let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::String), Box::new(Type::Float)));
-        assert_eq!(
-            tokens_to_string(result),
-            "std::collections::HashMap<String,f64>"
-        );
+        assert_eq!(tokens_to_string(result), "std::collections::HashMap<String,f64>");
     }
 
     #[test]
@@ -308,10 +294,7 @@ mod tests {
             Box::new(Type::String),
             Box::new(Type::List(Box::new(Type::Int))),
         ));
-        assert_eq!(
-            tokens_to_string(result),
-            "std::collections::HashMap<String,Vec<i32>>"
-        );
+        assert_eq!(tokens_to_string(result), "std::collections::HashMap<String,Vec<i32>>");
     }
 
     // ============ Tuple Types ============
@@ -372,9 +355,8 @@ mod tests {
 
     #[test]
     fn test_optional_nested() {
-        let result = hir_type_to_tokens(&Type::Optional(Box::new(Type::Optional(Box::new(
-            Type::Int,
-        )))));
+        let result =
+            hir_type_to_tokens(&Type::Optional(Box::new(Type::Optional(Box::new(Type::Int)))));
         assert_eq!(tokens_to_string(result), "Option<Option<i32>>");
     }
 
@@ -520,10 +502,8 @@ mod tests {
 
     #[test]
     fn test_callable_bare() {
-        let result = hir_type_to_tokens(&Type::Generic {
-            base: "Callable".to_string(),
-            params: vec![],
-        });
+        let result =
+            hir_type_to_tokens(&Type::Generic { base: "Callable".to_string(), params: vec![] });
         assert_eq!(tokens_to_string(result), "&dynFn()");
     }
 
@@ -549,10 +529,7 @@ mod tests {
 
     #[test]
     fn test_generic_no_params() {
-        let result = hir_type_to_tokens(&Type::Generic {
-            base: "Foo".to_string(),
-            params: vec![],
-        });
+        let result = hir_type_to_tokens(&Type::Generic { base: "Foo".to_string(), params: vec![] });
         assert_eq!(tokens_to_string(result), "Foo");
     }
 
@@ -630,10 +607,7 @@ mod tests {
             Box::new(Type::String),
             Box::new(Type::Int),
         ))));
-        assert_eq!(
-            tokens_to_string(result),
-            "Option<std::collections::HashMap<String,i32>>"
-        );
+        assert_eq!(tokens_to_string(result), "Option<std::collections::HashMap<String,i32>>");
     }
 
     #[test]
@@ -642,10 +616,7 @@ mod tests {
             Box::new(Type::String),
             Box::new(Type::Tuple(vec![Type::Int, Type::Bool])),
         ));
-        assert_eq!(
-            tokens_to_string(result),
-            "std::collections::HashMap<String,(i32,bool)>"
-        );
+        assert_eq!(tokens_to_string(result), "std::collections::HashMap<String,(i32,bool)>");
     }
 
     #[test]
@@ -653,10 +624,7 @@ mod tests {
         let result =
             hir_type_to_tokens(&Type::Optional(Box::new(Type::List(Box::new(Type::Dict(
                 Box::new(Type::String),
-                Box::new(Type::Tuple(vec![
-                    Type::Int,
-                    Type::Optional(Box::new(Type::Float)),
-                ])),
+                Box::new(Type::Tuple(vec![Type::Int, Type::Optional(Box::new(Type::Float))])),
             ))))));
         assert_eq!(
             tokens_to_string(result),
@@ -668,10 +636,8 @@ mod tests {
 
     #[test]
     fn test_callable_with_callable_return() {
-        let inner_callable = Type::Generic {
-            base: "Callable".to_string(),
-            params: vec![Type::Int, Type::Int],
-        };
+        let inner_callable =
+            Type::Generic { base: "Callable".to_string(), params: vec![Type::Int, Type::Int] };
         let result = hir_type_to_tokens(&Type::Generic {
             base: "Callable".to_string(),
             params: vec![Type::None, inner_callable],
@@ -682,25 +648,18 @@ mod tests {
 
     #[test]
     fn test_list_of_callable() {
-        let callable = Type::Generic {
-            base: "Callable".to_string(),
-            params: vec![Type::Int, Type::Bool],
-        };
+        let callable =
+            Type::Generic { base: "Callable".to_string(), params: vec![Type::Int, Type::Bool] };
         let result = hir_type_to_tokens(&Type::List(Box::new(callable)));
         assert_eq!(tokens_to_string(result), "Vec<&dynFn(i32)->bool>");
     }
 
     #[test]
     fn test_dict_with_callable_value() {
-        let callable = Type::Generic {
-            base: "Callable".to_string(),
-            params: vec![Type::String, Type::None],
-        };
+        let callable =
+            Type::Generic { base: "Callable".to_string(), params: vec![Type::String, Type::None] };
         let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::String), Box::new(callable)));
-        assert_eq!(
-            tokens_to_string(result),
-            "std::collections::HashMap<String,&dynFn(String)>"
-        );
+        assert_eq!(tokens_to_string(result), "std::collections::HashMap<String,&dynFn(String)>");
     }
 
     // Shims for error paths

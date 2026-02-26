@@ -19,10 +19,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -41,21 +39,25 @@ mod tests {
 
     #[test]
     fn test_w21fe_002_func_default_string_param() {
-        let result = transpile("def greet(name: str = \"world\") -> str:\n    return \"hello \" + name\n");
+        let result =
+            transpile("def greet(name: str = \"world\") -> str:\n    return \"hello \" + name\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_003_func_default_float_param() {
-        let result = transpile("def scale(x: float, factor: float = 1.0) -> float:\n    return x * factor\n");
+        let result = transpile(
+            "def scale(x: float, factor: float = 1.0) -> float:\n    return x * factor\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_004_func_default_bool_param() {
-        let result = transpile("def process(data: int, verbose: bool = False) -> int:\n    return data\n");
+        let result =
+            transpile("def process(data: int, verbose: bool = False) -> int:\n    return data\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -69,7 +71,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_006_func_multiple_defaults() {
-        let result = transpile("def f(a: int, b: int = 1, c: str = \"x\") -> int:\n    return a + b\n");
+        let result =
+            transpile("def f(a: int, b: int = 1, c: str = \"x\") -> int:\n    return a + b\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -118,7 +121,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_013_func_return_list_str() {
-        let result = transpile("from typing import List\ndef words(s: str) -> List[str]:\n    return s.split()\n");
+        let result = transpile(
+            "from typing import List\ndef words(s: str) -> List[str]:\n    return s.split()\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -162,7 +167,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_019_generator_function_yield() {
-        let result = transpile("def gen(n: int):\n    i = 0\n    while i < n:\n        yield i\n        i = i + 1\n");
+        let result = transpile(
+            "def gen(n: int):\n    i = 0\n    while i < n:\n        yield i\n        i = i + 1\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -176,7 +183,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_021_func_with_docstring() {
-        let result = transpile("def documented(x: int) -> int:\n    \"\"\"Return x doubled.\"\"\"\n    return x * 2\n");
+        let result = transpile(
+            "def documented(x: int) -> int:\n    \"\"\"Return x doubled.\"\"\"\n    return x * 2\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -197,7 +206,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_024_func_with_global() {
-        let result = transpile("counter = 0\ndef increment():\n    global counter\n    counter = counter + 1\n");
+        let result = transpile(
+            "counter = 0\ndef increment():\n    global counter\n    counter = counter + 1\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -217,21 +228,27 @@ mod tests {
 
     #[test]
     fn test_w21fe_027_lambda_in_function() {
-        let result = transpile("def apply(x: int) -> int:\n    double = lambda a: a * 2\n    return double(x)\n");
+        let result = transpile(
+            "def apply(x: int) -> int:\n    double = lambda a: a * 2\n    return double(x)\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_028_func_with_assert() {
-        let result = transpile("def safe_div(a: int, b: int) -> int:\n    assert b != 0\n    return a // b\n");
+        let result = transpile(
+            "def safe_div(a: int, b: int) -> int:\n    assert b != 0\n    return a // b\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_029_func_with_assert_message() {
-        let result = transpile("def check(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n");
+        let result = transpile(
+            "def check(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -315,7 +332,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_041_func_return_none_explicitly() {
-        let result = transpile("def maybe_none(x: int):\n    if x > 0:\n        return x\n    return None\n");
+        let result = transpile(
+            "def maybe_none(x: int):\n    if x > 0:\n        return x\n    return None\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -378,7 +397,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_050_func_multiple_assignment() {
-        let result = transpile("def multi() -> int:\n    a = 1\n    b = 2\n    c = a + b\n    return c\n");
+        let result =
+            transpile("def multi() -> int:\n    a = 1\n    b = 2\n    c = a + b\n    return c\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -392,7 +412,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_052_func_string_concatenation() {
-        let result = transpile("def greet(first: str, last: str) -> str:\n    return first + \" \" + last\n");
+        let result = transpile(
+            "def greet(first: str, last: str) -> str:\n    return first + \" \" + last\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -441,7 +463,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_059_func_with_max_min() {
-        let result = transpile("def clamp(x: int, lo: int, hi: int) -> int:\n    return min(max(x, lo), hi)\n");
+        let result = transpile(
+            "def clamp(x: int, lo: int, hi: int) -> int:\n    return min(max(x, lo), hi)\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -497,21 +521,25 @@ mod tests {
 
     #[test]
     fn test_w21fe_067_func_string_join() {
-        let result = transpile("def join_words(words: list) -> str:\n    return \" \".join(words)\n");
+        let result =
+            transpile("def join_words(words: list) -> str:\n    return \" \".join(words)\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_068_func_string_replace() {
-        let result = transpile("def clean(s: str) -> str:\n    return s.replace(\"old\", \"new\")\n");
+        let result =
+            transpile("def clean(s: str) -> str:\n    return s.replace(\"old\", \"new\")\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_069_func_string_startswith() {
-        let result = transpile("def is_prefix(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n");
+        let result = transpile(
+            "def is_prefix(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -803,7 +831,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_113_fstring_multiple_parts() {
-        let result = transpile("def f(a: str, b: int) -> str:\n    return f\"{a} has {b} items\"\n");
+        let result =
+            transpile("def f(a: str, b: int) -> str:\n    return f\"{a} has {b} items\"\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -817,21 +846,24 @@ mod tests {
 
     #[test]
     fn test_w21fe_115_list_comprehension_with_filter() {
-        let result = transpile("def f(items: list) -> list:\n    return [x for x in items if x > 0]\n");
+        let result =
+            transpile("def f(items: list) -> list:\n    return [x for x in items if x > 0]\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_116_list_comprehension_with_transform_and_filter() {
-        let result = transpile("def f(items: list) -> list:\n    return [x * 2 for x in items if x > 0]\n");
+        let result =
+            transpile("def f(items: list) -> list:\n    return [x * 2 for x in items if x > 0]\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_117_dict_comprehension() {
-        let result = transpile("def f(keys: list) -> dict:\n    return {k: len(k) for k in keys}\n");
+        let result =
+            transpile("def f(keys: list) -> dict:\n    return {k: len(k) for k in keys}\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -852,28 +884,33 @@ mod tests {
 
     #[test]
     fn test_w21fe_120_nested_comprehension() {
-        let result = transpile("def f() -> list:\n    return [i + j for i in range(3) for j in range(3)]\n");
+        let result =
+            transpile("def f() -> list:\n    return [i + j for i in range(3) for j in range(3)]\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_121_lambda_basic() {
-        let result = transpile("def f() -> int:\n    double = lambda x: x * 2\n    return double(5)\n");
+        let result =
+            transpile("def f() -> int:\n    double = lambda x: x * 2\n    return double(5)\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_122_lambda_multi_arg() {
-        let result = transpile("def f() -> int:\n    add = lambda x, y: x + y\n    return add(3, 4)\n");
+        let result =
+            transpile("def f() -> int:\n    add = lambda x, y: x + y\n    return add(3, 4)\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_123_lambda_in_sort_key() {
-        let result = transpile("def f(items: list) -> list:\n    items.sort(key=lambda x: x)\n    return items\n");
+        let result = transpile(
+            "def f(items: list) -> list:\n    items.sort(key=lambda x: x)\n    return items\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -985,14 +1022,17 @@ mod tests {
 
     #[test]
     fn test_w21fe_139_boolean_and_or_combined() {
-        let result = transpile("def f(a: bool, b: bool, c: bool) -> bool:\n    return a and b or c\n");
+        let result =
+            transpile("def f(a: bool, b: bool, c: bool) -> bool:\n    return a and b or c\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
 
     #[test]
     fn test_w21fe_140_boolean_complex_expression() {
-        let result = transpile("def f(x: int, y: int) -> bool:\n    return (x > 0 and y > 0) or (x < 0 and y < 0)\n");
+        let result = transpile(
+            "def f(x: int, y: int) -> bool:\n    return (x > 0 and y > 0) or (x < 0 and y < 0)\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -1005,7 +1045,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_142_binop_mixed_int_ops() {
-        let result = transpile("def f(a: int, b: int, c: int) -> int:\n    return (a + b) * c - a\n");
+        let result =
+            transpile("def f(a: int, b: int, c: int) -> int:\n    return (a + b) * c - a\n");
         assert!(!result.is_empty());
     }
 
@@ -1046,7 +1087,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_148_comprehension_string_method() {
-        let result = transpile("def f(words: list) -> list:\n    return [w.upper() for w in words]\n");
+        let result =
+            transpile("def f(words: list) -> list:\n    return [w.upper() for w in words]\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -1074,7 +1116,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_152_multiple_augmented_ops() {
-        let result = transpile("def f(x: int) -> int:\n    x += 1\n    x -= 2\n    x *= 3\n    return x\n");
+        let result =
+            transpile("def f(x: int) -> int:\n    x += 1\n    x -= 2\n    x *= 3\n    return x\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -1129,7 +1172,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_160_complex_expression_chain() {
-        let result = transpile("def f(x: int, y: int, z: int) -> bool:\n    return x > 0 and y > 0 and z > 0\n");
+        let result = transpile(
+            "def f(x: int, y: int, z: int) -> bool:\n    return x > 0 and y > 0 and z > 0\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -1259,7 +1304,8 @@ mod tests {
 
     #[test]
     fn test_w21fe_178_infer_from_comprehension() {
-        let result = transpile("def f() -> list:\n    x = [i * 2 for i in range(10)]\n    return x\n");
+        let result =
+            transpile("def f() -> list:\n    x = [i * 2 for i in range(10)]\n    return x\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -1287,7 +1333,9 @@ mod tests {
 
     #[test]
     fn test_w21fe_182_type_annotation_list_int() {
-        let result = transpile("from typing import List\ndef f() -> List[int]:\n    x: List[int] = []\n    return x\n");
+        let result = transpile(
+            "from typing import List\ndef f() -> List[int]:\n    x: List[int] = []\n    return x\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }

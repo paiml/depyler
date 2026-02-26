@@ -82,11 +82,7 @@ pub struct TrainingConfig {
 
 impl Default for TrainingConfig {
     fn default() -> Self {
-        Self {
-            synthetic_samples: 12_000,
-            seed: 42,
-            balance_classes: true,
-        }
+        Self { synthetic_samples: 12_000, seed: 42, balance_classes: true }
     }
 }
 
@@ -105,12 +101,7 @@ pub struct ConvergenceConfig {
 
 impl Default for ConvergenceConfig {
     fn default() -> Self {
-        Self {
-            target_rate: 0.80,
-            max_iterations: 50,
-            patience: 5,
-            min_delta: 0.005,
-        }
+        Self { target_rate: 0.80, max_iterations: 50, patience: 5, min_delta: 0.005 }
     }
 }
 
@@ -127,11 +118,7 @@ pub struct ModelConfig {
 
 impl Default for ModelConfig {
     fn default() -> Self {
-        Self {
-            path: PathBuf::from("depyler_oracle.apr"),
-            n_estimators: 100,
-            max_depth: 10,
-        }
+        Self { path: PathBuf::from("depyler_oracle.apr"), n_estimators: 100, max_depth: 10 }
     }
 }
 
@@ -403,11 +390,7 @@ pub fn sparkline(values: &[f64], width: usize) -> String {
         }
 
         let value = values[idx];
-        let normalized = if range > 0.0 {
-            ((value - min) / range).clamp(0.0, 1.0)
-        } else {
-            0.5
-        };
+        let normalized = if range > 0.0 { ((value - min) / range).clamp(0.0, 1.0) } else { 0.5 };
         let char_idx = (normalized * 7.0).round() as usize;
         result.push(SPARK_CHARS[char_idx.min(7)]);
     }
@@ -472,10 +455,7 @@ pub struct AndonDisplay {
 impl AndonDisplay {
     /// Create new display with configuration
     pub fn new(config: &DisplayConfig) -> Self {
-        Self {
-            config: config.clone(),
-            last_refresh: Instant::now(),
-        }
+        Self { config: config.clone(), last_refresh: Instant::now() }
     }
 
     /// Check if should refresh
@@ -678,11 +658,7 @@ impl CompilationMetrics {
         let successful = results.iter().filter(|r| r.success).count();
         let failed = total - successful;
 
-        let compile_rate = if total > 0 {
-            successful as f64 / total as f64
-        } else {
-            0.0
-        };
+        let compile_rate = if total > 0 { successful as f64 / total as f64 } else { 0.0 };
 
         // Count errors by category
         let mut category_counts: HashMap<ErrorCategory, usize> = HashMap::new();
@@ -742,24 +718,14 @@ pub fn compile_corpus(config: &CorpusConfig, classifier: &crate::Oracle) -> Vec<
     let pipeline = DepylerPipeline::new();
 
     // Parse glob patterns
-    let include_patterns: Vec<Pattern> = config
-        .include_patterns
-        .iter()
-        .filter_map(|p| Pattern::new(p).ok())
-        .collect();
+    let include_patterns: Vec<Pattern> =
+        config.include_patterns.iter().filter_map(|p| Pattern::new(p).ok()).collect();
 
-    let exclude_patterns: Vec<Pattern> = config
-        .exclude_patterns
-        .iter()
-        .filter_map(|p| Pattern::new(p).ok())
-        .collect();
+    let exclude_patterns: Vec<Pattern> =
+        config.exclude_patterns.iter().filter_map(|p| Pattern::new(p).ok()).collect();
 
     // Walk corpus directory
-    for entry in WalkDir::new(&config.path)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for entry in WalkDir::new(&config.path).follow_links(true).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if !path.is_file() {
             continue;
@@ -868,8 +834,7 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
 
     // Write Rust code
     let mut file = std::fs::File::create(&temp_file).map_err(|e| e.to_string())?;
-    file.write_all(rust_code.as_bytes())
-        .map_err(|e| e.to_string())?;
+    file.write_all(rust_code.as_bytes()).map_err(|e| e.to_string())?;
     drop(file);
 
     // Run rustc --emit=metadata (fastest check without codegen)
@@ -949,10 +914,7 @@ impl TypeConstraintLearner {
         for (i, line) in lines.iter().enumerate() {
             // Extract line number from location
             if let Some(caps) = self.location_pattern.captures(line) {
-                current_line = caps
-                    .get(2)
-                    .and_then(|m| m.as_str().parse().ok())
-                    .unwrap_or(0);
+                current_line = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
             }
 
             // Look for E0308 type mismatch
@@ -1027,23 +989,15 @@ impl TypeConstraintLearner {
 
         let mut type_pairs: HashMap<(String, String), usize> = HashMap::new();
         for c in &self.constraints {
-            *type_pairs
-                .entry((c.expected_type.clone(), c.found_type.clone()))
-                .or_insert(0) += 1;
+            *type_pairs.entry((c.expected_type.clone(), c.found_type.clone())).or_insert(0) += 1;
         }
 
-        let mut lines = vec![format!(
-            "Learned {} type constraints:",
-            self.constraints.len()
-        )];
+        let mut lines = vec![format!("Learned {} type constraints:", self.constraints.len())];
         let mut pairs: Vec<_> = type_pairs.into_iter().collect();
         pairs.sort_by(|a, b| b.1.cmp(&a.1));
 
         for ((expected, found), count) in pairs.iter().take(10) {
-            lines.push(format!(
-                "  {} × expected `{}`, found `{}`",
-                count, expected, found
-            ));
+            lines.push(format!("  {} × expected `{}`, found `{}`", count, expected, found));
         }
 
         lines.join("\n")
@@ -1163,10 +1117,8 @@ pub fn repair_file_types(
                 for constraint in &learner.constraints {
                     // Only add if not already present (don't overwrite)
                     if !type_constraints.contains_key(&constraint.location) {
-                        type_constraints.insert(
-                            constraint.location.clone(),
-                            constraint.expected_type.clone(),
-                        );
+                        type_constraints
+                            .insert(constraint.location.clone(), constraint.expected_type.clone());
                         constraints_applied += 1;
                         eprintln!(
                             "DEPYLER-1101: Learned constraint: {} → {}",
@@ -1369,10 +1321,7 @@ mod tests {
 
         // Corpus defaults
         assert!(config.corpus.path.to_string_lossy().contains("reprorusted"));
-        assert!(config
-            .corpus
-            .include_patterns
-            .contains(&"**/*.py".to_string()));
+        assert!(config.corpus.include_patterns.contains(&"**/*.py".to_string()));
 
         // Training defaults
         assert_eq!(config.training.synthetic_samples, 12_000);
@@ -1521,10 +1470,7 @@ mod tests {
             "Smoothed estimate should track up: {}",
             final_est.smoothed
         );
-        assert!(
-            final_est.current >= 0.80,
-            "Current should be at/above target"
-        );
+        assert!(final_est.current >= 0.80, "Current should be at/above target");
     }
 
     #[test]
@@ -1698,10 +1644,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_format_minimal() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Minimal,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Minimal, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.iteration = 10;
@@ -1716,10 +1659,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_format_rich() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Rich,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Rich, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.iteration = 25;
@@ -1734,10 +1674,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_silent_returns_empty() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Silent,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Silent, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let state = LoopState::new();
         let conv_config = ConvergenceConfig::default();
@@ -1748,10 +1685,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_should_refresh() {
-        let config = DisplayConfig {
-            refresh_ms: 100,
-            ..Default::default()
-        };
+        let config = DisplayConfig { refresh_ms: 100, ..Default::default() };
         let display = AndonDisplay::new(&config);
 
         // Just created - should not need refresh yet
@@ -1882,14 +1816,8 @@ mod tests {
         assert_eq!(metrics.successful, 2);
         assert_eq!(metrics.failed, 2);
         assert!((metrics.compile_rate - 0.5).abs() < 0.001);
-        assert_eq!(
-            metrics.category_counts.get(&ErrorCategory::TypeMismatch),
-            Some(&1)
-        );
-        assert_eq!(
-            metrics.category_counts.get(&ErrorCategory::TraitBound),
-            Some(&1)
-        );
+        assert_eq!(metrics.category_counts.get(&ErrorCategory::TypeMismatch), Some(&1));
+        assert_eq!(metrics.category_counts.get(&ErrorCategory::TraitBound), Some(&1));
     }
 
     #[test]
@@ -2040,12 +1968,8 @@ mod tests {
 
     #[test]
     fn test_display_mode_serialization_all_variants() {
-        let modes = [
-            DisplayMode::Rich,
-            DisplayMode::Minimal,
-            DisplayMode::Json,
-            DisplayMode::Silent,
-        ];
+        let modes =
+            [DisplayMode::Rich, DisplayMode::Minimal, DisplayMode::Json, DisplayMode::Silent];
         for mode in modes {
             let json = serde_json::to_string(&mode).unwrap();
             let restored: DisplayMode = serde_json::from_str(&json).unwrap();
@@ -2100,9 +2024,7 @@ mod tests {
     #[test]
     fn test_loop_state_category_rates() {
         let mut state = LoopState::new();
-        state
-            .category_rates
-            .insert(ErrorCategory::TypeMismatch, 0.9);
+        state.category_rates.insert(ErrorCategory::TypeMismatch, 0.9);
         state.category_rates.insert(ErrorCategory::TraitBound, 0.8);
 
         assert_eq!(state.category_rates.len(), 2);
@@ -2293,19 +2215,13 @@ mod tests {
         assert_eq!(Action::Plateau, Action::Plateau);
         assert_eq!(Action::NoImprovement, Action::NoImprovement);
         assert_eq!(Action::Continue, Action::Continue);
-        assert_eq!(
-            Action::Retrain { failing_count: 10 },
-            Action::Retrain { failing_count: 10 }
-        );
+        assert_eq!(Action::Retrain { failing_count: 10 }, Action::Retrain { failing_count: 10 });
     }
 
     #[test]
     fn test_action_inequality() {
         assert_ne!(Action::Converged, Action::Plateau);
-        assert_ne!(
-            Action::Retrain { failing_count: 5 },
-            Action::Retrain { failing_count: 10 }
-        );
+        assert_ne!(Action::Retrain { failing_count: 5 }, Action::Retrain { failing_count: 10 });
     }
 
     #[test]
@@ -2339,10 +2255,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_json_mode_header() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Json,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Json, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let state = LoopState::new();
         let conv_config = ConvergenceConfig::default();
@@ -2353,11 +2266,8 @@ mod tests {
 
     #[test]
     fn test_andon_display_format_metrics() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Rich,
-            show_sparklines: true,
-            ..Default::default()
-        };
+        let config =
+            DisplayConfig { mode: DisplayMode::Rich, show_sparklines: true, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.compile_rate = 0.75;
@@ -2384,11 +2294,8 @@ mod tests {
 
     #[test]
     fn test_andon_display_format_metrics_no_sparklines() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Rich,
-            show_sparklines: false,
-            ..Default::default()
-        };
+        let config =
+            DisplayConfig { mode: DisplayMode::Rich, show_sparklines: false, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let state = LoopState::new();
 
@@ -2424,10 +2331,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_mark_refreshed() {
-        let config = DisplayConfig {
-            refresh_ms: 1000,
-            ..Default::default()
-        };
+        let config = DisplayConfig { refresh_ms: 1000, ..Default::default() };
         let mut display = AndonDisplay::new(&config);
 
         // After creation, may or may not need refresh
@@ -2443,10 +2347,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_rich_converged_status() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Rich,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Rich, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.iteration = 10;
@@ -2459,10 +2360,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_rich_stalled_status() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Rich,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Rich, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.iteration = 10;
@@ -2476,10 +2374,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_minimal_converged_status() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Minimal,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Minimal, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.compile_rate = 0.85;
@@ -2491,10 +2386,7 @@ mod tests {
 
     #[test]
     fn test_andon_display_minimal_stalled_status() {
-        let config = DisplayConfig {
-            mode: DisplayMode::Minimal,
-            ..Default::default()
-        };
+        let config = DisplayConfig { mode: DisplayMode::Minimal, ..Default::default() };
         let display = AndonDisplay::new(&config);
         let mut state = LoopState::new();
         state.compile_rate = 0.5;

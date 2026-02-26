@@ -58,10 +58,9 @@ pub enum InferenceError {
 impl std::fmt::Display for InferenceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InferenceError::AmbiguousEventType => write!(
-                f,
-                "Could not determine event type with sufficient confidence"
-            ),
+            InferenceError::AmbiguousEventType => {
+                write!(f, "Could not determine event type with sufficient confidence")
+            }
             InferenceError::NoPatternMatch => write!(f, "No matching event pattern found"),
             InferenceError::ParseError(msg) => write!(f, "Parse error: {msg}"),
         }
@@ -90,22 +89,14 @@ impl LambdaTypeInferencer {
         );
         patterns.insert(
             Pattern {
-                access_chain: vec![
-                    "Records".to_string(),
-                    "s3".to_string(),
-                    "bucket".to_string(),
-                ],
+                access_chain: vec!["Records".to_string(), "s3".to_string(), "bucket".to_string()],
                 pattern_type: PatternType::Mixed,
             },
             EventType::S3Event,
         );
         patterns.insert(
             Pattern {
-                access_chain: vec![
-                    "Records".to_string(),
-                    "s3".to_string(),
-                    "object".to_string(),
-                ],
+                access_chain: vec!["Records".to_string(), "s3".to_string(), "object".to_string()],
                 pattern_type: PatternType::Mixed,
             },
             EventType::S3Event,
@@ -141,11 +132,7 @@ impl LambdaTypeInferencer {
         );
         patterns.insert(
             Pattern {
-                access_chain: vec![
-                    "Records".to_string(),
-                    "Sns".to_string(),
-                    "Message".to_string(),
-                ],
+                access_chain: vec!["Records".to_string(), "Sns".to_string(), "Message".to_string()],
                 pattern_type: PatternType::Mixed,
             },
             EventType::SnsEvent,
@@ -192,10 +179,7 @@ impl LambdaTypeInferencer {
             EventType::EventBridge,
         );
 
-        Self {
-            event_patterns: patterns,
-            confidence_threshold: 0.8,
-        }
+        Self { event_patterns: patterns, confidence_threshold: 0.8 }
     }
 
     pub fn with_confidence_threshold(mut self, threshold: f64) -> Self {
@@ -207,9 +191,7 @@ impl LambdaTypeInferencer {
     pub fn infer_event_type(&self, ast: &Mod) -> Result<EventType, InferenceError> {
         match ast {
             Mod::Module(module) => self.infer_from_module(module),
-            _ => Err(InferenceError::ParseError(
-                "Only module AST supported".to_string(),
-            )),
+            _ => Err(InferenceError::ParseError("Only module AST supported".to_string())),
         }
     }
 
@@ -220,10 +202,8 @@ impl LambdaTypeInferencer {
             return Err(InferenceError::NoPatternMatch);
         }
 
-        let matches: Vec<(EventType, f64)> = patterns
-            .iter()
-            .filter_map(|p| self.match_pattern(p))
-            .collect();
+        let matches: Vec<(EventType, f64)> =
+            patterns.iter().filter_map(|p| self.match_pattern(p)).collect();
 
         if matches.is_empty() {
             return Err(InferenceError::NoPatternMatch);
@@ -273,11 +253,8 @@ impl LambdaTypeInferencer {
         let base_confidence = 0.8;
 
         // Bonus for exact length match
-        let length_bonus = if observed.access_chain.len() == registered.access_chain.len() {
-            0.1
-        } else {
-            0.0
-        };
+        let length_bonus =
+            if observed.access_chain.len() == registered.access_chain.len() { 0.1 } else { 0.0 };
 
         // Bonus for longer patterns (more specific)
         let specificity_bonus = (registered.access_chain.len() as f64 / 20.0).min(0.1);
@@ -298,10 +275,7 @@ impl LambdaTypeInferencer {
         let mut event_scores: HashMap<EventType, Vec<f64>> = HashMap::new();
 
         for (event_type, confidence) in matches {
-            event_scores
-                .entry(event_type.clone())
-                .or_default()
-                .push(*confidence);
+            event_scores.entry(event_type.clone()).or_default().push(*confidence);
         }
 
         event_scores
@@ -325,17 +299,11 @@ impl LambdaTypeInferencer {
     pub fn analyze_handler(&self, ast: &Mod) -> Result<AnalysisReport, InferenceError> {
         let patterns = match ast {
             Mod::Module(module) => extract_access_patterns(&module.body)?,
-            _ => {
-                return Err(InferenceError::ParseError(
-                    "Only module AST supported".to_string(),
-                ))
-            }
+            _ => return Err(InferenceError::ParseError("Only module AST supported".to_string())),
         };
 
-        let matches: Vec<(EventType, f64)> = patterns
-            .iter()
-            .filter_map(|p| self.match_pattern(p))
-            .collect();
+        let matches: Vec<(EventType, f64)> =
+            patterns.iter().filter_map(|p| self.match_pattern(p)).collect();
 
         let event_scores = self.calculate_confidence_scores(&matches);
         let inferred_type = event_scores
@@ -539,11 +507,7 @@ def handler(event, context):
         let inferencer = LambdaTypeInferencer::new();
 
         let observed = Pattern {
-            access_chain: vec![
-                "Records".to_string(),
-                "s3".to_string(),
-                "bucket".to_string(),
-            ],
+            access_chain: vec!["Records".to_string(), "s3".to_string(), "bucket".to_string()],
             pattern_type: PatternType::Mixed,
         };
 
@@ -715,10 +679,8 @@ def handler(event, context):
     #[test]
     fn test_calculate_pattern_confidence_no_match() {
         let inferencer = LambdaTypeInferencer::new();
-        let observed = Pattern {
-            access_chain: vec!["foo".to_string()],
-            pattern_type: PatternType::Mixed,
-        };
+        let observed =
+            Pattern { access_chain: vec!["foo".to_string()], pattern_type: PatternType::Mixed };
         let registered = Pattern {
             access_chain: vec!["bar".to_string(), "baz".to_string()],
             pattern_type: PatternType::Mixed,
@@ -731,11 +693,7 @@ def handler(event, context):
     fn test_calculate_pattern_confidence_partial_match() {
         let inferencer = LambdaTypeInferencer::new();
         let observed = Pattern {
-            access_chain: vec![
-                "Records".to_string(),
-                "s3".to_string(),
-                "bucket".to_string(),
-            ],
+            access_chain: vec!["Records".to_string(), "s3".to_string(), "bucket".to_string()],
             pattern_type: PatternType::Mixed,
         };
         let registered = Pattern {
@@ -776,13 +734,11 @@ def handler(event, context):
     fn test_infer_event_type_non_module() {
         let inferencer = LambdaTypeInferencer::new();
         let ast = Mod::Expression(rustpython_ast::ModExpression {
-            body: Box::new(rustpython_ast::Expr::Constant(
-                rustpython_ast::ExprConstant {
-                    value: rustpython_ast::Constant::Int(42.into()),
-                    kind: None,
-                    range: Default::default(),
-                },
-            )),
+            body: Box::new(rustpython_ast::Expr::Constant(rustpython_ast::ExprConstant {
+                value: rustpython_ast::Constant::Int(42.into()),
+                kind: None,
+                range: Default::default(),
+            })),
             range: Default::default(),
         });
         let result = inferencer.infer_event_type(&ast);
@@ -793,13 +749,11 @@ def handler(event, context):
     fn test_analyze_handler_non_module() {
         let inferencer = LambdaTypeInferencer::new();
         let ast = Mod::Expression(rustpython_ast::ModExpression {
-            body: Box::new(rustpython_ast::Expr::Constant(
-                rustpython_ast::ExprConstant {
-                    value: rustpython_ast::Constant::Int(42.into()),
-                    kind: None,
-                    range: Default::default(),
-                },
-            )),
+            body: Box::new(rustpython_ast::Expr::Constant(rustpython_ast::ExprConstant {
+                value: rustpython_ast::Constant::Int(42.into()),
+                kind: None,
+                range: Default::default(),
+            })),
             range: Default::default(),
         });
         let result = inferencer.analyze_handler(&ast);

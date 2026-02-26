@@ -24,10 +24,7 @@ pub fn dataset_to_arrow(
 
     let messages: Vec<&str> = samples.iter().map(|s| s.message.as_str()).collect();
     let categories: Vec<u8> = samples.iter().map(|s| s.category.index() as u8).collect();
-    let fixes: Vec<&str> = samples
-        .iter()
-        .map(|s| s.fix.as_deref().unwrap_or(""))
-        .collect();
+    let fixes: Vec<&str> = samples.iter().map(|s| s.fix.as_deref().unwrap_or("")).collect();
 
     let schema = Schema::new(vec![
         Field::new("message", DataType::Utf8, false),
@@ -39,31 +36,17 @@ pub fn dataset_to_arrow(
     let category_array: ArrayRef = Arc::new(UInt8Array::from(categories));
     let fix_array: ArrayRef = Arc::new(StringArray::from(fixes));
 
-    RecordBatch::try_new(
-        Arc::new(schema),
-        vec![message_array, category_array, fix_array],
-    )
+    RecordBatch::try_new(Arc::new(schema), vec![message_array, category_array, fix_array])
 }
 
 /// Convert Arrow RecordBatch back to TrainingDataset.
 pub fn arrow_to_dataset(batch: &RecordBatch) -> TrainingDataset {
     let mut dataset = TrainingDataset::new();
 
-    let messages = batch
-        .column(0)
-        .as_any()
-        .downcast_ref::<StringArray>()
-        .expect("message column");
-    let categories = batch
-        .column(1)
-        .as_any()
-        .downcast_ref::<UInt8Array>()
-        .expect("category column");
-    let fixes = batch
-        .column(2)
-        .as_any()
-        .downcast_ref::<StringArray>()
-        .expect("fix column");
+    let messages = batch.column(0).as_any().downcast_ref::<StringArray>().expect("message column");
+    let categories =
+        batch.column(1).as_any().downcast_ref::<UInt8Array>().expect("category column");
+    let fixes = batch.column(2).as_any().downcast_ref::<StringArray>().expect("fix column");
 
     for i in 0..batch.num_rows() {
         let message = messages.value(i);
@@ -111,12 +94,8 @@ pub fn save_corpus(dataset: &TrainingDataset, path: &Path) -> crate::Result<()> 
     let mut writer = ArrowWriter::try_new(file, batch.schema(), None)
         .map_err(|e| crate::OracleError::Model(format!("Parquet writer failed: {e}")))?;
 
-    writer
-        .write(&batch)
-        .map_err(|e| crate::OracleError::Model(format!("Write failed: {e}")))?;
-    writer
-        .close()
-        .map_err(|e| crate::OracleError::Model(format!("Close failed: {e}")))?;
+    writer.write(&batch).map_err(|e| crate::OracleError::Model(format!("Write failed: {e}")))?;
+    writer.close().map_err(|e| crate::OracleError::Model(format!("Close failed: {e}")))?;
 
     Ok(())
 }
@@ -272,10 +251,7 @@ mod tests {
     #[test]
     fn test_arrow_to_dataset_with_none_fix() {
         let mut dataset = TrainingDataset::new();
-        dataset.add(TrainingSample::new(
-            "error without fix",
-            ErrorCategory::TypeMismatch,
-        ));
+        dataset.add(TrainingSample::new("error without fix", ErrorCategory::TypeMismatch));
 
         let batch = dataset_to_arrow(&dataset).unwrap();
         let restored = arrow_to_dataset(&batch);
@@ -318,11 +294,7 @@ mod tests {
             dataset.add(TrainingSample::new("error", category));
 
             let batch = dataset_to_arrow(&dataset).unwrap();
-            let categories_arr = batch
-                .column(1)
-                .as_any()
-                .downcast_ref::<UInt8Array>()
-                .unwrap();
+            let categories_arr = batch.column(1).as_any().downcast_ref::<UInt8Array>().unwrap();
 
             assert_eq!(categories_arr.value(0), idx);
 
@@ -435,28 +407,12 @@ mod tests {
     #[test]
     fn test_multiple_messages_preservation() {
         let mut dataset = TrainingDataset::new();
-        dataset.add(TrainingSample::with_fix(
-            "msg1",
-            ErrorCategory::TypeMismatch,
-            "fix1",
-        ));
-        dataset.add(TrainingSample::with_fix(
-            "msg2",
-            ErrorCategory::BorrowChecker,
-            "fix2",
-        ));
-        dataset.add(TrainingSample::with_fix(
-            "msg3",
-            ErrorCategory::MissingImport,
-            "fix3",
-        ));
+        dataset.add(TrainingSample::with_fix("msg1", ErrorCategory::TypeMismatch, "fix1"));
+        dataset.add(TrainingSample::with_fix("msg2", ErrorCategory::BorrowChecker, "fix2"));
+        dataset.add(TrainingSample::with_fix("msg3", ErrorCategory::MissingImport, "fix3"));
 
         let batch = dataset_to_arrow(&dataset).unwrap();
-        let messages = batch
-            .column(0)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap();
+        let messages = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
 
         assert_eq!(messages.value(0), "msg1");
         assert_eq!(messages.value(1), "msg2");

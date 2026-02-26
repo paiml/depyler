@@ -13,10 +13,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -72,7 +70,11 @@ mod tests {
     #[test]
     fn test_w11ac_assign_empty_string() {
         let result = transpile("def f():\n    s = \"\"\n    return s");
-        assert!(result.contains("\"\"") || result.contains("String::new") || result.contains("STR_EMPTY"));
+        assert!(
+            result.contains("\"\"")
+                || result.contains("String::new")
+                || result.contains("STR_EMPTY")
+        );
     }
 
     #[test]
@@ -149,13 +151,15 @@ mod tests {
 
     #[test]
     fn test_w11ac_assign_from_and_expr() {
-        let result = transpile("def f(a: bool, b: bool) -> bool:\n    result = a and b\n    return result");
+        let result =
+            transpile("def f(a: bool, b: bool) -> bool:\n    result = a and b\n    return result");
         assert!(result.contains("&&") || result.contains("and"));
     }
 
     #[test]
     fn test_w11ac_assign_from_or_expr() {
-        let result = transpile("def f(a: bool, b: bool) -> bool:\n    result = a or b\n    return result");
+        let result =
+            transpile("def f(a: bool, b: bool) -> bool:\n    result = a or b\n    return result");
         assert!(result.contains("||") || result.contains("or"));
     }
 
@@ -167,7 +171,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_assign_from_ternary_simple() {
-        let result = transpile("def f(x: int) -> int:\n    val = x if x > 0 else 0\n    return val");
+        let result =
+            transpile("def f(x: int) -> int:\n    val = x if x > 0 else 0\n    return val");
         assert!(result.contains("if") || result.contains("val"));
     }
 
@@ -201,7 +206,9 @@ mod tests {
 
     #[test]
     fn test_w11ac_tuple_unpack_from_call() {
-        let result = transpile("def pair() -> tuple:\n    return 1, 2\ndef f():\n    a, b = pair()\n    return a");
+        let result = transpile(
+            "def pair() -> tuple:\n    return 1, 2\ndef f():\n    a, b = pair()\n    return a",
+        );
         assert!(result.contains("pair"));
     }
 
@@ -267,7 +274,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_starred_unpack_middle() {
-        let result = transpile("def f():\n    first, *mid, last = [1, 2, 3, 4, 5]\n    return first");
+        let result =
+            transpile("def f():\n    first, *mid, last = [1, 2, 3, 4, 5]\n    return first");
         assert!(!result.is_empty());
     }
 
@@ -315,7 +323,9 @@ mod tests {
 
     #[test]
     fn test_w11ac_assign_from_list_comprehension() {
-        let result = transpile("def f() -> list:\n    squares = [x * x for x in range(10)]\n    return squares");
+        let result = transpile(
+            "def f() -> list:\n    squares = [x * x for x in range(10)]\n    return squares",
+        );
         assert!(result.contains("map") || result.contains("collect") || result.contains("squares"));
     }
 
@@ -403,7 +413,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_augassign_string_concat() {
-        let result = transpile("def f() -> str:\n    s: str = \"hello\"\n    s += \" world\"\n    return s");
+        let result =
+            transpile("def f() -> str:\n    s: str = \"hello\"\n    s += \" world\"\n    return s");
         assert!(result.contains("hello") || result.contains("world"));
     }
 
@@ -439,19 +450,24 @@ mod tests {
 
     #[test]
     fn test_w11ac_augassign_multiple_ops() {
-        let result = transpile("def f() -> int:\n    x: int = 10\n    x += 5\n    x -= 3\n    x *= 2\n    return x");
+        let result = transpile(
+            "def f() -> int:\n    x: int = 10\n    x += 5\n    x -= 3\n    x *= 2\n    return x",
+        );
         assert!(result.contains("x"));
     }
 
     #[test]
     fn test_w11ac_augassign_div_float() {
-        let result = transpile("def f() -> float:\n    x: float = 100.0\n    x /= 4.0\n    return x");
+        let result =
+            transpile("def f() -> float:\n    x: float = 100.0\n    x /= 4.0\n    return x");
         assert!(result.contains("/") || result.contains("x"));
     }
 
     #[test]
     fn test_w11ac_augassign_nested_scope() {
-        let result = transpile("def f() -> int:\n    x: int = 0\n    if True:\n        x += 10\n    return x");
+        let result = transpile(
+            "def f() -> int:\n    x: int = 0\n    if True:\n        x += 10\n    return x",
+        );
         assert!(result.contains("x") && result.contains("10"));
     }
 
@@ -567,19 +583,23 @@ mod tests {
 
     #[test]
     fn test_w11ac_self_attr_string() {
-        let result = transpile("class Person:\n    def __init__(self, name: str):\n        self.name = name");
+        let result = transpile(
+            "class Person:\n    def __init__(self, name: str):\n        self.name = name",
+        );
         assert!(result.contains("name"));
     }
 
     #[test]
     fn test_w11ac_self_attr_bool() {
-        let result = transpile("class Toggle:\n    def __init__(self):\n        self.active = False");
+        let result =
+            transpile("class Toggle:\n    def __init__(self):\n        self.active = False");
         assert!(result.contains("active") || result.contains("false"));
     }
 
     #[test]
     fn test_w11ac_self_attr_list() {
-        let result = transpile("class Container:\n    def __init__(self):\n        self.items = []");
+        let result =
+            transpile("class Container:\n    def __init__(self):\n        self.items = []");
         assert!(result.contains("items"));
     }
 
@@ -615,7 +635,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_index_assign_computed() {
-        let result = transpile("def f(i: int):\n    lst = [0, 0, 0]\n    lst[i] = 1\n    return lst");
+        let result =
+            transpile("def f(i: int):\n    lst = [0, 0, 0]\n    lst[i] = 1\n    return lst");
         assert!(result.contains("lst") && result.contains("i"));
     }
 
@@ -649,13 +670,16 @@ mod tests {
 
     #[test]
     fn test_w11ac_if_simple_return() {
-        let result = transpile("def f(x: int) -> int:\n    if x > 0:\n        return x\n    return 0");
+        let result =
+            transpile("def f(x: int) -> int:\n    if x > 0:\n        return x\n    return 0");
         assert!(result.contains("if") && result.contains("return"));
     }
 
     #[test]
     fn test_w11ac_if_else_return() {
-        let result = transpile("def f(x: int) -> int:\n    if x > 0:\n        return 1\n    else:\n        return -1");
+        let result = transpile(
+            "def f(x: int) -> int:\n    if x > 0:\n        return 1\n    else:\n        return -1",
+        );
         assert!(result.contains("if") && result.contains("else"));
     }
 
@@ -709,13 +733,17 @@ mod tests {
 
     #[test]
     fn test_w11ac_if_none_check() {
-        let result = transpile("def f(x: int) -> bool:\n    if x is None:\n        return True\n    return False");
+        let result = transpile(
+            "def f(x: int) -> bool:\n    if x is None:\n        return True\n    return False",
+        );
         assert!(result.contains("None") || result.contains("is_none") || result.contains("if"));
     }
 
     #[test]
     fn test_w11ac_if_not_none_check() {
-        let result = transpile("def f(x: int) -> bool:\n    if x is not None:\n        return True\n    return False");
+        let result = transpile(
+            "def f(x: int) -> bool:\n    if x is not None:\n        return True\n    return False",
+        );
         assert!(result.contains("None") || result.contains("is_some") || result.contains("if"));
     }
 
@@ -779,7 +807,9 @@ mod tests {
 
     #[test]
     fn test_w11ac_while_condition() {
-        let result = transpile("def f() -> int:\n    x: int = 10\n    while x > 0:\n        x -= 1\n    return x");
+        let result = transpile(
+            "def f() -> int:\n    x: int = 10\n    while x > 0:\n        x -= 1\n    return x",
+        );
         assert!(result.contains("while") && result.contains("x"));
     }
 
@@ -857,7 +887,9 @@ mod tests {
 
     #[test]
     fn test_w11ac_while_single_iteration() {
-        let result = transpile("def f() -> int:\n    x: int = 0\n    while x < 1:\n        x += 1\n    return x");
+        let result = transpile(
+            "def f() -> int:\n    x: int = 0\n    while x < 1:\n        x += 1\n    return x",
+        );
         assert!(result.contains("while") && result.contains("x"));
     }
 
@@ -921,7 +953,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_for_with_enumerate() {
-        let result = transpile("def f():\n    for i, val in enumerate([10, 20, 30]):\n        pass");
+        let result =
+            transpile("def f():\n    for i, val in enumerate([10, 20, 30]):\n        pass");
         assert!(result.contains("enumerate") || result.contains("for"));
     }
 
@@ -991,7 +1024,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_try_bare_except() {
-        let result = transpile("def f() -> int:\n    try:\n        return 1\n    except:\n        return 0");
+        let result =
+            transpile("def f() -> int:\n    try:\n        return 1\n    except:\n        return 0");
         assert!(!result.is_empty());
     }
 
@@ -1069,13 +1103,21 @@ mod tests {
 
     #[test]
     fn test_w11ac_raise_value_error_msg() {
-        let result = transpile("def f(x: int):\n    if x < 0:\n        raise ValueError(\"must be positive\")");
-        assert!(result.contains("ValueError") || result.contains("panic") || result.contains("Err") || !result.is_empty());
+        let result = transpile(
+            "def f(x: int):\n    if x < 0:\n        raise ValueError(\"must be positive\")",
+        );
+        assert!(
+            result.contains("ValueError")
+                || result.contains("panic")
+                || result.contains("Err")
+                || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w11ac_raise_type_error_msg() {
-        let result = transpile("def f(x: int):\n    if x < 0:\n        raise TypeError(\"wrong type\")");
+        let result =
+            transpile("def f(x: int):\n    if x < 0:\n        raise TypeError(\"wrong type\")");
         assert!(!result.is_empty());
     }
 
@@ -1087,7 +1129,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_raise_no_args() {
-        let result = transpile("def f():\n    try:\n        pass\n    except ValueError:\n        raise");
+        let result =
+            transpile("def f():\n    try:\n        pass\n    except ValueError:\n        raise");
         assert!(!result.is_empty());
     }
 
@@ -1239,7 +1282,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_assert_eq_with_msg() {
-        let result = transpile("def f(x: int, y: int):\n    assert x == y, \"values must be equal\"");
+        let result =
+            transpile("def f(x: int, y: int):\n    assert x == y, \"values must be equal\"");
         assert!(result.contains("assert") && result.contains("equal"));
     }
 
@@ -1303,7 +1347,8 @@ mod tests {
 
     #[test]
     fn test_w11ac_func_only_docstring() {
-        let result = transpile("def documented():\n    \"\"\"This function has only a docstring.\"\"\"");
+        let result =
+            transpile("def documented():\n    \"\"\"This function has only a docstring.\"\"\"");
         assert!(result.contains("fn") && result.contains("documented"));
     }
 
@@ -1321,7 +1366,9 @@ mod tests {
 
     #[test]
     fn test_w11ac_func_with_local_vars() {
-        let result = transpile("def compute(x: int) -> int:\n    a: int = x * 2\n    b: int = a + 3\n    return b");
+        let result = transpile(
+            "def compute(x: int) -> int:\n    a: int = x * 2\n    b: int = a + 3\n    return b",
+        );
         assert!(result.contains("fn") && result.contains("compute"));
     }
 
@@ -1461,7 +1508,9 @@ mod tests {
 
     #[test]
     fn test_w11ac_combined_abs_value() {
-        let result = transpile("def abs_val(x: int) -> int:\n    if x < 0:\n        return -x\n    return x");
+        let result = transpile(
+            "def abs_val(x: int) -> int:\n    if x < 0:\n        return -x\n    return x",
+        );
         assert!(result.contains("fn") && result.contains("abs_val"));
     }
 

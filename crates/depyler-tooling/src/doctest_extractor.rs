@@ -88,10 +88,7 @@ pub struct DoctestExtractor {
 impl DoctestExtractor {
     /// Creates a new DoctestExtractor with default settings
     pub fn new() -> Self {
-        Self {
-            include_module_doctests: true,
-            include_class_methods: true,
-        }
+        Self { include_module_doctests: true, include_class_methods: true }
     }
 
     /// Configure whether to include module-level doctests
@@ -131,11 +128,8 @@ impl DoctestExtractor {
             if !in_docstring {
                 if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
                     in_docstring = true;
-                    docstring_delim = Some(if trimmed.starts_with("\"\"\"") {
-                        "\"\"\""
-                    } else {
-                        "'''"
-                    });
+                    docstring_delim =
+                        Some(if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" });
                     // Check if docstring ends on same line
                     let rest = &trimmed[3..];
                     if rest.contains(docstring_delim.unwrap()) {
@@ -194,10 +188,7 @@ impl DoctestExtractor {
         }
 
         // Extract input expression (may span multiple lines with ...)
-        let mut input = trimmed
-            .strip_prefix(">>> ")
-            .unwrap_or(&trimmed[3..])
-            .to_string();
+        let mut input = trimmed.strip_prefix(">>> ").unwrap_or(&trimmed[3..]).to_string();
         let mut consumed = 1;
         let mut next_idx = start_line + 1;
 
@@ -888,9 +879,8 @@ def divide(a: float, b: float) -> float:
 
     #[test]
     fn test_doctest_extractor_clone() {
-        let extractor = DoctestExtractor::new()
-            .with_module_doctests(false)
-            .with_class_methods(false);
+        let extractor =
+            DoctestExtractor::new().with_module_doctests(false).with_class_methods(false);
 
         let cloned = extractor.clone();
         assert!(!cloned.include_module_doctests);
@@ -919,9 +909,8 @@ def divide(a: float, b: float) -> float:
 
     #[test]
     fn test_builder_chaining() {
-        let extractor = DoctestExtractor::new()
-            .with_module_doctests(false)
-            .with_class_methods(false);
+        let extractor =
+            DoctestExtractor::new().with_module_doctests(false).with_class_methods(false);
 
         assert!(!extractor.include_module_doctests);
         assert!(!extractor.include_class_methods);

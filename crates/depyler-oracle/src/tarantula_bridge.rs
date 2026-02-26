@@ -42,21 +42,12 @@ pub fn decision_to_record(decision: &DepylerDecision) -> TranspilerDecisionRecor
     }
 
     // Add source context
-    record
-        .context
-        .insert("source_file".to_string(), decision.source_file.clone());
-    record
-        .context
-        .insert("source_line".to_string(), decision.source_line.to_string());
-    record.context.insert(
-        "confidence".to_string(),
-        format!("{:.2}", decision.confidence),
-    );
+    record.context.insert("source_file".to_string(), decision.source_file.clone());
+    record.context.insert("source_line".to_string(), decision.source_line.to_string());
+    record.context.insert("confidence".to_string(), format!("{:.2}", decision.confidence));
 
     if !decision.alternatives.is_empty() {
-        record
-            .context
-            .insert("alternatives".to_string(), decision.alternatives.join(", "));
+        record.context.insert("alternatives".to_string(), decision.alternatives.join(", "));
     }
 
     record
@@ -87,19 +78,17 @@ pub fn infer_decisions_from_error(error_code: &str) -> Vec<TranspilerDecision> {
         "E0106" | "E0495" | "E0621" => vec![TranspilerDecision::LifetimeInference],
 
         // Import/resolution errors
-        "E0433" | "E0412" | "E0405" => vec![
-            TranspilerDecision::ModuleMapping,
-            TranspilerDecision::ImportGeneration,
-        ],
+        "E0433" | "E0412" | "E0405" => {
+            vec![TranspilerDecision::ModuleMapping, TranspilerDecision::ImportGeneration]
+        }
 
         // Method/trait errors
         "E0599" | "E0609" | "E0283" => vec![TranspilerDecision::MethodTranslation],
 
         // Name resolution
-        "E0425" | "E0422" => vec![
-            TranspilerDecision::ImportGeneration,
-            TranspilerDecision::FunctionSignature,
-        ],
+        "E0425" | "E0422" => {
+            vec![TranspilerDecision::ImportGeneration, TranspilerDecision::FunctionSignature]
+        }
 
         // Function signature issues
         "E0061" | "E0060" | "E0050" => vec![TranspilerDecision::FunctionSignature],
@@ -255,20 +244,14 @@ mod tests {
         assert!(!decisions.is_empty());
 
         // Should have TypeInference from E0308
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
 
         // Should have ModuleMapping from E0433
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
 
         // Should have ModuleMapping from "subprocess" in message
-        let subprocess_decisions: Vec<_> = decisions
-            .iter()
-            .filter(|d| d.description.contains("subprocess"))
-            .collect();
+        let subprocess_decisions: Vec<_> =
+            decisions.iter().filter(|d| d.description.contains("subprocess")).collect();
         assert!(!subprocess_decisions.is_empty());
     }
 
@@ -299,9 +282,6 @@ mod tests {
 
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].decision_type, TranspilerDecision::TypeInference);
-        assert_eq!(
-            records[1].decision_type,
-            TranspilerDecision::OwnershipInference
-        );
+        assert_eq!(records[1].decision_type, TranspilerDecision::OwnershipInference);
     }
 }

@@ -53,15 +53,7 @@ fn contains_unused_variable_warning(rust_code: &str, var_name: &str) -> bool {
     fs::write(temp_file, rust_code).expect("Failed to write temp file");
 
     let output = Command::new("rustc")
-        .args([
-            "--edition",
-            "2021",
-            "--crate-type",
-            "lib",
-            "--deny",
-            "warnings",
-            temp_file,
-        ])
+        .args(["--edition", "2021", "--crate-type", "lib", "--deny", "warnings", temp_file])
         .output()
         .expect("Failed to run rustc");
 
@@ -326,12 +318,7 @@ def f(start: int, end: int) -> int:
         println!("\nTesting pattern: {}", name);
         let pipeline = DepylerPipeline::new();
         let result = pipeline.transpile(python);
-        assert!(
-            result.is_ok(),
-            "Transpilation failed for {}: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Transpilation failed for {}: {:?}", name, result.err());
 
         let rust_code = result.unwrap();
         assert_compiles(&rust_code, &format!("pattern_{}", name.replace(' ', "_")));

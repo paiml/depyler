@@ -16,9 +16,7 @@ use rustpython_parser::{parse, Mode};
 /// Transpile with optimizer (matches CLI behavior)
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -57,11 +55,7 @@ def counter(n: int):
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile yield generator: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile yield generator: {:?}", result.err());
 
     let rust = result.unwrap();
     // Should contain iterator or generator pattern
@@ -82,11 +76,7 @@ def squares_gen(n: int) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile gen expr return: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile gen expr return: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(
@@ -106,18 +96,10 @@ def sum_squares(n: int) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile sum with gen: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile sum with gen: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("sum") || rust.contains(".sum()"),
-        "Should generate sum. Got:\n{}",
-        rust
-    );
+    assert!(rust.contains("sum") || rust.contains(".sum()"), "Should generate sum. Got:\n{}", rust);
 }
 
 /// Test generator with any builtin
@@ -130,18 +112,10 @@ def has_positive(items: list) -> bool:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile any with gen: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile any with gen: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("any") || rust.contains(".any("),
-        "Should generate any. Got:\n{}",
-        rust
-    );
+    assert!(rust.contains("any") || rust.contains(".any("), "Should generate any. Got:\n{}", rust);
 }
 
 /// Test generator with all builtin
@@ -154,18 +128,10 @@ def all_positive(items: list) -> bool:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile all with gen: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile all with gen: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("all") || rust.contains(".all("),
-        "Should generate all. Got:\n{}",
-        rust
-    );
+    assert!(rust.contains("all") || rust.contains(".all("), "Should generate all. Got:\n{}", rust);
 }
 
 /// Test nested generator expression
@@ -178,11 +144,7 @@ def flatten(lists: list) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile flatten: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile flatten: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(
@@ -207,11 +169,7 @@ def running_sum(items: list) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile running sum: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile running sum: {:?}", result.err());
 }
 
 /// Test generator expression with filter and transform
@@ -224,11 +182,7 @@ def even_squares(items: list) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile filter+transform: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile filter+transform: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(

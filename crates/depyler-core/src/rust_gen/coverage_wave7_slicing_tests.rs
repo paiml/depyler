@@ -297,7 +297,8 @@ mod tests {
 
     #[test]
     fn test_w7_comp_list_multiple_filters() {
-        let code = "def f(items: list) -> list:\n    return [x for x in items if x > 0 if x < 100]\n";
+        let code =
+            "def f(items: list) -> list:\n    return [x for x in items if x > 0 if x < 100]\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("filter"));
         }
@@ -667,7 +668,9 @@ mod tests {
     fn test_w7_constructor_set_strings() {
         let code = "def f() -> set:\n    return {\"a\", \"b\", \"c\"}\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("HashSet") || result.contains("insert") || result.contains("to_string"));
+        assert!(
+            result.contains("HashSet") || result.contains("insert") || result.contains("to_string")
+        );
     }
 
     #[test]
@@ -700,7 +703,11 @@ mod tests {
     fn test_w7_constructor_frozenset_literal() {
         let code = "def f():\n    return frozenset([1, 2, 3])\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("Arc") || result.contains("HashSet") || result.contains("frozenset"));
+            assert!(
+                result.contains("Arc")
+                    || result.contains("HashSet")
+                    || result.contains("frozenset")
+            );
         }
     }
 
@@ -741,7 +748,9 @@ mod tests {
     fn test_w7_constructor_list_mixed_types() {
         let code = "def f() -> list:\n    return [1, \"hello\", 3.14]\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("vec!") || result.contains("json") || result.contains("format"));
+            assert!(
+                result.contains("vec!") || result.contains("json") || result.contains("format")
+            );
         }
     }
 
@@ -849,7 +858,9 @@ mod tests {
     fn test_w7_constructor_bool_empty() {
         let code = "def f() -> bool:\n    return bool()\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("false") || result.contains("bool") || result.contains("default"));
+            assert!(
+                result.contains("false") || result.contains("bool") || result.contains("default")
+            );
         }
     }
 
@@ -873,7 +884,9 @@ mod tests {
     fn test_w7_constructor_str_empty() {
         let code = "def f() -> str:\n    return str()\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("String") || result.contains("new") || result.contains("default"));
+            assert!(
+                result.contains("String") || result.contains("new") || result.contains("default")
+            );
         }
     }
 
@@ -963,7 +976,12 @@ mod tests {
     fn test_w7_attr_sys_platform() {
         let code = "import sys\ndef f() -> str:\n    return sys.platform\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("linux") || result.contains("darwin") || result.contains("win32") || result.contains("platform"));
+        assert!(
+            result.contains("linux")
+                || result.contains("darwin")
+                || result.contains("win32")
+                || result.contains("platform")
+        );
     }
 
     #[test]
@@ -990,7 +1008,9 @@ mod tests {
     fn test_w7_attr_os_environ() {
         let code = "import os\ndef f() -> dict:\n    return os.environ\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("env") || result.contains("vars") || result.contains("HashMap"));
+            assert!(
+                result.contains("env") || result.contains("vars") || result.contains("HashMap")
+            );
         }
     }
 
@@ -1064,7 +1084,10 @@ mod tests {
     fn test_w7_attr_string_ascii_letters() {
         let code = "import string\ndef f() -> str:\n    return string.ascii_letters\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("abcdefghijklmnopqrstuvwxyz") || result.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        assert!(
+            result.contains("abcdefghijklmnopqrstuvwxyz")
+                || result.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        );
     }
 
     #[test]
@@ -1237,7 +1260,9 @@ mod tests {
     fn test_w7_constructor_set_from_range_call() {
         let code = "def f() -> set:\n    s = set()\n    s.add(1)\n    return s\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("HashSet") || result.contains("insert") || result.contains("new"));
+            assert!(
+                result.contains("HashSet") || result.contains("insert") || result.contains("new")
+            );
         }
     }
 
@@ -1410,7 +1435,9 @@ mod tests {
     fn test_w7_slice_string_step1() {
         let code = "def f(s: str) -> str:\n    return s[::1]\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("step") || result.contains("to_string") || result.contains("chars"));
+        assert!(
+            result.contains("step") || result.contains("to_string") || result.contains("chars")
+        );
     }
 
     #[test]
@@ -1453,7 +1480,8 @@ mod tests {
 
     #[test]
     fn test_w7_comp_dict_filter_key() {
-        let code = "def f(items: list) -> dict:\n    return {k: v for k, v in items if k != \"bad\"}\n";
+        let code =
+            "def f(items: list) -> dict:\n    return {k: v for k, v in items if k != \"bad\"}\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("filter") || result.contains("HashMap"));
         }

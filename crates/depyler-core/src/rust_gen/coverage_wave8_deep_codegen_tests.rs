@@ -186,7 +186,9 @@ mod tests {
     fn test_w8d_module_multiple_return_paths() {
         let code = "def classify(x: int) -> str:\n    if x > 0:\n        return \"positive\"\n    elif x < 0:\n        return \"negative\"\n    else:\n        return \"zero\"\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("fn") && (result.contains("positive") || result.contains("return")));
+        assert!(
+            result.contains("fn") && (result.contains("positive") || result.contains("return"))
+        );
     }
 
     #[test]
@@ -270,7 +272,8 @@ mod tests {
 
     #[test]
     fn test_w8d_module_global_string_used() {
-        let code = "PREFIX = \"item_\"\ndef make_name(i: int) -> str:\n    return PREFIX + str(i)\n";
+        let code =
+            "PREFIX = \"item_\"\ndef make_name(i: int) -> str:\n    return PREFIX + str(i)\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("item_"));
         }
@@ -294,7 +297,8 @@ mod tests {
 
     #[test]
     fn test_w8d_module_lambda_in_function() {
-        let code = "def apply_fn(x: int) -> int:\n    double = lambda n: n * 2\n    return double(x)\n";
+        let code =
+            "def apply_fn(x: int) -> int:\n    double = lambda n: n * 2\n    return double(x)\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("|"));
         }
@@ -354,7 +358,8 @@ mod tests {
 
     #[test]
     fn test_w8d_module_constant_list_strings() {
-        let code = "NAMES = [\"alice\", \"bob\"]\ndef count_names() -> int:\n    return len(NAMES)\n";
+        let code =
+            "NAMES = [\"alice\", \"bob\"]\ndef count_names() -> int:\n    return len(NAMES)\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("alice") || result.contains("bob"));
         }
@@ -468,13 +473,16 @@ mod tests {
     fn test_w8d_assign_set_add() {
         let code = "def f() -> set:\n    s = set()\n    s.add(1)\n    s.add(2)\n    return s\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("insert") || result.contains("HashSet"));
+            assert!(
+                result.contains("fn") || result.contains("insert") || result.contains("HashSet")
+            );
         }
     }
 
     #[test]
     fn test_w8d_assign_dict_update_subscript() {
-        let code = "def f() -> dict:\n    d = {}\n    d[\"a\"] = 1\n    d[\"b\"] = 2\n    return d\n";
+        let code =
+            "def f() -> dict:\n    d = {}\n    d[\"a\"] = 1\n    d[\"b\"] = 2\n    return d\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("insert"));
         }
@@ -519,7 +527,8 @@ mod tests {
 
     #[test]
     fn test_w8d_assign_float_arithmetic() {
-        let code = "def f(x: float, y: float) -> float:\n    result = x * y + 1.0\n    return result\n";
+        let code =
+            "def f(x: float, y: float) -> float:\n    result = x * y + 1.0\n    return result\n";
         let result = transpile(code).expect("transpile");
         assert!(result.contains("fn") && result.contains("f64"));
     }
@@ -623,7 +632,8 @@ mod tests {
 
     #[test]
     fn test_w8d_assign_list_comprehension() {
-        let code = "def f(n: int) -> list:\n    squares = [x * x for x in range(n)]\n    return squares\n";
+        let code =
+            "def f(n: int) -> list:\n    squares = [x * x for x in range(n)]\n    return squares\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("map") || result.contains("collect"));
         }
@@ -633,7 +643,9 @@ mod tests {
     fn test_w8d_assign_dict_comprehension() {
         let code = "def f(n: int) -> dict:\n    d = {str(i): i for i in range(n)}\n    return d\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("collect") || result.contains("HashMap"));
+            assert!(
+                result.contains("fn") || result.contains("collect") || result.contains("HashMap")
+            );
         }
     }
 
@@ -641,7 +653,9 @@ mod tests {
     fn test_w8d_assign_set_comprehension() {
         let code = "def f(items: list) -> set:\n    s = {x for x in items}\n    return s\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("collect") || result.contains("HashSet"));
+            assert!(
+                result.contains("fn") || result.contains("collect") || result.contains("HashSet")
+            );
         }
     }
 
@@ -712,7 +726,8 @@ mod tests {
 
     #[test]
     fn test_w8d_assign_list_index() {
-        let code = "def f() -> int:\n    items = [10, 20, 30]\n    val = items[1]\n    return val\n";
+        let code =
+            "def f() -> int:\n    items = [10, 20, 30]\n    val = items[1]\n    return val\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("20") || result.contains("[1]"));
         }
@@ -733,7 +748,9 @@ mod tests {
     fn test_w8d_infer_return_method_chain_strip_lower() {
         let code = "def f(s: str) -> str:\n    return s.strip().lower()\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("fn") && (result.contains("trim") || result.contains("to_lowercase")));
+        assert!(
+            result.contains("fn") && (result.contains("trim") || result.contains("to_lowercase"))
+        );
     }
 
     #[test]
@@ -760,7 +777,8 @@ mod tests {
 
     #[test]
     fn test_w8d_infer_early_return_empty_list() {
-        let code = "def f(items: list) -> list:\n    if not items:\n        return []\n    return items\n";
+        let code =
+            "def f(items: list) -> list:\n    if not items:\n        return []\n    return items\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("Vec") || result.contains("vec!"));
         }
@@ -794,7 +812,9 @@ mod tests {
     fn test_w8d_infer_build_dict() {
         let code = "def index_map(items: list) -> dict:\n    result = {}\n    for i in range(len(items)):\n        result[i] = items[i]\n    return result\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("HashMap") || result.contains("insert"));
+            assert!(
+                result.contains("fn") || result.contains("HashMap") || result.contains("insert")
+            );
         }
     }
 
@@ -1067,7 +1087,8 @@ mod tests {
 
     #[test]
     fn test_w8d_infer_string_startswith() {
-        let code = "def has_prefix(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n";
+        let code =
+            "def has_prefix(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n";
         let result = transpile(code).expect("transpile");
         assert!(result.contains("fn") && result.contains("starts_with"));
     }
@@ -1235,7 +1256,8 @@ mod tests {
 
     #[test]
     fn test_w8d_edge_multiple_bool_ops() {
-        let code = "def f(a: bool, b: bool, c: bool, d: bool) -> bool:\n    return a and b or c and d\n";
+        let code =
+            "def f(a: bool, b: bool, c: bool, d: bool) -> bool:\n    return a and b or c and d\n";
         let result = transpile(code).expect("transpile");
         assert!(result.contains("fn") && result.contains("bool"));
     }
@@ -1252,7 +1274,12 @@ mod tests {
     fn test_w8d_edge_list_multiply() {
         let code = "def f(n: int) -> list:\n    return [0] * n\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("vec!") || result.contains("repeat") || result.contains("0"));
+            assert!(
+                result.contains("fn")
+                    || result.contains("vec!")
+                    || result.contains("repeat")
+                    || result.contains("0")
+            );
         }
     }
 
@@ -1260,7 +1287,9 @@ mod tests {
     fn test_w8d_edge_dict_merge_unpack() {
         let code = "def f(d1: dict, d2: dict) -> dict:\n    return {**d1, **d2}\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("HashMap") || result.contains("extend"));
+            assert!(
+                result.contains("fn") || result.contains("HashMap") || result.contains("extend")
+            );
         }
     }
 
@@ -1324,7 +1353,9 @@ mod tests {
     fn test_w8d_edge_string_count() {
         let code = "def f(s: str, sub: str) -> int:\n    return s.count(sub)\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("matches") || result.contains("count"));
+            assert!(
+                result.contains("fn") || result.contains("matches") || result.contains("count")
+            );
         }
     }
 
@@ -1332,7 +1363,12 @@ mod tests {
     fn test_w8d_edge_string_isdigit() {
         let code = "def f(s: str) -> bool:\n    return s.isdigit()\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("is_digit") || result.contains("is_numeric") || result.contains("char"));
+            assert!(
+                result.contains("fn")
+                    || result.contains("is_digit")
+                    || result.contains("is_numeric")
+                    || result.contains("char")
+            );
         }
     }
 
@@ -1340,7 +1376,11 @@ mod tests {
     fn test_w8d_edge_string_isalpha() {
         let code = "def f(s: str) -> bool:\n    return s.isalpha()\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("is_alpha") || result.contains("alphabetic"));
+            assert!(
+                result.contains("fn")
+                    || result.contains("is_alpha")
+                    || result.contains("alphabetic")
+            );
         }
     }
 
@@ -1371,7 +1411,11 @@ mod tests {
     fn test_w8d_edge_string_title() {
         let code = "def f(s: str) -> str:\n    return s.title()\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("title") || result.contains("to_uppercase"));
+            assert!(
+                result.contains("fn")
+                    || result.contains("title")
+                    || result.contains("to_uppercase")
+            );
         }
     }
 
@@ -1387,7 +1431,12 @@ mod tests {
     fn test_w8d_edge_while_with_break() {
         let code = "def f(n: int) -> int:\n    i = 0\n    while True:\n        if i >= n:\n            break\n        i += 1\n    return i\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") && (result.contains("loop") || result.contains("while") || result.contains("break")));
+            assert!(
+                result.contains("fn")
+                    && (result.contains("loop")
+                        || result.contains("while")
+                        || result.contains("break"))
+            );
         }
     }
 
@@ -1395,7 +1444,9 @@ mod tests {
     fn test_w8d_edge_while_with_continue() {
         let code = "def f(n: int) -> int:\n    total = 0\n    i = 0\n    while i < n:\n        i += 1\n        if i % 2 == 0:\n            continue\n        total += i\n    return total\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") && (result.contains("continue") || result.contains("while")));
+            assert!(
+                result.contains("fn") && (result.contains("continue") || result.contains("while"))
+            );
         }
     }
 
@@ -1427,7 +1478,9 @@ mod tests {
     fn test_w8d_edge_assert_with_message() {
         let code = "def f(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n";
         if let Ok(result) = transpile(code) {
-            assert!(result.contains("fn") || result.contains("assert") || result.contains("positive"));
+            assert!(
+                result.contains("fn") || result.contains("assert") || result.contains("positive")
+            );
         }
     }
 
@@ -1503,7 +1556,8 @@ mod tests {
 
     #[test]
     fn test_w8d_edge_fstring_multiple_vars() {
-        let code = "def f(name: str, age: int) -> str:\n    return f\"{name} is {age} years old\"\n";
+        let code =
+            "def f(name: str, age: int) -> str:\n    return f\"{name} is {age} years old\"\n";
         let result = transpile(code).expect("transpile");
         assert!(result.contains("fn") && result.contains("format!"));
     }
@@ -1520,7 +1574,9 @@ mod tests {
     fn test_w8d_edge_multiline_string_assign() {
         let code = "def f() -> str:\n    msg = \"line one \" + \"line two\"\n    return msg\n";
         let result = transpile(code).expect("transpile");
-        assert!(result.contains("fn") && (result.contains("line one") || result.contains("line two")));
+        assert!(
+            result.contains("fn") && (result.contains("line one") || result.contains("line two"))
+        );
     }
 
     #[test]
@@ -1566,5 +1622,4 @@ mod tests {
             assert!(result.contains("fn") || result.contains("pow"));
         }
     }
-
 }

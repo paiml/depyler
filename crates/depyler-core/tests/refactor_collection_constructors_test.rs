@@ -143,10 +143,7 @@ def make_empty_dict():
     return dict()
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("HashMap::new()"),
-        "dict() should generate HashMap::new(). Got:\n{rust}"
-    );
+    assert!(rust.contains("HashMap::new()"), "dict() should generate HashMap::new(). Got:\n{rust}");
 }
 
 #[test]
@@ -196,10 +193,7 @@ def make_empty_list():
     return list()
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("Vec::new()"),
-        "list() should generate Vec::new(). Got:\n{rust}"
-    );
+    assert!(rust.contains("Vec::new()"), "list() should generate Vec::new(). Got:\n{rust}");
 }
 
 #[test]
@@ -338,10 +332,7 @@ def test_enumerate():
     return result
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("enumerate()"),
-        "enumerate() should generate .enumerate(). Got:\n{rust}"
-    );
+    assert!(rust.contains("enumerate()"), "enumerate() should generate .enumerate(). Got:\n{rust}");
 }
 
 #[test]
@@ -371,10 +362,7 @@ def test_zip():
     return result
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".zip("),
-        "zip(a, b) should generate .zip(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".zip("), "zip(a, b) should generate .zip(). Got:\n{rust}");
 }
 
 #[test]
@@ -386,10 +374,7 @@ def test_all():
     return all(items)
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".all("),
-        "all(items) should generate .all(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".all("), "all(items) should generate .all(). Got:\n{rust}");
 }
 
 #[test]
@@ -401,10 +386,7 @@ def test_any():
     return any(items)
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".any("),
-        "any(items) should generate .any(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".any("), "any(items) should generate .any(). Got:\n{rust}");
 }
 
 #[test]

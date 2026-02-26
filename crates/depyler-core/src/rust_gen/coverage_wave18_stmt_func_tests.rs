@@ -23,10 +23,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -45,10 +43,7 @@ mod tests {
         let code = "import os\ndef f() -> str:\n    return os.getenv(\"HOME\")";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("env") || result.contains("var"),
-            "os.getenv single: {result}"
-        );
+        assert!(result.contains("env") || result.contains("var"), "os.getenv single: {result}");
     }
 
     #[test]
@@ -79,7 +74,8 @@ mod tests {
 
     #[test]
     fn test_wave18_stmt_os_getenv_in_condition() {
-        let code = "import os\ndef f() -> bool:\n    return os.getenv(\"DEBUG\", \"false\") == \"true\"";
+        let code =
+            "import os\ndef f() -> bool:\n    return os.getenv(\"DEBUG\", \"false\") == \"true\"";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -189,8 +185,7 @@ mod tests {
 
     #[test]
     fn test_wave18_stmt_os_environ_get_path() {
-        let code =
-            "import os\ndef f() -> str:\n    return os.environ.get(\"PATH\", \"/usr/bin\")";
+        let code = "import os\ndef f() -> str:\n    return os.environ.get(\"PATH\", \"/usr/bin\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -434,7 +429,8 @@ mod tests {
 
     #[test]
     fn test_wave18_stmt_raise_type_error() {
-        let code = "def f(x):\n    if not isinstance(x, int):\n        raise TypeError(\"expected int\")";
+        let code =
+            "def f(x):\n    if not isinstance(x, int):\n        raise TypeError(\"expected int\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -476,7 +472,8 @@ mod tests {
 
     #[test]
     fn test_wave18_stmt_raise_assertion_error() {
-        let code = "def f(x: int):\n    if x != 42:\n        raise AssertionError(\"unexpected value\")";
+        let code =
+            "def f(x: int):\n    if x != 42:\n        raise AssertionError(\"unexpected value\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -612,8 +609,7 @@ mod tests {
 
     #[test]
     fn test_wave18_stmt_augassign_string_concat() {
-        let code =
-            "def f() -> str:\n    s = \"hello\"\n    s += \" world\"\n    return s";
+        let code = "def f() -> str:\n    s = \"hello\"\n    s += \" world\"\n    return s";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -718,8 +714,7 @@ mod tests {
 
     #[test]
     fn test_wave18_stmt_with_open_read() {
-        let code =
-            "def f(path: str) -> str:\n    with open(path) as fp:\n        return fp.read()";
+        let code = "def f(path: str) -> str:\n    with open(path) as fp:\n        return fp.read()";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -765,8 +760,7 @@ mod tests {
 
     #[test]
     fn test_wave18_func_tuple_unpack_return() {
-        let code =
-            "def f() -> tuple:\n    return 1, 2, 3";
+        let code = "def f() -> tuple:\n    return 1, 2, 3";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -992,7 +986,8 @@ mod tests {
 
     #[test]
     fn test_wave18_func_nested_function_simple() {
-        let code = "def outer() -> int:\n    def inner() -> int:\n        return 42\n    return inner()";
+        let code =
+            "def outer() -> int:\n    def inner() -> int:\n        return 42\n    return inner()";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1121,10 +1116,7 @@ mod tests {
         let code = "from typing import Optional\ndef f(x: int) -> Optional[int]:\n    if x > 0:\n        return x\n    return None";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("Option") || result.contains("None"),
-            "Optional[int]: {result}"
-        );
+        assert!(result.contains("Option") || result.contains("None"), "Optional[int]: {result}");
     }
 
     #[test]
@@ -1136,7 +1128,8 @@ mod tests {
 
     #[test]
     fn test_wave18_type_tuple_int_str() {
-        let code = "from typing import Tuple\ndef f() -> Tuple[int, str]:\n    return (42, \"hello\")";
+        let code =
+            "from typing import Tuple\ndef f() -> Tuple[int, str]:\n    return (42, \"hello\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1150,7 +1143,8 @@ mod tests {
 
     #[test]
     fn test_wave18_type_list_of_list() {
-        let code = "from typing import List\ndef f() -> List[List[int]]:\n    return [[1, 2], [3, 4]]";
+        let code =
+            "from typing import List\ndef f() -> List[List[int]]:\n    return [[1, 2], [3, 4]]";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1333,8 +1327,7 @@ mod tests {
 
     #[test]
     fn test_wave18_direct_base64_b64decode() {
-        let code =
-            "import base64\ndef f(data: bytes) -> bytes:\n    return base64.b64decode(data)";
+        let code = "import base64\ndef f(data: bytes) -> bytes:\n    return base64.b64decode(data)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1377,8 +1370,7 @@ mod tests {
 
     #[test]
     fn test_wave18_direct_base64_b16decode() {
-        let code =
-            "import base64\ndef f(data: bytes) -> bytes:\n    return base64.b16decode(data)";
+        let code = "import base64\ndef f(data: bytes) -> bytes:\n    return base64.b16decode(data)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1417,10 +1409,7 @@ mod tests {
         let code = "import time\ndef f():\n    time.sleep(1)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("sleep") || result.contains("thread"),
-            "time.sleep: {result}"
-        );
+        assert!(result.contains("sleep") || result.contains("thread"), "time.sleep: {result}");
     }
 
     #[test]
@@ -1488,22 +1477,15 @@ mod tests {
         let code = "import os\ndef f(path: str) -> bool:\n    return os.path.exists(path)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("exists") || result.contains("Path"),
-            "os.path.exists: {result}"
-        );
+        assert!(result.contains("exists") || result.contains("Path"), "os.path.exists: {result}");
     }
 
     #[test]
     fn test_wave18_direct_os_path_join_two() {
-        let code =
-            "import os\ndef f(a: str, b: str) -> str:\n    return os.path.join(a, b)";
+        let code = "import os\ndef f(a: str, b: str) -> str:\n    return os.path.join(a, b)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("join") || result.contains("PathBuf"),
-            "os.path.join: {result}"
-        );
+        assert!(result.contains("join") || result.contains("PathBuf"), "os.path.join: {result}");
     }
 
     #[test]
@@ -1511,10 +1493,7 @@ mod tests {
         let code = "import os\ndef f(path: str) -> str:\n    return os.path.dirname(path)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("parent") || result.contains("Path"),
-            "os.path.dirname: {result}"
-        );
+        assert!(result.contains("parent") || result.contains("Path"), "os.path.dirname: {result}");
     }
 
     #[test]
@@ -1533,10 +1512,7 @@ mod tests {
         let code = "import os\ndef f(path: str) -> bool:\n    return os.path.isfile(path)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("is_file") || result.contains("Path"),
-            "os.path.isfile: {result}"
-        );
+        assert!(result.contains("is_file") || result.contains("Path"), "os.path.isfile: {result}");
     }
 
     #[test]
@@ -1544,15 +1520,13 @@ mod tests {
         let code = "import os\ndef f(path: str) -> bool:\n    return os.path.isdir(path)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("is_dir") || result.contains("Path"),
-            "os.path.isdir: {result}"
-        );
+        assert!(result.contains("is_dir") || result.contains("Path"), "os.path.isdir: {result}");
     }
 
     #[test]
     fn test_wave18_direct_os_path_join_three() {
-        let code = "import os\ndef f(a: str, b: str, c: str) -> str:\n    return os.path.join(a, b, c)";
+        let code =
+            "import os\ndef f(a: str, b: str, c: str) -> str:\n    return os.path.join(a, b, c)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1580,9 +1554,6 @@ mod tests {
         let code = "import os\ndef f(path: str) -> int:\n    return os.path.getsize(path)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(
-            result.contains("metadata") || result.contains("len"),
-            "os.path.getsize: {result}"
-        );
+        assert!(result.contains("metadata") || result.contains("len"), "os.path.getsize: {result}");
     }
 }

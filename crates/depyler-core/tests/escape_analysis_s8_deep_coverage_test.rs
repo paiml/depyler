@@ -33,11 +33,7 @@ fn float_lit(f: f64) -> HirExpr {
 }
 
 fn assign(name: &str, value: HirExpr) -> HirStmt {
-    HirStmt::Assign {
-        target: AssignTarget::Symbol(name.to_string()),
-        value,
-        type_annotation: None,
-    }
+    HirStmt::Assign { target: AssignTarget::Symbol(name.to_string()), value, type_annotation: None }
 }
 
 fn return_expr(expr: HirExpr) -> HirStmt {
@@ -49,42 +45,23 @@ fn expr_stmt(expr: HirExpr) -> HirStmt {
 }
 
 fn call(func: &str, args: Vec<HirExpr>) -> HirExpr {
-    HirExpr::Call {
-        func: func.to_string(),
-        args,
-        kwargs: vec![],
-    }
+    HirExpr::Call { func: func.to_string(), args, kwargs: vec![] }
 }
 
 fn method_call(obj: HirExpr, method: &str, args: Vec<HirExpr>) -> HirExpr {
-    HirExpr::MethodCall {
-        object: Box::new(obj),
-        method: method.to_string(),
-        args,
-        kwargs: vec![],
-    }
+    HirExpr::MethodCall { object: Box::new(obj), method: method.to_string(), args, kwargs: vec![] }
 }
 
 fn binary(left: HirExpr, op: BinOp, right: HirExpr) -> HirExpr {
-    HirExpr::Binary {
-        op,
-        left: Box::new(left),
-        right: Box::new(right),
-    }
+    HirExpr::Binary { op, left: Box::new(left), right: Box::new(right) }
 }
 
 fn unary(op: UnaryOp, operand: HirExpr) -> HirExpr {
-    HirExpr::Unary {
-        op,
-        operand: Box::new(operand),
-    }
+    HirExpr::Unary { op, operand: Box::new(operand) }
 }
 
 fn index(base: HirExpr, idx: HirExpr) -> HirExpr {
-    HirExpr::Index {
-        base: Box::new(base),
-        index: Box::new(idx),
-    }
+    HirExpr::Index { base: Box::new(base), index: Box::new(idx) }
 }
 
 fn make_func(name: &str, params: Vec<(&str, Type)>, body: Vec<HirStmt>) -> HirFunction {
@@ -92,12 +69,7 @@ fn make_func(name: &str, params: Vec<(&str, Type)>, body: Vec<HirStmt>) -> HirFu
         name: name.to_string(),
         params: params
             .into_iter()
-            .map(|(n, t)| HirParam {
-                name: n.to_string(),
-                ty: t,
-                default: None,
-                is_vararg: false,
-            })
+            .map(|(n, t)| HirParam { name: n.to_string(), ty: t, default: None, is_vararg: false })
             .collect(),
         ret_type: Type::Unknown,
         body,
@@ -157,10 +129,7 @@ fn test_uam_pass_statement() {
 fn test_uam_break_continue() {
     let func = make_func_no_params(
         "f",
-        vec![
-            HirStmt::Break { label: None },
-            HirStmt::Continue { label: None },
-        ],
+        vec![HirStmt::Break { label: None }, HirStmt::Continue { label: None }],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -237,10 +206,7 @@ fn test_uam_for_loop() {
 fn test_uam_block_statement() {
     let func = make_func_no_params(
         "f",
-        vec![HirStmt::Block(vec![
-            assign("a", int_lit(1)),
-            assign("b", int_lit(2)),
-        ])],
+        vec![HirStmt::Block(vec![assign("a", int_lit(1)), assign("b", int_lit(2))])],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -299,10 +265,7 @@ fn test_uam_assert_no_msg() {
     let func = make_func(
         "f",
         vec![("x", Type::Int)],
-        vec![HirStmt::Assert {
-            test: binary(var("x"), BinOp::Gt, int_lit(0)),
-            msg: None,
-        }],
+        vec![HirStmt::Assert { test: binary(var("x"), BinOp::Gt, int_lit(0)), msg: None }],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -385,11 +348,7 @@ fn test_uam_method_call_ownership() {
     let func = make_func(
         "f",
         vec![("items", Type::List(Box::new(Type::Int)))],
-        vec![expr_stmt(method_call(
-            var("items"),
-            "append",
-            vec![int_lit(42)],
-        ))],
+        vec![expr_stmt(method_call(var("items"), "append", vec![int_lit(42)]))],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -411,11 +370,8 @@ fn test_uam_binary_expr() {
 
 #[test]
 fn test_uam_unary_expr() {
-    let func = make_func(
-        "f",
-        vec![("x", Type::Int)],
-        vec![return_expr(unary(UnaryOp::Neg, var("x")))],
-    );
+    let func =
+        make_func("f", vec![("x", Type::Int)], vec![return_expr(unary(UnaryOp::Neg, var("x")))]);
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
     assert!(errors.is_empty());
@@ -491,11 +447,8 @@ fn test_uam_tuple_literal() {
 
 #[test]
 fn test_uam_set_literal() {
-    let func = make_func(
-        "f",
-        vec![("a", Type::Int)],
-        vec![return_expr(HirExpr::Set(vec![var("a")]))],
-    );
+    let func =
+        make_func("f", vec![("a", Type::Int)], vec![return_expr(HirExpr::Set(vec![var("a")]))]);
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
     assert!(errors.is_empty());
@@ -595,10 +548,7 @@ fn test_uam_lambda() {
     let func = make_func(
         "f",
         vec![("x", Type::Int)],
-        vec![return_expr(HirExpr::Lambda {
-            params: vec![],
-            body: Box::new(var("x")),
-        })],
+        vec![return_expr(HirExpr::Lambda { params: vec![], body: Box::new(var("x")) })],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -626,9 +576,7 @@ fn test_uam_await_expr() {
     let func = make_func(
         "f",
         vec![("coro", Type::Unknown)],
-        vec![return_expr(HirExpr::Await {
-            value: Box::new(var("coro")),
-        })],
+        vec![return_expr(HirExpr::Await { value: Box::new(var("coro")) })],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -640,9 +588,7 @@ fn test_uam_yield_expr() {
     let func = make_func(
         "f",
         vec![("x", Type::Int)],
-        vec![expr_stmt(HirExpr::Yield {
-            value: Some(Box::new(var("x"))),
-        })],
+        vec![expr_stmt(HirExpr::Yield { value: Some(Box::new(var("x"))) })],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -770,21 +716,15 @@ fn test_strategic_clone_alias_both_used() {
     let mut analysis = StrategicCloneAnalysis::new();
     let patterns = analysis.analyze_function(&func);
     // Should detect aliasing pattern where both source and alias are used
-    assert!(
-        !patterns.is_empty(),
-        "Should detect aliasing pattern: b = a with both used"
-    );
+    assert!(!patterns.is_empty(), "Should detect aliasing pattern: b = a with both used");
     assert!(!analysis.needs_clone().is_empty());
 }
 
 #[test]
 fn test_strategic_clone_alias_only_one_used() {
     // b = a; only use b (not a after) => no clone needed
-    let func = make_func(
-        "f",
-        vec![("a", Type::Int)],
-        vec![assign("b", var("a")), return_expr(var("b"))],
-    );
+    let func =
+        make_func("f", vec![("a", Type::Int)], vec![assign("b", var("a")), return_expr(var("b"))]);
     let mut analysis = StrategicCloneAnalysis::new();
     let patterns = analysis.analyze_function(&func);
     assert!(patterns.is_empty(), "No clone needed when only alias used");
@@ -843,10 +783,7 @@ fn test_strategic_clone_in_for() {
 fn test_strategic_clone_block() {
     let func = make_func_no_params(
         "f",
-        vec![HirStmt::Block(vec![
-            assign("a", int_lit(1)),
-            assign("b", var("a")),
-        ])],
+        vec![HirStmt::Block(vec![assign("a", int_lit(1)), assign("b", var("a"))])],
     );
     let mut analysis = StrategicCloneAnalysis::new();
     let _patterns = analysis.analyze_function(&func);
@@ -857,11 +794,7 @@ fn test_strategic_clone_collect_uses_method_call() {
     let func = make_func(
         "f",
         vec![("items", Type::List(Box::new(Type::Int)))],
-        vec![expr_stmt(method_call(
-            var("items"),
-            "append",
-            vec![int_lit(1)],
-        ))],
+        vec![expr_stmt(method_call(var("items"), "append", vec![int_lit(1)]))],
     );
     let mut analysis = StrategicCloneAnalysis::new();
     let _patterns = analysis.analyze_function(&func);
@@ -869,11 +802,8 @@ fn test_strategic_clone_collect_uses_method_call() {
 
 #[test]
 fn test_strategic_clone_collect_uses_unary() {
-    let func = make_func(
-        "f",
-        vec![("x", Type::Int)],
-        vec![return_expr(unary(UnaryOp::Neg, var("x")))],
-    );
+    let func =
+        make_func("f", vec![("x", Type::Int)], vec![return_expr(unary(UnaryOp::Neg, var("x")))]);
     let mut analysis = StrategicCloneAnalysis::new();
     let _patterns = analysis.analyze_function(&func);
 }
@@ -920,11 +850,8 @@ fn test_strategic_clone_collect_uses_if_expr() {
 
 #[test]
 fn test_strategic_clone_collect_uses_collection_literals() {
-    let func = make_func(
-        "f",
-        vec![("a", Type::Int)],
-        vec![return_expr(HirExpr::List(vec![var("a")]))],
-    );
+    let func =
+        make_func("f", vec![("a", Type::Int)], vec![return_expr(HirExpr::List(vec![var("a")]))]);
     let mut analysis = StrategicCloneAnalysis::new();
     let _patterns = analysis.analyze_function(&func);
 }
@@ -982,12 +909,8 @@ fn test_ownership_fix_variants() {
     let borrow = OwnershipFix::Borrow;
     let mut_borrow = OwnershipFix::MutableBorrow;
     let clone = OwnershipFix::Clone;
-    let clone_at = OwnershipFix::CloneAtAssignment {
-        var: "x".to_string(),
-    };
-    let reject = OwnershipFix::Reject {
-        reason: "unsafe".to_string(),
-    };
+    let clone_at = OwnershipFix::CloneAtAssignment { var: "x".to_string() };
+    let reject = OwnershipFix::Reject { reason: "unsafe".to_string() };
 
     assert_eq!(borrow, OwnershipFix::Borrow);
     assert_eq!(mut_borrow, OwnershipFix::MutableBorrow);
@@ -1003,11 +926,7 @@ fn test_ownership_fix_variants() {
 fn test_uam_bool_literals() {
     let func = make_func_no_params(
         "f",
-        vec![return_expr(binary(
-            bool_lit(true),
-            BinOp::And,
-            bool_lit(false),
-        ))],
+        vec![return_expr(binary(bool_lit(true), BinOp::And, bool_lit(false)))],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -1018,11 +937,7 @@ fn test_uam_bool_literals() {
 fn test_uam_float_literals() {
     let func = make_func_no_params(
         "f",
-        vec![return_expr(binary(
-            float_lit(1.5),
-            BinOp::Add,
-            float_lit(2.5),
-        ))],
+        vec![return_expr(binary(float_lit(1.5), BinOp::Add, float_lit(2.5)))],
     );
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);

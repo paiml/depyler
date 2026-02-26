@@ -15,11 +15,7 @@ pub struct Dependency {
 
 impl Dependency {
     pub fn new(crate_name: impl Into<String>, version: impl Into<String>) -> Self {
-        Self {
-            crate_name: crate_name.into(),
-            version: version.into(),
-            features: vec![],
-        }
+        Self { crate_name: crate_name.into(), version: version.into(), features: vec![] }
     }
 
     pub fn with_features(mut self, features: Vec<String>) -> Self {
@@ -32,12 +28,8 @@ impl Dependency {
         if self.features.is_empty() {
             format!("{} = \"{}\"", self.crate_name, self.version)
         } else {
-            let features_str = self
-                .features
-                .iter()
-                .map(|f| format!("\"{}\"", f))
-                .collect::<Vec<_>>()
-                .join(", ");
+            let features_str =
+                self.features.iter().map(|f| format!("\"{}\"", f)).collect::<Vec<_>>().join(", ");
             format!(
                 "{} = {{ version = \"{}\", features = [{}] }}",
                 self.crate_name, self.version, features_str
@@ -289,10 +281,7 @@ mod tests {
     #[test]
     fn test_dependency_to_toml_with_features() {
         let dep = Dependency::new("clap", "4.5").with_features(vec!["derive".to_string()]);
-        assert_eq!(
-            dep.to_toml_line(),
-            "clap = { version = \"4.5\", features = [\"derive\"] }"
-        );
+        assert_eq!(dep.to_toml_line(), "clap = { version = \"4.5\", features = [\"derive\"] }");
     }
 
     #[test]
@@ -330,13 +319,7 @@ mod tests {
         let test_cases = vec![
             (vec![], "empty"),
             (vec![Dependency::new("serde", "1.0")], "single"),
-            (
-                vec![
-                    Dependency::new("serde", "1.0"),
-                    Dependency::new("tokio", "1.0"),
-                ],
-                "multiple",
-            ),
+            (vec![Dependency::new("serde", "1.0"), Dependency::new("tokio", "1.0")], "multiple"),
             (
                 vec![Dependency::new("clap", "4.5")
                     .with_features(vec!["derive".to_string(), "cargo".to_string()])],
@@ -349,12 +332,7 @@ mod tests {
 
             // Property: Must parse as valid TOML
             let parsed: Result<toml::Value, _> = toml::from_str(&toml);
-            assert!(
-                parsed.is_ok(),
-                "{} deps: Generated TOML is invalid: {:?}",
-                desc,
-                parsed.err()
-            );
+            assert!(parsed.is_ok(), "{} deps: Generated TOML is invalid: {:?}", desc, parsed.err());
         }
     }
 
@@ -365,10 +343,7 @@ mod tests {
 
         // Property: Package name appears exactly twice (once in [package], once in [[bin]])
         let count = toml.matches("name = \"my_app\"").count();
-        assert_eq!(
-            count, 2,
-            "Package name must appear in [package] and [[bin]] sections"
-        );
+        assert_eq!(count, 2, "Package name must appear in [package] and [[bin]] sections");
 
         // Property: Required sections exist
         assert!(toml.contains("[package]"), "Must have [package] section");
@@ -378,10 +353,7 @@ mod tests {
     /// Property Test: All dependencies must be in [dependencies] section
     #[test]
     fn test_property_dependencies_in_correct_section() {
-        let deps = vec![
-            Dependency::new("serde", "1.0"),
-            Dependency::new("tokio", "1.0"),
-        ];
+        let deps = vec![Dependency::new("serde", "1.0"), Dependency::new("tokio", "1.0")];
         let toml = generate_cargo_toml("test", "test.rs", &deps);
 
         // Property: [dependencies] appears before any dependency
@@ -393,14 +365,8 @@ mod tests {
         assert!(serde_idx.is_some(), "Must have serde dependency");
         assert!(tokio_idx.is_some(), "Must have tokio dependency");
 
-        assert!(
-            deps_idx.unwrap() < serde_idx.unwrap(),
-            "[dependencies] must come before serde"
-        );
-        assert!(
-            deps_idx.unwrap() < tokio_idx.unwrap(),
-            "[dependencies] must come before tokio"
-        );
+        assert!(deps_idx.unwrap() < serde_idx.unwrap(), "[dependencies] must come before serde");
+        assert!(deps_idx.unwrap() < tokio_idx.unwrap(), "[dependencies] must come before tokio");
     }
 
     /// Property Test: extract_dependencies is idempotent
@@ -565,11 +531,7 @@ mod tests {
         let deps1 = extract_dependencies(&ctx);
         let deps2 = extract_dependencies(&ctx);
 
-        assert_eq!(
-            deps1.len(),
-            deps2.len(),
-            "Must return same number of dependencies"
-        );
+        assert_eq!(deps1.len(), deps2.len(), "Must return same number of dependencies");
         for (d1, d2) in deps1.iter().zip(deps2.iter()) {
             assert_eq!(d1.crate_name, d2.crate_name);
             assert_eq!(d1.version, d2.version);
@@ -740,11 +702,7 @@ mod tests {
         // Property: No duplicate crate names
         let mut seen = HashSet::new();
         for dep in &deps {
-            assert!(
-                seen.insert(&dep.crate_name),
-                "Duplicate dependency: {}",
-                dep.crate_name
-            );
+            assert!(seen.insert(&dep.crate_name), "Duplicate dependency: {}", dep.crate_name);
         }
     }
 
@@ -917,10 +875,7 @@ mod tests {
 
         // Verify serde has derive feature
         let serde_dep = deps.iter().find(|d| d.crate_name == "serde").unwrap();
-        assert!(
-            serde_dep.features.contains(&"derive".to_string()),
-            "serde needs derive feature"
-        );
+        assert!(serde_dep.features.contains(&"derive".to_string()), "serde needs derive feature");
     }
 
     // === generate_cargo_toml_lib tests (DEPYLER-0600) ===
@@ -984,10 +939,7 @@ mod tests {
         assert!(toml_starts_with.contains("[lib]"), "test_ prefix → lib");
 
         let toml_contains = generate_cargo_toml_auto("my_test_helper", "my_test_helper.rs", &[]);
-        assert!(
-            toml_contains.contains("[[bin]]"),
-            "Contains test but no prefix → bin"
-        );
+        assert!(toml_contains.contains("[[bin]]"), "Contains test but no prefix → bin");
     }
 
     // === Dependency struct additional tests ===
@@ -1036,10 +988,7 @@ mod tests {
 
         let ctx = CodeGenContext::default();
         let deps = extract_dependencies(&ctx);
-        assert!(
-            deps.is_empty(),
-            "Default context should have no dependencies"
-        );
+        assert!(deps.is_empty(), "Default context should have no dependencies");
     }
 
     // DEPYLER-COVERAGE-95: Additional tests for untested components

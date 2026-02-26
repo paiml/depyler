@@ -267,10 +267,7 @@ def test_pow(a: float, b: float) -> float:
     println!("Generated float ** float code:\n{}", rust_code);
 
     // float ** float should generate .powf()
-    assert!(
-        rust_code.contains(".powf("),
-        "float ** float should generate .powf()"
-    );
+    assert!(rust_code.contains(".powf("), "float ** float should generate .powf()");
 }
 
 #[test]

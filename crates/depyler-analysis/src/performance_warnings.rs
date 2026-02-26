@@ -1,6 +1,6 @@
+use colored::Colorize;
 /// Performance warning system for identifying inefficient patterns
 use depyler_hir::hir::{BinOp, HirExpr, HirFunction, HirProgram, HirStmt, Type};
-use colored::Colorize;
 
 /// Performance analyzer that identifies potentially inefficient patterns
 pub struct PerformanceAnalyzer {
@@ -107,11 +107,7 @@ pub struct Location {
 
 impl PerformanceAnalyzer {
     pub fn new(config: PerformanceConfig) -> Self {
-        Self {
-            warnings: Vec::new(),
-            config,
-            current_loop_depth: 0,
-        }
+        Self { warnings: Vec::new(), config, current_loop_depth: 0 }
     }
 
     /// Analyze a program for performance issues
@@ -170,19 +166,13 @@ impl PerformanceAnalyzer {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt, func: &HirFunction, line: usize) {
         match stmt {
-            HirStmt::For {
-                target: _,
-                iter,
-                body,
-            } => {
+            HirStmt::For { target: _, iter, body } => {
                 self.analyze_for_loop(iter, body, func, line);
             }
             HirStmt::While { condition: _, body } => {
                 self.analyze_while_loop(body, func, line);
             }
-            HirStmt::Assign {
-                target: _, value, ..
-            } => {
+            HirStmt::Assign { target: _, value, .. } => {
                 self.analyze_assignment(value, func, line);
             }
             HirStmt::Expr(expr) => {
@@ -283,17 +273,10 @@ impl PerformanceAnalyzer {
             HirExpr::Binary { left, right, op } => {
                 self.analyze_binary_expr(left, right, op, func, line);
             }
-            HirExpr::Call {
-                func: fname, args, ..
-            } => {
+            HirExpr::Call { func: fname, args, .. } => {
                 self.analyze_function_call(fname, args, func, line);
             }
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 self.analyze_method_call(object, method, args, func, line);
             }
             HirExpr::List(items) => {
@@ -431,15 +414,9 @@ impl PerformanceAnalyzer {
 
     fn check_iteration_pattern(&mut self, iter: &HirExpr, func: &HirFunction, line: usize) {
         // Check for range(len(x)) antipattern
-        if let HirExpr::Call {
-            func: fname, args, ..
-        } = iter
-        {
+        if let HirExpr::Call { func: fname, args, .. } = iter {
             if fname == "range" && !args.is_empty() {
-                if let HirExpr::Call {
-                    func: inner_func, ..
-                } = &args[0]
-                {
+                if let HirExpr::Call { func: inner_func, .. } = &args[0] {
                     if inner_func == "len" {
                         self.add_warning(PerformanceWarning {
                             category: WarningCategory::CollectionUsage,
@@ -626,12 +603,7 @@ impl PerformanceAnalyzer {
     }
 
     fn is_string_concatenation(&self, expr: &HirExpr) -> bool {
-        if let HirExpr::Binary {
-            op: BinOp::Add,
-            left,
-            right,
-        } = expr
-        {
+        if let HirExpr::Binary { op: BinOp::Add, left, right } = expr {
             // Check if either operand might be a string
             matches!(left.as_ref(), HirExpr::Var(_)) || matches!(right.as_ref(), HirExpr::Var(_))
         } else {
@@ -690,9 +662,7 @@ impl PerformanceAnalyzer {
         output.push_str(&format!(
             "{} {} {}\n",
             format!("[{}]", idx + 1).dimmed(),
-            format!("[{:?}]", warning.severity)
-                .color(severity_color)
-                .bold(),
+            format!("[{:?}]", warning.severity).color(severity_color).bold(),
             warning.message.bold()
         ));
     }
@@ -725,11 +695,7 @@ impl PerformanceAnalyzer {
     }
 
     fn append_warning_suggestion(&self, output: &mut String, warning: &PerformanceWarning) {
-        output.push_str(&format!(
-            "   {} {}\n",
-            "Fix:".green(),
-            warning.suggestion.green()
-        ));
+        output.push_str(&format!("   {} {}\n", "Fix:".green(), warning.suggestion.green()));
     }
 
     fn append_summary(&self, output: &mut String, warnings: &[PerformanceWarning]) {
@@ -759,9 +725,7 @@ impl PerformanceAnalyzer {
 
     fn format_loop_info(&self, loc: &Location) -> String {
         if loc.in_loop {
-            format!(" (in loop, depth: {})", loc.loop_depth)
-                .red()
-                .to_string()
+            format!(" (in loop, depth: {})", loc.loop_depth).red().to_string()
         } else {
             String::new()
         }
@@ -776,14 +740,8 @@ impl PerformanceAnalyzer {
     }
 
     fn count_severity_levels(&self, warnings: &[PerformanceWarning]) -> (usize, usize) {
-        let critical = warnings
-            .iter()
-            .filter(|w| w.severity == WarningSeverity::Critical)
-            .count();
-        let high = warnings
-            .iter()
-            .filter(|w| w.severity == WarningSeverity::High)
-            .count();
+        let critical = warnings.iter().filter(|w| w.severity == WarningSeverity::Critical).count();
+        let high = warnings.iter().filter(|w| w.severity == WarningSeverity::High).count();
         (critical, high)
     }
 
@@ -865,14 +823,8 @@ mod tests {
 
     #[test]
     fn test_warning_category_eq() {
-        assert_eq!(
-            WarningCategory::StringPerformance,
-            WarningCategory::StringPerformance
-        );
-        assert_ne!(
-            WarningCategory::StringPerformance,
-            WarningCategory::MemoryAllocation
-        );
+        assert_eq!(WarningCategory::StringPerformance, WarningCategory::StringPerformance);
+        assert_ne!(WarningCategory::StringPerformance, WarningCategory::MemoryAllocation);
     }
 
     #[test]
@@ -976,12 +928,8 @@ mod tests {
 
     #[test]
     fn test_location_new() {
-        let loc = Location {
-            function: "my_func".to_string(),
-            line: 42,
-            in_loop: true,
-            loop_depth: 2,
-        };
+        let loc =
+            Location { function: "my_func".to_string(), line: 42, in_loop: true, loop_depth: 2 };
         assert_eq!(loc.function, "my_func");
         assert_eq!(loc.line, 42);
         assert!(loc.in_loop);
@@ -990,24 +938,14 @@ mod tests {
 
     #[test]
     fn test_location_clone() {
-        let loc = Location {
-            function: "test".to_string(),
-            line: 1,
-            in_loop: false,
-            loop_depth: 0,
-        };
+        let loc = Location { function: "test".to_string(), line: 1, in_loop: false, loop_depth: 0 };
         let cloned = loc.clone();
         assert_eq!(loc.function, cloned.function);
     }
 
     #[test]
     fn test_location_debug() {
-        let loc = Location {
-            function: "f".to_string(),
-            line: 10,
-            in_loop: true,
-            loop_depth: 1,
-        };
+        let loc = Location { function: "f".to_string(), line: 10, in_loop: true, loop_depth: 1 };
         let debug = format!("{:?}", loc);
         assert!(debug.contains("Location"));
     }
@@ -1138,11 +1076,7 @@ mod tests {
 
     #[test]
     fn test_analyzer_empty_program() {
-        let program = HirProgram {
-            functions: vec![],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
         assert!(warnings.is_empty());
@@ -1151,11 +1085,7 @@ mod tests {
     #[test]
     fn test_analyzer_simple_function() {
         let func = create_test_function("simple", vec![]);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
         assert!(warnings.is_empty());
@@ -1184,19 +1114,13 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
         assert!(!warnings.is_empty());
-        assert!(warnings
-            .iter()
-            .any(|w| w.category == WarningCategory::StringPerformance));
+        assert!(warnings.iter().any(|w| w.category == WarningCategory::StringPerformance));
     }
 
     #[test]
@@ -1214,16 +1138,10 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
-        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig {
-            max_loop_depth: 2,
-            ..Default::default()
-        });
+        let mut analyzer =
+            PerformanceAnalyzer::new(PerformanceConfig { max_loop_depth: 2, ..Default::default() });
         let warnings = analyzer.analyze_program(&program);
 
         assert!(warnings.is_empty()); // Depth 2 is within limit
@@ -1255,19 +1173,13 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
-        assert!(warnings
-            .iter()
-            .any(|w| w.category == WarningCategory::AlgorithmComplexity
-                && w.message.contains("Deeply nested")));
+        assert!(warnings.iter().any(|w| w.category == WarningCategory::AlgorithmComplexity
+            && w.message.contains("Deeply nested")));
     }
 
     #[test]
@@ -1287,11 +1199,7 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
@@ -1311,11 +1219,7 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
@@ -1340,11 +1244,7 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
@@ -1362,18 +1262,12 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
-        assert!(warnings
-            .iter()
-            .any(|w| w.category == WarningCategory::MemoryAllocation));
+        assert!(warnings.iter().any(|w| w.category == WarningCategory::MemoryAllocation));
     }
 
     #[test]
@@ -1390,18 +1284,12 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
-        assert!(warnings
-            .iter()
-            .any(|w| w.category == WarningCategory::CollectionUsage));
+        assert!(warnings.iter().any(|w| w.category == WarningCategory::CollectionUsage));
     }
 
     #[test]
@@ -1418,11 +1306,7 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
@@ -1447,18 +1331,12 @@ mod tests {
         }];
 
         let func = create_test_function("test", body);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
-        assert!(warnings
-            .iter()
-            .any(|w| w.message.contains("Power operation")));
+        assert!(warnings.iter().any(|w| w.message.contains("Power operation")));
     }
 
     // === Helper method tests ===
@@ -1528,44 +1406,24 @@ mod tests {
     #[test]
     fn test_severity_color() {
         let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
-        assert_eq!(
-            analyzer.get_severity_color(WarningSeverity::Critical),
-            "red"
-        );
-        assert_eq!(
-            analyzer.get_severity_color(WarningSeverity::High),
-            "bright red"
-        );
-        assert_eq!(
-            analyzer.get_severity_color(WarningSeverity::Medium),
-            "yellow"
-        );
-        assert_eq!(
-            analyzer.get_severity_color(WarningSeverity::Low),
-            "bright yellow"
-        );
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::Critical), "red");
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::High), "bright red");
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::Medium), "yellow");
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::Low), "bright yellow");
     }
 
     #[test]
     fn test_format_loop_info() {
         let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
 
-        let loc_in_loop = Location {
-            function: "f".to_string(),
-            line: 1,
-            in_loop: true,
-            loop_depth: 2,
-        };
+        let loc_in_loop =
+            Location { function: "f".to_string(), line: 1, in_loop: true, loop_depth: 2 };
         let info = analyzer.format_loop_info(&loc_in_loop);
         assert!(info.contains("loop"));
         assert!(info.contains("2"));
 
-        let loc_not_in_loop = Location {
-            function: "f".to_string(),
-            line: 1,
-            in_loop: false,
-            loop_depth: 0,
-        };
+        let loc_not_in_loop =
+            Location { function: "f".to_string(), line: 1, in_loop: false, loop_depth: 0 };
         let info2 = analyzer.format_loop_info(&loc_not_in_loop);
         assert!(info2.is_empty());
     }
@@ -1623,11 +1481,7 @@ mod tests {
     #[test]
     fn test_warnings_sorted_by_severity() {
         let func = create_test_function("test", vec![]);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
@@ -1725,18 +1579,9 @@ mod tests {
     #[test]
     fn test_warning_category_ne() {
         // Test inequality between different categories
-        assert_ne!(
-            WarningCategory::StringPerformance,
-            WarningCategory::IoPerformance
-        );
-        assert_ne!(
-            WarningCategory::MemoryAllocation,
-            WarningCategory::CollectionUsage
-        );
-        assert_ne!(
-            WarningCategory::AlgorithmComplexity,
-            WarningCategory::RedundantComputation
-        );
+        assert_ne!(WarningCategory::StringPerformance, WarningCategory::IoPerformance);
+        assert_ne!(WarningCategory::MemoryAllocation, WarningCategory::CollectionUsage);
+        assert_ne!(WarningCategory::AlgorithmComplexity, WarningCategory::RedundantComputation);
     }
 
     #[test]
@@ -1753,12 +1598,8 @@ mod tests {
 
     #[test]
     fn test_location_all_fields() {
-        let loc = Location {
-            function: "process".to_string(),
-            line: 42,
-            in_loop: true,
-            loop_depth: 2,
-        };
+        let loc =
+            Location { function: "process".to_string(), line: 42, in_loop: true, loop_depth: 2 };
         assert_eq!(loc.function, "process");
         assert_eq!(loc.line, 42);
         assert!(loc.in_loop);

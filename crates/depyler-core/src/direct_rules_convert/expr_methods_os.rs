@@ -16,10 +16,8 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "getenv" => {
@@ -125,10 +123,8 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "join" => {
@@ -220,10 +216,8 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "get" => {
@@ -242,9 +236,7 @@ impl<'a> ExprConverter<'a> {
                 }
             }
             "keys" => Some(parse_quote! { std::env::vars().map(|(k, _)| k).collect::<Vec<_>>() }),
-            "values" => {
-                Some(parse_quote! { std::env::vars().map(|(_, v)| v).collect::<Vec<_>>() })
-            }
+            "values" => Some(parse_quote! { std::env::vars().map(|(_, v)| v).collect::<Vec<_>>() }),
             "items" => Some(parse_quote! { std::env::vars().collect::<Vec<_>>() }),
             "clear" => Some(parse_quote! { { /* env clear not implemented */ } }),
             "update" => Some(parse_quote! { { /* env update not implemented */ } }),
@@ -403,27 +395,21 @@ mod tests {
     #[test]
     fn test_os_environ_keys() {
         let conv = make_converter();
-        let result = conv
-            .try_convert_os_environ_method("keys", &[])
-            .unwrap();
+        let result = conv.try_convert_os_environ_method("keys", &[]).unwrap();
         assert!(result.is_some());
     }
 
     #[test]
     fn test_os_environ_values() {
         let conv = make_converter();
-        let result = conv
-            .try_convert_os_environ_method("values", &[])
-            .unwrap();
+        let result = conv.try_convert_os_environ_method("values", &[]).unwrap();
         assert!(result.is_some());
     }
 
     #[test]
     fn test_os_environ_items() {
         let conv = make_converter();
-        let result = conv
-            .try_convert_os_environ_method("items", &[])
-            .unwrap();
+        let result = conv.try_convert_os_environ_method("items", &[]).unwrap();
         assert!(result.is_some());
     }
 
@@ -449,18 +435,14 @@ mod tests {
     #[test]
     fn test_os_path_unknown_method() {
         let conv = make_converter();
-        let result = conv
-            .try_convert_os_path_method("unknown_method", &[])
-            .unwrap();
+        let result = conv.try_convert_os_path_method("unknown_method", &[]).unwrap();
         assert!(result.is_none());
     }
 
     #[test]
     fn test_os_environ_unknown_method() {
         let conv = make_converter();
-        let result = conv
-            .try_convert_os_environ_method("unknown_method", &[])
-            .unwrap();
+        let result = conv.try_convert_os_environ_method("unknown_method", &[]).unwrap();
         assert!(result.is_none());
     }
 }

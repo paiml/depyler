@@ -87,10 +87,7 @@ impl Default for HybridConfig {
 impl HybridConfig {
     /// Create config with API enabled (reads ANTHROPIC_API_KEY from env)
     pub fn with_api() -> Self {
-        Self {
-            enable_api: std::env::var("ANTHROPIC_API_KEY").is_ok(),
-            ..Self::default()
-        }
+        Self { enable_api: std::env::var("ANTHROPIC_API_KEY").is_ok(), ..Self::default() }
     }
 
     /// Create config with local model
@@ -146,11 +143,7 @@ impl HybridTranspiler {
     /// Create with custom config
     #[must_use]
     pub fn with_config(config: HybridConfig) -> Self {
-        Self {
-            config,
-            pipeline: DepylerPipeline::new(),
-            pattern_stats: PatternStats::default(),
-        }
+        Self { config, pipeline: DepylerPipeline::new(), pattern_stats: PatternStats::default() }
     }
 
     /// Analyze Python code complexity
@@ -283,23 +276,13 @@ impl HybridTranspiler {
     fn try_local_model(&self, _python_code: &str) -> Result<TranspileResult, TranspileError> {
         // Note: Implement local model inference using aprender
         // For now, we rely on AST transpilation and API fallback
-        Err(TranspileError::ModelFailed(
-            "Local model inference not yet implemented".to_string(),
-        ))
+        Err(TranspileError::ModelFailed("Local model inference not yet implemented".to_string()))
     }
 
     /// Try API-based transpilation (Claude/OpenAI)
     fn try_api_transpile(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
-        let endpoint = self
-            .config
-            .api_endpoint
-            .as_ref()
-            .ok_or(TranspileError::ApiNotConfigured)?;
-        let api_key = self
-            .config
-            .api_key
-            .as_ref()
-            .ok_or(TranspileError::ApiNotConfigured)?;
+        let endpoint = self.config.api_endpoint.as_ref().ok_or(TranspileError::ApiNotConfigured)?;
+        let api_key = self.config.api_key.as_ref().ok_or(TranspileError::ApiNotConfigured)?;
 
         let prompt = format!(
             "Convert this Python code to idiomatic Rust. Only output the Rust code, no explanations:\n\n```python\n{}\n```",
@@ -325,9 +308,8 @@ impl HybridTranspiler {
             .send_json(&request_body)
             .map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
 
-        let response_json: serde_json::Value = response
-            .into_json()
-            .map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
+        let response_json: serde_json::Value =
+            response.into_json().map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
 
         // Extract content from Anthropic response
         let rust_code = response_json["content"][0]["text"]
@@ -525,52 +507,33 @@ mod tests {
     #[test]
     fn test_complexity_simple() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("def add(a, b): return a + b"),
-            PatternComplexity::Simple
-        );
+        assert_eq!(t.analyze_complexity("def add(a, b): return a + b"), PatternComplexity::Simple);
     }
 
     #[test]
     fn test_complexity_medium() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("class Foo: pass"),
-            PatternComplexity::Medium
-        );
-        assert_eq!(
-            t.analyze_complexity("@decorator\ndef foo(): pass"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(t.analyze_complexity("class Foo: pass"), PatternComplexity::Medium);
+        assert_eq!(t.analyze_complexity("@decorator\ndef foo(): pass"), PatternComplexity::Medium);
     }
 
     #[test]
     fn test_complexity_complex() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("class Meta(type): pass"),
-            PatternComplexity::Complex
-        );
+        assert_eq!(t.analyze_complexity("class Meta(type): pass"), PatternComplexity::Complex);
     }
 
     #[test]
     fn test_complexity_unsupported() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("eval('x + 1')"),
-            PatternComplexity::Unsupported
-        );
+        assert_eq!(t.analyze_complexity("eval('x + 1')"), PatternComplexity::Unsupported);
     }
 
     #[test]
     fn test_transpile_simple_function() {
         let mut t = HybridTranspiler::new();
         let result = t.transpile("def add(a: int, b: int) -> int:\n    return a + b");
-        assert!(
-            result.is_ok(),
-            "Simple function should transpile: {:?}",
-            result
-        );
+        assert!(result.is_ok(), "Simple function should transpile: {:?}", result);
         let r = result.unwrap();
         assert_eq!(r.strategy, Strategy::Ast);
         assert!(r.confidence >= 0.8);
@@ -637,10 +600,7 @@ def factorial(n: int) -> int:
     fn test_config_with_api() {
         // This will enable API if ANTHROPIC_API_KEY is set
         let config = HybridConfig::with_api();
-        assert_eq!(
-            config.enable_api,
-            std::env::var("ANTHROPIC_API_KEY").is_ok()
-        );
+        assert_eq!(config.enable_api, std::env::var("ANTHROPIC_API_KEY").is_ok());
     }
 
     // ============================================================
@@ -713,10 +673,7 @@ def factorial(n: int) -> int:
     fn test_hybrid_config_with_local_model() {
         let config = HybridConfig::with_local_model("/path/to/model.gguf");
         assert!(config.enable_local_model);
-        assert_eq!(
-            config.local_model_path,
-            Some("/path/to/model.gguf".to_string())
-        );
+        assert_eq!(config.local_model_path, Some("/path/to/model.gguf".to_string()));
     }
 
     #[test]
@@ -735,37 +692,25 @@ def factorial(n: int) -> int:
     #[test]
     fn test_pattern_complexity_yield() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("def gen(): yield 1"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(t.analyze_complexity("def gen(): yield 1"), PatternComplexity::Medium);
     }
 
     #[test]
     fn test_pattern_complexity_async() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("async def foo(): pass"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(t.analyze_complexity("async def foo(): pass"), PatternComplexity::Medium);
     }
 
     #[test]
     fn test_pattern_complexity_lambda() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("f = lambda x: x + 1"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(t.analyze_complexity("f = lambda x: x + 1"), PatternComplexity::Medium);
     }
 
     #[test]
     fn test_pattern_complexity_type() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("t = type(x)"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(t.analyze_complexity("t = type(x)"), PatternComplexity::Medium);
     }
 
     #[test]
@@ -780,10 +725,7 @@ def factorial(n: int) -> int:
     #[test]
     fn test_pattern_complexity_new() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("def __new__(cls): pass"),
-            PatternComplexity::Complex
-        );
+        assert_eq!(t.analyze_complexity("def __new__(cls): pass"), PatternComplexity::Complex);
     }
 
     #[test]
@@ -798,37 +740,25 @@ def factorial(n: int) -> int:
     #[test]
     fn test_pattern_complexity_globals() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("g = globals()"),
-            PatternComplexity::Complex
-        );
+        assert_eq!(t.analyze_complexity("g = globals()"), PatternComplexity::Complex);
     }
 
     #[test]
     fn test_pattern_complexity_locals() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("l = locals()"),
-            PatternComplexity::Complex
-        );
+        assert_eq!(t.analyze_complexity("l = locals()"), PatternComplexity::Complex);
     }
 
     #[test]
     fn test_pattern_complexity_exec() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("exec('print(1)')"),
-            PatternComplexity::Unsupported
-        );
+        assert_eq!(t.analyze_complexity("exec('print(1)')"), PatternComplexity::Unsupported);
     }
 
     #[test]
     fn test_pattern_complexity_import() {
         let t = HybridTranspiler::new();
-        assert_eq!(
-            t.analyze_complexity("m = __import__('os')"),
-            PatternComplexity::Unsupported
-        );
+        assert_eq!(t.analyze_complexity("m = __import__('os')"), PatternComplexity::Unsupported);
     }
 
     // ============================================================
@@ -844,10 +774,7 @@ def factorial(n: int) -> int:
 
     #[test]
     fn test_hybrid_transpiler_with_config() {
-        let config = HybridConfig {
-            ast_confidence_threshold: 0.5,
-            ..HybridConfig::default()
-        };
+        let config = HybridConfig { ast_confidence_threshold: 0.5, ..HybridConfig::default() };
         let t = HybridTranspiler::with_config(config);
         let stats = t.stats();
         assert_eq!(stats.total_attempts, 0);
@@ -891,11 +818,7 @@ def factorial(n: int) -> int:
     #[test]
     fn test_training_collector_not_empty() {
         let mut collector = TrainingDataCollector::new();
-        collector.add_pair(
-            "def foo(): pass".to_string(),
-            "fn foo() {}".to_string(),
-            "test",
-        );
+        collector.add_pair("def foo(): pass".to_string(), "fn foo() {}".to_string(), "test");
         assert!(!collector.is_empty());
         assert_eq!(collector.len(), 1);
     }

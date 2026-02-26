@@ -183,10 +183,7 @@ def memory_hog() -> list:
         // Still tests long line handling without excessive recursion depth
         let very_long_expression = format!(
             "def long_line() -> int:\n    return {}",
-            (0..100)
-                .map(|i| format!("{}", i))
-                .collect::<Vec<_>>()
-                .join(" + ")
+            (0..100).map(|i| format!("{}", i)).collect::<Vec<_>>().join(" + ")
         );
 
         let result = pipeline.transpile(&very_long_expression);
@@ -225,14 +222,8 @@ def circular_ref(x: Optional['CircularRef']) -> 'CircularRef':
         for size in [5, 10, 20] {
             let large_function = format!(
                 "def large_func({}) -> int:\n    return {}",
-                (0..size)
-                    .map(|i| format!("x{}: int", i))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                (0..size)
-                    .map(|i| format!("x{}", i))
-                    .collect::<Vec<_>>()
-                    .join(" + ")
+                (0..size).map(|i| format!("x{}: int", i)).collect::<Vec<_>>().join(", "),
+                (0..size).map(|i| format!("x{}", i)).collect::<Vec<_>>().join(" + ")
             );
 
             let result = pipeline.transpile(&large_function);

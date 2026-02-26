@@ -67,11 +67,7 @@ pub enum HirExpr {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HirStatement {
-    Let {
-        name: String,
-        value: Box<HirExpr>,
-        is_mutable: bool,
-    },
+    Let { name: String, value: Box<HirExpr>, is_mutable: bool },
     Expression(Box<HirExpr>),
 }
 
@@ -147,10 +143,7 @@ mod tests {
             root: HirExpr::Literal(HirLiteral::Integer(42)),
             metadata: HirMetadata::default(),
         };
-        assert!(matches!(
-            hir.root,
-            HirExpr::Literal(HirLiteral::Integer(42))
-        ));
+        assert!(matches!(hir.root, HirExpr::Literal(HirLiteral::Integer(42))));
     }
 
     #[test]
@@ -181,10 +174,7 @@ mod tests {
     fn test_hir_serialize_deserialize() {
         let hir = Hir {
             root: HirExpr::Literal(HirLiteral::String("hello".to_string())),
-            metadata: HirMetadata {
-                source_file: Some("test.py".to_string()),
-                module_name: None,
-            },
+            metadata: HirMetadata { source_file: Some("test.py".to_string()), module_name: None },
         };
         let json = serde_json::to_string(&hir).unwrap();
         let deserialized: Hir = serde_json::from_str(&json).unwrap();
@@ -245,13 +235,7 @@ mod tests {
             op: HirBinaryOp::Add,
             right: Box::new(HirExpr::Literal(HirLiteral::Integer(2))),
         };
-        assert!(matches!(
-            expr,
-            HirExpr::Binary {
-                op: HirBinaryOp::Add,
-                ..
-            }
-        ));
+        assert!(matches!(expr, HirExpr::Binary { op: HirBinaryOp::Add, .. }));
     }
 
     #[test]
@@ -260,13 +244,7 @@ mod tests {
             op: HirUnaryOp::Negate,
             operand: Box::new(HirExpr::Literal(HirLiteral::Integer(5))),
         };
-        assert!(matches!(
-            expr,
-            HirExpr::Unary {
-                op: HirUnaryOp::Negate,
-                ..
-            }
-        ));
+        assert!(matches!(expr, HirExpr::Unary { op: HirUnaryOp::Negate, .. }));
     }
 
     #[test]
@@ -332,16 +310,8 @@ mod tests {
         let expr = HirExpr::Function {
             name: "add".to_string(),
             params: vec![
-                HirParam {
-                    name: "a".to_string(),
-                    typ: Some(HirType::Int),
-                    default: None,
-                },
-                HirParam {
-                    name: "b".to_string(),
-                    typ: Some(HirType::Int),
-                    default: None,
-                },
+                HirParam { name: "a".to_string(), typ: Some(HirType::Int), default: None },
+                HirParam { name: "b".to_string(), typ: Some(HirType::Int), default: None },
             ],
             body: Box::new(HirExpr::Binary {
                 left: Box::new(HirExpr::Identifier("a".to_string())),
@@ -374,11 +344,7 @@ mod tests {
     #[test]
     fn test_hir_expr_lambda() {
         let expr = HirExpr::Lambda {
-            params: vec![HirParam {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![HirParam { name: "x".to_string(), typ: None, default: None }],
             body: Box::new(HirExpr::Binary {
                 left: Box::new(HirExpr::Identifier("x".to_string())),
                 op: HirBinaryOp::Multiply,
@@ -488,11 +454,7 @@ mod tests {
 
     #[test]
     fn test_hir_param_simple() {
-        let param = HirParam {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        };
+        let param = HirParam { name: "x".to_string(), typ: None, default: None };
         assert_eq!(param.name, "x");
         assert!(param.typ.is_none());
         assert!(param.default.is_none());
@@ -500,11 +462,7 @@ mod tests {
 
     #[test]
     fn test_hir_param_with_type() {
-        let param = HirParam {
-            name: "count".to_string(),
-            typ: Some(HirType::Int),
-            default: None,
-        };
+        let param = HirParam { name: "count".to_string(), typ: Some(HirType::Int), default: None };
         assert!(matches!(param.typ, Some(HirType::Int)));
     }
 
@@ -581,10 +539,7 @@ mod tests {
         assert!(matches!(HirBinaryOp::Less, HirBinaryOp::Less));
         assert!(matches!(HirBinaryOp::LessEqual, HirBinaryOp::LessEqual));
         assert!(matches!(HirBinaryOp::Greater, HirBinaryOp::Greater));
-        assert!(matches!(
-            HirBinaryOp::GreaterEqual,
-            HirBinaryOp::GreaterEqual
-        ));
+        assert!(matches!(HirBinaryOp::GreaterEqual, HirBinaryOp::GreaterEqual));
     }
 
     #[test]

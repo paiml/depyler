@@ -92,11 +92,8 @@ impl Default for CorpusConfig {
 impl CorpusConfig {
     /// Create a new config with the specified corpus path.
     pub fn with_corpus_path(mut self, path: PathBuf) -> Self {
-        self.corpus_name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown")
-            .to_string();
+        self.corpus_name =
+            path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
         self.corpus_path = path;
         self
     }
@@ -134,9 +131,7 @@ impl CorpusConfig {
 
     /// Get the effective depyler binary path.
     pub fn depyler_binary(&self) -> PathBuf {
-        self.depyler_path
-            .clone()
-            .unwrap_or_else(|| PathBuf::from("depyler"))
+        self.depyler_path.clone().unwrap_or_else(|| PathBuf::from("depyler"))
     }
 }
 
@@ -181,9 +176,6 @@ mod tests {
     fn test_depyler_binary_custom() {
         let config =
             CorpusConfig::default().with_depyler_path(PathBuf::from("/usr/local/bin/depyler"));
-        assert_eq!(
-            config.depyler_binary(),
-            PathBuf::from("/usr/local/bin/depyler")
-        );
+        assert_eq!(config.depyler_binary(), PathBuf::from("/usr/local/bin/depyler"));
     }
 }

@@ -11,8 +11,8 @@
 //! - Pierce, B. C. (2002). Types and Programming Languages. Chapter 15: Subtyping.
 //! - Dunfield, J., & Krishnaswami, N. (2013). Bidirectional Typechecking for Higher-Rank Polymorphism.
 
-use depyler_hir::hir::Type;
 use crate::type_system::constraint::{ConstraintKind, TypeConstraint};
+use depyler_hir::hir::Type;
 
 /// Subtype checker implementing T1 <: T2 relation
 pub struct SubtypeChecker {
@@ -23,9 +23,7 @@ pub struct SubtypeChecker {
 impl SubtypeChecker {
     /// Create new subtype checker
     pub fn new() -> Self {
-        Self {
-            cache: std::cell::RefCell::new(std::collections::HashMap::new()),
-        }
+        Self { cache: std::cell::RefCell::new(std::collections::HashMap::new()) }
     }
 
     /// Check if T1 <: T2 (T1 is subtype of T2)
@@ -57,9 +55,7 @@ impl SubtypeChecker {
         let result = self.check_subtype_uncached(lhs, rhs);
 
         // Cache result
-        self.cache
-            .borrow_mut()
-            .insert((lhs.clone(), rhs.clone()), result.is_ok());
+        self.cache.borrow_mut().insert((lhs.clone(), rhs.clone()), result.is_ok());
 
         result
     }
@@ -115,10 +111,7 @@ impl SubtypeChecker {
                 self.check_subtype(&constraint.rhs, &constraint.lhs)
                     .map_err(|e| format!("{} ({})", e, constraint.reason))
             }
-            _ => Err(format!(
-                "Unsupported constraint kind: {:?}",
-                constraint.kind
-            )),
+            _ => Err(format!("Unsupported constraint kind: {:?}", constraint.kind)),
         }
     }
 }
@@ -196,10 +189,8 @@ mod tests {
     fn test_list_covariance() {
         let checker = SubtypeChecker::new();
         // List<Int> <: List<Float> because Int <: Float
-        let result = checker.check_subtype(
-            &Type::List(Box::new(Type::Int)),
-            &Type::List(Box::new(Type::Float)),
-        );
+        let result = checker
+            .check_subtype(&Type::List(Box::new(Type::Int)), &Type::List(Box::new(Type::Float)));
         assert!(result.is_ok());
     }
 
@@ -207,10 +198,8 @@ mod tests {
     fn test_list_no_contravariance() {
         let checker = SubtypeChecker::new();
         // List<Float> is NOT a subtype of List<Int>
-        let result = checker.check_subtype(
-            &Type::List(Box::new(Type::Float)),
-            &Type::List(Box::new(Type::Int)),
-        );
+        let result = checker
+            .check_subtype(&Type::List(Box::new(Type::Float)), &Type::List(Box::new(Type::Int)));
         assert!(result.is_err());
     }
 

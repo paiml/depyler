@@ -37,14 +37,7 @@ pub(crate) fn detect_returns_nested_function(
 
     // Collect nested function definitions with type inference
     for stmt in &func.body {
-        if let HirStmt::FunctionDef {
-            name,
-            params,
-            ret_type,
-            body,
-            ..
-        } = stmt
-        {
+        if let HirStmt::FunctionDef { name, params, ret_type, body, .. } = stmt {
             // GH-70: Apply type inference to parameters
             // DEPYLER-0737: Also handle Optional(Unknown) for params with default=None
             let mut inferred_params = params.to_vec();
@@ -100,8 +93,7 @@ pub(crate) fn detect_returns_nested_function(
             };
 
             // Store inferred params in context for use during code generation
-            ctx.nested_function_params
-                .insert(name.clone(), inferred_params.clone());
+            ctx.nested_function_params.insert(name.clone(), inferred_params.clone());
 
             nested_functions.insert(name.clone(), (inferred_params, inferred_ret_type));
         }
@@ -153,11 +145,7 @@ pub(crate) fn collect_io_return_types(
                     *has_stdio = true;
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_io_return_types(then_body, has_file, has_stdio);
                 if let Some(else_stmts) = else_body {
                     collect_io_return_types(else_stmts, has_file, has_stdio);
@@ -254,9 +242,7 @@ pub(crate) fn codegen_return_type(
         // Check if function can fail (uses open() which can fail)
         let can_fail = func.properties.can_fail;
         let error_type = if can_fail {
-            Some(crate::rust_gen::context::ErrorType::Concrete(
-                "std::io::Error".to_string(),
-            ))
+            Some(crate::rust_gen::context::ErrorType::Concrete("std::io::Error".to_string()))
         } else {
             None
         };
@@ -301,8 +287,7 @@ pub(crate) fn codegen_return_type(
     // When a function's return type is inferred (e.g., `-> tuple` → `(f64, f64)`),
     // update the map so callers like `point: tuple = get_point()` can use the inferred type
     if should_infer && effective_ret_type != func.ret_type {
-        ctx.function_return_types
-            .insert(func.name.clone(), effective_ret_type.clone());
+        ctx.function_return_types.insert(func.name.clone(), effective_ret_type.clone());
     }
 
     // DEPYLER-0716: Apply type substitutions to return type
@@ -642,11 +627,7 @@ fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
             }
         }
         // Recursively handle nested statements
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { then_body, else_body, .. } => {
             for s in then_body {
                 preload_stmt_type_annotations(s, ctx);
             }
@@ -666,12 +647,7 @@ fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
                 preload_stmt_type_annotations(s, ctx);
             }
         }
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
             for s in body {
                 preload_stmt_type_annotations(s, ctx);
             }
@@ -727,15 +703,13 @@ impl RustCodeGen for HirFunction {
         // DEPYLER-0269: Track function return type for Display trait selection
         // Store function return type in ctx for later lookup when processing assignments
         // This enables tracking `result = merge(&a, &b)` where merge returns list[int]
-        ctx.function_return_types
-            .insert(self.name.clone(), self.ret_type.clone());
+        ctx.function_return_types.insert(self.name.clone(), self.ret_type.clone());
 
         // DEPYLER-0621: Track parameter defaults for call-site argument completion
         // When a function like `def f(x=None)` is called as `f()`, we need to supply `None`
         let param_defaults: Vec<Option<crate::hir::HirExpr>> =
             self.params.iter().map(|p| p.default.clone()).collect();
-        ctx.function_param_defaults
-            .insert(self.name.clone(), param_defaults);
+        ctx.function_param_defaults.insert(self.name.clone(), param_defaults);
 
         // Perform generic type inference
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
@@ -801,10 +775,7 @@ impl RustCodeGen for HirFunction {
         }
 
         // Create a modified version of self with inferred params for generic inference
-        let inferred_self = HirFunction {
-            params: inferred_params,
-            ..self.clone()
-        };
+        let inferred_self = HirFunction { params: inferred_params, ..self.clone() };
         let type_params = generic_registry.infer_function_generics(&inferred_self)?;
 
         // Perform lifetime analysis with automatic elision (DEPYLER-0275)
@@ -850,8 +821,7 @@ impl RustCodeGen for HirFunction {
             }
         }
 
-        ctx.function_param_borrows
-            .insert(self.name.clone(), param_borrows);
+        ctx.function_param_borrows.insert(self.name.clone(), param_borrows);
 
         // DEPYLER-0574: Extract parameter mutability information for &mut decisions
         // Check which borrowed parameters need &mut (mutable borrow)
@@ -879,8 +849,7 @@ impl RustCodeGen for HirFunction {
             }
         }
 
-        ctx.function_param_muts
-            .insert(self.name.clone(), param_muts);
+        ctx.function_param_muts.insert(self.name.clone(), param_muts);
 
         // DEPYLER-0779: Extract parameter optionality for Some() wrapping at call sites
         // A parameter is optional if: (a) type is Optional(T), OR (b) default is None
@@ -895,8 +864,7 @@ impl RustCodeGen for HirFunction {
                 type_is_optional || default_is_none
             })
             .collect();
-        ctx.function_param_optionals
-            .insert(self.name.clone(), param_optionals);
+        ctx.function_param_optionals.insert(self.name.clone(), param_optionals);
 
         // DEPYLER-0648: Track if function has vararg parameter (*args in Python)
         // These become &[T] in Rust, so call sites need to wrap args in &[...]
@@ -1067,8 +1035,7 @@ impl RustCodeGen for HirFunction {
             if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
                 for arg in &parser_info.arguments {
                     if arg.rust_type().starts_with("Option<") {
-                        ctx.precomputed_option_fields
-                            .insert(arg.rust_field_name().to_string());
+                        ctx.precomputed_option_fields.insert(arg.rust_field_name().to_string());
                     }
                 }
             }
@@ -1269,10 +1236,7 @@ impl RustCodeGen for HirFunction {
         // Validator functions with try-except that return in all branches should not get Ok(())
         // Use stmt_always_returns() instead of simple Return check to handle exhaustive returns
         if can_fail {
-            let needs_ok = self
-                .body
-                .last()
-                .is_none_or(|stmt| !stmt_always_returns(stmt));
+            let needs_ok = self.body.last().is_none_or(|stmt| !stmt_always_returns(stmt));
             if needs_ok {
                 // For functions returning unit type (or Unknown which defaults to unit), add Ok(())
                 // For functions returning values with explicit returns, they already have Ok() wrapping
@@ -1363,11 +1327,7 @@ mod tests {
 
     #[test]
     fn test_is_file_creating_other_call() {
-        let expr = HirExpr::Call {
-            func: "read".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "read".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_file_creating_return_expr(&expr));
     }
 
@@ -1777,11 +1737,7 @@ mod tests {
     fn test_preload_in_with_block() {
         let mut ctx = CodeGenContext::default();
         let body = vec![HirStmt::With {
-            context: HirExpr::Call {
-                func: "open".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            },
+            context: HirExpr::Call { func: "open".to_string(), args: vec![], kwargs: vec![] },
             target: Some("f".to_string()),
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("data".to_string()),
@@ -1859,10 +1815,8 @@ mod tests {
         use rustpython_parser::{parse, Mode};
 
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result

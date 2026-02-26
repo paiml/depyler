@@ -27,12 +27,7 @@ fn make_str(s: &str) -> HirExpr {
 }
 
 fn make_param(name: &str, ty: Type) -> HirParam {
-    HirParam {
-        name: name.to_string(),
-        ty,
-        default: None,
-        is_vararg: false,
-    }
+    HirParam { name: name.to_string(), ty, default: None, is_vararg: false }
 }
 
 fn make_func(name: &str, params: Vec<HirParam>, body: Vec<HirStmt>) -> HirFunction {
@@ -60,20 +55,11 @@ fn expr_stmt(expr: HirExpr) -> HirStmt {
 }
 
 fn call(func_name: &str, args: Vec<HirExpr>) -> HirExpr {
-    HirExpr::Call {
-        func: func_name.to_string(),
-        args,
-        kwargs: vec![],
-    }
+    HirExpr::Call { func: func_name.to_string(), args, kwargs: vec![] }
 }
 
 fn method_call(obj: HirExpr, method: &str, args: Vec<HirExpr>) -> HirExpr {
-    HirExpr::MethodCall {
-        object: Box::new(obj),
-        method: method.to_string(),
-        args,
-        kwargs: vec![],
-    }
+    HirExpr::MethodCall { object: Box::new(obj), method: method.to_string(), args, kwargs: vec![] }
 }
 
 // ============================================================================
@@ -159,10 +145,7 @@ fn test_uam_assert_without_message() {
     let func = make_func(
         "assert_fn2",
         vec![make_param("x", Type::Int)],
-        vec![HirStmt::Assert {
-            test: make_var("x"),
-            msg: None,
-        }],
+        vec![HirStmt::Assert { test: make_var("x"), msg: None }],
     );
 
     let mut analysis = UseAfterMoveAnalysis::new();
@@ -249,11 +232,7 @@ fn test_uam_pass_break_continue() {
     let func = make_func(
         "control_fn",
         vec![],
-        vec![
-            HirStmt::Pass,
-            HirStmt::Break { label: None },
-            HirStmt::Continue { label: None },
-        ],
+        vec![HirStmt::Pass, HirStmt::Break { label: None }, HirStmt::Continue { label: None }],
     );
 
     let mut analysis = UseAfterMoveAnalysis::new();
@@ -279,11 +258,7 @@ fn test_uam_method_call_expression() {
     let func = make_func(
         "method_fn",
         vec![make_param("items", Type::List(Box::new(Type::Int)))],
-        vec![expr_stmt(method_call(
-            make_var("items"),
-            "append",
-            vec![make_int(42)],
-        ))],
+        vec![expr_stmt(method_call(make_var("items"), "append", vec![make_int(42)]))],
     );
 
     let mut analysis = UseAfterMoveAnalysis::new();
@@ -354,10 +329,7 @@ fn test_uam_dict_expression() {
     let func = make_func(
         "dict_fn",
         vec![make_param("k", Type::String), make_param("v", Type::Int)],
-        vec![assign(
-            "d",
-            HirExpr::Dict(vec![(make_var("k"), make_var("v"))]),
-        )],
+        vec![assign("d", HirExpr::Dict(vec![(make_var("k"), make_var("v"))]))],
     );
 
     let mut analysis = UseAfterMoveAnalysis::new();
@@ -386,16 +358,10 @@ fn test_uam_list_tuple_set_expressions() {
 fn test_uam_index_expression() {
     let func = make_func(
         "index_fn",
-        vec![
-            make_param("data", Type::List(Box::new(Type::Int))),
-            make_param("i", Type::Int),
-        ],
+        vec![make_param("data", Type::List(Box::new(Type::Int))), make_param("i", Type::Int)],
         vec![assign(
             "val",
-            HirExpr::Index {
-                base: Box::new(make_var("data")),
-                index: Box::new(make_var("i")),
-            },
+            HirExpr::Index { base: Box::new(make_var("data")), index: Box::new(make_var("i")) },
         )],
     );
 
@@ -411,10 +377,7 @@ fn test_uam_attribute_expression() {
         vec![make_param("obj", Type::Unknown)],
         vec![assign(
             "val",
-            HirExpr::Attribute {
-                value: Box::new(make_var("obj")),
-                attr: "name".to_string(),
-            },
+            HirExpr::Attribute { value: Box::new(make_var("obj")), attr: "name".to_string() },
         )],
     );
 
@@ -584,12 +547,7 @@ fn test_uam_await_expression() {
     let func = make_func(
         "await_fn",
         vec![make_param("coro", Type::Unknown)],
-        vec![assign(
-            "result",
-            HirExpr::Await {
-                value: Box::new(make_var("coro")),
-            },
-        )],
+        vec![assign("result", HirExpr::Await { value: Box::new(make_var("coro")) })],
     );
 
     let mut analysis = UseAfterMoveAnalysis::new();
@@ -603,9 +561,7 @@ fn test_uam_yield_expression() {
         "yield_fn",
         vec![make_param("x", Type::Int)],
         vec![
-            expr_stmt(HirExpr::Yield {
-                value: Some(Box::new(make_var("x"))),
-            }),
+            expr_stmt(HirExpr::Yield { value: Some(Box::new(make_var("x"))) }),
             expr_stmt(HirExpr::Yield { value: None }),
         ],
     );
@@ -784,10 +740,7 @@ fn test_strategic_clone_while_loop() {
             assign("a", make_int(1)),
             HirStmt::While {
                 condition: make_var("a"),
-                body: vec![
-                    assign("b", make_var("a")),
-                    expr_stmt(call("use", vec![make_var("b")])),
-                ],
+                body: vec![assign("b", make_var("a")), expr_stmt(call("use", vec![make_var("b")]))],
             },
             expr_stmt(call("use", vec![make_var("a")])),
         ],
@@ -841,10 +794,7 @@ fn test_strategic_clone_return() {
     let func = make_func(
         "return_fn",
         vec![],
-        vec![
-            assign("a", make_int(1)),
-            HirStmt::Return(Some(make_var("a"))),
-        ],
+        vec![assign("a", make_int(1)), HirStmt::Return(Some(make_var("a")))],
     );
 
     let mut analysis = StrategicCloneAnalysis::new();
@@ -881,10 +831,7 @@ fn test_strategic_clone_unary_usage() {
         vec![
             assign("a", make_int(1)),
             assign("b", make_var("a")),
-            expr_stmt(HirExpr::Unary {
-                op: UnaryOp::Neg,
-                operand: Box::new(make_var("a")),
-            }),
+            expr_stmt(HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(make_var("a")) }),
             expr_stmt(call("use", vec![make_var("b")])),
         ],
     );
@@ -985,10 +932,7 @@ fn test_strategic_clone_attribute_usage() {
         vec![
             assign("a", make_int(1)),
             assign("b", make_var("a")),
-            expr_stmt(HirExpr::Attribute {
-                value: Box::new(make_var("a")),
-                attr: "x".to_string(),
-            }),
+            expr_stmt(HirExpr::Attribute { value: Box::new(make_var("a")), attr: "x".to_string() }),
             expr_stmt(call("use", vec![make_var("b")])),
         ],
     );
@@ -1295,10 +1239,7 @@ fn test_strategic_clone_assert() {
         vec![],
         vec![
             assign("a", make_int(1)),
-            HirStmt::Assert {
-                test: make_var("a"),
-                msg: Some(make_str("test")),
-            },
+            HirStmt::Assert { test: make_var("a"), msg: Some(make_str("test")) },
             expr_stmt(call("use", vec![make_var("a")])),
         ],
     );
@@ -1314,10 +1255,7 @@ fn test_strategic_clone_raise() {
         vec![],
         vec![
             assign("a", make_int(1)),
-            HirStmt::Raise {
-                exception: Some(make_var("a")),
-                cause: None,
-            },
+            HirStmt::Raise { exception: Some(make_var("a")), cause: None },
         ],
     );
 
@@ -1353,14 +1291,8 @@ fn test_strategic_clone_funcdef() {
 
 #[test]
 fn test_uam_bare_raise() {
-    let func = make_func(
-        "bare_raise_fn",
-        vec![],
-        vec![HirStmt::Raise {
-            exception: None,
-            cause: None,
-        }],
-    );
+    let func =
+        make_func("bare_raise_fn", vec![], vec![HirStmt::Raise { exception: None, cause: None }]);
 
     let mut analysis = UseAfterMoveAnalysis::new();
     let errors = analysis.analyze_function(&func);
@@ -1401,10 +1333,7 @@ fn test_uam_method_call_with_kwargs() {
             object: Box::new(make_var("obj")),
             method: "configure".to_string(),
             args: vec![],
-            kwargs: vec![
-                ("timeout".to_string(), make_int(30)),
-                ("retry".to_string(), make_int(3)),
-            ],
+            kwargs: vec![("timeout".to_string(), make_int(30)), ("retry".to_string(), make_int(3))],
         })],
     );
 

@@ -62,15 +62,8 @@ fn test_gentle_preset_invariants() {
     let gentle = ChaosConfig::gentle();
 
     assert!(gentle.memory_limit > 0, "Gentle should limit memory");
-    assert!(
-        gentle.cpu_limit > 0.5,
-        "Gentle should allow >50% CPU (actual: {})",
-        gentle.cpu_limit
-    );
-    assert!(
-        gentle.timeout >= Duration::from_secs(60),
-        "Gentle should have >=60s timeout"
-    );
+    assert!(gentle.cpu_limit > 0.5, "Gentle should allow >50% CPU (actual: {})", gentle.cpu_limit);
+    assert!(gentle.timeout >= Duration::from_secs(60), "Gentle should have >=60s timeout");
     assert!(!gentle.signal_injection, "Gentle should not inject signals");
 }
 
@@ -79,10 +72,7 @@ fn test_gentle_preset_invariants() {
 fn test_aggressive_preset_invariants() {
     let aggressive = ChaosConfig::aggressive();
 
-    assert!(
-        aggressive.memory_limit > 0,
-        "Aggressive should limit memory"
-    );
+    assert!(aggressive.memory_limit > 0, "Aggressive should limit memory");
     assert!(
         aggressive.memory_limit < 128 * 1024 * 1024,
         "Aggressive should have tight memory limit (<128MB)"
@@ -96,10 +86,7 @@ fn test_aggressive_preset_invariants() {
         aggressive.timeout <= Duration::from_secs(30),
         "Aggressive should have short timeout (<=30s)"
     );
-    assert!(
-        aggressive.signal_injection,
-        "Aggressive should inject signals"
-    );
+    assert!(aggressive.signal_injection, "Aggressive should inject signals");
 }
 
 // Property: ChaosError display is never empty
@@ -157,12 +144,6 @@ fn test_default_config_safety() {
 
     assert_eq!(default.memory_limit, 0, "Default should not limit memory");
     assert_eq!(default.cpu_limit, 0.0, "Default should not limit CPU");
-    assert!(
-        default.timeout >= Duration::from_secs(1),
-        "Default should have reasonable timeout"
-    );
-    assert!(
-        !default.signal_injection,
-        "Default should not inject signals"
-    );
+    assert!(default.timeout >= Duration::from_secs(1), "Default should have reasonable timeout");
+    assert!(!default.signal_injection, "Default should not inject signals");
 }

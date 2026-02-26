@@ -126,12 +126,7 @@ impl ExtendedAnalysisResult {
         let semantic_domain = classify_domain(&imports);
         let ast_features = extract_ast_features(python_source);
 
-        Self {
-            base,
-            semantic_domain,
-            ast_features,
-            imports,
-        }
+        Self { base, semantic_domain, ast_features, imports }
     }
 
     /// Create from base without source (minimal features)
@@ -392,11 +387,7 @@ pub fn analyze_extended_results(
             pass += 1;
         } else {
             fail += 1;
-            let code = result
-                .base
-                .error_code
-                .clone()
-                .unwrap_or_else(|| "UNKNOWN".to_string());
+            let code = result.base.error_code.clone().unwrap_or_else(|| "UNKNOWN".to_string());
             let entry = taxonomy.entry(code).or_default();
             entry.count += 1;
 
@@ -435,17 +426,11 @@ pub fn extract_error(stderr: &str) -> (String, String) {
 
     // Check for depyler errors
     if clean.contains("Error:") {
-        return (
-            "DEPYLER".to_string(),
-            clean.lines().next().unwrap_or("").to_string(),
-        );
+        return ("DEPYLER".to_string(), clean.lines().next().unwrap_or("").to_string());
     }
 
     // Unknown error
-    (
-        "UNKNOWN".to_string(),
-        clean.lines().next().unwrap_or("").to_string(),
-    )
+    ("UNKNOWN".to_string(), clean.lines().next().unwrap_or("").to_string())
 }
 
 /// Strip ANSI escape codes from string
@@ -504,11 +489,7 @@ pub fn extract_transpile_message(stderr: &str) -> String {
             .map(|l| l.trim().to_string())
             .unwrap_or_else(|| "Unknown transpiler error".to_string())
     } else if let Some(unsupported) = stderr.find("Unsupported") {
-        stderr[unsupported..]
-            .lines()
-            .next()
-            .unwrap_or("Unsupported syntax")
-            .to_string()
+        stderr[unsupported..].lines().next().unwrap_or("Unsupported syntax").to_string()
     } else if let Some(not_supported) = stderr.find("not yet supported") {
         stderr[not_supported.saturating_sub(30)..]
             .lines()
@@ -533,10 +514,7 @@ pub fn analyze_results(results: &[AnalysisResult]) -> (usize, usize, HashMap<Str
             pass += 1;
         } else {
             fail += 1;
-            let code = result
-                .error_code
-                .clone()
-                .unwrap_or_else(|| "UNKNOWN".to_string());
+            let code = result.error_code.clone().unwrap_or_else(|| "UNKNOWN".to_string());
             let entry = taxonomy.entry(code).or_default();
             entry.count += 1;
 
@@ -664,10 +642,7 @@ pub fn calculate_impact(error_count: usize, total_failures: usize) -> f64 {
 
 /// Sort errors by count (descending)
 pub fn sort_by_count(taxonomy: &HashMap<String, ErrorEntry>) -> Vec<(String, ErrorEntry)> {
-    let mut sorted: Vec<_> = taxonomy
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
+    let mut sorted: Vec<_> = taxonomy.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
     sorted.sort_by(|a, b| b.1.count.cmp(&a.1.count));
     sorted
 }
@@ -682,10 +657,7 @@ pub fn build_co_occurrence_map(results: &[AnalysisResult]) -> HashMap<(String, S
     for result in results {
         if !result.success {
             if let Some(code) = &result.error_code {
-                file_errors
-                    .entry(result.name.clone())
-                    .or_default()
-                    .push(code.clone());
+                file_errors.entry(result.name.clone()).or_default().push(code.clone());
             }
         }
     }
@@ -695,11 +667,7 @@ pub fn build_co_occurrence_map(results: &[AnalysisResult]) -> HashMap<(String, S
         for (i, e1) in errors.iter().enumerate() {
             for e2 in errors.iter().skip(i + 1) {
                 // Ensure consistent ordering
-                let key = if e1 < e2 {
-                    (e1.clone(), e2.clone())
-                } else {
-                    (e2.clone(), e1.clone())
-                };
+                let key = if e1 < e2 { (e1.clone(), e2.clone()) } else { (e2.clone(), e1.clone()) };
                 *map.entry(key).or_insert(0) += 1;
             }
         }
@@ -820,18 +788,12 @@ mod tests {
 
     #[test]
     fn test_strip_ansi_codes_multiple() {
-        assert_eq!(
-            strip_ansi_codes("\x1b[1m\x1b[31mBold Red\x1b[0m"),
-            "Bold Red"
-        );
+        assert_eq!(strip_ansi_codes("\x1b[1m\x1b[31mBold Red\x1b[0m"), "Bold Red");
     }
 
     #[test]
     fn test_strip_ansi_codes_mixed() {
-        assert_eq!(
-            strip_ansi_codes("prefix \x1b[32mgreen\x1b[0m suffix"),
-            "prefix green suffix"
-        );
+        assert_eq!(strip_ansi_codes("prefix \x1b[32mgreen\x1b[0m suffix"), "prefix green suffix");
     }
 
     #[test]
@@ -843,10 +805,7 @@ mod tests {
 
     #[test]
     fn test_extract_rust_error_code_found() {
-        assert_eq!(
-            extract_rust_error_code("error[E0308]: mismatched"),
-            Some("E0308".to_string())
-        );
+        assert_eq!(extract_rust_error_code("error[E0308]: mismatched"), Some("E0308".to_string()));
     }
 
     #[test]
@@ -1033,11 +992,7 @@ mod tests {
         ];
         for code in codes {
             let desc = error_description(code);
-            assert!(
-                !desc.is_empty(),
-                "Description for {} should not be empty",
-                code
-            );
+            assert!(!desc.is_empty(), "Description for {} should not be empty", code);
             assert!(
                 !desc.contains("explain"),
                 "Known code {} should have specific description",
@@ -1070,22 +1025,10 @@ mod tests {
 
     #[test]
     fn test_fix_recommendation_all_known_codes() {
-        let codes = [
-            "E0425",
-            "E0308",
-            "E0277",
-            "E0599",
-            "E0433",
-            "TRANSPILE",
-            "DEPYLER",
-        ];
+        let codes = ["E0425", "E0308", "E0277", "E0599", "E0433", "TRANSPILE", "DEPYLER"];
         for code in codes {
             let rec = fix_recommendation(code);
-            assert!(
-                !rec.is_empty(),
-                "Recommendation for {} should not be empty",
-                code
-            );
+            assert!(!rec.is_empty(), "Recommendation for {} should not be empty", code);
         }
     }
 
@@ -1246,13 +1189,7 @@ mod tests {
     #[test]
     fn test_sort_by_count_single() {
         let mut taxonomy = HashMap::new();
-        taxonomy.insert(
-            "E0308".to_string(),
-            ErrorEntry {
-                count: 5,
-                samples: vec![],
-            },
-        );
+        taxonomy.insert("E0308".to_string(), ErrorEntry { count: 5, samples: vec![] });
         let sorted = sort_by_count(&taxonomy);
         assert_eq!(sorted.len(), 1);
         assert_eq!(sorted[0].0, "E0308");
@@ -1261,27 +1198,9 @@ mod tests {
     #[test]
     fn test_sort_by_count_descending() {
         let mut taxonomy = HashMap::new();
-        taxonomy.insert(
-            "E0308".to_string(),
-            ErrorEntry {
-                count: 5,
-                samples: vec![],
-            },
-        );
-        taxonomy.insert(
-            "E0425".to_string(),
-            ErrorEntry {
-                count: 10,
-                samples: vec![],
-            },
-        );
-        taxonomy.insert(
-            "E0277".to_string(),
-            ErrorEntry {
-                count: 3,
-                samples: vec![],
-            },
-        );
+        taxonomy.insert("E0308".to_string(), ErrorEntry { count: 5, samples: vec![] });
+        taxonomy.insert("E0425".to_string(), ErrorEntry { count: 10, samples: vec![] });
+        taxonomy.insert("E0277".to_string(), ErrorEntry { count: 3, samples: vec![] });
 
         let sorted = sort_by_count(&taxonomy);
         assert_eq!(sorted[0].0, "E0425"); // Highest count first
@@ -1383,10 +1302,7 @@ mod tests {
 
     #[test]
     fn test_error_entry_clone() {
-        let entry = ErrorEntry {
-            count: 5,
-            samples: vec!["a".to_string(), "b".to_string()],
-        };
+        let entry = ErrorEntry { count: 5, samples: vec!["a".to_string(), "b".to_string()] };
         let cloned = entry.clone();
         assert_eq!(entry.count, cloned.count);
         assert_eq!(entry.samples, cloned.samples);
@@ -1394,18 +1310,9 @@ mod tests {
 
     #[test]
     fn test_error_entry_equality() {
-        let e1 = ErrorEntry {
-            count: 5,
-            samples: vec![],
-        };
-        let e2 = ErrorEntry {
-            count: 5,
-            samples: vec![],
-        };
-        let e3 = ErrorEntry {
-            count: 3,
-            samples: vec![],
-        };
+        let e1 = ErrorEntry { count: 5, samples: vec![] };
+        let e2 = ErrorEntry { count: 5, samples: vec![] };
+        let e3 = ErrorEntry { count: 3, samples: vec![] };
         assert_eq!(e1, e2);
         assert_ne!(e1, e3);
     }
@@ -1631,11 +1538,7 @@ mod tests {
 
     #[test]
     fn test_domain_breakdown_pass_rate() {
-        let b = DomainBreakdown {
-            core_lang_pass: 8,
-            core_lang_fail: 2,
-            ..Default::default()
-        };
+        let b = DomainBreakdown { core_lang_pass: 8, core_lang_fail: 2, ..Default::default() };
         let rate = b.pass_rate(SemanticDomain::CoreLanguage);
         assert!((rate - 80.0).abs() < 0.01);
     }

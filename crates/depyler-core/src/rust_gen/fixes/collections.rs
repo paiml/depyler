@@ -34,10 +34,8 @@ pub(super) fn fix_hashmap_empty_value_type(code: &str) -> String {
         }
         if trimmed.contains("HashMap<String, ()>") {
             if let Some(ref vtype) = current_return_value_type {
-                let fixed = line.replace(
-                    "HashMap<String, ()>",
-                    &format!("HashMap<String, {}>", vtype),
-                );
+                let fixed =
+                    line.replace("HashMap<String, ()>", &format!("HashMap<String, {}>", vtype));
                 result.push(fixed);
                 continue;
             }
@@ -196,15 +194,42 @@ pub(super) fn fix_vec_get_membership(code: &str) -> String {
             .collect();
         let is_dict_var = matches!(
             var_name.as_str(),
-            "memo" | "seen" | "visited" | "counts" | "freq"
-                | "frequency" | "lookup" | "graph" | "adj"
-                | "dp" | "cache" | "config" | "settings"
-                | "params" | "headers" | "env" | "mapping"
-                | "index" | "registry" | "table" | "counter"
-                | "scores" | "weights" | "distances"
-                | "data" | "info" | "metadata" | "kwargs"
-                | "context" | "options" | "result" | "results"
-                | "record" | "row" | "entry" | "item"
+            "memo"
+                | "seen"
+                | "visited"
+                | "counts"
+                | "freq"
+                | "frequency"
+                | "lookup"
+                | "graph"
+                | "adj"
+                | "dp"
+                | "cache"
+                | "config"
+                | "settings"
+                | "params"
+                | "headers"
+                | "env"
+                | "mapping"
+                | "index"
+                | "registry"
+                | "table"
+                | "counter"
+                | "scores"
+                | "weights"
+                | "distances"
+                | "data"
+                | "info"
+                | "metadata"
+                | "kwargs"
+                | "context"
+                | "options"
+                | "result"
+                | "results"
+                | "record"
+                | "row"
+                | "entry"
+                | "item"
         ) || var_name.contains("dict")
             || var_name.contains("map")
             || var_name.contains("hash");
@@ -298,7 +323,11 @@ fn extract_vec_struct_field(t: &str) -> Option<String> {
     }
     let colon = t.find(": Vec<")?;
     let field = t[4..colon].trim();
-    if field.is_empty() { None } else { Some(field.to_string()) }
+    if field.is_empty() {
+        None
+    } else {
+        Some(field.to_string())
+    }
 }
 
 /// Extract a Vec-typed variable name from a let binding.
@@ -309,7 +338,11 @@ fn extract_vec_let_binding(t: &str) -> Option<String> {
     let name = t.strip_prefix("let ")?;
     let var = name.split(':').next().unwrap_or("").trim();
     let var = var.trim_start_matches("mut ");
-    if var.is_empty() { None } else { Some(var.to_string()) }
+    if var.is_empty() {
+        None
+    } else {
+        Some(var.to_string())
+    }
 }
 
 /// Extract a Vec-typed variable name from a function parameter.
@@ -387,11 +420,7 @@ fn is_keys_for_loop(trimmed: &str) -> bool {
 /// Extract loop variable and map variable from `for VAR in MAP.keys() {`.
 fn extract_keys_loop_vars(trimmed: &str) -> (String, String) {
     let after_for = trimmed.strip_prefix("for ").unwrap_or("");
-    let loop_var = after_for
-        .split_whitespace()
-        .next()
-        .unwrap_or("")
-        .to_string();
+    let loop_var = after_for.split_whitespace().next().unwrap_or("").to_string();
     let map_var = after_for
         .find(" in ")
         .and_then(|in_idx| {
@@ -503,7 +532,9 @@ fn is_wrong_primitive_type(type_ann: &str) -> bool {
 /// Check if a type annotation is a DepylerValue collection type.
 fn is_depyler_collection_type(type_ann: &str) -> bool {
     type_ann.contains("DepylerValue")
-        && (type_ann.contains("Vec") || type_ann.contains("HashSet") || type_ann.contains("HashMap"))
+        && (type_ann.contains("Vec")
+            || type_ann.contains("HashSet")
+            || type_ann.contains("HashMap"))
 }
 
 /// Determine if the type annotation on a collect line should be removed.
@@ -615,8 +646,7 @@ pub(super) fn fix_empty_vec_in_assert(code: &str) -> String {
         // Only replace standalone `vec![]` (not inside function call args)
         if (is_assert || in_assert_block) && trimmed.contains("vec![]") {
             // Simple case: line is just `vec![]` or `vec![],`
-            let just_vec =
-                trimmed == "vec![]" || trimmed == "vec![]," || trimmed == "vec![]);";
+            let just_vec = trimmed == "vec![]" || trimmed == "vec![]," || trimmed == "vec![]);";
             if just_vec {
                 result.push_str(&line.replace("vec![]", "Vec::<i32>::new()"));
             } else if is_assert {
@@ -650,10 +680,8 @@ pub(super) fn fix_empty_vec_in_assert(code: &str) -> String {
                                 let before = &trimmed[..abs_pos];
                                 let after = &trimmed[abs_pos + 6..];
                                 let indent = &line[..line.len() - trimmed.len()];
-                                new_line = format!(
-                                    "{}{}Vec::<i32>::new(){}",
-                                    indent, before, after
-                                );
+                                new_line =
+                                    format!("{}{}Vec::<i32>::new(){}", indent, before, after);
                                 break;
                             }
                         }
@@ -680,8 +708,7 @@ pub(super) fn fix_hashmap_contains_to_contains_key(code: &str) -> String {
         let trimmed = line.trim();
         // Pattern: expr.contains(&key) where expr involves HashMap or .expect("value is None")
         if trimmed.contains(".contains(&")
-            && (trimmed.contains(".expect(\"value is None\").")
-                || trimmed.contains("HashMap"))
+            && (trimmed.contains(".expect(\"value is None\").") || trimmed.contains("HashMap"))
         {
             result.push_str(&line.replace(".contains(&", ".contains_key(&"));
         } else {
@@ -714,12 +741,7 @@ pub(super) fn unwrap_result_type(ret: &mut String) {
 /// Extract the return type string from a line containing `-> RetType {`.
 fn extract_return_type_from_arrow(trimmed: &str) -> Option<String> {
     let arrow = trimmed.find("-> ")?;
-    let mut ret = trimmed[arrow + 3..]
-        .split('{')
-        .next()
-        .unwrap_or("")
-        .trim()
-        .to_string();
+    let mut ret = trimmed[arrow + 3..].split('{').next().unwrap_or("").trim().to_string();
     unwrap_result_type(&mut ret);
     Some(ret)
 }
@@ -971,11 +993,8 @@ pub(super) fn fix_vec_arg_type_in_assert(code: &str) -> String {
             if let Some(paren_open) = after_fn.find('(') {
                 let fn_name = after_fn[..paren_open].trim();
                 // Strip generic parameters from name
-                let fn_name = if let Some(gen) = fn_name.find('<') {
-                    &fn_name[..gen]
-                } else {
-                    fn_name
-                };
+                let fn_name =
+                    if let Some(gen) = fn_name.find('<') { &fn_name[..gen] } else { fn_name };
                 // Extract just the parameter section (between parens), not return type
                 let after_paren = &after_fn[paren_open + 1..];
                 // Find matching close paren, accounting for nested parens
@@ -1100,12 +1119,16 @@ fn find_param_tuple_replacements(lines: &[&str]) -> Vec<(String, String)> {
         if trimmed.contains("op.0") || trimmed.contains("item.0") {
             has_tuple_access = true;
         }
-        if has_tuple_access && trimmed.contains(": String = ") && trimmed.contains(".0")
+        if has_tuple_access
+            && trimmed.contains(": String = ")
+            && trimmed.contains(".0")
             && !field_types.contains(&"String")
         {
             field_types.push("String");
         }
-        if has_tuple_access && trimmed.contains(": i32 = ") && trimmed.contains(".1")
+        if has_tuple_access
+            && trimmed.contains(": i32 = ")
+            && trimmed.contains(".1")
             && !field_types.contains(&"i32")
         {
             field_types.push("i32");
@@ -1159,7 +1182,9 @@ pub(super) fn fix_hashmap_type_annotation_mismatch(code: &str) -> String {
                         let declared_v = parts[1].trim();
                         // Check if next few lines have inserts with swapped types
                         let mut inserts_suggest_swap = false;
-                        for next_line in lines.iter().take(std::cmp::min(i + 10, lines.len())).skip(i + 1) {
+                        for next_line in
+                            lines.iter().take(std::cmp::min(i + 10, lines.len())).skip(i + 1)
+                        {
                             let next = next_line.trim();
                             if next.starts_with("map.insert(") {
                                 // Check if first arg is String-like and second is int-like
@@ -1181,10 +1206,8 @@ pub(super) fn fix_hashmap_type_annotation_mismatch(code: &str) -> String {
                             }
                         }
                         if inserts_suggest_swap {
-                            let old_type =
-                                format!("HashMap<{}, {}>", declared_k, declared_v);
-                            let new_type =
-                                format!("HashMap<{}, {}>", declared_v, declared_k);
+                            let old_type = format!("HashMap<{}, {}>", declared_k, declared_v);
+                            let new_type = format!("HashMap<{}, {}>", declared_v, declared_k);
                             fixes.push((i, old_type, new_type));
                         }
                     }

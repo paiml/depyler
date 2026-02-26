@@ -40,9 +40,7 @@ pub struct PatternStore {
 impl PatternStore {
     /// Create a new pattern store
     pub fn new() -> Self {
-        Self {
-            patterns: HashMap::new(),
-        }
+        Self { patterns: HashMap::new() }
     }
 
     /// Add a pattern to the store
@@ -384,11 +382,7 @@ mod tests {
     fn test_find_similar_respects_k() {
         let mut store = PatternStore::new();
         for i in 0..10 {
-            store.add_pattern(make_pattern(
-                &format!("p{}", i),
-                0.5,
-                vec![i as f32, 0.0, 0.0],
-            ));
+            store.add_pattern(make_pattern(&format!("p{}", i), 0.5, vec![i as f32, 0.0, 0.0]));
         }
 
         let query = vec![5.0, 0.0, 0.0];

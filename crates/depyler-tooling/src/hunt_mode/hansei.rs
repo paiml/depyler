@@ -153,10 +153,7 @@ impl HanseiReflector {
             "external_deps" => {
                 lessons.push(Lesson::new(
                     "imports",
-                    &format!(
-                        "External dependency required: {}",
-                        outcome.pattern.description
-                    ),
+                    &format!("External dependency required: {}", outcome.pattern.description),
                     "Ensure Cargo.toml includes required crates (serde_json, regex, etc.)",
                 ));
             }
@@ -211,8 +208,7 @@ impl HanseiReflector {
         // Check if similar lesson exists
         if let Some(existing) = self.lessons_learned.iter_mut().find(|l| {
             l.category == lesson.category
-                && l.observation
-                    .contains(&lesson.observation[..20.min(lesson.observation.len())])
+                && l.observation.contains(&lesson.observation[..20.min(lesson.observation.len())])
         }) {
             existing.reinforce();
         } else {
@@ -227,18 +223,12 @@ impl HanseiReflector {
 
     /// Get lessons by category
     pub fn lessons_by_category(&self, category: &str) -> Vec<&Lesson> {
-        self.lessons_learned
-            .iter()
-            .filter(|l| l.category == category)
-            .collect()
+        self.lessons_learned.iter().filter(|l| l.category == category).collect()
     }
 
     /// Get high-confidence lessons (confidence > 0.7)
     pub fn high_confidence_lessons(&self) -> Vec<&Lesson> {
-        self.lessons_learned
-            .iter()
-            .filter(|l| l.confidence > 0.7)
-            .collect()
+        self.lessons_learned.iter().filter(|l| l.confidence > 0.7).collect()
     }
 
     /// Export lessons to markdown
@@ -267,10 +257,7 @@ impl HanseiReflector {
             }
         }
 
-        md.push_str(&format!(
-            "\n---\n*Generated from {} cycles*\n",
-            self.cycle_history.len()
-        ));
+        md.push_str(&format!("\n---\n*Generated from {} cycles*\n", self.cycle_history.len()));
 
         md
     }
@@ -285,11 +272,7 @@ impl HanseiReflector {
         if self.cycle_history.is_empty() {
             return 0.0;
         }
-        let successes = self
-            .cycle_history
-            .iter()
-            .filter(|c| c.was_successful())
-            .count();
+        let successes = self.cycle_history.iter().filter(|c| c.was_successful()).count();
         successes as f64 / self.cycle_history.len() as f64
     }
 }

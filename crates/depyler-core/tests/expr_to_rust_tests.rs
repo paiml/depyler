@@ -152,19 +152,14 @@ mod unary_op_tests {
 
     #[test]
     fn test_negation() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(create_int_literal(42)),
-        };
+        let expr = HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(create_int_literal(42)) };
         assert!(matches!(expr, HirExpr::Unary { .. }));
     }
 
     #[test]
     fn test_logical_not() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(create_bool_literal(true)),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(create_bool_literal(true)) };
         assert!(matches!(expr, HirExpr::Unary { .. }));
     }
 }
@@ -175,11 +170,7 @@ mod call_tests {
 
     #[test]
     fn test_simple_call_no_args() {
-        let expr = HirExpr::Call {
-            func: "foo".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "foo".to_string(), args: vec![], kwargs: vec![] };
         assert!(matches!(expr, HirExpr::Call { .. }));
     }
 
@@ -258,11 +249,8 @@ mod collection_tests {
 
     #[test]
     fn test_set() {
-        let expr = HirExpr::Set(vec![
-            create_int_literal(1),
-            create_int_literal(2),
-            create_int_literal(3),
-        ]);
+        let expr =
+            HirExpr::Set(vec![create_int_literal(1), create_int_literal(2), create_int_literal(3)]);
         assert!(matches!(expr, HirExpr::Set(_)));
     }
 
@@ -288,10 +276,8 @@ mod access_tests {
 
     #[test]
     fn test_attribute_access() {
-        let expr = HirExpr::Attribute {
-            value: Box::new(create_var("obj")),
-            attr: "field".to_string(),
-        };
+        let expr =
+            HirExpr::Attribute { value: Box::new(create_var("obj")), attr: "field".to_string() };
         assert!(matches!(expr, HirExpr::Attribute { .. }));
     }
 }
@@ -302,19 +288,13 @@ mod borrow_tests {
 
     #[test]
     fn test_immutable_borrow() {
-        let expr = HirExpr::Borrow {
-            expr: Box::new(create_var("x")),
-            mutable: false,
-        };
+        let expr = HirExpr::Borrow { expr: Box::new(create_var("x")), mutable: false };
         assert!(matches!(expr, HirExpr::Borrow { mutable: false, .. }));
     }
 
     #[test]
     fn test_mutable_borrow() {
-        let expr = HirExpr::Borrow {
-            expr: Box::new(create_var("x")),
-            mutable: true,
-        };
+        let expr = HirExpr::Borrow { expr: Box::new(create_var("x")), mutable: true };
         assert!(matches!(expr, HirExpr::Borrow { mutable: true, .. }));
     }
 }
@@ -481,10 +461,7 @@ mod lambda_tests {
 
     #[test]
     fn test_lambda_no_params() {
-        let expr = HirExpr::Lambda {
-            params: vec![],
-            body: Box::new(create_int_literal(42)),
-        };
+        let expr = HirExpr::Lambda { params: vec![], body: Box::new(create_int_literal(42)) };
         assert!(matches!(expr, HirExpr::Lambda { .. }));
     }
 

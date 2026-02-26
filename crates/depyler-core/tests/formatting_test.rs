@@ -106,9 +106,7 @@ class Container(Generic[T]):
     assert!(
         !rust_code.contains("< T >") && !rust_code.contains("<T >") && !rust_code.contains("< T>"),
         "Generated code has spaces in generic parameters: {:?}",
-        rust_code
-            .lines()
-            .find(|line| line.contains("< T") || line.contains("T >"))
+        rust_code.lines().find(|line| line.contains("< T") || line.contains("T >"))
     );
 
     // No spaces before commas in generic bounds

@@ -29,11 +29,8 @@ impl RootCause {
         match code {
             "E0599" => {
                 // Extract method name from message
-                let gap_type = if message.contains("method") {
-                    "missing_method"
-                } else {
-                    "missing_field"
-                };
+                let gap_type =
+                    if message.contains("method") { "missing_method" } else { "missing_field" };
                 RootCause::TranspilerGap {
                     gap_type: gap_type.to_string(),
                     location: "expr_gen.rs".to_string(),
@@ -356,10 +353,7 @@ mod tests {
         };
         let cloned = cluster.clone();
         assert_eq!(cluster.error_code, cloned.error_code);
-        assert_eq!(
-            cluster.examples_blocked.len(),
-            cloned.examples_blocked.len()
-        );
+        assert_eq!(cluster.examples_blocked.len(), cloned.examples_blocked.len());
     }
 
     #[test]

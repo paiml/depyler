@@ -5,9 +5,7 @@ use depyler_core::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -29,9 +27,7 @@ fn test_func_one_param() {
 
 #[test]
 fn test_func_multiple_params() {
-    assert!(transpile_ok(
-        "def f(x: int, y: int, z: int) -> int:\n    return x + y + z"
-    ));
+    assert!(transpile_ok("def f(x: int, y: int, z: int) -> int:\n    return x + y + z"));
 }
 
 #[test]
@@ -41,23 +37,17 @@ fn test_func_default_param() {
 
 #[test]
 fn test_func_multiple_defaults() {
-    assert!(transpile_ok(
-        "def f(x: int = 0, y: int = 1) -> int:\n    return x + y"
-    ));
+    assert!(transpile_ok("def f(x: int = 0, y: int = 1) -> int:\n    return x + y"));
 }
 
 #[test]
 fn test_func_mixed_defaults() {
-    assert!(transpile_ok(
-        "def f(x: int, y: int = 0) -> int:\n    return x + y"
-    ));
+    assert!(transpile_ok("def f(x: int, y: int = 0) -> int:\n    return x + y"));
 }
 
 #[test]
 fn test_func_string_default() {
-    assert!(transpile_ok(
-        "def f(s: str = 'default') -> str:\n    return s"
-    ));
+    assert!(transpile_ok("def f(s: str = 'default') -> str:\n    return s"));
 }
 
 #[test]
@@ -128,23 +118,17 @@ fn test_func_return_optional() {
 
 #[test]
 fn test_func_list_int_param() {
-    assert!(transpile_ok(
-        "def f(x: list[int]) -> int:\n    return sum(x)"
-    ));
+    assert!(transpile_ok("def f(x: list[int]) -> int:\n    return sum(x)"));
 }
 
 #[test]
 fn test_func_dict_str_int_param() {
-    assert!(transpile_ok(
-        "def f(x: dict[str, int]) -> int:\n    return x.get('key', 0)"
-    ));
+    assert!(transpile_ok("def f(x: dict[str, int]) -> int:\n    return x.get('key', 0)"));
 }
 
 #[test]
 fn test_func_set_param() {
-    assert!(transpile_ok(
-        "def f(x: set[int]) -> int:\n    return len(x)"
-    ));
+    assert!(transpile_ok("def f(x: set[int]) -> int:\n    return len(x)"));
 }
 
 // ============ Variadic arguments ============
@@ -161,9 +145,7 @@ fn test_func_kwargs() {
 
 #[test]
 fn test_func_args_and_kwargs() {
-    assert!(transpile_ok(
-        "def f(*args, **kwargs):\n    return (args, kwargs)"
-    ));
+    assert!(transpile_ok("def f(*args, **kwargs):\n    return (args, kwargs)"));
 }
 
 #[test]
@@ -243,9 +225,7 @@ fn test_lambda_in_filter() {
 
 #[test]
 fn test_lambda_in_sorted() {
-    assert!(transpile_ok(
-        "def f(items: list) -> list:\n    return sorted(items, key=lambda x: x)"
-    ));
+    assert!(transpile_ok("def f(items: list) -> list:\n    return sorted(items, key=lambda x: x)"));
 }
 
 // ============ Generator functions ============
@@ -257,9 +237,7 @@ fn test_generator_simple() {
 
 #[test]
 fn test_generator_with_loop() {
-    assert!(transpile_ok(
-        "def gen(n: int):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpile_ok("def gen(n: int):\n    for i in range(n):\n        yield i"));
 }
 
 #[test]
@@ -276,9 +254,7 @@ fn test_method_self() {
 
 #[test]
 fn test_method_with_params() {
-    assert!(transpile_ok(
-        "class Foo:\n    def bar(self, x: int) -> int:\n        return x"
-    ));
+    assert!(transpile_ok("class Foo:\n    def bar(self, x: int) -> int:\n        return x"));
 }
 
 #[test]
@@ -295,16 +271,12 @@ fn test_method_modifies_self() {
 
 #[test]
 fn test_init_simple() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __init__(self):\n        pass"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __init__(self):\n        pass"));
 }
 
 #[test]
 fn test_init_with_params() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __init__(self, x: int):\n        self.x = x"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __init__(self, x: int):\n        self.x = x"));
 }
 
 #[test]
@@ -314,67 +286,49 @@ fn test_init_multiple_fields() {
 
 #[test]
 fn test_init_default_params() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __init__(self, x: int = 0):\n        self.x = x"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __init__(self, x: int = 0):\n        self.x = x"));
 }
 
 // ============ Special methods ============
 
 #[test]
 fn test_dunder_str() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __str__(self) -> str:\n        return 'Foo'"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __str__(self) -> str:\n        return 'Foo'"));
 }
 
 #[test]
 fn test_dunder_repr() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __repr__(self) -> str:\n        return 'Foo()'"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __repr__(self) -> str:\n        return 'Foo()'"));
 }
 
 #[test]
 fn test_dunder_eq() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __eq__(self, other) -> bool:\n        return True"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __eq__(self, other) -> bool:\n        return True"));
 }
 
 #[test]
 fn test_dunder_hash() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __hash__(self) -> int:\n        return 0"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __hash__(self) -> int:\n        return 0"));
 }
 
 #[test]
 fn test_dunder_len() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __len__(self) -> int:\n        return 0"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __len__(self) -> int:\n        return 0"));
 }
 
 #[test]
 fn test_dunder_iter() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __iter__(self):\n        return iter([])"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __iter__(self):\n        return iter([])"));
 }
 
 #[test]
 fn test_dunder_getitem() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __getitem__(self, key: int):\n        return key"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __getitem__(self, key: int):\n        return key"));
 }
 
 #[test]
 fn test_dunder_setitem() {
-    assert!(transpile_ok(
-        "class Foo:\n    def __setitem__(self, key: int, value):\n        pass"
-    ));
+    assert!(transpile_ok("class Foo:\n    def __setitem__(self, key: int, value):\n        pass"));
 }
 
 // ============ Dataclass patterns ============
@@ -414,9 +368,7 @@ fn test_callable_param() {
 
 #[test]
 fn test_any_type_param() {
-    assert!(transpile_ok(
-        "from typing import Any\ndef f(x: Any):\n    return x"
-    ));
+    assert!(transpile_ok("from typing import Any\ndef f(x: Any):\n    return x"));
 }
 
 // ============ Recursive functions ============
@@ -441,9 +393,7 @@ fn test_function_returns_function() {
 
 #[test]
 fn test_function_takes_function() {
-    assert!(transpile_ok(
-        "def apply(fn, x: int) -> int:\n    return fn(x)"
-    ));
+    assert!(transpile_ok("def apply(fn, x: int) -> int:\n    return fn(x)"));
 }
 
 // ============ Error handling in functions ============
@@ -464,14 +414,10 @@ fn test_function_try_return() {
 
 #[test]
 fn test_function_with_docstring() {
-    assert!(transpile_ok(
-        "def f() -> int:\n    \"\"\"Returns 42.\"\"\"\n    return 42"
-    ));
+    assert!(transpile_ok("def f() -> int:\n    \"\"\"Returns 42.\"\"\"\n    return 42"));
 }
 
 #[test]
 fn test_class_with_docstring() {
-    assert!(transpile_ok(
-        "class Foo:\n    \"\"\"A foo class.\"\"\"\n    pass"
-    ));
+    assert!(transpile_ok("class Foo:\n    \"\"\"A foo class.\"\"\"\n    pass"));
 }

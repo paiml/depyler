@@ -33,9 +33,7 @@ impl OracleLineage {
     /// Create a new empty lineage tracker.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            inner: ModelLineage::new(),
-        }
+        Self { inner: ModelLineage::new() }
     }
 
     /// Get the default lineage file path (`.depyler/oracle_lineage.json` in project root).
@@ -118,11 +116,7 @@ impl OracleLineage {
         };
 
         // Check commit SHA change
-        let stored_sha = latest
-            .tags
-            .get(TAG_COMMIT_SHA)
-            .map(String::as_str)
-            .unwrap_or("");
+        let stored_sha = latest.tags.get(TAG_COMMIT_SHA).map(String::as_str).unwrap_or("");
         if stored_sha != current_sha {
             return true;
         }
@@ -203,9 +197,7 @@ impl OracleLineage {
             .ok()
             .and_then(|output| {
                 if output.status.success() {
-                    String::from_utf8(output.stdout)
-                        .ok()
-                        .map(|s| s.trim().to_string())
+                    String::from_utf8(output.stdout).ok().map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -248,9 +240,7 @@ impl OracleLineage {
     /// Get the training lineage chain for the latest model.
     #[must_use]
     pub fn get_lineage_chain(&self) -> Vec<String> {
-        self.latest_model()
-            .map(|m| self.inner.get_lineage_chain(&m.model_id))
-            .unwrap_or_default()
+        self.latest_model().map(|m| self.inner.get_lineage_chain(&m.model_id)).unwrap_or_default()
     }
 
     /// Get model count in lineage.
@@ -462,10 +452,7 @@ mod tests {
 
         // Regression should be detected
         let regression = lineage.find_regression();
-        assert!(
-            regression.is_some(),
-            "Should detect regression: 0.85 -> 0.75"
-        );
+        assert!(regression.is_some(), "Should detect regression: 0.85 -> 0.75");
 
         let (_, delta) = regression.unwrap();
         assert!(delta < 0.0, "Delta should be negative for regression");

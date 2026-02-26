@@ -6,9 +6,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -177,16 +175,12 @@ fn test_type_union_multiple() {
 
 #[test]
 fn test_type_pep604_union() {
-    assert!(transpile_ok(
-        "def foo(x: int | str) -> int | str:\n    return x"
-    ));
+    assert!(transpile_ok("def foo(x: int | str) -> int | str:\n    return x"));
 }
 
 #[test]
 fn test_type_pep604_optional() {
-    assert!(transpile_ok(
-        "def foo(x: int | None) -> int | None:\n    return x"
-    ));
+    assert!(transpile_ok("def foo(x: int | None) -> int | None:\n    return x"));
 }
 
 // ============================================================================
@@ -243,9 +237,7 @@ fn test_type_iterable() {
 
 #[test]
 fn test_type_any() {
-    assert!(transpile_ok(
-        "from typing import Any\n\ndef foo(x: Any) -> Any:\n    return x"
-    ));
+    assert!(transpile_ok("from typing import Any\n\ndef foo(x: Any) -> Any:\n    return x"));
 }
 
 #[test]
@@ -287,9 +279,7 @@ fn test_type_optional_dict() {
 
 #[test]
 fn test_type_class_param() {
-    assert!(transpile_ok(
-        "class Point:\n    pass\n\ndef foo(p: Point) -> Point:\n    return p"
-    ));
+    assert!(transpile_ok("class Point:\n    pass\n\ndef foo(p: Point) -> Point:\n    return p"));
 }
 
 #[test]
@@ -327,9 +317,7 @@ fn test_type_literal_int() {
 
 #[test]
 fn test_type_final() {
-    assert!(transpile_ok(
-        "from typing import Final\n\nVALUE: Final[int] = 42"
-    ));
+    assert!(transpile_ok("from typing import Final\n\nVALUE: Final[int] = 42"));
 }
 
 // ============================================================================
@@ -384,9 +372,7 @@ fn test_type_mutablemapping() {
 
 #[test]
 fn test_type_empty_tuple() {
-    assert!(transpile_ok(
-        "from typing import Tuple\n\ndef foo() -> Tuple[()]:\n    return ()"
-    ));
+    assert!(transpile_ok("from typing import Tuple\n\ndef foo() -> Tuple[()]:\n    return ()"));
 }
 
 #[test]

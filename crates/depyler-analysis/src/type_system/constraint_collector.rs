@@ -23,7 +23,9 @@
 //! collector.apply_substitutions(&mut hir_module, &solution);
 //! ```
 
-use depyler_hir::hir::{AssignTarget, BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
+use depyler_hir::hir::{
+    AssignTarget, BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
+};
 use std::collections::HashMap;
 
 use super::hindley_milner::{Constraint, VarId};
@@ -92,14 +94,12 @@ impl ConstraintCollector {
         for param in &func.params {
             let var = self.fresh_var();
             param_vars.push(var);
-            self.param_type_vars
-                .insert(format!("{}::{}", func.name, param.name), var);
+            self.param_type_vars.insert(format!("{}::{}", func.name, param.name), var);
             self.var_to_type_var.insert(param.name.to_string(), var);
 
             // If param already has a known type, constrain it
             if !matches!(param.ty, Type::Unknown) {
-                self.constraints
-                    .push(Constraint::Instance(var, param.ty.clone()));
+                self.constraints.push(Constraint::Instance(var, param.ty.clone()));
             }
         }
 
@@ -107,12 +107,10 @@ impl ConstraintCollector {
 
         // If return type is known, constrain it
         if !matches!(func.ret_type, Type::Unknown) {
-            self.constraints
-                .push(Constraint::Instance(ret_var, func.ret_type.clone()));
+            self.constraints.push(Constraint::Instance(ret_var, func.ret_type.clone()));
         }
 
-        self.function_signatures
-            .insert(func.name.to_string(), (param_vars, ret_var));
+        self.function_signatures.insert(func.name.to_string(), (param_vars, ret_var));
     }
 
     /// Collect constraints from a function
@@ -128,11 +126,7 @@ impl ConstraintCollector {
     /// Collect constraints from a statement
     fn collect_statement(&mut self, stmt: &HirStmt, func_name: &str) {
         match stmt {
-            HirStmt::Assign {
-                target,
-                value,
-                type_annotation,
-            } => {
+            HirStmt::Assign { target, value, type_annotation } => {
                 let value_var = self.collect_expr(value);
 
                 match target {
@@ -148,8 +142,7 @@ impl ConstraintCollector {
                         // If there's a type annotation, use it
                         if let Some(ty) = type_annotation {
                             if !matches!(ty, Type::Unknown) {
-                                self.constraints
-                                    .push(Constraint::Instance(target_var, ty.clone()));
+                                self.constraints.push(Constraint::Instance(target_var, ty.clone()));
                             }
                         }
                     }
@@ -179,15 +172,10 @@ impl ConstraintCollector {
                 }
             }
 
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 let cond_var = self.collect_expr(condition);
                 // Condition must be Bool
-                self.constraints
-                    .push(Constraint::Instance(cond_var, Type::Bool));
+                self.constraints.push(Constraint::Instance(cond_var, Type::Bool));
 
                 for stmt in then_body {
                     self.collect_statement(stmt, func_name);
@@ -201,8 +189,7 @@ impl ConstraintCollector {
 
             HirStmt::While { condition, body } => {
                 let cond_var = self.collect_expr(condition);
-                self.constraints
-                    .push(Constraint::Instance(cond_var, Type::Bool));
+                self.constraints.push(Constraint::Instance(cond_var, Type::Bool));
 
                 for stmt in body {
                     self.collect_statement(stmt, func_name);
@@ -229,12 +216,7 @@ impl ConstraintCollector {
                 let _ = self.collect_expr(expr);
             }
 
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 for stmt in body {
                     self.collect_statement(stmt, func_name);
                 }
@@ -307,18 +289,14 @@ impl ConstraintCollector {
                     | BinOp::GtEq
                     | BinOp::In
                     | BinOp::NotIn => {
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Bool));
+                        self.constraints.push(Constraint::Instance(result_var, Type::Bool));
                     }
 
                     // Boolean ops: all Bool
                     BinOp::And | BinOp::Or => {
-                        self.constraints
-                            .push(Constraint::Instance(left_var, Type::Bool));
-                        self.constraints
-                            .push(Constraint::Instance(right_var, Type::Bool));
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Bool));
+                        self.constraints.push(Constraint::Instance(left_var, Type::Bool));
+                        self.constraints.push(Constraint::Instance(right_var, Type::Bool));
+                        self.constraints.push(Constraint::Instance(result_var, Type::Bool));
                     }
 
                     // Modulo: numeric
@@ -335,8 +313,7 @@ impl ConstraintCollector {
 
                     // Power: result is Float (Python semantics)
                     BinOp::Pow => {
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Float));
+                        self.constraints.push(Constraint::Instance(result_var, Type::Float));
                     }
 
                     // Bitwise ops: Int
@@ -345,12 +322,9 @@ impl ConstraintCollector {
                     | BinOp::BitXor
                     | BinOp::LShift
                     | BinOp::RShift => {
-                        self.constraints
-                            .push(Constraint::Instance(left_var, Type::Int));
-                        self.constraints
-                            .push(Constraint::Instance(right_var, Type::Int));
-                        self.constraints
-                            .push(Constraint::Instance(result_var, Type::Int));
+                        self.constraints.push(Constraint::Instance(left_var, Type::Int));
+                        self.constraints.push(Constraint::Instance(right_var, Type::Int));
+                        self.constraints.push(Constraint::Instance(result_var, Type::Int));
                     }
                 }
 
@@ -447,12 +421,9 @@ impl ConstraintCollector {
 
             HirExpr::Tuple(elements) => {
                 let result_var = self.fresh_var();
-                let elem_types: Vec<Type> = elements
-                    .iter()
-                    .map(|e| Type::UnificationVar(self.collect_expr(e)))
-                    .collect();
-                self.constraints
-                    .push(Constraint::Instance(result_var, Type::Tuple(elem_types)));
+                let elem_types: Vec<Type> =
+                    elements.iter().map(|e| Type::UnificationVar(self.collect_expr(e))).collect();
+                self.constraints.push(Constraint::Instance(result_var, Type::Tuple(elem_types)));
                 result_var
             }
 
@@ -462,20 +433,14 @@ impl ConstraintCollector {
                 let result_var = self.fresh_var();
 
                 // Index is typically Int for lists
-                self.constraints
-                    .push(Constraint::Instance(index_var, Type::Int));
+                self.constraints.push(Constraint::Instance(index_var, Type::Int));
 
                 result_var
             }
 
             // DEPYLER-1173: Usage-based type inference from method calls
             // If a method is called on an object, we can infer the object's type
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 let obj_var = self.collect_expr(object);
                 let result_var = self.fresh_var();
 
@@ -492,8 +457,7 @@ impl ConstraintCollector {
                     | "join" | "encode" | "zfill" | "center" | "ljust" | "rjust" | "isalpha"
                     | "isdigit" | "isalnum" | "isspace" | "isupper" | "islower" | "istitle"
                     | "format" => {
-                        self.constraints
-                            .push(Constraint::Instance(obj_var, Type::String));
+                        self.constraints.push(Constraint::Instance(obj_var, Type::String));
                     }
 
                     // List methods → object must be List
@@ -558,8 +522,7 @@ impl ConstraintCollector {
                 let then_var = self.collect_expr(body);
                 let else_var = self.collect_expr(orelse);
 
-                self.constraints
-                    .push(Constraint::Instance(cond_var, Type::Bool));
+                self.constraints.push(Constraint::Instance(cond_var, Type::Bool));
                 // Both branches must have same type
                 self.constraints.push(Constraint::Equality(
                     Type::UnificationVar(then_var),
@@ -571,30 +534,22 @@ impl ConstraintCollector {
 
             // DEPYLER-1173: Usage-based type inference from slice operations
             // If s[1:4] is used, s must be either String or List
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 let base_var = self.collect_expr(base);
                 let result_var = self.fresh_var();
 
                 // Collect start/stop/step if present (they should be Int)
                 if let Some(start_expr) = start {
                     let start_var = self.collect_expr(start_expr);
-                    self.constraints
-                        .push(Constraint::Instance(start_var, Type::Int));
+                    self.constraints.push(Constraint::Instance(start_var, Type::Int));
                 }
                 if let Some(stop_expr) = stop {
                     let stop_var = self.collect_expr(stop_expr);
-                    self.constraints
-                        .push(Constraint::Instance(stop_var, Type::Int));
+                    self.constraints.push(Constraint::Instance(stop_var, Type::Int));
                 }
                 if let Some(step_expr) = step {
                     let step_var = self.collect_expr(step_expr);
-                    self.constraints
-                        .push(Constraint::Instance(step_var, Type::Int));
+                    self.constraints.push(Constraint::Instance(step_var, Type::Int));
                 }
 
                 // DEPYLER-1173: Key insight - slicing is most commonly on String in Python
@@ -604,12 +559,10 @@ impl ConstraintCollector {
                 // Future enhancement: Check if base is already constrained to List
                 // and propagate that. For now, String is the safe default for
                 // single-shot compilation (most slicing is on strings).
-                self.constraints
-                    .push(Constraint::Instance(base_var, Type::String));
+                self.constraints.push(Constraint::Instance(base_var, Type::String));
 
                 // Result of slicing a String is a String
-                self.constraints
-                    .push(Constraint::Instance(result_var, Type::String));
+                self.constraints.push(Constraint::Instance(result_var, Type::String));
 
                 result_var
             }
@@ -695,9 +648,7 @@ impl ConstraintCollector {
         for stmt in stmts {
             match stmt {
                 HirStmt::Assign {
-                    target: AssignTarget::Symbol(var_name),
-                    type_annotation,
-                    ..
+                    target: AssignTarget::Symbol(var_name), type_annotation, ..
                 } => {
                     // Only update if no explicit annotation exists
                     if type_annotation.is_none() {
@@ -712,11 +663,7 @@ impl ConstraintCollector {
                     }
                 }
                 // Recursively apply to nested blocks
-                HirStmt::If {
-                    then_body,
-                    else_body,
-                    ..
-                } => {
+                HirStmt::If { then_body, else_body, .. } => {
                     applied_count += self.apply_to_statements(then_body, solution);
                     if let Some(else_stmts) = else_body {
                         applied_count += self.apply_to_statements(else_stmts, solution);
@@ -725,12 +672,7 @@ impl ConstraintCollector {
                 HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                     applied_count += self.apply_to_statements(body, solution);
                 }
-                HirStmt::Try {
-                    body,
-                    handlers,
-                    orelse,
-                    finalbody,
-                } => {
+                HirStmt::Try { body, handlers, orelse, finalbody } => {
                     applied_count += self.apply_to_statements(body, solution);
                     for handler in handlers {
                         applied_count += self.apply_to_statements(&mut handler.body, solution);
@@ -768,9 +710,9 @@ impl Default for ConstraintCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::{ExceptHandler, FunctionProperties, HirParam, UnaryOp};
     use crate::type_system::hindley_milner::TypeConstraintSolver;
     use depyler_annotations::TranspilationAnnotations;
+    use depyler_hir::hir::{ExceptHandler, FunctionProperties, HirParam, UnaryOp};
     use smallvec::smallvec;
 
     fn make_test_function(
@@ -901,10 +843,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1000,18 +939,13 @@ mod tests {
             }))],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
-        let has_equality = collector
-            .constraints()
-            .iter()
-            .any(|c| matches!(c, Constraint::Equality(_, _)));
+        let has_equality =
+            collector.constraints().iter().any(|c| matches!(c, Constraint::Equality(_, _)));
         assert!(has_equality);
     }
 
@@ -1316,18 +1250,13 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
-        let has_instance = collector
-            .constraints()
-            .iter()
-            .any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
+        let has_instance =
+            collector.constraints().iter().any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
         assert!(has_instance);
     }
 
@@ -1349,10 +1278,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1367,10 +1293,7 @@ mod tests {
             vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1389,10 +1312,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1416,10 +1336,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1431,16 +1348,10 @@ mod tests {
         let func = make_test_function(
             "test",
             vec![],
-            vec![HirStmt::While {
-                condition: HirExpr::Var("x".into()),
-                body: vec![],
-            }],
+            vec![HirStmt::While { condition: HirExpr::Var("x".into()), body: vec![] }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1464,10 +1375,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1492,10 +1400,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1510,10 +1415,7 @@ mod tests {
             vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(42)))],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1540,10 +1442,8 @@ mod tests {
             index: Box::new(HirExpr::Var("i".into())),
         });
 
-        let has_int = collector
-            .constraints()
-            .iter()
-            .any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
+        let has_int =
+            collector.constraints().iter().any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
         assert!(has_int);
     }
 
@@ -1609,10 +1509,8 @@ mod tests {
             orelse: Box::new(HirExpr::Var("b".into())),
         });
 
-        let has_equality = collector
-            .constraints()
-            .iter()
-            .any(|c| matches!(c, Constraint::Equality(_, _)));
+        let has_equality =
+            collector.constraints().iter().any(|c| matches!(c, Constraint::Equality(_, _)));
         assert!(has_equality);
     }
 
@@ -1645,10 +1543,7 @@ mod tests {
             }))],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1656,10 +1551,7 @@ mod tests {
         // Now call the function
         let _ = collector.collect_expr(&HirExpr::Call {
             func: "add".into(),
-            args: vec![
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Int(2)),
-            ],
+            args: vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))],
             kwargs: vec![],
         });
 
@@ -1675,10 +1567,7 @@ mod tests {
     fn test_apply_substitutions() {
         let func = make_test_function("test", vec![("x", Type::Unknown)], vec![]);
 
-        let mut module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let mut module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1698,10 +1587,7 @@ mod tests {
     fn test_apply_substitutions_skips_unification_var() {
         let func = make_test_function("test", vec![("x", Type::Unknown)], vec![]);
 
-        let mut module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let mut module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1722,10 +1608,7 @@ mod tests {
     fn test_apply_substitutions_to_return_type() {
         let func = make_test_function_with_ret("test", vec![], Type::Unknown, vec![]);
 
-        let mut module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let mut module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1746,10 +1629,7 @@ mod tests {
     fn test_apply_substitutions_known_type_not_changed() {
         let func = make_test_function("test", vec![("x", Type::Int)], vec![]);
 
-        let mut module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let mut module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1773,19 +1653,14 @@ mod tests {
     fn test_register_function_with_known_param_type() {
         let func = make_test_function("test", vec![("x", Type::Int)], vec![]);
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
         // Should have an Instance constraint for the param
-        let has_instance = collector
-            .constraints()
-            .iter()
-            .any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
+        let has_instance =
+            collector.constraints().iter().any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
         assert!(has_instance);
     }
 
@@ -1793,10 +1668,7 @@ mod tests {
     fn test_register_function_with_known_return_type() {
         let func = make_test_function_with_ret("test", vec![], Type::String, vec![]);
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1811,16 +1683,10 @@ mod tests {
     #[test]
     fn test_multiple_functions() {
         let func1 = make_test_function("add", vec![("a", Type::Int), ("b", Type::Int)], vec![]);
-        let func2 = make_test_function(
-            "concat",
-            vec![("s1", Type::String), ("s2", Type::String)],
-            vec![],
-        );
+        let func2 =
+            make_test_function("concat", vec![("s1", Type::String), ("s2", Type::String)], vec![]);
 
-        let module = HirModule {
-            functions: vec![func1, func2],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func1, func2], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1857,10 +1723,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1883,10 +1746,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1917,10 +1777,7 @@ mod tests {
             }],
         );
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -1931,14 +1788,8 @@ mod tests {
     fn test_dict_multiple_pairs_constrained_equal() {
         let mut collector = ConstraintCollector::new();
         let _ = collector.collect_expr(&HirExpr::Dict(vec![
-            (
-                HirExpr::Literal(Literal::String("a".into())),
-                HirExpr::Literal(Literal::Int(1)),
-            ),
-            (
-                HirExpr::Literal(Literal::String("b".into())),
-                HirExpr::Literal(Literal::Int(2)),
-            ),
+            (HirExpr::Literal(Literal::String("a".into())), HirExpr::Literal(Literal::Int(1))),
+            (HirExpr::Literal(Literal::String("b".into())), HirExpr::Literal(Literal::Int(2))),
         ]));
 
         // Should have equality constraints for keys and values
@@ -1987,10 +1838,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
-        assert!(
-            has_string_constraint,
-            "Slice base should be constrained to String"
-        );
+        assert!(has_string_constraint, "Slice base should be constrained to String");
     }
 
     #[test]
@@ -2010,10 +1858,7 @@ mod tests {
             .filter(|c| matches!(c, Constraint::Instance(_, Type::Int)))
             .count();
         // At least 3 Int constraints (for start, stop, step)
-        assert!(
-            int_constraints >= 3,
-            "Slice indices should be constrained to Int"
-        );
+        assert!(int_constraints >= 3, "Slice indices should be constrained to Int");
     }
 
     #[test]
@@ -2030,10 +1875,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
-        assert!(
-            has_string_constraint,
-            "split() receiver should be constrained to String"
-        );
+        assert!(has_string_constraint, "split() receiver should be constrained to String");
     }
 
     #[test]
@@ -2050,10 +1892,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
-        assert!(
-            has_string_constraint,
-            "upper() receiver should be constrained to String"
-        );
+        assert!(has_string_constraint, "upper() receiver should be constrained to String");
     }
 
     #[test]
@@ -2070,10 +1909,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::List(_))));
-        assert!(
-            has_list_constraint,
-            "append() receiver should be constrained to List"
-        );
+        assert!(has_list_constraint, "append() receiver should be constrained to List");
     }
 
     #[test]
@@ -2090,10 +1926,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::List(_))));
-        assert!(
-            has_list_constraint,
-            "pop() receiver should be constrained to List"
-        );
+        assert!(has_list_constraint, "pop() receiver should be constrained to List");
     }
 
     #[test]
@@ -2110,10 +1943,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::Dict(_, _))));
-        assert!(
-            has_dict_constraint,
-            "keys() receiver should be constrained to Dict"
-        );
+        assert!(has_dict_constraint, "keys() receiver should be constrained to Dict");
     }
 
     #[test]
@@ -2130,10 +1960,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::Dict(_, _))));
-        assert!(
-            has_dict_constraint,
-            "values() receiver should be constrained to Dict"
-        );
+        assert!(has_dict_constraint, "values() receiver should be constrained to Dict");
     }
 
     #[test]
@@ -2150,10 +1977,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::Set(_))));
-        assert!(
-            has_set_constraint,
-            "add() receiver should be constrained to Set"
-        );
+        assert!(has_set_constraint, "add() receiver should be constrained to Set");
     }
 
     #[test]
@@ -2180,10 +2004,7 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(
-            container_constraints, 0,
-            "Unknown method should not add type constraints"
-        );
+        assert_eq!(container_constraints, 0, "Unknown method should not add type constraints");
     }
 
     #[test]
@@ -2201,10 +2022,7 @@ mod tests {
             .constraints()
             .iter()
             .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
-        assert!(
-            has_string_constraint,
-            "Slice with step should still constrain to String"
-        );
+        assert!(has_string_constraint, "Slice with step should still constrain to String");
     }
 
     #[test]
@@ -2276,10 +2094,7 @@ mod tests {
             docstring: None,
         };
 
-        let mut module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let mut module = HirModule { functions: vec![func], ..empty_module() };
 
         // Collect constraints
         let mut collector = ConstraintCollector::new();
@@ -2303,11 +2118,7 @@ mod tests {
         );
 
         // Verify: At least one substitution was applied
-        assert!(
-            applied >= 1,
-            "Should have applied at least 1 substitution, got {}",
-            applied
-        );
+        assert!(applied >= 1, "Should have applied at least 1 substitution, got {}", applied);
     }
 
     #[test]
@@ -2358,10 +2169,7 @@ mod tests {
             docstring: None,
         };
 
-        let mut module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let mut module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
@@ -2375,10 +2183,7 @@ mod tests {
         collector.apply_substitutions(&mut module, &solution);
 
         // Verify: Explicit annotation should be preserved
-        if let HirStmt::Assign {
-            type_annotation, ..
-        } = &module.functions[0].body[0]
-        {
+        if let HirStmt::Assign { type_annotation, .. } = &module.functions[0].body[0] {
             assert_eq!(
                 *type_annotation,
                 Some(Type::Float),
@@ -2415,10 +2220,7 @@ mod tests {
             docstring: None,
         };
 
-        let module = HirModule {
-            functions: vec![func],
-            ..empty_module()
-        };
+        let module = HirModule { functions: vec![func], ..empty_module() };
 
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);

@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -84,7 +82,11 @@ def get_pi() -> float:
     return 3.14159
 "#;
     let result = transpile(code);
-    assert!(result.contains("3.14159") || result.contains("f64"), "Should return float. Got: {}", result);
+    assert!(
+        result.contains("3.14159") || result.contains("f64"),
+        "Should return float. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -94,7 +96,11 @@ def empty() -> str:
     return ""
 "#;
     let result = transpile(code);
-    assert!(result.contains("\"\"") || result.contains("String::new"), "Should return empty string. Got: {}", result);
+    assert!(
+        result.contains("\"\"") || result.contains("String::new"),
+        "Should return empty string. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -119,7 +125,11 @@ def compute_with_long_names(first_operand: int, second_operand: int) -> int:
     return intermediate_result
 "#;
     let result = transpile(code);
-    assert!(result.contains("intermediate_result"), "Should handle long var names. Got: {}", result);
+    assert!(
+        result.contains("intermediate_result"),
+        "Should handle long var names. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -151,7 +161,11 @@ def pairs() -> list:
     return [(1, 2), (3, 4), (5, 6)]
 "#;
     let result = transpile(code);
-    assert!(result.contains("vec!") || result.contains("Vec"), "Should create list of tuples. Got: {}", result);
+    assert!(
+        result.contains("vec!") || result.contains("Vec"),
+        "Should create list of tuples. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -161,7 +175,11 @@ def config() -> dict:
     return {"host": "localhost", "port": "8080", "debug": "true"}
 "#;
     let result = transpile(code);
-    assert!(result.contains("HashMap") || result.contains("localhost"), "Should create dict. Got: {}", result);
+    assert!(
+        result.contains("HashMap") || result.contains("localhost"),
+        "Should create dict. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -267,7 +285,11 @@ def complex_expr(a: int, b: int, c: int) -> int:
     return (a + b) * (c - a) + (b * c)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn complex_expr"), "Should handle complex expression. Got: {}", result);
+    assert!(
+        result.contains("fn complex_expr"),
+        "Should handle complex expression. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -277,7 +299,11 @@ def clean(s: str) -> str:
     return s.strip().lower().replace(" ", "_")
 "#;
     let result = transpile(code);
-    assert!(result.contains("trim") || result.contains("to_lowercase"), "Should chain methods. Got: {}", result);
+    assert!(
+        result.contains("trim") || result.contains("to_lowercase"),
+        "Should chain methods. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -422,7 +448,11 @@ def check_size(n: int) -> bool:
     return n <= MAX_SIZE
 "#;
     let result = transpile(code);
-    assert!(result.contains("MAX_SIZE") || result.contains("100"), "Should handle constant. Got: {}", result);
+    assert!(
+        result.contains("MAX_SIZE") || result.contains("100"),
+        "Should handle constant. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -467,5 +497,9 @@ def positive_only(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(result.contains("assert") || result.contains("panic"), "Should handle assert. Got: {}", result);
+    assert!(
+        result.contains("assert") || result.contains("panic"),
+        "Should handle assert. Got: {}",
+        result
+    );
 }

@@ -49,10 +49,8 @@ pub fn infer_container_element_type(
             infer_dict_value_type(container_name, body)
                 .map(|val_ty| Type::Dict(Box::new(key_ty), Box::new(val_ty)))
         }
-        Type::Optional(inner) => {
-            infer_container_element_type(container_name, inner, body)
-                .map(|refined| Type::Optional(Box::new(refined)))
-        }
+        Type::Optional(inner) => infer_container_element_type(container_name, inner, body)
+            .map(|refined| Type::Optional(Box::new(refined))),
         _ => None,
     }
 }
@@ -73,7 +71,9 @@ fn infer_element_from_for_loop(container_name: &str, body: &[HirStmt]) -> Option
         if let Some(ty) = try_infer_from_for_stmt(container_name, stmt) {
             return Some(ty);
         }
-        if let Some(ty) = recurse_into_stmt(stmt, |b| infer_element_from_for_loop(container_name, b)) {
+        if let Some(ty) =
+            recurse_into_stmt(stmt, |b| infer_element_from_for_loop(container_name, b))
+        {
             return Some(ty);
         }
     }
@@ -129,7 +129,8 @@ fn infer_element_from_append(container_name: &str, body: &[HirStmt]) -> Option<T
         if let Some(ty) = check_append_stmt(container_name, stmt) {
             return Some(ty);
         }
-        if let Some(ty) = recurse_into_stmt(stmt, |b| infer_element_from_append(container_name, b)) {
+        if let Some(ty) = recurse_into_stmt(stmt, |b| infer_element_from_append(container_name, b))
+        {
             return Some(ty);
         }
     }
@@ -183,8 +184,7 @@ fn infer_element_from_builtin(container_name: &str, body: &[HirStmt]) -> Option<
 
 /// Check a single expression for builtin calls that reveal container element type.
 fn check_builtin_expr(container_name: &str, expr: &HirExpr) -> Option<Type> {
-    check_numeric_builtin(container_name, expr)
-        .or_else(|| check_join_builtin(container_name, expr))
+    check_numeric_builtin(container_name, expr).or_else(|| check_join_builtin(container_name, expr))
 }
 
 /// Check if expr is `sum(lst)`, `max(lst)`, etc. → Int.
@@ -224,7 +224,9 @@ fn infer_dict_value_from_assignment(dict_name: &str, body: &[HirStmt]) -> Option
         if let Some(ty) = check_dict_index_assign(dict_name, stmt) {
             return Some(ty);
         }
-        if let Some(ty) = recurse_into_stmt(stmt, |b| infer_dict_value_from_assignment(dict_name, b)) {
+        if let Some(ty) =
+            recurse_into_stmt(stmt, |b| infer_dict_value_from_assignment(dict_name, b))
+        {
             return Some(ty);
         }
     }
@@ -264,9 +266,9 @@ fn infer_dict_value_from_get(dict_name: &str, body: &[HirStmt]) -> Option<Type> 
             }
         }
 
-        if let Some(ty) = recurse_into_stmt(stmt, |inner_body| {
-            infer_dict_value_from_get(dict_name, inner_body)
-        }) {
+        if let Some(ty) =
+            recurse_into_stmt(stmt, |inner_body| infer_dict_value_from_get(dict_name, inner_body))
+        {
             return Some(ty);
         }
     }
@@ -284,8 +286,7 @@ fn check_dict_get_expr(dict_name: &str, expr: &HirExpr) -> Option<Type> {
             args.iter().find_map(|a| check_dict_get_expr(dict_name, a))
         }
         HirExpr::Binary { left, right, .. } => {
-            check_dict_get_expr(dict_name, left)
-                .or_else(|| check_dict_get_expr(dict_name, right))
+            check_dict_get_expr(dict_name, left).or_else(|| check_dict_get_expr(dict_name, right))
         }
         _ => None,
     }
@@ -387,12 +388,14 @@ fn infer_type_from_literal_or_expr(expr: &HirExpr) -> Option<Type> {
         HirExpr::Unary { operand, .. } => infer_type_from_literal_or_expr(operand),
         HirExpr::Binary { left, right, op, .. } => {
             // Arithmetic ops on int literals → Int
-            if matches!(op, depyler_hir::hir::BinOp::Add
-                | depyler_hir::hir::BinOp::Sub
-                | depyler_hir::hir::BinOp::Mul
-                | depyler_hir::hir::BinOp::Div
-                | depyler_hir::hir::BinOp::Mod
-                | depyler_hir::hir::BinOp::FloorDiv
+            if matches!(
+                op,
+                depyler_hir::hir::BinOp::Add
+                    | depyler_hir::hir::BinOp::Sub
+                    | depyler_hir::hir::BinOp::Mul
+                    | depyler_hir::hir::BinOp::Div
+                    | depyler_hir::hir::BinOp::Mod
+                    | depyler_hir::hir::BinOp::FloorDiv
             ) {
                 let left_ty = infer_type_from_literal_or_expr(left);
                 let right_ty = infer_type_from_literal_or_expr(right);
@@ -412,10 +415,7 @@ fn infer_type_from_literal_or_expr(expr: &HirExpr) -> Option<Type> {
 /// Iterate all variable types entries with unknown inner types and refine them.
 ///
 /// This is the main entry point for local variable refinement.
-pub fn refine_container_types_from_usage(
-    body: &[HirStmt],
-    var_types: &mut HashMap<String, Type>,
-) {
+pub fn refine_container_types_from_usage(body: &[HirStmt], var_types: &mut HashMap<String, Type>) {
     let refinements: Vec<(String, Type)> = var_types
         .iter()
         .filter(|(_, ty)| has_unknown_inner_type(ty))
@@ -440,12 +440,10 @@ where
         }
         HirStmt::While { body, .. } => f(body),
         HirStmt::With { body, .. } => f(body),
-        HirStmt::Try { body, handlers, orelse, finalbody } => {
-            f(body)
-                .or_else(|| handlers.iter().find_map(|h| f(&h.body)))
-                .or_else(|| orelse.as_ref().and_then(|b| f(b)))
-                .or_else(|| finalbody.as_ref().and_then(|b| f(b)))
-        }
+        HirStmt::Try { body, handlers, orelse, finalbody } => f(body)
+            .or_else(|| handlers.iter().find_map(|h| f(&h.body)))
+            .or_else(|| orelse.as_ref().and_then(|b| f(b)))
+            .or_else(|| finalbody.as_ref().and_then(|b| f(b))),
         _ => None,
     }
 }
@@ -467,10 +465,7 @@ mod tests {
             Box::new(Type::String),
             Box::new(Type::Unknown)
         )));
-        assert!(!has_unknown_inner_type(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(!has_unknown_inner_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -481,9 +476,9 @@ mod tests {
 
     #[test]
     fn test_has_unknown_inner_type_optional_list() {
-        assert!(has_unknown_inner_type(&Type::Optional(Box::new(
-            Type::List(Box::new(Type::Unknown))
-        ))));
+        assert!(has_unknown_inner_type(&Type::Optional(Box::new(Type::List(Box::new(
+            Type::Unknown
+        ))))));
     }
 
     #[test]
@@ -506,11 +501,8 @@ mod tests {
             })],
         }];
 
-        let result = infer_container_element_type(
-            "numbers",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("numbers", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::List(Box::new(Type::Int))));
     }
 
@@ -528,11 +520,8 @@ mod tests {
             })],
         }];
 
-        let result = infer_container_element_type(
-            "items",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("items", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::List(Box::new(Type::String))));
     }
 
@@ -546,11 +535,8 @@ mod tests {
             kwargs: vec![],
         })];
 
-        let result = infer_container_element_type(
-            "lst",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("lst", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::List(Box::new(Type::Int))));
     }
 
@@ -564,11 +550,8 @@ mod tests {
             kwargs: vec![],
         })];
 
-        let result = infer_container_element_type(
-            "lst",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("lst", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::List(Box::new(Type::String))));
     }
 
@@ -585,11 +568,8 @@ mod tests {
             type_annotation: None,
         }];
 
-        let result = infer_container_element_type(
-            "numbers",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("numbers", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::List(Box::new(Type::Int))));
     }
 
@@ -607,11 +587,8 @@ mod tests {
             type_annotation: None,
         }];
 
-        let result = infer_container_element_type(
-            "items",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("items", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::List(Box::new(Type::String))));
     }
 
@@ -632,10 +609,7 @@ mod tests {
             &Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
             &body,
         );
-        assert_eq!(
-            result,
-            Some(Type::Dict(Box::new(Type::String), Box::new(Type::Int)))
-        );
+        assert_eq!(result, Some(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -660,10 +634,7 @@ mod tests {
             &Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
             &body,
         );
-        assert_eq!(
-            result,
-            Some(Type::Dict(Box::new(Type::String), Box::new(Type::Int)))
-        );
+        assert_eq!(result, Some(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -676,22 +647,15 @@ mod tests {
             kwargs: vec![],
         })];
 
-        let result = infer_container_element_type(
-            "s",
-            &Type::Set(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result = infer_container_element_type("s", &Type::Set(Box::new(Type::Unknown)), &body);
         assert_eq!(result, Some(Type::Set(Box::new(Type::Int))));
     }
 
     #[test]
     fn test_no_inference_without_usage() {
         let body = vec![HirStmt::Pass];
-        let result = infer_container_element_type(
-            "numbers",
-            &Type::List(Box::new(Type::Unknown)),
-            &body,
-        );
+        let result =
+            infer_container_element_type("numbers", &Type::List(Box::new(Type::Unknown)), &body);
         assert_eq!(result, None);
     }
 
@@ -710,10 +674,7 @@ mod tests {
 
         refine_container_types_from_usage(&body, &mut var_types);
 
-        assert_eq!(
-            var_types.get("data"),
-            Some(&Type::List(Box::new(Type::Int)))
-        );
+        assert_eq!(var_types.get("data"), Some(&Type::List(Box::new(Type::Int))));
         assert_eq!(var_types.get("x"), Some(&Type::Int));
     }
 }

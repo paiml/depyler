@@ -29,10 +29,8 @@ pub fn convert_json_method(
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
     // Convert arguments first
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     // DEPYLER-1022: In NASA mode, use stub implementations
     if ctx.type_mapper.nasa_mode {
@@ -344,10 +342,7 @@ mod tests {
     #[test]
     fn test_convert_json_dumps_with_indent() {
         let mut ctx = ctx_with_serde_json();
-        let args = vec![
-            HirExpr::Var("data".to_string()),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Var("data".to_string()), HirExpr::Literal(Literal::Int(2))];
 
         let result = convert_json_method("dumps", &args, &mut ctx);
         assert!(result.is_ok());
@@ -426,10 +421,7 @@ mod tests {
     #[test]
     fn test_convert_json_dump_correct_args() {
         let mut ctx = ctx_with_serde_json(); // Non-NASA mode
-        let args = vec![
-            HirExpr::Var("data".to_string()),
-            HirExpr::Var("file".to_string()),
-        ];
+        let args = vec![HirExpr::Var("data".to_string()), HirExpr::Var("file".to_string())];
 
         let result = convert_json_method("dump", &args, &mut ctx);
         assert!(result.is_ok());
@@ -503,10 +495,8 @@ mod tests {
     #[test]
     fn test_return_type_is_dict_list_union_false_no_dict() {
         let mut ctx = CodeGenContext::default();
-        ctx.current_return_type = Some(Type::Union(vec![
-            Type::String,
-            Type::List(Box::new(Type::Int)),
-        ]));
+        ctx.current_return_type =
+            Some(Type::Union(vec![Type::String, Type::List(Box::new(Type::Int))]));
 
         assert!(return_type_is_dict_list_union(&ctx).is_none());
     }

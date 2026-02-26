@@ -20,14 +20,7 @@ fn check_compiles(rust_code: &str) -> Result<(), String> {
 
     // Try to compile
     let output = Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            "-o",
-            "/dev/null",
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", "-o", "/dev/null"])
         .arg(&temp_file)
         .output()
         .map_err(|e| format!("Compile error: {}", e))?;
@@ -51,11 +44,7 @@ def process(items: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Lambda capturing local string should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Lambda capturing local string should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -63,11 +52,7 @@ def process(items: list) -> list:
     eprintln!("Generated code:\n{}", rust_code);
 
     // Should reference prefix somewhere (either cloned before or in closure)
-    assert!(
-        rust_code.contains("prefix"),
-        "Should reference prefix.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("prefix"), "Should reference prefix.\nGot:\n{}", rust_code);
 
     // CRITICAL: The generated code must compile without E0382/E0425 errors
     match check_compiles(&rust_code) {
@@ -108,11 +93,7 @@ def format_items(items: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Lambda capturing multiple vars should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Lambda capturing multiple vars should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
@@ -145,11 +126,7 @@ def filter_above(numbers: list, threshold: int) -> list:
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("min_val"),
-        "Should reference min_val.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("min_val"), "Should reference min_val.\nGot:\n{}", rust_code);
 }
 
 /// Test 4: Nested lambda with outer scope capture
@@ -192,20 +169,12 @@ def process_with_offset(numbers: list, offset: int) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Lambda stored in variable should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Lambda stored in variable should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("adjustment"),
-        "Should reference adjustment.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("adjustment"), "Should reference adjustment.\nGot:\n{}", rust_code);
 }
 
 /// Test 6: HOSTILE - Lambda captures loop variable (common E0425 source)
@@ -255,9 +224,5 @@ def scale_all(matrix: list, factor: int) -> list:
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("scale"),
-        "Should reference scale.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("scale"), "Should reference scale.\nGot:\n{}", rust_code);
 }

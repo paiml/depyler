@@ -24,15 +24,7 @@ fn compiles_with_rustc(code: &str) -> bool {
     std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args([
-            "--edition",
-            "2021",
-            &temp_file,
-            "--crate-type",
-            "lib",
-            "-o",
-            &out_file,
-        ])
+        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
         .output()
         .expect("Failed to run rustc");
 
@@ -49,15 +41,7 @@ fn compile_errors(code: &str) -> String {
     std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args([
-            "--edition",
-            "2021",
-            &temp_file,
-            "--crate-type",
-            "lib",
-            "-o",
-            &out_file,
-        ])
+        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
         .output()
         .expect("Failed to run rustc");
 
@@ -85,21 +69,14 @@ def main(n: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Generated code must compile
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -116,11 +93,7 @@ def main() -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
@@ -134,10 +107,7 @@ def main() -> float:
                 errors, code
             );
         }
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -159,20 +129,13 @@ def main() -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Numeric type unification failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Numeric type unification failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -190,21 +153,14 @@ def main() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Return type annotation should propagate to compute()
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Return type propagation failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Return type propagation failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -227,11 +183,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
@@ -263,11 +215,7 @@ def root(value: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
@@ -303,20 +251,13 @@ def main() -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Chained call propagation failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Chained call propagation failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -334,21 +275,14 @@ def mix_types(a: int, b: float) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Should generate: a as f64 + b
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Int to float coercion failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Int to float coercion failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -362,11 +296,7 @@ def calculate(x: int, y: float, z: int) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
@@ -402,20 +332,13 @@ def main() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Explicit cast insertion failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Explicit cast insertion failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -437,20 +360,13 @@ def main() -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "String/&str unification failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("String/&str unification failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -464,20 +380,13 @@ def greet(name: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "String concat mixed failed. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("String concat mixed failed. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -500,11 +409,7 @@ def main() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
@@ -537,11 +442,7 @@ def main() -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 

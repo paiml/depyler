@@ -18,10 +18,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -39,11 +37,7 @@ def validate(x: int):
         raise ValueError("negative")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn validate"),
-        "Should transpile raise ValueError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn validate"), "Should transpile raise ValueError. Got: {}", result);
 }
 
 #[test]
@@ -55,11 +49,7 @@ def check_type(x) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_type"),
-        "Should transpile raise TypeError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_type"), "Should transpile raise TypeError. Got: {}", result);
 }
 
 #[test]
@@ -69,11 +59,7 @@ def fail():
     raise RuntimeError("something went wrong")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn fail"),
-        "Should transpile raise RuntimeError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fail"), "Should transpile raise RuntimeError. Got: {}", result);
 }
 
 #[test]
@@ -100,11 +86,7 @@ def get_required(d: dict, key: str) -> int:
     return d[key]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_required"),
-        "Should transpile raise KeyError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_required"), "Should transpile raise KeyError. Got: {}", result);
 }
 
 #[test]
@@ -128,11 +110,7 @@ def check_file(path: str):
     raise OSError(f"file not found: {path}")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_file"),
-        "Should transpile raise OSError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_file"), "Should transpile raise OSError. Got: {}", result);
 }
 
 #[test]
@@ -161,11 +139,7 @@ def read_all(path: str) -> str:
         return f.read()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn read_all"),
-        "Should transpile with open read. Got: {}",
-        result
-    );
+    assert!(result.contains("fn read_all"), "Should transpile with open read. Got: {}", result);
 }
 
 #[test]
@@ -176,11 +150,7 @@ def save(path: str, data: str):
         f.write(data)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn save"),
-        "Should transpile with open write. Got: {}",
-        result
-    );
+    assert!(result.contains("fn save"), "Should transpile with open write. Got: {}", result);
 }
 
 #[test]
@@ -191,11 +161,7 @@ def read_lines(path: str) -> list:
         return f.readlines()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn read_lines"),
-        "Should transpile with readlines. Got: {}",
-        result
-    );
+    assert!(result.contains("fn read_lines"), "Should transpile with readlines. Got: {}", result);
 }
 
 #[test]
@@ -227,11 +193,7 @@ def safe_divide(a: int, b: int) -> int:
         return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_divide"),
-        "Should transpile try/except. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_divide"), "Should transpile try/except. Got: {}", result);
 }
 
 #[test]
@@ -246,11 +208,7 @@ def safe_parse(s: str) -> int:
         return -2
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_parse"),
-        "Should transpile multiple except. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_parse"), "Should transpile multiple except. Got: {}", result);
 }
 
 #[test]
@@ -285,11 +243,7 @@ def with_cleanup(path: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn with_cleanup"),
-        "Should transpile try/finally. Got: {}",
-        result
-    );
+    assert!(result.contains("fn with_cleanup"), "Should transpile try/finally. Got: {}", result);
 }
 
 #[test]
@@ -302,11 +256,7 @@ def handle_error(s: str) -> str:
         return str(e)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn handle_error"),
-        "Should transpile except as. Got: {}",
-        result
-    );
+    assert!(result.contains("fn handle_error"), "Should transpile except as. Got: {}", result);
 }
 
 // ============================================================================
@@ -323,11 +273,7 @@ def count_up(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_up"),
-        "Should transpile for range. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_up"), "Should transpile for range. Got: {}", result);
 }
 
 #[test]
@@ -357,11 +303,7 @@ def even_sum(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn even_sum"),
-        "Should transpile range with step. Got: {}",
-        result
-    );
+    assert!(result.contains("fn even_sum"), "Should transpile range with step. Got: {}", result);
 }
 
 #[test]
@@ -389,11 +331,7 @@ def print_items(d: dict):
         print(f"{key}: {value}")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn print_items"),
-        "Should transpile for dict items. Got: {}",
-        result
-    );
+    assert!(result.contains("fn print_items"), "Should transpile for dict items. Got: {}", result);
 }
 
 #[test]
@@ -406,11 +344,7 @@ def numbered(items: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn numbered"),
-        "Should transpile enumerate for. Got: {}",
-        result
-    );
+    assert!(result.contains("fn numbered"), "Should transpile enumerate for. Got: {}", result);
 }
 
 #[test]
@@ -424,11 +358,7 @@ def matrix_sum(matrix: list) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn matrix_sum"),
-        "Should transpile nested for. Got: {}",
-        result
-    );
+    assert!(result.contains("fn matrix_sum"), "Should transpile nested for. Got: {}", result);
 }
 
 #[test]
@@ -443,11 +373,7 @@ def find_first(items: list, target: int) -> int:
     return idx
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_first"),
-        "Should transpile for with break. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_first"), "Should transpile for with break. Got: {}", result);
 }
 
 #[test]
@@ -484,11 +410,7 @@ def countdown(n: int) -> int:
     return count
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn countdown"),
-        "Should transpile while loop. Got: {}",
-        result
-    );
+    assert!(result.contains("fn countdown"), "Should transpile while loop. Got: {}", result);
 }
 
 #[test]
@@ -503,11 +425,7 @@ def find_zero(items: list) -> int:
     return -1
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_zero"),
-        "Should transpile while True. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_zero"), "Should transpile while True. Got: {}", result);
 }
 
 #[test]
@@ -554,11 +472,7 @@ def grade(score: int) -> str:
         return "F"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn grade"),
-        "Should transpile if/elif chain. Got: {}",
-        result
-    );
+    assert!(result.contains("fn grade"), "Should transpile if/elif chain. Got: {}", result);
 }
 
 #[test]
@@ -593,11 +507,7 @@ def classify(x: int, y: int) -> str:
             return "third"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn classify"),
-        "Should transpile nested if. Got: {}",
-        result
-    );
+    assert!(result.contains("fn classify"), "Should transpile nested if. Got: {}", result);
 }
 
 // ============================================================================
@@ -611,11 +521,7 @@ def check(x: int):
     assert x > 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check"),
-        "Should transpile simple assert. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check"), "Should transpile simple assert. Got: {}", result);
 }
 
 #[test]
@@ -639,11 +545,7 @@ def check_equal(a: int, b: int):
     assert a == b, f"expected {a} == {b}"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_equal"),
-        "Should transpile assert equality. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_equal"), "Should transpile assert equality. Got: {}", result);
 }
 
 // ============================================================================
@@ -658,11 +560,7 @@ def swap(a: int, b: int) -> tuple:
     return (a, b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn swap"),
-        "Should transpile tuple unpack. Got: {}",
-        result
-    );
+    assert!(result.contains("fn swap"), "Should transpile tuple unpack. Got: {}", result);
 }
 
 #[test]
@@ -673,11 +571,7 @@ def rotate(a: int, b: int, c: int) -> tuple:
     return (a, b, c)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn rotate"),
-        "Should transpile triple unpack. Got: {}",
-        result
-    );
+    assert!(result.contains("fn rotate"), "Should transpile triple unpack. Got: {}", result);
 }
 
 #[test]
@@ -722,11 +616,7 @@ def remove_key(d: dict, key: str) -> dict:
     return d
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn remove_key"),
-        "Should transpile del dict key. Got: {}",
-        result
-    );
+    assert!(result.contains("fn remove_key"), "Should transpile del dict key. Got: {}", result);
 }
 
 // ============================================================================
@@ -743,11 +633,7 @@ def increment():
     counter += 1
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn increment"),
-        "Should transpile global statement. Got: {}",
-        result
-    );
+    assert!(result.contains("fn increment"), "Should transpile global statement. Got: {}", result);
 }
 
 // ============================================================================
@@ -761,11 +647,7 @@ def do_nothing():
     return None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn do_nothing"),
-        "Should transpile return None. Got: {}",
-        result
-    );
+    assert!(result.contains("fn do_nothing"), "Should transpile return None. Got: {}", result);
 }
 
 #[test]
@@ -775,11 +657,7 @@ def pair(a: int, b: int) -> tuple:
     return (a, b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pair"),
-        "Should transpile return tuple. Got: {}",
-        result
-    );
+    assert!(result.contains("fn pair"), "Should transpile return tuple. Got: {}", result);
 }
 
 #[test]
@@ -793,11 +671,7 @@ def sign(x: int) -> int:
     return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sign"),
-        "Should transpile conditional return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sign"), "Should transpile conditional return. Got: {}", result);
 }
 
 // ============================================================================
@@ -849,11 +723,7 @@ def noop(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn noop"),
-        "Should transpile pass in if. Got: {}",
-        result
-    );
+    assert!(result.contains("fn noop"), "Should transpile pass in if. Got: {}", result);
 }
 
 #[test]
@@ -867,11 +737,7 @@ def ignore_error(s: str) -> int:
     return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn ignore_error"),
-        "Should transpile pass in except. Got: {}",
-        result
-    );
+    assert!(result.contains("fn ignore_error"), "Should transpile pass in except. Got: {}", result);
 }
 
 // ============================================================================
@@ -910,11 +776,7 @@ def outer(x: int) -> int:
     return inner(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn outer"),
-        "Should transpile nested function. Got: {}",
-        result
-    );
+    assert!(result.contains("fn outer"), "Should transpile nested function. Got: {}", result);
 }
 
 // ============================================================================
@@ -935,11 +797,7 @@ def process(items: list) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should transpile early return guards. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should transpile early return guards. Got: {}", result);
 }
 
 #[test]

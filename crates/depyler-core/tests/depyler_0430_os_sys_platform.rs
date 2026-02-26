@@ -18,9 +18,7 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 #[allow(dead_code)]
 fn compile_rust_code(rust_code: &str) -> bool {
     let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    temp_file
-        .write_all(rust_code.as_bytes())
-        .expect("Failed to write to temp file");
+    temp_file.write_all(rust_code.as_bytes()).expect("Failed to write to temp file");
 
     let output = Command::new("rustc")
         .arg("--crate-type")

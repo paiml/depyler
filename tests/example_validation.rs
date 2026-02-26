@@ -28,11 +28,7 @@ mod example_validation_tests {
                         println!(
                             "{}: {}",
                             example_file,
-                            if result.is_ok() {
-                                "✓ PASS"
-                            } else {
-                                "✗ FAIL"
-                            }
+                            if result.is_ok() { "✓ PASS" } else { "✗ FAIL" }
                         );
 
                         // Examples should either transpile successfully or fail gracefully
@@ -58,10 +54,7 @@ mod example_validation_tests {
         let pipeline = DepylerPipeline::new();
 
         let test_examples = vec![
-            (
-                "Simple Function",
-                "def add(a: int, b: int) -> int: return a + b",
-            ),
+            ("Simple Function", "def add(a: int, b: int) -> int: return a + b"),
             (
                 "Control Flow",
                 r#"
@@ -102,16 +95,10 @@ def main_func(y: int) -> int:
                     println!("{}: ✓ PASS ({} functions)", name, hir.functions.len());
 
                     // Validate HIR structure
-                    assert!(
-                        !hir.functions.is_empty(),
-                        "HIR should contain at least one function"
-                    );
+                    assert!(!hir.functions.is_empty(), "HIR should contain at least one function");
 
                     for function in &hir.functions {
-                        assert!(
-                            !function.name.is_empty(),
-                            "Function name should not be empty"
-                        );
+                        assert!(!function.name.is_empty(), "Function name should not be empty");
                         // Note: Other validations would depend on specific HIR structure
                     }
                 }
@@ -172,14 +159,8 @@ def string_func(s: str) -> str:
         let pipeline = DepylerPipeline::new();
 
         let quality_test_examples = vec![
-            (
-                "Type Safety",
-                "def typed_func(x: int, y: str) -> str: return y + str(x)",
-            ),
-            (
-                "Memory Safety",
-                "def safe_access(items: list) -> int: return len(items)",
-            ),
+            ("Type Safety", "def typed_func(x: int, y: str) -> str: return y + str(x)"),
+            ("Memory Safety", "def safe_access(items: list) -> int: return len(items)"),
             (
                 "Error Handling",
                 "def div_safe(a: int, b: int) -> int: return a // b if b != 0 else 0",
@@ -194,10 +175,7 @@ def string_func(s: str) -> str:
                     println!("{}: ✓ GENERATED", name);
 
                     // Basic quality checks
-                    assert!(
-                        rust_code.contains("pub fn"),
-                        "Should generate public function"
-                    );
+                    assert!(rust_code.contains("pub fn"), "Should generate public function");
                     assert!(
                         rust_code.len() > code.len(),
                         "Generated code should be longer than source"
@@ -207,10 +185,7 @@ def string_func(s: str) -> str:
                     let has_types = rust_code.contains("i32")
                         || rust_code.contains("String")
                         || rust_code.contains("&str");
-                    println!(
-                        "  Contains Rust types: {}",
-                        if has_types { "✓" } else { "✗" }
-                    );
+                    println!("  Contains Rust types: {}", if has_types { "✓" } else { "✗" });
                 }
                 Err(e) => {
                     println!("{}: ✗ GENERATION FAILED: {}", name, e);
@@ -225,22 +200,10 @@ def string_func(s: str) -> str:
         let pipeline = DepylerPipeline::new();
 
         let compilation_examples = vec![
-            (
-                "Basic Arithmetic",
-                "def add(a: int, b: int) -> int: return a + b",
-            ),
-            (
-                "String Operations",
-                "def greet(name: str) -> str: return 'Hello, ' + name",
-            ),
-            (
-                "Boolean Logic",
-                "def is_positive(x: int) -> bool: return x > 0",
-            ),
-            (
-                "List Operations",
-                "def list_sum(nums: list) -> int: return sum(nums)",
-            ),
+            ("Basic Arithmetic", "def add(a: int, b: int) -> int: return a + b"),
+            ("String Operations", "def greet(name: str) -> str: return 'Hello, ' + name"),
+            ("Boolean Logic", "def is_positive(x: int) -> bool: return x > 0"),
+            ("List Operations", "def list_sum(nums: list) -> int: return sum(nums)"),
         ];
 
         println!("=== Compilation Readiness Validation ===");
@@ -255,10 +218,7 @@ def string_func(s: str) -> str:
                         ("Has function definition", rust_code.contains("pub fn")),
                         ("Has return type", rust_code.contains("->")),
                         ("Has return statement", rust_code.contains("return")),
-                        (
-                            "Has proper braces",
-                            rust_code.contains("{") && rust_code.contains("}"),
-                        ),
+                        ("Has proper braces", rust_code.contains("{") && rust_code.contains("}")),
                     ];
 
                     for (check_name, passed) in checks {
@@ -312,10 +272,7 @@ def complex_function(a: int, b: int, c: int) -> int:
                     let has_doc_attrs = rust_code.contains("#[doc");
 
                     println!("  Has comments: {}", if has_comments { "✓" } else { "✗" });
-                    println!(
-                        "  Has doc attributes: {}",
-                        if has_doc_attrs { "✓" } else { "✗" }
-                    );
+                    println!("  Has doc attributes: {}", if has_doc_attrs { "✓" } else { "✗" });
                 }
                 Err(e) => {
                     println!("Documented Example {}: ✗ FAILED: {}", i + 1, e);
@@ -329,10 +286,8 @@ def complex_function(a: int, b: int, c: int) -> int:
     fn validate_edge_case_examples() {
         let pipeline = DepylerPipeline::new();
 
-        let long_name_code = format!(
-            "def {}() -> int: return 1",
-            "very_long_function_name".repeat(10)
-        );
+        let long_name_code =
+            format!("def {}() -> int: return 1", "very_long_function_name".repeat(10));
         let edge_case_examples = vec![
             ("Empty Function", "def empty(): pass"),
             ("Single Return", "def constant() -> int: return 42"),

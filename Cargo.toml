@@ -1,3 +1,15 @@
+[package]
+name = "depyler-workspace"
+version = "4.1.1"
+edition = "2021"
+description = "Depyler workspace root - formal verification specs and design-by-contract invariants"
+license = "MIT OR Apache-2.0"
+publish = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+
 [workspace]
 members = [
     "crates/depyler-core",
@@ -102,6 +114,22 @@ tokio = { version = "1.0", features = ["full"] }
 # Serialization
 toml = "0.8"
 
+[workspace.lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "warn"
+unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
 [profile.release]
 opt-level = 3
 lto = "fat"
@@ -168,7 +196,11 @@ name = "binary_size"
 harness = false
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--generate-link-to-definition"]
+
+[lints]
+workspace = true
 
 [features]
 default = ["full"]

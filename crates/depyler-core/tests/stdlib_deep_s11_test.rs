@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -119,11 +117,7 @@ def nearly_equal(a: float, b: float) -> bool:
     return math.isclose(a, b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn nearly_equal"),
-        "Should transpile math.isclose. Got: {}",
-        result
-    );
+    assert!(result.contains("fn nearly_equal"), "Should transpile math.isclose. Got: {}", result);
 }
 
 #[test]
@@ -135,11 +129,7 @@ def fact(n: int) -> int:
     return math.factorial(n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn fact"),
-        "Should transpile math.factorial. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fact"), "Should transpile math.factorial. Got: {}", result);
 }
 
 #[test]
@@ -235,11 +225,7 @@ def get_home() -> str:
     return os.getenv("HOME")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_home"),
-        "Should transpile os.getenv. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_home"), "Should transpile os.getenv. Got: {}", result);
 }
 
 #[test]
@@ -267,11 +253,7 @@ def file_exists(path: str) -> bool:
     return os.path.exists(path)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn file_exists"),
-        "Should transpile os.path.exists. Got: {}",
-        result
-    );
+    assert!(result.contains("fn file_exists"), "Should transpile os.path.exists. Got: {}", result);
 }
 
 #[test]
@@ -283,11 +265,7 @@ def make_path(base: str, name: str) -> str:
     return os.path.join(base, name)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn make_path"),
-        "Should transpile os.path.join. Got: {}",
-        result
-    );
+    assert!(result.contains("fn make_path"), "Should transpile os.path.join. Got: {}", result);
 }
 
 #[test]
@@ -299,11 +277,7 @@ def current_dir() -> str:
     return os.getcwd()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn current_dir"),
-        "Should transpile os.getcwd. Got: {}",
-        result
-    );
+    assert!(result.contains("fn current_dir"), "Should transpile os.getcwd. Got: {}", result);
 }
 
 #[test]
@@ -315,11 +289,7 @@ def list_files(path: str) -> list:
     return os.listdir(path)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn list_files"),
-        "Should transpile os.listdir. Got: {}",
-        result
-    );
+    assert!(result.contains("fn list_files"), "Should transpile os.listdir. Got: {}", result);
 }
 
 // ============================================================================
@@ -335,11 +305,7 @@ def to_json(data: dict) -> str:
     return json.dumps(data)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_json"),
-        "Should transpile json.dumps. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_json"), "Should transpile json.dumps. Got: {}", result);
 }
 
 #[test]
@@ -351,11 +317,7 @@ def from_json(text: str) -> dict:
     return json.loads(text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn from_json"),
-        "Should transpile json.loads. Got: {}",
-        result
-    );
+    assert!(result.contains("fn from_json"), "Should transpile json.loads. Got: {}", result);
 }
 
 // ============================================================================
@@ -372,11 +334,7 @@ def is_match(pattern: str, text: str) -> bool:
     return m is not None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_match"),
-        "Should transpile re.match. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_match"), "Should transpile re.match. Got: {}", result);
 }
 
 #[test]
@@ -389,11 +347,7 @@ def has_pattern(pattern: str, text: str) -> bool:
     return m is not None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn has_pattern"),
-        "Should transpile re.search. Got: {}",
-        result
-    );
+    assert!(result.contains("fn has_pattern"), "Should transpile re.search. Got: {}", result);
 }
 
 #[test]
@@ -405,11 +359,7 @@ def find_numbers(text: str) -> list:
     return re.findall(r"\d+", text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_numbers"),
-        "Should transpile re.findall. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_numbers"), "Should transpile re.findall. Got: {}", result);
 }
 
 #[test]
@@ -421,11 +371,7 @@ def clean_spaces(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn clean_spaces"),
-        "Should transpile re.sub. Got: {}",
-        result
-    );
+    assert!(result.contains("fn clean_spaces"), "Should transpile re.sub. Got: {}", result);
 }
 
 #[test]
@@ -437,11 +383,7 @@ def split_words(text: str) -> list:
     return re.split(r"\s+", text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn split_words"),
-        "Should transpile re.split. Got: {}",
-        result
-    );
+    assert!(result.contains("fn split_words"), "Should transpile re.split. Got: {}", result);
 }
 
 // ============================================================================
@@ -457,11 +399,7 @@ def chain_lists(a: list, b: list) -> list:
     return list(itertools.chain(a, b))
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn chain_lists"),
-        "Should transpile itertools.chain. Got: {}",
-        result
-    );
+    assert!(result.contains("fn chain_lists"), "Should transpile itertools.chain. Got: {}", result);
 }
 
 // ============================================================================
@@ -477,11 +415,7 @@ def product(items: list) -> int:
     return reduce(lambda x, y: x * y, items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn product"),
-        "Should transpile functools.reduce. Got: {}",
-        result
-    );
+    assert!(result.contains("fn product"), "Should transpile functools.reduce. Got: {}", result);
 }
 
 // ============================================================================
@@ -569,11 +503,7 @@ def make_config() -> dict:
     return {"host": "localhost", "port": "8080"}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn make_config"),
-        "Should transpile dict literal. Got: {}",
-        result
-    );
+    assert!(result.contains("fn make_config"), "Should transpile dict literal. Got: {}", result);
 }
 
 #[test]
@@ -597,11 +527,7 @@ def remove_key(d: dict, key: str) -> str:
     return d.pop(key)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn remove_key"),
-        "Should transpile dict.pop. Got: {}",
-        result
-    );
+    assert!(result.contains("fn remove_key"), "Should transpile dict.pop. Got: {}", result);
 }
 
 #[test]
@@ -611,11 +537,7 @@ def get_or_set(d: dict, key: str, val: str) -> str:
     return d.setdefault(key, val)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_or_set"),
-        "Should transpile dict.setdefault. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_or_set"), "Should transpile dict.setdefault. Got: {}", result);
 }
 
 // ============================================================================
@@ -629,11 +551,7 @@ def first_n(items: list, n: int) -> list:
     return items[:n]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn first_n"),
-        "Should transpile list slice [:n]. Got: {}",
-        result
-    );
+    assert!(result.contains("fn first_n"), "Should transpile list slice [:n]. Got: {}", result);
 }
 
 #[test]
@@ -643,11 +561,7 @@ def skip_n(items: list, n: int) -> list:
     return items[n:]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn skip_n"),
-        "Should transpile list slice [n:]. Got: {}",
-        result
-    );
+    assert!(result.contains("fn skip_n"), "Should transpile list slice [n:]. Got: {}", result);
 }
 
 #[test]
@@ -675,11 +589,7 @@ def to_list(items: str) -> list:
     return list(items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_list"),
-        "Should transpile list() constructor. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_list"), "Should transpile list() constructor. Got: {}", result);
 }
 
 #[test]
@@ -689,11 +599,7 @@ def to_set(items: list) -> set:
     return set(items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_set"),
-        "Should transpile set() constructor. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_set"), "Should transpile set() constructor. Got: {}", result);
 }
 
 #[test]
@@ -749,11 +655,7 @@ def nothing() -> None:
     return None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn nothing"),
-        "Should transpile None return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn nothing"), "Should transpile None return. Got: {}", result);
 }
 
 // ============================================================================
@@ -770,11 +672,7 @@ def compute(x: float) -> float:
     return math.sqrt(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn compute"),
-        "Should handle multiple imports. Got: {}",
-        result
-    );
+    assert!(result.contains("fn compute"), "Should handle multiple imports. Got: {}", result);
 }
 
 #[test]
@@ -786,9 +684,5 @@ def root(x: float) -> float:
     return sqrt(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn root"),
-        "Should handle from-import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn root"), "Should handle from-import. Got: {}", result);
 }

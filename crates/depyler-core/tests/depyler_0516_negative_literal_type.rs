@@ -37,9 +37,7 @@ fn unique_temp_path() -> (String, String) {
 
 fn transpile_to_rust(python_code: &str) -> Result<String, String> {
     let ast = parse(python_code, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
     let type_mapper = TypeMapper::default();
     let (rust_code, _deps) = generate_rust_file(&hir, &type_mapper).map_err(|e| e.to_string())?;
     Ok(rust_code)
@@ -65,10 +63,7 @@ fn check_rust_compiles(rust_code: &str) -> Result<(), String> {
     let _ = fs::remove_file(&temp_rlib);
 
     if !output.status.success() {
-        return Err(format!(
-            "Compilation failed:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+        return Err(format!("Compilation failed:\n{}", String::from_utf8_lossy(&output.stderr)));
     }
 
     Ok(())
@@ -177,10 +172,7 @@ fn test_DEPYLER_0516_positive_still_works() {
         );
 
         check_rust_compiles(&rust_code).unwrap_or_else(|e| {
-            panic!(
-                "DEPYLER-0516: '{}' should still compile.\nError:\n{}",
-                val, e
-            )
+            panic!("DEPYLER-0516: '{}' should still compile.\nError:\n{}", val, e)
         });
     }
 }

@@ -16,9 +16,7 @@ use rustpython_parser::{parse, Mode};
 /// Transpile with optimizer (matches CLI behavior)
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -58,11 +56,7 @@ def check_length(text: str) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile walrus in if: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile walrus in if: {:?}", result.err());
 
     let rust = result.unwrap();
     // Should have assignment for n before/outside the if (hoisted correctly)
@@ -101,19 +95,11 @@ def find_first_long(text: str, min_len: int) -> str:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile walrus in for-if: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile walrus in for-if: {:?}", result.err());
 
     let rust = result.unwrap();
     // Should have assignment before if inside the for loop
-    assert!(
-        rust.contains("let n"),
-        "Should generate let binding for walrus. Got:\n{}",
-        rust
-    );
+    assert!(rust.contains("let n"), "Should generate let binding for walrus. Got:\n{}", rust);
 }
 
 /// Test walrus operator in simple comparison
@@ -128,11 +114,7 @@ def check_value(data: dict) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile walrus with None check: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile walrus with None check: {:?}", result.err());
 
     let rust = result.unwrap();
     // Should use if let or Option pattern
@@ -172,11 +154,7 @@ def check(x: int) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile simple walrus if: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile simple walrus if: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(
@@ -197,18 +175,10 @@ def has_items(items: list) -> bool:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile walrus boolean: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile walrus boolean: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("let count"),
-        "Should generate let count. Got:\n{}",
-        rust
-    );
+    assert!(rust.contains("let count"), "Should generate let count. Got:\n{}", rust);
 }
 
 /// Test nested walrus operators
@@ -223,11 +193,7 @@ def process(a: int, b: int) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile nested walrus: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should transpile nested walrus: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(

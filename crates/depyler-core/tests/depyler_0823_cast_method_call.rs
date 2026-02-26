@@ -21,11 +21,7 @@ def test_len_method() -> int:
 
     // This should NOT panic - it should generate valid Rust
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -51,11 +47,7 @@ def test_int_method() -> int:
 "#;
 
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 }
 
 /// Test chained method calls after cast
@@ -70,9 +62,5 @@ def test_chained() -> str:
 "#;
 
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 }

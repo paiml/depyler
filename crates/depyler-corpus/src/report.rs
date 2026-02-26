@@ -219,10 +219,7 @@ impl CorpusReport {
             })
             .collect();
 
-        ErrorDistribution {
-            by_category,
-            by_error_code,
-        }
+        ErrorDistribution { by_category, by_error_code }
     }
 
     fn build_blocker_analysis(taxonomy: &ErrorTaxonomy) -> BlockerAnalysis {
@@ -247,12 +244,7 @@ impl CorpusReport {
             }
         }
 
-        BlockerAnalysis {
-            p0_critical: p0,
-            p1_high: p1,
-            p2_medium: p2,
-            p3_low: p3,
-        }
+        BlockerAnalysis { p0_critical: p0, p1_high: p1, p2_medium: p2, p3_low: p3 }
     }
 
     fn build_toyota_metrics(
@@ -268,19 +260,12 @@ impl CorpusReport {
                 .iter()
                 .filter(|b| b.priority == BlockerPriority::P0Critical)
                 .count(),
-            andon_triggers: if andon_status == AndonStatus::Red {
-                1
-            } else {
-                0
-            },
+            andon_triggers: if andon_status == AndonStatus::Red { 1 } else { 0 },
             kaizen_opportunities: taxonomy
                 .blockers
                 .iter()
                 .filter(|b| {
-                    matches!(
-                        b.priority,
-                        BlockerPriority::P1High | BlockerPriority::P2Medium
-                    )
+                    matches!(b.priority, BlockerPriority::P1High | BlockerPriority::P2Medium)
                 })
                 .count(),
             hansei_items: Self::generate_hansei_items(taxonomy),
@@ -328,35 +313,20 @@ impl CorpusReport {
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
 
-        md.push_str(&format!(
-            "# Corpus Analysis Report: {}\n\n",
-            self.metadata.corpus_name
-        ));
+        md.push_str(&format!("# Corpus Analysis Report: {}\n\n", self.metadata.corpus_name));
         md.push_str(&format!("**Generated**: {}\n", self.metadata.generated_at));
-        md.push_str(&format!(
-            "**Depyler Version**: {}\n\n",
-            self.metadata.depyler_version
-        ));
+        md.push_str(&format!("**Depyler Version**: {}\n\n", self.metadata.depyler_version));
 
         md.push_str("## Executive Summary\n\n");
         md.push_str("| Metric | Value |\n");
         md.push_str("|--------|-------|\n");
-        md.push_str(&format!(
-            "| Single-Shot Rate | {:.1}% |\n",
-            self.summary.single_shot_rate
-        ));
+        md.push_str(&format!("| Single-Shot Rate | {:.1}% |\n", self.summary.single_shot_rate));
         md.push_str(&format!(
             "| 95% CI | [{:.1}%, {:.1}%] |\n",
             self.summary.confidence_interval_95.0, self.summary.confidence_interval_95.1
         ));
-        md.push_str(&format!(
-            "| Total Files | {} |\n",
-            self.summary.total_python_files
-        ));
-        md.push_str(&format!(
-            "| Compiled Successfully | {} |\n",
-            self.summary.compilation.success
-        ));
+        md.push_str(&format!("| Total Files | {} |\n", self.summary.total_python_files));
+        md.push_str(&format!("| Compiled Successfully | {} |\n", self.summary.compilation.success));
         md.push_str(&format!(
             "| Compilation Failures | {} |\n\n",
             self.summary.compilation.failure
@@ -366,10 +336,7 @@ impl CorpusReport {
         md.push_str("| Error Code | Count | Description |\n");
         md.push_str("|------------|-------|-------------|\n");
         for err in &self.error_distribution.by_error_code {
-            md.push_str(&format!(
-                "| {} | {} | {} |\n",
-                err.code, err.count, err.description
-            ));
+            md.push_str(&format!("| {} | {} | {} |\n", err.code, err.count, err.description));
         }
         md.push('\n');
 
@@ -396,14 +363,8 @@ impl CorpusReport {
         }
 
         md.push_str("## Toyota Way Metrics\n\n");
-        md.push_str(&format!(
-            "- Jidoka Alerts: {}\n",
-            self.toyota_way_metrics.jidoka_alerts
-        ));
-        md.push_str(&format!(
-            "- Andon Triggers: {}\n",
-            self.toyota_way_metrics.andon_triggers
-        ));
+        md.push_str(&format!("- Jidoka Alerts: {}\n", self.toyota_way_metrics.jidoka_alerts));
+        md.push_str(&format!("- Andon Triggers: {}\n", self.toyota_way_metrics.andon_triggers));
         md.push_str(&format!(
             "- Kaizen Opportunities: {}\n\n",
             self.toyota_way_metrics.kaizen_opportunities
@@ -424,10 +385,7 @@ impl CorpusReport {
         let mut out = String::new();
 
         out.push_str("╔══════════════════════════════════════════════════════════════╗\n");
-        out.push_str(&format!(
-            "║  CORPUS ANALYSIS: {:<42} ║\n",
-            self.metadata.corpus_name
-        ));
+        out.push_str(&format!("║  CORPUS ANALYSIS: {:<42} ║\n", self.metadata.corpus_name));
         out.push_str("╠══════════════════════════════════════════════════════════════╣\n");
         out.push_str(&format!(
             "║  Single-Shot Rate:        {:>5.1}%                             ║\n",
@@ -514,13 +472,7 @@ mod tests {
             total_errors: 0,
         };
 
-        CorpusReport::new(
-            &config,
-            transpile_results,
-            compile_results,
-            taxonomy,
-            statistics,
-        )
+        CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics)
     }
 
     #[test]
@@ -568,12 +520,7 @@ mod tests {
         let mut by_code = HashMap::new();
         by_code.insert("E0308".to_string(), 1);
 
-        let taxonomy = ErrorTaxonomy {
-            errors: vec![],
-            by_category,
-            by_code,
-            blockers: vec![],
-        };
+        let taxonomy = ErrorTaxonomy { errors: vec![], by_category, by_code, blockers: vec![] };
 
         let statistics = StatisticalAnalysis {
             total_files: 1,
@@ -588,13 +535,8 @@ mod tests {
             total_errors: 1,
         };
 
-        let report = CorpusReport::new(
-            &config,
-            transpile_results,
-            compile_results,
-            taxonomy,
-            statistics,
-        );
+        let report =
+            CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
         assert_eq!(report.summary.transpilation.failure, 1);
         assert_eq!(report.summary.compilation.failure, 1);
         assert!(!report.error_distribution.by_category.is_empty());
@@ -624,13 +566,8 @@ mod tests {
             total_errors: 0,
         };
 
-        let report = CorpusReport::new(
-            &config,
-            transpile_results,
-            compile_results,
-            taxonomy,
-            statistics,
-        );
+        let report =
+            CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
         assert_eq!(report.summary.transpilation.rate, 0.0);
     }
 
@@ -696,13 +633,8 @@ mod tests {
             total_errors: 0,
         };
 
-        let report = CorpusReport::new(
-            &config,
-            transpile_results,
-            compile_results,
-            taxonomy,
-            statistics,
-        );
+        let report =
+            CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
         let md = report.to_markdown();
 
         assert!(md.contains("P0 Critical"));
@@ -727,26 +659,11 @@ mod tests {
 
     #[test]
     fn test_error_code_description_all() {
-        assert_eq!(
-            CorpusReport::error_code_description("E0308"),
-            "mismatched types"
-        );
-        assert_eq!(
-            CorpusReport::error_code_description("E0412"),
-            "cannot find type"
-        );
-        assert_eq!(
-            CorpusReport::error_code_description("E0425"),
-            "cannot find value"
-        );
-        assert_eq!(
-            CorpusReport::error_code_description("E0282"),
-            "type annotations needed"
-        );
-        assert_eq!(
-            CorpusReport::error_code_description("E0277"),
-            "trait not implemented"
-        );
+        assert_eq!(CorpusReport::error_code_description("E0308"), "mismatched types");
+        assert_eq!(CorpusReport::error_code_description("E0412"), "cannot find type");
+        assert_eq!(CorpusReport::error_code_description("E0425"), "cannot find value");
+        assert_eq!(CorpusReport::error_code_description("E0282"), "type annotations needed");
+        assert_eq!(CorpusReport::error_code_description("E0277"), "trait not implemented");
         assert_eq!(CorpusReport::error_code_description("E9999"), "other error");
     }
 

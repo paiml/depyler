@@ -137,11 +137,7 @@ fn test_analyzer_with_custom_config() {
 #[test]
 fn test_analyze_empty_program() {
     let mut analyzer = InliningAnalyzer::new(InliningConfig::default());
-    let program = HirProgram {
-        functions: vec![],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
     let decisions = analyzer.analyze_program(&program);
     assert!(decisions.is_empty());
 }
@@ -181,10 +177,7 @@ fn test_trivial_function_should_inline() {
 
 #[test]
 fn test_large_function_not_inlined() {
-    let config = InliningConfig {
-        max_inline_size: 10,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_size: 10, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
     let program = HirProgram {
         functions: vec![create_function_with_size("large_func", 20)],
@@ -205,10 +198,7 @@ fn test_large_function_not_inlined() {
 
 #[test]
 fn test_small_function_can_be_inlined() {
-    let config = InliningConfig {
-        max_inline_size: 100,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_size: 100, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
     let program = HirProgram {
         functions: vec![create_function_with_size("small_func", 3)],
@@ -243,10 +233,7 @@ fn test_function_with_loop_not_inlined_default() {
 
 #[test]
 fn test_function_with_loop_can_inline_when_enabled() {
-    let config = InliningConfig {
-        inline_loops: true,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_loops: true, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
     let program = HirProgram {
         functions: vec![create_function_with_loop("sum_range")],
@@ -325,11 +312,7 @@ fn test_caller_callee_relationship() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
     let decisions = analyzer.analyze_program(&program);
     assert!(decisions.contains_key("callee"));
     assert!(decisions.contains_key("caller"));
@@ -354,10 +337,7 @@ fn test_apply_inlining_empty_decisions() {
 fn test_apply_inlining_preserves_structure() {
     let analyzer = InliningAnalyzer::new(InliningConfig::default());
     let program = HirProgram {
-        functions: vec![
-            create_trivial_function("func1"),
-            create_trivial_function("func2"),
-        ],
+        functions: vec![create_trivial_function("func1"), create_trivial_function("func2")],
         classes: vec![],
         imports: vec![],
     };
@@ -388,11 +368,7 @@ fn test_function_with_print_has_side_effects() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     if let Some(decision) = decisions.get("printer") {
@@ -412,10 +388,7 @@ fn test_function_with_append_has_side_effects() {
 
     let func = HirFunction {
         name: "appender".to_string(),
-        params: smallvec![HirParam::new(
-            "items".to_string(),
-            Type::List(Box::new(Type::Int))
-        )],
+        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::None,
         body: vec![HirStmt::Expr(HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("items".to_string())),
@@ -428,11 +401,7 @@ fn test_function_with_append_has_side_effects() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     assert!(decisions.contains_key("appender"));
@@ -481,11 +450,7 @@ fn test_high_call_count_affects_decision() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     assert!(decisions.contains_key("helper"));
@@ -534,9 +499,7 @@ fn test_mutual_recursion_detected() {
                 op: BinOp::Eq,
                 right: Box::new(HirExpr::Literal(Literal::Int(0))),
             },
-            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
-                false,
-            ))))],
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(false))))],
             else_body: Some(vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "is_even".to_string(),
                 args: vec![HirExpr::Binary {
@@ -552,11 +515,7 @@ fn test_mutual_recursion_detected() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![is_even, is_odd],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![is_even, is_odd], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     // Both functions should be detected
@@ -568,10 +527,7 @@ fn test_mutual_recursion_detected() {
 
 #[test]
 fn test_disable_single_use_inlining() {
-    let config = InliningConfig {
-        inline_single_use: false,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_single_use: false, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
 
     let program = HirProgram {
@@ -586,11 +542,8 @@ fn test_disable_single_use_inlining() {
 
 #[test]
 fn test_disable_trivial_inlining() {
-    let config = InliningConfig {
-        inline_trivial: false,
-        inline_single_use: false,
-        ..Default::default()
-    };
+    let config =
+        InliningConfig { inline_trivial: false, inline_single_use: false, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
 
     let program = HirProgram {

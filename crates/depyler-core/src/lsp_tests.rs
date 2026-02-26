@@ -73,34 +73,22 @@ fn test_position_to_offset() {
     let text = "line1\nline2\nline3";
 
     // Beginning of document
-    let pos = Position {
-        line: 0,
-        character: 0,
-    };
+    let pos = Position { line: 0, character: 0 };
     let offset = server.position_to_offset(text, pos);
     assert_eq!(offset, TextSize::from(0));
 
     // Middle of first line
-    let pos = Position {
-        line: 0,
-        character: 3,
-    };
+    let pos = Position { line: 0, character: 3 };
     let offset = server.position_to_offset(text, pos);
     assert_eq!(offset, TextSize::from(3));
 
     // Beginning of second line
-    let pos = Position {
-        line: 1,
-        character: 0,
-    };
+    let pos = Position { line: 1, character: 0 };
     let offset = server.position_to_offset(text, pos);
     assert_eq!(offset, TextSize::from(6)); // "line1\n"
 
     // Middle of second line
-    let pos = Position {
-        line: 1,
-        character: 2,
-    };
+    let pos = Position { line: 1, character: 2 };
     let offset = server.position_to_offset(text, pos);
     assert_eq!(offset, TextSize::from(8)); // "line1\nli"
 }
@@ -137,22 +125,10 @@ fn test_position_conversion_roundtrip() {
     let text = "def test():\n    return 42\n";
 
     let positions = vec![
-        Position {
-            line: 0,
-            character: 0,
-        },
-        Position {
-            line: 0,
-            character: 4,
-        },
-        Position {
-            line: 1,
-            character: 4,
-        },
-        Position {
-            line: 1,
-            character: 11,
-        },
+        Position { line: 0, character: 0 },
+        Position { line: 0, character: 4 },
+        Position { line: 1, character: 4 },
+        Position { line: 1, character: 11 },
     ];
 
     for pos in positions {
@@ -195,10 +171,7 @@ fn test_get_prefix_at_position() {
 fn test_completion_empty_document() {
     let server = LspServer::new();
     let uri = "test.py";
-    let pos = Position {
-        line: 0,
-        character: 0,
-    };
+    let pos = Position { line: 0, character: 0 };
 
     let response = server.completion(uri, pos);
     assert!(response.items.is_empty());
@@ -212,10 +185,7 @@ fn test_completion_with_document() {
 
     server.did_open(uri.clone(), text, 1);
 
-    let pos = Position {
-        line: 1,
-        character: 0,
-    };
+    let pos = Position { line: 1, character: 0 };
     let response = server.completion(&uri, pos);
 
     // Should return some completions (depends on IDE integration)
@@ -227,10 +197,7 @@ fn test_completion_with_document() {
 fn test_hover_no_document() {
     let server = LspServer::new();
     let uri = "test.py";
-    let pos = Position {
-        line: 0,
-        character: 0,
-    };
+    let pos = Position { line: 0, character: 0 };
 
     let response = server.hover(uri, pos);
     assert!(response.is_none());
@@ -244,10 +211,7 @@ fn test_hover_with_document() {
 
     server.did_open(uri.clone(), text, 1);
 
-    let pos = Position {
-        line: 0,
-        character: 4,
-    }; // On "test"
+    let pos = Position { line: 0, character: 4 }; // On "test"
     let response = server.hover(&uri, pos);
 
     // May or may not return hover info depending on IDE integration
@@ -289,10 +253,7 @@ fn test_diagnostics_with_document() {
 fn test_goto_definition_no_document() {
     let server = LspServer::new();
     let uri = "test.py";
-    let pos = Position {
-        line: 0,
-        character: 0,
-    };
+    let pos = Position { line: 0, character: 0 };
 
     let response = server.goto_definition(uri, pos);
     assert!(response.is_none());
@@ -306,10 +267,7 @@ fn test_goto_definition_with_document() {
 
     server.did_open(uri.clone(), text, 1);
 
-    let pos = Position {
-        line: 1,
-        character: 0,
-    }; // On "test" call
+    let pos = Position { line: 1, character: 0 }; // On "test" call
     let response = server.goto_definition(&uri, pos);
 
     // May or may not find definition depending on IDE integration
@@ -329,10 +287,7 @@ fn test_goto_definition_with_document() {
 fn test_find_references_no_document() {
     let server = LspServer::new();
     let uri = "test.py";
-    let pos = Position {
-        line: 0,
-        character: 0,
-    };
+    let pos = Position { line: 0, character: 0 };
 
     let references = server.find_references(uri, pos);
     assert!(references.is_empty());
@@ -346,10 +301,7 @@ fn test_find_references_with_document() {
 
     server.did_open(uri.clone(), text, 1);
 
-    let pos = Position {
-        line: 0,
-        character: 0,
-    }; // On first "x"
+    let pos = Position { line: 0, character: 0 }; // On first "x"
     let references = server.find_references(&uri, pos);
 
     // Should find references to x (or be empty if not implemented)
@@ -375,14 +327,8 @@ fn test_completion_item_lsp_conversion() {
 fn test_diagnostic_lsp_conversion() {
     let diagnostic = DiagnosticLsp {
         range: Range {
-            start: Position {
-                line: 0,
-                character: 0,
-            },
-            end: Position {
-                line: 0,
-                character: 5,
-            },
+            start: Position { line: 0, character: 0 },
+            end: Position { line: 0, character: 5 },
         },
         severity: Some(1), // Error
         code: Some("E001".to_string()),
@@ -399,14 +345,8 @@ fn test_diagnostic_lsp_conversion() {
 #[test]
 fn test_range_serialization() {
     let range = Range {
-        start: Position {
-            line: 0,
-            character: 0,
-        },
-        end: Position {
-            line: 1,
-            character: 10,
-        },
+        start: Position { line: 0, character: 0 },
+        end: Position { line: 1, character: 10 },
     };
 
     let json = serde_json::to_string(&range).unwrap();
@@ -434,14 +374,8 @@ fn test_location_response() {
     let location = LocationResponse {
         uri: "file:///test.py".to_string(),
         range: Range {
-            start: Position {
-                line: 5,
-                character: 10,
-            },
-            end: Position {
-                line: 5,
-                character: 20,
-            },
+            start: Position { line: 5, character: 10 },
+            end: Position { line: 5, character: 20 },
         },
     };
 
@@ -455,13 +389,7 @@ fn test_edge_case_empty_text() {
     let server = LspServer::new();
     let text = "";
 
-    let offset = server.position_to_offset(
-        text,
-        Position {
-            line: 0,
-            character: 0,
-        },
-    );
+    let offset = server.position_to_offset(text, Position { line: 0, character: 0 });
     assert_eq!(offset, TextSize::from(0));
 
     let pos = server.offset_to_position(text, TextSize::from(0));
@@ -478,10 +406,7 @@ fn test_edge_case_unicode_text() {
     let text = "café = '☕'";
 
     // Position after 'café'
-    let pos = Position {
-        line: 0,
-        character: 4,
-    };
+    let pos = Position { line: 0, character: 4 };
     let offset = server.position_to_offset(text, pos);
 
     // Convert back
@@ -503,12 +428,8 @@ fn test_completion_kind_mapping() {
     ];
 
     for (kind, expected_lsp_kind) in kinds {
-        let item = CompletionItem {
-            label: "test".to_string(),
-            kind,
-            detail: None,
-            documentation: None,
-        };
+        let item =
+            CompletionItem { label: "test".to_string(), kind, detail: None, documentation: None };
 
         // This matches the conversion logic in completion()
         let lsp_kind = match item.kind {

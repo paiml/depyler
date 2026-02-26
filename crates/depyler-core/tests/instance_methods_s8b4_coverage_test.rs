@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -31,10 +29,7 @@ def f() -> list:
     return items
 "#,
     );
-    assert!(
-        code.contains("push") || code.contains("append"),
-        "Should handle list.append: {code}"
-    );
+    assert!(code.contains("push") || code.contains("append"), "Should handle list.append: {code}");
 }
 
 #[test]
@@ -60,10 +55,7 @@ def f(items: list) -> int:
     return items.pop()
 "#,
     );
-    assert!(
-        code.contains("pop") || code.contains("remove"),
-        "Should handle list.pop: {code}"
-    );
+    assert!(code.contains("pop") || code.contains("remove"), "Should handle list.pop: {code}");
 }
 
 #[test]
@@ -88,10 +80,7 @@ def f(items: list) -> None:
     items.insert(0, 42)
 "#,
     );
-    assert!(
-        code.contains("insert") || code.contains("42"),
-        "Should handle list.insert: {code}"
-    );
+    assert!(code.contains("insert") || code.contains("42"), "Should handle list.insert: {code}");
 }
 
 #[test]
@@ -129,10 +118,7 @@ def f(items: list) -> list:
     return items
 "#,
     );
-    assert!(
-        code.contains("reverse"),
-        "Should handle list.reverse: {code}"
-    );
+    assert!(code.contains("reverse"), "Should handle list.reverse: {code}");
 }
 
 #[test]
@@ -198,10 +184,7 @@ def f(d: dict, key: str) -> int:
     return d.get(key, 0)
 "#,
     );
-    assert!(
-        code.contains("get") || code.contains("unwrap_or"),
-        "Should handle dict.get: {code}"
-    );
+    assert!(code.contains("get") || code.contains("unwrap_or"), "Should handle dict.get: {code}");
 }
 
 #[test]
@@ -212,10 +195,7 @@ def f(d: dict) -> list:
     return list(d.keys())
 "#,
     );
-    assert!(
-        code.contains("keys") || code.contains("iter"),
-        "Should handle dict.keys: {code}"
-    );
+    assert!(code.contains("keys") || code.contains("iter"), "Should handle dict.keys: {code}");
 }
 
 #[test]
@@ -226,10 +206,7 @@ def f(d: dict) -> list:
     return list(d.values())
 "#,
     );
-    assert!(
-        code.contains("values") || code.contains("iter"),
-        "Should handle dict.values: {code}"
-    );
+    assert!(code.contains("values") || code.contains("iter"), "Should handle dict.values: {code}");
 }
 
 #[test]
@@ -272,10 +249,7 @@ def f(d: dict, key: str) -> int:
     return d.pop(key)
 "#,
     );
-    assert!(
-        code.contains("remove") || code.contains("pop"),
-        "Should handle dict.pop: {code}"
-    );
+    assert!(code.contains("remove") || code.contains("pop"), "Should handle dict.pop: {code}");
 }
 
 #[test]
@@ -341,10 +315,7 @@ def f(s: str) -> str:
     return s.strip()
 "#,
     );
-    assert!(
-        code.contains("trim") || code.contains("strip"),
-        "Should handle str.strip: {code}"
-    );
+    assert!(code.contains("trim") || code.contains("strip"), "Should handle str.strip: {code}");
 }
 
 #[test]
@@ -383,10 +354,7 @@ def f(s: str) -> list:
     return s.split(",")
 "#,
     );
-    assert!(
-        code.contains("split") || code.contains(","),
-        "Should handle str.split: {code}"
-    );
+    assert!(code.contains("split") || code.contains(","), "Should handle str.split: {code}");
 }
 
 #[test]
@@ -411,10 +379,7 @@ def f(items: list) -> str:
     return ", ".join(items)
 "#,
     );
-    assert!(
-        code.contains("join") || code.contains(","),
-        "Should handle str.join: {code}"
-    );
+    assert!(code.contains("join") || code.contains(","), "Should handle str.join: {code}");
 }
 
 #[test]
@@ -425,10 +390,7 @@ def f(s: str) -> str:
     return s.replace("old", "new")
 "#,
     );
-    assert!(
-        code.contains("replace") || code.contains("old"),
-        "Should handle str.replace: {code}"
-    );
+    assert!(code.contains("replace") || code.contains("old"), "Should handle str.replace: {code}");
 }
 
 #[test]
@@ -439,10 +401,7 @@ def f(s: str) -> int:
     return s.find("x")
 "#,
     );
-    assert!(
-        code.contains("find") || code.contains("position"),
-        "Should handle str.find: {code}"
-    );
+    assert!(code.contains("find") || code.contains("position"), "Should handle str.find: {code}");
 }
 
 #[test]
@@ -543,10 +502,7 @@ def f(s: str) -> int:
     return s.count("a")
 "#,
     );
-    assert!(
-        code.contains("matches") || code.contains("count"),
-        "Should handle str.count: {code}"
-    );
+    assert!(code.contains("matches") || code.contains("count"), "Should handle str.count: {code}");
 }
 
 #[test]
@@ -585,10 +541,7 @@ def f(name: str) -> str:
     return "Hello, {}".format(name)
 "#,
     );
-    assert!(
-        code.contains("format") || code.contains("Hello"),
-        "Should handle str.format: {code}"
-    );
+    assert!(code.contains("format") || code.contains("Hello"), "Should handle str.format: {code}");
 }
 
 // ── Set methods ────────────────────────────────────────────────────
@@ -603,10 +556,7 @@ def f() -> set:
     return s
 "#,
     );
-    assert!(
-        code.contains("insert") || code.contains("add"),
-        "Should handle set.add: {code}"
-    );
+    assert!(code.contains("insert") || code.contains("add"), "Should handle set.add: {code}");
 }
 
 #[test]
@@ -694,10 +644,7 @@ class Registry:
         return self.data.get(key, 0)
 "#,
     );
-    assert!(
-        code.contains("insert") || code.contains("get"),
-        "Should handle dict on self: {code}"
-    );
+    assert!(code.contains("insert") || code.contains("get"), "Should handle dict on self: {code}");
 }
 
 // ── Builtin functions ──────────────────────────────────────────────
@@ -721,10 +668,7 @@ def f(a: int, b: int) -> int:
     return min(a, b)
 "#,
     );
-    assert!(
-        code.contains("min") || code.contains("std::cmp"),
-        "Should handle min(): {code}"
-    );
+    assert!(code.contains("min") || code.contains("std::cmp"), "Should handle min(): {code}");
 }
 
 #[test]
@@ -735,10 +679,7 @@ def f(a: int, b: int) -> int:
     return max(a, b)
 "#,
     );
-    assert!(
-        code.contains("max") || code.contains("std::cmp"),
-        "Should handle max(): {code}"
-    );
+    assert!(code.contains("max") || code.contains("std::cmp"), "Should handle max(): {code}");
 }
 
 #[test]
@@ -749,10 +690,7 @@ def f(items: list) -> int:
     return sum(items)
 "#,
     );
-    assert!(
-        code.contains("sum") || code.contains("iter"),
-        "Should handle sum(): {code}"
-    );
+    assert!(code.contains("sum") || code.contains("iter"), "Should handle sum(): {code}");
 }
 
 #[test]
@@ -763,10 +701,7 @@ def f(items: list) -> list:
     return sorted(items)
 "#,
     );
-    assert!(
-        code.contains("sort") || code.contains("clone"),
-        "Should handle sorted(): {code}"
-    );
+    assert!(code.contains("sort") || code.contains("clone"), "Should handle sorted(): {code}");
 }
 
 #[test]
@@ -811,10 +746,7 @@ def f(a: list, b: list) -> list:
     return result
 "#,
     );
-    assert!(
-        code.contains("zip") || code.contains("iter"),
-        "Should handle zip(): {code}"
-    );
+    assert!(code.contains("zip") || code.contains("iter"), "Should handle zip(): {code}");
 }
 
 #[test]
@@ -828,10 +760,7 @@ def f(n: int) -> int:
     return total
 "#,
     );
-    assert!(
-        code.contains("0..") || code.contains("range"),
-        "Should handle range(): {code}"
-    );
+    assert!(code.contains("0..") || code.contains("range"), "Should handle range(): {code}");
 }
 
 #[test]
@@ -878,10 +807,7 @@ def f(s: str) -> int:
     return int(s)
 "#,
     );
-    assert!(
-        code.contains("parse") || code.contains("unwrap"),
-        "Should handle int(): {code}"
-    );
+    assert!(code.contains("parse") || code.contains("unwrap"), "Should handle int(): {code}");
 }
 
 #[test]
@@ -892,10 +818,7 @@ def f(s: str) -> float:
     return float(s)
 "#,
     );
-    assert!(
-        code.contains("parse") || code.contains("f64"),
-        "Should handle float(): {code}"
-    );
+    assert!(code.contains("parse") || code.contains("f64"), "Should handle float(): {code}");
 }
 
 #[test]
@@ -906,10 +829,7 @@ def f(x: int) -> str:
     return str(x)
 "#,
     );
-    assert!(
-        code.contains("to_string") || code.contains("format"),
-        "Should handle str(): {code}"
-    );
+    assert!(code.contains("to_string") || code.contains("format"), "Should handle str(): {code}");
 }
 
 // ── Complex patterns ───────────────────────────────────────────────
@@ -965,10 +885,7 @@ def f(x: int) -> None:
     print("hello", x)
 "#,
     );
-    assert!(
-        code.contains("println") || code.contains("print"),
-        "Should handle print(): {code}"
-    );
+    assert!(code.contains("println") || code.contains("print"), "Should handle print(): {code}");
 }
 
 #[test]
@@ -1007,10 +924,7 @@ def f(items: list) -> int:
     return len(items)
 "#,
     );
-    assert!(
-        code.contains("len()") || code.contains(".len()"),
-        "Should handle len(): {code}"
-    );
+    assert!(code.contains("len()") || code.contains(".len()"), "Should handle len(): {code}");
 }
 
 #[test]
@@ -1021,8 +935,5 @@ def f(s: str) -> int:
     return len(s)
 "#,
     );
-    assert!(
-        code.contains("len()") || code.contains(".len()"),
-        "Should handle len(str): {code}"
-    );
+    assert!(code.contains("len()") || code.contains(".len()"), "Should handle len(str): {code}");
 }

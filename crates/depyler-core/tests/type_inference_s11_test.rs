@@ -15,10 +15,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -179,11 +177,7 @@ def pair() -> Tuple[int, str]:
     return (1, "hello")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pair"),
-        "Should transpile Tuple[int, str]. Got: {}",
-        result
-    );
+    assert!(result.contains("fn pair"), "Should transpile Tuple[int, str]. Got: {}", result);
 }
 
 #[test]
@@ -213,11 +207,7 @@ def nothing():
     pass
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn nothing"),
-        "Should infer None return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn nothing"), "Should infer None return. Got: {}", result);
 }
 
 #[test]
@@ -261,11 +251,7 @@ def process(items: list) -> int:
     return len(items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should handle list param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should handle list param. Got: {}", result);
 }
 
 #[test]
@@ -275,11 +261,7 @@ def count_keys(d: dict) -> int:
     return len(d)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_keys"),
-        "Should handle dict param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_keys"), "Should handle dict param. Got: {}", result);
 }
 
 #[test]
@@ -289,11 +271,7 @@ def combine(name: str, age: int, score: float) -> str:
     return f"{name}: {age}, {score}"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn combine"),
-        "Should handle multiple typed params. Got: {}",
-        result
-    );
+    assert!(result.contains("fn combine"), "Should handle multiple typed params. Got: {}", result);
 }
 
 // ============================================================================
@@ -349,11 +327,7 @@ def to_bool(x: int) -> bool:
     return bool(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_bool"),
-        "Should transpile bool() constructor. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_bool"), "Should transpile bool() constructor. Got: {}", result);
 }
 
 // ============================================================================
@@ -367,11 +341,7 @@ def check_int(x) -> bool:
     return isinstance(x, int)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_int"),
-        "Should transpile isinstance. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_int"), "Should transpile isinstance. Got: {}", result);
 }
 
 // ============================================================================
@@ -387,11 +357,7 @@ def matrix() -> List[List[int]]:
     return [[1, 2], [3, 4]]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn matrix"),
-        "Should transpile nested List. Got: {}",
-        result
-    );
+    assert!(result.contains("fn matrix"), "Should transpile nested List. Got: {}", result);
 }
 
 #[test]
@@ -403,11 +369,7 @@ def group() -> Dict[str, List[int]]:
     return {"evens": [2, 4], "odds": [1, 3]}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn group"),
-        "Should transpile Dict with List values. Got: {}",
-        result
-    );
+    assert!(result.contains("fn group"), "Should transpile Dict with List values. Got: {}", result);
 }
 
 // ============================================================================
@@ -435,11 +397,7 @@ def format_num(n: int) -> str:
     return "Number: " + str(n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn format_num"),
-        "Should handle str+int formatting. Got: {}",
-        result
-    );
+    assert!(result.contains("fn format_num"), "Should handle str+int formatting. Got: {}", result);
 }
 
 #[test]
@@ -453,11 +411,7 @@ def build_list() -> list:
     return items
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn build_list"),
-        "Should handle typed list append. Got: {}",
-        result
-    );
+    assert!(result.contains("fn build_list"), "Should handle typed list append. Got: {}", result);
 }
 
 // ============================================================================

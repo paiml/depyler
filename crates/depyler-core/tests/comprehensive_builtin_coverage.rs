@@ -7,9 +7,7 @@ use depyler_core::DepylerPipeline;
 
 fn transpile(python: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(python)
-        .expect("Transpilation should succeed")
+    pipeline.transpile(python).expect("Transpilation should succeed")
 }
 
 // ============================================================================

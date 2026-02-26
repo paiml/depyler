@@ -50,9 +50,7 @@ pub struct PytestExtractor {
 impl PytestExtractor {
     /// Creates a new PytestExtractor with default settings
     pub fn new() -> Self {
-        Self {
-            strict_test_files: true,
-        }
+        Self { strict_test_files: true }
     }
 
     /// Configure whether to only extract from test_*.py files
@@ -130,12 +128,7 @@ impl PytestExtractor {
         // Clean up right side (remove trailing comments, etc.)
         let expected = self.clean_expected(right);
 
-        Some(Doctest {
-            function: func_name,
-            input: left.to_string(),
-            expected,
-            line: line_num,
-        })
+        Some(Doctest { function: func_name, input: left.to_string(), expected, line: line_num })
     }
 
     /// Check if an assertion is too complex to extract
@@ -214,10 +207,7 @@ impl PytestExtractor {
     /// Extract assertions to the same format as doctest results
     pub fn extract_to_result(&self, source: &str, filename: &str) -> Result<PytestResult> {
         let assertions = self.extract(source)?;
-        Ok(PytestResult {
-            source: filename.to_string(),
-            assertions,
-        })
+        Ok(PytestResult { source: filename.to_string(), assertions })
     }
 }
 

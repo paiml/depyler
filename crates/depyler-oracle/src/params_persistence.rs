@@ -178,11 +178,7 @@ mod tests {
     #[test]
     fn test_save_creates_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let nested_path = temp_dir
-            .path()
-            .join("nested")
-            .join("dir")
-            .join("params.json");
+        let nested_path = temp_dir.path().join("nested").join("dir").join("params.json");
 
         let params = GenerationParams::default();
         let optimized = OptimizedParams::new(params, 0.8, 30, false);

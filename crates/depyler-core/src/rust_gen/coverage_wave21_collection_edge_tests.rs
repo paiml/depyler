@@ -18,10 +18,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -117,7 +115,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_013_list_count_string() {
-        let code = "def f():\n    lst = [\"x\", \"y\", \"x\"]\n    n = lst.count(\"x\")\n    return n\n";
+        let code =
+            "def f():\n    lst = [\"x\", \"y\", \"x\"]\n    n = lst.count(\"x\")\n    return n\n";
         let result = transpile(code);
         assert!(result.contains("filter") || result.contains("count"));
     }
@@ -145,7 +144,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_017_list_sort_key_len() {
-        let code = "def f():\n    lst = [\"abc\", \"a\", \"ab\"]\n    lst.sort(key=len)\n    return lst\n";
+        let code =
+            "def f():\n    lst = [\"abc\", \"a\", \"ab\"]\n    lst.sort(key=len)\n    return lst\n";
         let result = transpile(code);
         assert!(result.contains("sort"));
     }
@@ -180,7 +180,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_022_list_remove_string() {
-        let code = "def f():\n    lst = [\"a\", \"b\", \"c\"]\n    lst.remove(\"b\")\n    return lst\n";
+        let code =
+            "def f():\n    lst = [\"a\", \"b\", \"c\"]\n    lst.remove(\"b\")\n    return lst\n";
         let result = transpile(code);
         assert!(result.contains("remove") || result.contains("position"));
     }
@@ -196,12 +197,15 @@ mod tests {
     fn test_w21ce_024_list_comp_with_method_upper() {
         let code = "def f():\n    words = [\"hello\", \"world\"]\n    result = [w.upper() for w in words]\n    return result\n";
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("upper") || result.contains("map"));
+        assert!(
+            result.contains("to_uppercase") || result.contains("upper") || result.contains("map")
+        );
     }
 
     #[test]
     fn test_w21ce_025_nested_list_access() {
-        let code = "def f():\n    matrix = [[1, 2], [3, 4]]\n    val = matrix[0][1]\n    return val\n";
+        let code =
+            "def f():\n    matrix = [[1, 2], [3, 4]]\n    val = matrix[0][1]\n    return val\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -250,7 +254,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_032_list_comp_nested_loops() {
-        let code = "def f():\n    pairs = [(x, y) for x in [1, 2] for y in [3, 4]]\n    return pairs\n";
+        let code =
+            "def f():\n    pairs = [(x, y) for x in [1, 2] for y in [3, 4]]\n    return pairs\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -278,14 +283,16 @@ mod tests {
 
     #[test]
     fn test_w21ce_036_list_sort_after_append() {
-        let code = "def f():\n    lst = [3, 1]\n    lst.append(2)\n    lst.sort()\n    return lst\n";
+        let code =
+            "def f():\n    lst = [3, 1]\n    lst.append(2)\n    lst.sort()\n    return lst\n";
         let result = transpile(code);
         assert!(result.contains("push") && result.contains("sort"));
     }
 
     #[test]
     fn test_w21ce_037_list_extend_with_strings() {
-        let code = "def f():\n    a = [\"x\"]\n    b = [\"y\", \"z\"]\n    a.extend(b)\n    return a\n";
+        let code =
+            "def f():\n    a = [\"x\"]\n    b = [\"y\", \"z\"]\n    a.extend(b)\n    return a\n";
         let result = transpile(code);
         assert!(result.contains("extend"));
     }
@@ -334,7 +341,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_044_list_clear_and_rebuild() {
-        let code = "def f():\n    lst = [1, 2, 3]\n    lst.clear()\n    lst.append(10)\n    return lst\n";
+        let code =
+            "def f():\n    lst = [1, 2, 3]\n    lst.clear()\n    lst.append(10)\n    return lst\n";
         let result = transpile(code);
         assert!(result.contains("clear") && result.contains("push"));
     }
@@ -348,7 +356,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_046_list_len_after_operations() {
-        let code = "def f():\n    lst = [1, 2, 3]\n    lst.append(4)\n    n = len(lst)\n    return n\n";
+        let code =
+            "def f():\n    lst = [1, 2, 3]\n    lst.append(4)\n    n = len(lst)\n    return n\n";
         let result = transpile(code);
         assert!(result.contains("len"));
     }
@@ -362,14 +371,16 @@ mod tests {
 
     #[test]
     fn test_w21ce_048_list_reverse_strings() {
-        let code = "def f():\n    words = [\"hello\", \"world\"]\n    words.reverse()\n    return words\n";
+        let code =
+            "def f():\n    words = [\"hello\", \"world\"]\n    words.reverse()\n    return words\n";
         let result = transpile(code);
         assert!(result.contains("reverse"));
     }
 
     #[test]
     fn test_w21ce_049_list_remove_and_append() {
-        let code = "def f():\n    lst = [1, 2, 3]\n    lst.remove(2)\n    lst.append(4)\n    return lst\n";
+        let code =
+            "def f():\n    lst = [1, 2, 3]\n    lst.remove(2)\n    lst.append(4)\n    return lst\n";
         let result = transpile(code);
         assert!(result.contains("push"));
     }
@@ -387,7 +398,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_051_dict_get_with_int_default() {
-        let code = "def f():\n    d = {\"a\": 1, \"b\": 2}\n    val = d.get(\"c\", 0)\n    return val\n";
+        let code =
+            "def f():\n    d = {\"a\": 1, \"b\": 2}\n    val = d.get(\"c\", 0)\n    return val\n";
         let result = transpile(code);
         assert!(result.contains("get") || result.contains("unwrap_or"));
     }
@@ -415,21 +427,31 @@ mod tests {
 
     #[test]
     fn test_w21ce_055_dict_setdefault_int() {
-        let code = "def f():\n    d = {\"a\": 1}\n    val = d.setdefault(\"b\", 0)\n    return val\n";
+        let code =
+            "def f():\n    d = {\"a\": 1}\n    val = d.setdefault(\"b\", 0)\n    return val\n";
         let result = transpile(code);
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     #[test]
     fn test_w21ce_056_dict_setdefault_string() {
         let code = "def f():\n    d = {\"name\": \"alice\"}\n    val = d.setdefault(\"title\", \"unknown\")\n    return val\n";
         let result = transpile(code);
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     #[test]
     fn test_w21ce_057_dict_popitem() {
-        let code = "def f():\n    d = {\"a\": 1, \"b\": 2}\n    item = d.popitem()\n    return item\n";
+        let code =
+            "def f():\n    d = {\"a\": 1, \"b\": 2}\n    item = d.popitem()\n    return item\n";
         let result = transpile(code);
         assert!(result.contains("keys") || result.contains("remove") || result.contains("popitem"));
     }
@@ -438,7 +460,9 @@ mod tests {
     fn test_w21ce_058_dict_update_from_dict() {
         let code = "def f():\n    d1 = {\"a\": 1}\n    d2 = {\"b\": 2}\n    d1.update(d2)\n    return d1\n";
         let result = transpile(code);
-        assert!(result.contains("insert") || result.contains("update") || result.contains("extend"));
+        assert!(
+            result.contains("insert") || result.contains("update") || result.contains("extend")
+        );
     }
 
     #[test]
@@ -471,7 +495,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_063_dict_items() {
-        let code = "def f():\n    d = {\"a\": 1, \"b\": 2}\n    items = d.items()\n    return items\n";
+        let code =
+            "def f():\n    d = {\"a\": 1, \"b\": 2}\n    items = d.items()\n    return items\n";
         let result = transpile(code);
         assert!(result.contains("iter") || result.contains("items") || result.contains("collect"));
     }
@@ -555,7 +580,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_075_dict_setdefault_existing_key() {
-        let code = "def f():\n    d = {\"a\": 10}\n    val = d.setdefault(\"a\", 20)\n    return val\n";
+        let code =
+            "def f():\n    d = {\"a\": 10}\n    val = d.setdefault(\"a\", 20)\n    return val\n";
         let result = transpile(code);
         assert!(result.contains("entry") || result.contains("or_insert"));
     }
@@ -569,7 +595,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_077_dict_from_list_tuples() {
-        let code = "def f():\n    pairs = [(\"a\", 1), (\"b\", 2)]\n    d = dict(pairs)\n    return d\n";
+        let code =
+            "def f():\n    pairs = [(\"a\", 1), (\"b\", 2)]\n    d = dict(pairs)\n    return d\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -583,7 +610,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_079_dict_len() {
-        let code = "def f():\n    d = {\"a\": 1, \"b\": 2, \"c\": 3}\n    n = len(d)\n    return n\n";
+        let code =
+            "def f():\n    d = {\"a\": 1, \"b\": 2, \"c\": 3}\n    n = len(d)\n    return n\n";
         let result = transpile(code);
         assert!(result.contains("len"));
     }
@@ -611,7 +639,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_083_dict_get_float_default() {
-        let code = "def f():\n    d = {\"pi\": 3.14}\n    val = d.get(\"e\", 2.71)\n    return val\n";
+        let code =
+            "def f():\n    d = {\"pi\": 3.14}\n    val = d.get(\"e\", 2.71)\n    return val\n";
         let result = transpile(code);
         assert!(result.contains("get") || result.contains("unwrap_or"));
     }
@@ -839,9 +868,12 @@ mod tests {
 
     #[test]
     fn test_w21ce_115_set_update_from_iterable() {
-        let code = "def f():\n    s = {1, 2}\n    other = {3, 4}\n    s.update(other)\n    return s\n";
+        let code =
+            "def f():\n    s = {1, 2}\n    other = {3, 4}\n    s.update(other)\n    return s\n";
         let result = transpile(code);
-        assert!(result.contains("insert") || result.contains("update") || result.contains("extend"));
+        assert!(
+            result.contains("insert") || result.contains("update") || result.contains("extend")
+        );
     }
 
     #[test]
@@ -902,7 +934,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_124_set_remove_string() {
-        let code = "def f():\n    s = {\"hello\", \"world\"}\n    s.remove(\"hello\")\n    return s\n";
+        let code =
+            "def f():\n    s = {\"hello\", \"world\"}\n    s.remove(\"hello\")\n    return s\n";
         let result = transpile(code);
         assert!(result.contains("remove"));
     }
@@ -923,7 +956,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_127_set_not_membership() {
-        let code = "def f():\n    s = {1, 2, 3}\n    not_found = 5 not in s\n    return not_found\n";
+        let code =
+            "def f():\n    s = {1, 2, 3}\n    not_found = 5 not in s\n    return not_found\n";
         let result = transpile(code);
         assert!(result.contains("contains"));
     }
@@ -951,7 +985,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_131_set_union_operator() {
-        let code = "def f():\n    s1 = {1, 2}\n    s2 = {3, 4}\n    result = s1 | s2\n    return result\n";
+        let code =
+            "def f():\n    s1 = {1, 2}\n    s2 = {3, 4}\n    result = s1 | s2\n    return result\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -965,7 +1000,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_133_set_difference_operator() {
-        let code = "def f():\n    s1 = {1, 2, 3}\n    s2 = {2}\n    result = s1 - s2\n    return result\n";
+        let code =
+            "def f():\n    s1 = {1, 2, 3}\n    s2 = {2}\n    result = s1 - s2\n    return result\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -986,7 +1022,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_136_set_add_multiple() {
-        let code = "def f():\n    s = set()\n    s.add(1)\n    s.add(2)\n    s.add(3)\n    return s\n";
+        let code =
+            "def f():\n    s = set()\n    s.add(1)\n    s.add(2)\n    s.add(3)\n    return s\n";
         let result = transpile(code);
         assert!(result.contains("insert"));
     }
@@ -1021,7 +1058,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_141_set_isdisjoint_false() {
-        let code = "def f():\n    s1 = {1, 2, 3}\n    s2 = {3, 4, 5}\n    return s1.isdisjoint(s2)\n";
+        let code =
+            "def f():\n    s1 = {1, 2, 3}\n    s2 = {3, 4, 5}\n    return s1.isdisjoint(s2)\n";
         let result = transpile(code);
         assert!(result.contains("is_disjoint") || result.contains("isdisjoint"));
     }
@@ -1214,7 +1252,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_168_list_reversed_builtin() {
-        let code = "def f():\n    lst = [1, 2, 3]\n    result = list(reversed(lst))\n    return result\n";
+        let code =
+            "def f():\n    lst = [1, 2, 3]\n    result = list(reversed(lst))\n    return result\n";
         let result = transpile(code);
         assert!(result.contains("rev") || result.contains("reverse") || result.contains("iter"));
     }
@@ -1298,7 +1337,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_180_list_step_slicing() {
-        let code = "def f():\n    lst = [1, 2, 3, 4, 5, 6]\n    evens = lst[::2]\n    return evens\n";
+        let code =
+            "def f():\n    lst = [1, 2, 3, 4, 5, 6]\n    evens = lst[::2]\n    return evens\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1312,7 +1352,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_182_dict_with_bool_values() {
-        let code = "def f():\n    flags = {\"debug\": True, \"verbose\": False}\n    return flags\n";
+        let code =
+            "def f():\n    flags = {\"debug\": True, \"verbose\": False}\n    return flags\n";
         let result = transpile(code);
         assert!(result.contains("HashMap") || result.contains("map"));
     }
@@ -1382,7 +1423,8 @@ mod tests {
 
     #[test]
     fn test_w21ce_192_dict_nested_with_lists() {
-        let code = "def f():\n    d = {\"nums\": [1, 2, 3], \"strs\": [\"a\", \"b\"]}\n    return d\n";
+        let code =
+            "def f():\n    d = {\"nums\": [1, 2, 3], \"strs\": [\"a\", \"b\"]}\n    return d\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1419,7 +1461,9 @@ mod tests {
     fn test_w21ce_197_list_all_string_ops() {
         let code = "def f():\n    lst = [\"hello\", \"world\"]\n    result = [s.upper() for s in lst]\n    return result\n";
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("upper") || result.contains("map"));
+        assert!(
+            result.contains("to_uppercase") || result.contains("upper") || result.contains("map")
+        );
     }
 
     #[test]

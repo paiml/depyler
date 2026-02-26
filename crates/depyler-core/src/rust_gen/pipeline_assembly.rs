@@ -10,10 +10,10 @@
 use anyhow::Result;
 use quote::quote;
 
-use super::context::{CodeGenContext, RustCodeGen};
-use super::{constant_gen, depyler_value_gen, import_gen, module_gen, runtime_types_gen};
 #[cfg(feature = "sovereign-types")]
 use super::binding_gen;
+use super::context::{CodeGenContext, RustCodeGen};
+use super::{constant_gen, depyler_value_gen, import_gen, module_gen, runtime_types_gen};
 use crate::hir::*;
 
 /// Assemble all module-level items into a final ordered token stream vector.
@@ -74,17 +74,9 @@ pub(super) fn assemble_module_items(
 
 /// Add module imports (create new mapper for token generation).
 /// DEPYLER-1016: Pass NASA mode to skip external crate imports.
-fn append_imports(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    module: &HirModule,
-    nasa_mode: bool,
-) {
+fn append_imports(items: &mut Vec<proc_macro2::TokenStream>, module: &HirModule, nasa_mode: bool) {
     let import_mapper = crate::module_mapper::ModuleMapper::new();
-    items.extend(module_gen::generate_import_tokens(
-        &module.imports,
-        &import_mapper,
-        nasa_mode,
-    ));
+    items.extend(module_gen::generate_import_tokens(&module.imports, &import_mapper, nasa_mode));
 }
 
 /// DEPYLER-197: Add type aliases (before constants, after imports).
@@ -95,20 +87,12 @@ fn append_type_aliases(
     module: &HirModule,
     ctx: &CodeGenContext,
 ) {
-    items.extend(module_gen::generate_type_alias_tokens(
-        &module.type_aliases,
-        ctx.type_mapper,
-    ));
+    items.extend(module_gen::generate_type_alias_tokens(&module.type_aliases, ctx.type_mapper));
 }
 
 /// Add interned string constants.
-fn append_interned_strings(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
-    items.extend(module_gen::generate_interned_string_tokens(
-        &ctx.string_optimizer,
-    ));
+fn append_interned_strings(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
+    items.extend(module_gen::generate_interned_string_tokens(&ctx.string_optimizer));
 }
 
 /// Add module-level constants.
@@ -117,18 +101,12 @@ fn append_constants(
     module: &HirModule,
     ctx: &mut CodeGenContext,
 ) -> Result<()> {
-    items.extend(constant_gen::generate_constant_tokens(
-        &module.constants,
-        ctx,
-    )?);
+    items.extend(constant_gen::generate_constant_tokens(&module.constants, ctx)?);
     Ok(())
 }
 
 /// Add collection imports if needed.
-fn append_conditional_imports(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_conditional_imports(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     items.extend(module_gen::generate_conditional_imports(ctx));
 }
 
@@ -140,19 +118,13 @@ fn deduplicate_imports(items: &mut Vec<proc_macro2::TokenStream>) {
 }
 
 /// Add error type definitions if needed.
-fn append_error_types(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_error_types(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     items.extend(super::error_gen::generate_error_type_definitions(ctx));
 }
 
 /// DEPYLER-0627: Add CompletedProcess struct if subprocess.run is used.
 /// DEPYLER-0931: Added Default derive for hoisting support in try/except blocks.
-fn append_completed_process(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_completed_process(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     if ctx.needs_completed_process {
         let completed_process_struct = quote! {
             /// Result of subprocess.run()
@@ -168,10 +140,7 @@ fn append_completed_process(
 }
 
 /// Add generated union enums.
-fn append_union_enums(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_union_enums(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     items.extend(ctx.generated_enums.clone());
 }
 
@@ -192,10 +161,7 @@ fn append_depyler_value(
 
 /// DEPYLER-DECOMPOSE: Inject runtime type items (PythonIntOps, date/time, regex)
 /// via extracted module.
-fn append_runtime_types(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_runtime_types(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     items.extend(runtime_types_gen::generate_runtime_type_items(ctx));
 }
 
@@ -224,10 +190,7 @@ fn append_phantom_bindings(
 /// DEPYLER-1137: Use DepylerValue for semantic proxy types (not serde_json::Value).
 /// DEPYLER-1139: Use minimal required args - accept anything via impl traits.
 /// For `import xml.etree.ElementTree as ET`, generate `mod ET { ... }` stubs.
-fn append_module_alias_stubs(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_module_alias_stubs(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     for alias in ctx.module_aliases.keys() {
         let alias_ident = syn::Ident::new(alias, proc_macro2::Span::call_site());
         let alias_stub = quote! {
@@ -294,10 +257,7 @@ fn append_module_alias_stubs(
 
 /// DEPYLER-0424: Add ArgumentParser-generated structs at module level
 /// (before functions so handler functions can reference Args type).
-fn append_argparse_structs(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    ctx: &CodeGenContext,
-) {
+fn append_argparse_structs(items: &mut Vec<proc_macro2::TokenStream>, ctx: &CodeGenContext) {
     if let Some(ref commands_enum) = ctx.generated_commands_enum {
         items.push(commands_enum.clone());
     }
@@ -338,20 +298,14 @@ fn append_main_function(
 }
 
 /// Generate a semantic main() that wraps top-level script statements.
-fn generate_semantic_main(
-    stmts: &[HirStmt],
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn generate_semantic_main(stmts: &[HirStmt], ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     let mut main_body_tokens = Vec::new();
     for stmt in stmts {
         match stmt.to_rust_tokens(ctx) {
             Ok(tokens) => main_body_tokens.push(tokens),
             Err(e) => {
                 // Log warning but continue - fallback to stub behavior for failed conversion
-                eprintln!(
-                    "DEPYLER-1216: Warning - failed to convert top-level statement: {}",
-                    e
-                );
+                eprintln!("DEPYLER-1216: Warning - failed to convert top-level statement: {}", e);
             }
         }
     }
@@ -383,14 +337,10 @@ fn generate_stub_main() -> proc_macro2::TokenStream {
 /// Generate tests for all functions in a single test module.
 /// DEPYLER-0280 FIX: Use generate_tests_module() to create a single `mod tests {}` block
 /// instead of one per function, which caused "the name `tests` is defined multiple times" errors.
-fn append_test_module(
-    items: &mut Vec<proc_macro2::TokenStream>,
-    module: &HirModule,
-) -> Result<()> {
+fn append_test_module(items: &mut Vec<proc_macro2::TokenStream>, module: &HirModule) -> Result<()> {
     let test_gen = crate::test_generation::TestGenerator::new(Default::default());
     if let Some(test_module) = test_gen.generate_tests_module(&module.functions)? {
         items.push(test_module);
     }
     Ok(())
 }
-

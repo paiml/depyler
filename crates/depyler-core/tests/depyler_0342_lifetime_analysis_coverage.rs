@@ -80,10 +80,7 @@ fn test_param_usage_default() {
 
 #[test]
 fn test_param_usage_mutated() {
-    let usage = ParamUsage {
-        is_mutated: true,
-        ..Default::default()
-    };
+    let usage = ParamUsage { is_mutated: true, ..Default::default() };
 
     assert!(usage.is_mutated);
     assert!(!usage.is_moved);
@@ -91,10 +88,7 @@ fn test_param_usage_mutated() {
 
 #[test]
 fn test_param_usage_moved() {
-    let usage = ParamUsage {
-        is_moved: true,
-        ..Default::default()
-    };
+    let usage = ParamUsage { is_moved: true, ..Default::default() };
 
     assert!(usage.is_moved);
     assert!(!usage.is_mutated);
@@ -102,20 +96,14 @@ fn test_param_usage_moved() {
 
 #[test]
 fn test_param_usage_escapes() {
-    let usage = ParamUsage {
-        escapes: true,
-        ..Default::default()
-    };
+    let usage = ParamUsage { escapes: true, ..Default::default() };
 
     assert!(usage.escapes);
 }
 
 #[test]
 fn test_param_usage_read_only() {
-    let usage = ParamUsage {
-        is_read_only: true,
-        ..Default::default()
-    };
+    let usage = ParamUsage { is_read_only: true, ..Default::default() };
 
     assert!(usage.is_read_only);
     assert!(!usage.is_mutated);
@@ -123,20 +111,14 @@ fn test_param_usage_read_only() {
 
 #[test]
 fn test_param_usage_used_in_loop() {
-    let usage = ParamUsage {
-        used_in_loop: true,
-        ..Default::default()
-    };
+    let usage = ParamUsage { used_in_loop: true, ..Default::default() };
 
     assert!(usage.used_in_loop);
 }
 
 #[test]
 fn test_param_usage_nested_borrows() {
-    let usage = ParamUsage {
-        has_nested_borrows: true,
-        ..Default::default()
-    };
+    let usage = ParamUsage { has_nested_borrows: true, ..Default::default() };
 
     assert!(usage.has_nested_borrows);
 }
@@ -358,10 +340,7 @@ fn test_lifetime_result_with_bounds() {
 
     assert_eq!(result.lifetime_params.len(), 2);
     assert_eq!(result.lifetime_bounds.len(), 1);
-    assert_eq!(
-        result.lifetime_bounds[0],
-        ("'a".to_string(), "'b".to_string())
-    );
+    assert_eq!(result.lifetime_bounds[0], ("'a".to_string(), "'b".to_string()));
 }
 
 // ============================================================================

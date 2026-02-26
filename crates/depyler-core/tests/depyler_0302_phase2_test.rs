@@ -16,15 +16,11 @@ def repeat_ab() -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1126: PyOps uses py_mul for string multiplication
     // Check the function body for either .repeat() (legacy) or py_mul (PyOps)
-    let fn_start = rust_code
-        .find("fn repeat_ab")
-        .expect("Should have repeat_ab function");
+    let fn_start = rust_code.find("fn repeat_ab").expect("Should have repeat_ab function");
     let fn_section = &rust_code[fn_start..fn_start + 100.min(rust_code.len() - fn_start)];
 
     assert!(
@@ -44,14 +40,10 @@ def repeat_string(s: str, count: int) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1126: PyOps uses py_mul for string multiplication
-    let fn_start = rust_code
-        .find("fn repeat_string")
-        .expect("Should have repeat_string function");
+    let fn_start = rust_code.find("fn repeat_string").expect("Should have repeat_string function");
     let fn_section = &rust_code[fn_start..fn_start + 150.min(rust_code.len() - fn_start)];
 
     assert!(
@@ -71,14 +63,11 @@ def repeat_reverse(count: int, s: str) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1126: PyOps uses py_mul for string multiplication
-    let fn_start = rust_code
-        .find("fn repeat_reverse")
-        .expect("Should have repeat_reverse function");
+    let fn_start =
+        rust_code.find("fn repeat_reverse").expect("Should have repeat_reverse function");
     let fn_section = &rust_code[fn_start..fn_start + 150.min(rust_code.len() - fn_start)];
 
     assert!(
@@ -98,17 +87,11 @@ def make_border(width: int) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .repeat() for both multiplications
     let repeat_count = rust_code.matches(".repeat(").count();
-    assert!(
-        repeat_count >= 2,
-        "Should contain at least 2 .repeat() calls, found {}",
-        repeat_count
-    );
+    assert!(repeat_count >= 2, "Should contain at least 2 .repeat() calls, found {}", repeat_count);
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -123,15 +106,11 @@ def to_titlecase(s: str) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1126: Check only the to_titlecase function, not entire file
     // (Trait implementations may have .title() calls)
-    let fn_start = rust_code
-        .find("fn to_titlecase")
-        .expect("Should have to_titlecase function");
+    let fn_start = rust_code.find("fn to_titlecase").expect("Should have to_titlecase function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(500) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -153,19 +132,11 @@ def greet() -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use title case implementation
-    assert!(
-        rust_code.contains("split_whitespace()"),
-        "Should contain split_whitespace()"
-    );
-    assert!(
-        rust_code.contains("to_uppercase()"),
-        "Should contain to_uppercase()"
-    );
+    assert!(rust_code.contains("split_whitespace()"), "Should contain split_whitespace()");
+    assert!(rust_code.contains("to_uppercase()"), "Should contain to_uppercase()");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -178,9 +149,7 @@ def format_name(first: str, last: str) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should have multiple title case implementations
     let title_count = rust_code.matches("split_whitespace()").count();
@@ -206,19 +175,11 @@ def make_header(text: str, width: int) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should have both title and repeat
-    assert!(
-        rust_code.contains("split_whitespace()"),
-        "Should contain title() implementation"
-    );
-    assert!(
-        rust_code.contains(".repeat("),
-        "Should contain .repeat() for string multiplication"
-    );
+    assert!(rust_code.contains("split_whitespace()"), "Should contain title() implementation");
+    assert!(rust_code.contains(".repeat("), "Should contain .repeat() for string multiplication");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -232,15 +193,11 @@ def make_array() -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1126: Check only the make_array function
     // PyOps uses py_mul for list multiplication
-    let fn_start = rust_code
-        .find("fn make_array")
-        .expect("Should have make_array function");
+    let fn_start = rust_code.find("fn make_array").expect("Should have make_array function");
     let fn_section = &rust_code[fn_start..fn_start + 200.min(rust_code.len() - fn_start)];
 
     // Should use array syntax [elem; size], vec! macro, or py_mul for list multiplication

@@ -575,12 +575,8 @@ def get_name() -> str:
 fn test_property_all_string_transforms() {
     let pipeline = DepylerPipeline::new();
 
-    let methods = vec![
-        ("upper", "HELLO"),
-        ("lower", "hello"),
-        ("title", "Hello"),
-        ("capitalize", "Hello"),
-    ];
+    let methods =
+        vec![("upper", "HELLO"), ("lower", "hello"), ("title", "Hello"), ("capitalize", "Hello")];
 
     for (method, _expected) in methods {
         let python_code = format!(
@@ -592,12 +588,7 @@ def test_{}_method(text: str) -> str:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            method,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", method, result.err());
     }
 }
 
@@ -606,14 +597,7 @@ def test_{}_method(text: str) -> str:
 fn test_property_all_string_queries() {
     let pipeline = DepylerPipeline::new();
 
-    let methods = vec![
-        "startswith",
-        "endswith",
-        "isalpha",
-        "isdigit",
-        "isalnum",
-        "isspace",
-    ];
+    let methods = vec!["startswith", "endswith", "isalpha", "isdigit", "isalnum", "isspace"];
 
     for method in methods {
         let python_code = if method == "startswith" || method == "endswith" {
@@ -636,12 +620,7 @@ def test_{}_method(text: str) -> bool:
 
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            method,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", method, result.err());
     }
 }
 

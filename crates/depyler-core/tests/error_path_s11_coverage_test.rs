@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -21,10 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 fn hir_succeeds(python_code: &str) -> bool {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .is_ok()
+    AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).is_ok()
 }
 
 // ============================================================================
@@ -76,11 +71,7 @@ DEFAULT_NAME: str = "unknown"
 DEBUG: bool = False
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("MAX_SIZE") || result.contains("1000"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("MAX_SIZE") || result.contains("1000"), "Got: {}", result);
 }
 
 // ============================================================================
@@ -94,11 +85,7 @@ def get_answer() -> int:
     return 42
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_answer()"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_answer()"), "Got: {}", result);
 }
 
 #[test]
@@ -165,11 +152,7 @@ def get_false() -> bool:
     return False
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("true") && result.contains("false"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("true") && result.contains("false"), "Got: {}", result);
 }
 
 #[test]
@@ -181,11 +164,7 @@ def maybe() -> Optional[int]:
     return None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("None") || result.contains("fn maybe"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("None") || result.contains("fn maybe"), "Got: {}", result);
 }
 
 #[test]
@@ -205,11 +184,7 @@ def empty_list() -> list:
     return []
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("vec!") || result.contains("Vec::new"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("vec!") || result.contains("Vec::new"), "Got: {}", result);
 }
 
 #[test]
@@ -219,11 +194,7 @@ def empty_dict() -> dict:
     return {}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("HashMap") || result.contains("fn empty_dict"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("HashMap") || result.contains("fn empty_dict"), "Got: {}", result);
 }
 
 #[test]
@@ -233,11 +204,7 @@ def empty_set() -> set:
     return set()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("HashSet") || result.contains("fn empty_set"),
-        "Got: {}",
-        result
-    );
+    assert!(result.contains("HashSet") || result.contains("fn empty_set"), "Got: {}", result);
 }
 
 // ============================================================================

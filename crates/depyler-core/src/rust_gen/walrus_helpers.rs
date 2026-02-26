@@ -40,12 +40,7 @@ pub fn collect_walrus_vars_from_expr(expr: &HirExpr, vars: &mut HashSet<String>)
                 collect_walrus_vars_from_expr(v, vars);
             }
         }
-        HirExpr::MethodCall {
-            object,
-            args,
-            kwargs,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             collect_walrus_vars_from_expr(object, vars);
             for arg in args {
                 collect_walrus_vars_from_expr(arg, vars);
@@ -81,12 +76,7 @@ pub fn expr_uses_any_var(expr: &HirExpr, var_names: &HashSet<String>) -> bool {
             args.iter().any(|a| expr_uses_any_var(a, var_names))
                 || kwargs.iter().any(|(_, v)| expr_uses_any_var(v, var_names))
         }
-        HirExpr::MethodCall {
-            object,
-            args,
-            kwargs,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             expr_uses_any_var(object, var_names)
                 || args.iter().any(|a| expr_uses_any_var(a, var_names))
                 || kwargs.iter().any(|(_, v)| expr_uses_any_var(v, var_names))
@@ -119,12 +109,7 @@ pub fn contains_walrus_expr(expr: &HirExpr) -> bool {
             args.iter().any(contains_walrus_expr)
                 || kwargs.iter().any(|(_, v)| contains_walrus_expr(v))
         }
-        HirExpr::MethodCall {
-            object,
-            args,
-            kwargs,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             contains_walrus_expr(object)
                 || args.iter().any(contains_walrus_expr)
                 || kwargs.iter().any(|(_, v)| contains_walrus_expr(v))
@@ -399,10 +384,8 @@ mod tests {
     fn test_expr_uses_var_in_unary() {
         let mut var_names = HashSet::new();
         var_names.insert("x".to_string());
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(expr_uses_any_var(&expr, &var_names));
     }
 
@@ -447,10 +430,8 @@ mod tests {
     fn test_expr_uses_var_in_tuple() {
         let mut var_names = HashSet::new();
         var_names.insert("x".to_string());
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Literal(Literal::Int(1)),
-            HirExpr::Var("x".to_string()),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Var("x".to_string())]);
         assert!(expr_uses_any_var(&expr, &var_names));
     }
 

@@ -8,10 +8,10 @@
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
-use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::array_initialization;
 use crate::rust_gen::builtin_conversions;
 use crate::rust_gen::collection_constructors;
+use crate::rust_gen::context::ToRustExpr;
 use crate::rust_gen::expr_analysis::get_wrapped_chained_pyops;
 use crate::rust_gen::stdlib_method_gen;
 use crate::trace_decision;
@@ -103,12 +103,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 {
                     // Regex methods that return Option<Match>
                     matches!(method.as_str(), "find" | "search" | "match")
-                } else if let HirExpr::Call {
-                    func,
-                    args: _,
-                    kwargs: _,
-                } = operand
-                {
+                } else if let HirExpr::Call { func, args: _, kwargs: _ } = operand {
                     // Module-level regex functions (re.match, re.search, re.find)
                     matches!(func.as_str(), "match" | "search" | "find")
                 } else {
@@ -177,14 +172,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 kwargs: vec![],
             }) {
                 // Determine the expected type from the return type context
-                let inner_type = self
-                    .ctx
-                    .current_return_type
-                    .as_ref()
-                    .and_then(|rt| match rt {
-                        Type::Optional(inner) => Some(inner.as_ref()),
-                        _ => None,
-                    });
+                let inner_type = self.ctx.current_return_type.as_ref().and_then(|rt| match rt {
+                    Type::Optional(inner) => Some(inner.as_ref()),
+                    _ => None,
+                });
                 // Also check for explicit type hints on the inner expression
                 let ty_tokens: Option<syn::Type> = match inner_type {
                     Some(Type::Int) => Some(parse_quote! { i32 }),
@@ -276,10 +267,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Handle classmethod cls(args) → Self::new(args)
         if func == "cls" && self.ctx.is_classmethod {
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
             return Ok(parse_quote! { Self::new(#(#arg_exprs),*) });
         }
 
@@ -308,9 +297,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let elem_type = self.infer_iterable_element_type(&args[1]);
                 let param_name = params[0].clone();
                 if let Some(ref elem_t) = elem_type {
-                    self.ctx
-                        .var_types
-                        .insert(param_name.clone(), elem_t.clone());
+                    self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
                 }
 
                 let body_expr = body.to_rust_expr(self.ctx)?;
@@ -548,7 +535,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let HirExpr::Var(var_name) = arg {
                     let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
                     if is_const {
-                        let is_scalar_const = self.ctx.module_constant_types.get(var_name)
+                        let is_scalar_const = self
+                            .ctx
+                            .module_constant_types
+                            .get(var_name)
                             .map(|ty| matches!(ty, Type::Int | Type::Float | Type::Bool))
                             .unwrap_or(false);
                         if !is_scalar_const {
@@ -771,10 +761,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
-            let param_idents: Vec<syn::Ident> = params
-                .iter()
-                .map(|p| crate::rust_gen::keywords::safe_ident(p))
-                .collect();
+            let param_idents: Vec<syn::Ident> =
+                params.iter().map(|p| crate::rust_gen::keywords::safe_ident(p)).collect();
 
             // DEPYLER-1053: Infer element types from iterables and add lambda params to var_types
             // This enables type coercion in comparisons like `x > 0` where x is f64
@@ -1104,12 +1092,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // bytes(bytearray_or_bytes) → just return the bytes/bytearray variable
             // Check if arg is a variable with list type (bytearray is Vec<u8> = List)
             if let HirExpr::Var(name) = hir_arg {
-                if self
-                    .ctx
-                    .var_types
-                    .get(name)
-                    .is_some_and(|t| matches!(t, Type::List(_)))
-                {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_))) {
                     return Ok(parse_quote! { #arg });
                 }
             }
@@ -1122,12 +1105,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Check for int variable
             if let HirExpr::Var(name) = hir_arg {
-                if self
-                    .ctx
-                    .var_types
-                    .get(name)
-                    .is_some_and(|t| matches!(t, Type::Int))
-                {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int)) {
                     return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
                 }
             }
@@ -1188,12 +1166,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // bytearray(bytes) → copy the bytes into a new vec
             if let HirExpr::Var(name) = hir_arg {
-                if self
-                    .ctx
-                    .var_types
-                    .get(name)
-                    .is_some_and(|t| matches!(t, Type::List(_)))
-                {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_))) {
                     return Ok(parse_quote! { #arg.to_vec() });
                 }
             }
@@ -1206,12 +1179,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Check for int variable
             if let HirExpr::Var(name) = hir_arg {
-                if self
-                    .ctx
-                    .var_types
-                    .get(name)
-                    .is_some_and(|t| matches!(t, Type::Int))
-                {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int)) {
                     return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
                 }
             }
@@ -1294,9 +1262,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let elem_type = self.infer_iterable_element_type(&hir_args[1]);
             let param_name = params[0].clone();
             if let Some(ref elem_t) = elem_type {
-                self.ctx
-                    .var_types
-                    .insert(param_name.clone(), elem_t.clone());
+                self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
             }
 
             let body_expr = body.to_rust_expr(self.ctx)?;
@@ -1503,6 +1469,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // DEPYLER-REFACTOR-001: Helper functions moved to collection_constructors module:
     // already_collected, is_range_expr, is_iterator_expr, is_csv_reader_var
-
-
 }

@@ -90,10 +90,7 @@ impl RuchyOptimizer {
         self.transform_expr(expr, &|e| match e {
             RuchyExpr::Pipeline { expr, stages } => {
                 let fused_stages = self.fuse_pipeline_stages(stages);
-                RuchyExpr::Pipeline {
-                    expr,
-                    stages: fused_stages,
-                }
+                RuchyExpr::Pipeline { expr, stages: fused_stages }
             }
             _ => e,
         })
@@ -139,9 +136,9 @@ impl RuchyOptimizer {
             }
 
             // Fuse filter then map into flat_map with conditional
-            (PipelineStage::Filter(p), PipelineStage::Map(f)) => Some(PipelineStage::FlatMap(
-                Box::new(self.filter_map_fusion(p, f)),
-            )),
+            (PipelineStage::Filter(p), PipelineStage::Map(f)) => {
+                Some(PipelineStage::FlatMap(Box::new(self.filter_map_fusion(p, f))))
+            }
 
             _ => None,
         }
@@ -150,20 +147,12 @@ impl RuchyOptimizer {
     /// Compose two functions
     fn compose_functions(&self, f: &RuchyExpr, g: &RuchyExpr) -> RuchyExpr {
         // Create: |x| g(f(x))
-        let x_param = Param {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        };
+        let x_param = Param { name: "x".to_string(), typ: None, default: None };
 
         let f_call = match f {
             RuchyExpr::Lambda { params, body } if params.len() == 1 => {
                 // Substitute x for the parameter in f's body
-                self.substitute_var(
-                    &params[0].name,
-                    &RuchyExpr::Identifier("x".to_string()),
-                    body,
-                )
+                self.substitute_var(&params[0].name, &RuchyExpr::Identifier("x".to_string()), body)
             }
             _ => RuchyExpr::Call {
                 func: Box::new(f.clone()),
@@ -176,25 +165,15 @@ impl RuchyOptimizer {
                 // Substitute f(x) for the parameter in g's body
                 self.substitute_var(&params[0].name, &f_call, body)
             }
-            _ => RuchyExpr::Call {
-                func: Box::new(g.clone()),
-                args: vec![f_call],
-            },
+            _ => RuchyExpr::Call { func: Box::new(g.clone()), args: vec![f_call] },
         };
 
-        RuchyExpr::Lambda {
-            params: vec![x_param],
-            body: Box::new(g_call),
-        }
+        RuchyExpr::Lambda { params: vec![x_param], body: Box::new(g_call) }
     }
 
     /// Combine two predicates with AND
     fn and_predicates(&self, p: &RuchyExpr, q: &RuchyExpr) -> RuchyExpr {
-        let x_param = Param {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        };
+        let x_param = Param { name: "x".to_string(), typ: None, default: None };
 
         let p_call = self.apply_lambda_or_call(p, "x");
         let q_call = self.apply_lambda_or_call(q, "x");
@@ -211,11 +190,7 @@ impl RuchyOptimizer {
 
     /// Fuse filter and map into flat_map
     fn filter_map_fusion(&self, predicate: &RuchyExpr, mapper: &RuchyExpr) -> RuchyExpr {
-        let x_param = Param {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        };
+        let x_param = Param { name: "x".to_string(), typ: None, default: None };
 
         let pred_call = self.apply_lambda_or_call(predicate, "x");
         let map_call = self.apply_lambda_or_call(mapper, "x");
@@ -259,10 +234,7 @@ impl RuchyOptimizer {
 
             RuchyExpr::Call { func, args } => RuchyExpr::Call {
                 func: Box::new(self.substitute_var(var, replacement, func)),
-                args: args
-                    .iter()
-                    .map(|arg| self.substitute_var(var, replacement, arg))
-                    .collect(),
+                args: args.iter().map(|arg| self.substitute_var(var, replacement, arg)).collect(),
             },
 
             _ => expr.clone(),
@@ -318,10 +290,8 @@ impl RuchyOptimizer {
             }
 
             RuchyExpr::Block(exprs) => {
-                let transformed = exprs
-                    .into_iter()
-                    .map(|e| self.cse_transform(e, cse_map, next_id))
-                    .collect();
+                let transformed =
+                    exprs.into_iter().map(|e| self.cse_transform(e, cse_map, next_id)).collect();
                 RuchyExpr::Block(transformed)
             }
 
@@ -371,9 +341,7 @@ impl RuchyOptimizer {
         inline_map: &mut HashMap<String, RuchyExpr>,
     ) {
         match expr {
-            RuchyExpr::Function {
-                name, params, body, ..
-            } => {
+            RuchyExpr::Function { name, params, body, .. } => {
                 if self.should_inline(params, body) {
                     inline_map.insert(name.clone(), (**body).clone());
                 }
@@ -477,12 +445,7 @@ impl RuchyOptimizer {
     /// Remove unused definitions
     fn remove_unused_defs(&self, expr: RuchyExpr, used_vars: &HashSet<String>) -> RuchyExpr {
         match expr {
-            RuchyExpr::Let {
-                name,
-                value,
-                body,
-                is_mutable,
-            } => {
+            RuchyExpr::Let { name, value, body, is_mutable } => {
                 if used_vars.contains(&name) {
                     RuchyExpr::Let {
                         name,
@@ -612,24 +575,14 @@ impl RuchyOptimizer {
 
             RuchyExpr::Call { func, args } => RuchyExpr::Call {
                 func: Box::new(self.transform_expr(*func, transform_fn)),
-                args: args
-                    .into_iter()
-                    .map(|arg| self.transform_expr(arg, transform_fn))
-                    .collect(),
+                args: args.into_iter().map(|arg| self.transform_expr(arg, transform_fn)).collect(),
             },
 
             RuchyExpr::Block(exprs) => RuchyExpr::Block(
-                exprs
-                    .into_iter()
-                    .map(|e| self.transform_expr(e, transform_fn))
-                    .collect(),
+                exprs.into_iter().map(|e| self.transform_expr(e, transform_fn)).collect(),
             ),
 
-            RuchyExpr::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => RuchyExpr::If {
+            RuchyExpr::If { condition, then_branch, else_branch } => RuchyExpr::If {
                 condition: Box::new(self.transform_expr(*condition, transform_fn)),
                 then_branch: Box::new(self.transform_expr(*then_branch, transform_fn)),
                 else_branch: else_branch.map(|e| Box::new(self.transform_expr(*e, transform_fn))),
@@ -682,11 +635,7 @@ mod tests {
             expr: Box::new(RuchyExpr::List(vec![])),
             stages: vec![
                 PipelineStage::Map(Box::new(RuchyExpr::Lambda {
-                    params: vec![Param {
-                        name: "x".to_string(),
-                        typ: None,
-                        default: None,
-                    }],
+                    params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                     body: Box::new(RuchyExpr::Binary {
                         left: Box::new(RuchyExpr::Identifier("x".to_string())),
                         op: BinaryOp::Add,
@@ -694,11 +643,7 @@ mod tests {
                     }),
                 })),
                 PipelineStage::Map(Box::new(RuchyExpr::Lambda {
-                    params: vec![Param {
-                        name: "y".to_string(),
-                        typ: None,
-                        default: None,
-                    }],
+                    params: vec![Param { name: "y".to_string(), typ: None, default: None }],
                     body: Box::new(RuchyExpr::Binary {
                         left: Box::new(RuchyExpr::Identifier("y".to_string())),
                         op: BinaryOp::Multiply,
@@ -737,10 +682,7 @@ mod tests {
 
     #[test]
     fn test_optimizer_with_config_level_0() {
-        let config = crate::RuchyConfig {
-            optimization_level: 0,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { optimization_level: 0, ..Default::default() };
         let optimizer = RuchyOptimizer::with_config(&config);
         assert_eq!(optimizer.level, 0);
         assert!(!optimizer.enable_pipeline_fusion);
@@ -751,10 +693,7 @@ mod tests {
 
     #[test]
     fn test_optimizer_with_config_level_1() {
-        let config = crate::RuchyConfig {
-            optimization_level: 1,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { optimization_level: 1, ..Default::default() };
         let optimizer = RuchyOptimizer::with_config(&config);
         assert_eq!(optimizer.level, 1);
         assert!(optimizer.enable_pipeline_fusion);
@@ -765,10 +704,7 @@ mod tests {
 
     #[test]
     fn test_optimizer_with_config_level_2() {
-        let config = crate::RuchyConfig {
-            optimization_level: 2,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { optimization_level: 2, ..Default::default() };
         let optimizer = RuchyOptimizer::with_config(&config);
         assert_eq!(optimizer.level, 2);
         assert!(optimizer.enable_pipeline_fusion);
@@ -779,10 +715,7 @@ mod tests {
 
     #[test]
     fn test_optimizer_with_config_level_3() {
-        let config = crate::RuchyConfig {
-            optimization_level: 3,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { optimization_level: 3, ..Default::default() };
         let optimizer = RuchyOptimizer::with_config(&config);
         assert_eq!(optimizer.level, 3);
         assert!(optimizer.enable_pipeline_fusion);
@@ -794,10 +727,7 @@ mod tests {
     // Test optimize method
     #[test]
     fn test_optimize_level_0_no_changes() {
-        let config = crate::RuchyConfig {
-            optimization_level: 0,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { optimization_level: 0, ..Default::default() };
         let optimizer = RuchyOptimizer::with_config(&config);
 
         let expr = RuchyExpr::Binary {
@@ -1219,19 +1149,13 @@ mod tests {
     #[test]
     fn test_expr_size_literal() {
         let optimizer = RuchyOptimizer::new();
-        assert_eq!(
-            optimizer.expr_size(&RuchyExpr::Literal(Literal::Integer(5))),
-            1
-        );
+        assert_eq!(optimizer.expr_size(&RuchyExpr::Literal(Literal::Integer(5))), 1);
     }
 
     #[test]
     fn test_expr_size_identifier() {
         let optimizer = RuchyOptimizer::new();
-        assert_eq!(
-            optimizer.expr_size(&RuchyExpr::Identifier("x".to_string())),
-            1
-        );
+        assert_eq!(optimizer.expr_size(&RuchyExpr::Identifier("x".to_string())), 1);
     }
 
     #[test]
@@ -1283,11 +1207,7 @@ mod tests {
     #[test]
     fn test_should_inline_small_function() {
         let optimizer = RuchyOptimizer::new();
-        let params = vec![Param {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        }];
+        let params = vec![Param { name: "x".to_string(), typ: None, default: None }];
         let body = RuchyExpr::Binary {
             left: Box::new(RuchyExpr::Identifier("x".to_string())),
             op: BinaryOp::Add,
@@ -1300,16 +1220,8 @@ mod tests {
     fn test_should_not_inline_many_params() {
         let optimizer = RuchyOptimizer::new();
         let params = vec![
-            Param {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            },
-            Param {
-                name: "y".to_string(),
-                typ: None,
-                default: None,
-            },
+            Param { name: "x".to_string(), typ: None, default: None },
+            Param { name: "y".to_string(), typ: None, default: None },
         ];
         let body = RuchyExpr::Literal(Literal::Integer(1));
         assert!(!optimizer.should_inline(&params, &body));
@@ -1393,11 +1305,7 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
 
         let p = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
                 op: BinaryOp::Greater,
@@ -1406,11 +1314,7 @@ mod tests {
         };
 
         let q = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "y".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "y".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("y".to_string())),
                 op: BinaryOp::Less,
@@ -1431,11 +1335,7 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
 
         let pred = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
                 op: BinaryOp::Greater,
@@ -1444,11 +1344,7 @@ mod tests {
         };
 
         let mapper = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "y".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "y".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("y".to_string())),
                 op: BinaryOp::Multiply,
@@ -1480,11 +1376,7 @@ mod tests {
     fn test_apply_lambda_with_lambda() {
         let optimizer = RuchyOptimizer::new();
         let func = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "a".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "a".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("a".to_string())),
                 op: BinaryOp::Add,
@@ -1641,11 +1533,7 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
 
         let f = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "a".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "a".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("a".to_string())),
                 op: BinaryOp::Add,
@@ -1654,11 +1542,7 @@ mod tests {
         };
 
         let g = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "b".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "b".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("b".to_string())),
                 op: BinaryOp::Multiply,
@@ -1692,10 +1576,7 @@ mod tests {
                 assert_eq!(*func, RuchyExpr::Identifier("g".to_string()));
                 assert_eq!(args.len(), 1);
                 // First arg should be f(x)
-                if let RuchyExpr::Call {
-                    func: inner_func, ..
-                } = &args[0]
-                {
+                if let RuchyExpr::Call { func: inner_func, .. } = &args[0] {
                     assert_eq!(**inner_func, RuchyExpr::Identifier("f".to_string()));
                 } else {
                     panic!("Expected inner call");
@@ -1714,11 +1595,7 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
 
         let p = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "a".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "a".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("a".to_string())),
                 op: BinaryOp::Greater,
@@ -1727,11 +1604,7 @@ mod tests {
         };
 
         let q = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "b".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "b".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("b".to_string())),
                 op: BinaryOp::Less,
@@ -1760,11 +1633,7 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
 
         let pred = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "a".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "a".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("a".to_string())),
                 op: BinaryOp::Greater,
@@ -1773,11 +1642,7 @@ mod tests {
         };
 
         let mapper = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "b".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "b".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("b".to_string())),
                 op: BinaryOp::Multiply,
@@ -1790,11 +1655,7 @@ mod tests {
         if let RuchyExpr::Lambda { params, body } = result {
             assert_eq!(params.len(), 1);
             assert_eq!(params[0].name, "x");
-            if let RuchyExpr::If {
-                else_branch: Some(_),
-                ..
-            } = *body
-            {
+            if let RuchyExpr::If { else_branch: Some(_), .. } = *body {
                 // Expected structure
             } else {
                 panic!("Expected if with else");
@@ -1855,9 +1716,7 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
         let expr = RuchyExpr::Pipeline {
             expr: Box::new(RuchyExpr::List(vec![])),
-            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier(
-                "f".to_string(),
-            )))],
+            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string())))],
         };
 
         let result = optimizer.transform_expr(expr, &|e| e);
@@ -1872,11 +1731,7 @@ mod tests {
 
         let expr = RuchyExpr::Function {
             name: "small_fn".to_string(),
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Identifier("x".to_string())),
             return_type: None,
             is_async: false,
@@ -1938,11 +1793,7 @@ mod tests {
                     RuchyExpr::Literal(Literal::Integer(2)),
                 ])),
                 stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Lambda {
-                    params: vec![Param {
-                        name: "x".to_string(),
-                        typ: None,
-                        default: None,
-                    }],
+                    params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                     body: Box::new(RuchyExpr::Identifier("x".to_string())),
                 }))],
             },
@@ -1961,11 +1812,7 @@ mod tests {
         let expr = RuchyExpr::Block(vec![
             RuchyExpr::Function {
                 name: "double".to_string(),
-                params: vec![Param {
-                    name: "x".to_string(),
-                    typ: None,
-                    default: None,
-                }],
+                params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                 body: Box::new(RuchyExpr::Binary {
                     left: Box::new(RuchyExpr::Identifier("x".to_string())),
                     op: BinaryOp::Multiply,
@@ -2014,9 +1861,7 @@ mod tests {
     #[test]
     fn test_fuse_pipeline_stages_single_stage() {
         let optimizer = RuchyOptimizer::new();
-        let stages = vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier(
-            "f".to_string(),
-        )))];
+        let stages = vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string())))];
 
         let result = optimizer.fuse_pipeline_stages(stages);
         assert_eq!(result.len(), 1);

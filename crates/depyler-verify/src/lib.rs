@@ -55,11 +55,7 @@ pub struct TestCase {
 
 impl Default for PropertyVerifier {
     fn default() -> Self {
-        Self {
-            enable_quickcheck: true,
-            enable_contracts: true,
-            test_iterations: 1000,
-        }
+        Self { enable_quickcheck: true, enable_contracts: true, test_iterations: 1000 }
     }
 }
 
@@ -175,10 +171,8 @@ impl PropertyVerifier {
 
     fn verify_type_preservation(&self, func: &HirFunction) -> Option<VerificationResult> {
         // Check if all types are properly annotated
-        let all_typed = func
-            .params
-            .iter()
-            .all(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown));
+        let all_typed =
+            func.params.iter().all(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown));
 
         if all_typed && !matches!(func.ret_type, depyler_core::hir::Type::Unknown) {
             Some(VerificationResult {
@@ -330,19 +324,13 @@ mod tests {
 
         // Test with fully typed function
         let results = verifier.verify_function(&func);
-        let type_result = results
-            .iter()
-            .find(|r| r.property == "type_preservation")
-            .unwrap();
+        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
         assert!(matches!(type_result.status, PropertyStatus::Proven));
 
         // Test with unknown types
         func.ret_type = Type::Unknown;
         let results = verifier.verify_function(&func);
-        let type_result = results
-            .iter()
-            .find(|r| r.property == "type_preservation")
-            .unwrap();
+        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
         assert!(matches!(type_result.status, PropertyStatus::Unknown));
     }
 
@@ -359,10 +347,7 @@ mod tests {
 
         let null_result = results.iter().find(|r| r.property == "null_safety");
         assert!(null_result.is_some());
-        assert!(matches!(
-            null_result.unwrap().status,
-            PropertyStatus::Proven
-        ));
+        assert!(matches!(null_result.unwrap().status, PropertyStatus::Proven));
     }
 
     #[test]
@@ -433,10 +418,7 @@ mod tests {
         let results = verifier.verify_function(&func);
         let thread_result = results.iter().find(|r| r.property == "thread_safety");
         assert!(thread_result.is_some());
-        assert!(matches!(
-            thread_result.unwrap().status,
-            PropertyStatus::Violated(_)
-        ));
+        assert!(matches!(thread_result.unwrap().status, PropertyStatus::Violated(_)));
     }
 
     #[test]
@@ -461,10 +443,7 @@ mod tests {
         let results = verifier.verify_function(&func);
         let thread_result = results.iter().find(|r| r.property == "thread_safety");
         assert!(thread_result.is_some());
-        assert!(matches!(
-            thread_result.unwrap().status,
-            PropertyStatus::Proven
-        ));
+        assert!(matches!(thread_result.unwrap().status, PropertyStatus::Proven));
     }
 
     #[test]
@@ -499,10 +478,7 @@ mod tests {
         use smallvec::smallvec;
         let func = HirFunction {
             name: "untyped_param".to_string(),
-            params: smallvec![depyler_core::hir::HirParam::new(
-                "x".to_string(),
-                Type::Unknown
-            )],
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Unknown)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: Default::default(),
@@ -511,10 +487,7 @@ mod tests {
         };
 
         let results = verifier.verify_function(&func);
-        let type_result = results
-            .iter()
-            .find(|r| r.property == "type_preservation")
-            .unwrap();
+        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
         assert!(matches!(type_result.status, PropertyStatus::Unknown));
         assert_eq!(type_result.confidence, 0.0);
     }
@@ -595,10 +568,7 @@ mod tests {
         for method in methods {
             let serialized = serde_json::to_string(&method).unwrap();
             let deserialized: VerificationMethod = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(
-                std::mem::discriminant(&method),
-                std::mem::discriminant(&deserialized)
-            );
+            assert_eq!(std::mem::discriminant(&method), std::mem::discriminant(&deserialized));
         }
     }
 
@@ -621,12 +591,8 @@ mod tests {
     #[test]
     fn test_test_case_empty() {
         use serde_json;
-        let test_case = TestCase {
-            inputs: vec![],
-            expected_output: None,
-            actual_output: None,
-            error: None,
-        };
+        let test_case =
+            TestCase { inputs: vec![], expected_output: None, actual_output: None, error: None };
 
         let serialized = serde_json::to_string(&test_case).unwrap();
         let deserialized: TestCase = serde_json::from_str(&serialized).unwrap();

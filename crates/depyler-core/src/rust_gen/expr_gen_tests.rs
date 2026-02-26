@@ -6,9 +6,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -1089,37 +1087,27 @@ fn test_call_bytearray_from_list() {
 
 #[test]
 fn test_counter_empty() {
-    assert!(transpile_ok(
-        "from collections import Counter\nx = Counter()"
-    ));
+    assert!(transpile_ok("from collections import Counter\nx = Counter()"));
 }
 
 #[test]
 fn test_counter_from_list() {
-    assert!(transpile_ok(
-        "from collections import Counter\nx = Counter([1, 1, 2, 3, 3, 3])"
-    ));
+    assert!(transpile_ok("from collections import Counter\nx = Counter([1, 1, 2, 3, 3, 3])"));
 }
 
 #[test]
 fn test_counter_from_string() {
-    assert!(transpile_ok(
-        "from collections import Counter\nx = Counter('hello')"
-    ));
+    assert!(transpile_ok("from collections import Counter\nx = Counter('hello')"));
 }
 
 #[test]
 fn test_defaultdict_empty() {
-    assert!(transpile_ok(
-        "from collections import defaultdict\nx = defaultdict(int)"
-    ));
+    assert!(transpile_ok("from collections import defaultdict\nx = defaultdict(int)"));
 }
 
 #[test]
 fn test_defaultdict_with_list() {
-    assert!(transpile_ok(
-        "from collections import defaultdict\nx = defaultdict(list)"
-    ));
+    assert!(transpile_ok("from collections import defaultdict\nx = defaultdict(list)"));
 }
 
 #[test]
@@ -1129,16 +1117,12 @@ fn test_deque_empty() {
 
 #[test]
 fn test_deque_from_list() {
-    assert!(transpile_ok(
-        "from collections import deque\nx = deque([1, 2, 3])"
-    ));
+    assert!(transpile_ok("from collections import deque\nx = deque([1, 2, 3])"));
 }
 
 #[test]
 fn test_deque_with_maxlen() {
-    assert!(transpile_ok(
-        "from collections import deque\nx = deque([1, 2, 3], maxlen=5)"
-    ));
+    assert!(transpile_ok("from collections import deque\nx = deque([1, 2, 3], maxlen=5)"));
 }
 
 // ============================================================================
@@ -1201,9 +1185,7 @@ fn test_set_issubset() {
 
 #[test]
 fn test_set_issuperset() {
-    assert!(transpile_ok(
-        "a = {1, 2, 3}\nb = {1, 2}\nx = a.issuperset(b)"
-    ));
+    assert!(transpile_ok("a = {1, 2, 3}\nb = {1, 2}\nx = a.issuperset(b)"));
 }
 
 #[test]
@@ -1217,51 +1199,37 @@ fn test_set_isdisjoint() {
 
 #[test]
 fn test_pathlib_path() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test.txt')"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test.txt')"));
 }
 
 #[test]
 fn test_pathlib_exists() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test.txt')\nx = p.exists()"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test.txt')\nx = p.exists()"));
 }
 
 #[test]
 fn test_pathlib_is_file() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test.txt')\nx = p.is_file()"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test.txt')\nx = p.is_file()"));
 }
 
 #[test]
 fn test_pathlib_is_dir() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test')\nx = p.is_dir()"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test')\nx = p.is_dir()"));
 }
 
 #[test]
 fn test_pathlib_read_text() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test.txt')\nx = p.read_text()"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test.txt')\nx = p.read_text()"));
 }
 
 #[test]
 fn test_pathlib_write_text() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test.txt')\np.write_text('hello')"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test.txt')\np.write_text('hello')"));
 }
 
 #[test]
 fn test_pathlib_read_bytes() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('test.txt')\nx = p.read_bytes()"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('test.txt')\nx = p.read_bytes()"));
 }
 
 #[test]
@@ -1273,44 +1241,32 @@ fn test_pathlib_write_bytes() {
 
 #[test]
 fn test_pathlib_mkdir() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('newdir')\np.mkdir()"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('newdir')\np.mkdir()"));
 }
 
 #[test]
 fn test_pathlib_joinpath() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('dir')\nq = p.joinpath('file.txt')"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('dir')\nq = p.joinpath('file.txt')"));
 }
 
 #[test]
 fn test_pathlib_parent() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('dir/file.txt')\nx = p.parent"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('dir/file.txt')\nx = p.parent"));
 }
 
 #[test]
 fn test_pathlib_name() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('dir/file.txt')\nx = p.name"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('dir/file.txt')\nx = p.name"));
 }
 
 #[test]
 fn test_pathlib_stem() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('file.txt')\nx = p.stem"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('file.txt')\nx = p.stem"));
 }
 
 #[test]
 fn test_pathlib_suffix() {
-    assert!(transpile_ok(
-        "from pathlib import Path\np = Path('file.txt')\nx = p.suffix"
-    ));
+    assert!(transpile_ok("from pathlib import Path\np = Path('file.txt')\nx = p.suffix"));
 }
 
 // ============================================================================
@@ -1319,23 +1275,17 @@ fn test_pathlib_suffix() {
 
 #[test]
 fn test_datetime_now() {
-    assert!(transpile_ok(
-        "from datetime import datetime\nx = datetime.now()"
-    ));
+    assert!(transpile_ok("from datetime import datetime\nx = datetime.now()"));
 }
 
 #[test]
 fn test_datetime_utcnow() {
-    assert!(transpile_ok(
-        "from datetime import datetime\nx = datetime.utcnow()"
-    ));
+    assert!(transpile_ok("from datetime import datetime\nx = datetime.utcnow()"));
 }
 
 #[test]
 fn test_datetime_strftime() {
-    assert!(transpile_ok(
-        "from datetime import datetime\nx = datetime.now().strftime('%Y-%m-%d')"
-    ));
+    assert!(transpile_ok("from datetime import datetime\nx = datetime.now().strftime('%Y-%m-%d')"));
 }
 
 #[test]
@@ -1352,16 +1302,12 @@ fn test_datetime_date() {
 
 #[test]
 fn test_datetime_time() {
-    assert!(transpile_ok(
-        "from datetime import time\nx = time(12, 30, 45)"
-    ));
+    assert!(transpile_ok("from datetime import time\nx = time(12, 30, 45)"));
 }
 
 #[test]
 fn test_datetime_timedelta() {
-    assert!(transpile_ok(
-        "from datetime import timedelta\nx = timedelta(days=1, hours=2)"
-    ));
+    assert!(transpile_ok("from datetime import timedelta\nx = timedelta(days=1, hours=2)"));
 }
 
 // ============================================================================
@@ -1370,9 +1316,7 @@ fn test_datetime_timedelta() {
 
 #[test]
 fn test_subprocess_run() {
-    assert!(transpile_ok(
-        "import subprocess\nresult = subprocess.run(['ls', '-l'])"
-    ));
+    assert!(transpile_ok("import subprocess\nresult = subprocess.run(['ls', '-l'])"));
 }
 
 #[test]
@@ -1384,16 +1328,12 @@ fn test_subprocess_run_capture() {
 
 #[test]
 fn test_subprocess_run_shell() {
-    assert!(transpile_ok(
-        "import subprocess\nresult = subprocess.run('ls -l', shell=True)"
-    ));
+    assert!(transpile_ok("import subprocess\nresult = subprocess.run('ls -l', shell=True)"));
 }
 
 #[test]
 fn test_subprocess_popen() {
-    assert!(transpile_ok(
-        "import subprocess\np = subprocess.Popen(['ls', '-l'])"
-    ));
+    assert!(transpile_ok("import subprocess\np = subprocess.Popen(['ls', '-l'])"));
 }
 
 #[test]
@@ -1419,30 +1359,22 @@ fn test_re_search() {
 
 #[test]
 fn test_re_findall() {
-    assert!(transpile_ok(
-        "import re\nmatches = re.findall(r'\\d+', 'a1b2c3')"
-    ));
+    assert!(transpile_ok("import re\nmatches = re.findall(r'\\d+', 'a1b2c3')"));
 }
 
 #[test]
 fn test_re_finditer() {
-    assert!(transpile_ok(
-        "import re\nfor m in re.finditer(r'\\d+', 'a1b2c3'):\n    pass"
-    ));
+    assert!(transpile_ok("import re\nfor m in re.finditer(r'\\d+', 'a1b2c3'):\n    pass"));
 }
 
 #[test]
 fn test_re_sub() {
-    assert!(transpile_ok(
-        "import re\nresult = re.sub(r'\\d+', 'X', 'a1b2c3')"
-    ));
+    assert!(transpile_ok("import re\nresult = re.sub(r'\\d+', 'X', 'a1b2c3')"));
 }
 
 #[test]
 fn test_re_split() {
-    assert!(transpile_ok(
-        "import re\nparts = re.split(r'\\s+', 'a b  c')"
-    ));
+    assert!(transpile_ok("import re\nparts = re.split(r'\\s+', 'a b  c')"));
 }
 
 #[test]
@@ -1511,30 +1443,22 @@ fn test_os_path_exists() {
 
 #[test]
 fn test_os_path_join() {
-    assert!(transpile_ok(
-        "import os\np = os.path.join('dir', 'file.txt')"
-    ));
+    assert!(transpile_ok("import os\np = os.path.join('dir', 'file.txt')"));
 }
 
 #[test]
 fn test_os_path_basename() {
-    assert!(transpile_ok(
-        "import os\nx = os.path.basename('/path/to/file.txt')"
-    ));
+    assert!(transpile_ok("import os\nx = os.path.basename('/path/to/file.txt')"));
 }
 
 #[test]
 fn test_os_path_dirname() {
-    assert!(transpile_ok(
-        "import os\nx = os.path.dirname('/path/to/file.txt')"
-    ));
+    assert!(transpile_ok("import os\nx = os.path.dirname('/path/to/file.txt')"));
 }
 
 #[test]
 fn test_os_path_splitext() {
-    assert!(transpile_ok(
-        "import os\nname, ext = os.path.splitext('file.txt')"
-    ));
+    assert!(transpile_ok("import os\nname, ext = os.path.splitext('file.txt')"));
 }
 
 #[test]
@@ -1558,9 +1482,7 @@ fn test_json_dumps() {
 
 #[test]
 fn test_json_load() {
-    assert!(transpile_ok(
-        "import json\nwith open('file.json') as f:\n    data = json.load(f)"
-    ));
+    assert!(transpile_ok("import json\nwith open('file.json') as f:\n    data = json.load(f)"));
 }
 
 #[test]
@@ -1747,9 +1669,7 @@ fn test_iter_reduce() {
 
 #[test]
 fn test_iter_chain() {
-    assert!(transpile_ok(
-        "from itertools import chain\nx = list(chain([1, 2], [3, 4]))"
-    ));
+    assert!(transpile_ok("from itertools import chain\nx = list(chain([1, 2], [3, 4]))"));
 }
 
 #[test]
@@ -1973,16 +1893,12 @@ fn test_conditional_with_method() {
 
 #[test]
 fn test_list_comp_with_multiple_ifs() {
-    assert!(transpile_ok(
-        "x = [i for i in range(100) if i > 10 if i < 90]"
-    ));
+    assert!(transpile_ok("x = [i for i in range(100) if i > 10 if i < 90]"));
 }
 
 #[test]
 fn test_nested_list_comp() {
-    assert!(transpile_ok(
-        "x = [[j for j in range(i)] for i in range(5)]"
-    ));
+    assert!(transpile_ok("x = [[j for j in range(i)] for i in range(5)]"));
 }
 
 #[test]
@@ -2016,9 +1932,7 @@ fn test_fstring_multiple() {
 
 #[test]
 fn test_string_methods_chain() {
-    assert!(transpile_ok(
-        "x = 'hello'.upper().strip().replace('H', 'J')"
-    ));
+    assert!(transpile_ok("x = 'hello'.upper().strip().replace('H', 'J')"));
 }
 
 #[test]
@@ -2028,9 +1942,7 @@ fn test_string_split_join() {
 
 #[test]
 fn test_string_startswith_endswith() {
-    assert!(transpile_ok(
-        "x = 'hello'.startswith('he') and 'hello'.endswith('lo')"
-    ));
+    assert!(transpile_ok("x = 'hello'.startswith('he') and 'hello'.endswith('lo')"));
 }
 
 #[test]
@@ -2055,9 +1967,7 @@ fn test_string_zfill() {
 
 #[test]
 fn test_string_center_ljust_rjust() {
-    assert!(transpile_ok(
-        "x = 'hi'.center(10) + 'hi'.ljust(10) + 'hi'.rjust(10)"
-    ));
+    assert!(transpile_ok("x = 'hi'.center(10) + 'hi'.ljust(10) + 'hi'.rjust(10)"));
 }
 
 #[test]
@@ -2071,44 +1981,32 @@ fn test_string_encode() {
 
 #[test]
 fn test_list_append_extend() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [1]\n    x.append(2)\n    x.extend([3, 4])"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [1]\n    x.append(2)\n    x.extend([3, 4])"));
 }
 
 #[test]
 fn test_list_insert_pop() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [1, 2, 3]\n    x.insert(1, 10)\n    y = x.pop()"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [1, 2, 3]\n    x.insert(1, 10)\n    y = x.pop()"));
 }
 
 #[test]
 fn test_list_remove_clear() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [1, 2, 3]\n    x.remove(2)\n    x.clear()"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [1, 2, 3]\n    x.remove(2)\n    x.clear()"));
 }
 
 #[test]
 fn test_list_index_count() {
-    assert!(transpile_ok(
-        "x = [1, 2, 2, 3].index(2) + [1, 2, 2, 3].count(2)"
-    ));
+    assert!(transpile_ok("x = [1, 2, 2, 3].index(2) + [1, 2, 2, 3].count(2)"));
 }
 
 #[test]
 fn test_list_sort_reverse() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [3, 1, 2]\n    x.sort()\n    x.reverse()"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [3, 1, 2]\n    x.sort()\n    x.reverse()"));
 }
 
 #[test]
 fn test_list_copy_method() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [1, 2, 3]\n    y = x.copy()"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [1, 2, 3]\n    y = x.copy()"));
 }
 
 #[test]
@@ -2142,9 +2040,7 @@ fn test_dict_keys_values_items() {
 
 #[test]
 fn test_dict_update_method() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    d.update({'b': 2})"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    d.update({'b': 2})"));
 }
 
 #[test]
@@ -2156,9 +2052,7 @@ fn test_dict_pop_popitem() {
 
 #[test]
 fn test_dict_setdefault_method() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    x = d.setdefault('b', 2)"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    x = d.setdefault('b', 2)"));
 }
 
 #[test]
@@ -2172,9 +2066,7 @@ fn test_dict_fromkeys_method() {
 
 #[test]
 fn test_set_add_discard() {
-    assert!(transpile_ok(
-        "def foo():\n    s = {1, 2}\n    s.add(3)\n    s.discard(1)"
-    ));
+    assert!(transpile_ok("def foo():\n    s = {1, 2}\n    s.add(3)\n    s.discard(1)"));
 }
 
 #[test]
@@ -2189,9 +2081,7 @@ fn test_set_difference_symmetric() {
 
 #[test]
 fn test_set_issubset_issuperset() {
-    assert!(transpile_ok(
-        "x = {1, 2}.issubset({1, 2, 3}) and {1, 2, 3}.issuperset({1, 2})"
-    ));
+    assert!(transpile_ok("x = {1, 2}.issubset({1, 2, 3}) and {1, 2, 3}.issuperset({1, 2})"));
 }
 
 // ============================================================================
@@ -2271,9 +2161,7 @@ fn test_reduce() {
 
 #[test]
 fn test_sorted_key_reverse() {
-    assert!(transpile_ok(
-        "x = sorted([3, 1, 2], key=lambda x: -x, reverse=True)"
-    ));
+    assert!(transpile_ok("x = sorted([3, 1, 2], key=lambda x: -x, reverse=True)"));
 }
 
 #[test]
@@ -2288,9 +2176,7 @@ fn test_sum_start() {
 
 #[test]
 fn test_all_any_generator() {
-    assert!(transpile_ok(
-        "a = all(x > 0 for x in [1, 2, 3])\nb = any(x < 0 for x in [1, 2, 3])"
-    ));
+    assert!(transpile_ok("a = all(x > 0 for x in [1, 2, 3])\nb = any(x < 0 for x in [1, 2, 3])"));
 }
 
 #[test]
@@ -2306,9 +2192,7 @@ fn test_isinstance_type() {
 
 #[test]
 fn test_repr_str_ascii() {
-    assert!(transpile_ok(
-        "a = repr([1, 2])\nb = str(42)\nc = ascii('hello')"
-    ));
+    assert!(transpile_ok("a = repr([1, 2])\nb = str(42)\nc = ascii('hello')"));
 }
 
 #[test]
@@ -2323,9 +2207,7 @@ fn test_id_hash() {
 
 #[test]
 fn test_len_range_types() {
-    assert!(transpile_ok(
-        "a = len([1, 2, 3])\nb = len('hello')\nc = len({'a': 1})"
-    ));
+    assert!(transpile_ok("a = len([1, 2, 3])\nb = len('hello')\nc = len({'a': 1})"));
 }
 
 // ============================================================================
@@ -2334,9 +2216,7 @@ fn test_len_range_types() {
 
 #[test]
 fn test_bitwise_operators() {
-    assert!(transpile_ok(
-        "x = (1 & 2) | (3 ^ 4) | (~5) | (6 << 1) | (7 >> 1)"
-    ));
+    assert!(transpile_ok("x = (1 & 2) | (3 ^ 4) | (~5) | (6 << 1) | (7 >> 1)"));
 }
 
 #[test]
@@ -2437,9 +2317,7 @@ fn test_slice_none_bounds() {
 
 #[test]
 fn test_ternary_nested() {
-    assert!(transpile_ok(
-        "x = 'a' if a > 0 else ('b' if b > 0 else 'c')"
-    ));
+    assert!(transpile_ok("x = 'a' if a > 0 else ('b' if b > 0 else 'c')"));
 }
 
 #[test]
@@ -2463,9 +2341,7 @@ fn test_generator_expr_in_sum() {
 
 #[test]
 fn test_dict_comp_conditional() {
-    assert!(transpile_ok(
-        "x = {k: v for k, v in d.items() if v is not None}"
-    ));
+    assert!(transpile_ok("x = {k: v for k, v in d.items() if v is not None}"));
 }
 
 #[test]
@@ -2484,9 +2360,7 @@ fn test_await_call() {
 
 #[test]
 fn test_await_method() {
-    assert!(transpile_ok(
-        "async def foo():\n    x = await obj.async_method()"
-    ));
+    assert!(transpile_ok("async def foo():\n    x = await obj.async_method()"));
 }
 
 // ============================================================================
@@ -2624,9 +2498,7 @@ fn test_in_bytes() {
 
 #[test]
 fn test_not_in_dict_keys() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    x = 'b' not in d"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    x = 'b' not in d"));
 }
 
 #[test]
@@ -2645,37 +2517,27 @@ fn test_in_set_literal() {
 
 #[test]
 fn test_call_sorted_with_key() {
-    assert!(transpile_ok(
-        "def foo():\n    x = sorted([3, 1, 2], key=lambda x: -x)"
-    ));
+    assert!(transpile_ok("def foo():\n    x = sorted([3, 1, 2], key=lambda x: -x)"));
 }
 
 #[test]
 fn test_call_sorted_reverse() {
-    assert!(transpile_ok(
-        "def foo():\n    x = sorted([3, 1, 2], reverse=True)"
-    ));
+    assert!(transpile_ok("def foo():\n    x = sorted([3, 1, 2], reverse=True)"));
 }
 
 #[test]
 fn test_call_zip_three_args() {
-    assert!(transpile_ok(
-        "def foo():\n    z = list(zip([1, 2], [3, 4], [5, 6]))"
-    ));
+    assert!(transpile_ok("def foo():\n    z = list(zip([1, 2], [3, 4], [5, 6]))"));
 }
 
 #[test]
 fn test_call_filter_none() {
-    assert!(transpile_ok(
-        "def foo():\n    x = list(filter(None, [1, 0, 2, 0, 3]))"
-    ));
+    assert!(transpile_ok("def foo():\n    x = list(filter(None, [1, 0, 2, 0, 3]))"));
 }
 
 #[test]
 fn test_call_map_with_lambda() {
-    assert!(transpile_ok(
-        "def foo():\n    x = list(map(lambda x: x * 2, [1, 2, 3]))"
-    ));
+    assert!(transpile_ok("def foo():\n    x = list(map(lambda x: x * 2, [1, 2, 3]))"));
 }
 
 #[test]
@@ -2707,16 +2569,12 @@ fn test_call_round_with_ndigits() {
 
 #[test]
 fn test_call_hasattr() {
-    assert!(transpile_ok(
-        "def foo(obj):\n    return hasattr(obj, 'name')"
-    ));
+    assert!(transpile_ok("def foo(obj):\n    return hasattr(obj, 'name')"));
 }
 
 #[test]
 fn test_call_setattr() {
-    assert!(transpile_ok(
-        "def foo(obj):\n    setattr(obj, 'name', 'value')"
-    ));
+    assert!(transpile_ok("def foo(obj):\n    setattr(obj, 'name', 'value')"));
 }
 
 #[test]
@@ -2760,23 +2618,17 @@ fn test_call_ascii() {
 
 #[test]
 fn test_method_str_partition() {
-    assert!(transpile_ok(
-        "def foo():\n    x = 'hello-world'.partition('-')"
-    ));
+    assert!(transpile_ok("def foo():\n    x = 'hello-world'.partition('-')"));
 }
 
 #[test]
 fn test_method_str_rpartition() {
-    assert!(transpile_ok(
-        "def foo():\n    x = 'hello-world-test'.rpartition('-')"
-    ));
+    assert!(transpile_ok("def foo():\n    x = 'hello-world-test'.rpartition('-')"));
 }
 
 #[test]
 fn test_method_str_expandtabs() {
-    assert!(transpile_ok(
-        "def foo():\n    x = 'hello\tworld'.expandtabs(4)"
-    ));
+    assert!(transpile_ok("def foo():\n    x = 'hello\tworld'.expandtabs(4)"));
 }
 
 #[test]
@@ -2796,16 +2648,12 @@ fn test_method_list_copy() {
 
 #[test]
 fn test_method_list_clear() {
-    assert!(transpile_ok(
-        "def foo():\n    lst = [1, 2, 3]\n    lst.clear()"
-    ));
+    assert!(transpile_ok("def foo():\n    lst = [1, 2, 3]\n    lst.clear()"));
 }
 
 #[test]
 fn test_method_list_reverse() {
-    assert!(transpile_ok(
-        "def foo():\n    lst = [1, 2, 3]\n    lst.reverse()"
-    ));
+    assert!(transpile_ok("def foo():\n    lst = [1, 2, 3]\n    lst.reverse()"));
 }
 
 #[test]
@@ -2820,30 +2668,22 @@ fn test_method_dict_copy() {
 
 #[test]
 fn test_method_dict_pop() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    x = d.pop('a')"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    x = d.pop('a')"));
 }
 
 #[test]
 fn test_method_dict_pop_default() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    x = d.pop('b', 0)"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    x = d.pop('b', 0)"));
 }
 
 #[test]
 fn test_method_dict_popitem() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    k, v = d.popitem()"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    k, v = d.popitem()"));
 }
 
 #[test]
 fn test_method_dict_update() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    d.update({'b': 2})"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    d.update({'b': 2})"));
 }
 
 #[test]
@@ -2868,23 +2708,17 @@ fn test_method_set_union() {
 
 #[test]
 fn test_method_set_intersection() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {1, 2, 3}.intersection({2, 3, 4})"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {1, 2, 3}.intersection({2, 3, 4})"));
 }
 
 #[test]
 fn test_method_set_difference() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {1, 2, 3}.difference({2})"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {1, 2, 3}.difference({2})"));
 }
 
 #[test]
 fn test_method_set_symmetric_difference() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {1, 2, 3}.symmetric_difference({2, 3, 4})"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {1, 2, 3}.symmetric_difference({2, 3, 4})"));
 }
 
 // ============================================================================
@@ -2932,37 +2766,27 @@ fn test_compare_multiple_eq() {
 
 #[test]
 fn test_listcomp_nested_double_for() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [i + j for i in range(3) for j in range(3)]"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [i + j for i in range(3) for j in range(3)]"));
 }
 
 #[test]
 fn test_listcomp_multiple_ifs() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [i for i in range(20) if i % 2 == 0 if i % 3 == 0]"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [i for i in range(20) if i % 2 == 0 if i % 3 == 0]"));
 }
 
 #[test]
 fn test_dictcomp_filtered() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {k: v for k, v in items.items() if v > 0}"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {k: v for k, v in items.items() if v > 0}"));
 }
 
 #[test]
 fn test_setcomp_simple() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {i * 2 for i in range(10)}"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {i * 2 for i in range(10)}"));
 }
 
 #[test]
 fn test_genexp_filtered() {
-    assert!(transpile_ok(
-        "def foo():\n    x = sum(i for i in range(10) if i % 2 == 0)"
-    ));
+    assert!(transpile_ok("def foo():\n    x = sum(i for i in range(10) if i % 2 == 0)"));
 }
 
 // ============================================================================
@@ -3058,16 +2882,12 @@ fn test_fstring_debug_format() {
 
 #[test]
 fn test_fstring_nested_braces() {
-    assert!(transpile_ok(
-        "def foo():\n    width = 10\n    x = f'{42:{width}}'"
-    ));
+    assert!(transpile_ok("def foo():\n    width = 10\n    x = f'{42:{width}}'"));
 }
 
 #[test]
 fn test_fstring_multiple_values() {
-    assert!(transpile_ok(
-        "def foo():\n    a, b = 1, 2\n    x = f'{a} + {b} = {a + b}'"
-    ));
+    assert!(transpile_ok("def foo():\n    a, b = 1, 2\n    x = f'{a} + {b} = {a + b}'"));
 }
 
 // ============================================================================
@@ -3079,17 +2899,13 @@ fn test_fstring_multiple_values() {
 #[test]
 fn test_rust_keyword_type_var() {
     // Variable named after Rust keyword 'type'
-    assert!(transpile_ok(
-        "def foo():\n    type = 'int'\n    return type"
-    ));
+    assert!(transpile_ok("def foo():\n    type = 'int'\n    return type"));
 }
 
 #[test]
 fn test_rust_keyword_match_coverage() {
     // Coverage for match keyword handling
-    assert!(transpile_ok(
-        "def foo():\n    match = 'pattern'\n    return match"
-    ));
+    assert!(transpile_ok("def foo():\n    match = 'pattern'\n    return match"));
 }
 
 #[test]
@@ -3099,18 +2915,14 @@ fn test_rust_keyword_loop_coverage() {
 
 #[test]
 fn test_rust_keyword_async_await_coverage() {
-    assert!(transpile_ok(
-        "def foo():\n    async_ = 1\n    await_ = 2\n    return async_ + await_"
-    ));
+    assert!(transpile_ok("def foo():\n    async_ = 1\n    await_ = 2\n    return async_ + await_"));
 }
 
 // --- is_non_raw_keyword helper ---
 #[test]
 fn test_non_raw_keyword_self_var() {
     // 'self' in non-method context
-    assert!(transpile_ok(
-        "def foo():\n    self_val = 42\n    return self_val"
-    ));
+    assert!(transpile_ok("def foo():\n    self_val = 42\n    return self_val"));
 }
 
 // --- collect_walrus_vars helpers ---

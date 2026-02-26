@@ -30,9 +30,7 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // E0416 occurs when same identifier bound twice: `ref path, ref path`
     // The pattern should only have `ref path` once
@@ -43,10 +41,7 @@ if __name__ == "__main__":
          This indicates E0416 duplicate identifier bug.\n\
          Generated code snippet:\n{}",
         binding_count,
-        &result[result.find("match").unwrap_or(0)..]
-            .chars()
-            .take(500)
-            .collect::<String>()
+        &result[result.find("match").unwrap_or(0)..].chars().take(500).collect::<String>()
     );
 }
 
@@ -75,24 +70,14 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Check for duplicate bindings
     let dir_count = result.matches("ref directory").count();
     let pat_count = result.matches("ref pattern").count();
 
-    assert!(
-        dir_count <= 1,
-        "Expected at most 1 'ref directory' binding, found {}",
-        dir_count
-    );
-    assert!(
-        pat_count <= 1,
-        "Expected at most 1 'ref pattern' binding, found {}",
-        pat_count
-    );
+    assert!(dir_count <= 1, "Expected at most 1 'ref directory' binding, found {}", dir_count);
+    assert!(pat_count <= 1, "Expected at most 1 'ref pattern' binding, found {}", pat_count);
 }
 
 /// Test pathlib-style multiple subcommands don't have duplicate bindings
@@ -130,9 +115,7 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // No field should appear more than once in any single match pattern
     // Count total occurrences - each should be at most 1 per subcommand
@@ -142,21 +125,9 @@ if __name__ == "__main__":
 
     // With 2 subcommands, path appears in 1, directory+pattern in 1
     // So max occurrences should be 1 each
-    assert!(
-        path_count <= 1,
-        "Expected at most 1 'ref path', found {}",
-        path_count
-    );
-    assert!(
-        dir_count <= 1,
-        "Expected at most 1 'ref directory', found {}",
-        dir_count
-    );
-    assert!(
-        pat_count <= 1,
-        "Expected at most 1 'ref pattern', found {}",
-        pat_count
-    );
+    assert!(path_count <= 1, "Expected at most 1 'ref path', found {}", path_count);
+    assert!(dir_count <= 1, "Expected at most 1 'ref directory', found {}", dir_count);
+    assert!(pat_count <= 1, "Expected at most 1 'ref pattern', found {}", pat_count);
 }
 
 /// Test that generated code compiles without E0416
@@ -182,9 +153,7 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // The generated code should NOT contain duplicate bindings like:
     // `Commands::Info { ref path, ref path, .. }`

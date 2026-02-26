@@ -100,10 +100,7 @@ def negative_ranges():
         rust_code.contains("- 5..0") || rust_code.contains("-5..0"),
         "Should handle negative start"
     );
-    assert!(
-        rust_code.contains("rev()"),
-        "Should reverse for negative step"
-    );
+    assert!(rust_code.contains("rev()"), "Should reverse for negative step");
 }
 
 #[test]

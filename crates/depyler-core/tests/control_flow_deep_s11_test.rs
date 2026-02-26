@@ -16,10 +16,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -45,11 +43,7 @@ def grade(score: int) -> str:
         return "F"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn grade"),
-        "Should transpile if/elif chain. Got: {}",
-        result
-    );
+    assert!(result.contains("fn grade"), "Should transpile if/elif chain. Got: {}", result);
 }
 
 #[test]
@@ -68,11 +62,7 @@ def quadrant(x: int, y: int) -> int:
             return 3
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn quadrant"),
-        "Should transpile nested if. Got: {}",
-        result
-    );
+    assert!(result.contains("fn quadrant"), "Should transpile nested if. Got: {}", result);
 }
 
 #[test]
@@ -84,11 +74,7 @@ def is_valid_range(x: int, lo: int, hi: int) -> bool:
     return False
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("&&"),
-        "Should use && for compound condition. Got: {}",
-        result
-    );
+    assert!(result.contains("&&"), "Should use && for compound condition. Got: {}", result);
 }
 
 #[test]
@@ -100,11 +86,7 @@ def is_weekend(day: str) -> bool:
     return False
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("||"),
-        "Should use || for or condition. Got: {}",
-        result
-    );
+    assert!(result.contains("||"), "Should use || for or condition. Got: {}", result);
 }
 
 // ============================================================================
@@ -122,11 +104,7 @@ def countdown(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("while"),
-        "Should transpile while loop. Got: {}",
-        result
-    );
+    assert!(result.contains("while"), "Should transpile while loop. Got: {}", result);
 }
 
 #[test]
@@ -141,11 +119,7 @@ def find_first(items: list, target: int) -> int:
     return idx
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("break"),
-        "Should transpile while with break. Got: {}",
-        result
-    );
+    assert!(result.contains("break"), "Should transpile while with break. Got: {}", result);
 }
 
 #[test]
@@ -162,11 +136,7 @@ def sum_even(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("continue"),
-        "Should transpile while with continue. Got: {}",
-        result
-    );
+    assert!(result.contains("continue"), "Should transpile while with continue. Got: {}", result);
 }
 
 // ============================================================================
@@ -183,11 +153,7 @@ def sum_range(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("for"),
-        "Should transpile for range. Got: {}",
-        result
-    );
+    assert!(result.contains("for"), "Should transpile for range. Got: {}", result);
 }
 
 #[test]
@@ -200,11 +166,7 @@ def sum_range_start(start: int, stop: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("for"),
-        "Should transpile range(start, stop). Got: {}",
-        result
-    );
+    assert!(result.contains("for"), "Should transpile range(start, stop). Got: {}", result);
 }
 
 #[test]
@@ -253,11 +215,7 @@ def pairs(items: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pairs"),
-        "Should transpile nested for. Got: {}",
-        result
-    );
+    assert!(result.contains("fn pairs"), "Should transpile nested for. Got: {}", result);
 }
 
 // ============================================================================
@@ -294,11 +252,7 @@ def sum_positive(items: list) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("continue"),
-        "Should transpile continue. Got: {}",
-        result
-    );
+    assert!(result.contains("continue"), "Should transpile continue. Got: {}", result);
 }
 
 // ============================================================================
@@ -315,11 +269,7 @@ def safe_div(a: int, b: int) -> int:
         return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_div"),
-        "Should transpile try/except. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_div"), "Should transpile try/except. Got: {}", result);
 }
 
 #[test]
@@ -373,11 +323,7 @@ def checked(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("assert"),
-        "Should transpile assert. Got: {}",
-        result
-    );
+    assert!(result.contains("assert"), "Should transpile assert. Got: {}", result);
 }
 
 #[test]
@@ -410,11 +356,7 @@ def read_lines(path: str) -> list:
     return lines
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn read_lines"),
-        "Should transpile with open. Got: {}",
-        result
-    );
+    assert!(result.contains("fn read_lines"), "Should transpile with open. Got: {}", result);
 }
 
 // ============================================================================
@@ -434,11 +376,7 @@ def fib(n: int) -> int:
     return b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn fib"),
-        "Should transpile fibonacci. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fib"), "Should transpile fibonacci. Got: {}", result);
 }
 
 #[test]
@@ -458,11 +396,7 @@ def binary_search(arr: list, target: int) -> int:
     return -1
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn binary_search"),
-        "Should transpile binary search. Got: {}",
-        result
-    );
+    assert!(result.contains("fn binary_search"), "Should transpile binary search. Got: {}", result);
 }
 
 #[test]
@@ -479,11 +413,7 @@ def is_palindrome(s: str) -> bool:
     return True
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_palindrome"),
-        "Should transpile two-pointer. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_palindrome"), "Should transpile two-pointer. Got: {}", result);
 }
 
 #[test]
@@ -498,11 +428,7 @@ def running_sum(items: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn running_sum"),
-        "Should transpile accumulate. Got: {}",
-        result
-    );
+    assert!(result.contains("fn running_sum"), "Should transpile accumulate. Got: {}", result);
 }
 
 #[test]

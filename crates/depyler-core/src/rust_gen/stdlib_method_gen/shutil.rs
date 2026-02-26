@@ -25,10 +25,8 @@ pub fn convert_shutil_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         "copy" | "copy2" => convert_copy(method, &arg_exprs)?,
@@ -188,9 +186,7 @@ mod tests {
     #[test]
     fn test_convert_shutil_rmtree() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String(
-            "/path/to/dir".to_string(),
-        ))];
+        let args = vec![HirExpr::Literal(Literal::String("/path/to/dir".to_string()))];
         let result = convert_shutil_method("rmtree", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

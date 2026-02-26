@@ -11,10 +11,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -614,7 +612,9 @@ class Priority(Enum):
         return self == Priority.HIGH
 "#;
         let result = transpile(code);
-        assert!(result.contains("Priority") && (result.contains("is_high") || result.contains("LOW")));
+        assert!(
+            result.contains("Priority") && (result.contains("is_high") || result.contains("LOW"))
+        );
     }
 
     #[test]
@@ -1042,7 +1042,10 @@ class B(Enum):
     Y = 2
 "#;
         let result = transpile(code);
-        assert!((result.contains("A") || result.contains("X")) && (result.contains("B") || result.contains("Y")));
+        assert!(
+            (result.contains("A") || result.contains("X"))
+                && (result.contains("B") || result.contains("Y"))
+        );
     }
 
     #[test]
@@ -1175,7 +1178,9 @@ class Config:
     count: int = 0
 "#;
         let result = transpile(code);
-        assert!(result.contains("Config") && (result.contains("default") || result.contains("name")));
+        assert!(
+            result.contains("Config") && (result.contains("default") || result.contains("name"))
+        );
     }
 
     #[test]
@@ -1279,7 +1284,9 @@ class Rectangle:
         return 2 * (self._width + self._height)
 "#;
         let result = transpile(code);
-        assert!(result.contains("Rectangle") && result.contains("area") && result.contains("perimeter"));
+        assert!(
+            result.contains("Rectangle") && result.contains("area") && result.contains("perimeter")
+        );
     }
 
     #[test]
@@ -1336,7 +1343,9 @@ class Calculator:
         return a - b
 "#;
         let result = transpile(code);
-        assert!(result.contains("Calculator") && result.contains("add") && result.contains("subtract"));
+        assert!(
+            result.contains("Calculator") && result.contains("add") && result.contains("subtract")
+        );
     }
 
     #[test]
@@ -1578,7 +1587,10 @@ class Mixed:
         self.instance_var = 20
 "#;
         let result = transpile(code);
-        assert!(result.contains("Mixed") && (result.contains("class_var") || result.contains("instance_var")));
+        assert!(
+            result.contains("Mixed")
+                && (result.contains("class_var") || result.contains("instance_var"))
+        );
     }
 
     #[test]
@@ -1737,7 +1749,9 @@ def maybe_int(x: Union[int, None]) -> int:
     return x if x is not None else 0
 "#;
         let result = transpile(code);
-        assert!(result.contains("maybe_int") && (result.contains("Option") || result.contains("Union")));
+        assert!(
+            result.contains("maybe_int") && (result.contains("Option") || result.contains("Union"))
+        );
     }
 
     #[test]
@@ -1761,7 +1775,10 @@ def maybe_str(x: Union[str, None]) -> str:
     return x if x is not None else ""
 "#;
         let result = transpile(code);
-        assert!(result.contains("maybe_str") && (result.contains("Option") || result.contains("String")));
+        assert!(
+            result.contains("maybe_str")
+                && (result.contains("Option") || result.contains("String"))
+        );
     }
 
     #[test]
@@ -1804,7 +1821,10 @@ def create_map() -> Dict[str, int]:
     return {}
 "#;
         let result = transpile(code);
-        assert!(result.contains("create_map") && (result.contains("HashMap") || result.contains("Dict")));
+        assert!(
+            result.contains("create_map")
+                && (result.contains("HashMap") || result.contains("Dict"))
+        );
     }
 
     #[test]
@@ -1816,7 +1836,9 @@ def create_set() -> Set[int]:
     return set()
 "#;
         let result = transpile(code);
-        assert!(result.contains("create_set") && (result.contains("HashSet") || result.contains("Set")));
+        assert!(
+            result.contains("create_set") && (result.contains("HashSet") || result.contains("Set"))
+        );
     }
 
     #[test]
@@ -1828,7 +1850,9 @@ def process(data: Dict[str, str]) -> None:
     pass
 "#;
         let result = transpile(code);
-        assert!(result.contains("process") && (result.contains("HashMap") || result.contains("Dict")));
+        assert!(
+            result.contains("process") && (result.contains("HashMap") || result.contains("Dict"))
+        );
     }
 
     #[test]
@@ -1885,7 +1909,9 @@ def maybe(x: Optional[int]) -> int:
     return x if x is not None else 0
 "#;
         let result = transpile(code);
-        assert!(result.contains("maybe") && (result.contains("Option") || result.contains("Optional")));
+        assert!(
+            result.contains("maybe") && (result.contains("Option") || result.contains("Optional"))
+        );
     }
 
     #[test]
@@ -1897,7 +1923,9 @@ def process_list(items: List[str]) -> int:
     return len(items)
 "#;
         let result = transpile(code);
-        assert!(result.contains("process_list") && (result.contains("Vec") || result.contains("List")));
+        assert!(
+            result.contains("process_list") && (result.contains("Vec") || result.contains("List"))
+        );
     }
 
     #[test]
@@ -2025,7 +2053,9 @@ def nested() -> Dict[str, Dict[str, int]]:
     return {}
 "#;
         let result = transpile(code);
-        assert!(result.contains("nested") && (result.contains("HashMap") || result.contains("Dict")));
+        assert!(
+            result.contains("nested") && (result.contains("HashMap") || result.contains("Dict"))
+        );
     }
 
     #[test]
@@ -2037,7 +2067,9 @@ def maybe_list(x: Optional[List[int]]) -> List[int]:
     return x if x is not None else []
 "#;
         let result = transpile(code);
-        assert!(result.contains("maybe_list") && (result.contains("Option") || result.contains("Vec")));
+        assert!(
+            result.contains("maybe_list") && (result.contains("Option") || result.contains("Vec"))
+        );
     }
 
     #[test]
@@ -2061,7 +2093,9 @@ def groups() -> Dict[str, List[int]]:
     return {}
 "#;
         let result = transpile(code);
-        assert!(result.contains("groups") && (result.contains("HashMap") || result.contains("Vec")));
+        assert!(
+            result.contains("groups") && (result.contains("HashMap") || result.contains("Vec"))
+        );
     }
 
     #[test]
@@ -2073,7 +2107,10 @@ def unique_words() -> Set[str]:
     return set()
 "#;
         let result = transpile(code);
-        assert!(result.contains("unique_words") && (result.contains("HashSet") || result.contains("Set")));
+        assert!(
+            result.contains("unique_words")
+                && (result.contains("HashSet") || result.contains("Set"))
+        );
     }
 
     #[test]
@@ -2623,7 +2660,9 @@ class Chainable:
         return self
 "#;
         let result = transpile(code);
-        assert!(result.contains("Chainable") && (result.contains("add") || result.contains("multiply")));
+        assert!(
+            result.contains("Chainable") && (result.contains("add") || result.contains("multiply"))
+        );
     }
 
     #[test]

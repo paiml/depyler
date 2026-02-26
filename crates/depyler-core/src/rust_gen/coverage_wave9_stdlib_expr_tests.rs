@@ -11,10 +11,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -1002,7 +1000,6 @@ result = binascii.b2a_base64(b"hello", newline=False)
         assert!(result.contains("fn") || result.len() > 0);
     }
 
-
     #[test]
     fn test_w9se_binascii_hexlify_long() {
         let code = r#"
@@ -1475,7 +1472,6 @@ result = hashlib.sha256(data).hexdigest()
         assert!(result.contains("fn") || result.len() > 0);
     }
 
-
     #[test]
     fn test_w9se_crypto_hmac_digest() {
         let code = r#"
@@ -1545,7 +1541,6 @@ result = hmac.compare_digest(b"abc", b"abc")
         let result = transpile(code);
         assert!(result.contains("fn") || result.len() > 0);
     }
-
 
     // Section 7: calendar + fnmatch (25 tests)
 
@@ -1745,7 +1740,6 @@ result = fnmatch.fnmatchcase("Test.txt", "test.txt")
         assert!(result.contains("fn") || result.len() > 0);
     }
 
-
     #[test]
     fn test_w9se_misc_fnmatch_multiple_wildcards() {
         let code = r#"
@@ -1755,7 +1749,6 @@ result = fnmatch.fnmatch("test_file_123.py", "test_*_*.py")
         let result = transpile(code);
         assert!(result.contains("fn") || result.len() > 0);
     }
-
 
     #[test]
     fn test_w9se_misc_fnmatch_negation() {

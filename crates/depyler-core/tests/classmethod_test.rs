@@ -31,19 +31,11 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Person"),
-        "Should have Person struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Person"), "Should have Person struct.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn create_john"),
@@ -73,19 +65,11 @@ class Person:
     let has_constructor = rust_code.contains("Self::new")
         || rust_code.contains("Person::new")
         || rust_code.contains("Self {");
-    assert!(
-        has_constructor,
-        "Should use Self::new or constructor.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_constructor, "Should use Self::new or constructor.\nGot:\n{}", rust_code);
 
     // Should NOT have undefined cls variable
     let has_cls_var = rust_code.contains("cls(");
-    assert!(
-        !has_cls_var,
-        "Should not have undefined cls variable.\nGot:\n{}",
-        rust_code
-    );
+    assert!(!has_cls_var, "Should not have undefined cls variable.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -103,19 +87,11 @@ class User:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn create"),
-        "Should have create function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn create"), "Should have create function.\nGot:\n{}", rust_code);
 
     // Should have name and age parameters
     assert!(
@@ -126,19 +102,11 @@ class User:
 
     // Should NOT have cls parameter
     let has_cls_param = rust_code.contains("cls:");
-    assert!(
-        !has_cls_param,
-        "Should not have cls parameter.\nGot:\n{}",
-        rust_code
-    );
+    assert!(!has_cls_param, "Should not have cls parameter.\nGot:\n{}", rust_code);
 
     // Should call constructor with parameters
     let has_constructor_call = rust_code.contains("Self::new") || rust_code.contains("User::new");
-    assert!(
-        has_constructor_call,
-        "Should call constructor.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_constructor_call, "Should call constructor.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -157,11 +125,7 @@ class Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -173,22 +137,14 @@ class Config:
 
     // Should reference DEFAULT_NAME constant
     let has_const_ref = rust_code.contains("DEFAULT_NAME") || rust_code.contains("default_name");
-    assert!(
-        has_const_ref,
-        "Should reference DEFAULT_NAME.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_const_ref, "Should reference DEFAULT_NAME.\nGot:\n{}", rust_code);
 
     // Should use Self::DEFAULT_NAME or Config::DEFAULT_NAME
     let has_qualified_const = rust_code.contains("Self::DEFAULT_NAME")
         || rust_code.contains("Config::DEFAULT_NAME")
         || rust_code.contains("Self::default_name")
         || rust_code.contains("Config::default_name");
-    assert!(
-        has_qualified_const,
-        "Should use qualified constant access.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_qualified_const, "Should use qualified constant access.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -214,40 +170,20 @@ class Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have all three classmethods
-    assert!(
-        rust_code.contains("fn origin"),
-        "Should have origin function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn origin"), "Should have origin function.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn unit_x"),
-        "Should have unit_x function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn unit_x"), "Should have unit_x function.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn unit_y"),
-        "Should have unit_y function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn unit_y"), "Should have unit_y function.\nGot:\n{}", rust_code);
 
     // None should have cls parameter
     let cls_count = rust_code.matches("cls:").count();
-    assert_eq!(
-        cls_count, 0,
-        "No function should have cls parameter.\nGot:\n{}",
-        rust_code
-    );
+    assert_eq!(cls_count, 0, "No function should have cls parameter.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -269,19 +205,11 @@ class Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn square"),
-        "Should have square function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn square"), "Should have square function.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn unit_square"),
@@ -292,11 +220,7 @@ class Rectangle:
     // Should call Self::square or Rectangle::square
     let calls_square =
         rust_code.contains("Self::square") || rust_code.contains("Rectangle::square");
-    assert!(
-        calls_square,
-        "Should call square classmethod.\nGot:\n{}",
-        rust_code
-    );
+    assert!(calls_square, "Should call square classmethod.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -316,25 +240,13 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn zero"),
-        "Should have zero function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn zero"), "Should have zero function.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn reset"),
-        "Should have reset method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn reset"), "Should have reset method.\nGot:\n{}", rust_code);
 
     // reset should have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
@@ -342,11 +254,7 @@ class Counter:
 
     // Should call Counter::zero or Self::zero
     let calls_zero = rust_code.contains("Counter::zero") || rust_code.contains("Self::zero");
-    assert!(
-        calls_zero,
-        "Should call zero classmethod.\nGot:\n{}",
-        rust_code
-    );
+    assert!(calls_zero, "Should call zero classmethod.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -364,11 +272,7 @@ class Temperature:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -381,21 +285,13 @@ class Temperature:
     // Should have float parameter
     let has_float =
         rust_code.contains("f32") || rust_code.contains("f64") || rust_code.contains("fahrenheit");
-    assert!(
-        has_float,
-        "Should have float parameter.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_float, "Should have float parameter.\nGot:\n{}", rust_code);
 
     // Should return Self or Temperature
     let has_return_type = rust_code.contains("-> Self")
         || rust_code.contains("-> Temperature")
         || rust_code.contains("Self");
-    assert!(
-        has_return_type,
-        "Should return Self or Temperature.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_return_type, "Should return Self or Temperature.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -419,11 +315,7 @@ class Date:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -433,21 +325,13 @@ class Date:
         rust_code
     );
 
-    assert!(
-        rust_code.contains("fn today"),
-        "Should have today function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn today"), "Should have today function.\nGot:\n{}", rust_code);
 
     // Both should call constructor
     let has_constructors = rust_code.contains("Self::new")
         || rust_code.contains("Date::new")
         || rust_code.contains("Self {");
-    assert!(
-        has_constructors,
-        "Should have constructor calls.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_constructors, "Should have constructor calls.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -473,20 +357,12 @@ class Calculator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have static method (no &self, no cls)
-    assert!(
-        rust_code.contains("fn add"),
-        "Should have add static function.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn add"), "Should have add static function.\nGot:\n{}", rust_code);
 
     // Should have classmethod (no &self, no cls parameter)
     assert!(
@@ -503,11 +379,7 @@ class Calculator:
     );
 
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(
-        has_self,
-        "add_with_offset should have &self.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_self, "add_with_offset should have &self.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -525,11 +397,7 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -541,19 +409,11 @@ class Person:
 
     // Should have age parameter with default or Option
     let has_age_param = rust_code.contains("age");
-    assert!(
-        has_age_param,
-        "Should have age parameter.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_age_param, "Should have age parameter.\nGot:\n{}", rust_code);
 
     // Should call constructor with "Anonymous" and age
     let has_constructor = rust_code.contains("Self::new")
         || rust_code.contains("Person::new")
         || rust_code.contains("\"Anonymous\"");
-    assert!(
-        has_constructor,
-        "Should construct with 'Anonymous'.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_constructor, "Should construct with 'Anonymous'.\nGot:\n{}", rust_code);
 }

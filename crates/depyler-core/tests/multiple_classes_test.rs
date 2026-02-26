@@ -34,39 +34,19 @@ class Color:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have both structs
-    assert!(
-        rust_code.contains("struct Point"),
-        "Should have Point struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Point"), "Should have Point struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("struct Color"),
-        "Should have Color struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Color"), "Should have Color struct.\nGot:\n{}", rust_code);
 
     // Should have both impl blocks
-    assert!(
-        rust_code.contains("impl Point"),
-        "Should have Point impl.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Point"), "Should have Point impl.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("impl Color"),
-        "Should have Color impl.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Color"), "Should have Color impl.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -85,11 +65,7 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -99,19 +75,11 @@ class Person:
         rust_code
     );
 
-    assert!(
-        rust_code.contains("struct Person"),
-        "Should have Person struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Person"), "Should have Person struct.\nGot:\n{}", rust_code);
 
     // Person should reference Address type
     let has_address_field = rust_code.contains("address") || rust_code.contains("Address");
-    assert!(
-        has_address_field,
-        "Person should have address field.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_address_field, "Person should have address field.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -135,25 +103,13 @@ class Car:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Engine"),
-        "Should have Engine struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Engine"), "Should have Engine struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("struct Car"),
-        "Should have Car struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Car"), "Should have Car struct.\nGot:\n{}", rust_code);
 
     // Should have start method in Engine
     assert!(
@@ -188,11 +144,7 @@ class Robot:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -202,11 +154,7 @@ class Robot:
         rust_code
     );
 
-    assert!(
-        rust_code.contains("struct Robot"),
-        "Should have Robot struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Robot"), "Should have Robot struct.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn get_position"),
@@ -232,11 +180,7 @@ class Logger:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -246,17 +190,9 @@ class Logger:
         rust_code
     );
 
-    assert!(
-        rust_code.contains("struct Logger"),
-        "Should have Logger struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Logger"), "Should have Logger struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn log"),
-        "Logger should have log method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn log"), "Logger should have log method.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -281,26 +217,14 @@ class Library:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have all three structs
-    assert!(
-        rust_code.contains("struct Author"),
-        "Should have Author struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Author"), "Should have Author struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("struct Book"),
-        "Should have Book struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Book"), "Should have Book struct.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("struct Library"),
@@ -324,34 +248,18 @@ class Buffer:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Config"),
-        "Should have Config struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Config"), "Should have Config struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("struct Buffer"),
-        "Should have Buffer struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Buffer"), "Should have Buffer struct.\nGot:\n{}", rust_code);
 
     // Both should have their constants
     let has_max_size = rust_code.contains("MAX_SIZE") || rust_code.contains("max_size");
     let has_size = rust_code.contains("SIZE") || rust_code.contains("size");
-    assert!(
-        has_max_size && has_size,
-        "Should have both constants.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_max_size && has_size, "Should have both constants.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -372,19 +280,11 @@ class WidgetFactory:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Widget"),
-        "Should have Widget struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Widget"), "Should have Widget struct.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("struct WidgetFactory"),
@@ -418,25 +318,13 @@ def add_vector_to_point(point: Point, vector: Vector) -> Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Vector"),
-        "Should have Vector struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Vector"), "Should have Vector struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("struct Point"),
-        "Should have Point struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Point"), "Should have Point struct.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn add_vector_to_point"),
@@ -463,25 +351,13 @@ class Outer:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Inner"),
-        "Should have Inner struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Inner"), "Should have Inner struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("struct Outer"),
-        "Should have Outer struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Outer"), "Should have Outer struct.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn get_inner_value"),

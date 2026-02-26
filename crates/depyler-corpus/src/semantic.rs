@@ -45,16 +45,8 @@ pub struct DomainStats {
 impl DomainStats {
     /// Create new domain stats.
     pub fn new(total: usize, passed: usize) -> Self {
-        let pass_rate = if total > 0 {
-            (passed as f64 / total as f64) * 100.0
-        } else {
-            0.0
-        };
-        Self {
-            total,
-            passed,
-            pass_rate,
-        }
+        let pass_rate = if total > 0 { (passed as f64 / total as f64) * 100.0 } else { 0.0 };
+        Self { total, passed, pass_rate }
     }
 }
 
@@ -250,17 +242,10 @@ impl SemanticClassifier {
         // Compute confidence based on how well we could classify
         let total_files = files.len();
         let classified_count = file_domains.len();
-        let confidence = if total_files > 0 {
-            classified_count as f64 / total_files as f64
-        } else {
-            1.0
-        };
+        let confidence =
+            if total_files > 0 { classified_count as f64 / total_files as f64 } else { 1.0 };
 
-        SemanticClassification {
-            by_domain: domain_stats,
-            file_domains,
-            confidence,
-        }
+        SemanticClassification { by_domain: domain_stats, file_domains, confidence }
     }
 
     /// Extract import statements from Python source.
@@ -297,16 +282,12 @@ impl SemanticClassifier {
 
     /// Check if a module is from the Python standard library.
     fn is_stdlib_module(&self, module: &str) -> bool {
-        self.stdlib_modules
-            .iter()
-            .any(|&m| m.eq_ignore_ascii_case(module))
+        self.stdlib_modules.iter().any(|&m| m.eq_ignore_ascii_case(module))
     }
 
     /// Check if a module is an external package.
     fn is_external_package(&self, module: &str) -> bool {
-        self.external_packages
-            .iter()
-            .any(|&p| p.eq_ignore_ascii_case(module))
+        self.external_packages.iter().any(|&p| p.eq_ignore_ascii_case(module))
     }
 }
 
@@ -393,32 +374,15 @@ import numpy as np
 
         let files = vec![
             ("core.py".to_string(), "def hello(): pass".to_string(), true),
-            (
-                "stdlib.py".to_string(),
-                "import json\ndef load(): pass".to_string(),
-                true,
-            ),
-            (
-                "external.py".to_string(),
-                "import pandas\ndef analyze(): pass".to_string(),
-                false,
-            ),
+            ("stdlib.py".to_string(), "import json\ndef load(): pass".to_string(), true),
+            ("external.py".to_string(), "import pandas\ndef analyze(): pass".to_string(), false),
         ];
 
         let result = classifier.classify_corpus(&files);
 
-        assert_eq!(
-            result.file_domains.get("core.py"),
-            Some(&PythonDomain::Core)
-        );
-        assert_eq!(
-            result.file_domains.get("stdlib.py"),
-            Some(&PythonDomain::Stdlib)
-        );
-        assert_eq!(
-            result.file_domains.get("external.py"),
-            Some(&PythonDomain::External)
-        );
+        assert_eq!(result.file_domains.get("core.py"), Some(&PythonDomain::Core));
+        assert_eq!(result.file_domains.get("stdlib.py"), Some(&PythonDomain::Stdlib));
+        assert_eq!(result.file_domains.get("external.py"), Some(&PythonDomain::External));
 
         // Check stats
         let core_stats = result.by_domain.get(&PythonDomain::Core).unwrap();

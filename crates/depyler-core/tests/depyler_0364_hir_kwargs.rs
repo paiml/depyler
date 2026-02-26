@@ -87,12 +87,7 @@ def foo():
 
     // Verify kwargs are preserved
     match &func.body[0] {
-        HirStmt::Expr(HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            kwargs,
-        }) => {
+        HirStmt::Expr(HirExpr::MethodCall { object, method, args, kwargs }) => {
             assert!(matches!(object.as_ref(), HirExpr::Var(v) if v == "parser"));
             assert_eq!(method, "add_argument");
             assert_eq!(args.len(), 1);
@@ -148,11 +143,7 @@ def foo():
                 assert_eq!(kwargs[0].0, "y");
                 // Verify the positional arg is a call with kwargs
                 match &args[0] {
-                    HirExpr::Call {
-                        func: inner_func,
-                        kwargs: inner_kwargs,
-                        ..
-                    } => {
+                    HirExpr::Call { func: inner_func, kwargs: inner_kwargs, .. } => {
                         assert_eq!(inner_func, "inner");
                         assert_eq!(inner_kwargs.len(), 1);
                         assert_eq!(inner_kwargs[0].0, "x");
@@ -201,12 +192,7 @@ def foo():
 
     match &func.body[0] {
         HirStmt::Assign { value, .. } => match value {
-            HirExpr::MethodCall {
-                method,
-                args,
-                kwargs,
-                ..
-            } => {
+            HirExpr::MethodCall { method, args, kwargs, .. } => {
                 assert_eq!(method, "ArgumentParser");
                 assert_eq!(args.len(), 0);
                 assert_eq!(kwargs.len(), 2);
@@ -229,12 +215,7 @@ def foo():
 
     let func = &hir.functions[0];
     match &func.body[0] {
-        HirStmt::Expr(HirExpr::MethodCall {
-            method,
-            args,
-            kwargs,
-            ..
-        }) => {
+        HirStmt::Expr(HirExpr::MethodCall { method, args, kwargs, .. }) => {
             assert_eq!(method, "add_argument");
             assert_eq!(args.len(), 1);
             assert_eq!(kwargs.len(), 3);

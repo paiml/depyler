@@ -576,11 +576,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![];
         let result = convert_all_builtin(&args);
         assert!(result.is_err());
-        assert!(result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("requires exactly 1 argument"));
+        assert!(result.err().unwrap().to_string().contains("requires exactly 1 argument"));
     }
 
     #[test]
@@ -627,11 +623,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote!(10)];
         let result = convert_divmod_builtin(&args);
         assert!(result.is_err());
-        assert!(result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("requires exactly 2 arguments"));
+        assert!(result.err().unwrap().to_string().contains("requires exactly 2 arguments"));
     }
 
     // ============================================
@@ -695,11 +687,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote!(a)];
         let result = convert_zip_builtin(&args);
         assert!(result.is_err());
-        assert!(result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("requires at least 2 arguments"));
+        assert!(result.err().unwrap().to_string().contains("requires at least 2 arguments"));
     }
 
     // ============================================
@@ -903,12 +891,8 @@ mod tests {
 
     #[test]
     fn test_convert_pow_builtin_too_many_args() {
-        let args: Vec<syn::Expr> = vec![
-            parse_quote!(a),
-            parse_quote!(b),
-            parse_quote!(c),
-            parse_quote!(d),
-        ];
+        let args: Vec<syn::Expr> =
+            vec![parse_quote!(a), parse_quote!(b), parse_quote!(c), parse_quote!(d)];
         let result = convert_pow_builtin(&args);
         assert!(result.is_err());
     }
@@ -1241,11 +1225,7 @@ mod tests {
         assert!(result.is_ok());
         let expr = result.unwrap();
         let code = quote::quote!(#expr).to_string();
-        assert!(
-            code.contains("escape_default"),
-            "Should use escape_default: {}",
-            code
-        );
+        assert!(code.contains("escape_default"), "Should use escape_default: {}", code);
     }
 
     #[test]

@@ -7,9 +7,7 @@ use crate::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -43,9 +41,7 @@ fn test_func_param_with_default() {
 
 #[test]
 fn test_func_params_with_defaults() {
-    assert!(transpile_ok(
-        "def foo(x: int, y: int = 10, z: str = 'default'):\n    return x + y"
-    ));
+    assert!(transpile_ok("def foo(x: int, y: int = 10, z: str = 'default'):\n    return x + y"));
 }
 
 #[test]
@@ -60,23 +56,17 @@ fn test_func_kwargs_only() {
 
 #[test]
 fn test_func_args_and_kwargs() {
-    assert!(transpile_ok(
-        "def foo(*args, **kwargs):\n    return len(args) + len(kwargs)"
-    ));
+    assert!(transpile_ok("def foo(*args, **kwargs):\n    return len(args) + len(kwargs)"));
 }
 
 #[test]
 fn test_func_mixed_params_args_kwargs() {
-    assert!(transpile_ok(
-        "def foo(x: int, *args, **kwargs):\n    return x"
-    ));
+    assert!(transpile_ok("def foo(x: int, *args, **kwargs):\n    return x"));
 }
 
 #[test]
 fn test_func_keyword_only() {
-    assert!(transpile_ok(
-        "def foo(*, x: int, y: int = 10):\n    return x + y"
-    ));
+    assert!(transpile_ok("def foo(*, x: int, y: int = 10):\n    return x + y"));
 }
 
 #[test]
@@ -115,16 +105,12 @@ fn test_func_return_none() {
 
 #[test]
 fn test_func_return_list() {
-    assert!(transpile_ok(
-        "def foo() -> list[int]:\n    return [1, 2, 3]"
-    ));
+    assert!(transpile_ok("def foo() -> list[int]:\n    return [1, 2, 3]"));
 }
 
 #[test]
 fn test_func_return_dict() {
-    assert!(transpile_ok(
-        "def foo() -> dict[str, int]:\n    return {'a': 1}"
-    ));
+    assert!(transpile_ok("def foo() -> dict[str, int]:\n    return {'a': 1}"));
 }
 
 #[test]
@@ -134,9 +120,7 @@ fn test_func_return_set() {
 
 #[test]
 fn test_func_return_tuple() {
-    assert!(transpile_ok(
-        "def foo() -> tuple[int, str]:\n    return (1, 'hello')"
-    ));
+    assert!(transpile_ok("def foo() -> tuple[int, str]:\n    return (1, 'hello')"));
 }
 
 #[test]
@@ -159,9 +143,7 @@ fn test_func_return_union() {
 
 #[test]
 fn test_func_local_vars() {
-    assert!(transpile_ok(
-        "def foo():\n    x = 1\n    y = 2\n    return x + y"
-    ));
+    assert!(transpile_ok("def foo():\n    x = 1\n    y = 2\n    return x + y"));
 }
 
 #[test]
@@ -204,9 +186,7 @@ fn test_func_nested_scopes() {
 
 #[test]
 fn test_nested_func_simple() {
-    assert!(transpile_ok(
-        "def outer():\n    def inner():\n        return 1\n    return inner()"
-    ));
+    assert!(transpile_ok("def outer():\n    def inner():\n        return 1\n    return inner()"));
 }
 
 #[test]
@@ -381,16 +361,12 @@ fn test_mul_method() {
 
 #[test]
 fn test_generator_simple() {
-    assert!(transpile_ok(
-        "def gen():\n    yield 1\n    yield 2\n    yield 3"
-    ));
+    assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n    yield 3"));
 }
 
 #[test]
 fn test_generator_loop() {
-    assert!(transpile_ok(
-        "def gen(n: int):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpile_ok("def gen(n: int):\n    for i in range(n):\n        yield i"));
 }
 
 #[test]
@@ -442,9 +418,7 @@ fn test_async_with_await() {
 
 #[test]
 fn test_call_no_args() {
-    assert!(transpile_ok(
-        "def bar() -> int:\n    return 1\n\ndef foo() -> int:\n    return bar()"
-    ));
+    assert!(transpile_ok("def bar() -> int:\n    return 1\n\ndef foo() -> int:\n    return bar()"));
 }
 
 #[test]
@@ -536,9 +510,7 @@ fn test_callable_return() {
 
 #[test]
 fn test_raise_in_function() {
-    assert!(transpile_ok(
-        "def foo(x: int):\n    if x < 0:\n        raise ValueError('negative')"
-    ));
+    assert!(transpile_ok("def foo(x: int):\n    if x < 0:\n        raise ValueError('negative')"));
 }
 
 #[test]
@@ -569,9 +541,7 @@ fn test_func_with_multiline_docstring() {
 
 #[test]
 fn test_class_with_docstring() {
-    assert!(transpile_ok(
-        "class Foo:\n    '''A simple class.'''\n    x: int"
-    ));
+    assert!(transpile_ok("class Foo:\n    '''A simple class.'''\n    x: int"));
 }
 
 // ============================================================================
@@ -580,9 +550,7 @@ fn test_class_with_docstring() {
 
 #[test]
 fn test_lambda_local() {
-    assert!(transpile_ok(
-        "def foo():\n    f = lambda x: x * 2\n    return f(10)"
-    ));
+    assert!(transpile_ok("def foo():\n    f = lambda x: x * 2\n    return f(10)"));
 }
 
 #[test]

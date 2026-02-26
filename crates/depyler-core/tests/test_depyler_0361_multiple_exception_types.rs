@@ -19,24 +19,14 @@ def parse_value(s: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
 
     // Should contain both handlers
-    assert!(
-        rust_code.contains("Value error"),
-        "Should contain ValueError handler"
-    );
-    assert!(
-        rust_code.contains("Type error"),
-        "Should contain TypeError handler"
-    );
+    assert!(rust_code.contains("Value error"), "Should contain ValueError handler");
+    assert!(rust_code.contains("Type error"), "Should contain TypeError handler");
 
     // Write to temp file and compile
     let temp_dir = std::env::temp_dir();

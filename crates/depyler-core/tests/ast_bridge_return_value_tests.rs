@@ -102,11 +102,7 @@ result = calculate(42)
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should NOT recognize calculate() as type alias
-    assert_eq!(
-        hir.type_aliases.len(),
-        0,
-        "calculate() should not be type alias"
-    );
+    assert_eq!(hir.type_aliases.len(), 0, "calculate() should not be type alias");
 
     // If mutated to always true: would treat function calls as types
 }
@@ -349,11 +345,7 @@ class Service:
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
-    assert_eq!(
-        hir.classes[0].methods.len(),
-        1,
-        "Should have process method"
-    );
+    assert_eq!(hir.classes[0].methods.len(), 1, "Should have process method");
 
     let method = &hir.classes[0].methods[0];
     assert_eq!(method.name, "process");

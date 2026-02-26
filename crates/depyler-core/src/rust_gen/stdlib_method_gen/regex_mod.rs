@@ -31,10 +31,8 @@ pub fn convert_re_method(
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
     // Convert arguments first
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let nasa_mode = ctx.type_mapper.nasa_mode;
 
@@ -184,10 +182,7 @@ fn extract_str_arg(args: &[HirExpr], arg_exprs: &[syn::Expr], idx: usize) -> syn
             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
             parse_quote! { #lit }
         }
-        _ => arg_exprs
-            .get(idx)
-            .cloned()
-            .unwrap_or_else(|| parse_quote! { "" }),
+        _ => arg_exprs.get(idx).cloned().unwrap_or_else(|| parse_quote! { "" }),
     }
 }
 
@@ -572,9 +567,7 @@ mod tests {
     #[test]
     fn test_convert_re_escape_basic() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String(
-            "hello.*world".to_string(),
-        ))];
+        let args = vec![HirExpr::Literal(Literal::String("hello.*world".to_string()))];
         let result = convert_re_method("escape", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -854,10 +847,7 @@ mod tests {
     #[test]
     fn test_s9b6_convert_re_search_with_var_args() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("pattern".to_string()),
-            HirExpr::Var("text".to_string()),
-        ];
+        let args = vec![HirExpr::Var("pattern".to_string()), HirExpr::Var("text".to_string())];
         let result = convert_re_method("search", &args, &mut ctx);
         assert!(result.is_ok());
     }

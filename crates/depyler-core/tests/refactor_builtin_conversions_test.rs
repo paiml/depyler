@@ -136,10 +136,7 @@ def get_length():
 "#;
 
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".len()"),
-        "len() should generate .len(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".len()"), "len() should generate .len(). Got:\n{rust}");
 }
 
 /// Test len() conversion for string
@@ -214,10 +211,7 @@ def dict_length():
 "#;
 
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".len()"),
-        "len() on dict should generate .len(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".len()"), "len() on dict should generate .len(). Got:\n{rust}");
 }
 
 // ============================================================================
@@ -242,10 +236,7 @@ fn compile_rust_code(code: &str, name: &str) -> Result<(), String> {
         let _ = std::fs::remove_file(format!("/tmp/librefactor_test_{name}.rlib"));
         Ok(())
     } else {
-        Err(format!(
-            "Compilation failed:\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        ))
+        Err(format!("Compilation failed:\n{}", String::from_utf8_lossy(&output.stderr)))
     }
 }
 

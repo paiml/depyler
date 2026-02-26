@@ -107,18 +107,10 @@ def create_config() -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("fn create_config"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn create_config"), "Should generate function: {}", code);
 }
 
 /// Test JSON dict key access - CRITICAL TEST FOR DEPYLER-0943
@@ -134,40 +126,21 @@ def get_name(config: dict) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("fn get_name"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn get_name"), "Should generate function: {}", code);
     // Should use .get() or indexing for dict access
-    assert!(
-        code.contains(".get(") || code.contains("["),
-        "Should generate dict access: {}",
-        code
-    );
+    assert!(code.contains(".get(") || code.contains("["), "Should generate dict access: {}", code);
 
     // CRITICAL: Must convert serde_json::Value to String
     // The fix adds .as_str().unwrap_or("").to_string()
-    assert!(
-        code.contains(".as_str()"),
-        "Should convert Value to String: {}",
-        code
-    );
+    assert!(code.contains(".as_str()"), "Should convert Value to String: {}", code);
 
     // CRITICAL: Generated code must compile without E0308
     if !compiles_with_cargo(&code) {
         let errors = compile_errors_cargo(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -187,18 +160,10 @@ def nested_config() -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("fn nested_config"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn nested_config"), "Should generate function: {}", code);
 }
 
 /// Test dict.get() with default value
@@ -211,11 +176,7 @@ def safe_get(config: dict, key: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should use .get().unwrap_or() pattern
@@ -237,18 +198,10 @@ def print_config(config: dict) -> None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("fn print_config"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn print_config"), "Should generate function: {}", code);
 }
 
 /// Test dict.keys() method
@@ -261,19 +214,11 @@ def get_keys(config: dict) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should generate .keys() call
-    assert!(
-        code.contains(".keys()"),
-        "Should use keys() method: {}",
-        code
-    );
+    assert!(code.contains(".keys()"), "Should use keys() method: {}", code);
 }
 
 /// Test dict.values() method
@@ -286,19 +231,11 @@ def get_values(config: dict) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should generate .values() call
-    assert!(
-        code.contains(".values()"),
-        "Should use values() method: {}",
-        code
-    );
+    assert!(code.contains(".values()"), "Should use values() method: {}", code);
 }
 
 /// Test dict.items() method
@@ -311,11 +248,7 @@ def get_items(config: dict) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should generate .iter() or items equivalent
@@ -338,18 +271,10 @@ def merge_config(base: dict, override: dict) -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("fn merge_config"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn merge_config"), "Should generate function: {}", code);
 }
 
 /// Test dict len()
@@ -362,11 +287,7 @@ def config_size(config: dict) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should use .len()

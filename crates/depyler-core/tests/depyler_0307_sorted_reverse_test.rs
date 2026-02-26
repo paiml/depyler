@@ -13,20 +13,12 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .sort() without .reverse()
     // Note: variable name may be __sorted_result or sorted_vec
-    assert!(
-        rust_code.contains(".sort()"),
-        "Should use .sort() for ascending"
-    );
-    assert!(
-        !rust_code.contains(".reverse()"),
-        "Should NOT use .reverse() for ascending"
-    );
+    assert!(rust_code.contains(".sort()"), "Should use .sort() for ascending");
+    assert!(!rust_code.contains(".reverse()"), "Should NOT use .reverse() for ascending");
 }
 
 #[test]
@@ -37,15 +29,10 @@ def sort_descending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .sort() FOLLOWED BY .reverse()
-    assert!(
-        rust_code.contains("__sorted_result.sort()"),
-        "Should use .sort() for descending"
-    );
+    assert!(rust_code.contains("__sorted_result.sort()"), "Should use .sort() for descending");
     assert!(
         rust_code.contains("__sorted_result.reverse()"),
         "Should use .reverse() for descending"
@@ -53,13 +40,8 @@ def sort_descending(numbers: list[int]) -> list[int]:
 
     // Verify order: sort() must come before reverse()
     let sort_pos = rust_code.find(".sort()").expect("Should contain .sort()");
-    let reverse_pos = rust_code
-        .find(".reverse()")
-        .expect("Should contain .reverse()");
-    assert!(
-        sort_pos < reverse_pos,
-        ".sort() must come before .reverse()"
-    );
+    let reverse_pos = rust_code.find(".reverse()").expect("Should contain .reverse()");
+    assert!(sort_pos < reverse_pos, ".sort() must come before .reverse()");
 }
 
 #[test]
@@ -70,19 +52,14 @@ def sort_by_abs_descending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .sort_by_key() with reverse
     assert!(
         rust_code.contains(".sort_by_key(") || rust_code.contains("sort_by"),
         "Should use sort_by_key for custom key"
     );
-    assert!(
-        rust_code.contains(".reverse()"),
-        "Should use .reverse() when reverse=True with key"
-    );
+    assert!(rust_code.contains(".reverse()"), "Should use .reverse() when reverse=True with key");
 }
 
 #[test]
@@ -93,9 +70,7 @@ def sort_by_abs(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .sort_by_key()
     assert!(
@@ -115,16 +90,11 @@ def sort_ascending_explicit(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .sort()
     // Note: variable name may be __sorted_result or sorted_vec
-    assert!(
-        rust_code.contains(".sort()"),
-        "Should use .sort() for ascending"
-    );
+    assert!(rust_code.contains(".sort()"), "Should use .sort() for ascending");
     // Note: transpiler may generate `if false { .reverse() }` dead code
     // which is semantically correct (reverse never executes for reverse=False)
 }
@@ -137,9 +107,7 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file and compile
     std::fs::write("/tmp/test_sorted_asc.rs", &rust_code).expect("Failed to write test file");
@@ -164,9 +132,7 @@ def sort_descending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file and compile
     std::fs::write("/tmp/test_sorted_desc.rs", &rust_code).expect("Failed to write test file");
@@ -196,19 +162,11 @@ def sort_ascending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Verify quickcheck property tests are generated
-    assert!(
-        rust_code.contains("quickcheck"),
-        "Should generate property tests"
-    );
-    assert!(
-        rust_code.contains("TestResult"),
-        "Should use quickcheck TestResult"
-    );
+    assert!(rust_code.contains("quickcheck"), "Should generate property tests");
+    assert!(rust_code.contains("TestResult"), "Should use quickcheck TestResult");
 }
 
 #[test]
@@ -219,9 +177,7 @@ def sort_descending(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let _rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let _rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write a simple standalone test (without the auto-generated property tests)
     let test_code = r#"
@@ -278,9 +234,8 @@ mod tests {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let test_output = Command::new("/tmp/test_sorted_behavior_simple_bin")
-        .output()
-        .expect("Failed to run test");
+    let test_output =
+        Command::new("/tmp/test_sorted_behavior_simple_bin").output().expect("Failed to run test");
 
     assert!(
         test_output.status.success(),
@@ -303,9 +258,7 @@ def sort_by_abs(numbers: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file and compile
     std::fs::write("/tmp/test_sorted_multiple.rs", &rust_code).expect("Failed to write test file");
@@ -333,15 +286,10 @@ def sort_strings_reverse(words: list[str]) -> list[str]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should work with strings too
-    assert!(
-        rust_code.contains("__sorted_result.sort()"),
-        "Should use .sort() for strings"
-    );
+    assert!(rust_code.contains("__sorted_result.sort()"), "Should use .sort() for strings");
 
     // Write to temp file and compile
     std::fs::write("/tmp/test_sorted_strings.rs", &rust_code).expect("Failed to write test file");

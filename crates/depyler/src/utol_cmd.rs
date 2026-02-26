@@ -73,10 +73,7 @@ pub fn build_config(
             patience,
             ..Default::default()
         },
-        display: DisplayConfig {
-            mode: display_mode,
-            ..Default::default()
-        },
+        display: DisplayConfig { mode: display_mode, ..Default::default() },
         ..Default::default()
     })
 }
@@ -86,29 +83,14 @@ pub fn show_status(config: &UtolConfig) -> Result<()> {
     println!("UTOL Status Report");
     println!("==================");
 
-    let corpus_status = if config.corpus.path.exists() {
-        "OK"
-    } else {
-        "Missing"
-    };
-    println!(
-        "Corpus: {} ({})",
-        config.corpus.path.display(),
-        corpus_status
-    );
+    let corpus_status = if config.corpus.path.exists() { "OK" } else { "Missing" };
+    println!("Corpus: {} ({})", config.corpus.path.display(), corpus_status);
 
-    let model_status = if config.model.path.exists() {
-        "OK"
-    } else {
-        "Missing"
-    };
+    let model_status = if config.model.path.exists() { "OK" } else { "Missing" };
     println!("Model:  {} ({})", config.model.path.display(), model_status);
 
     println!();
-    println!(
-        "Target Rate:    {:.1}%",
-        config.convergence.target_rate * 100.0
-    );
+    println!("Target Rate:    {:.1}%", config.convergence.target_rate * 100.0);
     println!("Max Iterations: {}", config.convergence.max_iterations);
     println!("Patience:       {}", config.convergence.patience);
 
@@ -136,14 +118,7 @@ pub fn print_final_summary(result: &UtolResult, config: &UtolConfig) {
     println!();
     println!("UTOL Final Report");
     println!("=================");
-    println!(
-        "Status:     {}",
-        if result.converged {
-            "CONVERGED"
-        } else {
-            "NOT CONVERGED"
-        }
-    );
+    println!("Status:     {}", if result.converged { "CONVERGED" } else { "NOT CONVERGED" });
     println!("Final Rate: {:.1}%", result.compile_rate * 100.0);
     println!("Iterations: {}", result.iterations);
     println!("Duration:   {:.1}s", result.duration_secs);

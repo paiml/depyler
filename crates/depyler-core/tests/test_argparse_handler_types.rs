@@ -32,10 +32,7 @@ def handle_command(args):
     let rust = transpile_str(python).unwrap();
 
     // Args struct should be at module level (not inside main)
-    assert!(
-        rust.contains("struct Args"),
-        "Args struct not found in output"
-    );
+    assert!(rust.contains("struct Args"), "Args struct not found in output");
 
     // Handler should use &Args, not &serde_json::Value
     assert!(
@@ -49,10 +46,7 @@ def handle_command(args):
     );
 
     // Call site should pass &args
-    assert!(
-        rust.contains("handle_command(&args)"),
-        "Call site should pass &args by reference"
-    );
+    assert!(rust.contains("handle_command(&args)"), "Call site should pass &args by reference");
 }
 
 #[test]
@@ -136,10 +130,7 @@ def handler_two(args):
     );
 
     // No serde_json::Value usage
-    assert!(
-        !rust.contains("serde_json::Value"),
-        "Should not use serde_json::Value"
-    );
+    assert!(!rust.contains("serde_json::Value"), "Should not use serde_json::Value");
 }
 
 #[test]

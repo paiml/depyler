@@ -26,11 +26,7 @@ class Container:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -69,11 +65,7 @@ def get_length(v: Vector) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -86,11 +78,7 @@ def get_length(v: Vector) -> int:
 
     // The function should call v.len() not len(v)
     // Note: This tests the method generation, actual call transformation is separate
-    assert!(
-        rust_code.contains(".len()"),
-        "Should call .len() method\n\nGenerated:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains(".len()"), "Should call .len() method\n\nGenerated:\n{}", rust_code);
 }
 
 #[test]
@@ -110,11 +98,7 @@ class Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -142,11 +126,7 @@ class MyList:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -174,11 +154,7 @@ class Value:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 

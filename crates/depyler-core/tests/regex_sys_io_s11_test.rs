@@ -13,10 +13,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -36,11 +34,7 @@ def find_words(text: str) -> list:
     return pattern.findall(text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_words"),
-        "Should transpile compiled findall. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_words"), "Should transpile compiled findall. Got: {}", result);
 }
 
 #[test]
@@ -53,11 +47,7 @@ def check_start(text: str) -> bool:
     return pattern.match(text) is not None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_start"),
-        "Should transpile compiled match. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_start"), "Should transpile compiled match. Got: {}", result);
 }
 
 #[test]
@@ -70,11 +60,7 @@ def find_number(text: str) -> bool:
     return pattern.search(text) is not None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_number"),
-        "Should transpile compiled search. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_number"), "Should transpile compiled search. Got: {}", result);
 }
 
 #[test]
@@ -124,11 +110,7 @@ def write_out(msg: str):
     sys.stdout.write(msg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn write_out"),
-        "Should transpile sys.stdout.write. Got: {}",
-        result
-    );
+    assert!(result.contains("fn write_out"), "Should transpile sys.stdout.write. Got: {}", result);
 }
 
 #[test]
@@ -140,11 +122,7 @@ def write_err(msg: str):
     sys.stderr.write(msg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn write_err"),
-        "Should transpile sys.stderr.write. Got: {}",
-        result
-    );
+    assert!(result.contains("fn write_err"), "Should transpile sys.stderr.write. Got: {}", result);
 }
 
 #[test]
@@ -156,11 +134,7 @@ def flush():
     sys.stdout.flush()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn flush"),
-        "Should transpile sys.stdout.flush. Got: {}",
-        result
-    );
+    assert!(result.contains("fn flush"), "Should transpile sys.stdout.flush. Got: {}", result);
 }
 
 #[test]
@@ -204,11 +178,7 @@ def get_args() -> list:
     return sys.argv
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_args"),
-        "Should transpile sys.argv. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_args"), "Should transpile sys.argv. Got: {}", result);
 }
 
 #[test]
@@ -220,11 +190,7 @@ def quit(code: int):
     sys.exit(code)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn quit"),
-        "Should transpile sys.exit. Got: {}",
-        result
-    );
+    assert!(result.contains("fn quit"), "Should transpile sys.exit. Got: {}", result);
 }
 
 // ============================================================================
@@ -293,11 +259,7 @@ def get_platform() -> str:
     return sys.platform
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_platform"),
-        "Should transpile sys.platform. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_platform"), "Should transpile sys.platform. Got: {}", result);
 }
 
 #[test]
@@ -309,11 +271,7 @@ def flush_err():
     sys.stderr.flush()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn flush_err"),
-        "Should transpile sys.stderr.flush. Got: {}",
-        result
-    );
+    assert!(result.contains("fn flush_err"), "Should transpile sys.stderr.flush. Got: {}", result);
 }
 
 // ============================================================================
@@ -327,11 +285,7 @@ def find_must(s: str, sub: str) -> int:
     return s.index(sub)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_must"),
-        "Should transpile str.index. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_must"), "Should transpile str.index. Got: {}", result);
 }
 
 #[test]
@@ -341,11 +295,7 @@ def find_last_must(s: str, sub: str) -> int:
     return s.rindex(sub)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_last_must"),
-        "Should transpile str.rindex. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_last_must"), "Should transpile str.rindex. Got: {}", result);
 }
 
 #[test]
@@ -402,11 +352,7 @@ def sort_in_place(items: list) -> list:
     return items
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sort_in_place"),
-        "Should transpile sort(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn sort_in_place"), "Should transpile sort(). Got: {}", result);
 }
 
 #[test]
@@ -416,11 +362,7 @@ def pop_last(items: list) -> int:
     return items.pop()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pop_last"),
-        "Should transpile pop(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn pop_last"), "Should transpile pop(). Got: {}", result);
 }
 
 #[test]
@@ -430,11 +372,7 @@ def find_index(items: list, val: int) -> int:
     return items.index(val)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_index"),
-        "Should transpile list.index(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_index"), "Should transpile list.index(). Got: {}", result);
 }
 
 #[test]
@@ -444,11 +382,7 @@ def count_val(items: list, val: int) -> int:
     return items.count(val)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_val"),
-        "Should transpile list.count(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_val"), "Should transpile list.count(). Got: {}", result);
 }
 
 #[test]
@@ -458,11 +392,7 @@ def copy_list(items: list) -> list:
     return items.copy()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn copy_list"),
-        "Should transpile list.copy(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn copy_list"), "Should transpile list.copy(). Got: {}", result);
 }
 
 // ============================================================================
@@ -477,11 +407,7 @@ def clear_dict(d: dict) -> dict:
     return d
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn clear_dict"),
-        "Should transpile dict.clear(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn clear_dict"), "Should transpile dict.clear(). Got: {}", result);
 }
 
 #[test]
@@ -491,11 +417,7 @@ def copy_dict(d: dict) -> dict:
     return d.copy()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn copy_dict"),
-        "Should transpile dict.copy(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn copy_dict"), "Should transpile dict.copy(). Got: {}", result);
 }
 
 #[test]
@@ -538,11 +460,7 @@ def safe_remove(s: set, val: int) -> set:
     return s
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_remove"),
-        "Should transpile set.discard(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_remove"), "Should transpile set.discard(). Got: {}", result);
 }
 
 #[test]
@@ -553,11 +471,7 @@ def clear_set(s: set) -> set:
     return s
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn clear_set"),
-        "Should transpile set.clear(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn clear_set"), "Should transpile set.clear(). Got: {}", result);
 }
 
 #[test]
@@ -567,11 +481,7 @@ def copy_set(s: set) -> set:
     return s.copy()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn copy_set"),
-        "Should transpile set.copy(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn copy_set"), "Should transpile set.copy(). Got: {}", result);
 }
 
 #[test]
@@ -581,11 +491,7 @@ def pop_any(s: set) -> int:
     return s.pop()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pop_any"),
-        "Should transpile set.pop(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn pop_any"), "Should transpile set.pop(). Got: {}", result);
 }
 
 #[test]
@@ -596,9 +502,5 @@ def merge_sets(a: set, b: set) -> set:
     return a
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn merge_sets"),
-        "Should transpile set.update(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn merge_sets"), "Should transpile set.update(). Got: {}", result);
 }

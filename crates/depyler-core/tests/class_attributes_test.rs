@@ -29,30 +29,18 @@ class Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have struct definition
-    assert!(
-        rust_code.contains("struct Config"),
-        "Should have Config struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Config"), "Should have Config struct.\nGot:\n{}", rust_code);
 
     // Should have const MAX_SIZE in impl block or as associated constant
     let has_const = rust_code.contains("const MAX_SIZE")
         || rust_code.contains("const max_size")
         || rust_code.contains("MAX_SIZE: i32 = 100");
-    assert!(
-        has_const,
-        "Should have MAX_SIZE constant.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_const, "Should have MAX_SIZE constant.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -67,30 +55,18 @@ class Math:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Math"),
-        "Should have Math struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Math"), "Should have Math struct.\nGot:\n{}", rust_code);
 
     // Should have PI constant
     let has_pi = rust_code.contains("PI") || rust_code.contains("pi");
     assert!(has_pi, "Should have PI constant.\nGot:\n{}", rust_code);
 
     // Should have get_pi method
-    assert!(
-        rust_code.contains("fn get_pi"),
-        "Should have get_pi method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn get_pi"), "Should have get_pi method.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -105,27 +81,15 @@ class Robot:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Robot"),
-        "Should have Robot struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Robot"), "Should have Robot struct.\nGot:\n{}", rust_code);
 
     // Should have DEFAULT_NAME constant
     let has_default_name = rust_code.contains("DEFAULT_NAME") || rust_code.contains("default_name");
-    assert!(
-        has_default_name,
-        "Should have DEFAULT_NAME constant.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_default_name, "Should have DEFAULT_NAME constant.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -143,11 +107,7 @@ class Constants:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -156,21 +116,9 @@ class Constants:
     let has_height = rust_code.contains("HEIGHT") || rust_code.contains("height");
     let has_title = rust_code.contains("TITLE") || rust_code.contains("title");
 
-    assert!(
-        has_width,
-        "Should have WIDTH constant.\nGot:\n{}",
-        rust_code
-    );
-    assert!(
-        has_height,
-        "Should have HEIGHT constant.\nGot:\n{}",
-        rust_code
-    );
-    assert!(
-        has_title,
-        "Should have TITLE constant.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_width, "Should have WIDTH constant.\nGot:\n{}", rust_code);
+    assert!(has_height, "Should have HEIGHT constant.\nGot:\n{}", rust_code);
+    assert!(has_title, "Should have TITLE constant.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -185,11 +133,7 @@ class Message:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -224,25 +168,13 @@ class Circle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Circle"),
-        "Should have Circle struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Circle"), "Should have Circle struct.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn area"),
-        "Should have area method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn area"), "Should have area method.\nGot:\n{}", rust_code);
 
     // Should have PI constant
     let has_pi = rust_code.contains("PI") || rust_code.contains("pi");
@@ -264,11 +196,7 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -280,11 +208,7 @@ class Counter:
 
     // Should have count variable (static or similar)
     let has_count = rust_code.contains("count") || rust_code.contains("COUNT");
-    assert!(
-        has_count,
-        "Should have count variable.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_count, "Should have count variable.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -303,27 +227,15 @@ class Widget:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Widget"),
-        "Should have Widget struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Widget"), "Should have Widget struct.\nGot:\n{}", rust_code);
 
     // Should have total_widgets variable
     let has_total = rust_code.contains("total_widgets") || rust_code.contains("TOTAL_WIDGETS");
-    assert!(
-        has_total,
-        "Should have total_widgets variable.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_total, "Should have total_widgets variable.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -338,29 +250,17 @@ class Buffer:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Buffer"),
-        "Should have Buffer struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Buffer"), "Should have Buffer struct.\nGot:\n{}", rust_code);
 
     // Should have DEFAULT_SIZE constant
     let has_default_size = rust_code.contains("DEFAULT_SIZE")
         || rust_code.contains("default_size")
         || rust_code.contains("1024");
-    assert!(
-        has_default_size,
-        "Should have DEFAULT_SIZE constant.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_default_size, "Should have DEFAULT_SIZE constant.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -379,27 +279,15 @@ class Car:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Car"),
-        "Should have Car struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Car"), "Should have Car struct.\nGot:\n{}", rust_code);
 
     // Should have WHEELS constant
     let has_wheels = rust_code.contains("WHEELS") || rust_code.contains("wheels");
-    assert!(
-        has_wheels,
-        "Should have WHEELS constant or field.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_wheels, "Should have WHEELS constant or field.\nGot:\n{}", rust_code);
 
     // Should have color field in struct
     let has_color = rust_code.contains("color");

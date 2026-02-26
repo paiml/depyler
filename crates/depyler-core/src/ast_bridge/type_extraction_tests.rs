@@ -191,23 +191,14 @@ fn test_extract_nested_types() {
     // Dict of Lists
     let expr2 = Expr::parse("Dict[str, List[int]]", "<test>").unwrap();
     let ty2 = TypeExtractor::extract_type(&expr2).unwrap();
-    assert_eq!(
-        ty2,
-        Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::List(Box::new(Type::Int)))
-        )
-    );
+    assert_eq!(ty2, Type::Dict(Box::new(Type::String), Box::new(Type::List(Box::new(Type::Int)))));
 
     // Optional Dict
     let expr3 = Expr::parse("Optional[Dict[str, int]]", "<test>").unwrap();
     let ty3 = TypeExtractor::extract_type(&expr3).unwrap();
     assert_eq!(
         ty3,
-        Type::Optional(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )))
+        Type::Optional(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))))
     );
 }
 
@@ -216,23 +207,14 @@ fn test_extract_generic_custom_type() {
     // Custom generic with one parameter
     let expr = Expr::parse("DataFrame[int]", "<test>").unwrap();
     let ty = TypeExtractor::extract_type(&expr).unwrap();
-    assert_eq!(
-        ty,
-        Type::Generic {
-            base: "DataFrame".to_string(),
-            params: vec![Type::Int],
-        }
-    );
+    assert_eq!(ty, Type::Generic { base: "DataFrame".to_string(), params: vec![Type::Int] });
 
     // Custom generic with multiple parameters
     let expr2 = Expr::parse("Result[int, str]", "<test>").unwrap();
     let ty2 = TypeExtractor::extract_type(&expr2).unwrap();
     assert_eq!(
         ty2,
-        Type::Generic {
-            base: "Result".to_string(),
-            params: vec![Type::Int, Type::String],
-        }
+        Type::Generic { base: "Result".to_string(), params: vec![Type::Int, Type::String] }
     );
 }
 
@@ -257,10 +239,7 @@ fn test_error_on_unsupported_type() {
     let expr = Expr::parse("1 + 2", "<test>").unwrap();
     let result = TypeExtractor::extract_type(&expr);
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("Unsupported type annotation"));
+    assert!(result.unwrap_err().to_string().contains("Unsupported type annotation"));
 }
 
 #[test]

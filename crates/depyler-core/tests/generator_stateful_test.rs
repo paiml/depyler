@@ -39,11 +39,7 @@ def counter(start: int, end: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -62,11 +58,7 @@ def counter(start: int, end: int):
     );
 
     // Should have state field for current
-    assert!(
-        rust_code.contains("current"),
-        "Should track current state.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("current"), "Should track current state.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -86,19 +78,11 @@ def dual_counter(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct"),
-        "Should have state struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct"), "Should have state struct.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -116,20 +100,12 @@ def fibonacci(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should track both a and b in state
-    assert!(
-        rust_code.contains("impl Iterator"),
-        "Should implement Iterator.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Iterator"), "Should implement Iterator.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -144,11 +120,7 @@ def running_sum(numbers: list):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -170,20 +142,12 @@ def grid_generator(rows: int, cols: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should track both i and j
-    assert!(
-        rust_code.contains("impl Iterator"),
-        "Should implement Iterator.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Iterator"), "Should implement Iterator.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -199,11 +163,7 @@ def conditional_gen(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -226,19 +186,11 @@ def indexed_values(items: list):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("index"),
-        "Should track index state.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("index"), "Should track index state.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -255,19 +207,11 @@ def limited_gen(n: int, limit: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("impl Iterator"),
-        "Should implement Iterator.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Iterator"), "Should implement Iterator.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -285,11 +229,7 @@ def alternating(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -314,20 +254,12 @@ def preserving_gen(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should preserve x across multiple yields
-    assert!(
-        rust_code.contains("impl Iterator"),
-        "Should implement Iterator.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Iterator"), "Should implement Iterator.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -342,11 +274,7 @@ def initialized_gen(start: int, step: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -370,11 +298,7 @@ def collecting_gen(items: list):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -404,11 +328,7 @@ def state_machine(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -431,19 +351,11 @@ def powers_of_two(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("power"),
-        "Should track power state.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("power"), "Should track power state.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -458,20 +370,12 @@ def my_range(start: int, stop: int, step: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should be similar to Rust Range
-    assert!(
-        rust_code.contains("current"),
-        "Should track current position.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("current"), "Should track current position.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -487,19 +391,11 @@ def filtered_gen(items: list, threshold: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("count"),
-        "Should track filter count.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("count"), "Should track filter count.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -515,19 +411,11 @@ def windowed(items: list, size: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("impl Iterator"),
-        "Should implement Iterator.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Iterator"), "Should implement Iterator.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -543,11 +431,7 @@ def pairwise(items: list):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -578,11 +462,7 @@ def complex_gen(n: int):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 

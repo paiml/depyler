@@ -11,9 +11,7 @@ fn transpile_ok(code: &str) -> bool {
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
 }
 
 // ============ Slicing edge cases ============

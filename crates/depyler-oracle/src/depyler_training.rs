@@ -881,33 +881,20 @@ pub fn corpus_stats() -> Vec<(ErrorCategory, usize)> {
     vec![
         (
             ErrorCategory::TypeMismatch,
-            dataset
-                .samples_for_category(ErrorCategory::TypeMismatch)
-                .len(),
+            dataset.samples_for_category(ErrorCategory::TypeMismatch).len(),
         ),
-        (
-            ErrorCategory::TraitBound,
-            dataset
-                .samples_for_category(ErrorCategory::TraitBound)
-                .len(),
-        ),
+        (ErrorCategory::TraitBound, dataset.samples_for_category(ErrorCategory::TraitBound).len()),
         (
             ErrorCategory::MissingImport,
-            dataset
-                .samples_for_category(ErrorCategory::MissingImport)
-                .len(),
+            dataset.samples_for_category(ErrorCategory::MissingImport).len(),
         ),
         (
             ErrorCategory::BorrowChecker,
-            dataset
-                .samples_for_category(ErrorCategory::BorrowChecker)
-                .len(),
+            dataset.samples_for_category(ErrorCategory::BorrowChecker).len(),
         ),
         (
             ErrorCategory::SyntaxError,
-            dataset
-                .samples_for_category(ErrorCategory::SyntaxError)
-                .len(),
+            dataset.samples_for_category(ErrorCategory::SyntaxError).len(),
         ),
     ]
 }
@@ -981,13 +968,7 @@ pub fn train_moe_on_real_corpus() -> crate::Result<MoeOracle> {
     let synthetic_samples: Vec<(String, String, ErrorCategory)> = combined
         .samples()
         .iter()
-        .map(|s| {
-            (
-                extract_error_code(&s.message),
-                s.message.clone(),
-                s.category,
-            )
-        })
+        .map(|s| (extract_error_code(&s.message), s.message.clone(), s.category))
         .collect();
 
     // Combine all samples
@@ -1028,13 +1009,7 @@ pub fn train_moe_oracle() -> crate::Result<MoeOracle> {
     let samples: Vec<(String, String, ErrorCategory)> = corpus
         .samples()
         .iter()
-        .map(|s| {
-            (
-                extract_error_code(&s.message),
-                s.message.clone(),
-                s.category,
-            )
-        })
+        .map(|s| (extract_error_code(&s.message), s.message.clone(), s.category))
         .collect();
 
     oracle.train(&samples)?;
@@ -1052,10 +1027,7 @@ fn extract_error_code(message: &str) -> String {
 
     // Fallback: look for E followed by digits
     if let Some(start) = message.find("E0") {
-        let code: String = message[start..]
-            .chars()
-            .take_while(|c| c.is_alphanumeric())
-            .collect();
+        let code: String = message[start..].chars().take_while(|c| c.is_alphanumeric()).collect();
         if code.len() >= 4 {
             return code;
         }
@@ -1093,10 +1065,7 @@ mod tests {
             .find(|(cat, _)| *cat == ErrorCategory::TypeMismatch)
             .map(|(_, c)| *c)
             .unwrap_or(0);
-        assert!(
-            type_mismatch_count >= 8,
-            "TypeMismatch should have most samples"
-        );
+        assert!(type_mismatch_count >= 8, "TypeMismatch should have most samples");
     }
 
     #[test]
@@ -1113,28 +1082,19 @@ mod tests {
     #[test]
     fn test_classify_with_moe_type_error() {
         let result = classify_with_moe("E0308", "mismatched types expected i32, found String");
-        assert_eq!(
-            result.primary_expert,
-            crate::moe_oracle::ExpertDomain::TypeSystem
-        );
+        assert_eq!(result.primary_expert, crate::moe_oracle::ExpertDomain::TypeSystem);
         assert!(result.confidence > 0.0);
     }
 
     #[test]
     fn test_classify_with_moe_scope_error() {
         let result = classify_with_moe("E0425", "cannot find value `foo` in this scope");
-        assert_eq!(
-            result.primary_expert,
-            crate::moe_oracle::ExpertDomain::ScopeResolution
-        );
+        assert_eq!(result.primary_expert, crate::moe_oracle::ExpertDomain::ScopeResolution);
     }
 
     #[test]
     fn test_extract_error_code_bracket() {
-        assert_eq!(
-            extract_error_code("error[E0308]: mismatched types"),
-            "E0308"
-        );
+        assert_eq!(extract_error_code("error[E0308]: mismatched types"), "E0308");
     }
 
     #[test]

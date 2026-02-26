@@ -409,14 +409,10 @@ pub fn generate_dashboard() -> DashboardReport {
     let scipy = get_scipy_coverage();
 
     // Calculate overall Path B progress
-    let total_mapped: usize = [&sklearn, &numpy, &pandas, &scipy]
-        .iter()
-        .map(|c| c.mapped_functions)
-        .sum();
-    let total_functions: usize = [&sklearn, &numpy, &pandas, &scipy]
-        .iter()
-        .map(|c| c.total_functions)
-        .sum();
+    let total_mapped: usize =
+        [&sklearn, &numpy, &pandas, &scipy].iter().map(|c| c.mapped_functions).sum();
+    let total_functions: usize =
+        [&sklearn, &numpy, &pandas, &scipy].iter().map(|c| c.total_functions).sum();
 
     let path_b_progress = if total_functions > 0 {
         (total_mapped as f64 / total_functions as f64) * 100.0
@@ -445,12 +441,8 @@ fn load_corpus_metrics() -> (Option<f64>, Option<usize>) {
 
     if let Ok(content) = std::fs::read_to_string(metrics_path) {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            let compile_rate = json["baseline"]["transpile_rate"]
-                .as_f64()
-                .map(|r| r * 100.0);
-            let corpus_files = json["baseline"]["files_processed"]
-                .as_u64()
-                .map(|f| f as usize);
+            let compile_rate = json["baseline"]["transpile_rate"].as_f64().map(|r| r * 100.0);
+            let corpus_files = json["baseline"]["files_processed"].as_u64().map(|f| f as usize);
             return (compile_rate, corpus_files);
         }
     }
@@ -461,30 +453,17 @@ fn load_corpus_metrics() -> (Option<f64>, Option<usize>) {
 /// Display dashboard in text format
 pub fn display_text(report: &DashboardReport) {
     println!();
+    println!("{}", "═══════════════════════════════════════════════════════════════".bright_blue());
     println!(
         "{}",
-        "═══════════════════════════════════════════════════════════════".bright_blue()
+        "           DEPYLER SOVEREIGN STACK COVERAGE DASHBOARD          ".bright_blue().bold()
     );
-    println!(
-        "{}",
-        "           DEPYLER SOVEREIGN STACK COVERAGE DASHBOARD          "
-            .bright_blue()
-            .bold()
-    );
-    println!(
-        "{}",
-        "═══════════════════════════════════════════════════════════════".bright_blue()
-    );
+    println!("{}", "═══════════════════════════════════════════════════════════════".bright_blue());
     println!();
 
     // Path B Progress
     let progress_bar = create_progress_bar(report.path_b_progress, 40);
-    println!(
-        "{} {} [{:.1}%]",
-        "Path B Progress:".bold(),
-        progress_bar,
-        report.path_b_progress
-    );
+    println!("{} {} [{:.1}%]", "Path B Progress:".bold(), progress_bar, report.path_b_progress);
     println!();
 
     // Compile rate if available
@@ -545,10 +524,7 @@ pub fn display_text(report: &DashboardReport) {
 
     // Detailed mappings
     println!("─────────────────────────────────────────────────────────────────");
-    println!(
-        "{}",
-        "                    DETAILED FUNCTION MAPPINGS                   ".bold()
-    );
+    println!("{}", "                    DETAILED FUNCTION MAPPINGS                   ".bold());
     println!("─────────────────────────────────────────────────────────────────");
     println!();
 
@@ -801,19 +777,13 @@ mod tests {
     #[test]
     fn test_scipy_has_unmapped_functions() {
         let coverage = get_scipy_coverage();
-        assert!(coverage
-            .mappings
-            .iter()
-            .any(|m| m.status == MigrationStatus::Unmapped));
+        assert!(coverage.mappings.iter().any(|m| m.status == MigrationStatus::Unmapped));
     }
 
     #[test]
     fn test_pandas_has_partial_functions() {
         let coverage = get_pandas_coverage();
-        assert!(coverage
-            .mappings
-            .iter()
-            .any(|m| m.status == MigrationStatus::Partial));
+        assert!(coverage.mappings.iter().any(|m| m.status == MigrationStatus::Partial));
     }
 
     #[test]

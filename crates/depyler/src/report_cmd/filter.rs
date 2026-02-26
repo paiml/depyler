@@ -93,41 +93,23 @@ impl SemanticTag {
                 r#"\.keys\("#,
                 r#"\.values\("#,
             ],
-            Self::List => vec![
-                r#"list\s*\("#,
-                r#"List\["#,
-                r#"\[\s*\d"#,
-                r#"\.append\("#,
-                r#"\.extend\("#,
-            ],
+            Self::List => {
+                vec![r#"list\s*\("#, r#"List\["#, r#"\[\s*\d"#, r#"\.append\("#, r#"\.extend\("#]
+            }
             Self::Set => vec![r#"set\s*\("#, r#"Set\["#, r#"\{[^:]+\}"#],
-            Self::Argparse => vec![
-                r#"import\s+argparse"#,
-                r#"from\s+argparse"#,
-                "ArgumentParser",
-                "add_argument",
-            ],
+            Self::Argparse => {
+                vec![r#"import\s+argparse"#, r#"from\s+argparse"#, "ArgumentParser", "add_argument"]
+            }
             Self::Async => vec![r#"async\s+def"#, r#"await\s+"#, "asyncio"],
             Self::Class => vec![r#"class\s+\w+"#],
             Self::Dataclass => vec!["@dataclass", r#"from\s+dataclasses"#],
             Self::Lambda => vec![r#"lambda\s+"#],
             Self::Generator => vec![r#"yield\s+"#, r#"\(.*\s+for\s+.*\s+in\s+"#],
-            Self::Comprehension => vec![
-                r#"\[.*\s+for\s+.*\s+in\s+.*\]"#,
-                r#"\{.*\s+for\s+.*\s+in\s+.*\}"#,
-            ],
-            Self::FileIO => vec![
-                r#"open\s*\("#,
-                r#"with\s+open"#,
-                r#"\.read\("#,
-                r#"\.write\("#,
-            ],
-            Self::Json => vec![
-                r#"import\s+json"#,
-                r#"json\."#,
-                r#"\.loads\("#,
-                r#"\.dumps\("#,
-            ],
+            Self::Comprehension => {
+                vec![r#"\[.*\s+for\s+.*\s+in\s+.*\]"#, r#"\{.*\s+for\s+.*\s+in\s+.*\}"#]
+            }
+            Self::FileIO => vec![r#"open\s*\("#, r#"with\s+open"#, r#"\.read\("#, r#"\.write\("#],
+            Self::Json => vec![r#"import\s+json"#, r#"json\."#, r#"\.loads\("#, r#"\.dumps\("#],
             Self::Regex => vec![r#"import\s+re"#, r#"re\."#, r#"\.match\("#, r#"\.search\("#],
             Self::Datetime => vec![r#"import\s+datetime"#, r#"datetime\."#, "timedelta"],
             Self::Custom(_) => vec![],
@@ -192,11 +174,8 @@ pub fn filter_files(files: &[PathBuf], config: &FilterConfig) -> Vec<PathBuf> {
 
     // Apply tag filter
     if !config.tags.is_empty() {
-        let required_tags: HashSet<SemanticTag> = config
-            .tags
-            .iter()
-            .map(|s| SemanticTag::from_str(s))
-            .collect();
+        let required_tags: HashSet<SemanticTag> =
+            config.tags.iter().map(|s| SemanticTag::from_str(s)).collect();
 
         result.retain(|path| {
             if let Ok(source) = std::fs::read_to_string(path) {
@@ -309,10 +288,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let files = create_test_files(&temp, &["argparse_cli.py", "dict_ops.py", "list_test.py"]);
 
-        let config = FilterConfig {
-            pattern: Some("argparse".to_string()),
-            ..Default::default()
-        };
+        let config = FilterConfig { pattern: Some("argparse".to_string()), ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 1);
@@ -324,10 +300,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let files = create_test_files(&temp, &["test_dict.py", "test_list.py", "main.py"]);
 
-        let config = FilterConfig {
-            pattern: Some("test_".to_string()),
-            ..Default::default()
-        };
+        let config = FilterConfig { pattern: Some("test_".to_string()), ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 2);
@@ -338,10 +311,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let files = create_test_files(&temp, &["a.py", "b.py", "c.py", "d.py", "e.py"]);
 
-        let config = FilterConfig {
-            limit: Some(3),
-            ..Default::default()
-        };
+        let config = FilterConfig { limit: Some(3), ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 3);
@@ -352,10 +322,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let files = create_test_files(&temp, &["a.py", "b.py", "c.py", "d.py", "e.py"]);
 
-        let config = FilterConfig {
-            sample: Some(2),
-            ..Default::default()
-        };
+        let config = FilterConfig { sample: Some(2), ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 2);
@@ -374,10 +341,7 @@ mod tests {
 
         let files = vec![dict_file, list_file];
 
-        let config = FilterConfig {
-            tags: vec!["dict".to_string()],
-            ..Default::default()
-        };
+        let config = FilterConfig { tags: vec!["dict".to_string()], ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 1);
@@ -389,21 +353,15 @@ mod tests {
         let temp = TempDir::new().unwrap();
 
         let argparse_file = temp.path().join("cli.py");
-        std::fs::write(
-            &argparse_file,
-            "import argparse\nparser = argparse.ArgumentParser()",
-        )
-        .unwrap();
+        std::fs::write(&argparse_file, "import argparse\nparser = argparse.ArgumentParser()")
+            .unwrap();
 
         let simple_file = temp.path().join("simple.py");
         std::fs::write(&simple_file, "print(\"hello\")").unwrap();
 
         let files = vec![argparse_file, simple_file];
 
-        let config = FilterConfig {
-            tags: vec!["argparse".to_string()],
-            ..Default::default()
-        };
+        let config = FilterConfig { tags: vec!["argparse".to_string()], ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 1);
@@ -486,9 +444,7 @@ class DataProcessor:
 
     #[test]
     fn test_bisection_state_new() {
-        let files: Vec<PathBuf> = (0..10)
-            .map(|i| PathBuf::from(format!("{}.py", i)))
-            .collect();
+        let files: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("{}.py", i))).collect();
         let state = BisectionState::new(files.clone());
 
         assert_eq!(state.low, 0);
@@ -500,9 +456,7 @@ class DataProcessor:
     #[test]
     fn test_bisection_isolate_single_failure() {
         // Simulate bisection to find file at index 7
-        let files: Vec<PathBuf> = (0..16)
-            .map(|i| PathBuf::from(format!("{}.py", i)))
-            .collect();
+        let files: Vec<PathBuf> = (0..16).map(|i| PathBuf::from(format!("{}.py", i))).collect();
         let mut state = BisectionState::new(files);
 
         // Iteration 1: mid=7, failure NOT in first half (0-7), so go to second half
@@ -533,9 +487,7 @@ class DataProcessor:
 
     #[test]
     fn test_bisection_max_iterations_safety() {
-        let files: Vec<PathBuf> = (0..1000)
-            .map(|i| PathBuf::from(format!("{}.py", i)))
-            .collect();
+        let files: Vec<PathBuf> = (0..1000).map(|i| PathBuf::from(format!("{}.py", i))).collect();
         let mut state = BisectionState::new(files);
         state.max_iterations = 5;
 
@@ -553,9 +505,7 @@ class DataProcessor:
     #[test]
     fn test_bisection_log_n_complexity() {
         // For 1671 files, should take ~11 iterations (log2(1671) ≈ 10.7)
-        let files: Vec<PathBuf> = (0..1671)
-            .map(|i| PathBuf::from(format!("{}.py", i)))
-            .collect();
+        let files: Vec<PathBuf> = (0..1671).map(|i| PathBuf::from(format!("{}.py", i))).collect();
         let mut state = BisectionState::new(files);
 
         // Simulate always finding in first half (worst case for iteration count)
@@ -564,11 +514,7 @@ class DataProcessor:
         }
 
         // Should complete in ~11 iterations
-        assert!(
-            state.iteration <= 15,
-            "Bisection took {} iterations",
-            state.iteration
-        );
+        assert!(state.iteration <= 15, "Bisection took {} iterations", state.iteration);
     }
 
     #[test]
@@ -576,13 +522,7 @@ class DataProcessor:
         let temp = TempDir::new().unwrap();
         let files = create_test_files(
             &temp,
-            &[
-                "test_a.py",
-                "test_b.py",
-                "test_c.py",
-                "test_d.py",
-                "main.py",
-            ],
+            &["test_a.py", "test_b.py", "test_c.py", "test_d.py", "main.py"],
         );
 
         let config = FilterConfig {
@@ -593,9 +533,7 @@ class DataProcessor:
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 2);
-        assert!(filtered
-            .iter()
-            .all(|f| f.to_string_lossy().contains("test_")));
+        assert!(filtered.iter().all(|f| f.to_string_lossy().contains("test_")));
     }
 
     #[test]
@@ -616,11 +554,8 @@ class DataProcessor:
             .filter_map(|e| e.ok().map(|e| e.path()))
             .collect();
 
-        let config = FilterConfig {
-            tags: vec!["dict".to_string()],
-            sample: Some(3),
-            ..Default::default()
-        };
+        let config =
+            FilterConfig { tags: vec!["dict".to_string()], sample: Some(3), ..Default::default() };
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 3);

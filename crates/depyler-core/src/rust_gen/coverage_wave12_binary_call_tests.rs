@@ -16,10 +16,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -616,7 +614,7 @@ mod tests {
 
     #[test]
     fn test_w12bc_call_081_int_constructor() {
-        let py = "result = int(0)";  // int() requires an argument
+        let py = "result = int(0)"; // int() requires an argument
         let rs = transpile(py);
         assert!(rs.contains("0"));
     }
@@ -630,7 +628,7 @@ mod tests {
 
     #[test]
     fn test_w12bc_call_083_float_constructor() {
-        let py = "result = float(0.0)";  // float() requires an argument
+        let py = "result = float(0.0)"; // float() requires an argument
         let rs = transpile(py);
         assert!(rs.contains("0.0"));
     }

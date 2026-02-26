@@ -35,10 +35,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Find leftmost insertion point
@@ -168,10 +166,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Transform list into min-heap in-place
@@ -349,10 +345,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Shallow copy - in Rust, clone() is typically deep for owned data
@@ -380,10 +374,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!(
-                    "copy.{} not implemented yet (available: copy, deepcopy)",
-                    method
-                );
+                bail!("copy.{} not implemented yet (available: copy, deepcopy)", method);
             }
         };
 
@@ -405,18 +396,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "exit" => {
-                let code = if !arg_exprs.is_empty() {
-                    &arg_exprs[0]
-                } else {
-                    &parse_quote!(0)
-                };
+                let code = if !arg_exprs.is_empty() { &arg_exprs[0] } else { &parse_quote!(0) };
 
                 parse_quote! {
                     std::process::exit(#code)
@@ -446,10 +431,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "dumps" => {
@@ -483,10 +466,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!(
-                    "pickle.{} not implemented yet (available: dumps, loads)",
-                    method
-                );
+                bail!("pickle.{} not implemented yet (available: dumps, loads)", method);
             }
         };
 
@@ -508,10 +488,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "pprint" => {
@@ -545,10 +523,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_num_rational = true;
 
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Fraction methods
@@ -599,10 +575,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_rust_decimal = true;
 
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Mathematical operations
@@ -748,10 +722,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Averages and central tendency

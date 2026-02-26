@@ -313,10 +313,7 @@ pub enum AssignTarget {
     /// Simple variable assignment: x = value
     Symbol(Symbol),
     /// Subscript assignment: x[key] = value
-    Index {
-        base: Box<HirExpr>,
-        index: Box<HirExpr>,
-    },
+    Index { base: Box<HirExpr>, index: Box<HirExpr> },
     /// Attribute assignment: x.attr = value (for future use)
     Attribute { value: Box<HirExpr>, attr: Symbol },
     /// Tuple unpacking: (a, b) = value or a, b = value
@@ -766,18 +763,12 @@ mod tests {
     fn test_DEPYLER_1154_type_is_copy_non_copy() {
         // Non-Copy types
         assert!(!Type::String.is_copy(), "String should NOT be Copy");
-        assert!(
-            !Type::List(Box::new(Type::Int)).is_copy(),
-            "List should NOT be Copy"
-        );
+        assert!(!Type::List(Box::new(Type::Int)).is_copy(), "List should NOT be Copy");
         assert!(
             !Type::Dict(Box::new(Type::String), Box::new(Type::Int)).is_copy(),
             "Dict should NOT be Copy"
         );
-        assert!(
-            !Type::Set(Box::new(Type::Int)).is_copy(),
-            "Set should NOT be Copy"
-        );
+        assert!(!Type::Set(Box::new(Type::Int)).is_copy(), "Set should NOT be Copy");
     }
 
     #[test]
@@ -797,10 +788,7 @@ mod tests {
     #[test]
     fn test_DEPYLER_1154_type_is_copy_optional() {
         // Optional<Copy> is Copy
-        assert!(
-            Type::Optional(Box::new(Type::Int)).is_copy(),
-            "Optional<Int> should be Copy"
-        );
+        assert!(Type::Optional(Box::new(Type::Int)).is_copy(), "Optional<Int> should be Copy");
         // Optional<non-Copy> is NOT Copy
         assert!(
             !Type::Optional(Box::new(Type::String)).is_copy(),
@@ -812,20 +800,14 @@ mod tests {
     fn test_DEPYLER_1154_type_is_copy_array() {
         // Array of Copy elements is Copy
         assert!(
-            Type::Array {
-                element_type: Box::new(Type::Int),
-                size: ConstGeneric::Literal(10)
-            }
-            .is_copy(),
+            Type::Array { element_type: Box::new(Type::Int), size: ConstGeneric::Literal(10) }
+                .is_copy(),
             "Array<Int> should be Copy"
         );
         // Array of non-Copy elements is NOT Copy
         assert!(
-            !Type::Array {
-                element_type: Box::new(Type::String),
-                size: ConstGeneric::Literal(10)
-            }
-            .is_copy(),
+            !Type::Array { element_type: Box::new(Type::String), size: ConstGeneric::Literal(10) }
+                .is_copy(),
             "Array<String> should NOT be Copy"
         );
     }
@@ -884,11 +866,8 @@ mod tests {
 
     #[test]
     fn test_hir_param_with_default() {
-        let param = HirParam::with_default(
-            "y".to_string(),
-            Type::Int,
-            HirExpr::Literal(Literal::Int(42)),
-        );
+        let param =
+            HirParam::with_default("y".to_string(), Type::Int, HirExpr::Literal(Literal::Int(42)));
         assert_eq!(param.name, "y");
         assert!(param.default.is_some());
     }
@@ -906,10 +885,7 @@ mod tests {
     fn test_literal_types() {
         assert_eq!(Literal::Int(42), Literal::Int(42));
         assert_eq!(Literal::Float(3.15), Literal::Float(3.15));
-        assert_eq!(
-            Literal::String("test".to_string()),
-            Literal::String("test".to_string())
-        );
+        assert_eq!(Literal::String("test".to_string()), Literal::String("test".to_string()));
         assert_eq!(Literal::Bool(true), Literal::Bool(true));
         assert_eq!(Literal::None, Literal::None);
     }
@@ -1010,13 +986,7 @@ mod tests {
             op: UnaryOp::Neg,
             operand: Box::new(HirExpr::Literal(Literal::Int(42))),
         };
-        assert!(matches!(
-            expr,
-            HirExpr::Unary {
-                op: UnaryOp::Neg,
-                ..
-            }
-        ));
+        assert!(matches!(expr, HirExpr::Unary { op: UnaryOp::Neg, .. }));
     }
 
     #[test]
@@ -1121,10 +1091,8 @@ mod tests {
 
     #[test]
     fn test_hir_stmt_while() {
-        let stmt = HirStmt::While {
-            condition: HirExpr::Literal(Literal::Bool(true)),
-            body: vec![],
-        };
+        let stmt =
+            HirStmt::While { condition: HirExpr::Literal(Literal::Bool(true)), body: vec![] };
         assert!(matches!(stmt, HirStmt::While { .. }));
     }
 
@@ -1148,10 +1116,7 @@ mod tests {
         assert_eq!(import.module, "os");
         assert_eq!(import.items.len(), 1);
 
-        let aliased = ImportItem::Aliased {
-            name: "path".to_string(),
-            alias: "p".to_string(),
-        };
+        let aliased = ImportItem::Aliased { name: "path".to_string(), alias: "p".to_string() };
         assert!(matches!(aliased, ImportItem::Aliased { .. }));
     }
 
@@ -1170,10 +1135,7 @@ mod tests {
 
     #[test]
     fn test_type_with_generics() {
-        let ty = Type::Generic {
-            base: "List".to_string(),
-            params: vec![Type::Int],
-        };
+        let ty = Type::Generic { base: "List".to_string(), params: vec![Type::Int] };
         if let Type::Generic { base, params } = ty {
             assert_eq!(base, "List");
             assert_eq!(params.len(), 1);
@@ -1200,10 +1162,7 @@ mod tests {
 
     #[test]
     fn test_type_function() {
-        let ty = Type::Function {
-            params: vec![Type::Int, Type::Int],
-            ret: Box::new(Type::Int),
-        };
+        let ty = Type::Function { params: vec![Type::Int, Type::Int], ret: Box::new(Type::Int) };
         if let Type::Function { params, ret } = ty {
             assert_eq!(params.len(), 2);
             assert_eq!(*ret, Type::Int);
@@ -1214,16 +1173,12 @@ mod tests {
 
     #[test]
     fn test_hir_expr_borrow() {
-        let expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: false,
-        };
+        let expr =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: false };
         assert!(matches!(expr, HirExpr::Borrow { mutable: false, .. }));
 
-        let mut_expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: true,
-        };
+        let mut_expr =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: true };
         assert!(matches!(mut_expr, HirExpr::Borrow { mutable: true, .. }));
     }
 

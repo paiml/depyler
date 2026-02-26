@@ -346,14 +346,8 @@ mod tests {
             OipDefectCategory::OwnershipBorrow.to_error_category(),
             ErrorCategory::BorrowChecker
         );
-        assert_eq!(
-            OipDefectCategory::TypeErrors.to_error_category(),
-            ErrorCategory::TypeMismatch
-        );
-        assert_eq!(
-            OipDefectCategory::TraitBounds.to_error_category(),
-            ErrorCategory::TraitBound
-        );
+        assert_eq!(OipDefectCategory::TypeErrors.to_error_category(), ErrorCategory::TypeMismatch);
+        assert_eq!(OipDefectCategory::TraitBounds.to_error_category(), ErrorCategory::TraitBound);
         assert_eq!(
             OipDefectCategory::StdlibMapping.to_error_category(),
             ErrorCategory::MissingImport
@@ -362,10 +356,7 @@ mod tests {
 
     #[test]
     fn test_oip_to_expert_domain_mapping() {
-        assert_eq!(
-            OipDefectCategory::TypeErrors.to_expert_domain(),
-            ExpertDomain::TypeSystem
-        );
+        assert_eq!(OipDefectCategory::TypeErrors.to_expert_domain(), ExpertDomain::TypeSystem);
         assert_eq!(
             OipDefectCategory::StdlibMapping.to_expert_domain(),
             ExpertDomain::ScopeResolution
@@ -374,10 +365,7 @@ mod tests {
             OipDefectCategory::OwnershipBorrow.to_expert_domain(),
             ExpertDomain::SyntaxBorrowing
         );
-        assert_eq!(
-            OipDefectCategory::ApiMisuse.to_expert_domain(),
-            ExpertDomain::MethodField
-        );
+        assert_eq!(OipDefectCategory::ApiMisuse.to_expert_domain(), ExpertDomain::MethodField);
     }
 
     #[test]
@@ -403,38 +391,21 @@ mod tests {
 
     #[test]
     fn test_infer_error_code() {
-        assert_eq!(
-            infer_error_code_from_category(OipDefectCategory::TypeErrors),
-            "E0308"
-        );
-        assert_eq!(
-            infer_error_code_from_category(OipDefectCategory::TraitBounds),
-            "E0277"
-        );
-        assert_eq!(
-            infer_error_code_from_category(OipDefectCategory::OwnershipBorrow),
-            "E0382"
-        );
+        assert_eq!(infer_error_code_from_category(OipDefectCategory::TypeErrors), "E0308");
+        assert_eq!(infer_error_code_from_category(OipDefectCategory::TraitBounds), "E0277");
+        assert_eq!(infer_error_code_from_category(OipDefectCategory::OwnershipBorrow), "E0382");
     }
 
     #[test]
     fn test_convert_empty_dataset() {
-        let oip = OipTrainingDataset {
-            train: vec![],
-            validation: vec![],
-            test: vec![],
-        };
+        let oip = OipTrainingDataset { train: vec![], validation: vec![], test: vec![] };
         let dataset = convert_oip_to_depyler(&oip);
         assert!(dataset.samples().is_empty());
     }
 
     #[test]
     fn test_analyze_corpus_empty() {
-        let oip = OipTrainingDataset {
-            train: vec![],
-            validation: vec![],
-            test: vec![],
-        };
+        let oip = OipTrainingDataset { train: vec![], validation: vec![], test: vec![] };
         let stats = analyze_corpus(&oip);
         assert_eq!(stats.total_examples, 0);
     }
@@ -464,10 +435,7 @@ mod tests {
 
             // Convert to depyler format
             let depyler_dataset = convert_oip_to_depyler(&oip_data);
-            println!(
-                "  Converted to {} depyler samples",
-                depyler_dataset.samples().len()
-            );
+            println!("  Converted to {} depyler samples", depyler_dataset.samples().len());
 
             assert!(stats.total_examples > 0, "Should have training examples");
         } else {

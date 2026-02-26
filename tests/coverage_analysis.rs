@@ -30,17 +30,11 @@ def factorial(n: int) -> int:
 "#;
 
         let hir_result = pipeline.parse_to_hir(function_with_control_flow);
-        assert!(
-            hir_result.is_ok(),
-            "HIR parsing should work for valid Python"
-        );
+        assert!(hir_result.is_ok(), "HIR parsing should work for valid Python");
 
         let hir = hir_result.unwrap();
         assert_eq!(hir.functions.len(), 1, "Should parse one function");
-        assert_eq!(
-            hir.functions[0].name, "factorial",
-            "Function name should be preserved"
-        );
+        assert_eq!(hir.functions[0].name, "factorial", "Function name should be preserved");
     }
 
     /// Test error handling in various pipeline stages
@@ -140,18 +134,12 @@ def with_variables() -> int:
         let default_pipeline = DepylerPipeline::new();
         let test_code = "def test() -> int: return 42";
         let result = default_pipeline.transpile(test_code);
-        assert!(
-            result.is_ok() || result.is_err(),
-            "Default pipeline should handle basic code"
-        );
+        assert!(result.is_ok() || result.is_err(), "Default pipeline should handle basic code");
 
         // Test pipeline with verification
         let verified_pipeline = DepylerPipeline::new().with_verification();
         let result2 = verified_pipeline.transpile(test_code);
-        assert!(
-            result2.is_ok() || result2.is_err(),
-            "Verified pipeline should handle basic code"
-        );
+        assert!(result2.is_ok() || result2.is_err(), "Verified pipeline should handle basic code");
     }
 
     /// Test memory safety and string handling patterns

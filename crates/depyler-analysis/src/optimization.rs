@@ -1,7 +1,7 @@
+use depyler_annotations::{OptimizationLevel, PerformanceHint};
 #[cfg(test)]
 use depyler_hir::hir::AssignTarget;
 use depyler_hir::hir::{BinOp, HirExpr, HirFunction, HirStmt};
-use depyler_annotations::{OptimizationLevel, PerformanceHint};
 
 /// Performance optimizer that applies transformations based on annotations
 pub struct PerformanceOptimizer {
@@ -16,9 +16,7 @@ impl Default for PerformanceOptimizer {
 
 impl PerformanceOptimizer {
     pub fn new() -> Self {
-        Self {
-            optimizations_applied: Vec::new(),
-        }
+        Self { optimizations_applied: Vec::new() }
     }
 
     /// Optimize a function based on its annotations
@@ -95,8 +93,7 @@ impl PerformanceOptimizer {
             self.fold_constants_in_stmt(stmt);
         }
 
-        self.optimizations_applied
-            .push("constant_folding".to_string());
+        self.optimizations_applied.push("constant_folding".to_string());
     }
 
     fn fold_constants_in_stmt(&mut self, stmt: &mut HirStmt) {
@@ -107,11 +104,7 @@ impl PerformanceOptimizer {
             HirStmt::Return(Some(expr)) => {
                 self.fold_constants_expr(expr);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.fold_constants_in_if(condition, then_body, else_body);
             }
             HirStmt::While { condition, body } => {
@@ -193,15 +186,13 @@ impl PerformanceOptimizer {
             }
         });
 
-        self.optimizations_applied
-            .push("dead_code_elimination".to_string());
+        self.optimizations_applied.push("dead_code_elimination".to_string());
     }
 
     /// Common subexpression elimination
     fn common_subexpression_elimination(&mut self, _stmts: &mut [HirStmt]) {
         // Simplified CSE - would need data flow analysis for real implementation
-        self.optimizations_applied
-            .push("common_subexpression_elimination".to_string());
+        self.optimizations_applied.push("common_subexpression_elimination".to_string());
     }
 
     /// Strength reduction (e.g., x * 2 -> x << 1)
@@ -218,17 +209,12 @@ impl PerformanceOptimizer {
             }
         }
 
-        self.optimizations_applied
-            .push("strength_reduction".to_string());
+        self.optimizations_applied.push("strength_reduction".to_string());
     }
 
     fn reduce_strength_expr(&self, expr: &mut HirExpr) {
         match expr {
-            HirExpr::Binary {
-                op: BinOp::Mul,
-                left: _,
-                right,
-            } => {
+            HirExpr::Binary { op: BinOp::Mul, left: _, right } => {
                 // DISABLED: Replace multiplication by power of 2 with left shift
                 // This optimization is unsafe as it changes semantics for negative numbers
                 // Re-enable only when we can prove values are non-negative through type analysis
@@ -237,11 +223,7 @@ impl PerformanceOptimizer {
                     // Left shift and multiplication have different overflow/underflow behavior
                 }
             }
-            HirExpr::Binary {
-                op: BinOp::Div,
-                left: _,
-                right,
-            } => {
+            HirExpr::Binary { op: BinOp::Div, left: _, right } => {
                 // DISABLED: Replace division by power of 2 with right shift
                 // This optimization is unsafe as it changes semantics for negative numbers
                 // Re-enable only when we can prove values are non-negative through type analysis
@@ -266,43 +248,37 @@ impl PerformanceOptimizer {
             }
         }
 
-        self.optimizations_applied
-            .push(format!("loop_unrolling_{factor}"));
+        self.optimizations_applied.push(format!("loop_unrolling_{factor}"));
     }
 
     /// Vectorization for SIMD operations
     fn vectorize_loops(&mut self, _stmts: &mut [HirStmt]) {
         // Simplified vectorization - would need pattern matching for real implementation
-        self.optimizations_applied
-            .push("vectorize_loops".to_string());
+        self.optimizations_applied.push("vectorize_loops".to_string());
     }
 
     /// Inline small functions
     fn inline_small_functions(&mut self, _stmts: &mut [HirStmt]) {
         // Simplified inlining - would need call graph analysis
-        self.optimizations_applied
-            .push("inline_small_functions".to_string());
+        self.optimizations_applied.push("inline_small_functions".to_string());
     }
 
     /// Remove bounds checks (unsafe optimization)
     fn remove_bounds_checks(&mut self, _stmts: &mut [HirStmt]) {
         // Would remove array bounds checks - requires careful analysis
-        self.optimizations_applied
-            .push("remove_bounds_checks".to_string());
+        self.optimizations_applied.push("remove_bounds_checks".to_string());
     }
 
     /// Optimize for low latency
     fn optimize_for_latency(&mut self, _stmts: &mut [HirStmt]) {
         // Prioritize reducing critical path length
-        self.optimizations_applied
-            .push("optimize_for_latency".to_string());
+        self.optimizations_applied.push("optimize_for_latency".to_string());
     }
 
     /// Optimize for high throughput
     fn optimize_for_throughput(&mut self, _stmts: &mut [HirStmt]) {
         // Prioritize parallelism and vectorization
-        self.optimizations_applied
-            .push("optimize_for_throughput".to_string());
+        self.optimizations_applied.push("optimize_for_throughput".to_string());
     }
 
     /// Get list of optimizations that were applied
@@ -327,8 +303,8 @@ pub fn optimize_module(module: &mut depyler_hir::hir::HirModule) -> Vec<String> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::{FunctionProperties, HirModule, HirParam, Literal, Type};
     use depyler_annotations::{BoundsChecking, TranspilationAnnotations};
+    use depyler_hir::hir::{FunctionProperties, HirModule, HirParam, Literal, Type};
     use smallvec::smallvec;
 
     // Helper to create a basic function for testing
@@ -705,11 +681,7 @@ mod tests {
         // Check that multiplication by 8 is NOT replaced with left shift for correctness
         // Strength reduction is disabled to maintain semantic equivalence
         if let HirStmt::Return(Some(HirExpr::Binary { op, right, .. })) = &func.body[0] {
-            assert_eq!(
-                *op,
-                BinOp::Mul,
-                "Should preserve multiplication for semantic correctness"
-            );
+            assert_eq!(*op, BinOp::Mul, "Should preserve multiplication for semantic correctness");
             if let HirExpr::Literal(Literal::Int(n)) = right.as_ref() {
                 assert_eq!(*n, 8, "Should preserve original multiplication operand");
             }
@@ -831,9 +803,7 @@ mod tests {
             optimization_level: OptimizationLevel::Aggressive,
             ..Default::default()
         };
-        annotations
-            .performance_hints
-            .push(PerformanceHint::Vectorize);
+        annotations.performance_hints.push(PerformanceHint::Vectorize);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -857,9 +827,7 @@ mod tests {
     fn test_performance_hint_vectorize() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations
-            .performance_hints
-            .push(PerformanceHint::Vectorize);
+        annotations.performance_hints.push(PerformanceHint::Vectorize);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -881,9 +849,7 @@ mod tests {
     fn test_performance_hint_unroll_loops() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations
-            .performance_hints
-            .push(PerformanceHint::UnrollLoops(8));
+        annotations.performance_hints.push(PerformanceHint::UnrollLoops(8));
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -905,9 +871,7 @@ mod tests {
     fn test_performance_hint_optimize_for_latency() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations
-            .performance_hints
-            .push(PerformanceHint::OptimizeForLatency);
+        annotations.performance_hints.push(PerformanceHint::OptimizeForLatency);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -929,9 +893,7 @@ mod tests {
     fn test_performance_hint_optimize_for_throughput() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations
-            .performance_hints
-            .push(PerformanceHint::OptimizeForThroughput);
+        annotations.performance_hints.push(PerformanceHint::OptimizeForThroughput);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -953,9 +915,7 @@ mod tests {
     fn test_performance_hint_performance_critical() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations
-            .performance_hints
-            .push(PerformanceHint::PerformanceCritical);
+        annotations.performance_hints.push(PerformanceHint::PerformanceCritical);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -1198,12 +1158,7 @@ mod tests {
         optimizer.optimize_function(&mut func);
 
         // Check all constants are folded
-        if let HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } = &func.body[0]
-        {
+        if let HirStmt::If { condition, then_body, else_body } = &func.body[0] {
             assert!(matches!(condition, HirExpr::Literal(Literal::Int(2))));
 
             if let HirStmt::Return(Some(HirExpr::Literal(Literal::Int(n)))) = &then_body[0] {
@@ -1224,15 +1179,9 @@ mod tests {
     fn test_multiple_performance_hints() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations
-            .performance_hints
-            .push(PerformanceHint::Vectorize);
-        annotations
-            .performance_hints
-            .push(PerformanceHint::OptimizeForLatency);
-        annotations
-            .performance_hints
-            .push(PerformanceHint::UnrollLoops(2));
+        annotations.performance_hints.push(PerformanceHint::Vectorize);
+        annotations.performance_hints.push(PerformanceHint::OptimizeForLatency);
+        annotations.performance_hints.push(PerformanceHint::UnrollLoops(2));
 
         let mut func = HirFunction {
             name: "test".to_string(),

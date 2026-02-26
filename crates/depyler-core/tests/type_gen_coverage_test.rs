@@ -43,12 +43,7 @@ def test_{}(a: int, b: int) -> bool:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {} operator: {:?}",
-            op,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {} operator: {:?}", op, result.err());
     }
 }
 
@@ -169,12 +164,7 @@ def test_{}(x: {}) -> {}:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            type_name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", type_name, result.err());
     }
 }
 
@@ -578,12 +568,7 @@ def test_{}_type() -> {}:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {} type: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {} type: {:?}", name, result.err());
     }
 }
 
@@ -609,12 +594,7 @@ def test_depth_{}() -> {}:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile depth {} nesting: {:?}",
-            depth,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile depth {} nesting: {:?}", depth, result.err());
     }
 }
 

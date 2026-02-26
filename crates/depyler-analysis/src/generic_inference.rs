@@ -1,5 +1,5 @@
-use depyler_hir::hir::{HirExpr, HirFunction, HirStmt, Type};
 use anyhow::Result;
+use depyler_hir::hir::{HirExpr, HirFunction, HirStmt, Type};
 use std::collections::{HashMap, HashSet};
 
 /// Tracks type variables and their constraints for generic inference
@@ -52,10 +52,7 @@ pub enum GenericType {
     /// A type variable like T, U, etc.
     TypeVar(String),
     /// A concrete type with generic parameters like List<T>
-    Generic {
-        base: Type,
-        params: Vec<GenericType>,
-    },
+    Generic { base: Type, params: Vec<GenericType> },
     /// A union type Union[A, B, C]
     Union(Vec<Type>),
     /// A concrete type
@@ -102,10 +99,7 @@ impl TypeVarRegistry {
                 Type::Optional(Box::new(Self::apply_substitutions(inner, substitutions)))
             }
             Type::Tuple(types) => Type::Tuple(
-                types
-                    .iter()
-                    .map(|t| Self::apply_substitutions(t, substitutions))
-                    .collect(),
+                types.iter().map(|t| Self::apply_substitutions(t, substitutions)).collect(),
             ),
             // For other types, return as-is
             other => other.clone(),
@@ -156,8 +150,7 @@ impl TypeVarRegistry {
         )?;
 
         // Store for later use
-        self.function_type_params
-            .insert(func.name.clone(), type_params.clone());
+        self.function_type_params.insert(func.name.clone(), type_params.clone());
 
         Ok(type_params)
     }
@@ -196,11 +189,9 @@ impl TypeVarRegistry {
             Type::Bool => "bool".to_string(),
             Type::None => "()".to_string(),
             Type::List(inner) => format!("Vec<{}>", self.type_to_rust_string(inner)),
-            Type::Dict(k, v) => format!(
-                "HashMap<{}, {}>",
-                self.type_to_rust_string(k),
-                self.type_to_rust_string(v)
-            ),
+            Type::Dict(k, v) => {
+                format!("HashMap<{}, {}>", self.type_to_rust_string(k), self.type_to_rust_string(v))
+            }
             Type::Optional(inner) => format!("Option<{}>", self.type_to_rust_string(inner)),
             Type::Tuple(types) => {
                 let type_strs: Vec<String> =
@@ -260,11 +251,7 @@ impl TypeVarRegistry {
             let mut bounds_vec: Vec<String> = bounds.into_iter().collect();
             bounds_vec.sort();
 
-            params.push(TypeParameter {
-                name: var.clone(),
-                bounds: bounds_vec,
-                default: None,
-            });
+            params.push(TypeParameter { name: var.clone(), bounds: bounds_vec, default: None });
         }
 
         Ok(params)
@@ -280,10 +267,7 @@ struct TypeVarCollector {
 
 impl TypeVarCollector {
     fn new() -> Self {
-        Self {
-            type_vars: HashSet::new(),
-            dict_key_type_vars: HashSet::new(),
-        }
+        Self { type_vars: HashSet::new(), dict_key_type_vars: HashSet::new() }
     }
 
     fn collect_from_type(&mut self, ty: &Type) {
@@ -364,11 +348,7 @@ impl TypeVarCollector {
         match stmt {
             HirStmt::Assign { value, .. } => self.collect_from_expr(value),
             HirStmt::Return(Some(expr)) => self.collect_from_expr(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.collect_from_expr(condition);
                 for s in then_body {
                     self.collect_from_stmt(s);
@@ -477,8 +457,7 @@ impl TypeInference {
     fn analyze_function(&mut self, func: &HirFunction) -> Result<()> {
         // DEPYLER-0715: Populate param_types for string comparison detection
         for param in &func.params {
-            self.param_types
-                .insert(param.name.clone(), param.ty.clone());
+            self.param_types.insert(param.name.clone(), param.ty.clone());
         }
 
         // Analyze parameter usage to infer constraints
@@ -486,11 +465,7 @@ impl TypeInference {
             match &param.ty {
                 Type::Custom(type_var)
                     if type_var.len() == 1
-                        && type_var
-                            .chars()
-                            .next()
-                            .expect("non-empty string")
-                            .is_uppercase() =>
+                        && type_var.chars().next().expect("non-empty string").is_uppercase() =>
                 {
                     // This is a type variable, analyze its usage
                     self.analyze_param_usage(&param.name, type_var, &func.body)?;
@@ -559,11 +534,7 @@ impl TypeInference {
             HirStmt::Return(Some(expr)) => {
                 self.analyze_expr_for_param(param_name, type_var, expr)?;
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_expr_for_param(param_name, type_var, condition)?;
                 for s in then_body {
                     self.analyze_stmt_for_param(param_name, type_var, s)?;
@@ -616,12 +587,7 @@ impl TypeInference {
                 self.analyze_expr_for_param(param_name, type_var, left)?;
                 self.analyze_expr_for_param(param_name, type_var, right)?;
             }
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 if let HirExpr::Var(var) = object.as_ref() {
                     if var == param_name {
                         self.add_method_constraint(type_var, method);
@@ -637,8 +603,7 @@ impl TypeInference {
                             };
                             if key_is_string {
                                 // Dict key type should be String, not generic T
-                                self.substitutions
-                                    .insert(type_var.to_string(), Type::String);
+                                self.substitutions.insert(type_var.to_string(), Type::String);
                             }
                         }
                     }
@@ -666,10 +631,7 @@ impl TypeInference {
             _ => return,
         };
 
-        self.constraints
-            .entry(type_var.to_string())
-            .or_default()
-            .push(constraint);
+        self.constraints.entry(type_var.to_string()).or_default().push(constraint);
     }
 
     fn check_binary_op_usage(
@@ -689,18 +651,12 @@ impl TypeInference {
             (other, HirExpr::Var(r)) if r == param_name => (true, Some(other)),
             // DEPYLER-0715: Also check if either operand is a loop variable derived from param
             (HirExpr::Var(l), other)
-                if self
-                    .loop_var_to_type_param
-                    .get(l)
-                    .is_some_and(|tv| tv == type_var) =>
+                if self.loop_var_to_type_param.get(l).is_some_and(|tv| tv == type_var) =>
             {
                 (true, Some(other))
             }
             (other, HirExpr::Var(r))
-                if self
-                    .loop_var_to_type_param
-                    .get(r)
-                    .is_some_and(|tv| tv == type_var) =>
+                if self.loop_var_to_type_param.get(r).is_some_and(|tv| tv == type_var) =>
             {
                 (true, Some(other))
             }
@@ -723,8 +679,7 @@ impl TypeInference {
                     if target_is_string {
                         // DEPYLER-0716: Instead of complex PartialEq<&str> bound, substitute T with String
                         // This is simpler and String naturally implements PartialEq<&str>
-                        self.substitutions
-                            .insert(type_var.to_string(), Type::String);
+                        self.substitutions.insert(type_var.to_string(), Type::String);
                         // Still add basic PartialEq for the signature
                         TypeConstraint::MustImplement("PartialEq".to_string())
                     } else {
@@ -747,8 +702,7 @@ impl TypeInference {
                                 _ => false,
                             };
                             if key_is_string {
-                                self.substitutions
-                                    .insert(type_var.to_string(), Type::String);
+                                self.substitutions.insert(type_var.to_string(), Type::String);
                             }
                         }
                     }
@@ -757,10 +711,7 @@ impl TypeInference {
                 _ => return Ok(()),
             };
 
-            self.constraints
-                .entry(type_var.to_string())
-                .or_default()
-                .push(constraint);
+            self.constraints.entry(type_var.to_string()).or_default().push(constraint);
         }
 
         Ok(())
@@ -769,9 +720,7 @@ impl TypeInference {
     /// DEPYLER-0715: Check if a variable is string-typed based on parameter types
     fn is_string_typed(&self, var_name: &str) -> bool {
         // Check if the variable matches a known string-typed parameter
-        self.param_types
-            .get(var_name)
-            .is_some_and(|ty| matches!(ty, Type::String))
+        self.param_types.get(var_name).is_some_and(|ty| matches!(ty, Type::String))
     }
 
     /// DEPYLER-0744: Infer the concrete type from return statements
@@ -792,10 +741,7 @@ impl TypeInference {
 
         // Find the first concrete (non-Optional, non-Unknown, non-None) type
         concrete_types.into_iter().find(|ty| {
-            !matches!(
-                ty,
-                Type::Optional(_) | Type::Unknown | Type::None | Type::TypeVar(_)
-            )
+            !matches!(ty, Type::Optional(_) | Type::Unknown | Type::None | Type::TypeVar(_))
         })
     }
 
@@ -809,11 +755,7 @@ impl TypeInference {
                         types.push(ty);
                     }
                 }
-                HirStmt::If {
-                    then_body,
-                    else_body,
-                    ..
-                } => {
+                HirStmt::If { then_body, else_body, .. } => {
                     self.collect_return_types_from_stmts(then_body, types);
                     if let Some(else_stmts) = else_body {
                         self.collect_return_types_from_stmts(else_stmts, types);
@@ -912,10 +854,7 @@ mod tests {
 
         let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
         let result = TypeVarRegistry::apply_substitutions(&dict_type, &subs);
-        assert_eq!(
-            result,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
-        );
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
     }
 
     #[test]
@@ -935,10 +874,7 @@ mod tests {
 
         let tuple_type = Type::Tuple(vec![Type::Int, Type::Unknown, Type::String]);
         let result = TypeVarRegistry::apply_substitutions(&tuple_type, &subs);
-        assert_eq!(
-            result,
-            Type::Tuple(vec![Type::Int, Type::Bool, Type::String])
-        );
+        assert_eq!(result, Type::Tuple(vec![Type::Int, Type::Bool, Type::String]));
     }
 
     #[test]
@@ -1052,10 +988,7 @@ mod tests {
     #[test]
     fn test_type_to_rust_string_containers() {
         let registry = TypeVarRegistry::new();
-        assert_eq!(
-            registry.type_to_rust_string(&Type::List(Box::new(Type::Int))),
-            "Vec<i32>"
-        );
+        assert_eq!(registry.type_to_rust_string(&Type::List(Box::new(Type::Int))), "Vec<i32>");
         assert_eq!(
             registry.type_to_rust_string(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
             "HashMap<String, i32>"
@@ -1261,10 +1194,7 @@ mod tests {
     #[test]
     fn test_type_var_collector_union() {
         let mut collector = TypeVarCollector::new();
-        let union = Type::Union(vec![
-            Type::Custom("A".to_string()),
-            Type::Custom("B".to_string()),
-        ]);
+        let union = Type::Union(vec![Type::Custom("A".to_string()), Type::Custom("B".to_string())]);
         collector.collect_from_type(&union);
         assert!(collector.type_vars.contains("A"));
         assert!(collector.type_vars.contains("B"));

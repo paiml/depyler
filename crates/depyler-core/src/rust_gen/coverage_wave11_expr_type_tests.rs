@@ -11,10 +11,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -86,7 +84,8 @@ mod tests {
 
     #[test]
     fn test_w11et_bin_add_compound_expr() {
-        let result = transpile("def compound(a: int, b: int, c: int) -> int:\n    return a + b + c");
+        let result =
+            transpile("def compound(a: int, b: int, c: int) -> int:\n    return a + b + c");
         assert!(result.contains("+"), "expected + in: {result}");
     }
 
@@ -98,8 +97,7 @@ mod tests {
 
     #[test]
     fn test_w11et_bin_nested_arith() {
-        let result =
-            transpile("def nested(a: int, b: int) -> int:\n    return (a + b) * (a - b)");
+        let result = transpile("def nested(a: int, b: int) -> int:\n    return (a + b) * (a - b)");
         assert!(result.contains("fn nested"), "expected fn nested in: {result}");
     }
 
@@ -193,15 +191,16 @@ mod tests {
 
     #[test]
     fn test_w11et_cmp_chained_lt_lt() {
-        let result = transpile(
-            "def between(x: int, lo: int, hi: int) -> bool:\n    return lo < x < hi",
-        );
+        let result =
+            transpile("def between(x: int, lo: int, hi: int) -> bool:\n    return lo < x < hi");
         assert!(result.contains("<") || result.contains("&&"), "expected < or && in: {result}");
     }
 
     #[test]
     fn test_w11et_cmp_in_if() {
-        let result = transpile("def check(x: int) -> str:\n    if x > 0:\n        return \"pos\"\n    return \"neg\"");
+        let result = transpile(
+            "def check(x: int) -> str:\n    if x > 0:\n        return \"pos\"\n    return \"neg\"",
+        );
         assert!(result.contains(">") || result.contains("if"), "expected > or if in: {result}");
     }
 
@@ -247,17 +246,14 @@ mod tests {
 
     #[test]
     fn test_w11et_bool_and_or_combined() {
-        let result = transpile("def combo(a: bool, b: bool, c: bool) -> bool:\n    return a and b or c");
-        assert!(
-            result.contains("&&") || result.contains("||"),
-            "expected && or || in: {result}"
-        );
+        let result =
+            transpile("def combo(a: bool, b: bool, c: bool) -> bool:\n    return a and b or c");
+        assert!(result.contains("&&") || result.contains("||"), "expected && or || in: {result}");
     }
 
     #[test]
     fn test_w11et_bool_not_and() {
-        let result =
-            transpile("def notand(a: bool, b: bool) -> bool:\n    return not a and b");
+        let result = transpile("def notand(a: bool, b: bool) -> bool:\n    return not a and b");
         assert!(result.contains("!") || result.contains("&&"), "expected ! or && in: {result}");
     }
 
@@ -269,29 +265,28 @@ mod tests {
 
     #[test]
     fn test_w11et_bool_and_comparison() {
-        let result = transpile(
-            "def range_check(x: int) -> bool:\n    return x > 0 and x < 100",
-        );
+        let result = transpile("def range_check(x: int) -> bool:\n    return x > 0 and x < 100");
         assert!(result.contains("&&") || result.contains(">"), "expected && in: {result}");
     }
 
     #[test]
     fn test_w11et_bool_or_comparison() {
-        let result = transpile(
-            "def edge(x: int) -> bool:\n    return x < 0 or x > 100",
-        );
+        let result = transpile("def edge(x: int) -> bool:\n    return x < 0 or x > 100");
         assert!(result.contains("||") || result.contains("<"), "expected || in: {result}");
     }
 
     #[test]
     fn test_w11et_bool_complex_nested() {
-        let result = transpile("def nested_bool(a: bool, b: bool, c: bool) -> bool:\n    return (a and b) or (not c)");
+        let result = transpile(
+            "def nested_bool(a: bool, b: bool, c: bool) -> bool:\n    return (a and b) or (not c)",
+        );
         assert!(result.contains("fn nested_bool"), "expected fn nested_bool in: {result}");
     }
 
     #[test]
     fn test_w11et_bool_short_circuit() {
-        let result = transpile("def safe_div(x: int, y: int) -> bool:\n    return y != 0 and x > y");
+        let result =
+            transpile("def safe_div(x: int, y: int) -> bool:\n    return y != 0 and x > y");
         assert!(result.contains("&&") || result.contains("!="), "expected && in: {result}");
     }
 
@@ -337,15 +332,13 @@ mod tests {
 
     #[test]
     fn test_w11et_bit_mask_and_shift() {
-        let result =
-            transpile("def extract(x: int) -> int:\n    return (x >> 4) & 15");
+        let result = transpile("def extract(x: int) -> int:\n    return (x >> 4) & 15");
         assert!(result.contains(">>") || result.contains("&"), "expected >> or & in: {result}");
     }
 
     #[test]
     fn test_w11et_bit_compound_ops() {
-        let result =
-            transpile("def flags(a: int, b: int) -> int:\n    return (a | b) ^ (a & b)");
+        let result = transpile("def flags(a: int, b: int) -> int:\n    return (a | b) ^ (a & b)");
         assert!(result.contains("|") || result.contains("^"), "expected | or ^ in: {result}");
     }
 
@@ -408,13 +401,17 @@ mod tests {
 
     #[test]
     fn test_w11et_ternary_in_assignment() {
-        let result = transpile("def label(x: int) -> str:\n    s = \"yes\" if x > 0 else \"no\"\n    return s");
+        let result = transpile(
+            "def label(x: int) -> str:\n    s = \"yes\" if x > 0 else \"no\"\n    return s",
+        );
         assert!(result.contains("if") || result.contains("else"), "expected if/else in: {result}");
     }
 
     #[test]
     fn test_w11et_ternary_nested() {
-        let result = transpile("def grade(x: int) -> str:\n    return \"a\" if x > 90 else \"b\" if x > 80 else \"c\"");
+        let result = transpile(
+            "def grade(x: int) -> str:\n    return \"a\" if x > 90 else \"b\" if x > 80 else \"c\"",
+        );
         assert!(result.contains("if") || result.contains("else"), "expected if/else in: {result}");
     }
 
@@ -464,9 +461,8 @@ mod tests {
 
     #[test]
     fn test_w11et_fstring_multiple_parts() {
-        let result = transpile(
-            "def info(name: str, age: int) -> str:\n    return f\"{name} is {age}\"",
-        );
+        let result =
+            transpile("def info(name: str, age: int) -> str:\n    return f\"{name} is {age}\"");
         assert!(
             result.contains("format!") || result.contains("name"),
             "expected format! in: {result}"
@@ -485,7 +481,8 @@ mod tests {
 
     #[test]
     fn test_w11et_fstring_nested_ternary() {
-        let code = "def yesno(flag: bool) -> str:\n    return f\"answer: {'yes' if flag else 'no'}\"";
+        let code =
+            "def yesno(flag: bool) -> str:\n    return f\"answer: {'yes' if flag else 'no'}\"";
         let result = transpile(code);
         assert!(
             result.contains("format!") || result.contains("answer"),
@@ -504,7 +501,8 @@ mod tests {
 
     #[test]
     fn test_w11et_fstring_three_vars() {
-        let result = transpile("def triple(a: int, b: int, c: int) -> str:\n    return f\"{a},{b},{c}\"");
+        let result =
+            transpile("def triple(a: int, b: int, c: int) -> str:\n    return f\"{a},{b},{c}\"");
         assert!(
             result.contains("format!") || result.contains("fn triple"),
             "expected format! in: {result}"
@@ -513,9 +511,7 @@ mod tests {
 
     #[test]
     fn test_w11et_fstring_with_str_op() {
-        let result = transpile(
-            "def repeat(s: str) -> str:\n    return f\"value: {s + s}\"",
-        );
+        let result = transpile("def repeat(s: str) -> str:\n    return f\"value: {s + s}\"");
         assert!(
             result.contains("format!") || result.contains("value"),
             "expected format! in: {result}"
@@ -543,8 +539,7 @@ mod tests {
 
     #[test]
     fn test_w11et_list_str_literal() {
-        let result =
-            transpile("def names() -> list:\n    return [\"alice\", \"bob\"]");
+        let result = transpile("def names() -> list:\n    return [\"alice\", \"bob\"]");
         assert!(result.contains("vec!") || result.contains("["), "expected vec! in: {result}");
     }
 
@@ -593,13 +588,15 @@ mod tests {
     #[test]
     fn test_w11et_nested_list() {
         let result = transpile("def matrix() -> list:\n    return [[1, 2], [3, 4]]");
-        assert!(result.contains("vec!") || result.contains("["), "expected nested vec in: {result}");
+        assert!(
+            result.contains("vec!") || result.contains("["),
+            "expected nested vec in: {result}"
+        );
     }
 
     #[test]
     fn test_w11et_nested_dict_with_list() {
-        let result =
-            transpile("def data() -> dict:\n    return {\"items\": [1, 2]}");
+        let result = transpile("def data() -> dict:\n    return {\"items\": [1, 2]}");
         assert!(
             result.contains("HashMap") || result.contains("vec!"),
             "expected HashMap+vec in: {result}"
@@ -660,8 +657,9 @@ mod tests {
 
     #[test]
     fn test_w11et_listcomp_with_filter() {
-        let result =
-            transpile("def positives(items: list) -> list:\n    return [x for x in items if x > 0]");
+        let result = transpile(
+            "def positives(items: list) -> list:\n    return [x for x in items if x > 0]",
+        );
         assert!(
             result.contains("filter") || result.contains("iter") || result.contains(">"),
             "expected filter in: {result}"
@@ -670,19 +668,13 @@ mod tests {
 
     #[test]
     fn test_w11et_listcomp_with_transform() {
-        let result =
-            transpile("def squares() -> list:\n    return [x * x for x in range(5)]");
-        assert!(
-            result.contains("map") || result.contains("iter"),
-            "expected map in: {result}"
-        );
+        let result = transpile("def squares() -> list:\n    return [x * x for x in range(5)]");
+        assert!(result.contains("map") || result.contains("iter"), "expected map in: {result}");
     }
 
     #[test]
     fn test_w11et_dictcomp_basic() {
-        let result = transpile(
-            "def make_dict() -> dict:\n    return {x: x * x for x in range(5)}",
-        );
+        let result = transpile("def make_dict() -> dict:\n    return {x: x * x for x in range(5)}");
         assert!(
             result.contains("collect") || result.contains("HashMap") || result.contains("map"),
             "expected dict comp in: {result}"
@@ -700,9 +692,8 @@ mod tests {
 
     #[test]
     fn test_w11et_listcomp_string() {
-        let result = transpile(
-            "def uppers(names: list) -> list:\n    return [n.upper() for n in names]",
-        );
+        let result =
+            transpile("def uppers(names: list) -> list:\n    return [n.upper() for n in names]");
         assert!(
             result.contains("map") || result.contains("to_uppercase") || result.contains("iter"),
             "expected map in: {result}"
@@ -722,9 +713,8 @@ mod tests {
 
     #[test]
     fn test_w11et_listcomp_conditional_transform() {
-        let result = transpile(
-            "def evens() -> list:\n    return [x for x in range(20) if x % 2 == 0]",
-        );
+        let result =
+            transpile("def evens() -> list:\n    return [x for x in range(20) if x % 2 == 0]");
         assert!(
             result.contains("filter") || result.contains("%") || result.contains("iter"),
             "expected filter in: {result}"
@@ -745,10 +735,7 @@ mod tests {
     #[test]
     fn test_w11et_generator_sum() {
         let result = transpile("def total() -> int:\n    return sum(x for x in range(10))");
-        assert!(
-            result.contains("sum") || result.contains("iter"),
-            "expected sum in: {result}"
-        );
+        assert!(result.contains("sum") || result.contains("iter"), "expected sum in: {result}");
     }
 
     // ==========================================================================
@@ -777,41 +764,27 @@ mod tests {
     #[test]
     fn test_w11et_lambda_no_args() {
         let result = transpile("def const_fn():\n    f = lambda: 42\n    return f()");
-        assert!(
-            result.contains("||") || result.contains("42"),
-            "expected lambda in: {result}"
-        );
+        assert!(result.contains("||") || result.contains("42"), "expected lambda in: {result}");
     }
 
     #[test]
     fn test_w11et_lambda_basic_sort() {
-        let result = transpile(
-            "def sort_items(items: list) -> list:\n    items.sort()\n    return items",
-        );
-        assert!(
-            result.contains("sort") || result.len() > 0,
-            "expected sort in: {result}"
-        );
+        let result =
+            transpile("def sort_items(items: list) -> list:\n    items.sort()\n    return items");
+        assert!(result.contains("sort") || result.len() > 0, "expected sort in: {result}");
     }
 
     #[test]
     fn test_w11et_lambda_with_condition() {
         let result =
             transpile("def cond():\n    f = lambda x: x if x > 0 else -x\n    return f(-5)");
-        assert!(
-            result.contains("|") || result.contains("fn cond"),
-            "expected lambda in: {result}"
-        );
+        assert!(result.contains("|") || result.contains("fn cond"), "expected lambda in: {result}");
     }
 
     #[test]
     fn test_w11et_lambda_multiply() {
-        let result =
-            transpile("def dbl():\n    f = lambda x: x * 2\n    return f(10)");
-        assert!(
-            result.contains("|") || result.contains("*"),
-            "expected lambda in: {result}"
-        );
+        let result = transpile("def dbl():\n    f = lambda x: x * 2\n    return f(10)");
+        assert!(result.contains("|") || result.contains("*"), "expected lambda in: {result}");
     }
 
     // ==========================================================================
@@ -836,7 +809,10 @@ mod tests {
     #[test]
     fn test_w11et_subscript_variable_index() {
         let result = transpile("def at(lst: list, i: int) -> int:\n    return lst[i]");
-        assert!(result.contains("[") || result.contains("fn at"), "expected subscript in: {result}");
+        assert!(
+            result.contains("[") || result.contains("fn at"),
+            "expected subscript in: {result}"
+        );
     }
 
     #[test]
@@ -861,7 +837,9 @@ mod tests {
     fn test_w11et_slice_reverse() {
         let result = transpile("def reversed_list(lst: list) -> list:\n    return lst[::-1]");
         assert!(
-            result.contains("rev") || result.contains("fn reversed_list") || result.contains("iter"),
+            result.contains("rev")
+                || result.contains("fn reversed_list")
+                || result.contains("iter"),
             "expected reverse in: {result}"
         );
     }
@@ -909,10 +887,7 @@ mod tests {
     #[test]
     fn test_w11et_method_str_strip() {
         let result = transpile("def trimmed(s: str) -> str:\n    return s.strip()");
-        assert!(
-            result.contains("trim") || result.contains("strip"),
-            "expected trim in: {result}"
-        );
+        assert!(result.contains("trim") || result.contains("strip"), "expected trim in: {result}");
     }
 
     #[test]
@@ -926,8 +901,7 @@ mod tests {
 
     #[test]
     fn test_w11et_method_str_replace() {
-        let result =
-            transpile("def fix(s: str) -> str:\n    return s.replace(\"old\", \"new\")");
+        let result = transpile("def fix(s: str) -> str:\n    return s.replace(\"old\", \"new\")");
         assert!(
             result.contains("replace") || result.contains("fn fix"),
             "expected replace in: {result}"
@@ -954,19 +928,14 @@ mod tests {
 
     #[test]
     fn test_w11et_method_list_append() {
-        let result = transpile(
-            "def add_item(lst: list, x: int):\n    lst.append(x)\n    return lst",
-        );
-        assert!(
-            result.contains("push") || result.contains("append"),
-            "expected push in: {result}"
-        );
+        let result =
+            transpile("def add_item(lst: list, x: int):\n    lst.append(x)\n    return lst");
+        assert!(result.contains("push") || result.contains("append"), "expected push in: {result}");
     }
 
     #[test]
     fn test_w11et_method_chained_strip_lower() {
-        let result =
-            transpile("def clean(s: str) -> str:\n    return s.strip().lower()");
+        let result = transpile("def clean(s: str) -> str:\n    return s.strip().lower()");
         assert!(
             result.contains("trim") || result.contains("to_lowercase"),
             "expected chained in: {result}"
@@ -975,9 +944,7 @@ mod tests {
 
     #[test]
     fn test_w11et_method_str_join() {
-        let result = transpile(
-            "def join_words(words: list) -> str:\n    return \" \".join(words)",
-        );
+        let result = transpile("def join_words(words: list) -> str:\n    return \" \".join(words)");
         assert!(
             result.contains("join") || result.contains("fn join_words"),
             "expected join in: {result}"
@@ -998,14 +965,20 @@ mod tests {
     fn test_w11et_builtin_range_single() {
         let result =
             transpile("def count():\n    for i in range(10):\n        x = i\n    return x");
-        assert!(result.contains("0..10") || result.contains("range") || result.len() > 0, "expected range in: {result}");
+        assert!(
+            result.contains("0..10") || result.contains("range") || result.len() > 0,
+            "expected range in: {result}"
+        );
     }
 
     #[test]
     fn test_w11et_builtin_range_start_stop() {
         let result =
             transpile("def mid_range():\n    for i in range(5, 10):\n        x = i\n    return x");
-        assert!(result.contains("5..10") || result.contains("range"), "expected range in: {result}");
+        assert!(
+            result.contains("5..10") || result.contains("range"),
+            "expected range in: {result}"
+        );
     }
 
     #[test]
@@ -1047,43 +1020,34 @@ mod tests {
     #[test]
     fn test_w11et_builtin_bool_cast() {
         let result = transpile("def to_bool(x: int) -> bool:\n    return bool(x)");
-        assert!(
-            result.contains("bool") || result.contains("!= 0"),
-            "expected bool in: {result}"
-        );
+        assert!(result.contains("bool") || result.contains("!= 0"), "expected bool in: {result}");
     }
 
     #[test]
     fn test_w11et_builtin_abs() {
         let result = transpile("def magnitude(x: int) -> int:\n    return abs(x)");
-        assert!(result.contains("abs") || result.contains("fn magnitude"), "expected abs in: {result}");
+        assert!(
+            result.contains("abs") || result.contains("fn magnitude"),
+            "expected abs in: {result}"
+        );
     }
 
     #[test]
     fn test_w11et_builtin_max_two() {
         let result = transpile("def bigger(a: int, b: int) -> int:\n    return max(a, b)");
-        assert!(
-            result.contains("max") || result.contains("std::cmp"),
-            "expected max in: {result}"
-        );
+        assert!(result.contains("max") || result.contains("std::cmp"), "expected max in: {result}");
     }
 
     #[test]
     fn test_w11et_builtin_min_two() {
         let result = transpile("def smaller(a: int, b: int) -> int:\n    return min(a, b)");
-        assert!(
-            result.contains("min") || result.contains("std::cmp"),
-            "expected min in: {result}"
-        );
+        assert!(result.contains("min") || result.contains("std::cmp"), "expected min in: {result}");
     }
 
     #[test]
     fn test_w11et_builtin_sum_list() {
         let result = transpile("def total(nums: list) -> int:\n    return sum(nums)");
-        assert!(
-            result.contains("sum") || result.contains("iter"),
-            "expected sum in: {result}"
-        );
+        assert!(result.contains("sum") || result.contains("iter"), "expected sum in: {result}");
     }
 
     #[test]
@@ -1098,10 +1062,7 @@ mod tests {
     #[test]
     fn test_w11et_builtin_reversed() {
         let result = transpile("def backwards(lst: list) -> list:\n    return list(reversed(lst))");
-        assert!(
-            result.contains("rev") || result.contains("reversed"),
-            "expected rev in: {result}"
-        );
+        assert!(result.contains("rev") || result.contains("reversed"), "expected rev in: {result}");
     }
 
     #[test]
@@ -1120,19 +1081,13 @@ mod tests {
         let result = transpile(
             "def combine(a: list, b: list):\n    for x, y in zip(a, b):\n        z = x\n    return z",
         );
-        assert!(
-            result.contains("zip") || result.contains("iter"),
-            "expected zip in: {result}"
-        );
+        assert!(result.contains("zip") || result.contains("iter"), "expected zip in: {result}");
     }
 
     #[test]
     fn test_w11et_builtin_map() {
         let result = transpile("def apply(items: list) -> list:\n    return list(map(str, items))");
-        assert!(
-            result.contains("map") || result.contains("iter"),
-            "expected map in: {result}"
-        );
+        assert!(result.contains("map") || result.contains("iter"), "expected map in: {result}");
     }
 
     #[test]
@@ -1165,19 +1120,13 @@ mod tests {
     #[test]
     fn test_w11et_builtin_any() {
         let result = transpile("def has_true(lst: list) -> bool:\n    return any(lst)");
-        assert!(
-            result.contains("any") || result.contains("iter"),
-            "expected any in: {result}"
-        );
+        assert!(result.contains("any") || result.contains("iter"), "expected any in: {result}");
     }
 
     #[test]
     fn test_w11et_builtin_all() {
         let result = transpile("def all_true(lst: list) -> bool:\n    return all(lst)");
-        assert!(
-            result.contains("all") || result.contains("iter"),
-            "expected all in: {result}"
-        );
+        assert!(result.contains("all") || result.contains("iter"), "expected all in: {result}");
     }
 
     #[test]
@@ -1205,10 +1154,7 @@ mod tests {
     #[test]
     fn test_w11et_str_multiply() {
         let result = transpile("def repeat(s: str) -> str:\n    return s * 3");
-        assert!(
-            result.contains("repeat") || result.contains("*"),
-            "expected repeat in: {result}"
-        );
+        assert!(result.contains("repeat") || result.contains("*"), "expected repeat in: {result}");
     }
 
     #[test]
@@ -1222,8 +1168,7 @@ mod tests {
 
     #[test]
     fn test_w11et_str_in_membership() {
-        let result =
-            transpile("def has_char(s: str) -> bool:\n    return \"a\" in s");
+        let result = transpile("def has_char(s: str) -> bool:\n    return \"a\" in s");
         assert!(
             result.contains("contains") || result.contains("in"),
             "expected contains in: {result}"
@@ -1232,8 +1177,7 @@ mod tests {
 
     #[test]
     fn test_w11et_str_not_in() {
-        let result =
-            transpile("def missing(s: str) -> bool:\n    return \"z\" not in s");
+        let result = transpile("def missing(s: str) -> bool:\n    return \"z\" not in s");
         assert!(
             result.contains("contains") || result.contains("!"),
             "expected not contains in: {result}"
@@ -1267,19 +1211,13 @@ mod tests {
     #[test]
     fn test_w11et_type_int_literal() {
         let result = transpile("def f() -> int:\n    x = 42\n    return x");
-        assert!(
-            result.contains("i64") || result.contains("42"),
-            "expected i64 in: {result}"
-        );
+        assert!(result.contains("i64") || result.contains("42"), "expected i64 in: {result}");
     }
 
     #[test]
     fn test_w11et_type_float_literal() {
         let result = transpile("def f() -> float:\n    x = 7.5\n    return x");
-        assert!(
-            result.contains("f64") || result.contains("7.5"),
-            "expected f64 in: {result}"
-        );
+        assert!(result.contains("f64") || result.contains("7.5"), "expected f64 in: {result}");
     }
 
     #[test]
@@ -1294,47 +1232,31 @@ mod tests {
     #[test]
     fn test_w11et_type_bool_true() {
         let result = transpile("def f() -> bool:\n    x = True\n    return x");
-        assert!(
-            result.contains("bool") || result.contains("true"),
-            "expected bool in: {result}"
-        );
+        assert!(result.contains("bool") || result.contains("true"), "expected bool in: {result}");
     }
 
     #[test]
     fn test_w11et_type_bool_false() {
         let result = transpile("def f() -> bool:\n    x = False\n    return x");
-        assert!(
-            result.contains("bool") || result.contains("false"),
-            "expected bool in: {result}"
-        );
+        assert!(result.contains("bool") || result.contains("false"), "expected bool in: {result}");
     }
 
     #[test]
     fn test_w11et_type_none_literal() {
         let result = transpile("def f():\n    x = None\n    return x");
-        assert!(
-            result.contains("None") || result.contains("Option"),
-            "expected None in: {result}"
-        );
+        assert!(result.contains("None") || result.contains("Option"), "expected None in: {result}");
     }
 
     #[test]
     fn test_w11et_type_list_of_ints() {
         let result = transpile("def f() -> list:\n    x = [1, 2, 3]\n    return x");
-        assert!(
-            result.contains("vec!") || result.contains("Vec"),
-            "expected Vec in: {result}"
-        );
+        assert!(result.contains("vec!") || result.contains("Vec"), "expected Vec in: {result}");
     }
 
     #[test]
     fn test_w11et_type_list_of_strings() {
-        let result =
-            transpile("def f() -> list:\n    x = [\"a\", \"b\"]\n    return x");
-        assert!(
-            result.contains("vec!") || result.contains("Vec"),
-            "expected Vec in: {result}"
-        );
+        let result = transpile("def f() -> list:\n    x = [\"a\", \"b\"]\n    return x");
+        assert!(result.contains("vec!") || result.contains("Vec"), "expected Vec in: {result}");
     }
 
     #[test]
@@ -1407,10 +1329,7 @@ mod tests {
     #[test]
     fn test_w11et_annot_list_param() {
         let result = transpile("def f(lst: list) -> list:\n    return lst");
-        assert!(
-            result.contains("Vec") || result.contains("fn f"),
-            "expected Vec in: {result}"
-        );
+        assert!(result.contains("Vec") || result.contains("fn f"), "expected Vec in: {result}");
     }
 
     #[test]
@@ -1425,7 +1344,10 @@ mod tests {
     #[test]
     fn test_w11et_annot_return_int() {
         let result = transpile("def f() -> int:\n    return 5");
-        assert!(result.contains("i64") || result.contains("-> i64"), "expected -> i64 in: {result}");
+        assert!(
+            result.contains("i64") || result.contains("-> i64"),
+            "expected -> i64 in: {result}"
+        );
     }
 
     #[test]
@@ -1448,8 +1370,7 @@ mod tests {
 
     #[test]
     fn test_w11et_annot_multiple_params() {
-        let result =
-            transpile("def f(a: int, b: str, c: float) -> str:\n    return b");
+        let result = transpile("def f(a: int, b: str, c: float) -> str:\n    return b");
         assert!(
             result.contains("i64") || result.contains("String") || result.contains("f64"),
             "expected typed params in: {result}"
@@ -1468,27 +1389,20 @@ mod tests {
 
     #[test]
     fn test_w11et_prop_int_add_float() {
-        let result =
-            transpile("def f(a: int, b: float) -> float:\n    c = a + b\n    return c");
+        let result = transpile("def f(a: int, b: float) -> float:\n    c = a + b\n    return c");
         assert!(result.contains("+") || result.contains("f64"), "expected + in: {result}");
     }
 
     #[test]
     fn test_w11et_prop_str_concat() {
         let result = transpile("def f(a: str, b: str) -> str:\n    c = a + b\n    return c");
-        assert!(
-            result.contains("+") || result.contains("format!"),
-            "expected concat in: {result}"
-        );
+        assert!(result.contains("+") || result.contains("format!"), "expected concat in: {result}");
     }
 
     #[test]
     fn test_w11et_prop_comparison_bool() {
         let result = transpile("def f(x: int) -> bool:\n    result = x > 0\n    return result");
-        assert!(
-            result.contains(">") || result.contains("bool"),
-            "expected > in: {result}"
-        );
+        assert!(result.contains(">") || result.contains("bool"), "expected > in: {result}");
     }
 
     #[test]
@@ -1524,10 +1438,7 @@ mod tests {
         let result = transpile(
             "def f(a: list, b: list):\n    for x, y in zip(a, b):\n        z = x\n    return z",
         );
-        assert!(
-            result.contains("zip") || result.contains("for"),
-            "expected zip in: {result}"
-        );
+        assert!(result.contains("zip") || result.contains("for"), "expected zip in: {result}");
     }
 
     #[test]
@@ -1550,31 +1461,20 @@ mod tests {
 
     #[test]
     fn test_w11et_prop_bool_and_result() {
-        let result =
-            transpile("def f(a: bool, b: bool) -> bool:\n    c = a and b\n    return c");
-        assert!(
-            result.contains("&&") || result.contains("bool"),
-            "expected && in: {result}"
-        );
+        let result = transpile("def f(a: bool, b: bool) -> bool:\n    c = a and b\n    return c");
+        assert!(result.contains("&&") || result.contains("bool"), "expected && in: {result}");
     }
 
     #[test]
     fn test_w11et_prop_bool_or_result() {
-        let result =
-            transpile("def f(a: bool, b: bool) -> bool:\n    c = a or b\n    return c");
-        assert!(
-            result.contains("||") || result.contains("bool"),
-            "expected || in: {result}"
-        );
+        let result = transpile("def f(a: bool, b: bool) -> bool:\n    c = a or b\n    return c");
+        assert!(result.contains("||") || result.contains("bool"), "expected || in: {result}");
     }
 
     #[test]
     fn test_w11et_prop_not_result() {
         let result = transpile("def f(a: bool) -> bool:\n    c = not a\n    return c");
-        assert!(
-            result.contains("!") || result.contains("bool"),
-            "expected ! in: {result}"
-        );
+        assert!(result.contains("!") || result.contains("bool"), "expected ! in: {result}");
     }
 
     // ==========================================================================
@@ -1590,37 +1490,25 @@ mod tests {
     #[test]
     fn test_w11et_ret_infer_str_literal() {
         let result = transpile("def f():\n    return \"hello\"");
-        assert!(
-            result.contains("hello") || result.contains("fn f"),
-            "expected hello in: {result}"
-        );
+        assert!(result.contains("hello") || result.contains("fn f"), "expected hello in: {result}");
     }
 
     #[test]
     fn test_w11et_ret_infer_bool() {
         let result = transpile("def f():\n    return True");
-        assert!(
-            result.contains("true") || result.contains("fn f"),
-            "expected true in: {result}"
-        );
+        assert!(result.contains("true") || result.contains("fn f"), "expected true in: {result}");
     }
 
     #[test]
     fn test_w11et_ret_infer_none() {
         let result = transpile("def f():\n    return None");
-        assert!(
-            result.contains("None") || result.contains("fn f"),
-            "expected None in: {result}"
-        );
+        assert!(result.contains("None") || result.contains("fn f"), "expected None in: {result}");
     }
 
     #[test]
     fn test_w11et_ret_infer_list() {
         let result = transpile("def f():\n    return [1, 2, 3]");
-        assert!(
-            result.contains("vec!") || result.contains("fn f"),
-            "expected vec! in: {result}"
-        );
+        assert!(result.contains("vec!") || result.contains("fn f"), "expected vec! in: {result}");
     }
 
     #[test]
@@ -1651,7 +1539,10 @@ mod tests {
         let result = transpile(
             "def f(x: int) -> int:\n    if x > 0:\n        return x\n    else:\n        return -x",
         );
-        assert!(result.contains("return") || result.contains("if"), "expected returns in: {result}");
+        assert!(
+            result.contains("return") || result.contains("if"),
+            "expected returns in: {result}"
+        );
     }
 
     #[test]
@@ -1663,10 +1554,7 @@ mod tests {
     #[test]
     fn test_w11et_ret_infer_nested_call() {
         let result = transpile("def f(x: int) -> int:\n    return abs(x)");
-        assert!(
-            result.contains("abs") || result.contains("fn f"),
-            "expected abs in: {result}"
-        );
+        assert!(result.contains("abs") || result.contains("fn f"), "expected abs in: {result}");
     }
 
     #[test]
@@ -1714,18 +1602,14 @@ mod tests {
 
     #[test]
     fn test_w11et_default_mixed_params() {
-        let result =
-            transpile("def f(a: int, b: int = 10) -> int:\n    return a + b");
+        let result = transpile("def f(a: int, b: int = 10) -> int:\n    return a + b");
         assert!(result.contains("fn f") || result.contains("+"), "expected default in: {result}");
     }
 
     #[test]
     fn test_w11et_default_float() {
         let result = transpile("def f(x: float = 1.5) -> float:\n    return x");
-        assert!(
-            result.contains("fn f") || result.contains("1.5"),
-            "expected default in: {result}"
-        );
+        assert!(result.contains("fn f") || result.contains("1.5"), "expected default in: {result}");
     }
 
     #[test]
@@ -1739,9 +1623,8 @@ mod tests {
 
     #[test]
     fn test_w11et_default_multiple_defaults() {
-        let result = transpile(
-            "def f(a: int = 1, b: int = 2, c: int = 3) -> int:\n    return a + b + c",
-        );
+        let result =
+            transpile("def f(a: int = 1, b: int = 2, c: int = 3) -> int:\n    return a + b + c");
         assert!(result.contains("fn f") || result.contains("+"), "expected defaults in: {result}");
     }
 
@@ -1795,9 +1678,8 @@ mod tests {
 
     #[test]
     fn test_w11et_type_narrowing_if_none() {
-        let result = transpile(
-            "def safe(x) -> int:\n    if x is None:\n        return 0\n    return x",
-        );
+        let result =
+            transpile("def safe(x) -> int:\n    if x is None:\n        return 0\n    return x");
         assert!(
             result.contains("None") || result.contains("fn safe"),
             "expected None check in: {result}"
@@ -1891,9 +1773,7 @@ mod tests {
 
     #[test]
     fn test_w11et_class_simple_method() {
-        let result = transpile(
-            "class Foo:\n    def bar(self) -> int:\n        return 42",
-        );
+        let result = transpile("class Foo:\n    def bar(self) -> int:\n        return 42");
         assert!(
             result.contains("fn bar") || result.contains("struct") || result.contains("impl"),
             "expected method in: {result}"
@@ -1902,9 +1782,8 @@ mod tests {
 
     #[test]
     fn test_w11et_class_method_with_param() {
-        let result = transpile(
-            "class Foo:\n    def add(self, x: int) -> int:\n        return x + 1",
-        );
+        let result =
+            transpile("class Foo:\n    def add(self, x: int) -> int:\n        return x + 1");
         assert!(
             result.contains("fn add") || result.contains("impl"),
             "expected method in: {result}"
@@ -1957,9 +1836,8 @@ mod tests {
 
     #[test]
     fn test_w11et_class_static_like() {
-        let result = transpile(
-            "class Math:\n    def double(self, x: int) -> int:\n        return x * 2",
-        );
+        let result =
+            transpile("class Math:\n    def double(self, x: int) -> int:\n        return x * 2");
         assert!(
             result.contains("fn double") || result.contains("impl"),
             "expected method in: {result}"
@@ -1968,9 +1846,8 @@ mod tests {
 
     #[test]
     fn test_w11et_class_method_list_return() {
-        let result = transpile(
-            "class Container:\n    def items(self) -> list:\n        return [1, 2, 3]",
-        );
+        let result =
+            transpile("class Container:\n    def items(self) -> list:\n        return [1, 2, 3]");
         assert!(
             result.contains("fn items") || result.contains("vec!"),
             "expected list method in: {result}"
@@ -2031,12 +1908,8 @@ mod tests {
 
     #[test]
     fn test_w11et_complex_arith_comparison() {
-        let result =
-            transpile("def f(x: int, y: int) -> bool:\n    return (x + y) > (x * y)");
-        assert!(
-            result.contains("+") && result.contains(">"),
-            "expected arith+cmp in: {result}"
-        );
+        let result = transpile("def f(x: int, y: int) -> bool:\n    return (x + y) > (x * y)");
+        assert!(result.contains("+") && result.contains(">"), "expected arith+cmp in: {result}");
     }
 
     #[test]
@@ -2059,9 +1932,7 @@ mod tests {
 
     #[test]
     fn test_w11et_complex_ternary_in_list() {
-        let result = transpile(
-            "def f(x: int) -> list:\n    return [x if x > 0 else -x]",
-        );
+        let result = transpile("def f(x: int) -> list:\n    return [x if x > 0 else -x]");
         assert!(
             result.contains("vec!") || result.contains("if"),
             "expected ternary in list in: {result}"
@@ -2070,10 +1941,12 @@ mod tests {
 
     #[test]
     fn test_w11et_complex_multi_assign() {
-        let result = transpile(
-            "def f() -> int:\n    a = 1\n    b = 2\n    c = a + b\n    return c",
+        let result =
+            transpile("def f() -> int:\n    a = 1\n    b = 2\n    c = a + b\n    return c");
+        assert!(
+            result.contains("+") || result.contains("fn f"),
+            "expected multi assign in: {result}"
         );
-        assert!(result.contains("+") || result.contains("fn f"), "expected multi assign in: {result}");
     }
 
     #[test]
@@ -2103,10 +1976,7 @@ mod tests {
         let result = transpile(
             "def classify(x: int) -> str:\n    if x > 0:\n        if x > 100:\n            return \"big\"\n        return \"small\"\n    return \"negative\"",
         );
-        assert!(
-            result.contains("if") || result.contains(">"),
-            "expected nested if in: {result}"
-        );
+        assert!(result.contains("if") || result.contains(">"), "expected nested if in: {result}");
     }
 
     #[test]
@@ -2122,9 +1992,7 @@ mod tests {
 
     #[test]
     fn test_w11et_complex_dict_ops() {
-        let result = transpile(
-            "def f() -> dict:\n    d = {}\n    d[\"key\"] = 42\n    return d",
-        );
+        let result = transpile("def f() -> dict:\n    d = {}\n    d[\"key\"] = 42\n    return d");
         assert!(
             result.contains("HashMap") || result.contains("insert") || result.contains("key"),
             "expected dict ops in: {result}"
@@ -2158,7 +2026,10 @@ mod tests {
         let result = transpile(
             "def f() -> int:\n    a = 1\n    b = 2\n    c = 3\n    d = 4\n    return a + b + c + d",
         );
-        assert!(result.contains("+") || result.contains("fn f"), "expected multi stmt in: {result}");
+        assert!(
+            result.contains("+") || result.contains("fn f"),
+            "expected multi stmt in: {result}"
+        );
     }
 
     #[test]
@@ -2166,7 +2037,10 @@ mod tests {
         let result = transpile(
             "def f(a: int, b: int, c: int, d: int, e: int) -> int:\n    return a + b + c + d + e",
         );
-        assert!(result.contains("fn f") || result.contains("+"), "expected long params in: {result}");
+        assert!(
+            result.contains("fn f") || result.contains("+"),
+            "expected long params in: {result}"
+        );
     }
 
     #[test]
@@ -2178,10 +2052,7 @@ mod tests {
     #[test]
     fn test_w11et_edge_boolean_literal_return() {
         let result = transpile("def always_true() -> bool:\n    return True");
-        assert!(
-            result.contains("true") || result.contains("bool"),
-            "expected true in: {result}"
-        );
+        assert!(result.contains("true") || result.contains("bool"), "expected true in: {result}");
     }
 
     #[test]

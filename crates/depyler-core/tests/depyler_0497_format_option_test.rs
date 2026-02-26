@@ -64,11 +64,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -112,11 +108,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
     println!("Generated Rust code:\n{}", rust_code);
@@ -156,11 +148,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
     println!("Generated Rust code:\n{}", rust_code);
@@ -198,11 +186,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
     println!("Generated Rust code:\n{}", rust_code);

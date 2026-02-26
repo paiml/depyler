@@ -20,7 +20,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_list_if() {
-        let code = "def f(items: list) -> bool:\n    if items:\n        return True\n    return False\n";
+        let code =
+            "def f(items: list) -> bool:\n    if items:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("bool"));
         }
@@ -28,7 +29,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_string_if() {
-        let code = "def f(name: str) -> bool:\n    if name:\n        return True\n    return False\n";
+        let code =
+            "def f(name: str) -> bool:\n    if name:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("bool"));
         }
@@ -36,7 +38,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_int_if() {
-        let code = "def f(count: int) -> bool:\n    if count:\n        return True\n    return False\n";
+        let code =
+            "def f(count: int) -> bool:\n    if count:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("bool"));
         }
@@ -44,7 +47,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_dict_if() {
-        let code = "def f(data: dict) -> bool:\n    if data:\n        return True\n    return False\n";
+        let code =
+            "def f(data: dict) -> bool:\n    if data:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn") || result.contains("bool"));
         }
@@ -68,7 +72,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_not_string() {
-        let code = "def f(name: str) -> bool:\n    if not name:\n        return True\n    return False\n";
+        let code =
+            "def f(name: str) -> bool:\n    if not name:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn"));
         }
@@ -76,7 +81,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_not_dict() {
-        let code = "def f(data: dict) -> bool:\n    if not data:\n        return True\n    return False\n";
+        let code =
+            "def f(data: dict) -> bool:\n    if not data:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn"));
         }
@@ -84,7 +90,8 @@ mod tests {
 
     #[test]
     fn test_w7r_truthiness_bool_param_unchanged() {
-        let code = "def f(flag: bool) -> bool:\n    if flag:\n        return True\n    return False\n";
+        let code =
+            "def f(flag: bool) -> bool:\n    if flag:\n        return True\n    return False\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("bool"));
         }
@@ -356,7 +363,8 @@ mod tests {
 
     #[test]
     fn test_w7r_dv_dict_delete() {
-        let code = "def f() -> dict:\n    d = {\"a\": 1, \"b\": 2}\n    del d[\"a\"]\n    return d\n";
+        let code =
+            "def f() -> dict:\n    d = {\"a\": 1, \"b\": 2}\n    del d[\"a\"]\n    return d\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn"));
         }
@@ -1196,7 +1204,8 @@ mod tests {
 
     #[test]
     fn test_w7r_assign_list_extend() {
-        let code = "def f() -> list:\n    items = [1, 2]\n    items.extend([3, 4])\n    return items\n";
+        let code =
+            "def f() -> list:\n    items = [1, 2]\n    items.extend([3, 4])\n    return items\n";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("fn"));
         }

@@ -79,11 +79,7 @@ impl PatternTransformer {
                 Ok(RuchyExpr::Block(transformed))
             }
 
-            RuchyExpr::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => Ok(RuchyExpr::If {
+            RuchyExpr::If { condition, then_branch, else_branch } => Ok(RuchyExpr::If {
                 condition: Box::new(self.transform_expr(*condition)?),
                 then_branch: Box::new(self.transform_expr(*then_branch)?),
                 else_branch: else_branch
@@ -91,24 +87,19 @@ impl PatternTransformer {
                     .transpose()?,
             }),
 
-            RuchyExpr::Function {
-                name,
-                params,
-                body,
-                is_async,
-                return_type,
-            } => Ok(RuchyExpr::Function {
-                name,
-                params,
-                body: Box::new(self.transform_expr(*body)?),
-                is_async,
-                return_type,
-            }),
+            RuchyExpr::Function { name, params, body, is_async, return_type } => {
+                Ok(RuchyExpr::Function {
+                    name,
+                    params,
+                    body: Box::new(self.transform_expr(*body)?),
+                    is_async,
+                    return_type,
+                })
+            }
 
-            RuchyExpr::Lambda { params, body } => Ok(RuchyExpr::Lambda {
-                params,
-                body: Box::new(self.transform_expr(*body)?),
-            }),
+            RuchyExpr::Lambda { params, body } => {
+                Ok(RuchyExpr::Lambda { params, body: Box::new(self.transform_expr(*body)?) })
+            }
 
             RuchyExpr::For { var, iter, body } => Ok(RuchyExpr::For {
                 var,
@@ -121,12 +112,7 @@ impl PatternTransformer {
                 body: Box::new(self.transform_expr(*body)?),
             }),
 
-            RuchyExpr::Let {
-                name,
-                value,
-                body,
-                is_mutable,
-            } => Ok(RuchyExpr::Let {
+            RuchyExpr::Let { name, value, body, is_mutable } => Ok(RuchyExpr::Let {
                 name,
                 value: Box::new(self.transform_expr(*value)?),
                 body: Box::new(self.transform_expr(*body)?),
@@ -162,11 +148,7 @@ impl PatternTransformer {
         // Add filter stage if there's a condition
         if let Some(cond) = condition {
             let filter_lambda = RuchyExpr::Lambda {
-                params: vec![Param {
-                    name: var_name.clone(),
-                    typ: None,
-                    default: None,
-                }],
+                params: vec![Param { name: var_name.clone(), typ: None, default: None }],
                 body: Box::new(cond),
             };
             stages.push(PipelineStage::Filter(Box::new(filter_lambda)));
@@ -174,11 +156,7 @@ impl PatternTransformer {
 
         // Add map stage for transformation
         let map_lambda = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: var_name,
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: var_name, typ: None, default: None }],
             body: Box::new(element_expr),
         };
         stages.push(PipelineStage::Map(Box::new(map_lambda)));
@@ -186,10 +164,7 @@ impl PatternTransformer {
         // Add collect stage to create list
         stages.push(PipelineStage::Call("collect".to_string(), vec![]));
 
-        Ok(RuchyExpr::Pipeline {
-            expr: Box::new(iterable),
-            stages,
-        })
+        Ok(RuchyExpr::Pipeline { expr: Box::new(iterable), stages })
     }
 
     /// Parse comprehension arguments
@@ -338,9 +313,9 @@ impl PatternTransformer {
 
         // Extract filter call
         let (filter_fn, source) = match &args[1] {
-            RuchyExpr::Call {
-                args: filter_args, ..
-            } if filter_args.len() == 2 => (filter_args[0].clone(), filter_args[1].clone()),
+            RuchyExpr::Call { args: filter_args, .. } if filter_args.len() == 2 => {
+                (filter_args[0].clone(), filter_args[1].clone())
+            }
             _ => {
                 return Ok(RuchyExpr::Call {
                     func: Box::new(RuchyExpr::Identifier("map".to_string())),
@@ -440,10 +415,7 @@ impl PatternTransformer {
 
             RuchyExpr::Call { func, args } => {
                 if let RuchyExpr::FieldAccess { field, .. } = &**func {
-                    ops.push(DataFrameOp {
-                        method: field.clone(),
-                        args: args.clone(),
-                    });
+                    ops.push(DataFrameOp { method: field.clone(), args: args.clone() });
                 }
             }
 
@@ -532,13 +504,7 @@ mod tests {
             else_branch: None,
         };
         let result = transformer.transform(if_expr).unwrap();
-        assert!(matches!(
-            result,
-            RuchyExpr::If {
-                else_branch: None,
-                ..
-            }
-        ));
+        assert!(matches!(result, RuchyExpr::If { else_branch: None, .. }));
     }
 
     #[test]
@@ -582,11 +548,7 @@ mod tests {
     fn test_transform_lambda() {
         let transformer = PatternTransformer::new();
         let lambda = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            }],
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
             body: Box::new(RuchyExpr::Identifier("x".to_string())),
         };
         let result = transformer.transform(lambda).unwrap();
@@ -687,9 +649,7 @@ mod tests {
 
         let format_expr = RuchyExpr::Call {
             func: Box::new(RuchyExpr::FieldAccess {
-                object: Box::new(RuchyExpr::Literal(Literal::String(
-                    "Hello, {}!".to_string(),
-                ))),
+                object: Box::new(RuchyExpr::Literal(Literal::String("Hello, {}!".to_string()))),
                 field: "format".to_string(),
             }),
             args: vec![RuchyExpr::Identifier("name".to_string())],
@@ -713,9 +673,7 @@ mod tests {
     #[test]
     fn test_parse_format_string_no_placeholders() {
         let transformer = PatternTransformer::new();
-        let parts = transformer
-            .parse_format_string("Hello, world!", &[])
-            .unwrap();
+        let parts = transformer.parse_format_string("Hello, world!", &[]).unwrap();
         assert_eq!(parts.len(), 1);
         assert!(matches!(&parts[0], StringPart::Text(s) if s == "Hello, world!"));
     }
@@ -723,10 +681,8 @@ mod tests {
     #[test]
     fn test_parse_format_string_multiple_placeholders() {
         let transformer = PatternTransformer::new();
-        let args = vec![
-            RuchyExpr::Identifier("a".to_string()),
-            RuchyExpr::Identifier("b".to_string()),
-        ];
+        let args =
+            vec![RuchyExpr::Identifier("a".to_string()), RuchyExpr::Identifier("b".to_string())];
         let parts = transformer.parse_format_string("{} and {}", &args).unwrap();
         assert_eq!(parts.len(), 3); // expr, " and ", expr
     }
@@ -751,9 +707,7 @@ mod tests {
     fn test_parse_format_string_mixed() {
         let transformer = PatternTransformer::new();
         let args = vec![RuchyExpr::Literal(Literal::Integer(42))];
-        let parts = transformer
-            .parse_format_string("Value: {} end", &args)
-            .unwrap();
+        let parts = transformer.parse_format_string("Value: {} end", &args).unwrap();
         assert_eq!(parts.len(), 3);
         assert!(matches!(&parts[0], StringPart::Text(s) if s == "Value: "));
         assert!(matches!(&parts[1], StringPart::Expr(_)));
@@ -762,10 +716,7 @@ mod tests {
 
     #[test]
     fn test_is_list_comprehension_disabled() {
-        let config = crate::RuchyConfig {
-            use_pipelines: false,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { use_pipelines: false, ..Default::default() };
         let transformer = PatternTransformer::with_config(&config);
         let func = Box::new(RuchyExpr::Identifier("list_comp".to_string()));
         assert!(!transformer.is_list_comprehension(&func, &[]));
@@ -780,10 +731,7 @@ mod tests {
 
     #[test]
     fn test_is_string_format_disabled() {
-        let config = crate::RuchyConfig {
-            use_string_interpolation: false,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { use_string_interpolation: false, ..Default::default() };
         let transformer = PatternTransformer::with_config(&config);
         let func = RuchyExpr::FieldAccess {
             object: Box::new(RuchyExpr::Literal(Literal::String("test".to_string()))),
@@ -804,10 +752,7 @@ mod tests {
 
     #[test]
     fn test_is_filter_map_pattern_disabled() {
-        let config = crate::RuchyConfig {
-            use_pipelines: false,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { use_pipelines: false, ..Default::default() };
         let transformer = PatternTransformer::with_config(&config);
         assert!(!transformer.is_filter_map_pattern(&RuchyExpr::Identifier("map".to_string()), &[]));
     }
@@ -837,10 +782,8 @@ mod tests {
     #[test]
     fn test_parse_comprehension_too_few_args() {
         let transformer = PatternTransformer::new();
-        let args = vec![
-            RuchyExpr::Identifier("x".to_string()),
-            RuchyExpr::Identifier("y".to_string()),
-        ];
+        let args =
+            vec![RuchyExpr::Identifier("x".to_string()), RuchyExpr::Identifier("y".to_string())];
         let result = transformer.parse_comprehension(&args);
         assert!(result.is_err());
     }
@@ -1090,18 +1033,12 @@ mod tests {
         };
         let result = transformer.transform(for_expr).unwrap();
         // Should transform to DataFrame operations
-        assert!(matches!(
-            result,
-            RuchyExpr::MethodCall { .. } | RuchyExpr::Call { .. }
-        ));
+        assert!(matches!(result, RuchyExpr::MethodCall { .. } | RuchyExpr::Call { .. }));
     }
 
     #[test]
     fn test_transform_for_loop_dataframe_disabled() {
-        let config = crate::RuchyConfig {
-            optimize_dataframes: false,
-            ..Default::default()
-        };
+        let config = crate::RuchyConfig { optimize_dataframes: false, ..Default::default() };
         let transformer = PatternTransformer::with_config(&config);
         let for_expr = RuchyExpr::For {
             var: "row".to_string(),
@@ -1126,11 +1063,7 @@ mod tests {
             func: Box::new(RuchyExpr::Identifier("map".to_string())),
             args: vec![
                 RuchyExpr::Lambda {
-                    params: vec![Param {
-                        name: "x".to_string(),
-                        typ: None,
-                        default: None,
-                    }],
+                    params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                     body: Box::new(RuchyExpr::Binary {
                         left: Box::new(RuchyExpr::Identifier("x".to_string())),
                         op: BinaryOp::Multiply,
@@ -1141,11 +1074,7 @@ mod tests {
                     func: Box::new(RuchyExpr::Identifier("filter".to_string())),
                     args: vec![
                         RuchyExpr::Lambda {
-                            params: vec![Param {
-                                name: "x".to_string(),
-                                typ: None,
-                                default: None,
-                            }],
+                            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                             body: Box::new(RuchyExpr::Binary {
                                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
                                 op: BinaryOp::Greater,
@@ -1318,11 +1247,7 @@ mod tests {
         };
         let result = transformer.transform(func).unwrap();
         match result {
-            RuchyExpr::Function {
-                is_async,
-                return_type,
-                ..
-            } => {
+            RuchyExpr::Function { is_async, return_type, .. } => {
                 assert!(is_async);
                 assert!(return_type.is_some());
             }

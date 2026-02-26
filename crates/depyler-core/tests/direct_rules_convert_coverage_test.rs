@@ -8,9 +8,7 @@
 use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
-    DepylerPipeline::new()
-        .transpile(code)
-        .unwrap_or_else(|e| panic!("Transpilation failed: {e}"))
+    DepylerPipeline::new().transpile(code).unwrap_or_else(|e| panic!("Transpilation failed: {e}"))
 }
 
 fn transpile_ok(code: &str) -> bool {

@@ -215,10 +215,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-1004: Check if this function returns Result and needs .unwrap()
             // json to_string and to_writer still need .unwrap()
-            let needs_unwrap = matches!(
-                rust_path.as_str(),
-                "serde_json::to_string" | "serde_json::to_writer"
-            );
+            let needs_unwrap =
+                matches!(rust_path.as_str(), "serde_json::to_string" | "serde_json::to_writer");
 
             // Generate call based on constructor pattern
             return match constructor_pattern {
@@ -258,12 +256,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Check if this might be a constructor call (capitalized name)
-        if func
-            .chars()
-            .next()
-            .map(|c| c.is_uppercase())
-            .unwrap_or(false)
-        {
+        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
             // DEPYLER-0900: Rename constructor if it shadows stdlib type (e.g., Box -> PyBox)
             // Treat as constructor call - ClassName::new(args)
             let safe_name = crate::direct_rules::safe_class_name(func);
@@ -328,7 +321,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0771: Fallback handling for isqrt if not found in imported_items
             // This handles cases where the import wasn't properly tracked
             // DEPYLER-99MODE-S9: Skip if user defined a function with same name
-            if func == "isqrt" && args.len() == 1
+            if func == "isqrt"
+                && args.len() == 1
                 && !self.ctx.function_return_types.contains_key(func)
             {
                 let arg = &args[0];
@@ -1024,11 +1018,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let call_str = format!(
                 "{}({})",
                 func_ident,
-                args_tokens
-                    .iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                args_tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
             );
             let call_expr: syn::Expr = match syn::parse_str(&call_str) {
                 Ok(expr) => expr,

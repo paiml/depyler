@@ -18,10 +18,7 @@ fn create_trivial_function(name: &str) -> HirFunction {
         params: smallvec![HirParam::new("x".to_string(), Type::Int)],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     }
@@ -43,10 +40,7 @@ fn create_function_with_size(name: &str, size: usize) -> HirFunction {
         params: smallvec![],
         ret_type: Type::Int,
         body,
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     }
@@ -62,10 +56,7 @@ fn create_function_calling(name: &str, callee: &str) -> HirFunction {
             args: vec![HirExpr::Var("n".to_string())],
             kwargs: vec![],
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     }
@@ -97,10 +88,7 @@ fn create_recursive_function(name: &str) -> HirFunction {
                 }),
             }))]),
         }],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     }
@@ -136,10 +124,7 @@ fn create_function_with_loop(name: &str) -> HirFunction {
             },
             HirStmt::Return(Some(HirExpr::Var("sum".to_string()))),
         ],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     }
@@ -155,21 +140,14 @@ fn create_function_with_side_effects(name: &str) -> HirFunction {
             args: vec![HirExpr::Var("msg".to_string())],
             kwargs: vec![],
         })],
-        properties: FunctionProperties {
-            is_pure: false,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: false, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     }
 }
 
 fn create_program(functions: Vec<HirFunction>) -> HirProgram {
-    HirProgram {
-        functions,
-        classes: vec![],
-        imports: vec![],
-    }
+    HirProgram { functions, classes: vec![], imports: vec![] }
 }
 
 // ============================================================================
@@ -423,10 +401,7 @@ fn test_analyze_function_with_loop() {
 
 #[test]
 fn test_analyze_function_with_loop_allowed() {
-    let config = InliningConfig {
-        inline_loops: true,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_loops: true, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
     let program = create_program(vec![create_function_with_loop("sum_range")]);
     let decisions = analyzer.analyze_program(&program);
@@ -545,10 +520,7 @@ fn test_call_graph_mutual_recursion() {
                 kwargs: vec![],
             }))]),
         }],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -563,9 +535,7 @@ fn test_call_graph_mutual_recursion() {
                 op: BinOp::Eq,
                 right: Box::new(HirExpr::Literal(Literal::Int(0))),
             },
-            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
-                false,
-            ))))],
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(false))))],
             else_body: Some(vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "is_even".to_string(),
                 args: vec![HirExpr::Binary {
@@ -576,10 +546,7 @@ fn test_call_graph_mutual_recursion() {
                 kwargs: vec![],
             }))]),
         }],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -633,10 +600,7 @@ fn test_apply_inlining_trivial_function() {
             },
             HirStmt::Return(Some(HirExpr::Var("result".to_string()))),
         ],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -684,10 +648,8 @@ fn test_apply_inlining_no_inline_decisions() {
 #[test]
 fn test_apply_inlining_preserves_program_structure() {
     let analyzer = InliningAnalyzer::new(InliningConfig::default());
-    let program = create_program(vec![
-        create_trivial_function("f1"),
-        create_trivial_function("f2"),
-    ]);
+    let program =
+        create_program(vec![create_trivial_function("f1"), create_trivial_function("f2")]);
     let decisions: HashMap<String, InliningDecision> = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
 
@@ -740,10 +702,7 @@ fn test_cost_benefit_with_parameters() {
                 right: Box::new(HirExpr::Var("c".to_string())),
             }),
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -791,10 +750,7 @@ fn test_function_with_while_loop() {
             },
             HirStmt::Return(Some(HirExpr::Var("i".to_string()))),
         ],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -828,18 +784,11 @@ fn test_function_with_nested_if() {
                     right: Box::new(HirExpr::Literal(Literal::Int(10))),
                 },
                 then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                    1,
-                ))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))]),
             }],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                0,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
         }],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -857,10 +806,7 @@ fn test_function_with_method_call() {
 
     let func = HirFunction {
         name: "method_caller".to_string(),
-        params: smallvec![HirParam::new(
-            "items".to_string(),
-            Type::List(Box::new(Type::Int))
-        )],
+        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::None,
         body: vec![HirStmt::Expr(HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("items".to_string())),
@@ -868,10 +814,7 @@ fn test_function_with_method_call() {
             args: vec![HirExpr::Literal(Literal::Int(42))],
             kwargs: vec![],
         })],
-        properties: FunctionProperties {
-            is_pure: false,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: false, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -900,10 +843,7 @@ fn test_function_with_lambda() {
                 right: Box::new(HirExpr::Literal(Literal::Int(2))),
             }),
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -923,19 +863,10 @@ fn test_function_with_dict_literal() {
         params: smallvec![],
         ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
         body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![
-            (
-                HirExpr::Literal(Literal::String("a".to_string())),
-                HirExpr::Literal(Literal::Int(1)),
-            ),
-            (
-                HirExpr::Literal(Literal::String("b".to_string())),
-                HirExpr::Literal(Literal::Int(2)),
-            ),
+            (HirExpr::Literal(Literal::String("a".to_string())), HirExpr::Literal(Literal::Int(1))),
+            (HirExpr::Literal(Literal::String("b".to_string())), HirExpr::Literal(Literal::Int(2))),
         ])))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -958,10 +889,7 @@ fn test_function_with_tuple_literal() {
             HirExpr::Literal(Literal::Int(42)),
             HirExpr::Literal(Literal::String("answer".to_string())),
         ])))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -985,10 +913,7 @@ fn test_function_with_list_literal() {
             HirExpr::Literal(Literal::Int(2)),
             HirExpr::Literal(Literal::Int(3)),
         ])))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1011,10 +936,7 @@ fn test_function_with_unary_expression() {
             op: UnaryOp::Neg,
             operand: Box::new(HirExpr::Var("x".to_string())),
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1047,10 +969,7 @@ fn test_function_multiple_returns() {
             },
             HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0)))),
         ],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1077,10 +996,7 @@ fn test_function_with_raise() {
             }),
             cause: None,
         }],
-        properties: FunctionProperties {
-            is_pure: false,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: false, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1094,10 +1010,7 @@ fn test_function_with_raise() {
 
 #[test]
 fn test_inline_single_use_disabled() {
-    let config = InliningConfig {
-        inline_single_use: false,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_single_use: false, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
 
     let helper = create_function_with_size("helper", 5);
@@ -1112,10 +1025,7 @@ fn test_inline_single_use_disabled() {
 
 #[test]
 fn test_inline_trivial_disabled() {
-    let config = InliningConfig {
-        inline_trivial: false,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_trivial: false, ..Default::default() };
     let mut analyzer = InliningAnalyzer::new(config);
 
     let program = create_program(vec![create_trivial_function("trivial")]);
@@ -1127,10 +1037,7 @@ fn test_inline_trivial_disabled() {
 
 #[test]
 fn test_max_inline_depth_limiting() {
-    let config = InliningConfig {
-        max_inline_depth: 1,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_depth: 1, ..Default::default() };
     let analyzer = InliningAnalyzer::new(config);
 
     // Create a chain of functions
@@ -1188,10 +1095,7 @@ fn test_extract_calls_from_binary_expr() {
                 kwargs: vec![],
             }),
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1219,20 +1123,14 @@ fn test_pure_builtin_functions() {
     // Function using pure builtins (len, abs, min, max)
     let func = HirFunction {
         name: "pure_user".to_string(),
-        params: smallvec![HirParam::new(
-            "items".to_string(),
-            Type::List(Box::new(Type::Int))
-        )],
+        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Call {
             func: "len".to_string(),
             args: vec![HirExpr::Var("items".to_string())],
             kwargs: vec![],
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1252,10 +1150,7 @@ fn test_impure_method_detection() {
     // Function using impure methods (sort, reverse, pop)
     let func = HirFunction {
         name: "impure_user".to_string(),
-        params: smallvec![HirParam::new(
-            "items".to_string(),
-            Type::List(Box::new(Type::Int))
-        )],
+        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::None,
         body: vec![HirStmt::Expr(HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("items".to_string())),
@@ -1263,10 +1158,7 @@ fn test_impure_method_detection() {
             args: vec![],
             kwargs: vec![],
         })],
-        properties: FunctionProperties {
-            is_pure: false,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: false, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1304,10 +1196,7 @@ fn test_complex_call_expression_size() {
             ],
             kwargs: vec![],
         }))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1342,10 +1231,7 @@ fn test_deeply_nested_expression_size() {
         params: smallvec![],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(deep_expr))],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1371,10 +1257,7 @@ fn test_transform_pass_statement() {
         params: smallvec![],
         ret_type: Type::None,
         body: vec![HirStmt::Pass],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -1426,10 +1309,7 @@ fn test_transform_break_continue() {
             },
             HirStmt::Return(Some(HirExpr::Var("i".to_string()))),
         ],
-        properties: FunctionProperties {
-            is_pure: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_pure: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };

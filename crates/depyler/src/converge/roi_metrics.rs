@@ -217,24 +217,16 @@ impl OracleRoiMetrics {
         }
 
         // Calculate confidence buckets
-        let high_conf = classifications
-            .iter()
-            .filter(|c| c.confidence > 0.8)
-            .count();
-        let medium_conf = classifications
-            .iter()
-            .filter(|c| c.confidence > 0.5 && c.confidence <= 0.8)
-            .count();
+        let high_conf = classifications.iter().filter(|c| c.confidence > 0.8).count();
+        let medium_conf =
+            classifications.iter().filter(|c| c.confidence > 0.5 && c.confidence <= 0.8).count();
         let total_classifiable = high_conf + medium_conf;
 
         // Estimate savings: $0.04 per error avoided (based on LLM API costs)
         let estimated_savings = (high_conf * 4) as u64; // 4 cents per high-conf error
 
         // DEPYLER-1304: Count errors with suggested fixes available
-        let fixes_available = classifications
-            .iter()
-            .filter(|c| c.suggested_fix.is_some())
-            .count();
+        let fixes_available = classifications.iter().filter(|c| c.suggested_fix.is_some()).count();
         let fix_availability_rate = if !classifications.is_empty() {
             fixes_available as f64 / classifications.len() as f64
         } else {
@@ -244,9 +236,7 @@ impl OracleRoiMetrics {
         // Calculate average confidence per category
         let mut category_confidences: HashMap<String, (f64, usize)> = HashMap::new();
         for c in classifications {
-            let entry = category_confidences
-                .entry(c.subcategory.clone())
-                .or_insert((0.0, 0));
+            let entry = category_confidences.entry(c.subcategory.clone()).or_insert((0.0, 0));
             entry.0 += c.confidence;
             entry.1 += 1;
         }

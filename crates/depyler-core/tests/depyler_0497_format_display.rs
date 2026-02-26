@@ -28,11 +28,7 @@ def main():
     let rust = transpile(python);
 
     // After fix: should use {:?} for Vec (Debug trait)
-    assert!(
-        rust.contains("{:?}"),
-        "Vec should use Debug formatter {{:?}}, got: {}",
-        rust
-    );
+    assert!(rust.contains("{:?}"), "Vec should use Debug formatter {{:?}}, got: {}", rust);
 }
 
 #[test]
@@ -56,11 +52,7 @@ def main():
     let rust = transpile(python);
 
     // Should use {:?} for Vec return type
-    assert!(
-        rust.contains("{:?}"),
-        "Vec<i32> should use Debug formatter, got: {}",
-        rust
-    );
+    assert!(rust.contains("{:?}"), "Vec<i32> should use Debug formatter, got: {}", rust);
 }
 
 #[test]
@@ -127,9 +119,5 @@ def main():
     // Primitives should still use {} (Display)
     let display_count = rust.matches("{}").count();
 
-    assert!(
-        display_count >= 2,
-        "Primitives should use Display formatter {{}}, got: {}",
-        rust
-    );
+    assert!(display_count >= 2, "Primitives should use Display formatter {{}}, got: {}", rust);
 }

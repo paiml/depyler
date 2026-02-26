@@ -68,37 +68,17 @@ impl LambdaCodeGenerator {
         let mut templates = HashMap::new();
 
         // Basic handler template
-        templates.insert(
-            LambdaTemplate::BasicHandler,
-            BASIC_HANDLER_TEMPLATE.to_string(),
-        );
-        templates.insert(
-            LambdaTemplate::StreamingHandler,
-            STREAMING_HANDLER_TEMPLATE.to_string(),
-        );
-        templates.insert(
-            LambdaTemplate::BatchProcessor,
-            BATCH_PROCESSOR_TEMPLATE.to_string(),
-        );
-        templates.insert(
-            LambdaTemplate::EventBridgeHandler,
-            EVENTBRIDGE_HANDLER_TEMPLATE.to_string(),
-        );
+        templates.insert(LambdaTemplate::BasicHandler, BASIC_HANDLER_TEMPLATE.to_string());
+        templates.insert(LambdaTemplate::StreamingHandler, STREAMING_HANDLER_TEMPLATE.to_string());
+        templates.insert(LambdaTemplate::BatchProcessor, BATCH_PROCESSOR_TEMPLATE.to_string());
+        templates
+            .insert(LambdaTemplate::EventBridgeHandler, EVENTBRIDGE_HANDLER_TEMPLATE.to_string());
         templates.insert(LambdaTemplate::CargoToml, CARGO_TOML_TEMPLATE.to_string());
-        templates.insert(
-            LambdaTemplate::BuildScript,
-            BUILD_SCRIPT_TEMPLATE.to_string(),
-        );
+        templates.insert(LambdaTemplate::BuildScript, BUILD_SCRIPT_TEMPLATE.to_string());
         templates.insert(LambdaTemplate::SamTemplate, SAM_TEMPLATE.to_string());
-        templates.insert(
-            LambdaTemplate::CdkConstruct,
-            CDK_CONSTRUCT_TEMPLATE.to_string(),
-        );
+        templates.insert(LambdaTemplate::CdkConstruct, CDK_CONSTRUCT_TEMPLATE.to_string());
 
-        Self {
-            templates,
-            optimization_profile: OptimizationProfile::default(),
-        }
+        Self { templates, optimization_profile: OptimizationProfile::default() }
     }
 
     pub fn with_optimization_profile(mut self, profile: OptimizationProfile) -> Self {
@@ -255,10 +235,7 @@ impl LambdaCodeGenerator {
 
         let mut sam = template.clone();
         sam = sam.replace("{{function_name}}", &context.function_name);
-        sam = sam.replace(
-            "{{memory_size}}",
-            &context.annotations.memory_size.to_string(),
-        );
+        sam = sam.replace("{{memory_size}}", &context.annotations.memory_size.to_string());
 
         let timeout = context.annotations.timeout.unwrap_or(15);
         sam = sam.replace("{{timeout}}", &timeout.to_string());
@@ -281,10 +258,7 @@ impl LambdaCodeGenerator {
 
         let mut cdk = template.clone();
         cdk = cdk.replace("{{function_name}}", &context.function_name);
-        cdk = cdk.replace(
-            "{{memory_size}}",
-            &context.annotations.memory_size.to_string(),
-        );
+        cdk = cdk.replace("{{memory_size}}", &context.annotations.memory_size.to_string());
 
         let timeout = context.annotations.timeout.unwrap_or(15);
         cdk = cdk.replace("{{timeout}}", &timeout.to_string());
@@ -345,21 +319,14 @@ cargo lambda deploy
             LambdaEventType::DynamodbEvent => ("dynamodb".to_string(), "DynamodbEvent".to_string()),
             LambdaEventType::EventBridgeEvent(custom_type) => {
                 if let Some(custom) = custom_type {
-                    (
-                        "eventbridge".to_string(),
-                        format!("EventBridgeEvent<{custom}>"),
-                    )
+                    ("eventbridge".to_string(), format!("EventBridgeEvent<{custom}>"))
                 } else {
-                    (
-                        "eventbridge".to_string(),
-                        "EventBridgeEvent<serde_json::Value>".to_string(),
-                    )
+                    ("eventbridge".to_string(), "EventBridgeEvent<serde_json::Value>".to_string())
                 }
             }
-            LambdaEventType::CloudwatchEvent => (
-                "cloudwatch_events".to_string(),
-                "CloudWatchEvent".to_string(),
-            ),
+            LambdaEventType::CloudwatchEvent => {
+                ("cloudwatch_events".to_string(), "CloudWatchEvent".to_string())
+            }
             LambdaEventType::KinesisEvent => ("kinesis".to_string(), "KinesisEvent".to_string()),
             LambdaEventType::Custom(name) => ("".to_string(), name.clone()),
             LambdaEventType::Auto => ("".to_string(), "serde_json::Value".to_string()),
@@ -382,11 +349,7 @@ incremental = false
             self.optimization_profile.opt_level,
             self.optimization_profile.lto,
             self.optimization_profile.codegen_units,
-            if self.optimization_profile.panic_abort {
-                "abort"
-            } else {
-                "unwind"
-            },
+            if self.optimization_profile.panic_abort { "abort" } else { "unwind" },
             self.optimization_profile.strip
         )
     }
@@ -904,9 +867,8 @@ mod tests {
     fn test_eventbridge_handler() {
         let generator = LambdaCodeGenerator::new();
         let mut context = create_test_context();
-        context.event_type = Some(LambdaEventType::EventBridgeEvent(Some(
-            "OrderEvent".to_string(),
-        )));
+        context.event_type =
+            Some(LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())));
         context.annotations.custom_serialization = true;
 
         let handler = generator.generate_handler(&context).unwrap();

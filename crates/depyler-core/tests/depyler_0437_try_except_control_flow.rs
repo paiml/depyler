@@ -43,21 +43,14 @@ def parse_int(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
     // Extract just the parse_int function body to check
     // (preamble code like DepylerRegexMatch legitimately uses unwrap_or_default)
-    let func_body = if let Some(start) = rust.find("fn parse_int") {
-        &rust[start..]
-    } else {
-        &rust[..]
-    };
+    let func_body =
+        if let Some(start) = rust.find("fn parse_int") { &rust[start..] } else { &rust[..] };
 
     // CRITICAL: Should use match expression for error handling
     assert!(
@@ -90,11 +83,7 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -106,11 +95,7 @@ def validator(value):
     );
 
     // Should have Ok branch with try body continuation
-    assert!(
-        rust.contains("Ok("),
-        "Should have Ok branch for successful parse: {}",
-        rust
-    );
+    assert!(rust.contains("Ok("), "Should have Ok branch for successful parse: {}", rust);
 }
 
 #[test]
@@ -128,11 +113,7 @@ def port_validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -167,11 +148,7 @@ def parse_number(text):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -180,26 +157,14 @@ def parse_number(text):
     std::fs::write(&temp_file, &rust).unwrap();
 
     let compile_result = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output();
 
     // Cleanup
     let _ = std::fs::remove_file(&temp_file);
     let _ = std::fs::remove_file(&temp_rlib);
 
-    assert!(
-        compile_result.is_ok(),
-        "rustc should run successfully: {:?}",
-        compile_result.err()
-    );
+    assert!(compile_result.is_ok(), "rustc should run successfully: {:?}", compile_result.err());
 
     let output = compile_result.unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -234,20 +199,12 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
     // Should generate match for the parse
-    assert!(
-        rust.contains("match"),
-        "Should use match for exception handling: {}",
-        rust
-    );
+    assert!(rust.contains("match"), "Should use match for exception handling: {}", rust);
 
     // Multiple statements (if num < 0, result = num * 2) should be in Ok branch
     // This ensures they don't run if int() fails

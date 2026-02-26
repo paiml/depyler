@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -52,11 +50,7 @@ async def get_data(url: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_data"),
-        "Should transpile async with await. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_data"), "Should transpile async with await. Got: {}", result);
 }
 
 #[test]
@@ -66,11 +60,7 @@ async def do_work() -> None:
     pass
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn do_work"),
-        "Should transpile async void. Got: {}",
-        result
-    );
+    assert!(result.contains("fn do_work"), "Should transpile async void. Got: {}", result);
 }
 
 // ============================================================================
@@ -208,11 +198,7 @@ def abs_val(x: int) -> int:
     return x if x >= 0 else -x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn abs_val"),
-        "Should transpile simple ternary. Got: {}",
-        result
-    );
+    assert!(result.contains("fn abs_val"), "Should transpile simple ternary. Got: {}", result);
 }
 
 #[test]
@@ -222,11 +208,7 @@ def label(x: int) -> str:
     return "positive" if x > 0 else "non-positive"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn label"),
-        "Should transpile string ternary. Got: {}",
-        result
-    );
+    assert!(result.contains("fn label"), "Should transpile string ternary. Got: {}", result);
 }
 
 #[test]
@@ -236,11 +218,7 @@ def sign(x: int) -> int:
     return 1 if x > 0 else (-1 if x < 0 else 0)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sign"),
-        "Should transpile nested ternary. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sign"), "Should transpile nested ternary. Got: {}", result);
 }
 
 #[test]
@@ -271,11 +249,7 @@ def sum_all(*args: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sum_all"),
-        "Should transpile varargs. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sum_all"), "Should transpile varargs. Got: {}", result);
 }
 
 #[test]
@@ -307,11 +281,7 @@ def check_positive(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("assert"),
-        "Should transpile assert with >. Got: {}",
-        result
-    );
+    assert!(result.contains("assert"), "Should transpile assert with >. Got: {}", result);
 }
 
 #[test]
@@ -322,11 +292,7 @@ def check_small(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("assert"),
-        "Should transpile assert with <. Got: {}",
-        result
-    );
+    assert!(result.contains("assert"), "Should transpile assert with <. Got: {}", result);
 }
 
 #[test]
@@ -337,11 +303,7 @@ def check_eq(x: int, y: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("assert"),
-        "Should transpile assert with ==. Got: {}",
-        result
-    );
+    assert!(result.contains("assert"), "Should transpile assert with ==. Got: {}", result);
 }
 
 #[test]
@@ -352,11 +314,7 @@ def check_ne(x: int, y: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("assert"),
-        "Should transpile assert with !=. Got: {}",
-        result
-    );
+    assert!(result.contains("assert"), "Should transpile assert with !=. Got: {}", result);
 }
 
 #[test]
@@ -401,11 +359,7 @@ def check_type(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_type"),
-        "Should transpile raise TypeError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_type"), "Should transpile raise TypeError. Got: {}", result);
 }
 
 #[test]
@@ -417,11 +371,7 @@ def safe_get(items: list, idx: int) -> int:
     return items[idx]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_get"),
-        "Should transpile raise IndexError. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_get"), "Should transpile raise IndexError. Got: {}", result);
 }
 
 // ============================================================================
@@ -437,11 +387,7 @@ def process(items: list) -> int:
     return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should transpile walrus operator. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should transpile walrus operator. Got: {}", result);
 }
 
 // ============================================================================
@@ -458,11 +404,7 @@ def count_up(n: int):
         i += 1
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_up"),
-        "Should transpile generator. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_up"), "Should transpile generator. Got: {}", result);
 }
 
 #[test]
@@ -473,11 +415,7 @@ def squares(n: int):
         yield i * i
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn squares"),
-        "Should transpile yield with value. Got: {}",
-        result
-    );
+    assert!(result.contains("fn squares"), "Should transpile yield with value. Got: {}", result);
 }
 
 // ============================================================================
@@ -492,11 +430,7 @@ def swap(a: int, b: int) -> int:
     return a
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn swap"),
-        "Should transpile tuple unpacking. Got: {}",
-        result
-    );
+    assert!(result.contains("fn swap"), "Should transpile tuple unpacking. Got: {}", result);
 }
 
 #[test]
@@ -507,11 +441,7 @@ def rotate(a: int, b: int, c: int) -> int:
     return a
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn rotate"),
-        "Should transpile triple unpacking. Got: {}",
-        result
-    );
+    assert!(result.contains("fn rotate"), "Should transpile triple unpacking. Got: {}", result);
 }
 
 // ============================================================================
@@ -627,11 +557,7 @@ def in_range(x: int, lo: int, hi: int) -> bool:
     return lo <= x <= hi
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn in_range"),
-        "Should transpile chained comparison. Got: {}",
-        result
-    );
+    assert!(result.contains("fn in_range"), "Should transpile chained comparison. Got: {}", result);
 }
 
 // ============================================================================
@@ -695,11 +621,7 @@ def unique_items() -> set:
     return {1, 2, 3}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn unique_items"),
-        "Should transpile set literal. Got: {}",
-        result
-    );
+    assert!(result.contains("fn unique_items"), "Should transpile set literal. Got: {}", result);
 }
 
 // ============================================================================
@@ -863,11 +785,7 @@ def double_up(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn double_up"),
-        "Should transpile *=. Got: {}",
-        result
-    );
+    assert!(result.contains("fn double_up"), "Should transpile *=. Got: {}", result);
 }
 
 #[test]
@@ -878,9 +796,5 @@ def halve(x: float) -> float:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn halve"),
-        "Should transpile /=. Got: {}",
-        result
-    );
+    assert!(result.contains("fn halve"), "Should transpile /=. Got: {}", result);
 }

@@ -26,9 +26,8 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
         type_ignores: vec![],
         range: Default::default(),
     });
-    let (hir, _type_env) = ast_bridge::AstBridge::new()
-        .python_to_hir(ast)
-        .expect("Should generate HIR");
+    let (hir, _type_env) =
+        ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR");
     hir
 }
 

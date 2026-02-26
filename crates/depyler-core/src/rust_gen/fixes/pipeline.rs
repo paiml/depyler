@@ -62,20 +62,14 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = fix_python_truthiness(&formatted_code);
 
     // DEPYLER-CONVERGE-MULTI-ITER5: Fix io.StringIO patterns (E0061 + E0599).
-    formatted_code = formatted_code.replace(
-        "std::io::Cursor::new()",
-        "std::io::Cursor::new(Vec::<u8>::new())",
-    );
-    formatted_code = formatted_code.replace(
-        ".getvalue()",
-        ".get_ref().iter().map(|&b| b as char).collect::<String>()",
-    );
+    formatted_code =
+        formatted_code.replace("std::io::Cursor::new()", "std::io::Cursor::new(Vec::<u8>::new())");
+    formatted_code = formatted_code
+        .replace(".getvalue()", ".get_ref().iter().map(|&b| b as char).collect::<String>()");
 
     // DEPYLER-CONVERGE-MULTI-ITER5: Fix TypeError::new pattern (E0425).
-    formatted_code = formatted_code.replace(
-        "(TypeError::new(",
-        "(std::io::Error::new(std::io::ErrorKind::InvalidInput, ",
-    );
+    formatted_code = formatted_code
+        .replace("(TypeError::new(", "(std::io::Error::new(std::io::ErrorKind::InvalidInput, ");
 
     // DEPYLER-CONVERGE-MULTI-ITER5: Fix docstring-in-main syntax errors.
     formatted_code = fix_docstring_in_main(&formatted_code);
@@ -111,7 +105,8 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
 
     // DEPYLER-1404: Replace bare UnionType with DepylerValue (E0425).
     // Python Union[...] type aliases sometimes emit `UnionType` which doesn't exist.
-    formatted_code = formatted_code.replace("pub type JsonValue = UnionType;", "pub type JsonValue = DepylerValue;");
+    formatted_code = formatted_code
+        .replace("pub type JsonValue = UnionType;", "pub type JsonValue = DepylerValue;");
     formatted_code = formatted_code.replace("= UnionType;", "= DepylerValue;");
     formatted_code = formatted_code.replace(": UnionType", ": DepylerValue");
     formatted_code = formatted_code.replace("<UnionType>", "<DepylerValue>");
@@ -141,14 +136,10 @@ pub(in crate::rust_gen) fn apply_text_level_fixes(mut formatted_code: String) ->
     formatted_code = formatted_code.replace(".py_div(", ".join(");
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix TypeError::new in broader contexts (E0433).
-    formatted_code = formatted_code.replace(
-        ", TypeError::new(",
-        ", std::io::Error::new(std::io::ErrorKind::InvalidInput, ",
-    );
-    formatted_code = formatted_code.replace(
-        " TypeError::new(",
-        " std::io::Error::new(std::io::ErrorKind::InvalidInput, ",
-    );
+    formatted_code = formatted_code
+        .replace(", TypeError::new(", ", std::io::Error::new(std::io::ErrorKind::InvalidInput, ");
+    formatted_code = formatted_code
+        .replace(" TypeError::new(", " std::io::Error::new(std::io::ErrorKind::InvalidInput, ");
 
     // DEPYLER-CONVERGE-MULTI-ITER6: Fix Python `type()` builtin (E0425).
     if formatted_code.contains("r#type(") {
@@ -642,14 +633,7 @@ fn find_stub_names(code: &str) -> Vec<String> {
 
 /// Extract function name from a `pub fn name(...)` declaration line.
 fn extract_fn_name(line: &str) -> Option<String> {
-    let fname = line
-        .trim()
-        .strip_prefix("pub fn ")?
-        .split('(')
-        .next()?
-        .split('<')
-        .next()?
-        .trim();
+    let fname = line.trim().strip_prefix("pub fn ")?.split('(').next()?.split('<').next()?.trim();
     if fname.is_empty() {
         return None;
     }
@@ -662,10 +646,7 @@ fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
         "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}",
         name
     );
-    let fn_unit = format!(
-        "pub fn {}(_args: impl std::any::Any) -> () {{\n}}",
-        name
-    );
+    let fn_unit = format!("pub fn {}(_args: impl std::any::Any) -> () {{\n}}", name);
 
     let is_unit = code.contains(&fn_unit);
     let is_dv = code.contains(&fn_dv);
@@ -673,11 +654,7 @@ fn replace_stub_with_macro(code: &str, name: &str) -> Option<(String, String)> {
         return None;
     }
 
-    let mut result = if is_dv {
-        code.replace(&fn_dv, "")
-    } else {
-        code.replace(&fn_unit, "")
-    };
+    let mut result = if is_dv { code.replace(&fn_dv, "") } else { code.replace(&fn_unit, "") };
     result = result.replace("/// DEPYLER-0615: Generated to allow standalone compilation", "");
     result = result.replace("#[allow(dead_code, unused_variables)]", "");
 
@@ -748,10 +725,7 @@ fn remove_stub_function(code: &str, name: &str) -> Option<String> {
         "pub fn {}(_args: impl std::any::Any) -> DepylerValue {{\n    DepylerValue::default()\n}}",
         name
     );
-    let fn_unit = format!(
-        "pub fn {}(_args: impl std::any::Any) -> () {{\n}}",
-        name
-    );
+    let fn_unit = format!("pub fn {}(_args: impl std::any::Any) -> () {{\n}}", name);
 
     let mut result = if code.contains(&fn_dv) {
         code.replace(&fn_dv, "")
@@ -808,14 +782,12 @@ fn generate_stub_struct(name: &str, code: &str) -> (String, Option<String>) {
 
     // If `new` is used, generate a constructor macro for variadic args
     let ctor_macro = if members.contains(&"new".to_string()) {
-        let field_defaults: Vec<String> = struct_fields.iter()
-            .map(|_| "DepylerValue::default()".to_string())
-            .collect();
-        let field_names: Vec<String> = vec!["value".to_string()]
-            .into_iter()
-            .chain(fields.iter().cloned())
-            .collect();
-        let field_inits: String = field_names.iter()
+        let field_defaults: Vec<String> =
+            struct_fields.iter().map(|_| "DepylerValue::default()".to_string()).collect();
+        let field_names: Vec<String> =
+            vec!["value".to_string()].into_iter().chain(fields.iter().cloned()).collect();
+        let field_inits: String = field_names
+            .iter()
             .zip(field_defaults.iter())
             .map(|(n, d)| format!("{}: {}", n, d))
             .collect::<Vec<_>>()
@@ -851,9 +823,7 @@ fn scan_class_usage(name: &str, code: &str) -> (Vec<String>, Vec<String>) {
 
 /// Extract an identifier (alphanumeric + underscore) from the start of `text`.
 fn extract_identifier(text: &str) -> String {
-    text.chars()
-        .take_while(|c| c.is_alphanumeric() || *c == '_')
-        .collect()
+    text.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect()
 }
 
 /// Scan a single line for `Name::MEMBER` patterns and chained `.method` accesses.
@@ -890,9 +860,7 @@ fn scan_constructor_vars(
 ) {
     let trimmed = line.trim();
     let ctor_call = format!("{}::new(", name);
-    let rest = trimmed
-        .strip_prefix("let mut ")
-        .or_else(|| trimmed.strip_prefix("let "));
+    let rest = trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let "));
     if let Some(rest) = rest {
         if rest.contains(ctor_macro) || rest.contains(&ctor_call) {
             let var_name = extract_identifier(rest);
@@ -997,10 +965,7 @@ fn build_instance_method_item(code: &str, method: &str) -> Option<String> {
     let zero_arg_call = format!(".{}()", method);
     let has_zero_args = code.contains(&zero_arg_call);
     if has_zero_args {
-        Some(format!(
-            "pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}",
-            method
-        ))
+        Some(format!("pub fn {}(&self) -> DepylerValue {{ DepylerValue::default() }}", method))
     } else {
         Some(format!(
             "pub fn {}(&self, _args: impl std::any::Any) -> DepylerValue {{ DepylerValue::default() }}",
@@ -1041,10 +1006,10 @@ fn try_wrap_insert_integer(original_line: &str) -> Option<String> {
     let cp = inner.rfind(", ")?;
     let val = &inner[cp + 2..inner.len() - 2];
     if val.parse::<i64>().is_ok() && !val.contains("DepylerValue") {
-        Some(original_line.replace(
-            &format!(", {});", val),
-            &format!(", DepylerValue::Int({}));", val),
-        ))
+        Some(
+            original_line
+                .replace(&format!(", {});", val), &format!(", DepylerValue::Int({}));", val)),
+        )
     } else {
         None
     }
@@ -1142,10 +1107,7 @@ fn extract_method_and_arg(after_dot: &str) -> Option<(&str, String, &str)> {
         return None;
     }
     let args_rest = &after_dot[paren + 1..];
-    let arg: String = args_rest
-        .chars()
-        .take_while(|c| c.is_alphanumeric() || *c == '_')
-        .collect();
+    let arg: String = args_rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
     if arg.is_empty() {
         return None;
     }
@@ -1235,11 +1197,7 @@ fn find_closing_brace_at_indent(
         }
         if depth == 0 {
             let j_indent = line.len() - line.trim_start().len();
-            return if j_indent == expected_indent {
-                Some(j)
-            } else {
-                None
-            };
+            return if j_indent == expected_indent { Some(j) } else { None };
         }
     }
     None
@@ -1251,10 +1209,7 @@ fn extract_let_var_name(let_trimmed: &str) -> String {
         .strip_prefix("let mut ")
         .or_else(|| let_trimmed.strip_prefix("let "))
         .unwrap_or("");
-    var_rest
-        .chars()
-        .take_while(|c| c.is_alphanumeric() || *c == '_')
-        .collect()
+    var_rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect()
 }
 
 /// Check if `var_name` appears in any line after index `close` in the given lines.
@@ -1347,17 +1302,15 @@ fn try_wrap_field_literal(line: &str) -> Option<String> {
 
     // Float literal (e.g., 5.0, -3.14)
     if rhs.parse::<f64>().is_ok() && rhs.contains('.') {
-        return Some(line.replace(
-            &format!("= {};", rhs),
-            &format!("= DepylerValue::Float({});", rhs),
-        ));
+        return Some(
+            line.replace(&format!("= {};", rhs), &format!("= DepylerValue::Float({});", rhs)),
+        );
     }
     // Integer literal
     if rhs.parse::<i64>().is_ok() {
-        return Some(line.replace(
-            &format!("= {};", rhs),
-            &format!("= DepylerValue::Int({});", rhs),
-        ));
+        return Some(
+            line.replace(&format!("= {};", rhs), &format!("= DepylerValue::Int({});", rhs)),
+        );
     }
 
     None

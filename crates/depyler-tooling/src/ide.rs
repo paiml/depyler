@@ -82,12 +82,7 @@ impl IdeIntegration {
         for param in &func.params {
             params.push(format!("{}: {:?}", param.name, param.ty));
         }
-        let detail = format!(
-            "fn {}({}) -> {:?}",
-            func.name,
-            params.join(", "),
-            func.ret_type
-        );
+        let detail = format!("fn {}({}) -> {:?}", func.name, params.join(", "), func.ret_type);
 
         let symbol = Symbol {
             name: func.name.clone(),
@@ -97,10 +92,7 @@ impl IdeIntegration {
             documentation: None, // Could extract from docstring if available
         };
 
-        self.symbols
-            .entry(func.name.clone())
-            .or_default()
-            .push(symbol);
+        self.symbols.entry(func.name.clone()).or_default().push(symbol);
     }
 
     fn index_class(&mut self, class: &HirClass, _source: &str) {
@@ -115,10 +107,7 @@ impl IdeIntegration {
             documentation: None,
         };
 
-        self.symbols
-            .entry(class.name.clone())
-            .or_default()
-            .push(symbol);
+        self.symbols.entry(class.name.clone()).or_default().push(symbol);
 
         // Index class methods
         for method in &class.methods {
@@ -134,10 +123,7 @@ impl IdeIntegration {
                 detail: Some(format!("{}: {:?}", field.name, field.field_type)),
                 documentation: None,
             };
-            self.symbols
-                .entry(field.name.clone())
-                .or_default()
-                .push(field_symbol);
+            self.symbols.entry(field.name.clone()).or_default().push(field_symbol);
         }
     }
 
@@ -165,10 +151,7 @@ impl IdeIntegration {
             documentation: None,
         };
 
-        self.symbols
-            .entry(method.name.clone())
-            .or_default()
-            .push(symbol);
+        self.symbols.entry(method.name.clone()).or_default().push(symbol);
     }
 
     /// Get symbol at position for hover/goto definition
@@ -185,10 +168,7 @@ impl IdeIntegration {
 
     /// Find all references to a symbol
     pub fn find_references(&self, symbol_name: &str) -> Vec<&Symbol> {
-        self.symbols
-            .get(symbol_name)
-            .map(|symbols| symbols.iter().collect())
-            .unwrap_or_default()
+        self.symbols.get(symbol_name).map(|symbols| symbols.iter().collect()).unwrap_or_default()
     }
 
     /// Get completion suggestions at position
@@ -414,10 +394,7 @@ mod tests {
 
     #[test]
     fn test_diagnostic_severity_information() {
-        assert_eq!(
-            DiagnosticSeverity::Information,
-            DiagnosticSeverity::Information
-        );
+        assert_eq!(DiagnosticSeverity::Information, DiagnosticSeverity::Information);
     }
 
     #[test]

@@ -66,10 +66,7 @@ impl Default for DepylintAnalyzer {
 impl DepylintAnalyzer {
     /// Create a new analyzer
     pub fn new() -> Self {
-        Self {
-            warnings: Vec::new(),
-            reported: HashSet::new(),
-        }
+        Self { warnings: Vec::new(), reported: HashSet::new() }
     }
 
     /// Analyze Python source code and return warnings
@@ -113,11 +110,7 @@ impl DepylintAnalyzer {
             Stmt::ClassDef(class) => {
                 // Check for metaclass
                 for keyword in &class.keywords {
-                    if keyword
-                        .arg
-                        .as_ref()
-                        .is_some_and(|a| a.as_str() == "metaclass")
-                    {
+                    if keyword.arg.as_ref().is_some_and(|a| a.as_str() == "metaclass") {
                         self.add_warning(
                             Self::get_offset(&class.range),
                             "DPL003",
@@ -338,11 +331,7 @@ impl DepylintAnalyzer {
             ("__getattr__", "DPL008", "Dynamic attribute access"),
             ("__setattr__", "DPL009", "Dynamic attribute setting"),
             ("__delattr__", "DPL010", "Dynamic attribute deletion"),
-            (
-                "__getattribute__",
-                "DPL011",
-                "Attribute access interception",
-            ),
+            ("__getattribute__", "DPL011", "Attribute access interception"),
         ];
 
         for (dunder, code, desc) in problematic_dunders {
@@ -429,14 +418,8 @@ impl DepylintAnalyzer {
         match stmt {
             Stmt::Expr(expr_stmt) => self.expr_mutates_var(&expr_stmt.value, var_name),
             Stmt::If(if_stmt) => {
-                if_stmt
-                    .body
-                    .iter()
-                    .any(|s| self.stmt_mutates_var(s, var_name))
-                    || if_stmt
-                        .orelse
-                        .iter()
-                        .any(|s| self.stmt_mutates_var(s, var_name))
+                if_stmt.body.iter().any(|s| self.stmt_mutates_var(s, var_name))
+                    || if_stmt.orelse.iter().any(|s| self.stmt_mutates_var(s, var_name))
             }
             _ => false,
         }
@@ -635,16 +618,14 @@ pub fn check_poka_yoke(func: &depyler_hir::hir::HirFunction) -> Result<(), PokaY
 }
 
 /// Detect mutation-while-iterating in HIR
-fn detect_hir_mutation_while_iterating(stmt: &depyler_hir::hir::HirStmt) -> Option<PokaYokeViolation> {
+fn detect_hir_mutation_while_iterating(
+    stmt: &depyler_hir::hir::HirStmt,
+) -> Option<PokaYokeViolation> {
     use depyler_hir::hir::{HirExpr, HirStmt};
 
     if let HirStmt::For { iter, body, .. } = stmt {
         // Get iterator variable name - HirExpr::Var(Symbol) where Symbol = String
-        let iter_name = if let HirExpr::Var(name) = iter {
-            Some(name.clone())
-        } else {
-            None
-        };
+        let iter_name = if let HirExpr::Var(name) = iter { Some(name.clone()) } else { None };
 
         if let Some(iter_var) = iter_name {
             // Check body for mutations
@@ -673,11 +654,7 @@ fn hir_stmt_mutates_var(stmt: &depyler_hir::hir::HirStmt, var_name: &str) -> boo
 
     match stmt {
         HirStmt::Expr(expr) => hir_expr_mutates_var(expr, var_name),
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { then_body, else_body, .. } => {
             let then_mutates = then_body.iter().any(|s| hir_stmt_mutates_var(s, var_name));
             let else_mutates = else_body
                 .as_ref()
@@ -725,12 +702,9 @@ fn detect_hir_self_reference(stmt: &depyler_hir::hir::HirStmt) -> Option<PokaYok
 
     match stmt {
         HirStmt::Assign { target, value, .. } => check_self_assign(target, value),
-        HirStmt::Expr(HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        }) => check_self_method_call(object, method, args),
+        HirStmt::Expr(HirExpr::MethodCall { object, method, args, .. }) => {
+            check_self_method_call(object, method, args)
+        }
         _ => None,
     }
 }
@@ -765,9 +739,9 @@ fn check_self_method_call(
     let depyler_hir::hir::HirExpr::Var(recv_name) = object else {
         return None;
     };
-    let self_arg = args.iter().find(|arg| {
-        matches!(arg, depyler_hir::hir::HirExpr::Var(name) if name == recv_name)
-    });
+    let self_arg = args
+        .iter()
+        .find(|arg| matches!(arg, depyler_hir::hir::HirExpr::Var(name) if name == recv_name));
     self_arg.map(|_| PokaYokeViolation {
         code: "DPL101".to_string(),
         description: format!("Adding '{recv_name}' to itself creates a cycle"),
@@ -1455,9 +1429,12 @@ class Foo:
         assert_eq!(cloned.description, "desc");
     }
 
-    fn make_test_func(name: &str, body: Vec<depyler_hir::hir::HirStmt>) -> depyler_hir::hir::HirFunction {
-        use depyler_hir::hir::{FunctionProperties, HirFunction, Type};
+    fn make_test_func(
+        name: &str,
+        body: Vec<depyler_hir::hir::HirStmt>,
+    ) -> depyler_hir::hir::HirFunction {
         use depyler_annotations::TranspilationAnnotations;
+        use depyler_hir::hir::{FunctionProperties, HirFunction, Type};
         use smallvec::smallvec;
 
         HirFunction {
@@ -1475,10 +1452,8 @@ class Foo:
     fn test_s12_check_poka_yoke_clean_function() {
         use depyler_hir::hir::{HirExpr, HirStmt};
 
-        let func = make_test_func(
-            "clean",
-            vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
-        );
+        let func =
+            make_test_func("clean", vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))]);
         let result = check_poka_yoke(&func);
         assert!(result.is_ok());
     }
@@ -1626,7 +1601,15 @@ class Foo:
         use depyler_hir::hir::HirExpr;
 
         let methods = [
-            "append", "extend", "insert", "remove", "pop", "clear", "add", "discard", "update",
+            "append",
+            "extend",
+            "insert",
+            "remove",
+            "pop",
+            "clear",
+            "add",
+            "discard",
+            "update",
             "setdefault",
         ];
         for method in methods {
@@ -1779,7 +1762,7 @@ class Foo:
             target: depyler_hir::hir::AssignTarget::Symbol("x".to_string()),
             iter: HirExpr::Literal(Literal::Int(10)),
             body: vec![],
-};
+        };
         assert!(detect_hir_mutation_while_iterating(&stmt).is_none());
     }
 
@@ -1796,7 +1779,7 @@ class Foo:
                 args: vec![HirExpr::Var("x".to_string())],
                 kwargs: vec![],
             })],
-};
+        };
         // Mutating 'result', not 'items' - should be safe
         assert!(detect_hir_mutation_while_iterating(&stmt).is_none());
     }
@@ -1827,10 +1810,7 @@ b.next = a
         if let rustpython_parser::ast::Mod::Module(module) = ast {
             let stmts: Vec<&Stmt> = module.body.iter().collect();
             analyzer.check_cyclic_assignment(&stmts);
-            assert!(
-                !analyzer.warnings.is_empty(),
-                "Should detect cycle: a.next=b, b.next=a"
-            );
+            assert!(!analyzer.warnings.is_empty(), "Should detect cycle: a.next=b, b.next=a");
             assert_eq!(analyzer.warnings[0].code, "DPL102");
         }
     }
@@ -1847,10 +1827,7 @@ b = 2
         if let rustpython_parser::ast::Mod::Module(module) = ast {
             let stmts: Vec<&Stmt> = module.body.iter().collect();
             analyzer.check_cyclic_assignment(&stmts);
-            assert!(
-                analyzer.warnings.is_empty(),
-                "Should not detect cycle in simple assignments"
-            );
+            assert!(analyzer.warnings.is_empty(), "Should not detect cycle in simple assignments");
         }
     }
 

@@ -16,34 +16,21 @@ pub fn stmt_always_returns(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(_) => true,
         HirStmt::Raise { .. } => true,
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody: _,
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody: _ } => {
             // Try always returns if:
             // 1. Body always returns AND
             // 2. All exception handlers always return AND
             // 3. Orelse (if present) always returns
             let body_returns = body.iter().any(stmt_always_returns);
             let handlers_return = !handlers.is_empty()
-                && handlers
-                    .iter()
-                    .all(|h| h.body.iter().any(stmt_always_returns));
-            let orelse_returns = orelse
-                .as_ref()
-                .map(|stmts| stmts.iter().any(stmt_always_returns))
-                .unwrap_or(true);
+                && handlers.iter().all(|h| h.body.iter().any(stmt_always_returns));
+            let orelse_returns =
+                orelse.as_ref().map(|stmts| stmts.iter().any(stmt_always_returns)).unwrap_or(true);
 
             body_returns && handlers_return && orelse_returns
         }
         HirStmt::With { body, .. } => body.iter().any(stmt_always_returns),
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { then_body, else_body, .. } => {
             let then_returns = then_body.iter().any(stmt_always_returns);
             let else_returns = else_body
                 .as_ref()
@@ -67,11 +54,7 @@ pub fn collect_nested_function_names(stmts: &[HirStmt], names: &mut Vec<String>)
                 }
                 collect_nested_function_names(body, names);
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_nested_function_names(then_body, names);
                 if let Some(else_stmts) = else_body {
                     collect_nested_function_names(else_stmts, names);
@@ -82,12 +65,7 @@ pub fn collect_nested_function_names(stmts: &[HirStmt], names: &mut Vec<String>)
             | HirStmt::With { body, .. } => {
                 collect_nested_function_names(body, names);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 collect_nested_function_names(body, names);
                 for handler in handlers {
                     collect_nested_function_names(&handler.body, names);
@@ -110,11 +88,7 @@ pub fn collect_if_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
 
     for (i, stmt) in stmts.iter().enumerate() {
         let if_assigned_vars = match stmt {
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 let then_vars = extract_toplevel_assigned_symbols(then_body);
                 let else_vars = if let Some(else_stmts) = else_body {
                     extract_toplevel_assigned_symbols(else_stmts)
@@ -136,12 +110,7 @@ pub fn collect_if_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
                 escaping_vars.extend(collect_if_escaping_variables(body));
                 continue;
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 let mut vars = collect_if_escaping_variables(body);
                 for handler in handlers {
                     vars.extend(collect_if_escaping_variables(&handler.body));
@@ -176,11 +145,7 @@ pub fn collect_loop_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
         let loop_assigned_vars = match stmt {
             HirStmt::For { body, .. } => collect_all_assigned_variables(body),
             HirStmt::While { body, .. } => collect_all_assigned_variables(body),
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 let mut vars = collect_loop_escaping_variables(then_body);
                 if let Some(else_stmts) = else_body {
                     vars.extend(collect_loop_escaping_variables(else_stmts));
@@ -193,12 +158,7 @@ pub fn collect_loop_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
                 }
                 continue;
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 let mut vars = collect_loop_escaping_variables(body);
                 for handler in handlers {
                     vars.extend(collect_loop_escaping_variables(&handler.body));
@@ -236,27 +196,17 @@ pub fn collect_all_assigned_variables(stmts: &[HirStmt]) -> HashSet<String> {
 
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
                 vars.insert(name.clone());
             }
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Tuple(targets), .. } => {
                 for t in targets {
                     if let AssignTarget::Symbol(name) = t {
                         vars.insert(name.clone());
                     }
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 vars.extend(collect_all_assigned_variables(then_body));
                 if let Some(else_stmts) = else_body {
                     vars.extend(collect_all_assigned_variables(else_stmts));
@@ -265,12 +215,7 @@ pub fn collect_all_assigned_variables(stmts: &[HirStmt]) -> HashSet<String> {
             HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
                 vars.extend(collect_all_assigned_variables(body));
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 vars.extend(collect_all_assigned_variables(body));
                 for handler in handlers {
                     vars.extend(collect_all_assigned_variables(&handler.body));
@@ -293,38 +238,23 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
                 vars.insert(name.clone());
             }
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Tuple(targets), .. } => {
                 for t in targets {
                     if let AssignTarget::Symbol(name) = t {
                         vars.insert(name.clone());
                     }
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 vars.extend(extract_toplevel_assigned_symbols(then_body));
                 if let Some(else_stmts) = else_body {
                     vars.extend(extract_toplevel_assigned_symbols(else_stmts));
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 vars.extend(extract_toplevel_assigned_symbols(body));
                 for handler in handlers {
                     vars.extend(extract_toplevel_assigned_symbols(&handler.body));
@@ -344,9 +274,7 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 
 /// Check if a variable is used in any of the remaining statements
 pub fn is_var_used_in_remaining_stmts(var_name: &str, stmts: &[HirStmt]) -> bool {
-    stmts
-        .iter()
-        .any(|stmt| is_var_used_anywhere(var_name, stmt))
+    stmts.iter().any(|stmt| is_var_used_anywhere(var_name, stmt))
 }
 
 /// Check if a variable is used anywhere in a statement (recursive)
@@ -355,11 +283,7 @@ pub fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
         HirStmt::Assign { target, value, .. } => {
             is_var_used_in_target(var_name, target) || is_var_used_in_expr(var_name, value)
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             is_var_used_in_expr(var_name, condition)
                 || then_body.iter().any(|s| is_var_used_anywhere(var_name, s))
                 || else_body
@@ -376,25 +300,16 @@ pub fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
         }
         HirStmt::Return(Some(expr)) => is_var_used_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_in_expr(var_name, expr),
-        HirStmt::Raise { exception, .. } => exception
-            .as_ref()
-            .is_some_and(|e| is_var_used_in_expr(var_name, e)),
+        HirStmt::Raise { exception, .. } => {
+            exception.as_ref().is_some_and(|e| is_var_used_in_expr(var_name, e))
+        }
         HirStmt::Assert { test, msg, .. } => {
             is_var_used_in_expr(var_name, test)
-                || msg
-                    .as_ref()
-                    .is_some_and(|m| is_var_used_in_expr(var_name, m))
+                || msg.as_ref().is_some_and(|m| is_var_used_in_expr(var_name, m))
         }
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
             body.iter().any(|s| is_var_used_anywhere(var_name, s))
-                || handlers
-                    .iter()
-                    .any(|h| h.body.iter().any(|s| is_var_used_anywhere(var_name, s)))
+                || handlers.iter().any(|h| h.body.iter().any(|s| is_var_used_anywhere(var_name, s)))
                 || orelse
                     .as_ref()
                     .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_anywhere(var_name, s)))
@@ -482,10 +397,8 @@ mod tests {
 
     #[test]
     fn test_raise_always_returns() {
-        let stmt = HirStmt::Raise {
-            exception: Some(HirExpr::Var("ValueError".to_string())),
-            cause: None,
-        };
+        let stmt =
+            HirStmt::Raise { exception: Some(HirExpr::Var("ValueError".to_string())), cause: None };
         assert!(stmt_always_returns(&stmt));
     }
 
@@ -1056,10 +969,8 @@ mod tests {
 
     #[test]
     fn test_var_in_tuple_expr() {
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
         assert!(is_var_used_in_expr("x", &expr));
         assert!(is_var_used_in_expr("y", &expr));
     }
@@ -1072,10 +983,8 @@ mod tests {
 
     #[test]
     fn test_var_in_dict_expr() {
-        let expr = HirExpr::Dict(vec![(
-            HirExpr::Var("key".to_string()),
-            HirExpr::Var("val".to_string()),
-        )]);
+        let expr =
+            HirExpr::Dict(vec![(HirExpr::Var("key".to_string()), HirExpr::Var("val".to_string()))]);
         assert!(is_var_used_in_expr("key", &expr));
         assert!(is_var_used_in_expr("val", &expr));
         assert!(!is_var_used_in_expr("other", &expr));
@@ -1084,18 +993,12 @@ mod tests {
     #[test]
     fn test_var_not_in_literal() {
         assert!(!is_var_used_in_expr("x", &lit_int(42)));
-        assert!(!is_var_used_in_expr(
-            "x",
-            &HirExpr::Literal(Literal::String("hello".to_string()))
-        ));
+        assert!(!is_var_used_in_expr("x", &HirExpr::Literal(Literal::String("hello".to_string()))));
     }
 
     #[test]
     fn test_var_used_in_while_condition() {
-        let stmt = HirStmt::While {
-            condition: HirExpr::Var("flag".to_string()),
-            body: vec![],
-        };
+        let stmt = HirStmt::While { condition: HirExpr::Var("flag".to_string()), body: vec![] };
         assert!(is_var_used_anywhere("flag", &stmt));
     }
 
@@ -1120,38 +1023,27 @@ mod tests {
 
     #[test]
     fn test_var_used_in_assert_test() {
-        let stmt = HirStmt::Assert {
-            test: HirExpr::Var("check".to_string()),
-            msg: None,
-        };
+        let stmt = HirStmt::Assert { test: HirExpr::Var("check".to_string()), msg: None };
         assert!(is_var_used_anywhere("check", &stmt));
         assert!(!is_var_used_anywhere("other", &stmt));
     }
 
     #[test]
     fn test_var_used_in_assert_msg() {
-        let stmt = HirStmt::Assert {
-            test: lit_bool(true),
-            msg: Some(HirExpr::Var("msg".to_string())),
-        };
+        let stmt =
+            HirStmt::Assert { test: lit_bool(true), msg: Some(HirExpr::Var("msg".to_string())) };
         assert!(is_var_used_anywhere("msg", &stmt));
     }
 
     #[test]
     fn test_var_used_in_raise() {
-        let stmt = HirStmt::Raise {
-            exception: Some(HirExpr::Var("err".to_string())),
-            cause: None,
-        };
+        let stmt = HirStmt::Raise { exception: Some(HirExpr::Var("err".to_string())), cause: None };
         assert!(is_var_used_anywhere("err", &stmt));
     }
 
     #[test]
     fn test_var_used_in_raise_none() {
-        let stmt = HirStmt::Raise {
-            exception: None,
-            cause: None,
-        };
+        let stmt = HirStmt::Raise { exception: None, cause: None };
         assert!(!is_var_used_anywhere("x", &stmt));
     }
 
@@ -1598,10 +1490,7 @@ mod tests {
 
     #[test]
     fn test_var_used_in_remaining_multiple() {
-        let stmts = vec![
-            HirStmt::Expr(lit_int(1)),
-            HirStmt::Expr(HirExpr::Var("x".to_string())),
-        ];
+        let stmts = vec![HirStmt::Expr(lit_int(1)), HirStmt::Expr(HirExpr::Var("x".to_string()))];
         assert!(is_var_used_in_remaining_stmts("x", &stmts));
     }
 

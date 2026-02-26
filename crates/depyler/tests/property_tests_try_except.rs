@@ -346,11 +346,7 @@ mod tests {
 
             assert!(code.contains("try:"), "Generator {} failed", i);
             assert!(code.contains("except:"), "Generator {} failed", i);
-            assert!(
-                code.contains(&format!("marker_{}", id)),
-                "Generator {} failed",
-                i
-            );
+            assert!(code.contains(&format!("marker_{}", id)), "Generator {} failed", i);
         }
     }
 }

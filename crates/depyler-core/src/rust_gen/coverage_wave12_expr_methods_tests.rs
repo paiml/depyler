@@ -13,10 +13,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -198,7 +196,12 @@ result = os.path.abspath("~/file.txt")
 "#;
         let rs = transpile(py);
         // os.path.abspath maps to canonicalize or absolute path operations
-        assert!(rs.contains("home") || rs.contains("absolute") || rs.contains("canonicalize") || rs.contains("to_string"));
+        assert!(
+            rs.contains("home")
+                || rs.contains("absolute")
+                || rs.contains("canonicalize")
+                || rs.contains("to_string")
+        );
     }
 
     #[test]
@@ -239,7 +242,12 @@ head, tail = os.path.split("/path/to/file.txt")
 "#;
         let rs = transpile(py);
         // os.path.split maps to parent/file_name or split operations
-        assert!(rs.contains("parent") || rs.contains("file_name") || rs.contains("split") || rs.contains("to_string"));
+        assert!(
+            rs.contains("parent")
+                || rs.contains("file_name")
+                || rs.contains("split")
+                || rs.contains("to_string")
+        );
     }
 
     #[test]
@@ -490,7 +498,12 @@ def is_linux():
 "#;
         let rs = transpile(py);
         // sys.platform may map to OS or cfg! macros
-        assert!(rs.contains("OS") || rs.contains("contains") || rs.contains("cfg!") || rs.contains("platform"));
+        assert!(
+            rs.contains("OS")
+                || rs.contains("contains")
+                || rs.contains("cfg!")
+                || rs.contains("platform")
+        );
     }
 
     #[test]
@@ -1518,7 +1531,12 @@ d = {i: i*i for i in range(10)}
 "#;
         let rs = transpile(py);
         // Dict comprehension from range should have HashMap and range
-        assert!(rs.contains("HashMap") || rs.contains("0..10") || rs.contains("map") || rs.contains("collect"));
+        assert!(
+            rs.contains("HashMap")
+                || rs.contains("0..10")
+                || rs.contains("map")
+                || rs.contains("collect")
+        );
     }
 
     #[test]
@@ -1848,7 +1866,12 @@ platform = sys.platform
 "#;
         let rs = transpile(py);
         // sys.platform may map to OS or cfg! macros
-        assert!(rs.contains("OS") || rs.contains("platform") || rs.contains("cfg!") || rs.contains("to_string"));
+        assert!(
+            rs.contains("OS")
+                || rs.contains("platform")
+                || rs.contains("cfg!")
+                || rs.contains("to_string")
+        );
     }
 
     #[test]

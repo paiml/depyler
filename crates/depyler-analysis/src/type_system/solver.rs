@@ -17,9 +17,9 @@
 //! - **Worst case**: O(N²) for dense constraint graph
 //! - **Expected**: O(N log N) with good heuristics
 
-use depyler_hir::hir::Type;
 use crate::type_system::constraint::{ConstraintKind, TypeConstraint};
 use crate::type_system::subtyping::SubtypeChecker;
+use depyler_hir::hir::Type;
 use std::collections::{HashMap, VecDeque};
 
 /// Solution to constraint system
@@ -106,20 +106,14 @@ impl WorklistSolver {
             self.iterations += 1;
 
             if self.iterations > self.max_iterations {
-                return Err(format!(
-                    "Solver timeout after {} iterations",
-                    self.max_iterations
-                ));
+                return Err(format!("Solver timeout after {} iterations", self.max_iterations));
             }
 
             // Process constraint
             self.process_constraint(&constraint)?;
         }
 
-        Ok(Solution {
-            assignments: self.assignments.clone(),
-            consistent: true,
-        })
+        Ok(Solution { assignments: self.assignments.clone(), consistent: true })
     }
 
     /// Process single constraint
@@ -162,10 +156,7 @@ impl WorklistSolver {
             // Concrete types must match exactly
             (t1, t2) if t1 == t2 => Ok(()),
 
-            _ => Err(format!(
-                "Equality constraint failed: {:?} != {:?} ({})",
-                lhs, rhs, reason
-            )),
+            _ => Err(format!("Equality constraint failed: {:?} != {:?} ({})", lhs, rhs, reason)),
         }
     }
 
@@ -202,10 +193,9 @@ impl WorklistSolver {
             }
 
             // Both concrete: check subtyping relation
-            (t1, t2) => self
-                .checker
-                .check_subtype(t1, t2)
-                .map_err(|e| format!("{} ({})", e, reason)),
+            (t1, t2) => {
+                self.checker.check_subtype(t1, t2).map_err(|e| format!("{} ({})", e, reason))
+            }
         }
     }
 }
@@ -225,11 +215,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // x == Int
-        solver.add_constraint(TypeConstraint::eq(
-            Type::UnificationVar(0),
-            Type::Int,
-            "Assignment",
-        ));
+        solver.add_constraint(TypeConstraint::eq(Type::UnificationVar(0), Type::Int, "Assignment"));
 
         let solution = solver.solve().expect("Should solve");
         assert_eq!(solution.get(0), Some(&Type::Int));
@@ -240,11 +226,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // x: Int, param: Float, x <: param (should succeed)
-        solver.add_constraint(TypeConstraint::subtype(
-            Type::Int,
-            Type::Float,
-            "Function argument",
-        ));
+        solver.add_constraint(TypeConstraint::subtype(Type::Int, Type::Float, "Function argument"));
 
         let solution = solver.solve().expect("Should solve");
         assert!(solution.is_consistent());
@@ -388,11 +370,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // x == Int, then x <: Float (Int <: Float is ok)
-        solver.add_constraint(TypeConstraint::eq(
-            Type::UnificationVar(0),
-            Type::Int,
-            "Assign",
-        ));
+        solver.add_constraint(TypeConstraint::eq(Type::UnificationVar(0), Type::Int, "Assign"));
         solver.add_constraint(TypeConstraint::subtype(
             Type::UnificationVar(0),
             Type::Float,
@@ -408,11 +386,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // x == Float, then x <: Int (Float <: Int is NOT ok)
-        solver.add_constraint(TypeConstraint::eq(
-            Type::UnificationVar(0),
-            Type::Float,
-            "Assign",
-        ));
+        solver.add_constraint(TypeConstraint::eq(Type::UnificationVar(0), Type::Float, "Assign"));
         solver.add_constraint(TypeConstraint::subtype(
             Type::UnificationVar(0),
             Type::Int,
@@ -428,11 +402,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // x == Float, then Int <: x (Int <: Float is ok)
-        solver.add_constraint(TypeConstraint::eq(
-            Type::UnificationVar(0),
-            Type::Float,
-            "Assign",
-        ));
+        solver.add_constraint(TypeConstraint::eq(Type::UnificationVar(0), Type::Float, "Assign"));
         solver.add_constraint(TypeConstraint::subtype(
             Type::Int,
             Type::UnificationVar(0),
@@ -448,11 +418,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // x == Int, then Float <: x (Float <: Int is NOT ok)
-        solver.add_constraint(TypeConstraint::eq(
-            Type::UnificationVar(0),
-            Type::Int,
-            "Assign",
-        ));
+        solver.add_constraint(TypeConstraint::eq(Type::UnificationVar(0), Type::Int, "Assign"));
         solver.add_constraint(TypeConstraint::subtype(
             Type::Float,
             Type::UnificationVar(0),
@@ -468,11 +434,7 @@ mod tests {
         let mut solver = WorklistSolver::new();
 
         // Float :> Int means Int <: Float
-        solver.add_constraint(TypeConstraint::supertype(
-            Type::Float,
-            Type::Int,
-            "Supertype check",
-        ));
+        solver.add_constraint(TypeConstraint::supertype(Type::Float, Type::Int, "Supertype check"));
 
         let solution = solver.solve().expect("Should solve");
         assert!(solution.is_consistent());
@@ -496,10 +458,7 @@ mod tests {
 
     #[test]
     fn test_solution_get_missing() {
-        let solution = Solution {
-            assignments: HashMap::new(),
-            consistent: true,
-        };
+        let solution = Solution { assignments: HashMap::new(), consistent: true };
         assert!(solution.get(999).is_none());
     }
 

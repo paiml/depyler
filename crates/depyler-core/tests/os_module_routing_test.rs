@@ -15,9 +15,7 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -136,11 +134,7 @@ def list_files(directory: str) -> list:
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.walk
-    assert!(
-        !rust.contains("os.walk"),
-        "Should not have raw os.walk. Generated:\n{}",
-        rust
-    );
+    assert!(!rust.contains("os.walk"), "Should not have raw os.walk. Generated:\n{}", rust);
 
     // Should use walkdir or std::fs
     assert!(
@@ -161,11 +155,7 @@ def get_all_env() -> dict:
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.environ
-    assert!(
-        !rust.contains("os.environ"),
-        "Should not have raw os.environ. Generated:\n{}",
-        rust
-    );
+    assert!(!rust.contains("os.environ"), "Should not have raw os.environ. Generated:\n{}", rust);
 
     // Should use std::env::vars()
     assert!(
@@ -211,11 +201,7 @@ def generate_random_bytes(n: int) -> bytes:
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain raw os.urandom
-    assert!(
-        !rust.contains("os.urandom"),
-        "Should not have raw os.urandom. Generated:\n{}",
-        rust
-    );
+    assert!(!rust.contains("os.urandom"), "Should not have raw os.urandom. Generated:\n{}", rust);
 
     // Should use rand crate
     assert!(

@@ -59,9 +59,7 @@ pub struct Analyzer {
 
 impl Analyzer {
     pub fn new() -> Self {
-        Self {
-            enable_type_inference: true,
-        }
+        Self { enable_type_inference: true }
     }
 
     pub fn analyze(&self, module: &HirModule) -> Result<AnalysisResult> {
@@ -74,11 +72,7 @@ impl Analyzer {
         let module_metrics = self.calculate_module_metrics(&function_metrics);
         let type_coverage = self.calculate_type_coverage(module);
 
-        Ok(AnalysisResult {
-            module_metrics,
-            function_metrics,
-            type_coverage,
-        })
+        Ok(AnalysisResult { module_metrics, function_metrics, type_coverage })
     }
 
     fn analyze_function(&self, func: &HirFunction) -> Result<FunctionMetrics> {
@@ -87,10 +81,8 @@ impl Analyzer {
         let max_nesting = complexity::calculate_max_nesting(&func.body);
         let loc = complexity::count_statements(&func.body);
 
-        let has_type_annotations = func
-            .params
-            .iter()
-            .all(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown));
+        let has_type_annotations =
+            func.params.iter().all(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown));
         let return_type_annotated = !matches!(func.ret_type, depyler_core::hir::Type::Unknown);
 
         Ok(FunctionMetrics {
@@ -110,36 +102,22 @@ impl Analyzer {
         let total_lines: usize = functions.iter().map(|f| f.lines_of_code).sum();
 
         let avg_cyclomatic = if total_functions > 0 {
-            functions
-                .iter()
-                .map(|f| f.cyclomatic_complexity as f64)
-                .sum::<f64>()
+            functions.iter().map(|f| f.cyclomatic_complexity as f64).sum::<f64>()
                 / total_functions as f64
         } else {
             0.0
         };
 
-        let max_cyclomatic = functions
-            .iter()
-            .map(|f| f.cyclomatic_complexity)
-            .max()
-            .unwrap_or(0);
+        let max_cyclomatic = functions.iter().map(|f| f.cyclomatic_complexity).max().unwrap_or(0);
 
         let avg_cognitive = if total_functions > 0 {
-            functions
-                .iter()
-                .map(|f| f.cognitive_complexity as f64)
-                .sum::<f64>()
+            functions.iter().map(|f| f.cognitive_complexity as f64).sum::<f64>()
                 / total_functions as f64
         } else {
             0.0
         };
 
-        let max_cognitive = functions
-            .iter()
-            .map(|f| f.cognitive_complexity)
-            .max()
-            .unwrap_or(0);
+        let max_cognitive = functions.iter().map(|f| f.cognitive_complexity).max().unwrap_or(0);
 
         ModuleMetrics {
             total_functions,
@@ -376,17 +354,13 @@ mod tests {
             name: "func2".to_string(),
             params: smallvec![],
             ret_type: Type::Bool,
-            body: vec![
-                HirStmt::If {
-                    condition: HirExpr::Literal(Literal::Bool(true)),
-                    then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
-                        true,
-                    ))))],
-                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
-                        Literal::Bool(false),
-                    )))]),
-                },
-            ],
+            body: vec![HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(true))))],
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
+                    false,
+                ))))]),
+            }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
@@ -560,9 +534,7 @@ mod tests {
                     then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
                     else_body: None,
                 }],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
-                    Literal::Int(2),
-                )))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),

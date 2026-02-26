@@ -37,10 +37,8 @@ pub fn convert_time_method(
     let nasa_mode = ctx.type_mapper.nasa_mode;
 
     // Convert arguments first
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         "time" => convert_time_time()?,
@@ -360,10 +358,8 @@ mod tests {
     #[test]
     fn test_convert_time_sleep_too_many_args() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(1.0)),
-            HirExpr::Literal(Literal::Float(2.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(1.0)), HirExpr::Literal(Literal::Float(2.0))];
         let result = convert_time_method("sleep", &args, &mut ctx);
         assert!(result.is_err());
     }
@@ -414,10 +410,7 @@ mod tests {
     #[test]
     fn test_convert_time_strftime_with_variable_format() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("fmt".to_string()),
-            HirExpr::Var("time_tuple".to_string()),
-        ];
+        let args = vec![HirExpr::Var("fmt".to_string()), HirExpr::Var("time_tuple".to_string())];
         let result = convert_time_method("strftime", &args, &mut ctx);
         assert!(result.is_ok());
         // assert!(ctx.needs_chrono); // Not in NASA mode
@@ -453,10 +446,7 @@ mod tests {
     #[test]
     fn test_convert_time_strptime_with_variable_format() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("time_str".to_string()),
-            HirExpr::Var("fmt".to_string()),
-        ];
+        let args = vec![HirExpr::Var("time_str".to_string()), HirExpr::Var("fmt".to_string())];
         let result = convert_time_method("strptime", &args, &mut ctx);
         assert!(result.is_ok());
         // assert!(ctx.needs_chrono); // Not in NASA mode

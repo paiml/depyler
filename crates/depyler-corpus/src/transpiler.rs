@@ -54,10 +54,7 @@ impl<'a> TranspileRunner<'a> {
     pub fn find_python_files(&self) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
 
-        for entry in WalkDir::new(&self.config.corpus_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(&self.config.corpus_path).into_iter().filter_map(|e| e.ok()) {
             if !entry.file_type().is_file() {
                 continue;
             }
@@ -75,16 +72,12 @@ impl<'a> TranspileRunner<'a> {
                     return true;
                 }
                 if pattern.contains("test_")
-                    && path
-                        .file_name()
-                        .is_some_and(|n| n.to_string_lossy().starts_with("test_"))
+                    && path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("test_"))
                 {
                     return true;
                 }
                 if pattern.contains("__init__")
-                    && path
-                        .file_name()
-                        .is_some_and(|n| n.to_string_lossy() == "__init__.py")
+                    && path.file_name().is_some_and(|n| n.to_string_lossy() == "__init__.py")
                 {
                     return true;
                 }
@@ -105,10 +98,7 @@ impl<'a> TranspileRunner<'a> {
         let start = Instant::now();
 
         let dir = py_file.parent().unwrap_or(Path::new("."));
-        let stem = py_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("output");
+        let stem = py_file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
         let rs_file = dir.join(format!("{stem}.rs"));
 
         let depyler = self.config.depyler_binary();
@@ -126,11 +116,7 @@ impl<'a> TranspileRunner<'a> {
 
         // Check for Cargo.toml (Cargo-First)
         let cargo_toml = dir.join("Cargo.toml");
-        let cargo_dir = if cargo_toml.exists() {
-            Some(dir.to_path_buf())
-        } else {
-            None
-        };
+        let cargo_dir = if cargo_toml.exists() { Some(dir.to_path_buf()) } else { None };
 
         Ok(TranspilationResult {
             python_file: py_file.to_path_buf(),
@@ -159,11 +145,7 @@ impl<'a> TranspileRunner<'a> {
             failed: total - success,
             with_cargo,
             total_duration,
-            success_rate: if total > 0 {
-                (success as f64 / total as f64) * 100.0
-            } else {
-                0.0
-            },
+            success_rate: if total > 0 { (success as f64 / total as f64) * 100.0 } else { 0.0 },
         }
     }
 }
@@ -191,9 +173,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_config(path: &Path) -> CorpusConfig {
-        CorpusConfig::default()
-            .with_corpus_path(path.to_path_buf())
-            .with_skip_clean(true)
+        CorpusConfig::default().with_corpus_path(path.to_path_buf()).with_skip_clean(true)
     }
 
     #[test]

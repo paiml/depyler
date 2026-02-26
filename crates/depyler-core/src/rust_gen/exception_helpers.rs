@@ -71,9 +71,7 @@ mod tests {
     fn test_extract_exception_type_indexerror_call() {
         let expr = HirExpr::Call {
             func: "IndexError".to_string(),
-            args: vec![HirExpr::Literal(Literal::String(
-                "out of range".to_string(),
-            ))],
+            args: vec![HirExpr::Literal(Literal::String("out of range".to_string()))],
             kwargs: vec![],
         };
         assert_eq!(extract_exception_type(&expr), "IndexError");
@@ -83,9 +81,7 @@ mod tests {
     fn test_extract_exception_type_runtimeerror_call() {
         let expr = HirExpr::Call {
             func: "RuntimeError".to_string(),
-            args: vec![HirExpr::Literal(Literal::String(
-                "runtime issue".to_string(),
-            ))],
+            args: vec![HirExpr::Literal(Literal::String("runtime issue".to_string()))],
             kwargs: vec![],
         };
         assert_eq!(extract_exception_type(&expr), "RuntimeError");
@@ -143,21 +139,14 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_stopiteration_call() {
-        let expr = HirExpr::Call {
-            func: "StopIteration".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr =
+            HirExpr::Call { func: "StopIteration".to_string(), args: vec![], kwargs: vec![] };
         assert_eq!(extract_exception_type(&expr), "StopIteration");
     }
 
     #[test]
     fn test_extract_exception_type_call_no_args() {
-        let expr = HirExpr::Call {
-            func: "Exception".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "Exception".to_string(), args: vec![], kwargs: vec![] };
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 
@@ -399,10 +388,8 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_lambda() {
-        let expr = HirExpr::Lambda {
-            params: vec![],
-            body: Box::new(HirExpr::Literal(Literal::Int(1))),
-        };
+        let expr =
+            HirExpr::Lambda { params: vec![], body: Box::new(HirExpr::Literal(Literal::Int(1))) };
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 
@@ -425,9 +412,7 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_await() {
-        let expr = HirExpr::Await {
-            value: Box::new(HirExpr::Var("coro".to_string())),
-        };
+        let expr = HirExpr::Await { value: Box::new(HirExpr::Var("coro".to_string())) };
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 
@@ -476,9 +461,7 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_yield() {
-        let expr = HirExpr::Yield {
-            value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
-        };
+        let expr = HirExpr::Yield { value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))) };
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 

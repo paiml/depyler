@@ -233,11 +233,7 @@ def foo(x: int) -> str:
     return x  # E0308: expected str, found int
 "#;
 
-        let errors = vec![(
-            "E0308".to_string(),
-            "expected str, found int".to_string(),
-            3,
-        )];
+        let errors = vec![("E0308".to_string(), "expected str, found int".to_string(), 3)];
 
         let result = analyze_with_graph(python, &errors);
         assert!(result.is_ok());
@@ -363,10 +359,7 @@ def bar():
 
     #[test]
     fn test_graph_edge_serde_roundtrip() {
-        let edge = GraphEdge {
-            kind: EdgeKind::Calls,
-            weight: 2.5,
-        };
+        let edge = GraphEdge { kind: EdgeKind::Calls, weight: 2.5 };
 
         let json = serde_json::to_string(&edge).unwrap();
         let deserialized: GraphEdge = serde_json::from_str(&json).unwrap();
@@ -451,10 +444,7 @@ def main():
 
     #[test]
     fn test_s9b7_graph_edge_debug_clone() {
-        let edge = GraphEdge {
-            kind: EdgeKind::Imports,
-            weight: 1.0,
-        };
+        let edge = GraphEdge { kind: EdgeKind::Imports, weight: 1.0 };
         let debug = format!("{:?}", edge);
         assert!(debug.contains("GraphEdge"));
         let cloned = edge.clone();
@@ -555,9 +545,8 @@ class Standalone:
     #[test]
     fn test_s12_analyze_large_error_count() {
         let python = "def foo():\n    return 42\n";
-        let errors: Vec<(String, String, usize)> = (0..50)
-            .map(|i| ("E0308".to_string(), format!("error {i}"), i * 10))
-            .collect();
+        let errors: Vec<(String, String, usize)> =
+            (0..50).map(|i| ("E0308".to_string(), format!("error {i}"), i * 10)).collect();
         let result = analyze_with_graph(python, &errors).unwrap();
         assert_eq!(result.total_errors, 50);
     }
@@ -607,8 +596,8 @@ def bar():
 "#;
         // Two errors: one near foo, one near bar
         let errors = vec![
-            ("E0308".to_string(), "e1".to_string(), 10),  // py_line=1, near foo
-            ("E0308".to_string(), "e2".to_string(), 50),  // py_line=5, near bar
+            ("E0308".to_string(), "e1".to_string(), 10), // py_line=1, near foo
+            ("E0308".to_string(), "e2".to_string(), 50), // py_line=5, near bar
         ];
         let result = analyze_with_graph(python, &errors).unwrap();
         assert_eq!(result.total_errors, 2);

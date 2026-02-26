@@ -51,10 +51,7 @@ def test() -> str:
 "#;
 
     let result = transpile_and_compile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile os.path.join(*parts) with list literal"
-    );
+    assert!(result.is_ok(), "Should transpile os.path.join(*parts) with list literal");
 }
 
 #[test]
@@ -67,10 +64,7 @@ def test(base: str, *rest: str) -> str:
 "#;
 
     let result = transpile_and_compile(python);
-    assert!(
-        result.is_ok(),
-        "Should transpile os.path.join with mixed positional and starred args"
-    );
+    assert!(result.is_ok(), "Should transpile os.path.join with mixed positional and starred args");
 }
 
 // ============================================================================

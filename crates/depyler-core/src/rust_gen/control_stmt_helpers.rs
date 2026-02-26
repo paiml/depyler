@@ -146,10 +146,7 @@ mod tests {
     fn test_break_stmt_with_long_label() {
         let result =
             codegen_break_stmt(&Some("very_long_label_name_for_loop".to_string())).unwrap();
-        assert_eq!(
-            tokens_to_string(result),
-            "break 'very_long_label_name_for_loop ;"
-        );
+        assert_eq!(tokens_to_string(result), "break 'very_long_label_name_for_loop ;");
     }
 
     // ============ codegen_continue_stmt tests - no label ============
@@ -221,10 +218,7 @@ mod tests {
     fn test_continue_stmt_with_long_label() {
         let result =
             codegen_continue_stmt(&Some("very_long_label_name_for_loop".to_string())).unwrap();
-        assert_eq!(
-            tokens_to_string(result),
-            "continue 'very_long_label_name_for_loop ;"
-        );
+        assert_eq!(tokens_to_string(result), "continue 'very_long_label_name_for_loop ;");
     }
 
     // ============ Comparison tests ============
@@ -233,10 +227,7 @@ mod tests {
     fn test_break_and_continue_no_label_differ() {
         let break_result = codegen_break_stmt(&None).unwrap();
         let continue_result = codegen_continue_stmt(&None).unwrap();
-        assert_ne!(
-            tokens_to_string(break_result),
-            tokens_to_string(continue_result)
-        );
+        assert_ne!(tokens_to_string(break_result), tokens_to_string(continue_result));
     }
 
     #[test]
@@ -244,10 +235,7 @@ mod tests {
         let label = Some("outer".to_string());
         let break_result = codegen_break_stmt(&label).unwrap();
         let continue_result = codegen_continue_stmt(&label).unwrap();
-        assert_ne!(
-            tokens_to_string(break_result),
-            tokens_to_string(continue_result)
-        );
+        assert_ne!(tokens_to_string(break_result), tokens_to_string(continue_result));
     }
 
     #[test]
@@ -268,20 +256,14 @@ mod tests {
     fn test_break_with_and_without_label_differ() {
         let with_label = codegen_break_stmt(&Some("outer".to_string())).unwrap();
         let without_label = codegen_break_stmt(&None).unwrap();
-        assert_ne!(
-            tokens_to_string(with_label),
-            tokens_to_string(without_label)
-        );
+        assert_ne!(tokens_to_string(with_label), tokens_to_string(without_label));
     }
 
     #[test]
     fn test_continue_with_and_without_label_differ() {
         let with_label = codegen_continue_stmt(&Some("outer".to_string())).unwrap();
         let without_label = codegen_continue_stmt(&None).unwrap();
-        assert_ne!(
-            tokens_to_string(with_label),
-            tokens_to_string(without_label)
-        );
+        assert_ne!(tokens_to_string(with_label), tokens_to_string(without_label));
     }
 
     // ============ Token structure tests ============
@@ -342,9 +324,8 @@ mod coverage_tests {
 
     #[test]
     fn test_pass_stmt_is_deterministic() {
-        let results: Vec<String> = (0..10)
-            .map(|_| tokens_to_string(codegen_pass_stmt().unwrap()))
-            .collect();
+        let results: Vec<String> =
+            (0..10).map(|_| tokens_to_string(codegen_pass_stmt().unwrap())).collect();
         assert!(results.iter().all(|r| r == &results[0]));
     }
 
@@ -404,8 +385,7 @@ mod coverage_tests {
 
     #[test]
     fn test_continue_with_label_contains_lifetime_tick() {
-        let result =
-            tokens_to_string(codegen_continue_stmt(&Some("my_loop".to_string())).unwrap());
+        let result = tokens_to_string(codegen_continue_stmt(&Some("my_loop".to_string())).unwrap());
         assert!(result.contains("'my_loop"));
     }
 
@@ -420,18 +400,16 @@ mod coverage_tests {
     #[test]
     fn test_break_deterministic_with_same_label() {
         let label = Some("outer".to_string());
-        let results: Vec<String> = (0..5)
-            .map(|_| tokens_to_string(codegen_break_stmt(&label).unwrap()))
-            .collect();
+        let results: Vec<String> =
+            (0..5).map(|_| tokens_to_string(codegen_break_stmt(&label).unwrap())).collect();
         assert!(results.windows(2).all(|w| w[0] == w[1]));
     }
 
     #[test]
     fn test_continue_deterministic_with_same_label() {
         let label = Some("inner".to_string());
-        let results: Vec<String> = (0..5)
-            .map(|_| tokens_to_string(codegen_continue_stmt(&label).unwrap()))
-            .collect();
+        let results: Vec<String> =
+            (0..5).map(|_| tokens_to_string(codegen_continue_stmt(&label).unwrap())).collect();
         assert!(results.windows(2).all(|w| w[0] == w[1]));
     }
 
@@ -439,8 +417,7 @@ mod coverage_tests {
 
     #[test]
     fn test_break_with_label_starting_with_underscore() {
-        let result =
-            tokens_to_string(codegen_break_stmt(&Some("_private".to_string())).unwrap());
+        let result = tokens_to_string(codegen_break_stmt(&Some("_private".to_string())).unwrap());
         assert_eq!(result, "break '_private ;");
     }
 
@@ -459,8 +436,7 @@ mod coverage_tests {
 
     #[test]
     fn test_continue_with_label_all_underscores() {
-        let result =
-            tokens_to_string(codegen_continue_stmt(&Some("___".to_string())).unwrap());
+        let result = tokens_to_string(codegen_continue_stmt(&Some("___".to_string())).unwrap());
         assert_eq!(result, "continue '___ ;");
     }
 

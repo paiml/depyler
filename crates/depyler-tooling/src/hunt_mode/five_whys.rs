@@ -90,10 +90,7 @@ impl RootCauseChain {
 
         for why in &self.whys {
             let marker = if why.is_root_cause { "🎯 " } else { "" };
-            md.push_str(&format!(
-                "### {}Why #{}: {}\n\n",
-                marker, why.depth, why.description
-            ));
+            md.push_str(&format!("### {}Why #{}: {}\n\n", marker, why.depth, why.description));
 
             if why.is_root_cause {
                 md.push_str(&format!(
@@ -307,11 +304,8 @@ impl FiveWhysAnalyzer {
         let mut chain = RootCauseChain::new();
 
         chain.add_why(
-            WhyStep::new(
-                1,
-                &format!("Compilation error {}: {}", error_code, error_message),
-            )
-            .with_deeper_cause("Generated Rust code invalid"),
+            WhyStep::new(1, &format!("Compilation error {}: {}", error_code, error_message))
+                .with_deeper_cause("Generated Rust code invalid"),
         );
 
         chain.add_why(
@@ -446,9 +440,7 @@ mod tests {
 
     #[test]
     fn test_why_step_clone() {
-        let step = WhyStep::new(3, "Original")
-            .mark_as_root("Fix it")
-            .with_deeper_cause("Deeper");
+        let step = WhyStep::new(3, "Original").mark_as_root("Fix it").with_deeper_cause("Deeper");
         let cloned = step.clone();
         assert_eq!(cloned.depth, 3);
         assert!(cloned.is_root_cause);

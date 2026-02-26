@@ -27,10 +27,8 @@ use depyler_core::simplified_hir::*;
 
 #[test]
 fn test_depyler_0347_hir_construction() {
-    let hir = Hir {
-        root: HirExpr::Literal(HirLiteral::Integer(42)),
-        metadata: HirMetadata::default(),
-    };
+    let hir =
+        Hir { root: HirExpr::Literal(HirLiteral::Integer(42)), metadata: HirMetadata::default() };
 
     // Should clone and compare
     let hir2 = hir.clone();
@@ -164,13 +162,7 @@ fn test_depyler_0347_expr_if_without_else() {
         else_branch: None,
     };
 
-    assert!(matches!(
-        expr,
-        HirExpr::If {
-            else_branch: None,
-            ..
-        }
-    ));
+    assert!(matches!(expr, HirExpr::If { else_branch: None, .. }));
 }
 
 #[test]
@@ -200,16 +192,8 @@ fn test_depyler_0347_expr_function() {
     let expr = HirExpr::Function {
         name: "add".to_string(),
         params: vec![
-            HirParam {
-                name: "a".to_string(),
-                typ: Some(HirType::Int),
-                default: None,
-            },
-            HirParam {
-                name: "b".to_string(),
-                typ: Some(HirType::Int),
-                default: None,
-            },
+            HirParam { name: "a".to_string(), typ: Some(HirType::Int), default: None },
+            HirParam { name: "b".to_string(), typ: Some(HirType::Int), default: None },
         ],
         body: Box::new(HirExpr::Binary {
             left: Box::new(HirExpr::Identifier("a".to_string())),
@@ -243,11 +227,7 @@ fn test_depyler_0347_expr_async_function() {
 #[test]
 fn test_depyler_0347_expr_lambda() {
     let expr = HirExpr::Lambda {
-        params: vec![HirParam {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        }],
+        params: vec![HirParam { name: "x".to_string(), typ: None, default: None }],
         body: Box::new(HirExpr::Identifier("x".to_string())),
     };
 
@@ -371,11 +351,7 @@ fn test_depyler_0347_statement_expression() {
 
 #[test]
 fn test_depyler_0347_param_with_type() {
-    let param = HirParam {
-        name: "x".to_string(),
-        typ: Some(HirType::Int),
-        default: None,
-    };
+    let param = HirParam { name: "x".to_string(), typ: Some(HirType::Int), default: None };
 
     assert_eq!(param.name, "x");
     assert_eq!(param.typ, Some(HirType::Int));
@@ -395,11 +371,7 @@ fn test_depyler_0347_param_with_default() {
 
 #[test]
 fn test_depyler_0347_param_without_type() {
-    let param = HirParam {
-        name: "x".to_string(),
-        typ: None,
-        default: None,
-    };
+    let param = HirParam { name: "x".to_string(), typ: None, default: None };
 
     assert!(param.typ.is_none());
 }
@@ -495,13 +467,7 @@ fn test_depyler_0347_unary_op_bitwise_not() {
 
 #[test]
 fn test_depyler_0347_type_primitives() {
-    let types = vec![
-        HirType::Int,
-        HirType::Float,
-        HirType::String,
-        HirType::Bool,
-        HirType::Any,
-    ];
+    let types = vec![HirType::Int, HirType::Float, HirType::String, HirType::Bool, HirType::Any];
 
     for typ in types {
         let _cloned = typ.clone();

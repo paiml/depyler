@@ -29,11 +29,7 @@ def get_pi():
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "math.pi should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "math.pi should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(
@@ -53,11 +49,7 @@ def get_e():
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "math.e should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "math.e should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(
@@ -77,11 +69,7 @@ def get_tau():
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "math.tau should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "math.tau should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
     assert!(
@@ -101,18 +89,10 @@ def get_infinity():
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "math.inf should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "math.inf should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("f64::INFINITY"),
-        "math.inf should map to f64::INFINITY, got: {}",
-        rust
-    );
+    assert!(rust.contains("f64::INFINITY"), "math.inf should map to f64::INFINITY, got: {}", rust);
 }
 
 #[test]
@@ -125,18 +105,10 @@ def get_nan():
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "math.nan should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "math.nan should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("f64::NAN"),
-        "math.nan should map to f64::NAN, got: {}",
-        rust
-    );
+    assert!(rust.contains("f64::NAN"), "math.nan should map to f64::NAN, got: {}", rust);
 }
 
 // ========================================================================
@@ -157,30 +129,14 @@ def use_core_constants():
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "All math constants should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "All math constants should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
 
     // Verify core constants are using std::
-    assert!(
-        rust.contains("std::f64::consts::PI"),
-        "Should contain PI: {}",
-        rust
-    );
-    assert!(
-        rust.contains("std::f64::consts::E"),
-        "Should contain E: {}",
-        rust
-    );
-    assert!(
-        rust.contains("std::f64::consts::TAU"),
-        "Should contain TAU: {}",
-        rust
-    );
+    assert!(rust.contains("std::f64::consts::PI"), "Should contain PI: {}", rust);
+    assert!(rust.contains("std::f64::consts::E"), "Should contain E: {}", rust);
+    assert!(rust.contains("std::f64::consts::TAU"), "Should contain TAU: {}", rust);
 }
 
 // ========================================================================
@@ -202,11 +158,7 @@ def circle_area(radius: float) -> float:
     let rust = result.unwrap();
 
     // Verify NO external math crate usage
-    assert!(
-        !rust.contains("use math::"),
-        "NASA mode should not use external math crate: {}",
-        rust
-    );
+    assert!(!rust.contains("use math::"), "NASA mode should not use external math crate: {}", rust);
     assert!(
         !rust.contains("extern crate math"),
         "NASA mode should not extern crate math: {}",
@@ -214,9 +166,5 @@ def circle_area(radius: float) -> float:
     );
 
     // Verify uses std:: path
-    assert!(
-        rust.contains("std::f64::consts::PI"),
-        "Should use std:: path: {}",
-        rust
-    );
+    assert!(rust.contains("std::f64::consts::PI"), "Should use std:: path: {}", rust);
 }

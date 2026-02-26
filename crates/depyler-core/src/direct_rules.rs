@@ -97,10 +97,8 @@ pub(crate) fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_ma
             quote! { Option<#inner_ty> }
         }
         Type::Tuple(elems) => {
-            let elem_tys: Vec<_> = elems
-                .iter()
-                .map(|e| type_to_rust_type(e, _type_mapper))
-                .collect();
+            let elem_tys: Vec<_> =
+                elems.iter().map(|e| type_to_rust_type(e, _type_mapper)).collect();
             quote! { (#(#elem_tys),*) }
         }
         _ => quote! { () }, // Default fallback
@@ -361,11 +359,7 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
         items.push(syn::Item::Fn(rust_func));
     }
 
-    Ok(syn::File {
-        shebang: None,
-        attrs: vec![],
-        items,
-    })
+    Ok(syn::File { shebang: None, attrs: vec![], items })
 }
 
 fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Result<syn::Item> {
@@ -552,10 +546,8 @@ pub fn convert_class_to_struct(
     let mut has_non_clone_field = false;
 
     for field in instance_fields {
-        let field_name = syn::Ident::new(
-            &sanitize_identifier(&field.name),
-            proc_macro2::Span::call_site(),
-        );
+        let field_name =
+            syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
         // DEPYLER-0957: For Exception classes, default Unknown types to String
         let effective_field_type = if is_exception_class && field.field_type == Type::Unknown {
             Type::String
@@ -751,10 +743,7 @@ pub fn convert_class_to_struct(
     } else {
         // Generate default new() for dataclasses or classes with default field values
         if class.is_dataclass
-            || class
-                .fields
-                .iter()
-                .all(|f| f.default_value.is_some() || f.field_type == Type::Int)
+            || class.fields.iter().all(|f| f.default_value.is_some() || f.field_type == Type::Int)
         {
             let new_method = generate_dataclass_new(class, &struct_name, type_mapper)?;
             impl_items.push(syn::ImplItem::Fn(new_method));
@@ -787,10 +776,7 @@ pub fn convert_class_to_struct(
                 .iter()
                 .map(|name| {
                     let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                    syn::Type::Path(syn::TypePath {
-                        qself: None,
-                        path: syn::Path::from(ident),
-                    })
+                    syn::Type::Path(syn::TypePath { qself: None, path: syn::Path::from(ident) })
                 })
                 .collect();
             parse_quote! { #struct_name<#type_args> }
@@ -829,10 +815,7 @@ fn convert_enum_class(
     // DEPYLER-CONVERGE-MULTI: Detect whether this is an int-valued or
     // string-valued enum based on the first member's default value.
     let is_int_enum = class.fields.iter().any(|f| {
-        matches!(
-            f.default_value,
-            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(_)))
-        )
+        matches!(f.default_value, Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(_))))
     });
     let is_str_enum = class.fields.iter().any(|f| {
         matches!(
@@ -902,10 +885,7 @@ fn convert_enum_class(
                         let lit = syn::LitInt::new(&v.to_string(), proc_macro2::Span::call_site());
                         Some((
                             syn::token::Eq::default(),
-                            syn::Expr::Lit(syn::ExprLit {
-                                attrs: vec![],
-                                lit: syn::Lit::Int(lit),
-                            }),
+                            syn::Expr::Lit(syn::ExprLit { attrs: vec![], lit: syn::Lit::Int(lit) }),
                         ))
                     }
                     _ => None,
@@ -967,10 +947,8 @@ fn generate_dataclass_new(
     let instance_fields: Vec<_> = class.fields.iter().filter(|f| !f.is_class_var).collect();
 
     for field in &instance_fields {
-        let param_ident = syn::Ident::new(
-            &sanitize_identifier(&field.name),
-            proc_macro2::Span::call_site(),
-        );
+        let param_ident =
+            syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -994,10 +972,8 @@ fn generate_dataclass_new(
         .iter()
         .filter(|f| !f.is_class_var) // Skip class constants
         .map(|field| {
-            let field_ident = syn::Ident::new(
-                &sanitize_identifier(&field.name),
-                proc_macro2::Span::call_site(),
-            );
+            let field_ident =
+                syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
             // DEPYLER-0939: Always use parameter since we now accept all fields in new()
             quote! { #field_ident }
         })
@@ -1080,12 +1056,8 @@ fn convert_init_to_new(
     });
 
     // DEPYLER-0697: Collect field names to determine which params are used
-    let field_names: std::collections::HashSet<&str> = class
-        .fields
-        .iter()
-        .filter(|f| !f.is_class_var)
-        .map(|f| f.name.as_str())
-        .collect();
+    let field_names: std::collections::HashSet<&str> =
+        class.fields.iter().filter(|f| !f.is_class_var).map(|f| f.name.as_str()).collect();
 
     // Convert parameters
     // DEPYLER-1100: Track String params for impl Into<String> pattern
@@ -1146,17 +1118,11 @@ fn convert_init_to_new(
             continue;
         }
 
-        let field_ident = syn::Ident::new(
-            &sanitize_identifier(&field.name),
-            proc_macro2::Span::call_site(),
-        );
+        let field_ident =
+            syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
 
         // Check if this field matches a parameter name
-        if init_method
-            .params
-            .iter()
-            .any(|param| param.name == field.name)
-        {
+        if init_method.params.iter().any(|param| param.name == field.name) {
             // DEPYLER-1100: For string parameters using impl Into<String>, call .into()
             if string_param_names.contains(&field.name) {
                 field_inits.push(quote! { #field_ident: #field_ident.into() });
@@ -1237,15 +1203,9 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
         // DEPYLER-1152: Check for mutations in return statements
         // e.g., return self._items.pop() - the pop() mutates self._items
         HirStmt::Return(Some(expr)) => expr_mutates_self(expr),
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { then_body, else_body, .. } => {
             then_body.iter().any(stmt_mutates_self)
-                || else_body
-                    .as_ref()
-                    .is_some_and(|body| body.iter().any(stmt_mutates_self))
+                || else_body.as_ref().is_some_and(|body| body.iter().any(stmt_mutates_self))
         }
         HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
             body.iter().any(stmt_mutates_self)
@@ -1346,10 +1306,7 @@ fn infer_method_return_type(body: &[HirStmt], fields: &[HirField]) -> Option<Typ
     // If all return types are the same (ignoring Unknown), use that type
     let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
     if let Some(first) = first_known {
-        if return_types
-            .iter()
-            .all(|t| matches!(t, Type::Unknown) || t == first)
-        {
+        if return_types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
             return Some(first.clone());
         }
     }
@@ -1369,11 +1326,7 @@ fn collect_method_return_types(stmts: &[HirStmt], fields: &[HirField], types: &m
             HirStmt::Return(None) => {
                 types.push(Type::None);
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_method_return_types(then_body, fields, types);
                 if let Some(else_stmts) = else_body {
                     collect_method_return_types(else_stmts, fields, types);
@@ -1439,10 +1392,8 @@ fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
             }
         }
         HirExpr::Tuple(elems) => {
-            let elem_types: Vec<Type> = elems
-                .iter()
-                .map(|e| infer_expr_type_with_fields(e, fields))
-                .collect();
+            let elem_types: Vec<Type> =
+                elems.iter().map(|e| infer_expr_type_with_fields(e, fields)).collect();
             Type::Tuple(elem_types)
         }
         // DEPYLER-0696: Handle attribute access like self.field
@@ -1550,23 +1501,14 @@ fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirFi
             HirStmt::Assign { value, .. } => check_expr(param_name, value, field_names),
             HirStmt::Expr(expr) => check_expr(param_name, expr, field_names),
             HirStmt::Return(Some(expr)) => check_expr(param_name, expr, field_names),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { condition, then_body, else_body, .. } => {
                 check_expr(param_name, condition, field_names)
-                    || then_body
-                        .iter()
-                        .any(|s| check_stmt(param_name, s, field_names))
+                    || then_body.iter().any(|s| check_stmt(param_name, s, field_names))
                     || else_body
                         .as_ref()
                         .is_some_and(|eb| eb.iter().any(|s| check_stmt(param_name, s, field_names)))
             }
-            HirStmt::While {
-                condition, body, ..
-            } => {
+            HirStmt::While { condition, body, .. } => {
                 check_expr(param_name, condition, field_names)
                     || body.iter().any(|s| check_stmt(param_name, s, field_names))
             }
@@ -1629,10 +1571,8 @@ fn convert_method_to_impl_item(
     collect_type_vars(&method.ret_type, &mut method_type_vars);
 
     // Filter out class-level type params to get method-level ones
-    let method_level_type_params: Vec<String> = method_type_vars
-        .into_iter()
-        .filter(|tv| !class_type_params.contains(tv))
-        .collect();
+    let method_level_type_params: Vec<String> =
+        method_type_vars.into_iter().filter(|tv| !class_type_params.contains(tv)).collect();
 
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
@@ -1740,17 +1680,12 @@ fn convert_method_to_impl_item(
     let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
 
     // DEPYLER-0704: Extract parameter types for type coercion in binary operations
-    let param_types: std::collections::HashMap<String, Type> = method
-        .params
-        .iter()
-        .map(|p| (p.name.clone(), p.ty.clone()))
-        .collect();
+    let param_types: std::collections::HashMap<String, Type> =
+        method.params.iter().map(|p| (p.name.clone(), p.ty.clone())).collect();
 
     // DEPYLER-0720: Build class field types map from fields
-    let class_field_types: std::collections::HashMap<String, Type> = fields
-        .iter()
-        .map(|f| (f.name.clone(), f.field_type.clone()))
-        .collect();
+    let class_field_types: std::collections::HashMap<String, Type> =
+        fields.iter().map(|f| (f.name.clone(), f.field_type.clone())).collect();
 
     // Convert method body
     // DEPYLER-0838: Check if body consists only of pass statements
@@ -1934,12 +1869,8 @@ fn convert_protocol_method_to_trait_method(
 /// Analyzes the variant names to determine the best concrete type
 fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
     // Helper to check if variant name is numeric
-    let is_numeric = |v: &str| {
-        matches!(
-            v,
-            "int" | "float" | "i64" | "f64" | "i32" | "f32" | "I64" | "F64"
-        )
-    };
+    let is_numeric =
+        |v: &str| matches!(v, "int" | "float" | "i64" | "f64" | "i32" | "f32" | "I64" | "F64");
     let is_float_like = |v: &str| matches!(v, "float" | "f64" | "f32" | "F64");
     let is_none_like = |v: &str| matches!(v, "None" | "NoneType");
     let is_string_like = |v: &str| matches!(v, "str" | "String" | "Str");
@@ -1949,11 +1880,7 @@ fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
 
     // Filter out None-like variants
     let has_none = variant_names.iter().any(|v| is_none_like(v));
-    let non_none: Vec<&str> = variant_names
-        .iter()
-        .copied()
-        .filter(|v| !is_none_like(v))
-        .collect();
+    let non_none: Vec<&str> = variant_names.iter().copied().filter(|v| !is_none_like(v)).collect();
 
     // Case 1: T | None → Option<T>
     if has_none && non_none.len() == 1 {
@@ -2278,10 +2205,7 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
 
     // Convert body
     let body_stmts = convert_body(&func.body, type_mapper)?;
-    let block = syn::Block {
-        brace_token: Default::default(),
-        stmts: body_stmts,
-    };
+    let block = syn::Block { brace_token: Default::default(), stmts: body_stmts };
 
     // Add documentation
     let mut attrs = vec![];
@@ -2511,10 +2435,7 @@ mod tests {
 
         let call_expr = HirExpr::Call {
             func: "range".to_string(),
-            args: vec![
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Int(10)),
-            ],
+            args: vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(10))],
             kwargs: vec![],
         };
 
@@ -2539,10 +2460,8 @@ mod tests {
         assert!(matches!(result, syn::Expr::Macro(_)));
 
         // Test non-literal list (should also generate vec!)
-        let var_list = HirExpr::List(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let var_list =
+            HirExpr::List(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
 
         let result2 = converter.convert(&var_list).unwrap();
         // Non-literal lists should generate vec! macro
@@ -2956,14 +2875,7 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        let ops = vec![
-            BinOp::Lt,
-            BinOp::LtEq,
-            BinOp::Gt,
-            BinOp::GtEq,
-            BinOp::Eq,
-            BinOp::NotEq,
-        ];
+        let ops = vec![BinOp::Lt, BinOp::LtEq, BinOp::Gt, BinOp::GtEq, BinOp::Eq, BinOp::NotEq];
 
         for op in ops {
             let expr = HirExpr::Binary {
@@ -3119,10 +3031,7 @@ mod tests {
 
         let min_expr = HirExpr::Call {
             func: "min".to_string(),
-            args: vec![
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Int(2)),
-            ],
+            args: vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))],
             kwargs: vec![],
         };
         let result = converter.convert(&min_expr).unwrap();
@@ -3137,10 +3046,7 @@ mod tests {
 
         let max_expr = HirExpr::Call {
             func: "max".to_string(),
-            args: vec![
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Int(2)),
-            ],
+            args: vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))],
             kwargs: vec![],
         };
         let result = converter.convert(&max_expr).unwrap();
@@ -4032,10 +3938,8 @@ mod tests {
     fn test_borrow_expr() {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
-        let expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: false,
-        };
+        let expr =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: false };
         // Borrow may not be supported in direct rules path
         let _ = converter.convert(&expr);
     }
@@ -4044,10 +3948,7 @@ mod tests {
     fn test_borrow_mut_expr() {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
-        let expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: true,
-        };
+        let expr = HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: true };
         // Borrow may not be supported in direct rules path
         let _ = converter.convert(&expr);
     }
@@ -4056,9 +3957,7 @@ mod tests {
     fn test_yield_expr() {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
-        let expr = HirExpr::Yield {
-            value: Some(Box::new(HirExpr::Literal(Literal::Int(42)))),
-        };
+        let expr = HirExpr::Yield { value: Some(Box::new(HirExpr::Literal(Literal::Int(42)))) };
         let result = converter.convert(&expr);
         // Yield may or may not be supported
         let _ = result;
@@ -4651,11 +4550,7 @@ mod tests {
 
     #[test]
     fn test_is_pure_expression_call_is_not_pure() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_pure_expression_direct(&expr));
     }
 
@@ -5044,18 +4939,10 @@ mod tests {
 
     #[test]
     fn test_is_pure_expression_direct_literal() {
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Int(
-            42
-        ))));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(
-            Literal::String("hello".to_string())
-        )));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Bool(
-            true
-        ))));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(
-            Literal::Float(3.15)
-        )));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Int(42))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::String("hello".to_string()))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Bool(true))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Float(3.15))));
     }
 
     #[test]
@@ -5093,11 +4980,7 @@ mod tests {
     #[test]
     fn test_is_pure_expression_direct_call_not_pure() {
         // Function calls are not pure
-        let call = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let call = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_pure_expression_direct(&call));
     }
 
@@ -5226,10 +5109,7 @@ mod tests {
     #[test]
     fn test_resolve_union_enum_option_int() {
         let variants = vec![
-            (
-                "int".to_string(),
-                RustType::Primitive(crate::type_mapper::PrimitiveType::I64),
-            ),
+            ("int".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
             ("None".to_string(), RustType::Unit),
         ];
         let result = resolve_union_enum_to_syn(&variants);
@@ -5241,10 +5121,7 @@ mod tests {
     #[test]
     fn test_resolve_union_enum_option_float() {
         let variants = vec![
-            (
-                "float".to_string(),
-                RustType::Primitive(crate::type_mapper::PrimitiveType::F64),
-            ),
+            ("float".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::F64)),
             ("None".to_string(), RustType::Unit),
         ];
         let result = resolve_union_enum_to_syn(&variants);
@@ -5255,10 +5132,8 @@ mod tests {
 
     #[test]
     fn test_resolve_union_enum_option_string() {
-        let variants = vec![
-            ("str".to_string(), RustType::String),
-            ("None".to_string(), RustType::Unit),
-        ];
+        let variants =
+            vec![("str".to_string(), RustType::String), ("None".to_string(), RustType::Unit)];
         let result = resolve_union_enum_to_syn(&variants);
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("Option"));
@@ -5276,14 +5151,8 @@ mod tests {
     #[test]
     fn test_resolve_union_enum_all_numeric() {
         let variants = vec![
-            (
-                "int".to_string(),
-                RustType::Primitive(crate::type_mapper::PrimitiveType::I64),
-            ),
-            (
-                "float".to_string(),
-                RustType::Primitive(crate::type_mapper::PrimitiveType::F64),
-            ),
+            ("int".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
+            ("float".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::F64)),
         ];
         let result = resolve_union_enum_to_syn(&variants);
         let result_str = quote::quote!(#result).to_string();
@@ -5391,10 +5260,8 @@ mod tests {
 
     #[test]
     fn test_convert_lifetime_type_str_with_lifetime() {
-        let result = convert_lifetime_type(&RustType::Str {
-            lifetime: Some("a".to_string()),
-        })
-        .unwrap();
+        let result =
+            convert_lifetime_type(&RustType::Str { lifetime: Some("a".to_string()) }).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("'a"));
         assert!(result_str.contains("str"));
@@ -5402,10 +5269,8 @@ mod tests {
 
     #[test]
     fn test_convert_lifetime_type_cow() {
-        let result = convert_lifetime_type(&RustType::Cow {
-            lifetime: "static".to_string(),
-        })
-        .unwrap();
+        let result =
+            convert_lifetime_type(&RustType::Cow { lifetime: "static".to_string() }).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("Cow"));
         assert!(result_str.contains("'static"));

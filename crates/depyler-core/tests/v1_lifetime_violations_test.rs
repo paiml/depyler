@@ -85,10 +85,7 @@ def process_in_scope(data: str) -> str:
     println!("Generated code for process_in_scope:\n{}", rust_code);
 
     // Should handle temporary in nested scope
-    assert!(
-        rust_code.contains("String") || rust_code.contains("Cow"),
-        "Should return owned type"
-    );
+    assert!(rust_code.contains("String") || rust_code.contains("Cow"), "Should return owned type");
 }
 
 #[test]

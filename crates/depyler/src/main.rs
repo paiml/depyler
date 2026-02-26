@@ -84,10 +84,7 @@ async fn handle_train_command(
 
     let model_path = output.unwrap_or_else(NgramFixPredictor::default_user_model_path);
 
-    println!(
-        "DEPYLER-ORACLE-TRAIN: Training on corpus {}",
-        corpus.display()
-    );
+    println!("DEPYLER-ORACLE-TRAIN: Training on corpus {}", corpus.display());
     println!("Model will be saved to: {}", model_path.display());
 
     // Run converge with auto_fix to learn patterns
@@ -134,19 +131,13 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
     use depyler::converge::{CacheConfig, SqliteCache};
 
     let get_cache_dir = || -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".depyler")
-            .join("cache")
+        dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".depyler").join("cache")
     };
 
     match cache_cmd {
         CacheCommands::Stats { format } => {
             let cache_path = get_cache_dir();
-            let config = CacheConfig {
-                cache_dir: cache_path.clone(),
-                ..Default::default()
-            };
+            let config = CacheConfig { cache_dir: cache_path.clone(), ..Default::default() };
 
             match SqliteCache::open(config) {
                 Ok(cache) => {
@@ -195,10 +186,7 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
                 }
             }
         }
-        CacheCommands::Gc {
-            max_age_days,
-            dry_run,
-        } => {
+        CacheCommands::Gc { max_age_days, dry_run } => {
             let cache_path = get_cache_dir();
             let config = CacheConfig {
                 cache_dir: cache_path.clone(),
@@ -252,20 +240,14 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
             }
             Ok(())
         }
-        CacheCommands::Warm {
-            input_dir,
-            jobs: _jobs,
-        } => {
+        CacheCommands::Warm { input_dir, jobs: _jobs } => {
             use depyler::converge::cache_warmer::CacheWarmer;
 
             let cache_path = get_cache_dir();
             println!("Warming cache from {}", input_dir.display());
             println!("Cache directory: {}", cache_path.display());
 
-            let config = CacheConfig {
-                cache_dir: cache_path,
-                ..Default::default()
-            };
+            let config = CacheConfig { cache_dir: cache_path, ..Default::default() };
 
             let warmer = CacheWarmer::new(config);
             let stats = warmer.warm_directory(&input_dir)?;
@@ -284,19 +266,10 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
 /// Handle top-level command dispatch
 async fn handle_command(command: Commands) -> Result<()> {
     match command {
-        Commands::Transpile {
-            input,
-            output,
-            verify,
-            gen_tests,
-            debug,
-            source_map,
-        } => transpile_command(input, output, verify, gen_tests, debug, source_map),
-        Commands::Compile {
-            input,
-            output,
-            profile,
-        } => compile_command(input, output, profile),
+        Commands::Transpile { input, output, verify, gen_tests, debug, source_map } => {
+            transpile_command(input, output, verify, gen_tests, debug, source_map)
+        }
+        Commands::Compile { input, output, profile } => compile_command(input, output, profile),
         Commands::Analyze { input, format } => analyze_command(input, format),
         Commands::Check { input } => check_command(input),
         Commands::Cache(cache_cmd) => handle_cache_command(cache_cmd),
@@ -334,12 +307,9 @@ async fn handle_command(command: Commands) -> Result<()> {
             )
             .await
         }
-        Commands::Train {
-            corpus,
-            output,
-            target_rate,
-            max_iterations,
-        } => handle_train_command(corpus, output, target_rate, max_iterations).await,
+        Commands::Train { corpus, output, target_rate, max_iterations } => {
+            handle_train_command(corpus, output, target_rate, max_iterations).await
+        }
         Commands::Report {
             input_dir,
             format,
@@ -364,51 +334,35 @@ async fn handle_command(command: Commands) -> Result<()> {
             };
             handle_report_command(args)
         }
-        Commands::Utol {
-            corpus,
-            target_rate,
-            max_iterations,
-            patience,
-            display,
-            status,
-        } => handle_utol_command(
-            corpus,
-            target_rate,
-            max_iterations,
-            patience,
-            display,
-            None, // output
-            None, // config
-            status,
-            false, // watch
-            500,   // watch_debounce
-        ),
-        Commands::Repair {
-            input,
-            output,
-            max_iterations,
-            verbose,
-        } => repair_command(input, output, max_iterations, verbose),
+        Commands::Utol { corpus, target_rate, max_iterations, patience, display, status } => {
+            handle_utol_command(
+                corpus,
+                target_rate,
+                max_iterations,
+                patience,
+                display,
+                None, // output
+                None, // config
+                status,
+                false, // watch
+                500,   // watch_debounce
+            )
+        }
+        Commands::Repair { input, output, max_iterations, verbose } => {
+            repair_command(input, output, max_iterations, verbose)
+        }
         Commands::Graph(graph_cmd) => match graph_cmd {
-            GraphCommands::Analyze {
-                corpus,
-                top,
-                output,
-            } => graph_cmd::analyze_corpus(&corpus, top, output.as_deref()),
-            GraphCommands::Vectorize {
-                corpus,
-                output,
-                format,
-            } => graph_cmd::vectorize_corpus(&corpus, &output, &format),
+            GraphCommands::Analyze { corpus, top, output } => {
+                graph_cmd::analyze_corpus(&corpus, top, output.as_deref())
+            }
+            GraphCommands::Vectorize { corpus, output, format } => {
+                graph_cmd::vectorize_corpus(&corpus, &output, &format)
+            }
         },
         Commands::Corpus(corpus_cmd) => handle_corpus_command(corpus_cmd),
-        Commands::Lint {
-            input,
-            strict,
-            format,
-            fail_fast,
-            corpus,
-        } => lint_cmd::lint_command(input, strict, format, fail_fast, corpus),
+        Commands::Lint { input, strict, format, fail_fast, corpus } => {
+            lint_cmd::lint_command(input, strict, format, fail_fast, corpus)
+        }
         Commands::Dashboard { format, component } => {
             dashboard_cmd::dashboard_command(&format, component.as_deref())
         }
@@ -423,11 +377,7 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
 
     match cmd {
         CorpusCommands::List { format, available } => {
-            let corpora = if available {
-                registry.list_available()
-            } else {
-                registry.list()
-            };
+            let corpora = if available { registry.list_available() } else { registry.list() };
 
             if format == "json" {
                 let json_entries: Vec<_> = corpora
@@ -534,12 +484,7 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
                 anyhow::bail!("Corpus '{}' not found in registry", name)
             }
         }
-        CorpusCommands::Add {
-            name,
-            path,
-            description,
-            github,
-        } => {
+        CorpusCommands::Add { name, path, description, github } => {
             println!("Adding corpus '{}' to registry...", name);
 
             let mut entry = depyler_corpus::CorpusEntry::new(&name, path.clone());

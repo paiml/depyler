@@ -161,10 +161,9 @@ fn test_rust_type_to_syn_unit() {
 
 #[test]
 fn test_rust_type_to_syn_vec() {
-    let ty = rust_type_to_syn_type(&RustType::Vec(Box::new(RustType::Primitive(
-        PrimitiveType::I32,
-    ))))
-    .unwrap();
+    let ty =
+        rust_type_to_syn_type(&RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32))))
+            .unwrap();
     assert!(quote::quote!(#ty).to_string().contains("Vec"));
 }
 
@@ -181,10 +180,9 @@ fn test_rust_type_to_syn_hashmap() {
 
 #[test]
 fn test_rust_type_to_syn_option() {
-    let ty = rust_type_to_syn_type(&RustType::Option(Box::new(RustType::Primitive(
-        PrimitiveType::I32,
-    ))))
-    .unwrap();
+    let ty =
+        rust_type_to_syn_type(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32))))
+            .unwrap();
     let s = quote::quote!(#ty).to_string();
     assert!(s.contains("Option"));
 }
@@ -315,9 +313,7 @@ fn test_method_mutates_self_in_for() {
 
 #[test]
 fn test_method_mutates_self_return_only() {
-    let method = make_method(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-        42,
-    ))))]);
+    let method = make_method(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))]);
     assert!(!method_mutates_self(&method));
 }
 
@@ -385,11 +381,7 @@ fn test_convert_class_to_struct_shadowing_name() {
     let type_mapper = TypeMapper::new();
     let vararg_funcs = std::collections::HashSet::new();
     let items = convert_class_to_struct(&class, &type_mapper, &vararg_funcs).unwrap();
-    let code = items
-        .iter()
-        .map(|i| quote::quote!(#i).to_string())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let code = items.iter().map(|i| quote::quote!(#i).to_string()).collect::<Vec<_>>().join("\n");
     assert!(code.contains("PyVec"));
 }
 
@@ -435,15 +427,9 @@ fn test_convert_class_to_struct_dataclass() {
 
 #[test]
 fn test_safe_class_name_all_integer_types() {
-    for ty in &[
-        "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128",
-    ] {
+    for ty in &["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"] {
         assert!(is_stdlib_shadowing_name(ty), "{} should be shadowing", ty);
-        assert!(
-            safe_class_name(ty).starts_with("Py"),
-            "{} should get Py prefix",
-            ty
-        );
+        assert!(safe_class_name(ty).starts_with("Py"), "{} should get Py prefix", ty);
     }
 }
 
@@ -483,10 +469,8 @@ fn test_convert_class_with_bool_field() {
 
 #[test]
 fn test_convert_class_with_list_field() {
-    let class = make_class_with_fields(
-        "Container",
-        vec![("items", Type::List(Box::new(Type::Int)))],
-    );
+    let class =
+        make_class_with_fields("Container", vec![("items", Type::List(Box::new(Type::Int)))]);
     let type_mapper = TypeMapper::new();
     let vararg_funcs = std::collections::HashSet::new();
     let items = convert_class_to_struct(&class, &type_mapper, &vararg_funcs).unwrap();
@@ -497,10 +481,7 @@ fn test_convert_class_with_list_field() {
 fn test_convert_class_with_dict_field() {
     let class = make_class_with_fields(
         "Cache",
-        vec![(
-            "data",
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        )],
+        vec![("data", Type::Dict(Box::new(Type::String), Box::new(Type::Int)))],
     );
     let type_mapper = TypeMapper::new();
     let vararg_funcs = std::collections::HashSet::new();
@@ -510,10 +491,8 @@ fn test_convert_class_with_dict_field() {
 
 #[test]
 fn test_convert_class_with_optional_field() {
-    let class = make_class_with_fields(
-        "MaybeValue",
-        vec![("value", Type::Optional(Box::new(Type::Int)))],
-    );
+    let class =
+        make_class_with_fields("MaybeValue", vec![("value", Type::Optional(Box::new(Type::Int)))]);
     let type_mapper = TypeMapper::new();
     let vararg_funcs = std::collections::HashSet::new();
     let items = convert_class_to_struct(&class, &type_mapper, &vararg_funcs).unwrap();

@@ -251,10 +251,7 @@ fn test_return_with_value() {
 fn test_return_without_value() {
     let mut module = create_empty_module();
 
-    module.functions.push(create_function_with_body(
-        "test",
-        vec![HirStmt::Return(None)],
-    ));
+    module.functions.push(create_function_with_body("test", vec![HirStmt::Return(None)]));
 
     let type_mapper = TypeMapper::new();
     let result = apply_rules(&module, &type_mapper);
@@ -315,9 +312,7 @@ fn test_if_with_else() {
         vec![HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                2,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
         }],
     ));
 
@@ -339,9 +334,7 @@ fn test_if_complex_condition() {
                 right: Box::new(HirExpr::Literal(Literal::Int(10))),
             },
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(true))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
-                Literal::Bool(false),
-            )))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(false))))]),
         }],
     ));
 
@@ -495,9 +488,7 @@ fn test_raise_with_exception() {
     module.functions.push(create_function_with_body(
         "test",
         vec![HirStmt::Raise {
-            exception: Some(HirExpr::Literal(Literal::String(
-                "Error occurred".to_string(),
-            ))),
+            exception: Some(HirExpr::Literal(Literal::String("Error occurred".to_string()))),
             cause: None,
         }],
     ));
@@ -513,10 +504,7 @@ fn test_raise_without_exception() {
 
     module.functions.push(create_function_with_body(
         "test",
-        vec![HirStmt::Raise {
-            exception: None,
-            cause: None,
-        }],
+        vec![HirStmt::Raise { exception: None, cause: None }],
     ));
 
     let type_mapper = TypeMapper::new();
@@ -553,9 +541,7 @@ fn test_break_with_label() {
         "test",
         vec![HirStmt::While {
             condition: HirExpr::Literal(Literal::Bool(true)),
-            body: vec![HirStmt::Break {
-                label: Some("outer".to_string()),
-            }],
+            body: vec![HirStmt::Break { label: Some("outer".to_string()) }],
         }],
     ));
 
@@ -593,9 +579,7 @@ fn test_continue_with_label() {
         "test",
         vec![HirStmt::While {
             condition: HirExpr::Literal(Literal::Bool(true)),
-            body: vec![HirStmt::Continue {
-                label: Some("outer".to_string()),
-            }],
+            body: vec![HirStmt::Continue { label: Some("outer".to_string()) }],
         }],
     ));
 

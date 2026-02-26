@@ -1,8 +1,8 @@
 //! Enhanced error reporting with source location tracking and helpful suggestions
 
-use depyler_hir::error::ErrorKind;
 use anyhow::Result;
 use colored::Colorize;
+use depyler_hir::error::ErrorKind;
 use rustpython_ast::Ranged;
 use std::fmt;
 
@@ -94,12 +94,7 @@ impl EnhancedError {
             (&self.source_line, self.line, self.column)
         {
             writeln!(f, "   {} |", format!("{:4}", " ").dimmed())?;
-            writeln!(
-                f,
-                "   {} | {}",
-                format!("{:4}", line_num).blue().bold(),
-                line_text
-            )?;
+            writeln!(f, "   {} | {}", format!("{:4}", line_num).blue().bold(), line_text)?;
             writeln!(
                 f,
                 "   {} | {}{}",
@@ -174,20 +169,15 @@ fn get_line_column(source: &str, offset: u32) -> (usize, usize) {
 
 /// Extract a specific line from source
 fn get_source_line(source: &str, line_num: usize) -> Option<String> {
-    source
-        .lines()
-        .nth(line_num.saturating_sub(1))
-        .map(String::from)
+    source.lines().nth(line_num.saturating_sub(1)).map(String::from)
 }
 
 /// Add automatic suggestions based on error type
 fn add_automatic_suggestions(error: EnhancedError) -> EnhancedError {
     let suggestion = match &error.error {
-        ErrorKind::TypeMismatch {
-            expected,
-            found,
-            context,
-        } => generate_type_mismatch_suggestion(expected, found, context),
+        ErrorKind::TypeMismatch { expected, found, context } => {
+            generate_type_mismatch_suggestion(expected, found, context)
+        }
         ErrorKind::UnsupportedFeature(feature) => suggest_unsupported_feature(feature),
         ErrorKind::TypeInferenceError(msg) => suggest_type_inference_fix(msg),
         ErrorKind::InvalidTypeAnnotation(msg) => suggest_annotation_fix(msg),
@@ -413,11 +403,7 @@ pub struct ErrorReporter {
 
 impl ErrorReporter {
     pub fn new(source: String, file_path: String) -> Self {
-        Self {
-            errors: Vec::new(),
-            source,
-            file_path,
-        }
+        Self { errors: Vec::new(), source, file_path }
     }
 
     pub fn report_error(&mut self, error: ErrorKind) {
@@ -447,11 +433,7 @@ impl ErrorReporter {
         }
 
         if self.errors.len() > 1 {
-            println!(
-                "\n{}: Found {} errors",
-                "summary".red().bold(),
-                self.errors.len()
-            );
+            println!("\n{}: Found {} errors", "summary".red().bold(), self.errors.len());
         }
     }
 
@@ -559,10 +541,7 @@ mod tests {
         assert!(enhanced.suggestion.is_some());
         let suggestion = enhanced.suggestion.unwrap();
         assert!(suggestion.contains("Ownership mismatch"));
-        assert!(enhanced
-            .notes
-            .iter()
-            .any(|n| n.contains("borrowed reference")));
+        assert!(enhanced.notes.iter().any(|n| n.contains("borrowed reference")));
     }
 
     // ============================================================
@@ -785,10 +764,8 @@ mod tests {
     #[test]
     fn test_apply_suggestion_to_error_with_suggestion() {
         let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()));
-        let suggestion = Some((
-            "Use this".to_string(),
-            vec!["Note 1".to_string(), "Note 2".to_string()],
-        ));
+        let suggestion =
+            Some(("Use this".to_string(), vec!["Note 1".to_string(), "Note 2".to_string()]));
         let result = apply_suggestion_to_error(error, suggestion);
         assert_eq!(result.suggestion, Some("Use this".to_string()));
         assert_eq!(result.notes.len(), 2);
@@ -866,18 +843,16 @@ mod tests {
 
     #[test]
     fn test_add_automatic_suggestions_type_inference() {
-        let error = EnhancedError::new(ErrorKind::TypeInferenceError(
-            "incompatible types".to_string(),
-        ));
+        let error =
+            EnhancedError::new(ErrorKind::TypeInferenceError("incompatible types".to_string()));
         let enhanced = add_automatic_suggestions(error);
         assert!(enhanced.suggestion.is_some());
     }
 
     #[test]
     fn test_add_automatic_suggestions_invalid_annotation() {
-        let error = EnhancedError::new(ErrorKind::InvalidTypeAnnotation(
-            "cannot borrow".to_string(),
-        ));
+        let error =
+            EnhancedError::new(ErrorKind::InvalidTypeAnnotation("cannot borrow".to_string()));
         let enhanced = add_automatic_suggestions(error);
         assert!(enhanced.suggestion.is_some());
     }
@@ -977,10 +952,7 @@ mod tests {
     #[test]
     fn test_get_source_line_single_line() {
         let source = "only one line";
-        assert_eq!(
-            get_source_line(source, 1),
-            Some("only one line".to_string())
-        );
+        assert_eq!(get_source_line(source, 1), Some("only one line".to_string()));
         assert!(get_source_line(source, 2).is_none());
     }
 
@@ -1011,8 +983,7 @@ mod tests {
 
     #[test]
     fn test_enhanced_error_format_location_info_complete() {
-        let error = EnhancedError::new(ErrorKind::ParseError)
-            .with_location("test.py", 10, 20);
+        let error = EnhancedError::new(ErrorKind::ParseError).with_location("test.py", 10, 20);
         let display = format!("{}", error);
         assert!(display.contains("-->"));
         assert!(display.contains("test.py:10:20"));
@@ -1235,8 +1206,7 @@ mod tests {
 
     #[test]
     fn test_enhanced_error_debug_output() {
-        let error = EnhancedError::new(ErrorKind::ParseError)
-            .with_location("test.py", 1, 1);
+        let error = EnhancedError::new(ErrorKind::ParseError).with_location("test.py", 1, 1);
         let debug = format!("{:?}", error);
         assert!(debug.contains("EnhancedError"));
     }

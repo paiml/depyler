@@ -43,11 +43,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
             HirExpr::Unary { operand, .. } => {
                 walk_expr(operand, args_name, fields);
             }
-            HirExpr::Call {
-                args: call_args,
-                kwargs,
-                ..
-            } => {
+            HirExpr::Call { args: call_args, kwargs, .. } => {
                 // Note: func is Symbol, not Box<HirExpr>, so don't walk it
                 for arg in call_args {
                     walk_expr(arg, args_name, fields);
@@ -56,12 +52,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
                     walk_expr(kwarg_val, args_name, fields);
                 }
             }
-            HirExpr::MethodCall {
-                object,
-                args: method_args,
-                kwargs,
-                ..
-            } => {
+            HirExpr::MethodCall { object, args: method_args, kwargs, .. } => {
                 walk_expr(object, args_name, fields);
                 for arg in method_args {
                     walk_expr(arg, args_name, fields);
@@ -97,12 +88,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
                     }
                 }
             }
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 walk_expr(base, args_name, fields);
                 if let Some(s) = start {
                     walk_expr(s, args_name, fields);
@@ -114,14 +100,8 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
                     walk_expr(s, args_name, fields);
                 }
             }
-            HirExpr::ListComp {
-                element,
-                generators,
-            }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
                 walk_expr(element, args_name, fields);
                 for gen in generators {
                     walk_expr(&gen.iter, args_name, fields);
@@ -130,11 +110,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
                     }
                 }
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 walk_expr(key, args_name, fields);
                 walk_expr(value, args_name, fields);
                 for gen in generators {
@@ -147,9 +123,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
             HirExpr::Lambda { body, .. } => {
                 walk_expr(body, args_name, fields);
             }
-            HirExpr::Borrow {
-                expr: borrow_expr, ..
-            } => {
+            HirExpr::Borrow { expr: borrow_expr, .. } => {
                 walk_expr(borrow_expr, args_name, fields);
             }
             HirExpr::Yield { value: Some(v) } => {
@@ -168,11 +142,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
             HirStmt::Expr(expr) => walk_expr(expr, args_name, fields),
             HirStmt::Assign { value, .. } => walk_expr(value, args_name, fields),
             HirStmt::Return(Some(expr)) => walk_expr(expr, args_name, fields),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 walk_expr(condition, args_name, fields);
                 for s in then_body {
                     walk_stmt(s, args_name, fields);
@@ -201,12 +171,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
                     walk_stmt(s, args_name, fields);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 for s in body {
                     walk_stmt(s, args_name, fields);
                 }
@@ -265,9 +230,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
 /// Walks assignments looking for explicit type annotations (e.g., `x: Tuple[int, int] = ...`)
 /// and returns them as a map. This allows type-aware codegen (e.g., tuple field access)
 /// for local variables, not just function parameters.
-fn collect_typed_locals_from_body(
-    stmts: &[HirStmt],
-) -> std::collections::HashMap<String, Type> {
+fn collect_typed_locals_from_body(stmts: &[HirStmt]) -> std::collections::HashMap<String, Type> {
     let mut locals = std::collections::HashMap::new();
     for stmt in stmts {
         match stmt {
@@ -278,11 +241,7 @@ fn collect_typed_locals_from_body(
             } => {
                 locals.insert(name.clone(), ty.clone());
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 for (k, v) in collect_typed_locals_from_body(then_body) {
                     locals.entry(k).or_insert(v);
                 }
@@ -328,11 +287,9 @@ fn find_var_type_in_body_with_params(
     for stmt in stmts {
         match stmt {
             // Simple assignment: x = expr
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                type_annotation,
-                value,
-            } if name == var_name => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), type_annotation, value }
+                if name == var_name =>
+            {
                 // First try explicit type annotation
                 if type_annotation.is_some() {
                     return type_annotation.clone();
@@ -375,11 +332,7 @@ fn find_var_type_in_body_with_params(
                 // The first assignment might be `x = None` but later ones might have concrete types
             }
             // Tuple unpacking: (a, b) = (1, 2)
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                value,
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Tuple(targets), value, .. } => {
                 // Find var_name position in the targets
                 if let Some(pos) = targets
                     .iter()
@@ -419,11 +372,7 @@ fn find_var_type_in_body_with_params(
                 }
             }
             // Recurse into if/else blocks
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 if let Some(ty) =
                     find_var_type_in_body_with_params(var_name, then_body, param_types)
                 {
@@ -438,12 +387,7 @@ fn find_var_type_in_body_with_params(
                 }
             }
             // Recurse into try/except blocks
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 if let Some(ty) = find_var_type_in_body_with_params(var_name, body, param_types) {
                     return Some(ty);
                 }
@@ -471,9 +415,7 @@ fn find_var_type_in_body_with_params(
 /// Check if a variable is used in any of the remaining statements
 #[allow(dead_code)]
 fn is_var_used_in_remaining_stmts(var_name: &str, stmts: &[HirStmt]) -> bool {
-    stmts
-        .iter()
-        .any(|stmt| is_var_used_anywhere(var_name, stmt))
+    stmts.iter().any(|stmt| is_var_used_anywhere(var_name, stmt))
 }
 
 /// Check if a variable is used anywhere in a statement (recursive)
@@ -483,11 +425,7 @@ fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
         HirStmt::Assign { target, value, .. } => {
             is_var_used_in_target(var_name, target) || is_var_used_in_expr_any(var_name, value)
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             is_var_used_in_expr_any(var_name, condition)
                 || then_body.iter().any(|s| is_var_used_anywhere(var_name, s))
                 || else_body
@@ -504,25 +442,16 @@ fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
         }
         HirStmt::Return(Some(expr)) => is_var_used_in_expr_any(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_in_expr_any(var_name, expr),
-        HirStmt::Raise { exception, .. } => exception
-            .as_ref()
-            .is_some_and(|e| is_var_used_in_expr_any(var_name, e)),
+        HirStmt::Raise { exception, .. } => {
+            exception.as_ref().is_some_and(|e| is_var_used_in_expr_any(var_name, e))
+        }
         HirStmt::Assert { test, msg, .. } => {
             is_var_used_in_expr_any(var_name, test)
-                || msg
-                    .as_ref()
-                    .is_some_and(|m| is_var_used_in_expr_any(var_name, m))
+                || msg.as_ref().is_some_and(|m| is_var_used_in_expr_any(var_name, m))
         }
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
             body.iter().any(|s| is_var_used_anywhere(var_name, s))
-                || handlers
-                    .iter()
-                    .any(|h| h.body.iter().any(|s| is_var_used_anywhere(var_name, s)))
+                || handlers.iter().any(|h| h.body.iter().any(|s| is_var_used_anywhere(var_name, s)))
                 || orelse
                     .as_ref()
                     .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_anywhere(var_name, s)))
@@ -564,53 +493,27 @@ fn is_var_used_in_expr_any(var_name: &str, expr: &HirExpr) -> bool {
         HirExpr::Call { func, args, kwargs } => {
             func == var_name
                 || args.iter().any(|a| is_var_used_in_expr_any(var_name, a))
-                || kwargs
-                    .iter()
-                    .any(|(_, v)| is_var_used_in_expr_any(var_name, v))
+                || kwargs.iter().any(|(_, v)| is_var_used_in_expr_any(var_name, v))
         }
-        HirExpr::MethodCall {
-            object,
-            args,
-            kwargs,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             is_var_used_in_expr_any(var_name, object)
                 || args.iter().any(|a| is_var_used_in_expr_any(var_name, a))
-                || kwargs
-                    .iter()
-                    .any(|(_, v)| is_var_used_in_expr_any(var_name, v))
+                || kwargs.iter().any(|(_, v)| is_var_used_in_expr_any(var_name, v))
         }
-        HirExpr::DynamicCall {
-            callee,
-            args,
-            kwargs,
-        } => {
+        HirExpr::DynamicCall { callee, args, kwargs } => {
             is_var_used_in_expr_any(var_name, callee)
                 || args.iter().any(|a| is_var_used_in_expr_any(var_name, a))
-                || kwargs
-                    .iter()
-                    .any(|(_, v)| is_var_used_in_expr_any(var_name, v))
+                || kwargs.iter().any(|(_, v)| is_var_used_in_expr_any(var_name, v))
         }
         HirExpr::Attribute { value, .. } => is_var_used_in_expr_any(var_name, value),
         HirExpr::Index { base, index } => {
             is_var_used_in_expr_any(var_name, base) || is_var_used_in_expr_any(var_name, index)
         }
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => {
+        HirExpr::Slice { base, start, stop, step } => {
             is_var_used_in_expr_any(var_name, base)
-                || start
-                    .as_ref()
-                    .is_some_and(|s| is_var_used_in_expr_any(var_name, s))
-                || stop
-                    .as_ref()
-                    .is_some_and(|s| is_var_used_in_expr_any(var_name, s))
-                || step
-                    .as_ref()
-                    .is_some_and(|s| is_var_used_in_expr_any(var_name, s))
+                || start.as_ref().is_some_and(|s| is_var_used_in_expr_any(var_name, s))
+                || stop.as_ref().is_some_and(|s| is_var_used_in_expr_any(var_name, s))
+                || step.as_ref().is_some_and(|s| is_var_used_in_expr_any(var_name, s))
         }
         HirExpr::List(items)
         | HirExpr::Tuple(items)
@@ -625,38 +528,21 @@ fn is_var_used_in_expr_any(var_name: &str, expr: &HirExpr) -> bool {
                 || is_var_used_in_expr_any(var_name, body)
                 || is_var_used_in_expr_any(var_name, orelse)
         }
-        HirExpr::ListComp {
-            element,
-            generators,
-        }
-        | HirExpr::SetComp {
-            element,
-            generators,
-        }
-        | HirExpr::GeneratorExp {
-            element,
-            generators,
-        } => {
+        HirExpr::ListComp { element, generators }
+        | HirExpr::SetComp { element, generators }
+        | HirExpr::GeneratorExp { element, generators } => {
             is_var_used_in_expr_any(var_name, element)
                 || generators.iter().any(|g| {
                     is_var_used_in_expr_any(var_name, &g.iter)
-                        || g.conditions
-                            .iter()
-                            .any(|i| is_var_used_in_expr_any(var_name, i))
+                        || g.conditions.iter().any(|i| is_var_used_in_expr_any(var_name, i))
                 })
         }
-        HirExpr::DictComp {
-            key,
-            value,
-            generators,
-        } => {
+        HirExpr::DictComp { key, value, generators } => {
             is_var_used_in_expr_any(var_name, key)
                 || is_var_used_in_expr_any(var_name, value)
                 || generators.iter().any(|g| {
                     is_var_used_in_expr_any(var_name, &g.iter)
-                        || g.conditions
-                            .iter()
-                            .any(|i| is_var_used_in_expr_any(var_name, i))
+                        || g.conditions.iter().any(|i| is_var_used_in_expr_any(var_name, i))
                 })
         }
         HirExpr::Lambda { body, .. } => is_var_used_in_expr_any(var_name, body),
@@ -665,20 +551,13 @@ fn is_var_used_in_expr_any(var_name: &str, expr: &HirExpr) -> bool {
             crate::hir::FStringPart::Expr(e) => is_var_used_in_expr_any(var_name, e),
             _ => false,
         }),
-        HirExpr::Yield { value } => value
-            .as_ref()
-            .is_some_and(|v| is_var_used_in_expr_any(var_name, v)),
-        HirExpr::SortByKey {
-            iterable,
-            key_body,
-            reverse_expr,
-            ..
-        } => {
+        HirExpr::Yield { value } => {
+            value.as_ref().is_some_and(|v| is_var_used_in_expr_any(var_name, v))
+        }
+        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
             is_var_used_in_expr_any(var_name, iterable)
                 || is_var_used_in_expr_any(var_name, key_body)
-                || reverse_expr
-                    .as_ref()
-                    .is_some_and(|r| is_var_used_in_expr_any(var_name, r))
+                || reverse_expr.as_ref().is_some_and(|r| is_var_used_in_expr_any(var_name, r))
         }
         HirExpr::NamedExpr { target, value } => {
             target == var_name || is_var_used_in_expr_any(var_name, value)
@@ -817,11 +696,8 @@ pub(crate) fn codegen_function_body(
 
     // DEPYLER-0963: Build parameter types map for variable type inference
     // This allows us to infer types for variables assigned from parameters (e.g., result = n)
-    let mut param_types: std::collections::HashMap<String, Type> = func
-        .params
-        .iter()
-        .map(|p| (p.name.clone(), p.ty.clone()))
-        .collect();
+    let mut param_types: std::collections::HashMap<String, Type> =
+        func.params.iter().map(|p| (p.name.clone(), p.ty.clone())).collect();
 
     // DEPYLER-99MODE-S9: Extend param_types with typed local variable annotations.
     // This allows codegen to know types of locals like `x: Tuple[int, int] = create_pair()`
@@ -1019,10 +895,7 @@ fn lookup_argparse_field_type(
             let arg_field_name = arg.rust_field_name();
             if arg_field_name == field {
                 // Found the argument - determine its type
-                if matches!(
-                    arg.action.as_deref(),
-                    Some("store_true") | Some("store_false")
-                ) {
+                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
                     return quote::quote! { #field_ident: bool };
                 }
                 if matches!(arg.nargs.as_deref(), Some("+") | Some("*")) {
@@ -1046,10 +919,7 @@ fn lookup_argparse_field_type(
         for arg in &parser.arguments {
             let arg_field_name = arg.rust_field_name();
             if arg_field_name == field {
-                if matches!(
-                    arg.action.as_deref(),
-                    Some("store_true") | Some("store_false")
-                ) {
+                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
                     return quote::quote! { #field_ident: bool };
                 }
                 if matches!(arg.nargs.as_deref(), Some("+") | Some("*")) {
@@ -1111,11 +981,7 @@ fn is_field_used_as_bool_condition(field: &str, body: &[crate::hir::HirStmt]) ->
 
     fn check_stmt(stmt: &HirStmt, field: &str) -> bool {
         match stmt {
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 // Check if condition is `args.field` directly (used as bool)
                 if check_expr_is_field_access(condition, field) {
                     return true;
@@ -1139,19 +1005,10 @@ fn is_field_used_as_bool_condition(field: &str, body: &[crate::hir::HirStmt]) ->
             }
             HirStmt::For { body, .. } => body.iter().any(|s| check_stmt(s, field)),
             HirStmt::With { body, .. } => body.iter().any(|s| check_stmt(s, field)),
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 body.iter().any(|s| check_stmt(s, field))
-                    || handlers
-                        .iter()
-                        .any(|h| h.body.iter().any(|s| check_stmt(s, field)))
-                    || finalbody
-                        .as_ref()
-                        .is_some_and(|f| f.iter().any(|s| check_stmt(s, field)))
+                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, field)))
+                    || finalbody.as_ref().is_some_and(|f| f.iter().any(|s| check_stmt(s, field)))
             }
             _ => false,
         }
@@ -1252,11 +1109,7 @@ fn infer_numeric_type_from_arithmetic_usage(
     fn infer_from_stmt(stmt: &HirStmt, field: &str) -> Option<crate::hir::Type> {
         match stmt {
             HirStmt::Assign { value, .. } => infer_from_expr(value, field),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 if let Some(ty) = infer_from_expr(condition, field) {
                     return Some(ty);
                 }
@@ -1313,8 +1166,7 @@ fn infer_numeric_type_from_arithmetic_usage(
 /// DEPYLER-0757: Check if a variable is used anywhere in the function body
 /// Used to detect unused parameters so we can prefix them with underscore
 fn is_param_used_in_body(param_name: &str, body: &[HirStmt]) -> bool {
-    body.iter()
-        .any(|stmt| is_param_used_in_stmt(param_name, stmt))
+    body.iter().any(|stmt| is_param_used_in_stmt(param_name, stmt))
 }
 
 /// Check if a parameter is used in a statement (recursive)
@@ -1324,15 +1176,9 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
             is_param_used_in_assign_target(param_name, target)
                 || is_param_used_in_expr(param_name, value)
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             is_param_used_in_expr(param_name, condition)
-                || then_body
-                    .iter()
-                    .any(|s| is_param_used_in_stmt(param_name, s))
+                || then_body.iter().any(|s| is_param_used_in_stmt(param_name, s))
                 || else_body
                     .as_ref()
                     .is_some_and(|body| body.iter().any(|s| is_param_used_in_stmt(param_name, s)))
@@ -1347,13 +1193,7 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
         }
         HirStmt::Return(Some(expr)) => is_param_used_in_expr(param_name, expr),
         HirStmt::Expr(expr) => is_param_used_in_expr(param_name, expr),
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-            ..
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
             body.iter().any(|s| is_param_used_in_stmt(param_name, s))
                 || handlers
                     .iter()
@@ -1379,9 +1219,7 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
         // DEPYLER-0950: Check assert statements for parameter usage
         HirStmt::Assert { test, msg } => {
             is_param_used_in_expr(param_name, test)
-                || msg
-                    .as_ref()
-                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || msg.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
         }
         _ => false,
     }
@@ -1399,44 +1237,24 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
         HirExpr::Call { func, args, kwargs } => {
             func == param_name
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
-                || kwargs
-                    .iter()
-                    .any(|(_, v)| is_param_used_in_expr(param_name, v))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
         // DEPYLER-0761: Must check kwargs too - parameter used in kwargs was being missed
         // causing param to be renamed with underscore but body still using original name
-        HirExpr::MethodCall {
-            object,
-            args,
-            kwargs,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             is_param_used_in_expr(param_name, object)
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
-                || kwargs
-                    .iter()
-                    .any(|(_, v)| is_param_used_in_expr(param_name, v))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
         HirExpr::Attribute { value, .. } => is_param_used_in_expr(param_name, value),
         HirExpr::Index { base, index } => {
             is_param_used_in_expr(param_name, base) || is_param_used_in_expr(param_name, index)
         }
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => {
+        HirExpr::Slice { base, start, stop, step } => {
             is_param_used_in_expr(param_name, base)
-                || start
-                    .as_ref()
-                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
-                || stop
-                    .as_ref()
-                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
-                || step
-                    .as_ref()
-                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || start.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || stop.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || step.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
         }
         HirExpr::Borrow { expr, .. } => is_param_used_in_expr(param_name, expr),
         HirExpr::FrozenSet(items) => items.iter().any(|i| is_param_used_in_expr(param_name, i)),
@@ -1447,44 +1265,26 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                 false
             }
         }),
-        HirExpr::Yield { value } => value
-            .as_ref()
-            .is_some_and(|e| is_param_used_in_expr(param_name, e)),
+        HirExpr::Yield { value } => {
+            value.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
+        }
         // DEPYLER-0761: Must check kwargs too for dynamic calls
-        HirExpr::DynamicCall {
-            callee,
-            args,
-            kwargs,
-        } => {
+        HirExpr::DynamicCall { callee, args, kwargs } => {
             is_param_used_in_expr(param_name, callee)
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
-                || kwargs
-                    .iter()
-                    .any(|(_, v)| is_param_used_in_expr(param_name, v))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
-        HirExpr::SortByKey {
-            iterable,
-            key_body,
-            reverse_expr,
-            ..
-        } => {
+        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
             is_param_used_in_expr(param_name, iterable)
                 || is_param_used_in_expr(param_name, key_body)
-                || reverse_expr
-                    .as_ref()
-                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || reverse_expr.as_ref().is_some_and(|e| is_param_used_in_expr(param_name, e))
         }
         // DEPYLER-0766: Check element, iterator, AND conditions for generator expressions
-        HirExpr::GeneratorExp {
-            element,
-            generators,
-        } => {
+        HirExpr::GeneratorExp { element, generators } => {
             is_param_used_in_expr(param_name, element)
                 || generators.iter().any(|g| {
                     is_param_used_in_expr(param_name, &g.iter)
-                        || g.conditions
-                            .iter()
-                            .any(|cond| is_param_used_in_expr(param_name, cond))
+                        || g.conditions.iter().any(|cond| is_param_used_in_expr(param_name, cond))
                 })
         }
         HirExpr::NamedExpr { value, .. } => is_param_used_in_expr(param_name, value),
@@ -1502,37 +1302,21 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
         }
         HirExpr::Lambda { body, .. } => is_param_used_in_expr(param_name, body),
         // DEPYLER-0766: Check element, iterator, AND conditions for comprehensions
-        HirExpr::ListComp {
-            element,
-            generators,
-            ..
-        }
-        | HirExpr::SetComp {
-            element,
-            generators,
-            ..
-        } => {
+        HirExpr::ListComp { element, generators, .. }
+        | HirExpr::SetComp { element, generators, .. } => {
             is_param_used_in_expr(param_name, element)
                 || generators.iter().any(|g| {
                     is_param_used_in_expr(param_name, &g.iter)
-                        || g.conditions
-                            .iter()
-                            .any(|cond| is_param_used_in_expr(param_name, cond))
+                        || g.conditions.iter().any(|cond| is_param_used_in_expr(param_name, cond))
                 })
         }
         // DEPYLER-0766: Check key, value, iterator, AND conditions for dict comprehensions
-        HirExpr::DictComp {
-            key,
-            value,
-            generators,
-        } => {
+        HirExpr::DictComp { key, value, generators } => {
             is_param_used_in_expr(param_name, key)
                 || is_param_used_in_expr(param_name, value)
                 || generators.iter().any(|g| {
                     is_param_used_in_expr(param_name, &g.iter)
-                        || g.conditions
-                            .iter()
-                            .any(|cond| is_param_used_in_expr(param_name, cond))
+                        || g.conditions.iter().any(|cond| is_param_used_in_expr(param_name, cond))
                 })
         }
         HirExpr::Await { value } => is_param_used_in_expr(param_name, value),
@@ -1548,9 +1332,9 @@ fn is_param_used_in_assign_target(param_name: &str, target: &AssignTarget) -> bo
             is_param_used_in_expr(param_name, base) || is_param_used_in_expr(param_name, index)
         }
         AssignTarget::Attribute { value, .. } => is_param_used_in_expr(param_name, value),
-        AssignTarget::Tuple(targets) => targets
-            .iter()
-            .any(|t| is_param_used_in_assign_target(param_name, t)),
+        AssignTarget::Tuple(targets) => {
+            targets.iter().any(|t| is_param_used_in_assign_target(param_name, t))
+        }
     }
 }
 
@@ -1569,11 +1353,7 @@ fn codegen_single_param(
     // DEPYLER-0757: But if NOT used at all, prefix with underscore to suppress warning
     // DEPYLER-0611: Use raw identifiers for parameter names that are Rust keywords
     // DEPYLER-0630: self/Self cannot be raw identifiers, rename to self_ instead
-    let param_name = if is_used {
-        param.name.clone()
-    } else {
-        format!("_{}", param.name)
-    };
+    let param_name = if is_used { param.name.clone() } else { format!("_{}", param.name) };
 
     let param_ident = if param_name == "self" || param_name == "Self" {
         // self/Self are special - they cannot be raw identifiers, rename them
@@ -1609,10 +1389,7 @@ fn codegen_single_param(
     // DEPYLER-0424: Check if this parameter is the argparse args variable
     // If so, type it as &Args instead of default type mapping
     let is_argparse_args = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-        parser_info
-            .args_var
-            .as_ref()
-            .is_some_and(|args_var| args_var == &param.name)
+        parser_info.args_var.as_ref().is_some_and(|args_var| args_var == &param.name)
     });
 
     if is_argparse_args {
@@ -2017,35 +1794,18 @@ fn stmt_block_returns_owned_string(stmts: &[HirStmt]) -> bool {
 fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(Some(expr)) => contains_owned_string_method(expr),
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { then_body, else_body, .. } => {
             stmt_block_returns_owned_string(then_body)
-                || else_body
-                    .as_ref()
-                    .is_some_and(|body| stmt_block_returns_owned_string(body))
+                || else_body.as_ref().is_some_and(|body| stmt_block_returns_owned_string(body))
         }
         HirStmt::While { body, .. } => stmt_block_returns_owned_string(body),
         HirStmt::For { body, .. } => stmt_block_returns_owned_string(body),
         HirStmt::With { body, .. } => stmt_block_returns_owned_string(body),
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody } => {
             stmt_block_returns_owned_string(body)
-                || handlers
-                    .iter()
-                    .any(|h| stmt_block_returns_owned_string(&h.body))
-                || orelse
-                    .as_ref()
-                    .is_some_and(|body| stmt_block_returns_owned_string(body))
-                || finalbody
-                    .as_ref()
-                    .is_some_and(|body| stmt_block_returns_owned_string(body))
+                || handlers.iter().any(|h| stmt_block_returns_owned_string(&h.body))
+                || orelse.as_ref().is_some_and(|body| stmt_block_returns_owned_string(body))
+                || finalbody.as_ref().is_some_and(|body| stmt_block_returns_owned_string(body))
         }
         _ => false,
     }
@@ -2170,22 +1930,16 @@ pub(crate) fn rewrite_adt_child_type(
         Type::Optional(inner) => {
             Type::Optional(Box::new(rewrite_adt_child_type(inner, child_to_parent)))
         }
-        Type::Tuple(types) => Type::Tuple(
-            types
-                .iter()
-                .map(|t| rewrite_adt_child_type(t, child_to_parent))
-                .collect(),
-        ),
+        Type::Tuple(types) => {
+            Type::Tuple(types.iter().map(|t| rewrite_adt_child_type(t, child_to_parent)).collect())
+        }
         Type::Dict(k, v) => Type::Dict(
             Box::new(rewrite_adt_child_type(k, child_to_parent)),
             Box::new(rewrite_adt_child_type(v, child_to_parent)),
         ),
-        Type::Union(types) => Type::Union(
-            types
-                .iter()
-                .map(|t| rewrite_adt_child_type(t, child_to_parent))
-                .collect(),
-        ),
+        Type::Union(types) => {
+            Type::Union(types.iter().map(|t| rewrite_adt_child_type(t, child_to_parent)).collect())
+        }
         // Other types pass through unchanged
         _ => ty.clone(),
     }
@@ -2222,10 +1976,7 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
     // If all return types are the same (ignoring Unknown), use that type
     let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
     if let Some(first) = first_known {
-        if return_types
-            .iter()
-            .all(|t| matches!(t, Type::Unknown) || t == first)
-        {
+        if return_types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
             return Some(first.clone());
         }
     }
@@ -2308,10 +2059,8 @@ pub(crate) fn infer_return_type_from_body_with_params(
     let has_none = return_types.iter().any(|t| matches!(t, Type::None));
     if has_none {
         // Find all non-None, non-Unknown types
-        let non_none_types: Vec<&Type> = return_types
-            .iter()
-            .filter(|t| !matches!(t, Type::None | Type::Unknown))
-            .collect();
+        let non_none_types: Vec<&Type> =
+            return_types.iter().filter(|t| !matches!(t, Type::None | Type::Unknown)).collect();
 
         if !non_none_types.is_empty() {
             // Check if all non-None types are the same
@@ -2325,9 +2074,7 @@ pub(crate) fn infer_return_type_from_body_with_params(
         // DEPYLER-0460: If we have None + only Unknown types, still infer Optional
         // Example: def get(d, key): if ...: return d[key]  else: return None
         // d[key] type is Unknown, but the pattern is clearly Optional
-        let has_only_unknown = return_types
-            .iter()
-            .all(|t| matches!(t, Type::None | Type::Unknown));
+        let has_only_unknown = return_types.iter().all(|t| matches!(t, Type::None | Type::Unknown));
         if has_only_unknown && return_types.len() > 1 {
             // At least one None and one Unknown -> Optional<Unknown>
             return Some(Type::Optional(Box::new(Type::Unknown)));
@@ -2367,10 +2114,7 @@ pub(crate) fn infer_return_type_from_body_with_params(
     // This runs AFTER Optional detection to avoid misclassifying Optional patterns
     let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
     if let Some(first) = first_known {
-        if return_types
-            .iter()
-            .all(|t| matches!(t, Type::Unknown) || t == first)
-        {
+        if return_types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
             return Some(first.clone());
         }
     }
@@ -2454,8 +2198,7 @@ pub(crate) fn build_var_type_env_full(
                     let should_insert = match var_types.get(name) {
                         None | Some(Type::Unknown) => true,
                         Some(existing) => {
-                            std::mem::discriminant(existing)
-                                == std::mem::discriminant(&value_type)
+                            std::mem::discriminant(existing) == std::mem::discriminant(&value_type)
                         }
                     };
                     if should_insert {
@@ -2463,11 +2206,7 @@ pub(crate) fn build_var_type_env_full(
                     }
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 build_var_type_env_full(
                     then_body,
                     var_types,
@@ -2491,12 +2230,7 @@ pub(crate) fn build_var_type_env_full(
                     class_method_return_types,
                 );
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 build_var_type_env_full(
                     body,
                     var_types,
@@ -2555,11 +2289,7 @@ pub(crate) fn collect_return_types_with_env(
             HirStmt::Return(None) => {
                 types.push(Type::None);
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_return_types_with_env(then_body, types, var_types);
                 if let Some(else_stmts) = else_body {
                     collect_return_types_with_env(else_stmts, types, var_types);
@@ -2568,12 +2298,7 @@ pub(crate) fn collect_return_types_with_env(
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 collect_return_types_with_env(body, types, var_types);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 collect_return_types_with_env(body, types, var_types);
                 for handler in handlers {
                     collect_return_types_with_env(&handler.body, types, var_types);
@@ -2611,11 +2336,7 @@ fn collect_returned_var_names_impl(
             HirStmt::Return(Some(HirExpr::Var(name))) => {
                 names.insert(name.clone());
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_returned_var_names_impl(then_body, names);
                 if let Some(else_stmts) = else_body {
                     collect_returned_var_names_impl(else_stmts, names);
@@ -2624,12 +2345,7 @@ fn collect_returned_var_names_impl(
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 collect_returned_var_names_impl(body, names);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 collect_returned_var_names_impl(body, names);
                 for handler in handlers {
                     collect_returned_var_names_impl(&handler.body, names);
@@ -2684,11 +2400,7 @@ fn propagate_return_type_impl(
             // When `result = []` is assigned and `result` is returned from a function
             // with return type List[T], infer result's type as List[T]
             // DEPYLER-1164: Extended to empty dict assignments
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                value,
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), value, .. } => {
                 if let HirExpr::List(elements) = value {
                     if elements.is_empty() && returned_vars.contains(name) {
                         // Only propagate if return type is a List with concrete element type
@@ -2755,11 +2467,7 @@ fn propagate_return_type_impl(
                     var_types.insert(var_name.clone(), return_type.clone());
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 propagate_return_type_impl(then_body, var_types, return_type, returned_vars);
                 if let Some(else_stmts) = else_body {
                     propagate_return_type_impl(else_stmts, var_types, return_type, returned_vars);
@@ -2768,12 +2476,7 @@ fn propagate_return_type_impl(
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 propagate_return_type_impl(body, var_types, return_type, returned_vars);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 propagate_return_type_impl(body, var_types, return_type, returned_vars);
                 for handler in handlers {
                     propagate_return_type_impl(
@@ -2895,10 +2598,8 @@ pub(crate) fn infer_expr_type_with_env(
         }
         // DEPYLER-0420: Handle tuples with environment for variable lookups
         HirExpr::Tuple(elems) => {
-            let elem_types: Vec<Type> = elems
-                .iter()
-                .map(|e| infer_expr_type_with_env(e, var_types))
-                .collect();
+            let elem_types: Vec<Type> =
+                elems.iter().map(|e| infer_expr_type_with_env(e, var_types)).collect();
             Type::Tuple(elem_types)
         }
         // DEPYLER-REARCH-001: Handle MethodCall with environment for variable type lookups
@@ -3099,10 +2800,7 @@ pub(crate) fn infer_expr_type_with_env(
             }
         }
         // DEPYLER-0609: Handle ListComp with JSON Value propagation for return type inference
-        HirExpr::ListComp {
-            element,
-            generators,
-        } => {
+        HirExpr::ListComp { element, generators } => {
             // Create extended environment with loop variable bindings
             let mut extended_env = var_types.clone();
 
@@ -3193,11 +2891,7 @@ pub(crate) fn collect_return_types_with_class_methods(
             HirStmt::Return(None) => {
                 types.push(Type::None);
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_return_types_with_class_methods(
                     then_body,
                     types,
@@ -3221,12 +2915,7 @@ pub(crate) fn collect_return_types_with_class_methods(
                     class_method_return_types,
                 );
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 collect_return_types_with_class_methods(
                     body,
                     types,
@@ -3421,10 +3110,9 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 // csv module functions (qualified names)
                 "csv.reader" => Type::List(Box::new(Type::List(Box::new(Type::String)))),
                 "csv.writer" => Type::Unknown,
-                "csv.DictReader" => Type::List(Box::new(Type::Dict(
-                    Box::new(Type::String),
-                    Box::new(Type::String),
-                ))),
+                "csv.DictReader" => {
+                    Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::String))))
+                }
                 "csv.DictWriter" => Type::Unknown,
                 // Common builtin functions with known return types
                 "len" | "int" | "abs" | "ord" | "hash" => Type::Int,
@@ -3602,12 +3290,7 @@ pub use crate::param_type_inference::infer_param_type_from_body;
 fn infer_param_type_from_body_local(param_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
         // Pattern 1: Tuple unpacking - `a, b, c = param`
-        if let HirStmt::Assign {
-            target,
-            value: HirExpr::Var(var),
-            type_annotation: _,
-        } = stmt
-        {
+        if let HirStmt::Assign { target, value: HirExpr::Var(var), type_annotation: _ } = stmt {
             // Check if value is our parameter and target is tuple unpacking
             if var == param_name {
                 if let AssignTarget::Tuple(elements) = target {
@@ -3642,12 +3325,7 @@ fn infer_param_type_from_body_local(param_name: &str, body: &[HirStmt]) -> Optio
         }
 
         // DEPYLER-0518: Pattern 4: If statement - check condition and body
-        if let HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } = stmt
-        {
+        if let HirStmt::If { condition, then_body, else_body } = stmt {
             if let Some(ty) = infer_type_from_expr_usage(param_name, condition) {
                 return Some(ty);
             }
@@ -3679,10 +3357,7 @@ fn infer_param_type_from_body_local(param_name: &str, body: &[HirStmt]) -> Optio
         }
 
         // DEPYLER-0524: Pattern 7: While loop - check condition and body
-        if let HirStmt::While {
-            condition, body, ..
-        } = stmt
-        {
+        if let HirStmt::While { condition, body, .. } = stmt {
             if let Some(ty) = infer_type_from_expr_usage(param_name, condition) {
                 return Some(ty);
             }
@@ -3692,13 +3367,7 @@ fn infer_param_type_from_body_local(param_name: &str, body: &[HirStmt]) -> Optio
         }
 
         // DEPYLER-0524: Pattern 8: Try/except - check all bodies
-        if let HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } = stmt
-        {
+        if let HirStmt::Try { body, handlers, orelse, finalbody } = stmt {
             if let Some(ty) = infer_param_type_from_body(param_name, body) {
                 return Some(ty);
             }
@@ -3799,12 +3468,7 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
 
         // DEPYLER-0518: Pattern: method_call(param) where method expects string
         // Example: regex::Regex::new(pattern), compiled.find(text), re.match(pattern, text)
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            kwargs,
-        } => {
+        HirExpr::MethodCall { object, method, args, kwargs } => {
             // DEPYLER-0525: If param IS the object and method is a file I/O method,
             // then param must be a file-like object that implements Write or Read
             // Example: f.write(msg), f.read(), f.readline(), f.flush()
@@ -3899,9 +3563,8 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // These expect string arguments
             if let HirExpr::Var(module_name) = object.as_ref() {
                 let regex_modules = ["re", "regex"];
-                let regex_methods = [
-                    "match", "search", "findall", "sub", "subn", "split", "compile",
-                ];
+                let regex_methods =
+                    ["match", "search", "findall", "sub", "subn", "split", "compile"];
 
                 if regex_modules.contains(&module_name.as_str())
                     && regex_methods.contains(&method.as_str())
@@ -4066,9 +3729,7 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
         }
         // Pattern: param * N, param + N, etc. → param is numeric → Int
         // GH-70: Binary operations with param suggest numeric type
-        HirExpr::Binary {
-            left, right, op, ..
-        } => {
+        HirExpr::Binary { left, right, op, .. } => {
             use crate::hir::BinOp;
 
             // DEPYLER-0554: Pattern: param == "literal" or param != "literal" → param is String
@@ -4088,10 +3749,7 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 // Also check the reverse: "literal" == param
                 if let HirExpr::Var(var_name) = right.as_ref() {
                     if var_name == param_name
-                        && matches!(
-                            left.as_ref(),
-                            HirExpr::Literal(crate::hir::Literal::String(_))
-                        )
+                        && matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_)))
                     {
                         return Some(Type::String);
                     }
@@ -4175,10 +3833,7 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
         // Example: not content.endswith("\n") → check content.endswith("\n")
         HirExpr::Unary { operand, .. } => infer_type_from_expr_usage(param_name, operand),
         // DEPYLER-0524: List comprehensions - check element and generators
-        HirExpr::ListComp {
-            element,
-            generators,
-        } => {
+        HirExpr::ListComp { element, generators } => {
             // Check element expression
             if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
                 return Some(ty);
@@ -4199,10 +3854,7 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             None
         }
         // DEPYLER-0524: Generator expressions - same as list comprehensions
-        HirExpr::GeneratorExp {
-            element,
-            generators,
-        } => {
+        HirExpr::GeneratorExp { element, generators } => {
             if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
                 return Some(ty);
             }
@@ -4377,102 +4029,36 @@ mod tests {
 
     #[test]
     fn test_classify_string_method_owned_methods() {
-        assert_eq!(
-            classify_string_method("upper"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("lower"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("strip"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("lstrip"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("rstrip"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("replace"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("format"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("title"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("capitalize"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("swapcase"),
-            StringMethodReturnType::Owned
-        );
+        assert_eq!(classify_string_method("upper"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("lower"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("strip"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("lstrip"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("rstrip"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("replace"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("format"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("title"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("capitalize"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("swapcase"), StringMethodReturnType::Owned);
     }
 
     #[test]
     fn test_classify_string_method_borrowed_methods() {
-        assert_eq!(
-            classify_string_method("startswith"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("endswith"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("isalpha"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("isdigit"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("isalnum"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("isspace"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("islower"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("isupper"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("find"),
-            StringMethodReturnType::Borrowed
-        );
-        assert_eq!(
-            classify_string_method("count"),
-            StringMethodReturnType::Borrowed
-        );
+        assert_eq!(classify_string_method("startswith"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("endswith"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isalpha"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isdigit"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isalnum"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isspace"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("islower"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isupper"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("find"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("count"), StringMethodReturnType::Borrowed);
     }
 
     #[test]
     fn test_classify_string_method_unknown_defaults_to_owned() {
-        assert_eq!(
-            classify_string_method("custom_method"),
-            StringMethodReturnType::Owned
-        );
-        assert_eq!(
-            classify_string_method("my_transform"),
-            StringMethodReturnType::Owned
-        );
+        assert_eq!(classify_string_method("custom_method"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("my_transform"), StringMethodReturnType::Owned);
     }
 
     // ==========================================================================
@@ -4562,9 +4148,8 @@ mod tests {
 
     #[test]
     fn test_contains_string_concatenation_fstring() {
-        let expr = HirExpr::FString {
-            parts: vec![crate::hir::FStringPart::Literal("hello".to_string())],
-        };
+        let expr =
+            HirExpr::FString { parts: vec![crate::hir::FStringPart::Literal("hello".to_string())] };
         assert!(contains_string_concatenation(&expr));
     }
 
@@ -4645,14 +4230,8 @@ mod tests {
 
     #[test]
     fn test_literal_to_type_string() {
-        assert_eq!(
-            literal_to_type(&Literal::String("hello".to_string())),
-            Type::String
-        );
-        assert_eq!(
-            literal_to_type(&Literal::String("".to_string())),
-            Type::String
-        );
+        assert_eq!(literal_to_type(&Literal::String("hello".to_string())), Type::String);
+        assert_eq!(literal_to_type(&Literal::String("".to_string())), Type::String);
     }
 
     #[test]
@@ -4668,10 +4247,7 @@ mod tests {
 
     #[test]
     fn test_literal_to_type_bytes() {
-        assert_eq!(
-            literal_to_type(&Literal::Bytes(vec![1, 2, 3])),
-            Type::Unknown
-        );
+        assert_eq!(literal_to_type(&Literal::Bytes(vec![1, 2, 3])), Type::Unknown);
     }
 
     // ==========================================================================
@@ -5160,10 +4736,8 @@ mod tests {
 
     #[test]
     fn test_is_var_used_in_expr_any_list() {
-        let expr = HirExpr::List(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Literal(Literal::Int(1)),
-        ]);
+        let expr =
+            HirExpr::List(vec![HirExpr::Var("x".to_string()), HirExpr::Literal(Literal::Int(1))]);
         assert!(is_var_used_in_expr_any("x", &expr));
     }
 
@@ -5239,26 +4813,17 @@ mod tests {
 
     #[test]
     fn test_classify_string_method_owned_upper() {
-        assert_eq!(
-            classify_string_method("upper"),
-            StringMethodReturnType::Owned
-        );
+        assert_eq!(classify_string_method("upper"), StringMethodReturnType::Owned);
     }
 
     #[test]
     fn test_classify_string_method_owned_lower() {
-        assert_eq!(
-            classify_string_method("lower"),
-            StringMethodReturnType::Owned
-        );
+        assert_eq!(classify_string_method("lower"), StringMethodReturnType::Owned);
     }
 
     #[test]
     fn test_classify_string_method_borrowed() {
-        assert_eq!(
-            classify_string_method("find"),
-            StringMethodReturnType::Borrowed
-        );
+        assert_eq!(classify_string_method("find"), StringMethodReturnType::Borrowed);
     }
 
     // ==========================================================================
@@ -5387,18 +4952,12 @@ mod tests {
 
     #[test]
     fn test_infer_simple_int() {
-        assert_eq!(
-            infer_expr_type_simple(&HirExpr::Literal(Literal::Int(42))),
-            Type::Int
-        );
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Int(42))), Type::Int);
     }
 
     #[test]
     fn test_infer_simple_float() {
-        assert_eq!(
-            infer_expr_type_simple(&HirExpr::Literal(Literal::Float(3.15))),
-            Type::Float
-        );
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Float(3.15))), Type::Float);
     }
 
     #[test]
@@ -5411,10 +4970,7 @@ mod tests {
 
     #[test]
     fn test_infer_simple_bool() {
-        assert_eq!(
-            infer_expr_type_simple(&HirExpr::Literal(Literal::Bool(true))),
-            Type::Bool
-        );
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Bool(true))), Type::Bool);
     }
 
     #[test]
@@ -5441,9 +4997,7 @@ mod tests {
         let stmt = HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                2,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
         };
         assert!(stmt_always_returns(&stmt));
     }
@@ -5673,10 +5227,7 @@ mod tests {
 
     #[test]
     fn test_param_used_in_stmt_while_condition() {
-        let stmt = HirStmt::While {
-            condition: HirExpr::Var("x".to_string()),
-            body: vec![],
-        };
+        let stmt = HirStmt::While { condition: HirExpr::Var("x".to_string()), body: vec![] };
         assert!(is_param_used_in_stmt("x", &stmt));
     }
 
@@ -5798,10 +5349,7 @@ mod tests {
 
     #[test]
     fn test_param_used_in_stmt_assert() {
-        let stmt = HirStmt::Assert {
-            test: HirExpr::Var("x".to_string()),
-            msg: None,
-        };
+        let stmt = HirStmt::Assert { test: HirExpr::Var("x".to_string()), msg: None };
         assert!(is_param_used_in_stmt("x", &stmt));
     }
 
@@ -5840,21 +5388,15 @@ mod tests {
 
     #[test]
     fn test_param_used_in_expr_unary() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(is_param_used_in_expr("x", &expr));
     }
 
     #[test]
     fn test_param_used_in_expr_call_func() {
         // callback()
-        let expr = HirExpr::Call {
-            func: "callback".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "callback".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_param_used_in_expr("callback", &expr));
     }
 
@@ -5984,28 +5526,22 @@ mod tests {
 
     #[test]
     fn test_param_used_in_expr_borrow() {
-        let expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: false,
-        };
+        let expr =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: false };
         assert!(is_param_used_in_expr("x", &expr));
     }
 
     #[test]
     fn test_param_used_in_expr_fstring() {
         let expr = HirExpr::FString {
-            parts: vec![crate::hir::FStringPart::Expr(Box::new(HirExpr::Var(
-                "x".to_string(),
-            )))],
+            parts: vec![crate::hir::FStringPart::Expr(Box::new(HirExpr::Var("x".to_string())))],
         };
         assert!(is_param_used_in_expr("x", &expr));
     }
 
     #[test]
     fn test_param_used_in_expr_yield() {
-        let expr = HirExpr::Yield {
-            value: Some(Box::new(HirExpr::Var("x".to_string()))),
-        };
+        let expr = HirExpr::Yield { value: Some(Box::new(HirExpr::Var("x".to_string()))) };
         assert!(is_param_used_in_expr("x", &expr));
     }
 
@@ -6100,9 +5636,7 @@ mod tests {
                 value: HirExpr::Literal(Literal::Int(1)),
                 type_annotation: None,
             },
-            HirStmt::Return(Some(HirExpr::Literal(Literal::String(
-                "result".to_string(),
-            )))),
+            HirStmt::Return(Some(HirExpr::Literal(Literal::String("result".to_string())))),
         ];
         assert!(stmt_block_returns_owned_string(&stmts));
     }
@@ -6138,9 +5672,7 @@ mod tests {
 
     #[test]
     fn test_infer_return_type_string() {
-        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
-            "hi".to_string(),
-        ))))];
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String("hi".to_string()))))];
         assert_eq!(infer_return_type_from_body(&body), Some(Type::String));
     }
 
@@ -6161,9 +5693,7 @@ mod tests {
     fn test_infer_return_type_in_if() {
         let body = vec![HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
-            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(
-                3.15,
-            ))))],
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.15))))],
             else_body: None,
         }];
         assert_eq!(infer_return_type_from_body(&body), Some(Type::Float));
@@ -6236,10 +5766,7 @@ mod tests {
 
     #[test]
     fn test_infer_simple_none() {
-        assert_eq!(
-            infer_expr_type_simple(&HirExpr::Literal(Literal::None)),
-            Type::None
-        );
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::None)), Type::None);
     }
 
     #[test]
@@ -6491,10 +6018,7 @@ mod tests {
             type_annotation: None,
         }];
         let mut params: HashMap<String, Type> = HashMap::new();
-        params.insert(
-            "data".to_string(),
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        );
+        params.insert("data".to_string(), Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         let result = find_var_type_in_body_with_params("value", &stmts, &params);
         assert_eq!(result, Some(Type::Int));
     }
@@ -6528,10 +6052,7 @@ mod tests {
             type_annotation: None,
         }];
         let mut params: HashMap<String, Type> = HashMap::new();
-        params.insert(
-            "pair".to_string(),
-            Type::Tuple(vec![Type::Int, Type::String]),
-        );
+        params.insert("pair".to_string(), Type::Tuple(vec![Type::Int, Type::String]));
         let result = find_var_type_in_body_with_params("first", &stmts, &params);
         assert_eq!(result, Some(Type::Int));
     }
@@ -7301,10 +6822,8 @@ mod tests {
         use crate::type_mapper::TypeMapper;
         use rustpython_parser::{parse, Mode};
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -7343,10 +6862,7 @@ mod tests {
     fn test_s9_func_string_return_type() {
         let code = transpile("def greet(name: str) -> str:\n    return name\n");
         assert!(code.contains("fn greet"));
-        assert!(
-            code.contains("String") || code.contains("str"),
-            "Should have string type: {code}"
-        );
+        assert!(code.contains("String") || code.contains("str"), "Should have string type: {code}");
     }
 
     #[test]
@@ -7357,9 +6873,8 @@ mod tests {
 
     #[test]
     fn test_s9_func_multiple_statements() {
-        let code = transpile(
-            "def calc(x: int) -> int:\n    y = x * 2\n    z = y + 1\n    return z\n",
-        );
+        let code =
+            transpile("def calc(x: int) -> int:\n    y = x * 2\n    z = y + 1\n    return z\n");
         assert!(code.contains("fn calc"));
         assert!(code.contains("let"));
     }
@@ -7405,9 +6920,7 @@ mod tests {
 
     #[test]
     fn test_s9_func_default_param_string() {
-        let code = transpile(
-            "def hello(name: str = \"world\") -> str:\n    return name\n",
-        );
+        let code = transpile("def hello(name: str = \"world\") -> str:\n    return name\n");
         assert!(code.contains("fn hello"));
     }
 
@@ -7421,26 +6934,20 @@ mod tests {
 
     #[test]
     fn test_s9_func_return_list() {
-        let code = transpile(
-            "def make_list() -> list:\n    return [1, 2, 3]\n",
-        );
+        let code = transpile("def make_list() -> list:\n    return [1, 2, 3]\n");
         assert!(code.contains("fn make_list"));
         assert!(code.contains("1") && code.contains("2") && code.contains("3"));
     }
 
     #[test]
     fn test_s9_func_return_dict() {
-        let code = transpile(
-            "def make_dict() -> dict:\n    return {\"a\": 1}\n",
-        );
+        let code = transpile("def make_dict() -> dict:\n    return {\"a\": 1}\n");
         assert!(code.contains("fn make_dict"));
     }
 
     #[test]
     fn test_s9_func_return_tuple() {
-        let code = transpile(
-            "def pair() -> tuple:\n    return (1, 2)\n",
-        );
+        let code = transpile("def pair() -> tuple:\n    return (1, 2)\n");
         assert!(code.contains("fn pair"));
     }
 
@@ -7473,9 +6980,8 @@ mod tests {
 
     #[test]
     fn test_s9_func_multiple_functions() {
-        let code = transpile(
-            "def first() -> int:\n    return 1\n\ndef second() -> int:\n    return 2\n",
-        );
+        let code =
+            transpile("def first() -> int:\n    return 1\n\ndef second() -> int:\n    return 2\n");
         assert!(code.contains("fn first"));
         assert!(code.contains("fn second"));
     }
@@ -7509,9 +7015,7 @@ mod tests {
 
     #[test]
     fn test_s9_func_dict_param() {
-        let code = transpile(
-            "def get_value(d: dict, key: str) -> str:\n    return d[key]\n",
-        );
+        let code = transpile("def get_value(d: dict, key: str) -> str:\n    return d[key]\n");
         assert!(code.contains("fn get_value"));
     }
 
@@ -7525,9 +7029,7 @@ mod tests {
 
     #[test]
     fn test_s9_func_assert_in_body() {
-        let code = transpile(
-            "def positive(x: int) -> int:\n    assert x > 0\n    return x\n",
-        );
+        let code = transpile("def positive(x: int) -> int:\n    assert x > 0\n    return x\n");
         assert!(code.contains("fn positive"));
         assert!(code.contains("assert"));
     }
@@ -7565,9 +7067,7 @@ mod tests {
 
     #[test]
     fn test_s9_func_mutable_var_reassignment() {
-        let code = transpile(
-            "def mutate() -> int:\n    x = 1\n    x = 2\n    return x\n",
-        );
+        let code = transpile("def mutate() -> int:\n    x = 1\n    x = 2\n    return x\n");
         assert!(code.contains("mut"), "Reassigned var should be mut: {code}");
     }
 
@@ -7586,9 +7086,7 @@ mod tests {
 
     #[test]
     fn test_s9_func_fstring_in_body() {
-        let code = transpile(
-            "def greet(name: str) -> str:\n    return f\"Hello, {name}!\"\n",
-        );
+        let code = transpile("def greet(name: str) -> str:\n    return f\"Hello, {name}!\"\n");
         assert!(code.contains("fn greet"));
         assert!(
             code.contains("format!") || code.contains("Hello"),
@@ -7598,17 +7096,14 @@ mod tests {
 
     #[test]
     fn test_s9_func_list_comprehension_body() {
-        let code = transpile(
-            "def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n",
-        );
+        let code =
+            transpile("def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n");
         assert!(code.contains("fn squares"));
     }
 
     #[test]
     fn test_s9_func_lambda_in_body() {
-        let code = transpile(
-            "def make_adder(x: int):\n    f = lambda y: x + y\n    return f\n",
-        );
+        let code = transpile("def make_adder(x: int):\n    f = lambda y: x + y\n    return f\n");
         assert!(code.contains("fn make_adder"));
     }
 
@@ -7638,43 +7133,34 @@ mod tests {
 
     #[test]
     fn test_s9b6_func_multiple_params() {
-        let code = transpile(
-            "def add(a: int, b: int, c: int) -> int:\n    return a + b + c\n",
-        );
+        let code = transpile("def add(a: int, b: int, c: int) -> int:\n    return a + b + c\n");
         assert!(code.contains("fn add"));
         assert!(code.contains("a: i"), "params: {code}");
     }
 
     #[test]
     fn test_s9b6_func_default_param() {
-        let code = transpile(
-            "def greet(name: str = \"World\") -> str:\n    return \"Hello \" + name\n",
-        );
+        let code =
+            transpile("def greet(name: str = \"World\") -> str:\n    return \"Hello \" + name\n");
         assert!(code.contains("fn greet"));
     }
 
     #[test]
     fn test_s9b6_func_bool_param() {
-        let code = transpile(
-            "def check(flag: bool) -> bool:\n    return not flag\n",
-        );
+        let code = transpile("def check(flag: bool) -> bool:\n    return not flag\n");
         assert!(code.contains("fn check"));
         assert!(code.contains("bool"), "output: {code}");
     }
 
     #[test]
     fn test_s9b6_func_list_param() {
-        let code = transpile(
-            "def total(nums: list) -> int:\n    return sum(nums)\n",
-        );
+        let code = transpile("def total(nums: list) -> int:\n    return sum(nums)\n");
         assert!(code.contains("fn total"), "output: {code}");
     }
 
     #[test]
     fn test_s9b6_func_dict_param() {
-        let code = transpile(
-            "def keys(d: dict) -> list:\n    return list(d.keys())\n",
-        );
+        let code = transpile("def keys(d: dict) -> list:\n    return list(d.keys())\n");
         assert!(code.contains("fn keys"), "output: {code}");
     }
 
@@ -7694,9 +7180,7 @@ mod tests {
 
     #[test]
     fn test_s9b6_func_returns_none() {
-        let code = transpile(
-            "def do_nothing() -> None:\n    pass\n",
-        );
+        let code = transpile("def do_nothing() -> None:\n    pass\n");
         assert!(code.contains("fn do_nothing"), "output: {code}");
     }
 
@@ -7726,27 +7210,21 @@ mod tests {
 
     #[test]
     fn test_s9b6_func_with_type_inference_float() {
-        let code = transpile(
-            "def calc():\n    x = 3.14\n    y = 2.71\n    return x + y\n",
-        );
+        let code = transpile("def calc():\n    x = 3.14\n    y = 2.71\n    return x + y\n");
         assert!(code.contains("fn calc"), "output: {code}");
         assert!(code.contains("f64"), "Float inference: {code}");
     }
 
     #[test]
     fn test_s9b6_func_with_type_inference_string() {
-        let code = transpile(
-            "def make_str():\n    return \"hello world\"\n",
-        );
+        let code = transpile("def make_str():\n    return \"hello world\"\n");
         assert!(code.contains("fn make_str"), "output: {code}");
         assert!(code.contains("String") || code.contains("str"), "String inference: {code}");
     }
 
     #[test]
     fn test_s9b6_func_with_type_inference_bool() {
-        let code = transpile(
-            "def is_valid():\n    return True\n",
-        );
+        let code = transpile("def is_valid():\n    return True\n");
         assert!(code.contains("fn is_valid"), "output: {code}");
         assert!(code.contains("bool"), "Bool inference: {code}");
     }
@@ -7804,10 +7282,7 @@ mod tests {
 
     #[test]
     fn test_s9b6_infer_expr_type_simple_none() {
-        assert_eq!(
-            infer_expr_type_simple(&HirExpr::Literal(Literal::None)),
-            Type::None
-        );
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::None)), Type::None);
     }
 
     #[test]
@@ -7912,9 +7387,9 @@ mod tests {
             name: "test".to_string(),
             params: smallvec::smallvec![],
             ret_type: Type::String,
-            body: vec![HirStmt::Return(Some(
-                HirExpr::Literal(Literal::String("hello".to_string())),
-            ))],
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
+                "hello".to_string(),
+            ))))],
             properties: Default::default(),
             annotations: Default::default(),
             docstring: None,

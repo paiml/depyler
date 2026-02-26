@@ -122,12 +122,7 @@ pub(super) fn fix_string_array_contains(code: &str) -> String {
         // Build replacement: ["x", "y"].contains(&arg)
         let old_end = after_contains + close_paren + 1;
         let new_expr = format!("[{}].contains(&{})", stripped, arg);
-        result = format!(
-            "{}{}{}",
-            &result[..open_bracket],
-            new_expr,
-            &result[old_end..]
-        );
+        result = format!("{}{}{}", &result[..open_bracket], new_expr, &result[old_end..]);
     }
     result
 }
@@ -226,8 +221,7 @@ pub(super) fn fix_format_expect(code: &str) -> String {
 
     while i < lines.len() {
         if i + 1 < lines.len() {
-            if let Some((fixed, consumed)) =
-                try_fix_multiline_format_expect(lines[i], lines[i + 1])
+            if let Some((fixed, consumed)) = try_fix_multiline_format_expect(lines[i], lines[i + 1])
             {
                 result.push(fixed);
                 i += consumed;
@@ -256,7 +250,12 @@ pub(super) fn fix_format_expect(code: &str) -> String {
 /// Advance the paren-matching state machine by one character.
 /// Returns `Some(true)` if the matching close paren is found,
 /// `Some(false)` to continue, or updates state in place.
-fn advance_paren_state(c: char, depth: &mut i32, in_string: &mut bool, escape_next: &mut bool) -> Option<bool> {
+fn advance_paren_state(
+    c: char,
+    depth: &mut i32,
+    in_string: &mut bool,
+    escape_next: &mut bool,
+) -> Option<bool> {
     if *escape_next {
         *escape_next = false;
         return Some(false);
@@ -325,10 +324,7 @@ fn extract_str_params_from_sig(trimmed: &str) -> Vec<String> {
         None => return Vec::new(),
     };
     let param_str = &trimmed[start + 1..end];
-    param_str
-        .split(',')
-        .filter_map(try_extract_str_param_name)
-        .collect()
+    param_str.split(',').filter_map(try_extract_str_param_name).collect()
 }
 
 /// Check if a line is a bare expression return of a &str param and fix it.
@@ -336,11 +332,7 @@ fn try_fix_bare_return(line: &str, trimmed: &str, params: &[String]) -> Option<S
     let indent = &line[..line.len() - trimmed.len()];
     for param in params {
         if trimmed == param.as_str() || trimmed == format!("{};", param) {
-            return Some(format!(
-                "{}{}.to_string()",
-                indent,
-                trimmed.trim_end_matches(';')
-            ));
+            return Some(format!("{}{}.to_string()", indent, trimmed.trim_end_matches(';')));
         }
         let ret_pattern = format!("return {};", param);
         let ret_bare = format!("return {}", param);
@@ -353,8 +345,7 @@ fn try_fix_bare_return(line: &str, trimmed: &str, params: &[String]) -> Option<S
 
 /// Returns true if the line starts a function that returns String.
 fn is_fn_returning_string(trimmed: &str) -> bool {
-    (trimmed.starts_with("fn ") || trimmed.starts_with("pub fn "))
-        && trimmed.contains("-> String")
+    (trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ")) && trimmed.contains("-> String")
 }
 
 pub(super) fn fix_str_param_return_as_string(code: &str) -> String {
@@ -405,8 +396,8 @@ pub(super) fn fix_from_utf8_lossy_string_arg(code: &str) -> String {
         let trimmed = line.trim();
         if let Some(eq_idx) = trimmed.find(" = format!(") {
             // Check the NEXT line for .into_bytes() which would make it Vec<u8>
-            let next_has_into_bytes = i + 1 < lines.len()
-                && lines[i + 1].trim().starts_with(".into_bytes()");
+            let next_has_into_bytes =
+                i + 1 < lines.len() && lines[i + 1].trim().starts_with(".into_bytes()");
             // Also check same line for .into_bytes() chain
             let same_line_into_bytes = trimmed[eq_idx..].contains(".into_bytes()");
 
@@ -562,10 +553,7 @@ pub(super) fn fix_string_as_ref_ambiguity(code: &str) -> String {
         // The .as_ref() on String is ambiguous. Just remove the whole .as_ref().expect(...)
         // chain and use the expr directly (String implements AsRef<Path>).
         if line.contains(".as_ref().expect(\"value is None\")") {
-            result.push_str(&line.replace(
-                ".as_ref().expect(\"value is None\")",
-                "",
-            ));
+            result.push_str(&line.replace(".as_ref().expect(\"value is None\")", ""));
         } else {
             result.push_str(line);
         }
@@ -575,10 +563,7 @@ pub(super) fn fix_string_as_ref_ambiguity(code: &str) -> String {
 }
 
 pub(super) fn fix_char_as_str(code: &str) -> String {
-    code.replace(
-        ".as_str().unwrap_or_default().to_string()",
-        ".to_string()",
-    )
+    code.replace(".as_str().unwrap_or_default().to_string()", ".to_string()")
 }
 
 /// Collect names of functions that return Vec types.
@@ -586,8 +571,7 @@ fn collect_vec_returning_fns(lines: &[&str]) -> Vec<String> {
     let mut fns = Vec::new();
     for line in lines {
         let trimmed = line.trim();
-        let is_fn_def =
-            trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ");
+        let is_fn_def = trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ");
         if !is_fn_def || !trimmed.contains("-> Vec<") {
             continue;
         }

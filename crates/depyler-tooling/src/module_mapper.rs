@@ -205,10 +205,7 @@ impl ModuleMapper {
                 ]),
                 // GH-204: Add constructor patterns for datetime types
                 constructor_patterns: HashMap::from([
-                    (
-                        "DateTime".to_string(),
-                        ConstructorPattern::Method("now".to_string()),
-                    ),
+                    ("DateTime".to_string(), ConstructorPattern::Method("now".to_string())),
                     (
                         "NaiveDate".to_string(),
                         ConstructorPattern::Method("from_ymd_opt".to_string()),
@@ -217,10 +214,7 @@ impl ModuleMapper {
                         "NaiveTime".to_string(),
                         ConstructorPattern::Method("from_hms_opt".to_string()),
                     ),
-                    (
-                        "Duration".to_string(),
-                        ConstructorPattern::Method("seconds".to_string()),
-                    ),
+                    ("Duration".to_string(), ConstructorPattern::Method("seconds".to_string())),
                 ]),
             },
         );
@@ -398,14 +392,8 @@ impl ModuleMapper {
                 item_map: HashMap::from([
                     ("urlparse".to_string(), "Url::parse".to_string()),
                     ("urljoin".to_string(), "Url::join".to_string()),
-                    (
-                        "quote".to_string(),
-                        "percent_encoding::percent_encode".to_string(),
-                    ),
-                    (
-                        "unquote".to_string(),
-                        "percent_encoding::percent_decode".to_string(),
-                    ),
+                    ("quote".to_string(), "percent_encoding::percent_encode".to_string()),
+                    ("unquote".to_string(), "percent_encoding::percent_decode".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -423,14 +411,8 @@ impl ModuleMapper {
                 ]),
                 // GH-204: Add constructor patterns for path types
                 constructor_patterns: HashMap::from([
-                    (
-                        "PathBuf".to_string(),
-                        ConstructorPattern::Method("from".to_string()),
-                    ),
-                    (
-                        "Path".to_string(),
-                        ConstructorPattern::Method("new".to_string()),
-                    ),
+                    ("PathBuf".to_string(), ConstructorPattern::Method("from".to_string())),
+                    ("Path".to_string(), ConstructorPattern::Method("new".to_string())),
                 ]),
             },
         );
@@ -442,10 +424,7 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("3.0".to_string()),
                 item_map: HashMap::from([
-                    (
-                        "NamedTemporaryFile".to_string(),
-                        "NamedTempFile".to_string(),
-                    ),
+                    ("NamedTemporaryFile".to_string(), "NamedTempFile".to_string()),
                     ("TemporaryDirectory".to_string(), "TempDir".to_string()),
                     ("mkstemp".to_string(), "tempfile".to_string()),
                     ("mkdtemp".to_string(), "tempdir".to_string()),
@@ -562,14 +541,8 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    (
-                        "LinearRegression".to_string(),
-                        "LinearRegression".to_string(),
-                    ),
-                    (
-                        "LogisticRegression".to_string(),
-                        "LogisticRegression".to_string(),
-                    ),
+                    ("LinearRegression".to_string(), "LinearRegression".to_string()),
+                    ("LogisticRegression".to_string(), "LogisticRegression".to_string()),
                     ("Ridge".to_string(), "Ridge".to_string()),
                     ("Lasso".to_string(), "Lasso".to_string()),
                     ("ElasticNet".to_string(), "ElasticNet".to_string()),
@@ -591,10 +564,7 @@ impl ModuleMapper {
                 item_map: HashMap::from([
                     ("KMeans".to_string(), "KMeans".to_string()),
                     ("DBSCAN".to_string(), "DBSCAN".to_string()),
-                    (
-                        "AgglomerativeClustering".to_string(),
-                        "Agglomerative".to_string(),
-                    ),
+                    ("AgglomerativeClustering".to_string(), "Agglomerative".to_string()),
                 ]),
                 constructor_patterns: HashMap::from([(
                     "KMeans".to_string(),
@@ -611,14 +581,8 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    (
-                        "DecisionTreeClassifier".to_string(),
-                        "DecisionTree".to_string(),
-                    ),
-                    (
-                        "DecisionTreeRegressor".to_string(),
-                        "DecisionTreeRegressor".to_string(),
-                    ),
+                    ("DecisionTreeClassifier".to_string(), "DecisionTree".to_string()),
+                    ("DecisionTreeRegressor".to_string(), "DecisionTreeRegressor".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -632,18 +596,9 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    (
-                        "RandomForestClassifier".to_string(),
-                        "RandomForest".to_string(),
-                    ),
-                    (
-                        "RandomForestRegressor".to_string(),
-                        "RandomForestRegressor".to_string(),
-                    ),
-                    (
-                        "GradientBoostingClassifier".to_string(),
-                        "GradientBoosting".to_string(),
-                    ),
+                    ("RandomForestClassifier".to_string(), "RandomForest".to_string()),
+                    ("RandomForestRegressor".to_string(), "RandomForestRegressor".to_string()),
+                    ("GradientBoostingClassifier".to_string(), "GradientBoosting".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -689,10 +644,7 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    (
-                        "train_test_split".to_string(),
-                        "train_test_split".to_string(),
-                    ),
+                    ("train_test_split".to_string(), "train_test_split".to_string()),
                     ("KFold".to_string(), "KFold".to_string()),
                     ("cross_val_score".to_string(), "cross_val_score".to_string()),
                     ("GridSearchCV".to_string(), "GridSearchCV".to_string()),
@@ -713,10 +665,7 @@ impl ModuleMapper {
                     ("precision_score".to_string(), "precision".to_string()),
                     ("recall_score".to_string(), "recall".to_string()),
                     ("f1_score".to_string(), "f1".to_string()),
-                    (
-                        "confusion_matrix".to_string(),
-                        "confusion_matrix".to_string(),
-                    ),
+                    ("confusion_matrix".to_string(), "confusion_matrix".to_string()),
                     ("mean_squared_error".to_string(), "mse".to_string()),
                     ("r2_score".to_string(), "r2".to_string()),
                 ]),
@@ -811,10 +760,7 @@ impl ModuleMapper {
                     ("ttest_1samp".to_string(), "ttest_1samp".to_string()),
                     ("pearsonr".to_string(), "pearsonr".to_string()),
                     ("spearmanr".to_string(), "spearmanr".to_string()),
-                    (
-                        "chi2_contingency".to_string(),
-                        "chi2_contingency".to_string(),
-                    ),
+                    ("chi2_contingency".to_string(), "chi2_contingency".to_string()),
                     ("kstest".to_string(), "kstest".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
@@ -832,10 +778,7 @@ impl ModuleMapper {
                     ("interp1d".to_string(), "Interp1d".to_string()),
                     ("interp2d".to_string(), "Interp2d".to_string()),
                     ("CubicSpline".to_string(), "CubicSpline".to_string()),
-                    (
-                        "UnivariateSpline".to_string(),
-                        "UnivariateSpline".to_string(),
-                    ),
+                    ("UnivariateSpline".to_string(), "UnivariateSpline".to_string()),
                 ]),
                 constructor_patterns: HashMap::from([
                     ("Interp1d".to_string(), ConstructorPattern::New),
@@ -964,14 +907,8 @@ impl ModuleMapper {
                     // Channel/Queue
                     ("Queue".to_string(), "sync::mpsc::channel".to_string()),
                     // Event loop (conceptually maps to runtime)
-                    (
-                        "get_event_loop".to_string(),
-                        "runtime::Handle::current".to_string(),
-                    ),
-                    (
-                        "new_event_loop".to_string(),
-                        "runtime::Runtime::new".to_string(),
-                    ),
+                    ("get_event_loop".to_string(), "runtime::Handle::current".to_string()),
+                    ("new_event_loop".to_string(), "runtime::Runtime::new".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -1010,27 +947,12 @@ impl ModuleMapper {
                 version: Some("0.16".to_string()),
                 item_map: HashMap::from([
                     // Central tendency
-                    (
-                        "mean".to_string(),
-                        "statistics::Statistics::mean".to_string(),
-                    ),
-                    (
-                        "median".to_string(),
-                        "statistics::Statistics::median".to_string(),
-                    ),
-                    (
-                        "mode".to_string(),
-                        "statistics::Statistics::mode".to_string(),
-                    ),
+                    ("mean".to_string(), "statistics::Statistics::mean".to_string()),
+                    ("median".to_string(), "statistics::Statistics::median".to_string()),
+                    ("mode".to_string(), "statistics::Statistics::mode".to_string()),
                     // Spread measures
-                    (
-                        "stdev".to_string(),
-                        "statistics::Statistics::std_dev".to_string(),
-                    ),
-                    (
-                        "variance".to_string(),
-                        "statistics::Statistics::variance".to_string(),
-                    ),
+                    ("stdev".to_string(), "statistics::Statistics::std_dev".to_string()),
+                    ("variance".to_string(), "statistics::Statistics::variance".to_string()),
                     (
                         "pstdev".to_string(),
                         "statistics::Statistics::population_std_dev".to_string(),
@@ -1040,10 +962,7 @@ impl ModuleMapper {
                         "statistics::Statistics::population_variance".to_string(),
                     ),
                     // Quantiles
-                    (
-                        "quantiles".to_string(),
-                        "statistics::Statistics::percentile".to_string(),
-                    ),
+                    ("quantiles".to_string(), "statistics::Statistics::percentile".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },

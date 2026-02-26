@@ -7,9 +7,7 @@ use crate::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -23,16 +21,12 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_method_on_literal_string() {
-    assert!(transpile_ok(
-        "def foo() -> list[str]:\n    return 'hello,world'.split(',')"
-    ));
+    assert!(transpile_ok("def foo() -> list[str]:\n    return 'hello,world'.split(',')"));
 }
 
 #[test]
 fn test_method_on_list_literal() {
-    assert!(transpile_ok(
-        "def foo() -> int:\n    return [1, 2, 3].pop()"
-    ));
+    assert!(transpile_ok("def foo() -> int:\n    return [1, 2, 3].pop()"));
 }
 
 #[test]
@@ -42,9 +36,7 @@ fn test_method_on_dict_literal() {
 
 #[test]
 fn test_method_chain_on_literal() {
-    assert!(transpile_ok(
-        "def foo() -> str:\n    return '  hello  '.strip().upper()"
-    ));
+    assert!(transpile_ok("def foo() -> str:\n    return '  hello  '.strip().upper()"));
 }
 
 // ============================================================================
@@ -83,9 +75,7 @@ fn test_subscript_with_expression_index() {
 
 #[test]
 fn test_subscript_with_function_call_index() {
-    assert!(transpile_ok(
-        "def foo(items: list[int]) -> int:\n    return items[len(items) - 1]"
-    ));
+    assert!(transpile_ok("def foo(items: list[int]) -> int:\n    return items[len(items) - 1]"));
 }
 
 #[test]
@@ -97,9 +87,7 @@ fn test_subscript_nested() {
 
 #[test]
 fn test_subscript_dict_with_var_key() {
-    assert!(transpile_ok(
-        "def foo(d: dict[str, int], key: str) -> int:\n    return d[key]"
-    ));
+    assert!(transpile_ok("def foo(d: dict[str, int], key: str) -> int:\n    return d[key]"));
 }
 
 // ============================================================================
@@ -159,37 +147,27 @@ fn test_nested_attribute_access() {
 
 #[test]
 fn test_int_plus_float() {
-    assert!(transpile_ok(
-        "def foo(n: int, f: float) -> float:\n    return n + f"
-    ));
+    assert!(transpile_ok("def foo(n: int, f: float) -> float:\n    return n + f"));
 }
 
 #[test]
 fn test_float_div_int() {
-    assert!(transpile_ok(
-        "def foo(f: float, n: int) -> float:\n    return f / n"
-    ));
+    assert!(transpile_ok("def foo(f: float, n: int) -> float:\n    return f / n"));
 }
 
 #[test]
 fn test_string_multiply_int() {
-    assert!(transpile_ok(
-        "def foo(s: str, n: int) -> str:\n    return s * n"
-    ));
+    assert!(transpile_ok("def foo(s: str, n: int) -> str:\n    return s * n"));
 }
 
 #[test]
 fn test_list_multiply_int() {
-    assert!(transpile_ok(
-        "def foo(items: list[int], n: int) -> list[int]:\n    return items * n"
-    ));
+    assert!(transpile_ok("def foo(items: list[int], n: int) -> list[int]:\n    return items * n"));
 }
 
 #[test]
 fn test_list_add_list() {
-    assert!(transpile_ok(
-        "def foo(a: list[int], b: list[int]) -> list[int]:\n    return a + b"
-    ));
+    assert!(transpile_ok("def foo(a: list[int], b: list[int]) -> list[int]:\n    return a + b"));
 }
 
 // ============================================================================
@@ -198,30 +176,22 @@ fn test_list_add_list() {
 
 #[test]
 fn test_chain_lt_le() {
-    assert!(transpile_ok(
-        "def foo(x: int) -> bool:\n    return 0 < x <= 10"
-    ));
+    assert!(transpile_ok("def foo(x: int) -> bool:\n    return 0 < x <= 10"));
 }
 
 #[test]
 fn test_chain_gt_ge() {
-    assert!(transpile_ok(
-        "def foo(x: int) -> bool:\n    return 10 > x >= 0"
-    ));
+    assert!(transpile_ok("def foo(x: int) -> bool:\n    return 10 > x >= 0"));
 }
 
 #[test]
 fn test_chain_eq_eq() {
-    assert!(transpile_ok(
-        "def foo(a: int, b: int, c: int) -> bool:\n    return a == b == c"
-    ));
+    assert!(transpile_ok("def foo(a: int, b: int, c: int) -> bool:\n    return a == b == c"));
 }
 
 #[test]
 fn test_chain_ne() {
-    assert!(transpile_ok(
-        "def foo(a: int, b: int, c: int) -> bool:\n    return a != b != c"
-    ));
+    assert!(transpile_ok("def foo(a: int, b: int, c: int) -> bool:\n    return a != b != c"));
 }
 
 // ============================================================================
@@ -230,9 +200,7 @@ fn test_chain_ne() {
 
 #[test]
 fn test_short_circuit_and() {
-    assert!(transpile_ok(
-        "def foo(items: list[int]) -> int:\n    return items and items[0]"
-    ));
+    assert!(transpile_ok("def foo(items: list[int]) -> int:\n    return items and items[0]"));
 }
 
 #[test]
@@ -260,9 +228,7 @@ fn test_in_string() {
 
 #[test]
 fn test_in_set() {
-    assert!(transpile_ok(
-        "def foo(item: int, s: set[int]) -> bool:\n    return item in s"
-    ));
+    assert!(transpile_ok("def foo(item: int, s: set[int]) -> bool:\n    return item in s"));
 }
 
 #[test]
@@ -278,9 +244,7 @@ fn test_not_in_dict_values() {
 
 #[test]
 fn test_unary_not_comparison() {
-    assert!(transpile_ok(
-        "def foo(x: int) -> bool:\n    return not x > 0"
-    ));
+    assert!(transpile_ok("def foo(x: int) -> bool:\n    return not x > 0"));
 }
 
 #[test]
@@ -301,9 +265,7 @@ fn test_double_negation() {
 
 #[test]
 fn test_ternary_with_calls() {
-    assert!(transpile_ok(
-        "def foo(x: int) -> int:\n    return abs(x) if x < 0 else x"
-    ));
+    assert!(transpile_ok("def foo(x: int) -> int:\n    return abs(x) if x < 0 else x"));
 }
 
 #[test]
@@ -326,23 +288,17 @@ fn test_nested_ternary() {
 
 #[test]
 fn test_lambda_no_args() {
-    assert!(transpile_ok(
-        "def foo():\n    f = lambda: 42\n    return f()"
-    ));
+    assert!(transpile_ok("def foo():\n    f = lambda: 42\n    return f()"));
 }
 
 #[test]
 fn test_lambda_single_arg() {
-    assert!(transpile_ok(
-        "def foo():\n    f = lambda x: x * 2\n    return f(5)"
-    ));
+    assert!(transpile_ok("def foo():\n    f = lambda x: x * 2\n    return f(5)"));
 }
 
 #[test]
 fn test_lambda_multiple_args() {
-    assert!(transpile_ok(
-        "def foo():\n    f = lambda x, y: x + y\n    return f(1, 2)"
-    ));
+    assert!(transpile_ok("def foo():\n    f = lambda x, y: x + y\n    return f(1, 2)"));
 }
 
 #[test]
@@ -433,16 +389,12 @@ fn test_genexp_with_condition() {
 
 #[test]
 fn test_print_with_sep_end() {
-    assert!(transpile_ok(
-        "def foo():\n    print('a', 'b', sep=', ', end='\\n')"
-    ));
+    assert!(transpile_ok("def foo():\n    print('a', 'b', sep=', ', end='\\n')"));
 }
 
 #[test]
 fn test_print_to_stderr() {
-    assert!(transpile_ok(
-        "import sys\ndef foo():\n    print('error', file=sys.stderr)"
-    ));
+    assert!(transpile_ok("import sys\ndef foo():\n    print('error', file=sys.stderr)"));
 }
 
 #[test]
@@ -452,16 +404,12 @@ fn test_len_on_string() {
 
 #[test]
 fn test_len_on_dict() {
-    assert!(transpile_ok(
-        "def foo(d: dict[str, int]) -> int:\n    return len(d)"
-    ));
+    assert!(transpile_ok("def foo(d: dict[str, int]) -> int:\n    return len(d)"));
 }
 
 #[test]
 fn test_len_on_set() {
-    assert!(transpile_ok(
-        "def foo(s: set[int]) -> int:\n    return len(s)"
-    ));
+    assert!(transpile_ok("def foo(s: set[int]) -> int:\n    return len(s)"));
 }
 
 #[test]
@@ -487,114 +435,82 @@ fn test_zip_different_lengths() {
 
 #[test]
 fn test_string_partition() {
-    assert!(transpile_ok(
-        "def foo(s: str):\n    head, sep, tail = s.partition(':')"
-    ));
+    assert!(transpile_ok("def foo(s: str):\n    head, sep, tail = s.partition(':')"));
 }
 
 #[test]
 fn test_string_rpartition() {
-    assert!(transpile_ok(
-        "def foo(s: str):\n    head, sep, tail = s.rpartition(':')"
-    ));
+    assert!(transpile_ok("def foo(s: str):\n    head, sep, tail = s.rpartition(':')"));
 }
 
 #[test]
 fn test_string_splitlines() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> list[str]:\n    return s.splitlines()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> list[str]:\n    return s.splitlines()"));
 }
 
 #[test]
 fn test_string_title() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.title()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.title()"));
 }
 
 #[test]
 fn test_string_capitalize() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.capitalize()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.capitalize()"));
 }
 
 #[test]
 fn test_string_swapcase() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.swapcase()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.swapcase()"));
 }
 
 #[test]
 fn test_string_center() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.center(20)"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.center(20)"));
 }
 
 #[test]
 fn test_string_ljust() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.ljust(20)"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.ljust(20)"));
 }
 
 #[test]
 fn test_string_rjust() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.rjust(20)"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.rjust(20)"));
 }
 
 #[test]
 fn test_string_zfill() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.zfill(10)"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.zfill(10)"));
 }
 
 #[test]
 fn test_string_expandtabs() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> str:\n    return s.expandtabs(4)"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.expandtabs(4)"));
 }
 
 #[test]
 fn test_string_isspace() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> bool:\n    return s.isspace()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> bool:\n    return s.isspace()"));
 }
 
 #[test]
 fn test_string_isupper() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> bool:\n    return s.isupper()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> bool:\n    return s.isupper()"));
 }
 
 #[test]
 fn test_string_islower() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> bool:\n    return s.islower()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> bool:\n    return s.islower()"));
 }
 
 #[test]
 fn test_string_istitle() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> bool:\n    return s.istitle()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> bool:\n    return s.istitle()"));
 }
 
 #[test]
 fn test_string_isidentifier() {
-    assert!(transpile_ok(
-        "def foo(s: str) -> bool:\n    return s.isidentifier()"
-    ));
+    assert!(transpile_ok("def foo(s: str) -> bool:\n    return s.isidentifier()"));
 }
 
 // ============================================================================
@@ -617,16 +533,12 @@ fn test_list_index_with_bounds() {
 
 #[test]
 fn test_list_sort_with_key() {
-    assert!(transpile_ok(
-        "def foo(items: list[str]):\n    items.sort(key=len)"
-    ));
+    assert!(transpile_ok("def foo(items: list[str]):\n    items.sort(key=len)"));
 }
 
 #[test]
 fn test_list_sort_reverse() {
-    assert!(transpile_ok(
-        "def foo(items: list[int]):\n    items.sort(reverse=True)"
-    ));
+    assert!(transpile_ok("def foo(items: list[int]):\n    items.sort(reverse=True)"));
 }
 
 // ============================================================================
@@ -658,23 +570,17 @@ fn test_set_symmetric_difference() {
 
 #[test]
 fn test_set_issubset() {
-    assert!(transpile_ok(
-        "def foo(a: set[int], b: set[int]) -> bool:\n    return a.issubset(b)"
-    ));
+    assert!(transpile_ok("def foo(a: set[int], b: set[int]) -> bool:\n    return a.issubset(b)"));
 }
 
 #[test]
 fn test_set_issuperset() {
-    assert!(transpile_ok(
-        "def foo(a: set[int], b: set[int]) -> bool:\n    return a.issuperset(b)"
-    ));
+    assert!(transpile_ok("def foo(a: set[int], b: set[int]) -> bool:\n    return a.issuperset(b)"));
 }
 
 #[test]
 fn test_set_isdisjoint() {
-    assert!(transpile_ok(
-        "def foo(a: set[int], b: set[int]) -> bool:\n    return a.isdisjoint(b)"
-    ));
+    assert!(transpile_ok("def foo(a: set[int], b: set[int]) -> bool:\n    return a.isdisjoint(b)"));
 }
 
 // ============================================================================
@@ -683,23 +589,17 @@ fn test_set_isdisjoint() {
 
 #[test]
 fn test_bytes_decode_utf8() {
-    assert!(transpile_ok(
-        "def foo(b: bytes) -> str:\n    return b.decode('utf-8')"
-    ));
+    assert!(transpile_ok("def foo(b: bytes) -> str:\n    return b.decode('utf-8')"));
 }
 
 #[test]
 fn test_bytes_decode_latin1() {
-    assert!(transpile_ok(
-        "def foo(b: bytes) -> str:\n    return b.decode('latin-1')"
-    ));
+    assert!(transpile_ok("def foo(b: bytes) -> str:\n    return b.decode('latin-1')"));
 }
 
 #[test]
 fn test_bytes_hex() {
-    assert!(transpile_ok(
-        "def foo(b: bytes) -> str:\n    return b.hex()"
-    ));
+    assert!(transpile_ok("def foo(b: bytes) -> str:\n    return b.hex()"));
 }
 
 #[test]
@@ -720,16 +620,12 @@ fn test_math_pow() {
 
 #[test]
 fn test_math_fabs() {
-    assert!(transpile_ok(
-        "import math\ndef foo(x: float) -> float:\n    return math.fabs(x)"
-    ));
+    assert!(transpile_ok("import math\ndef foo(x: float) -> float:\n    return math.fabs(x)"));
 }
 
 #[test]
 fn test_math_trunc() {
-    assert!(transpile_ok(
-        "import math\ndef foo(x: float) -> int:\n    return math.trunc(x)"
-    ));
+    assert!(transpile_ok("import math\ndef foo(x: float) -> int:\n    return math.trunc(x)"));
 }
 
 #[test]
@@ -739,30 +635,22 @@ fn test_math_modf() {
 
 #[test]
 fn test_math_isnan() {
-    assert!(transpile_ok(
-        "import math\ndef foo(x: float) -> bool:\n    return math.isnan(x)"
-    ));
+    assert!(transpile_ok("import math\ndef foo(x: float) -> bool:\n    return math.isnan(x)"));
 }
 
 #[test]
 fn test_math_isinf() {
-    assert!(transpile_ok(
-        "import math\ndef foo(x: float) -> bool:\n    return math.isinf(x)"
-    ));
+    assert!(transpile_ok("import math\ndef foo(x: float) -> bool:\n    return math.isinf(x)"));
 }
 
 #[test]
 fn test_math_degrees() {
-    assert!(transpile_ok(
-        "import math\ndef foo(x: float) -> float:\n    return math.degrees(x)"
-    ));
+    assert!(transpile_ok("import math\ndef foo(x: float) -> float:\n    return math.degrees(x)"));
 }
 
 #[test]
 fn test_math_radians() {
-    assert!(transpile_ok(
-        "import math\ndef foo(x: float) -> float:\n    return math.radians(x)"
-    ));
+    assert!(transpile_ok("import math\ndef foo(x: float) -> float:\n    return math.radians(x)"));
 }
 
 // ============================================================================
@@ -771,23 +659,17 @@ fn test_math_radians() {
 
 #[test]
 fn test_os_getenv_default() {
-    assert!(transpile_ok(
-        "import os\ndef foo() -> str:\n    return os.getenv('PATH', '')"
-    ));
+    assert!(transpile_ok("import os\ndef foo() -> str:\n    return os.getenv('PATH', '')"));
 }
 
 #[test]
 fn test_os_environ_get() {
-    assert!(transpile_ok(
-        "import os\ndef foo() -> str:\n    return os.environ.get('PATH', '')"
-    ));
+    assert!(transpile_ok("import os\ndef foo() -> str:\n    return os.environ.get('PATH', '')"));
 }
 
 #[test]
 fn test_os_path_splitext() {
-    assert!(transpile_ok(
-        "import os\ndef foo(path: str):\n    name, ext = os.path.splitext(path)"
-    ));
+    assert!(transpile_ok("import os\ndef foo(path: str):\n    name, ext = os.path.splitext(path)"));
 }
 
 #[test]
@@ -822,9 +704,7 @@ fn test_os_path_normpath() {
 
 #[test]
 fn test_sys_argv() {
-    assert!(transpile_ok(
-        "import sys\ndef foo() -> list[str]:\n    return sys.argv"
-    ));
+    assert!(transpile_ok("import sys\ndef foo() -> list[str]:\n    return sys.argv"));
 }
 
 #[test]
@@ -834,9 +714,7 @@ fn test_sys_exit() {
 
 #[test]
 fn test_sys_exit_message() {
-    assert!(transpile_ok(
-        "import sys\ndef foo():\n    sys.exit('error')"
-    ));
+    assert!(transpile_ok("import sys\ndef foo():\n    sys.exit('error')"));
 }
 
 // ============================================================================
@@ -862,9 +740,7 @@ fn test_datetime_replace() {
 
 #[test]
 fn test_date_today() {
-    assert!(transpile_ok(
-        "from datetime import date\ndef foo():\n    return date.today()"
-    ));
+    assert!(transpile_ok("from datetime import date\ndef foo():\n    return date.today()"));
 }
 
 #[test]
@@ -948,9 +824,7 @@ fn test_deque_rotate() {
 
 #[test]
 fn test_itertools_count() {
-    assert!(transpile_ok(
-        "import itertools\ndef foo():\n    c = itertools.count(10)"
-    ));
+    assert!(transpile_ok("import itertools\ndef foo():\n    c = itertools.count(10)"));
 }
 
 #[test]
@@ -1006,9 +880,7 @@ fn test_functools_reduce_initial() {
 
 #[test]
 fn test_starred_in_list() {
-    assert!(transpile_ok(
-        "def foo(a: list[int], b: list[int]) -> list[int]:\n    return [*a, *b]"
-    ));
+    assert!(transpile_ok("def foo(a: list[int], b: list[int]) -> list[int]:\n    return [*a, *b]"));
 }
 
 #[test]

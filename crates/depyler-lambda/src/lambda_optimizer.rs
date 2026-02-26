@@ -125,10 +125,7 @@ impl LambdaOptimizer {
             },
         );
 
-        Self {
-            strategies,
-            performance_targets: PerformanceTargets::default(),
-        }
+        Self { strategies, performance_targets: PerformanceTargets::default() }
     }
 
     pub fn with_targets(mut self, targets: PerformanceTargets) -> Self {
@@ -188,20 +185,13 @@ impl LambdaOptimizer {
         annotations: &LambdaAnnotations,
     ) -> Result<()> {
         // Profile overrides for maximum size reduction
-        plan.profile_overrides
-            .insert("opt-level".to_string(), "z".to_string());
-        plan.profile_overrides
-            .insert("lto".to_string(), "true".to_string());
-        plan.profile_overrides
-            .insert("codegen-units".to_string(), "1".to_string());
-        plan.profile_overrides
-            .insert("panic".to_string(), "abort".to_string());
-        plan.profile_overrides
-            .insert("strip".to_string(), "true".to_string());
-        plan.profile_overrides
-            .insert("overflow-checks".to_string(), "false".to_string());
-        plan.profile_overrides
-            .insert("incremental".to_string(), "false".to_string());
+        plan.profile_overrides.insert("opt-level".to_string(), "z".to_string());
+        plan.profile_overrides.insert("lto".to_string(), "true".to_string());
+        plan.profile_overrides.insert("codegen-units".to_string(), "1".to_string());
+        plan.profile_overrides.insert("panic".to_string(), "abort".to_string());
+        plan.profile_overrides.insert("strip".to_string(), "true".to_string());
+        plan.profile_overrides.insert("overflow-checks".to_string(), "false".to_string());
+        plan.profile_overrides.insert("incremental".to_string(), "false".to_string());
 
         // Aggressive RUSTC flags for size optimization
         plan.rustc_flags.extend(vec![
@@ -216,8 +206,7 @@ impl LambdaOptimizer {
         // Architecture-specific optimizations
         match annotations.architecture {
             Architecture::Arm64 => {
-                plan.rustc_flags
-                    .push("-C target-cpu=neoverse-n1".to_string());
+                plan.rustc_flags.push("-C target-cpu=neoverse-n1".to_string());
             }
             Architecture::X86_64 => {
                 plan.rustc_flags.push("-C target-cpu=haswell".to_string());
@@ -328,8 +317,7 @@ static INIT: extern "C" fn() = {{
         .to_string();
 
         // Configure opt-level=3 for latency-sensitive Lambda workloads (prioritizes response time)
-        plan.profile_overrides
-            .insert("opt-level".to_string(), "3".to_string());
+        plan.profile_overrides.insert("opt-level".to_string(), "3".to_string());
 
         Ok(())
     }
@@ -388,8 +376,7 @@ static INIT: extern "C" fn() = {{
         }
 
         // Stack size optimization
-        plan.rustc_flags
-            .push("-C link-arg=-Wl,-z,stack-size=131072".to_string()); // 128KB stack
+        plan.rustc_flags.push("-C link-arg=-Wl,-z,stack-size=131072".to_string()); // 128KB stack
 
         Ok(())
     }
@@ -435,10 +422,7 @@ echo "Target: {} MB memory, {} architecture"
 
         // Set environment variables
         script.push_str("# Optimization environment variables\n");
-        script.push_str(&format!(
-            "export RUSTFLAGS=\"{}\"\n",
-            plan.rustc_flags.join(" ")
-        ));
+        script.push_str(&format!("export RUSTFLAGS=\"{}\"\n", plan.rustc_flags.join(" ")));
         script.push_str("export CARGO_PROFILE_LAMBDA_LTO=true\n");
         script.push_str("export CARGO_PROFILE_LAMBDA_PANIC=\"abort\"\n");
         script.push_str("export CARGO_PROFILE_LAMBDA_CODEGEN_UNITS=1\n");
@@ -550,9 +534,7 @@ mod performance {{
 
     /// Check if optimization strategy is enabled
     fn is_strategy_enabled(&self, strategy: &OptimizationStrategy) -> bool {
-        self.strategies
-            .get(strategy)
-            .is_some_and(|config| config.enabled)
+        self.strategies.get(strategy).is_some_and(|config| config.enabled)
     }
 
     /// Estimate performance impact of optimizations
@@ -579,11 +561,7 @@ mod performance {{
         }
 
         // Memory usage improvement
-        if plan
-            .dependency_optimizations
-            .iter()
-            .any(|d| d.crate_name == "mimalloc")
-        {
+        if plan.dependency_optimizations.iter().any(|d| d.crate_name == "mimalloc") {
             estimate.memory_improvement_percent += 15.0;
         }
 
@@ -624,11 +602,7 @@ mod tests {
     fn test_binary_size_optimizations() {
         let mut optimizer = LambdaOptimizer::new();
         // Disable cold start optimization to test only binary size
-        optimizer
-            .strategies
-            .get_mut(&OptimizationStrategy::ColdStart)
-            .unwrap()
-            .enabled = false;
+        optimizer.strategies.get_mut(&OptimizationStrategy::ColdStart).unwrap().enabled = false;
         let annotations = LambdaAnnotations::default();
 
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
@@ -656,20 +630,12 @@ mod tests {
     #[test]
     fn test_memory_optimizations() {
         let optimizer = LambdaOptimizer::new();
-        let annotations = LambdaAnnotations {
-            memory_size: 128,
-            ..Default::default()
-        };
+        let annotations = LambdaAnnotations { memory_size: 128, ..Default::default() };
 
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
 
-        assert!(plan
-            .dependency_optimizations
-            .iter()
-            .any(|d| d.crate_name == "mimalloc"));
-        assert!(plan
-            .pre_warm_code
-            .contains("Memory-constrained optimization"));
+        assert!(plan.dependency_optimizations.iter().any(|d| d.crate_name == "mimalloc"));
+        assert!(plan.pre_warm_code.contains("Memory-constrained optimization"));
     }
 
     #[test]
@@ -731,10 +697,7 @@ mod tests {
         let optimizer = LambdaOptimizer::new().with_targets(targets);
         assert_eq!(optimizer.performance_targets.max_cold_start_ms, 25);
         assert_eq!(optimizer.performance_targets.max_binary_size_kb, 1024);
-        assert_eq!(
-            optimizer.performance_targets.target_throughput_rps,
-            Some(1000)
-        );
+        assert_eq!(optimizer.performance_targets.target_throughput_rps, Some(1000));
     }
 
     // ============================================================
@@ -743,14 +706,8 @@ mod tests {
 
     #[test]
     fn test_optimization_strategy_equality() {
-        assert_eq!(
-            OptimizationStrategy::BinarySize,
-            OptimizationStrategy::BinarySize
-        );
-        assert_ne!(
-            OptimizationStrategy::BinarySize,
-            OptimizationStrategy::ColdStart
-        );
+        assert_eq!(OptimizationStrategy::BinarySize, OptimizationStrategy::BinarySize);
+        assert_ne!(OptimizationStrategy::BinarySize, OptimizationStrategy::ColdStart);
     }
 
     #[test]
@@ -786,18 +743,10 @@ mod tests {
     #[test]
     fn test_lambda_optimizer_default() {
         let optimizer = LambdaOptimizer::default();
-        assert!(optimizer
-            .strategies
-            .contains_key(&OptimizationStrategy::BinarySize));
-        assert!(optimizer
-            .strategies
-            .contains_key(&OptimizationStrategy::ColdStart));
-        assert!(optimizer
-            .strategies
-            .contains_key(&OptimizationStrategy::PreWarming));
-        assert!(optimizer
-            .strategies
-            .contains_key(&OptimizationStrategy::MemoryUsage));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::BinarySize));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::ColdStart));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::PreWarming));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::MemoryUsage));
     }
 
     #[test]
@@ -816,11 +765,7 @@ mod tests {
     #[test]
     fn test_is_strategy_enabled_disabled() {
         let mut optimizer = LambdaOptimizer::new();
-        optimizer
-            .strategies
-            .get_mut(&OptimizationStrategy::PreWarming)
-            .unwrap()
-            .enabled = false;
+        optimizer.strategies.get_mut(&OptimizationStrategy::PreWarming).unwrap().enabled = false;
         assert!(!optimizer.is_strategy_enabled(&OptimizationStrategy::PreWarming));
     }
 
@@ -851,10 +796,8 @@ mod tests {
     #[test]
     fn test_build_script_arm64() {
         let optimizer = LambdaOptimizer::new();
-        let annotations = LambdaAnnotations {
-            architecture: Architecture::Arm64,
-            ..Default::default()
-        };
+        let annotations =
+            LambdaAnnotations { architecture: Architecture::Arm64, ..Default::default() };
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         let script = optimizer.generate_optimized_build_script(&plan, &annotations);
         assert!(script.contains("--arm64"));
@@ -864,10 +807,8 @@ mod tests {
     #[test]
     fn test_build_script_x86_64() {
         let optimizer = LambdaOptimizer::new();
-        let annotations = LambdaAnnotations {
-            architecture: Architecture::X86_64,
-            ..Default::default()
-        };
+        let annotations =
+            LambdaAnnotations { architecture: Architecture::X86_64, ..Default::default() };
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         let script = optimizer.generate_optimized_build_script(&plan, &annotations);
         assert!(script.contains("--x86-64"));
@@ -886,10 +827,7 @@ mod tests {
     #[test]
     fn test_build_script_contains_memory_size() {
         let optimizer = LambdaOptimizer::new();
-        let annotations = LambdaAnnotations {
-            memory_size: 256,
-            ..Default::default()
-        };
+        let annotations = LambdaAnnotations { memory_size: 256, ..Default::default() };
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         let script = optimizer.generate_optimized_build_script(&plan, &annotations);
         assert!(script.contains("256 MB memory"));
@@ -923,8 +861,7 @@ mod tests {
             init_array_code: String::new(),
             dependency_optimizations: vec![],
         };
-        plan.profile_overrides
-            .insert("opt-level".to_string(), "z".to_string());
+        plan.profile_overrides.insert("opt-level".to_string(), "z".to_string());
 
         let optimizer = LambdaOptimizer::new();
         let estimate = optimizer.estimate_performance_impact(&plan);
@@ -1144,18 +1081,10 @@ mod tests {
 
     #[test]
     fn test_with_targets_chaining() {
-        let targets1 = PerformanceTargets {
-            max_cold_start_ms: 10,
-            ..Default::default()
-        };
-        let targets2 = PerformanceTargets {
-            max_cold_start_ms: 20,
-            ..Default::default()
-        };
+        let targets1 = PerformanceTargets { max_cold_start_ms: 10, ..Default::default() };
+        let targets2 = PerformanceTargets { max_cold_start_ms: 20, ..Default::default() };
 
-        let optimizer = LambdaOptimizer::new()
-            .with_targets(targets1)
-            .with_targets(targets2);
+        let optimizer = LambdaOptimizer::new().with_targets(targets1).with_targets(targets2);
 
         // Last one wins
         assert_eq!(optimizer.performance_targets.max_cold_start_ms, 20);
@@ -1163,9 +1092,7 @@ mod tests {
 
     #[test]
     fn test_enable_aggressive_mode_chaining() {
-        let optimizer = LambdaOptimizer::new()
-            .enable_aggressive_mode()
-            .enable_aggressive_mode();
+        let optimizer = LambdaOptimizer::new().enable_aggressive_mode().enable_aggressive_mode();
 
         for config in optimizer.strategies.values() {
             assert!(config.aggressive_mode);
@@ -1190,11 +1117,8 @@ mod tests {
     #[test]
     fn test_no_event_type_optimization() {
         let optimizer = LambdaOptimizer::new();
-        let annotations = LambdaAnnotations {
-            cold_start_optimize: true,
-            event_type: None,
-            ..Default::default()
-        };
+        let annotations =
+            LambdaAnnotations { cold_start_optimize: true, event_type: None, ..Default::default() };
 
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         // Should still generate valid plan without event type

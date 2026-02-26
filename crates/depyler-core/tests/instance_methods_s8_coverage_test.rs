@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -58,10 +56,7 @@ def f(s: set) -> None:
     s.discard(42)
 "#,
     );
-    assert!(
-        code.contains("remove") || code.contains("discard"),
-        "Should generate discard: {code}"
-    );
+    assert!(code.contains("remove") || code.contains("discard"), "Should generate discard: {code}");
 }
 
 #[test]
@@ -72,10 +67,7 @@ def f(a: set, b: set) -> bool:
     return a.issubset(b)
 "#,
     );
-    assert!(
-        code.contains("is_subset"),
-        "Should generate is_subset: {code}"
-    );
+    assert!(code.contains("is_subset"), "Should generate is_subset: {code}");
 }
 
 #[test]
@@ -86,10 +78,7 @@ def f(a: set, b: set) -> bool:
     return a.issuperset(b)
 "#,
     );
-    assert!(
-        code.contains("is_superset"),
-        "Should generate is_superset: {code}"
-    );
+    assert!(code.contains("is_superset"), "Should generate is_superset: {code}");
 }
 
 // ── Deque operations ────────────────────────────────────────────
@@ -153,10 +142,7 @@ def f() -> None:
     d.rotate(2)
 "#,
     );
-    assert!(
-        code.contains("rotate") || code.contains("VecDeque"),
-        "Should generate rotate: {code}"
-    );
+    assert!(code.contains("rotate") || code.contains("VecDeque"), "Should generate rotate: {code}");
 }
 
 // ── Math constants and functions ────────────────────────────────
@@ -284,10 +270,7 @@ def f(x: float) -> float:
     return math.fabs(x)
 "#,
     );
-    assert!(
-        code.contains("abs") || code.contains("fabs"),
-        "Should generate abs: {code}"
-    );
+    assert!(code.contains("abs") || code.contains("fabs"), "Should generate abs: {code}");
 }
 
 #[test]
@@ -299,10 +282,7 @@ def f(x: float) -> float:
     return math.log(x)
 "#,
     );
-    assert!(
-        code.contains("ln") || code.contains("log"),
-        "Should generate log: {code}"
-    );
+    assert!(code.contains("ln") || code.contains("log"), "Should generate log: {code}");
 }
 
 #[test]
@@ -338,10 +318,7 @@ def f(x: float, y: float) -> float:
     return math.pow(x, y)
 "#,
     );
-    assert!(
-        code.contains("pow") || code.contains("powi"),
-        "Should generate pow: {code}"
-    );
+    assert!(code.contains("pow") || code.contains("powi"), "Should generate pow: {code}");
 }
 
 #[test]
@@ -394,10 +371,7 @@ def f() -> str:
     return string.ascii_letters
 "#,
     );
-    assert!(
-        code.contains("abcdefghijklmnopqrstuvwxyz"),
-        "Should generate all letters: {code}"
-    );
+    assert!(code.contains("abcdefghijklmnopqrstuvwxyz"), "Should generate all letters: {code}");
 }
 
 #[test]
@@ -409,10 +383,7 @@ def f() -> str:
     return string.digits
 "#,
     );
-    assert!(
-        code.contains("0123456789"),
-        "Should generate digits: {code}"
-    );
+    assert!(code.contains("0123456789"), "Should generate digits: {code}");
 }
 
 #[test]
@@ -424,10 +395,7 @@ def f() -> str:
     return string.hexdigits
 "#,
     );
-    assert!(
-        code.contains("0123456789abcdefABCDEF"),
-        "Should generate hexdigits: {code}"
-    );
+    assert!(code.contains("0123456789abcdefABCDEF"), "Should generate hexdigits: {code}");
 }
 
 #[test]
@@ -540,10 +508,7 @@ class Container:
         return item in self.items
 "#,
     );
-    assert!(
-        code.contains("contains"),
-        "Should generate contains method: {code}"
-    );
+    assert!(code.contains("contains"), "Should generate contains method: {code}");
 }
 
 #[test]
@@ -573,10 +538,7 @@ class Point:
         return hash((self.x, self.y))
 "#,
     );
-    assert!(
-        code.contains("hash") || code.contains("Hash"),
-        "Should generate hash: {code}"
-    );
+    assert!(code.contains("hash") || code.contains("Hash"), "Should generate hash: {code}");
 }
 
 #[test]
@@ -590,10 +552,7 @@ class Score:
         return self.value > other.value
 "#,
     );
-    assert!(
-        code.contains("gt") || code.contains(">"),
-        "Should generate gt: {code}"
-    );
+    assert!(code.contains("gt") || code.contains(">"), "Should generate gt: {code}");
 }
 
 #[test]
@@ -607,10 +566,7 @@ class Score:
         return self.value >= other.value
 "#,
     );
-    assert!(
-        code.contains("ge") || code.contains(">="),
-        "Should generate ge: {code}"
-    );
+    assert!(code.contains("ge") || code.contains(">="), "Should generate ge: {code}");
 }
 
 #[test]
@@ -624,10 +580,7 @@ class Score:
         return self.value < other.value
 "#,
     );
-    assert!(
-        code.contains("lt") || code.contains("<"),
-        "Should generate lt: {code}"
-    );
+    assert!(code.contains("lt") || code.contains("<"), "Should generate lt: {code}");
 }
 
 #[test]
@@ -641,10 +594,7 @@ class Score:
         return self.value <= other.value
 "#,
     );
-    assert!(
-        code.contains("le") || code.contains("<="),
-        "Should generate le: {code}"
-    );
+    assert!(code.contains("le") || code.contains("<="), "Should generate le: {code}");
 }
 
 // ── Collections constructors ────────────────────────────────────
@@ -871,10 +821,7 @@ def f(d: dict) -> int:
     return d.pop("key")
 "#,
     );
-    assert!(
-        code.contains("remove") || code.contains("pop"),
-        "Should generate dict pop: {code}"
-    );
+    assert!(code.contains("remove") || code.contains("pop"), "Should generate dict pop: {code}");
 }
 
 // ── os.path methods ─────────────────────────────────────────────

@@ -31,19 +31,9 @@ pub struct ProgramOutput {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mismatch {
-    StdoutDifference {
-        python: String,
-        rust: String,
-        diff: String,
-    },
-    StderrDifference {
-        python: String,
-        rust: String,
-    },
-    ExitCodeDifference {
-        python: i32,
-        rust: i32,
-    },
+    StdoutDifference { python: String, rust: String, diff: String },
+    StderrDifference { python: String, rust: String },
+    ExitCodeDifference { python: i32, rust: i32 },
 }
 
 pub struct DifferentialTester {
@@ -103,12 +93,7 @@ impl DifferentialTester {
         python_file: &Path,
         args: &[&str],
     ) -> Result<DifferentialTestResult, Box<dyn std::error::Error>> {
-        let test_name = python_file
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string();
+        let test_name = python_file.file_stem().unwrap().to_str().unwrap().to_string();
 
         // 1. Run Python
         let python_output = self.run_python(python_file, args)?;
@@ -142,10 +127,7 @@ impl DifferentialTester {
     ) -> Result<ProgramOutput, Box<dyn std::error::Error>> {
         let start = std::time::Instant::now();
 
-        let output = Command::new(&self.python_exe)
-            .arg(python_file)
-            .args(args)
-            .output()?;
+        let output = Command::new(&self.python_exe).arg(python_file).args(args).output()?;
 
         let runtime_ms = start.elapsed().as_millis();
 
@@ -284,12 +266,7 @@ impl DifferentialTester {
 
         for (i, (a_line, b_line)) in a_lines.iter().zip(b_lines.iter()).enumerate() {
             if a_line != b_line {
-                diff.push(format!(
-                    "Line {}: Python: '{}' | Rust: '{}'",
-                    i + 1,
-                    a_line,
-                    b_line
-                ));
+                diff.push(format!("Line {}: Python: '{}' | Rust: '{}'", i + 1, a_line, b_line));
             }
         }
 
@@ -320,10 +297,7 @@ pub struct ReprorustedTestSuite {
 
 impl ReprorustedTestSuite {
     pub fn new(examples_dir: PathBuf) -> Self {
-        Self {
-            tester: DifferentialTester::new().unwrap(),
-            examples_dir,
-        }
+        Self { tester: DifferentialTester::new().unwrap(), examples_dir }
     }
 
     /// Run all reprorusted examples
@@ -334,10 +308,7 @@ impl ReprorustedTestSuite {
             ("example_simple", &["--name", "Alice"][..]),
             ("example_flags", &["--debug"]),
             ("example_config", &["init"]),
-            (
-                "example_csv_filter",
-                &["data.csv", "--column", "name", "--value", "Alice"],
-            ),
+            ("example_csv_filter", &["data.csv", "--column", "name", "--value", "Alice"]),
             // ... more examples
         ];
 
@@ -645,10 +616,7 @@ mod tests {
                 rust: "b".to_string(),
                 diff: "d".to_string(),
             },
-            Mismatch::StderrDifference {
-                python: "err_a".to_string(),
-                rust: "err_b".to_string(),
-            },
+            Mismatch::StderrDifference { python: "err_a".to_string(), rust: "err_b".to_string() },
             Mismatch::ExitCodeDifference { python: 0, rust: 1 },
         ];
         for v in &variants {
@@ -710,13 +678,11 @@ mod tests {
                 exit_code: 0,
                 runtime_ms: 3,
             },
-            mismatches: vec![
-                Mismatch::StdoutDifference {
-                    python: "42".to_string(),
-                    rust: "43".to_string(),
-                    diff: "off by one".to_string(),
-                },
-            ],
+            mismatches: vec![Mismatch::StdoutDifference {
+                python: "42".to_string(),
+                rust: "43".to_string(),
+                diff: "off by one".to_string(),
+            }],
         };
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: DifferentialTestResult = serde_json::from_str(&json).unwrap();
@@ -764,10 +730,7 @@ mod tests {
                 rust: "r".to_string(),
                 diff: "d".to_string(),
             },
-            Mismatch::StderrDifference {
-                python: "pe".to_string(),
-                rust: "re".to_string(),
-            },
+            Mismatch::StderrDifference { python: "pe".to_string(), rust: "re".to_string() },
             Mismatch::ExitCodeDifference { python: 0, rust: 1 },
         ];
         for v in &variants {
@@ -813,10 +776,7 @@ mod tests {
                     rust: "world".to_string(),
                     diff: "different".to_string(),
                 },
-                Mismatch::StderrDifference {
-                    python: "err".to_string(),
-                    rust: "error".to_string(),
-                },
+                Mismatch::StderrDifference { python: "err".to_string(), rust: "error".to_string() },
                 Mismatch::ExitCodeDifference { python: 0, rust: 1 },
             ],
         };
@@ -999,10 +959,7 @@ if __name__ == "__main__":
         };
         let mismatches = tester.compare_outputs(&python, &rust);
         assert_eq!(mismatches.len(), 1);
-        assert!(matches!(
-            &mismatches[0],
-            Mismatch::StdoutDifference { .. }
-        ));
+        assert!(matches!(&mismatches[0], Mismatch::StdoutDifference { .. }));
     }
 
     #[test]
@@ -1021,9 +978,7 @@ if __name__ == "__main__":
             runtime_ms: 5,
         };
         let mismatches = tester.compare_outputs(&python, &rust);
-        assert!(mismatches
-            .iter()
-            .any(|m| matches!(m, Mismatch::ExitCodeDifference { .. })));
+        assert!(mismatches.iter().any(|m| matches!(m, Mismatch::ExitCodeDifference { .. })));
     }
 
     #[test]
@@ -1042,9 +997,7 @@ if __name__ == "__main__":
             runtime_ms: 5,
         };
         let mismatches = tester.compare_outputs(&python, &rust);
-        assert!(mismatches
-            .iter()
-            .any(|m| matches!(m, Mismatch::StderrDifference { .. })));
+        assert!(mismatches.iter().any(|m| matches!(m, Mismatch::StderrDifference { .. })));
     }
 
     #[test]
@@ -1064,9 +1017,7 @@ if __name__ == "__main__":
         };
         let mismatches = tester.compare_outputs(&python, &rust);
         // When both exit codes are 0, stderr differences are OK
-        assert!(!mismatches
-            .iter()
-            .any(|m| matches!(m, Mismatch::StderrDifference { .. })));
+        assert!(!mismatches.iter().any(|m| matches!(m, Mismatch::StderrDifference { .. })));
     }
 
     #[test]
@@ -1112,10 +1063,7 @@ if __name__ == "__main__":
     #[test]
     fn test_s11_generate_report_all_passed() {
         let tester = make_dummy_tester();
-        let suite = ReprorustedTestSuite {
-            tester,
-            examples_dir: PathBuf::from("/tmp"),
-        };
+        let suite = ReprorustedTestSuite { tester, examples_dir: PathBuf::from("/tmp") };
         let mut results = HashMap::new();
         results.insert(
             "test1".to_string(),
@@ -1147,10 +1095,7 @@ if __name__ == "__main__":
     #[test]
     fn test_s11_generate_report_with_failures() {
         let tester = make_dummy_tester();
-        let suite = ReprorustedTestSuite {
-            tester,
-            examples_dir: PathBuf::from("/tmp"),
-        };
+        let suite = ReprorustedTestSuite { tester, examples_dir: PathBuf::from("/tmp") };
         let mut results = HashMap::new();
         results.insert(
             "failing".to_string(),
@@ -1188,10 +1133,7 @@ if __name__ == "__main__":
     #[test]
     fn test_s11_generate_report_mixed_results() {
         let tester = make_dummy_tester();
-        let suite = ReprorustedTestSuite {
-            tester,
-            examples_dir: PathBuf::from("/tmp"),
-        };
+        let suite = ReprorustedTestSuite { tester, examples_dir: PathBuf::from("/tmp") };
         let mut results = HashMap::new();
         results.insert(
             "pass".to_string(),
@@ -1246,10 +1188,7 @@ if __name__ == "__main__":
     #[test]
     fn test_s11_generate_report_empty() {
         let tester = make_dummy_tester();
-        let suite = ReprorustedTestSuite {
-            tester,
-            examples_dir: PathBuf::from("/tmp"),
-        };
+        let suite = ReprorustedTestSuite { tester, examples_dir: PathBuf::from("/tmp") };
         let results = HashMap::new();
         // This will divide by zero in the pass rate calculation
         // Let's make sure it doesn't panic (it uses total_count which is 0)
@@ -1260,10 +1199,7 @@ if __name__ == "__main__":
     #[test]
     fn test_s11_generate_report_stderr_mismatch() {
         let tester = make_dummy_tester();
-        let suite = ReprorustedTestSuite {
-            tester,
-            examples_dir: PathBuf::from("/tmp"),
-        };
+        let suite = ReprorustedTestSuite { tester, examples_dir: PathBuf::from("/tmp") };
         let mut results = HashMap::new();
         results.insert(
             "stderr_test".to_string(),

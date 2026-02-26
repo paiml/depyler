@@ -21,17 +21,12 @@ pub fn convert_functools_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         "reduce" => convert_reduce(&arg_exprs)?,
-        _ => bail!(
-            "functools.{} not implemented yet (available: reduce)",
-            method
-        ),
+        _ => bail!("functools.{} not implemented yet (available: reduce)", method),
     };
 
     Ok(Some(result))
@@ -81,10 +76,7 @@ mod tests {
     #[test]
     fn test_convert_functools_reduce_no_initial() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("add".to_string()),
-            HirExpr::Var("numbers".to_string()),
-        ];
+        let args = vec![HirExpr::Var("add".to_string()), HirExpr::Var("numbers".to_string())];
         let result = convert_functools_method("reduce", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -122,10 +114,7 @@ mod tests {
     #[test]
     fn test_convert_functools_reduce_lambda() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("lambda_fn".to_string()),
-            HirExpr::Var("items".to_string()),
-        ];
+        let args = vec![HirExpr::Var("lambda_fn".to_string()), HirExpr::Var("items".to_string())];
         let result = convert_functools_method("reduce", &args, &mut ctx);
         assert!(result.is_ok());
     }

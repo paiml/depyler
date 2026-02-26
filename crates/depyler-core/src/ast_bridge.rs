@@ -165,10 +165,7 @@ impl AstBridge {
     pub fn python_to_hir(
         mut self,
         module: ast::Mod,
-    ) -> Result<(
-        HirModule,
-        crate::type_system::type_environment::TypeEnvironment,
-    )> {
+    ) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
         let hir = match module {
             ast::Mod::Module(m) => self.convert_module(m)?,
             _ => bail!("Only module-level code is supported"),
@@ -380,9 +377,8 @@ impl AstBridge {
     ) -> TranspilationAnnotations {
         // Try to extract from source code comments first
         if let Some(source) = &self.source_code {
-            if let Some(annotation_text) = self
-                .annotation_extractor
-                .extract_function_annotations(source, &func.name)
+            if let Some(annotation_text) =
+                self.annotation_extractor.extract_function_annotations(source, &func.name)
             {
                 if let Ok(annotations) = self.annotation_parser.parse_annotations(&annotation_text)
                 {
@@ -411,9 +407,8 @@ impl AstBridge {
     ) -> TranspilationAnnotations {
         // Try to extract from source code comments first
         if let Some(source) = &self.source_code {
-            if let Some(annotation_text) = self
-                .annotation_extractor
-                .extract_function_annotations(source, &func.name)
+            if let Some(annotation_text) =
+                self.annotation_extractor.extract_function_annotations(source, &func.name)
             {
                 if let Ok(annotations) = self.annotation_parser.parse_annotations(&annotation_text)
                 {
@@ -490,11 +485,7 @@ impl AstBridge {
             _ => return Ok(None), // Not a type alias pattern
         };
 
-        Ok(Some(TypeAlias {
-            name: target.to_string(),
-            target_type,
-            is_newtype,
-        }))
+        Ok(Some(TypeAlias { name: target.to_string(), target_type, is_newtype }))
     }
 
     fn try_convert_annotated_type_alias(
@@ -542,11 +533,7 @@ impl AstBridge {
                 _ => return Ok(None),
             };
 
-            Ok(Some(TypeAlias {
-                name: target.to_string(),
-                target_type,
-                is_newtype,
-            }))
+            Ok(Some(TypeAlias { name: target.to_string(), target_type, is_newtype }))
         } else {
             Ok(None) // No value assigned
         }
@@ -567,11 +554,7 @@ impl AstBridge {
         // Convert the value expression
         let value = convert_expr(*assign.value.clone())?;
 
-        Ok(Some(HirConstant {
-            name,
-            value,
-            type_annotation: None,
-        }))
+        Ok(Some(HirConstant { name, value, type_annotation: None }))
     }
 
     /// Try to convert an annotated assignment to a module-level constant
@@ -596,11 +579,7 @@ impl AstBridge {
         if let Some(value_expr) = &ann_assign.value {
             let value = convert_expr(*value_expr.clone())?;
 
-            Ok(Some(HirConstant {
-                name,
-                value,
-                type_annotation,
-            }))
+            Ok(Some(HirConstant { name, value, type_annotation }))
         } else {
             Ok(None) // No value, skip it
         }
@@ -630,11 +609,8 @@ impl AstBridge {
         }
 
         // Convert the body of the if statement to HirStmts
-        let body: Vec<HirStmt> = if_stmt
-            .body
-            .iter()
-            .filter_map(|stmt| convert_stmt(stmt.clone()).ok())
-            .collect();
+        let body: Vec<HirStmt> =
+            if_stmt.body.iter().filter_map(|stmt| convert_stmt(stmt.clone()).ok()).collect();
 
         // Create a main function with the body
         Ok(Some(HirFunction {
@@ -736,12 +712,7 @@ impl AstBridge {
             }
         }
 
-        Ok(Some(Protocol {
-            name,
-            type_params,
-            methods,
-            is_runtime_checkable,
-        }))
+        Ok(Some(Protocol { name, type_params, methods, is_runtime_checkable }))
     }
 
     fn try_convert_class(&mut self, class: &ast::StmtClassDef) -> Result<Option<HirClass>> {
@@ -1027,27 +998,14 @@ impl AstBridge {
             false
         } else if is_classmethod {
             // Skip 'cls' parameter for classmethods
-            method
-                .args
-                .args
-                .first()
-                .map(|arg| arg.def.arg.as_str() == "cls")
-                .unwrap_or(false)
+            method.args.args.first().map(|arg| arg.def.arg.as_str() == "cls").unwrap_or(false)
         } else {
             // Skip 'self' parameter for instance methods
-            method
-                .args
-                .args
-                .first()
-                .map(|arg| arg.def.arg.as_str() == "self")
-                .unwrap_or(false)
+            method.args.args.first().map(|arg| arg.def.arg.as_str() == "self").unwrap_or(false)
         };
 
-        let args_to_process = if skip_first {
-            &method.args.args[1..]
-        } else {
-            &method.args.args[..]
-        };
+        let args_to_process =
+            if skip_first { &method.args.args[1..] } else { &method.args.args[..] };
 
         for arg in args_to_process {
             let param_name = arg.def.arg.to_string();
@@ -1069,12 +1027,7 @@ impl AstBridge {
             let name = vararg.arg.to_string();
             // Start with List<String> as a reasonable default
             let ty = Type::List(Box::new(Type::String));
-            params.push(HirParam {
-                name,
-                ty,
-                default: None,
-                is_vararg: true,
-            });
+            params.push(HirParam { name, ty, default: None, is_vararg: true });
         }
 
         // Convert return type
@@ -1181,27 +1134,14 @@ impl AstBridge {
             false
         } else if is_classmethod {
             // Skip 'cls' parameter for classmethods
-            method
-                .args
-                .args
-                .first()
-                .map(|arg| arg.def.arg.as_str() == "cls")
-                .unwrap_or(false)
+            method.args.args.first().map(|arg| arg.def.arg.as_str() == "cls").unwrap_or(false)
         } else {
             // Skip 'self' parameter for instance methods
-            method
-                .args
-                .args
-                .first()
-                .map(|arg| arg.def.arg.as_str() == "self")
-                .unwrap_or(false)
+            method.args.args.first().map(|arg| arg.def.arg.as_str() == "self").unwrap_or(false)
         };
 
-        let args_to_process = if skip_first {
-            &method.args.args[1..]
-        } else {
-            &method.args.args[..]
-        };
+        let args_to_process =
+            if skip_first { &method.args.args[1..] } else { &method.args.args[..] };
 
         for arg in args_to_process {
             let param_name = arg.def.arg.to_string();
@@ -1223,12 +1163,7 @@ impl AstBridge {
             let name = vararg.arg.to_string();
             // Start with List<String> as a reasonable default
             let ty = Type::List(Box::new(Type::String));
-            params.push(HirParam {
-                name,
-                ty,
-                default: None,
-                is_vararg: true,
-            });
+            params.push(HirParam { name, ty, default: None, is_vararg: true });
         }
 
         // Convert return type
@@ -1409,13 +1344,7 @@ impl AstBridge {
         // Check if method has a default implementation (non-empty body beyond docstring)
         let has_default = self.method_has_default_implementation(&func.body);
 
-        Ok(ProtocolMethod {
-            name,
-            params: params.into(),
-            ret_type,
-            is_optional,
-            has_default,
-        })
+        Ok(ProtocolMethod { name, params: params.into(), ret_type, is_optional, has_default })
     }
 
     fn method_has_default_implementation(&self, body: &[ast::Stmt]) -> bool {
@@ -1496,7 +1425,8 @@ impl AstBridge {
                                             .unwrap_or(Type::Unknown)
                                     } else {
                                         // Otherwise, try to infer from literal or default to Unknown
-                                        let inferred = self.infer_type_from_expr(assign.value.as_ref())
+                                        let inferred = self
+                                            .infer_type_from_expr(assign.value.as_ref())
                                             .unwrap_or(Type::Unknown);
                                         // DEPYLER-99MODE: Fields initialized to None are Optional
                                         // Python pattern: self.field = None → Option<T>
@@ -1749,10 +1679,7 @@ impl AstBridge {
 /// ```
 pub fn python_to_hir(
     module: ast::Mod,
-) -> Result<(
-    HirModule,
-    crate::type_system::type_environment::TypeEnvironment,
-)> {
+) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
     AstBridge::new().python_to_hir(module)
 }
 
@@ -1767,10 +1694,8 @@ pub fn python_to_hir(
 /// Complexity: O(n * m) where n = number of functions, m = max call depth
 fn propagate_can_fail_through_calls(functions: &mut [HirFunction]) {
     // Build a map of function names to can_fail status for quick lookup
-    let mut can_fail_map: std::collections::HashMap<String, bool> = functions
-        .iter()
-        .map(|f| (f.name.clone(), f.properties.can_fail))
-        .collect();
+    let mut can_fail_map: std::collections::HashMap<String, bool> =
+        functions.iter().map(|f| (f.name.clone(), f.properties.can_fail)).collect();
 
     // Fixed-point iteration: keep propagating until no changes occur
     let mut changed = true;
@@ -1819,11 +1744,7 @@ fn stmt_calls_failing_function(
         HirStmt::Return(Some(expr)) | HirStmt::Expr(expr) | HirStmt::Assign { value: expr, .. } => {
             expr_calls_failing_function(expr, can_fail_map)
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             expr_calls_failing_function(condition, can_fail_map)
                 || calls_failing_function(then_body, can_fail_map)
                 || else_body
@@ -1839,16 +1760,9 @@ fn stmt_calls_failing_function(
             expr_calls_failing_function(iter, can_fail_map)
                 || calls_failing_function(body, can_fail_map)
         }
-        HirStmt::Try {
-            body,
-            handlers,
-            finalbody,
-            ..
-        } => {
+        HirStmt::Try { body, handlers, finalbody, .. } => {
             calls_failing_function(body, can_fail_map)
-                || handlers
-                    .iter()
-                    .any(|h| calls_failing_function(&h.body, can_fail_map))
+                || handlers.iter().any(|h| calls_failing_function(&h.body, can_fail_map))
                 || finalbody
                     .as_ref()
                     .map(|fb| calls_failing_function(fb, can_fail_map))
@@ -1870,22 +1784,19 @@ fn expr_calls_failing_function(
                 return true;
             }
             // Also check arguments recursively
-            args.iter()
-                .any(|arg| expr_calls_failing_function(arg, can_fail_map))
+            args.iter().any(|arg| expr_calls_failing_function(arg, can_fail_map))
         }
         HirExpr::Binary { left, right, .. } => {
             expr_calls_failing_function(left, can_fail_map)
                 || expr_calls_failing_function(right, can_fail_map)
         }
         HirExpr::Unary { operand, .. } => expr_calls_failing_function(operand, can_fail_map),
-        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => elements
-            .iter()
-            .any(|e| expr_calls_failing_function(e, can_fail_map)),
+        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
+            elements.iter().any(|e| expr_calls_failing_function(e, can_fail_map))
+        }
         HirExpr::MethodCall { object, args, .. } => {
             expr_calls_failing_function(object, can_fail_map)
-                || args
-                    .iter()
-                    .any(|arg| expr_calls_failing_function(arg, can_fail_map))
+                || args.iter().any(|arg| expr_calls_failing_function(arg, can_fail_map))
         }
         HirExpr::Index { base, index } => {
             expr_calls_failing_function(base, can_fail_map)
@@ -2034,12 +1945,7 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
             base_ty
         };
 
-        params.push(HirParam {
-            name,
-            ty,
-            default,
-            is_vararg: false,
-        });
+        params.push(HirParam { name, ty, default, is_vararg: false });
     }
 
     // DEPYLER-0477: Extract varargs parameter (*args)
@@ -2085,17 +1991,10 @@ pub(crate) fn extract_assign_target(expr: &ast::Expr) -> Result<AssignTarget> {
         }
         ast::Expr::Attribute(a) => {
             let value = Box::new(ExprConverter::convert(a.value.as_ref().clone())?);
-            Ok(AssignTarget::Attribute {
-                value,
-                attr: a.attr.to_string(),
-            })
+            Ok(AssignTarget::Attribute { value, attr: a.attr.to_string() })
         }
         ast::Expr::Tuple(t) => {
-            let targets = t
-                .elts
-                .iter()
-                .map(extract_assign_target)
-                .collect::<Result<Vec<_>>>()?;
+            let targets = t.elts.iter().map(extract_assign_target).collect::<Result<Vec<_>>>()?;
             Ok(AssignTarget::Tuple(targets))
         }
         _ => bail!("Unsupported assignment target"),
@@ -2177,11 +2076,7 @@ fn convert_import(import: ast::StmtImport) -> Result<Vec<Import>> {
             let module_alias = alias.asname.map(|a| a.to_string());
             // For "import module" or "import module as alias", we import the whole module
             let items = vec![];
-            Ok(Import {
-                module,
-                alias: module_alias,
-                items,
-            })
+            Ok(Import { module, alias: module_alias, items })
         })
         .collect()
 }
@@ -2195,10 +2090,7 @@ fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
         .map(|alias| {
             let name = alias.name.to_string();
             if let Some(asname) = alias.asname {
-                ImportItem::Aliased {
-                    name,
-                    alias: asname.to_string(),
-                }
+                ImportItem::Aliased { name, alias: asname.to_string() }
             } else {
                 ImportItem::Named(name)
             }
@@ -2206,11 +2098,7 @@ fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
         .collect();
 
     // DEPYLER-1136: `from X import Y` has no module-level alias
-    Ok(vec![Import {
-        module,
-        alias: None,
-        items,
-    }])
+    Ok(vec![Import { module, alias: None, items }])
 }
 
 fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, Vec<HirStmt>)> {
@@ -2235,11 +2123,8 @@ fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, V
 
     // Convert the body, skipping the docstring if it exists
     let start_index = if docstring.is_some() { 1 } else { 0 };
-    let filtered_body: Vec<HirStmt> = body
-        .into_iter()
-        .skip(start_index)
-        .filter_map(|stmt| convert_stmt(stmt).ok())
-        .collect();
+    let filtered_body: Vec<HirStmt> =
+        body.into_iter().skip(start_index).filter_map(|stmt| convert_stmt(stmt).ok()).collect();
 
     Ok((docstring, filtered_body))
 }
@@ -2257,10 +2142,8 @@ mod tests {
             type_ignores: vec![],
             range: Default::default(),
         });
-        let (hir, _type_env) = AstBridge::new()
-            .with_source(source.to_string())
-            .python_to_hir(ast)
-            .unwrap();
+        let (hir, _type_env) =
+            AstBridge::new().with_source(source.to_string()).python_to_hir(ast).unwrap();
         hir
     }
 
@@ -2311,12 +2194,7 @@ def check(x: int) -> str:
 
         let func = &hir.functions[0];
         assert_eq!(func.body.len(), 1);
-        if let HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } = &func.body[0]
-        {
+        if let HirStmt::If { condition, then_body, else_body } = &func.body[0] {
             assert!(matches!(condition, HirExpr::Binary { op: BinOp::Gt, .. }));
             assert_eq!(then_body.len(), 1);
             assert!(else_body.is_some());
@@ -2389,22 +2267,14 @@ def expressions():
         assert_eq!(func.body.len(), 2);
 
         // Check list assignment
-        if let HirStmt::Assign {
-            value: HirExpr::List(_),
-            ..
-        } = &func.body[0]
-        {
+        if let HirStmt::Assign { value: HirExpr::List(_), .. } = &func.body[0] {
             // OK
         } else {
             panic!("Expected list assignment");
         }
 
         // Check tuple assignment
-        if let HirStmt::Assign {
-            value: HirExpr::Tuple(_),
-            ..
-        } = &func.body[1]
-        {
+        if let HirStmt::Assign { value: HirExpr::Tuple(_), .. } = &func.body[1] {
             // OK
         } else {
             panic!("Expected tuple assignment");
@@ -2436,26 +2306,11 @@ def unary_ops(x: int) -> int:
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
-        if let HirStmt::Return(Some(HirExpr::Binary {
-            op: BinOp::Add,
-            left,
-            right,
-        })) = &func.body[0]
+        if let HirStmt::Return(Some(HirExpr::Binary { op: BinOp::Add, left, right })) =
+            &func.body[0]
         {
-            assert!(matches!(
-                left.as_ref(),
-                HirExpr::Unary {
-                    op: UnaryOp::Neg,
-                    ..
-                }
-            ));
-            assert!(matches!(
-                right.as_ref(),
-                HirExpr::Unary {
-                    op: UnaryOp::Pos,
-                    ..
-                }
-            ));
+            assert!(matches!(left.as_ref(), HirExpr::Unary { op: UnaryOp::Neg, .. }));
+            assert!(matches!(right.as_ref(), HirExpr::Unary { op: UnaryOp::Pos, .. }));
         } else {
             panic!("Expected unary operations");
         }
@@ -2470,10 +2325,7 @@ def call_functions() -> int:
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
-        if let HirStmt::Return(Some(HirExpr::Call {
-            func: fname, args, ..
-        })) = &func.body[0]
-        {
+        if let HirStmt::Return(Some(HirExpr::Call { func: fname, args, .. })) = &func.body[0] {
             assert_eq!(fname, "len");
             assert_eq!(args.len(), 1);
             assert!(matches!(args[0], HirExpr::List(_)));
@@ -2497,18 +2349,12 @@ def process_data(items: List[int]) -> int:
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
-        assert_eq!(
-            func.annotations.type_strategy,
-            depyler_annotations::TypeStrategy::Aggressive
-        );
+        assert_eq!(func.annotations.type_strategy, depyler_annotations::TypeStrategy::Aggressive);
         assert_eq!(
             func.annotations.optimization_level,
             depyler_annotations::OptimizationLevel::Aggressive
         );
-        assert_eq!(
-            func.annotations.thread_safety,
-            depyler_annotations::ThreadSafety::Required
-        );
+        assert_eq!(func.annotations.thread_safety, depyler_annotations::ThreadSafety::Required);
     }
 
     #[test]
@@ -2534,10 +2380,7 @@ def compute(data: List[float]) -> float:
             .annotations
             .performance_hints
             .contains(&depyler_annotations::PerformanceHint::Vectorize));
-        assert_eq!(
-            func.annotations.bounds_checking,
-            depyler_annotations::BoundsChecking::Disabled
-        );
+        assert_eq!(func.annotations.bounds_checking, depyler_annotations::BoundsChecking::Disabled);
     }
 
     #[test]
@@ -2791,10 +2634,7 @@ class Calculator:
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.type_aliases.len(), 1);
         assert_eq!(hir.type_aliases[0].name, "StringList");
-        assert_eq!(
-            hir.type_aliases[0].target_type,
-            Type::List(Box::new(Type::String))
-        );
+        assert_eq!(hir.type_aliases[0].target_type, Type::List(Box::new(Type::String)));
     }
 
     #[test]
@@ -3150,10 +2990,7 @@ def outer(x: int) -> int:
     fn test_create_default_value_for_int() {
         let bridge = AstBridge::new();
         let result = bridge.create_default_value_for_type(&crate::hir::Type::Int);
-        assert!(matches!(
-            result,
-            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(0)))
-        ));
+        assert!(matches!(result, Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(0)))));
     }
 
     #[test]
@@ -3172,9 +3009,7 @@ def outer(x: int) -> int:
         let result = bridge.create_default_value_for_type(&crate::hir::Type::Bool);
         assert!(matches!(
             result,
-            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(
-                false
-            )))
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(false)))
         ));
     }
 
@@ -4063,10 +3898,8 @@ mod coverage_tests {
             type_ignores: vec![],
             range: Default::default(),
         });
-        let (hir, _type_env) = AstBridge::new()
-            .with_source(source.to_string())
-            .python_to_hir(ast)
-            .unwrap();
+        let (hir, _type_env) =
+            AstBridge::new().with_source(source.to_string()).python_to_hir(ast).unwrap();
         hir
     }
 
@@ -4340,11 +4173,7 @@ def make_dict() -> dict:
     fn test_is_type_variable_all_letters() {
         let bridge = AstBridge::new();
         for c in 'A'..='Z' {
-            assert!(
-                bridge.is_type_variable(&c.to_string()),
-                "{} should be a type variable",
-                c
-            );
+            assert!(bridge.is_type_variable(&c.to_string()), "{} should be a type variable", c);
         }
     }
 
@@ -4380,54 +4209,18 @@ def make_dict() -> dict:
     fn test_convert_binop_all_operators() {
         use rustpython_ast as ast;
 
-        assert!(matches!(
-            convert_binop(&ast::Operator::Add).unwrap(),
-            BinOp::Add
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::Sub).unwrap(),
-            BinOp::Sub
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::Mult).unwrap(),
-            BinOp::Mul
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::Div).unwrap(),
-            BinOp::Div
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::FloorDiv).unwrap(),
-            BinOp::FloorDiv
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::Mod).unwrap(),
-            BinOp::Mod
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::Pow).unwrap(),
-            BinOp::Pow
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::BitAnd).unwrap(),
-            BinOp::BitAnd
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::BitOr).unwrap(),
-            BinOp::BitOr
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::BitXor).unwrap(),
-            BinOp::BitXor
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::LShift).unwrap(),
-            BinOp::LShift
-        ));
-        assert!(matches!(
-            convert_binop(&ast::Operator::RShift).unwrap(),
-            BinOp::RShift
-        ));
+        assert!(matches!(convert_binop(&ast::Operator::Add).unwrap(), BinOp::Add));
+        assert!(matches!(convert_binop(&ast::Operator::Sub).unwrap(), BinOp::Sub));
+        assert!(matches!(convert_binop(&ast::Operator::Mult).unwrap(), BinOp::Mul));
+        assert!(matches!(convert_binop(&ast::Operator::Div).unwrap(), BinOp::Div));
+        assert!(matches!(convert_binop(&ast::Operator::FloorDiv).unwrap(), BinOp::FloorDiv));
+        assert!(matches!(convert_binop(&ast::Operator::Mod).unwrap(), BinOp::Mod));
+        assert!(matches!(convert_binop(&ast::Operator::Pow).unwrap(), BinOp::Pow));
+        assert!(matches!(convert_binop(&ast::Operator::BitAnd).unwrap(), BinOp::BitAnd));
+        assert!(matches!(convert_binop(&ast::Operator::BitOr).unwrap(), BinOp::BitOr));
+        assert!(matches!(convert_binop(&ast::Operator::BitXor).unwrap(), BinOp::BitXor));
+        assert!(matches!(convert_binop(&ast::Operator::LShift).unwrap(), BinOp::LShift));
+        assert!(matches!(convert_binop(&ast::Operator::RShift).unwrap(), BinOp::RShift));
     }
 
     // ============ convert_unaryop coverage ============
@@ -4436,22 +4229,10 @@ def make_dict() -> dict:
     fn test_convert_unaryop_all() {
         use rustpython_ast as ast;
 
-        assert!(matches!(
-            convert_unaryop(&ast::UnaryOp::Not).unwrap(),
-            UnaryOp::Not
-        ));
-        assert!(matches!(
-            convert_unaryop(&ast::UnaryOp::UAdd).unwrap(),
-            UnaryOp::Pos
-        ));
-        assert!(matches!(
-            convert_unaryop(&ast::UnaryOp::USub).unwrap(),
-            UnaryOp::Neg
-        ));
-        assert!(matches!(
-            convert_unaryop(&ast::UnaryOp::Invert).unwrap(),
-            UnaryOp::BitNot
-        ));
+        assert!(matches!(convert_unaryop(&ast::UnaryOp::Not).unwrap(), UnaryOp::Not));
+        assert!(matches!(convert_unaryop(&ast::UnaryOp::UAdd).unwrap(), UnaryOp::Pos));
+        assert!(matches!(convert_unaryop(&ast::UnaryOp::USub).unwrap(), UnaryOp::Neg));
+        assert!(matches!(convert_unaryop(&ast::UnaryOp::Invert).unwrap(), UnaryOp::BitNot));
     }
 
     // ============ convert_cmpop coverage ============
@@ -4460,47 +4241,17 @@ def make_dict() -> dict:
     fn test_convert_cmpop_all() {
         use rustpython_ast as ast;
 
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::Eq).unwrap(),
-            BinOp::Eq
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::NotEq).unwrap(),
-            BinOp::NotEq
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::Lt).unwrap(),
-            BinOp::Lt
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::LtE).unwrap(),
-            BinOp::LtEq
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::Gt).unwrap(),
-            BinOp::Gt
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::GtE).unwrap(),
-            BinOp::GtEq
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::In).unwrap(),
-            BinOp::In
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::NotIn).unwrap(),
-            BinOp::NotIn
-        ));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::Eq).unwrap(), BinOp::Eq));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::NotEq).unwrap(), BinOp::NotEq));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::Lt).unwrap(), BinOp::Lt));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::LtE).unwrap(), BinOp::LtEq));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::Gt).unwrap(), BinOp::Gt));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::GtE).unwrap(), BinOp::GtEq));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::In).unwrap(), BinOp::In));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::NotIn).unwrap(), BinOp::NotIn));
         // Is/IsNot map to Eq/NotEq
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::Is).unwrap(),
-            BinOp::Eq
-        ));
-        assert!(matches!(
-            convert_cmpop(&ast::CmpOp::IsNot).unwrap(),
-            BinOp::NotEq
-        ));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::Is).unwrap(), BinOp::Eq));
+        assert!(matches!(convert_cmpop(&ast::CmpOp::IsNot).unwrap(), BinOp::NotEq));
     }
 
     // ============ Docstring extraction ============

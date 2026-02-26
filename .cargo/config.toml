@@ -1,8 +1,12 @@
-# Temporary coverage config - DO NOT COMMIT
-# Replaces project config during coverage runs
+# Build performance configuration
 [build]
 incremental = true
-target-dir = "/mnt/nvme-raid0/coverage/depyler"
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=native"]
+
+[env]
+RUST_BACKTRACE = "1"
 
 [alias]
 t = "test"

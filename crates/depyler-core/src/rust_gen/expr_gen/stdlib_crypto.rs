@@ -35,10 +35,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Mark that we need base64 crate
         self.ctx.needs_base64 = true;
@@ -99,10 +97,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Base32 (note: base64 crate doesn't support base32, would need data-encoding crate)
             "b32encode" | "b32decode" => {
                 // Simplified: note that full implementation needs data-encoding crate
-                bail!(
-                    "base64.{} requires data-encoding crate (not yet integrated)",
-                    method
-                );
+                bail!("base64.{} requires data-encoding crate (not yet integrated)", method);
             }
 
             // Base16 (Hex)
@@ -133,10 +128,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Base85 (also needs additional crate)
             "b85encode" | "b85decode" => {
                 // Simplified: note that full implementation needs additional crate
-                bail!(
-                    "base64.{} requires base85 encoding crate (not yet integrated)",
-                    method
-                );
+                bail!("base64.{} requires base85 encoding crate (not yet integrated)", method);
             }
 
             _ => {
@@ -163,10 +155,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Mark that we need rand crate (ThreadRng is cryptographically secure)
         self.ctx.needs_rand = true;
@@ -281,10 +271,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // All hash functions need hex encoding
         self.ctx.needs_hex = true;
@@ -555,11 +543,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if algorithm name is a string literal for static dispatch
                 if let HirExpr::Literal(Literal::String(alg_name)) = &args[0] {
                     let alg_lower = alg_name.to_lowercase();
-                    let data_args: Vec<HirExpr> = if args.len() > 1 {
-                        args[1..].to_vec()
-                    } else {
-                        vec![]
-                    };
+                    let data_args: Vec<HirExpr> =
+                        if args.len() > 1 { args[1..].to_vec() } else { vec![] };
                     // Recursively dispatch to the correct algorithm handler
                     return self.try_convert_hashlib_method(&alg_lower, &data_args);
                 }
@@ -598,10 +583,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Mark that we need uuid crate
         self.ctx.needs_uuid = true;
@@ -663,10 +646,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Mark that we need hmac and related crates
         self.ctx.needs_hmac = true;
@@ -717,10 +698,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!(
-                    "hmac.{} not implemented yet (try: new, compare_digest)",
-                    method
-                );
+                bail!("hmac.{} not implemented yet (try: new, compare_digest)", method);
             }
         };
 

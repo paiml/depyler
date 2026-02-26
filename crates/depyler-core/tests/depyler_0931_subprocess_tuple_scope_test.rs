@@ -44,10 +44,7 @@ fn compiles(code: &str) -> bool {
 
     args.push(temp_file.clone());
 
-    let output = Command::new("rustc")
-        .args(&args)
-        .output()
-        .expect("Failed to run rustc");
+    let output = Command::new("rustc").args(&args).output().expect("Failed to run rustc");
 
     // Cleanup temp file
     let _ = std::fs::remove_file(&temp_file);
@@ -58,11 +55,7 @@ fn compiles(code: &str) -> bool {
 /// Find serde_json rlib in target directories
 fn find_serde_json_rlib() -> Option<String> {
     // Check common locations for serde_json rlib
-    for base in [
-        "target/debug/deps",
-        "../../target/debug/deps",
-        "target/release/deps",
-    ] {
+    for base in ["target/debug/deps", "../../target/debug/deps", "target/release/deps"] {
         if let Ok(entries) = std::fs::read_dir(base) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -103,10 +96,7 @@ fn compile_errors(code: &str) -> String {
 
     args.push(temp_file.clone());
 
-    let output = Command::new("rustc")
-        .args(&args)
-        .output()
-        .expect("Failed to run rustc");
+    let output = Command::new("rustc").args(&args).output().expect("Failed to run rustc");
 
     // Cleanup temp file
     let _ = std::fs::remove_file(&temp_file);
@@ -134,27 +124,16 @@ def run_command(cmd: list) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should properly scope stdout/stderr variables
-    assert!(
-        code.contains("fn run_command"),
-        "Should generate run_command function: {}",
-        code
-    );
+    assert!(code.contains("fn run_command"), "Should generate run_command function: {}", code);
 
     // CRITICAL: Generated code must compile without E0425 errors
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -174,27 +153,16 @@ def process_output() -> tuple:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Variables should be accessible in both branches
-    assert!(
-        code.contains("fn process_output"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn process_output"), "Should generate function: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -212,27 +180,16 @@ def safe_read(path: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // 'data' should be accessible in both try and except context
-    assert!(
-        code.contains("fn safe_read"),
-        "Should generate safe_read function: {}",
-        code
-    );
+    assert!(code.contains("fn safe_read"), "Should generate safe_read function: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -253,27 +210,16 @@ def start_process(cmd: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should handle subprocess.Popen
-    assert!(
-        code.contains("fn start_process"),
-        "Should generate start_process function: {}",
-        code
-    );
+    assert!(code.contains("fn start_process"), "Should generate start_process function: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -292,26 +238,15 @@ def process_with_fallback(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("fn process_with_fallback"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn process_with_fallback"), "Should generate function: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -333,26 +268,15 @@ def nested_handler(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Both outer and inner should be properly scoped
-    assert!(
-        code.contains("fn nested_handler"),
-        "Should generate function: {}",
-        code
-    );
+    assert!(code.contains("fn nested_handler"), "Should generate function: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }

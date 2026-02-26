@@ -28,10 +28,7 @@ def lambda_handler(event: dict, context: dict) -> int:
     let lambda_path = temp_path.join("lambda_demo.py");
     fs::write(&lambda_path, lambda_source)?;
 
-    println!(
-        "📝 Created test Lambda function at: {}",
-        lambda_path.display()
-    );
+    println!("📝 Created test Lambda function at: {}", lambda_path.display());
 
     // Step 1: Analyze the Lambda function
     println!("\n1️⃣ Analyzing Lambda function...");
@@ -43,10 +40,7 @@ def lambda_handler(event: dict, context: dict) -> int:
     println!("{analyze_stdout}");
     assert!(analyze_output.status.success(), "Lambda analysis failed");
     // The analyzer should run successfully - event type detection is still being improved
-    assert!(
-        analyze_stdout.contains("Lambda Event Type Analysis"),
-        "Should show analysis output"
-    );
+    assert!(analyze_stdout.contains("Lambda Event Type Analysis"), "Should show analysis output");
 
     // Step 2: Convert to Rust Lambda
     println!("\n2️⃣ Converting to Rust Lambda...");
@@ -67,42 +61,21 @@ def lambda_handler(event: dict, context: dict) -> int:
     let convert_stderr = String::from_utf8_lossy(&convert_output.stderr);
     println!("STDOUT: {convert_stdout}");
     println!("STDERR: {convert_stderr}");
-    assert!(
-        convert_output.status.success(),
-        "Lambda conversion failed: {convert_stderr}"
-    );
+    assert!(convert_output.status.success(), "Lambda conversion failed: {convert_stderr}");
     assert!(output_dir.exists(), "Output directory should be created");
 
     // Verify generated files
-    assert!(
-        output_dir.join("Cargo.toml").exists(),
-        "Cargo.toml should exist"
-    );
-    assert!(
-        output_dir.join("src/main.rs").exists(),
-        "main.rs should exist"
-    );
-    assert!(
-        output_dir.join("build.sh").exists(),
-        "build.sh should exist"
-    );
-    assert!(
-        output_dir.join("README.md").exists(),
-        "README.md should exist"
-    );
+    assert!(output_dir.join("Cargo.toml").exists(), "Cargo.toml should exist");
+    assert!(output_dir.join("src/main.rs").exists(), "main.rs should exist");
+    assert!(output_dir.join("build.sh").exists(), "build.sh should exist");
+    assert!(output_dir.join("README.md").exists(), "README.md should exist");
 
     // Read and verify Cargo.toml
     let cargo_toml = fs::read_to_string(output_dir.join("Cargo.toml"))?;
     println!("\n📦 Generated Cargo.toml:");
     println!("{cargo_toml}");
-    assert!(
-        cargo_toml.contains("lambda_runtime"),
-        "Should include lambda_runtime"
-    );
-    assert!(
-        cargo_toml.contains("aws-lambda-events"),
-        "Should include aws-lambda-events"
-    );
+    assert!(cargo_toml.contains("lambda_runtime"), "Should include lambda_runtime");
+    assert!(cargo_toml.contains("aws-lambda-events"), "Should include aws-lambda-events");
     assert!(cargo_toml.contains("tokio"), "Should include tokio");
 
     // Read and verify main.rs
@@ -112,15 +85,9 @@ def lambda_handler(event: dict, context: dict) -> int:
         println!("{:3}: {}", i + 1, line);
     }
     // Check for key Lambda components (the template might not be fully rendered in tests)
-    assert!(
-        main_rs.contains("lambda_runtime"),
-        "Should use lambda_runtime"
-    );
+    assert!(main_rs.contains("lambda_runtime"), "Should use lambda_runtime");
     assert!(main_rs.contains("handler"), "Should have handler function");
-    assert!(
-        main_rs.contains("lambda_handler"),
-        "Should contain transpiled function"
-    );
+    assert!(main_rs.contains("lambda_handler"), "Should contain transpiled function");
 
     // Step 3: Check if we can compile the generated code
     println!("\n3️⃣ Checking if generated code compiles...");
@@ -226,9 +193,8 @@ def lambda_handler(event: dict, context: dict) -> int:
 #[ignore] // Lambda command not yet implemented
 fn test_lambda_commands_help() -> Result<()> {
     // Test that Lambda commands are available
-    let help_output = Command::new(env!("CARGO_BIN_EXE_depyler"))
-        .args(["lambda", "--help"])
-        .output()?;
+    let help_output =
+        Command::new(env!("CARGO_BIN_EXE_depyler")).args(["lambda", "--help"]).output()?;
 
     assert!(help_output.status.success(), "Lambda help should succeed");
 
@@ -289,26 +255,15 @@ def handler(event, context):
     for (name, code) in patterns {
         println!("\nTesting {name} pattern...");
 
-        let file_path = temp_dir.path().join(format!(
-            "{}_handler.py",
-            name.to_lowercase().replace(' ', "_")
-        ));
+        let file_path =
+            temp_dir.path().join(format!("{}_handler.py", name.to_lowercase().replace(' ', "_")));
         fs::write(&file_path, code)?;
 
         let output = Command::new(env!("CARGO_BIN_EXE_depyler"))
-            .args([
-                "lambda",
-                "analyze",
-                file_path.to_str().unwrap(),
-                "--format",
-                "json",
-            ])
+            .args(["lambda", "analyze", file_path.to_str().unwrap(), "--format", "json"])
             .output()?;
 
-        assert!(
-            output.status.success(),
-            "{name} pattern analysis should succeed"
-        );
+        assert!(output.status.success(), "{name} pattern analysis should succeed");
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         println!("Analysis result: {stdout}");

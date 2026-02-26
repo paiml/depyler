@@ -14,35 +14,35 @@ use aprender::primitives::Matrix;
 use aprender::tree::RandomForestClassifier;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "training")]
+pub mod acceleration_pipeline;
+pub mod ast_embeddings; // Issue #210: Code2Vec-style AST embeddings
 pub mod autofixer;
 pub mod automl_tuning;
 pub mod citl_fixer;
 pub mod classifier;
 #[cfg(feature = "training")]
 pub mod corpus_citl;
+pub mod corpus_extract;
+pub mod curriculum;
 #[cfg(feature = "training")]
 pub mod data_store;
 pub mod depyler_training;
-pub mod estimator;
-pub mod features;
-pub mod github_corpus;
-#[cfg(feature = "api-fallback")]
-pub mod hybrid;
-pub mod moe_oracle;
-#[cfg(feature = "training")]
-pub mod acceleration_pipeline;
-pub mod ast_embeddings; // Issue #210: Code2Vec-style AST embeddings
-pub mod corpus_extract;
-pub mod curriculum;
 #[cfg(feature = "training")]
 pub mod distillation;
 #[cfg(feature = "training")]
 pub mod error_patterns;
+pub mod estimator;
+pub mod features;
+pub mod github_corpus;
 #[cfg(feature = "training")]
 pub mod gnn_encoder;
 pub mod graph_corpus;
 pub mod hansei;
+#[cfg(feature = "api-fallback")]
+pub mod hybrid;
 pub mod hybrid_retrieval;
+pub mod moe_oracle;
 pub mod ngram;
 #[cfg(feature = "training")]
 pub mod oip_export;
@@ -323,11 +323,8 @@ pub fn get_training_corpus_paths() -> Vec<PathBuf> {
         root.join("training_data"),
     ];
 
-    let mut paths: Vec<PathBuf> = corpus_dirs
-        .iter()
-        .filter(|d| d.exists())
-        .flat_map(|d| collect_corpus_files(d))
-        .collect();
+    let mut paths: Vec<PathBuf> =
+        corpus_dirs.iter().filter(|d| d.exists()).flat_map(|d| collect_corpus_files(d)).collect();
 
     paths.sort();
     paths
@@ -425,10 +422,7 @@ impl Oracle {
 
         // Save model for next time
         if let Err(e) = oracle.save(&model_path) {
-            eprintln!(
-                "Warning: Failed to cache model to {}: {e}",
-                model_path.display()
-            );
+            eprintln!("Warning: Failed to cache model to {}: {e}", model_path.display());
         }
 
         // Record training in lineage (Issue #212)
@@ -566,9 +560,7 @@ impl Oracle {
     ///
     /// Returns error if training fails.
     pub fn train(&mut self, features: &Matrix<f32>, labels: &[usize]) -> Result<()> {
-        self.classifier
-            .fit(features, labels)
-            .map_err(|e| OracleError::Model(e.to_string()))?;
+        self.classifier.fit(features, labels).map_err(|e| OracleError::Model(e.to_string()))?;
 
         Ok(())
     }
@@ -610,22 +602,14 @@ impl Oracle {
 
     fn build_classification_result(&self, predictions: Vec<usize>) -> Result<ClassificationResult> {
         if predictions.is_empty() {
-            return Err(OracleError::Classification(
-                "No prediction produced".to_string(),
-            ));
+            return Err(OracleError::Classification("No prediction produced".to_string()));
         }
 
         let pred_idx = predictions[0];
-        let category = self
-            .categories
-            .get(pred_idx)
-            .copied()
-            .unwrap_or(ErrorCategory::Other);
+        let category = self.categories.get(pred_idx).copied().unwrap_or(ErrorCategory::Other);
 
-        let suggested_fix = self
-            .fix_templates
-            .get(&category)
-            .and_then(|fixes| fixes.first().cloned());
+        let suggested_fix =
+            self.fix_templates.get(&category).and_then(|fixes| fixes.first().cloned());
 
         let related = self
             .fix_templates
@@ -768,13 +752,12 @@ impl Oracle {
     ) -> EnhancedClassificationResult {
         // 1. Get base classification using Random Forest
         let base_result =
-            self.classify_message(error_message)
-                .unwrap_or_else(|_| ClassificationResult {
-                    category: ErrorCategory::Other,
-                    confidence: 0.5,
-                    suggested_fix: None,
-                    related_patterns: vec![],
-                });
+            self.classify_message(error_message).unwrap_or_else(|_| ClassificationResult {
+                category: ErrorCategory::Other,
+                confidence: 0.5,
+                suggested_fix: None,
+                related_patterns: vec![],
+            });
 
         // 2. Extract enhanced 73-dim features
         let enhanced_features = features::EnhancedErrorFeatures::from_error_message(error_message);
@@ -798,12 +781,7 @@ impl Oracle {
         // 6. Extract suggested fixes from matched patterns
         let pattern_fixes: Vec<String> = similar_patterns
             .iter()
-            .filter_map(|sp| {
-                sp.pattern
-                    .error_pattern
-                    .as_ref()
-                    .map(|ep| ep.fix_diff.clone())
-            })
+            .filter_map(|sp| sp.pattern.error_pattern.as_ref().map(|ep| ep.fix_diff.clone()))
             .filter(|fix| !fix.is_empty())
             .take(3)
             .collect();
@@ -868,22 +846,13 @@ pub fn print_drift_status(stats: &DriftStats, status: &DriftStatus) {
     println!("│            Drift Detection Status                   │");
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  Status: {:^40} │", status_indicator);
-    println!(
-        "│  Samples: {:>8}                                 │",
-        stats.n_samples
-    );
-    println!(
-        "│  Error Rate: {:>6.2}%                               │",
-        stats.error_rate * 100.0
-    );
+    println!("│  Samples: {:>8}                                 │", stats.n_samples);
+    println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate * 100.0);
     println!(
         "│  Min Error Rate: {:>6.2}%                           │",
         stats.min_error_rate * 100.0
     );
-    println!(
-        "│  Std Dev: {:>8.4}                                 │",
-        stats.std_dev
-    );
+    println!("│  Std Dev: {:>8.4}                                 │", stats.std_dev);
     println!("╰─────────────────────────────────────────────────────╯");
 }
 
@@ -904,36 +873,18 @@ pub fn print_retrain_status(stats: &RetrainStats) {
         "│  {} Drift Status: {:?}                           │",
         status_indicator, stats.drift_status
     );
-    println!(
-        "│  Predictions: {:>8}                              │",
-        stats.predictions_observed
-    );
-    println!(
-        "│  Correct:     {:>8}                              │",
-        stats.correct_predictions
-    );
-    println!(
-        "│  Errors:      {:>8}                              │",
-        stats.errors
-    );
-    println!(
-        "│  Consecutive: {:>8}                              │",
-        stats.consecutive_errors
-    );
-    println!(
-        "│  Drift Count: {:>8}                              │",
-        stats.drift_count
-    );
+    println!("│  Predictions: {:>8}                              │", stats.predictions_observed);
+    println!("│  Correct:     {:>8}                              │", stats.correct_predictions);
+    println!("│  Errors:      {:>8}                              │", stats.errors);
+    println!("│  Consecutive: {:>8}                              │", stats.consecutive_errors);
+    println!("│  Drift Count: {:>8}                              │", stats.drift_count);
     println!("├─────────────────────────────────────────────────────┤");
     println!(
         "│  Accuracy: {:>6.2}% {}                    │",
         stats.accuracy() * 100.0,
         accuracy_bar
     );
-    println!(
-        "│  Error Rate: {:>6.2}%                               │",
-        stats.error_rate() * 100.0
-    );
+    println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate() * 100.0);
     println!("╰─────────────────────────────────────────────────────╯");
 }
 
@@ -943,25 +894,16 @@ pub fn print_lineage_history(lineage: &OracleLineage) {
     println!("╭─────────────────────────────────────────────────────╮");
     println!("│            Model Lineage History                    │");
     println!("├─────────────────────────────────────────────────────┤");
-    println!(
-        "│  Total Models: {:>6}                               │",
-        lineage.model_count()
-    );
+    println!("│  Total Models: {:>6}                               │", lineage.model_count());
 
     if let Some(latest) = lineage.latest_model() {
-        let commit_sha = latest
-            .tags
-            .get("commit_sha")
-            .map(|s| &s[..8.min(s.len())])
-            .unwrap_or("unknown");
+        let commit_sha =
+            latest.tags.get("commit_sha").map(|s| &s[..8.min(s.len())]).unwrap_or("unknown");
         println!(
             "│  Latest Model: {}                     │",
             latest.model_id.chars().take(30).collect::<String>()
         );
-        println!(
-            "│  Version: {}                              │",
-            latest.version
-        );
+        println!("│  Version: {}                              │", latest.version);
         println!(
             "│  Accuracy: {:>6.2}%                                 │",
             latest.accuracy * 100.0
@@ -978,20 +920,14 @@ pub fn print_lineage_history(lineage: &OracleLineage) {
             indicator,
             delta * 100.0
         );
-        println!(
-            "│  Reason: {:40} │",
-            reason.chars().take(40).collect::<String>()
-        );
+        println!("│  Reason: {:40} │", reason.chars().take(40).collect::<String>());
     }
 
     // Show lineage chain
     let chain = lineage.get_lineage_chain();
     if !chain.is_empty() {
         println!("├─────────────────────────────────────────────────────┤");
-        println!(
-            "│  Lineage Chain ({} models):                        │",
-            chain.len()
-        );
+        println!("│  Lineage Chain ({} models):                        │", chain.len());
         for (i, model_id) in chain.iter().take(5).enumerate() {
             let arrow = if i == 0 { "└" } else { "├" };
             println!(
@@ -1001,10 +937,7 @@ pub fn print_lineage_history(lineage: &OracleLineage) {
             );
         }
         if chain.len() > 5 {
-            println!(
-                "│    ... and {} more                               │",
-                chain.len() - 5
-            );
+            println!("│    ... and {} more                               │", chain.len() - 5);
         }
     }
 
@@ -1131,11 +1064,7 @@ pub struct RetrainTrigger {
 impl RetrainTrigger {
     /// Create a new retrain trigger with an oracle.
     pub fn new(oracle: Oracle, config: RetrainConfig) -> Self {
-        Self {
-            oracle,
-            config,
-            stats: RetrainStats::default(),
-        }
+        Self { oracle, config, stats: RetrainStats::default() }
     }
 
     /// Create with default config.
@@ -1256,11 +1185,7 @@ mod tests {
         let lineage_path = temp_dir.path().join(".depyler").join("oracle_lineage.json");
 
         let lineage = OracleLineage::load(&lineage_path).expect("load should not error");
-        assert_eq!(
-            lineage.model_count(),
-            0,
-            "No lineage file should return empty lineage"
-        );
+        assert_eq!(lineage.model_count(), 0, "No lineage file should return empty lineage");
 
         // Empty lineage should need retraining
         assert!(
@@ -1340,10 +1265,7 @@ mod tests {
         lineage.save(&lineage_path).expect("save should work");
 
         // Verify it was saved
-        assert!(
-            lineage_path.exists(),
-            "Lineage file should exist after save"
-        );
+        assert!(lineage_path.exists(), "Lineage file should exist after save");
 
         // Load and verify
         let loaded = OracleLineage::load(&lineage_path).expect("load should work");
@@ -1351,10 +1273,7 @@ mod tests {
 
         // Verify latest model has correct metadata
         let latest = loaded.latest_model().expect("should have model");
-        assert_eq!(
-            latest.tags.get("commit_sha"),
-            Some(&"test_sha_12345".to_string())
-        );
+        assert_eq!(latest.tags.get("commit_sha"), Some(&"test_sha_12345".to_string()));
         assert_eq!(latest.config_hash, "test_hash_67890");
         assert_eq!(latest.tags.get("sample_count"), Some(&"500".to_string()));
     }
@@ -1375,12 +1294,8 @@ mod tests {
     #[test]
     fn test_fix_templates() {
         let oracle = Oracle::new();
-        assert!(oracle
-            .fix_templates
-            .contains_key(&ErrorCategory::TypeMismatch));
-        assert!(oracle
-            .fix_templates
-            .contains_key(&ErrorCategory::BorrowChecker));
+        assert!(oracle.fix_templates.contains_key(&ErrorCategory::TypeMismatch));
+        assert!(oracle.fix_templates.contains_key(&ErrorCategory::BorrowChecker));
     }
 
     // ============================================================
@@ -1400,10 +1315,7 @@ mod tests {
             );
         }
 
-        assert!(
-            !oracle.needs_retraining(),
-            "Should not need retraining with all correct"
-        );
+        assert!(!oracle.needs_retraining(), "Should not need retraining with all correct");
     }
 
     #[test]
@@ -1533,10 +1445,7 @@ mod tests {
     #[test]
     fn test_retrain_trigger_consecutive_errors() {
         let oracle = Oracle::new();
-        let config = RetrainConfig {
-            max_consecutive_errors: 5,
-            ..Default::default()
-        };
+        let config = RetrainConfig { max_consecutive_errors: 5, ..Default::default() };
         let mut trigger = RetrainTrigger::new(oracle, config);
 
         // Less than threshold - should be stable
@@ -1626,11 +1535,7 @@ mod tests {
 
     #[test]
     fn test_oracle_config_custom() {
-        let config = OracleConfig {
-            n_estimators: 50,
-            max_depth: 5,
-            random_state: Some(123),
-        };
+        let config = OracleConfig { n_estimators: 50, max_depth: 5, random_state: Some(123) };
         assert_eq!(config.n_estimators, 50);
         assert_eq!(config.max_depth, 5);
         assert_eq!(config.random_state, Some(123));
@@ -1638,11 +1543,7 @@ mod tests {
 
     #[test]
     fn test_oracle_with_config() {
-        let config = OracleConfig {
-            n_estimators: 20,
-            max_depth: 3,
-            random_state: None,
-        };
+        let config = OracleConfig { n_estimators: 20, max_depth: 3, random_state: None };
         let oracle = Oracle::with_config(config);
         assert_eq!(oracle.categories.len(), 7);
     }
@@ -1658,10 +1559,8 @@ mod tests {
         let class_err = OracleError::Classification("class error".to_string());
         assert!(class_err.to_string().contains("Classification error"));
 
-        let io_err = OracleError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "not found",
-        ));
+        let io_err =
+            OracleError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "not found"));
         assert!(io_err.to_string().contains("IO error"));
     }
 
@@ -1896,20 +1795,15 @@ mod tests {
             &mut gnn_encoder,
         );
 
-        assert!(
-            result.hnsw_used,
-            "HNSW should be used when patterns are indexed"
-        );
+        assert!(result.hnsw_used, "HNSW should be used when patterns are indexed");
     }
 
     #[test]
     #[cfg(feature = "training")]
     fn test_phase4_enhanced_classification_without_hnsw() {
         let oracle = Oracle::new();
-        let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
-            use_hnsw: false,
-            ..Default::default()
-        });
+        let mut gnn_encoder =
+            DepylerGnnEncoder::new(GnnEncoderConfig { use_hnsw: false, ..Default::default() });
 
         let result = oracle.classify_enhanced(
             "E0308",

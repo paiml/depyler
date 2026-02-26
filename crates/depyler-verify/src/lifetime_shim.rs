@@ -207,8 +207,7 @@ impl LoopBorrowAnalysis {
         for borrow in &self.borrows_in_loop {
             for mutation in &self.mutations_in_loop {
                 if borrow == mutation {
-                    self.potential_invalidations
-                        .push((borrow.clone(), mutation.clone()));
+                    self.potential_invalidations.push((borrow.clone(), mutation.clone()));
                 }
             }
         }
@@ -253,10 +252,7 @@ pub fn is_mutating_method(method: &str) -> bool {
 
 /// Check if two borrow kinds conflict
 pub fn borrows_conflict(kind1: &BorrowState, kind2: &BorrowState) -> bool {
-    matches!(
-        (kind1, kind2),
-        (BorrowState::MutableBorrow, _) | (_, BorrowState::MutableBorrow)
-    )
+    matches!((kind1, kind2), (BorrowState::MutableBorrow, _) | (_, BorrowState::MutableBorrow))
 }
 
 #[cfg(test)]
@@ -513,25 +509,10 @@ mod tests {
 
     #[test]
     fn test_borrows_conflict() {
-        assert!(borrows_conflict(
-            &BorrowState::MutableBorrow,
-            &BorrowState::Unborrowed
-        ));
-        assert!(borrows_conflict(
-            &BorrowState::Unborrowed,
-            &BorrowState::MutableBorrow
-        ));
-        assert!(borrows_conflict(
-            &BorrowState::MutableBorrow,
-            &BorrowState::SharedBorrow(1)
-        ));
-        assert!(!borrows_conflict(
-            &BorrowState::Unborrowed,
-            &BorrowState::Unborrowed
-        ));
-        assert!(!borrows_conflict(
-            &BorrowState::SharedBorrow(1),
-            &BorrowState::SharedBorrow(1)
-        ));
+        assert!(borrows_conflict(&BorrowState::MutableBorrow, &BorrowState::Unborrowed));
+        assert!(borrows_conflict(&BorrowState::Unborrowed, &BorrowState::MutableBorrow));
+        assert!(borrows_conflict(&BorrowState::MutableBorrow, &BorrowState::SharedBorrow(1)));
+        assert!(!borrows_conflict(&BorrowState::Unborrowed, &BorrowState::Unborrowed));
+        assert!(!borrows_conflict(&BorrowState::SharedBorrow(1), &BorrowState::SharedBorrow(1)));
     }
 }

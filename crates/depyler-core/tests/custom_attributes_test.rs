@@ -17,14 +17,8 @@ def add(a: int, b: int) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify the custom attribute is present
-    assert!(
-        rust_code.contains("#[inline]"),
-        "Should contain #[inline] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn add"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[inline]"), "Should contain #[inline] attribute");
+    assert!(rust_code.contains("pub fn add"), "Should contain function definition");
 }
 
 #[test]
@@ -40,18 +34,9 @@ def calculate(x: int) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify both custom attributes are present
-    assert!(
-        rust_code.contains("#[inline]"),
-        "Should contain #[inline] attribute"
-    );
-    assert!(
-        rust_code.contains("#[must_use]"),
-        "Should contain #[must_use] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn calculate"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[inline]"), "Should contain #[inline] attribute");
+    assert!(rust_code.contains("#[must_use]"), "Should contain #[must_use] attribute");
+    assert!(rust_code.contains("pub fn calculate"), "Should contain function definition");
 }
 
 #[test]
@@ -66,14 +51,8 @@ def fast_function(n: int) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify the attribute with arguments is present
-    assert!(
-        rust_code.contains("#[inline(always)]"),
-        "Should contain #[inline(always)] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn fast_function"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[inline(always)]"), "Should contain #[inline(always)] attribute");
+    assert!(rust_code.contains("pub fn fast_function"), "Should contain function definition");
 }
 
 #[test]
@@ -93,14 +72,8 @@ def hot_path(items: list[int]) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify the custom attribute is present alongside other optimizations
-    assert!(
-        rust_code.contains("#[inline]"),
-        "Should contain #[inline] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn hot_path"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[inline]"), "Should contain #[inline] attribute");
+    assert!(rust_code.contains("pub fn hot_path"), "Should contain function definition");
 }
 
 #[test]
@@ -114,10 +87,7 @@ def normal_function(x: int) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify function exists but no custom attributes (except maybe doc comments)
-    assert!(
-        rust_code.contains("pub fn normal_function"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("pub fn normal_function"), "Should contain function definition");
 }
 
 #[test]
@@ -132,14 +102,8 @@ def error_handler(msg: str) -> None:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify the cold attribute is present
-    assert!(
-        rust_code.contains("#[cold]"),
-        "Should contain #[cold] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn error_handler"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[cold]"), "Should contain #[cold] attribute");
+    assert!(rust_code.contains("pub fn error_handler"), "Should contain function definition");
 }
 
 #[test]
@@ -154,14 +118,8 @@ def get_layout() -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify the repr attribute is present
-    assert!(
-        rust_code.contains("#[repr(C)]"),
-        "Should contain #[repr(C)] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn get_layout"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[repr(C)]"), "Should contain #[repr(C)] attribute");
+    assert!(rust_code.contains("pub fn get_layout"), "Should contain function definition");
 }
 
 #[test]
@@ -180,22 +138,10 @@ def slow_func(x: int) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify both functions have their respective attributes
-    assert!(
-        rust_code.contains("#[inline]"),
-        "Should contain #[inline] attribute"
-    );
-    assert!(
-        rust_code.contains("#[cold]"),
-        "Should contain #[cold] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn fast_func"),
-        "Should contain fast_func definition"
-    );
-    assert!(
-        rust_code.contains("pub fn slow_func"),
-        "Should contain slow_func definition"
-    );
+    assert!(rust_code.contains("#[inline]"), "Should contain #[inline] attribute");
+    assert!(rust_code.contains("#[cold]"), "Should contain #[cold] attribute");
+    assert!(rust_code.contains("pub fn fast_func"), "Should contain fast_func definition");
+    assert!(rust_code.contains("pub fn slow_func"), "Should contain slow_func definition");
 }
 
 #[test]
@@ -211,14 +157,8 @@ def documented_function(x: int) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Verify both docstring and custom attribute are present
-    assert!(
-        rust_code.contains("#[inline]"),
-        "Should contain #[inline] attribute"
-    );
-    assert!(
-        rust_code.contains("pub fn documented_function"),
-        "Should contain function definition"
-    );
+    assert!(rust_code.contains("#[inline]"), "Should contain #[inline] attribute");
+    assert!(rust_code.contains("pub fn documented_function"), "Should contain function definition");
     // Doc comment format may vary, so we check for the content
     assert!(
         rust_code.contains("documented function")

@@ -38,10 +38,7 @@ pub fn is_mutating_attribute(attr: &str) -> bool {
 
 /// Check if a method is a non-mutating list method (returns new value)
 pub fn is_non_mutating_list_method(method: &str) -> bool {
-    matches!(
-        method,
-        "copy" | "count" | "index" | "__len__" | "__contains__" | "__getitem__"
-    )
+    matches!(method, "copy" | "count" | "index" | "__len__" | "__contains__" | "__getitem__")
 }
 
 /// Check if a method is a non-mutating dict method
@@ -71,10 +68,7 @@ pub fn is_non_mutating_set_method(method: &str) -> bool {
 
 /// Check if a method is a file read operation (non-mutating in Python sense)
 pub fn is_file_read_method(method: &str) -> bool {
-    matches!(
-        method,
-        "read" | "readline" | "readlines" | "read_text" | "read_bytes"
-    )
+    matches!(method, "read" | "readline" | "readlines" | "read_text" | "read_bytes")
 }
 
 #[cfg(test)]

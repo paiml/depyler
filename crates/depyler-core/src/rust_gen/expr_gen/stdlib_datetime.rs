@@ -171,10 +171,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // datetime.datetime.now([tz]) → DepylerDateTime::now() (NASA) or Local::now() (chrono)

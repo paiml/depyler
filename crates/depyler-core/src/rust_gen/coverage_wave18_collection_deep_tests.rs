@@ -17,10 +17,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -292,7 +290,11 @@ def f():
     return val
 "#;
         let result = transpile(code);
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     #[test]
@@ -995,7 +997,9 @@ def f():
     return words
 "#;
         let result = transpile(code);
-        assert!(result.contains("sort_by_key") || result.contains("Reverse") || result.contains("sort"));
+        assert!(
+            result.contains("sort_by_key") || result.contains("Reverse") || result.contains("sort")
+        );
     }
 
     // --- list.extend ---
@@ -1416,7 +1420,9 @@ def f():
     return nums.count(1)
 "#;
         let result = transpile(code);
-        assert!(result.contains("insert") && (result.contains("filter") || result.contains("count")));
+        assert!(
+            result.contains("insert") && (result.contains("filter") || result.contains("count"))
+        );
     }
 
     #[test]
@@ -1428,7 +1434,9 @@ def f():
     return nums.index(30)
 "#;
         let result = transpile(code);
-        assert!(result.contains("reverse") && (result.contains("position") || result.contains("index")));
+        assert!(
+            result.contains("reverse") && (result.contains("position") || result.contains("index"))
+        );
     }
 
     #[test]
@@ -1771,7 +1779,10 @@ def f():
     return c + i
 "#;
         let result = transpile(code);
-        assert!((result.contains("filter") || result.contains("count")) && (result.contains("position") || result.contains("index")));
+        assert!(
+            (result.contains("filter") || result.contains("count"))
+                && (result.contains("position") || result.contains("index"))
+        );
     }
 
     // --- list.pop multiple ---
@@ -2241,7 +2252,11 @@ def f():
     return a
 "#;
         let result = transpile(code);
-        assert!(result.contains("intersection") || result.contains("retain") || result.contains("clear"));
+        assert!(
+            result.contains("intersection")
+                || result.contains("retain")
+                || result.contains("clear")
+        );
     }
 
     #[test]
@@ -2254,7 +2269,11 @@ def f():
     return a
 "#;
         let result = transpile(code);
-        assert!(result.contains("intersection") || result.contains("retain") || result.contains("clear"));
+        assert!(
+            result.contains("intersection")
+                || result.contains("retain")
+                || result.contains("clear")
+        );
     }
 
     #[test]
@@ -2295,7 +2314,9 @@ def f():
     return a
 "#;
         let result = transpile(code);
-        assert!(result.contains("difference") || result.contains("retain") || result.contains("clear"));
+        assert!(
+            result.contains("difference") || result.contains("retain") || result.contains("clear")
+        );
     }
 
     #[test]

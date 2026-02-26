@@ -375,12 +375,7 @@ fn test_property_return_wrapping_matrix() {
 
     for (code, label) in test_cases {
         let result = pipeline.transpile(code);
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            label,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", label, result.err());
     }
 }
 

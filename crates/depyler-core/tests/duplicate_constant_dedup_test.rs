@@ -17,9 +17,7 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -111,25 +109,13 @@ SCRIPT = "second.py"
     // Should NOT contain TWO SCRIPT definitions
     let script_count =
         rust.matches("pub const SCRIPT").count() + rust.matches("pub static SCRIPT").count();
-    assert_eq!(
-        script_count, 1,
-        "Should have exactly one SCRIPT definition. Generated:\n{}",
-        rust
-    );
+    assert_eq!(script_count, 1, "Should have exactly one SCRIPT definition. Generated:\n{}", rust);
 
     // Should contain the LAST value "second.py"
-    assert!(
-        rust.contains("second.py"),
-        "Should use the last assigned value. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("second.py"), "Should use the last assigned value. Generated:\n{}", rust);
 
     // Should NOT contain the first value
-    assert!(
-        !rust.contains("first.py"),
-        "Should not contain the first value. Generated:\n{}",
-        rust
-    );
+    assert!(!rust.contains("first.py"), "Should not contain the first value. Generated:\n{}", rust);
 }
 
 /// Test: PathBuf then string reassignment (common test file pattern)
@@ -187,16 +173,8 @@ VERSION = "2.0"
     let version_defs =
         rust.matches("pub const VERSION").count() + rust.matches("pub static VERSION").count();
 
-    assert_eq!(
-        name_defs, 1,
-        "NAME should be defined once. Generated:\n{}",
-        rust
-    );
-    assert_eq!(
-        version_defs, 1,
-        "VERSION should be defined once. Generated:\n{}",
-        rust
-    );
+    assert_eq!(name_defs, 1, "NAME should be defined once. Generated:\n{}", rust);
+    assert_eq!(version_defs, 1, "VERSION should be defined once. Generated:\n{}", rust);
 
     // Should use the last values
     assert!(rust.contains("new_name"), "Should use last NAME value");

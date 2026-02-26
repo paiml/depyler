@@ -10,7 +10,9 @@ use syn::parse_quote;
 
 use super::body_convert::*;
 use super::stmt_convert::*;
-use super::{convert_condition_expr_with_class_fields, convert_expr_with_class_fields, ExprConverter};
+use super::{
+    convert_condition_expr_with_class_fields, convert_expr_with_class_fields, ExprConverter,
+};
 
 /// DEPYLER-0720: Convert method body block with class field type awareness
 /// This is used for class methods where we know the field types
@@ -33,10 +35,7 @@ pub(crate) fn convert_method_body_block(
         class_field_types,
         ret_type,
     )?;
-    Ok(syn::Block {
-        brace_token: Default::default(),
-        stmts: rust_stmts,
-    })
+    Ok(syn::Block { brace_token: Default::default(), stmts: rust_stmts })
 }
 
 /// DEPYLER-0720: Convert method body statements with class field type awareness
@@ -166,16 +165,9 @@ pub(crate) fn convert_method_stmt(
                     parse_quote! { () }
                 }
             };
-            Ok(syn::Stmt::Expr(
-                parse_quote! { return #ret_expr },
-                Some(Default::default()),
-            ))
+            Ok(syn::Stmt::Expr(parse_quote! { return #ret_expr }, Some(Default::default())))
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             // DEPYLER-99MODE: Use truthiness-aware conversion for if conditions
             let cond = convert_condition_expr_with_class_fields(
                 condition,

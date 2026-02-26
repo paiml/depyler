@@ -25,9 +25,7 @@ fn analyze_code(python_code: &str) -> Vec<depyler_core::depylint::LintWarning> {
 }
 
 fn has_critical_error(warnings: &[depyler_core::depylint::LintWarning]) -> bool {
-    warnings
-        .iter()
-        .any(|w| w.severity == depyler_core::depylint::Severity::Error)
+    warnings.iter().any(|w| w.severity == depyler_core::depylint::Severity::Error)
 }
 
 // ============================================================================
@@ -44,10 +42,7 @@ def get_current_time():
     return datetime.now()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "datetime.now() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "datetime.now() should parse without critical errors");
 }
 
 /// Test HOSTILE-DT-002: datetime.utcnow() deprecated pattern
@@ -143,10 +138,7 @@ def hours_to_delta(hours: int):
     return timedelta(hours=hours)
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "timedelta should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "timedelta should parse without critical errors");
 }
 
 /// Test HOSTILE-DT-008: date.today()
@@ -159,10 +151,7 @@ def get_today():
     return date.today()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "date.today() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "date.today() should parse without critical errors");
 }
 
 /// Test HOSTILE-DT-009: datetime instance .weekday() method
@@ -175,10 +164,7 @@ def get_weekday(dt):
     return dt.weekday()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "weekday() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "weekday() should parse without critical errors");
 }
 
 /// Test HOSTILE-DT-010: datetime instance .isoformat() method
@@ -191,10 +177,7 @@ def format_date(dt):
     return dt.isoformat()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "isoformat() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "isoformat() should parse without critical errors");
 }
 
 // ============================================================================
@@ -211,10 +194,7 @@ def create_md5():
     return hashlib.md5()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "hashlib.md5() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "hashlib.md5() should parse without critical errors");
 }
 
 /// Test HOSTILE-HL-002: hashlib.sha256() with data
@@ -243,10 +223,7 @@ def create_hasher(algo: str):
     return hashlib.new(algo)
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "hashlib.new() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "hashlib.new() should parse without critical errors");
 }
 
 /// Test HOSTILE-HL-004: Hash object .update() method
@@ -261,10 +238,7 @@ def incremental_hash(data: bytes):
     return h
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "hash.update() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "hash.update() should parse without critical errors");
 }
 
 /// Test HOSTILE-HL-005: Hash object .hexdigest() method
@@ -293,10 +267,7 @@ def hash_to_bytes(s: str):
     return hashlib.sha256(s.encode()).digest()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "hash.digest() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "hash.digest() should parse without critical errors");
 }
 
 /// Test HOSTILE-HL-007: Hash object .copy() method
@@ -311,10 +282,7 @@ def copy_hasher():
     return h2
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "hash.copy() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "hash.copy() should parse without critical errors");
 }
 
 /// Test HOSTILE-HL-008: SHA-1 algorithm
@@ -327,10 +295,7 @@ def hash_sha1(data: bytes):
     return hashlib.sha1(data).hexdigest()
 "#;
     let warnings = analyze_code(code);
-    assert!(
-        !has_critical_error(&warnings),
-        "hashlib.sha1() should parse without critical errors"
-    );
+    assert!(!has_critical_error(&warnings), "hashlib.sha1() should parse without critical errors");
 }
 
 /// Test HOSTILE-HL-009: SHA-512 algorithm

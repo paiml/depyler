@@ -32,10 +32,7 @@ impl Default for HtmlReportGenerator {
 impl HtmlReportGenerator {
     /// Create a new text report generator.
     pub fn new() -> Self {
-        Self {
-            colored: true,
-            bar_width: 40,
-        }
+        Self { colored: true, bar_width: 40 }
     }
 
     /// Disable colored output.
@@ -175,12 +172,7 @@ impl HtmlReportGenerator {
 "#,
         );
 
-        let max_total = semantic
-            .by_domain
-            .values()
-            .map(|s| s.total)
-            .max()
-            .unwrap_or(1);
+        let max_total = semantic.by_domain.values().map(|s| s.total).max().unwrap_or(1);
 
         for (domain, stats) in &semantic.by_domain {
             let bar = self.ascii_bar(stats.total as f64 / max_total as f64, 25);
@@ -213,20 +205,12 @@ impl HtmlReportGenerator {
 "#,
         );
 
-        let max_count = report
-            .error_distribution
-            .by_error_code
-            .iter()
-            .map(|e| e.count)
-            .max()
-            .unwrap_or(1);
+        let max_count =
+            report.error_distribution.by_error_code.iter().map(|e| e.count).max().unwrap_or(1);
 
         for err in report.error_distribution.by_error_code.iter().take(10) {
             let bar = self.ascii_bar(err.count as f64 / max_count as f64, 50);
-            out.push_str(&format!(
-                "│ {:<8} │ {:>6} │ {} │\n",
-                err.code, err.count, bar
-            ));
+            out.push_str(&format!("│ {:<8} │ {:>6} │ {} │\n", err.code, err.count, bar));
         }
 
         out.push_str(
@@ -476,13 +460,7 @@ mod tests {
             total_errors: 25,
         };
 
-        CorpusReport::new(
-            &config,
-            transpile_results,
-            compile_results,
-            taxonomy,
-            statistics,
-        )
+        CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics)
     }
 
     #[test]
@@ -535,16 +513,11 @@ mod tests {
         let report = create_test_report();
 
         let mut by_domain = HashMap::new();
-        by_domain.insert(
-            crate::semantic::PythonDomain::Core,
-            crate::semantic::DomainStats::new(5, 3),
-        );
+        by_domain
+            .insert(crate::semantic::PythonDomain::Core, crate::semantic::DomainStats::new(5, 3));
 
-        let semantic = SemanticClassification {
-            by_domain,
-            file_domains: HashMap::new(),
-            confidence: 0.9,
-        };
+        let semantic =
+            SemanticClassification { by_domain, file_domains: HashMap::new(), confidence: 0.9 };
 
         let text = gen.generate(&report, Some(&semantic), None, None);
         assert!(text.contains("DOMAIN CLASSIFICATION"));

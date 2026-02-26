@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -46,11 +44,7 @@ class Stack:
         return len(self.items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Stack"),
-        "Should transpile Stack class. Got: {}",
-        result
-    );
+    assert!(result.contains("Stack"), "Should transpile Stack class. Got: {}", result);
 }
 
 // ============================================================================
@@ -85,11 +79,7 @@ def calculate(a: float, b: float, op: str) -> float:
         return 0.0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn calculate"),
-        "Should transpile calculator. Got: {}",
-        result
-    );
+    assert!(result.contains("fn calculate"), "Should transpile calculator. Got: {}", result);
 }
 
 // ============================================================================
@@ -415,11 +405,7 @@ def tokenize(text: str) -> list:
     return tokens
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn tokenize"),
-        "Should transpile state machine. Got: {}",
-        result
-    );
+    assert!(result.contains("fn tokenize"), "Should transpile state machine. Got: {}", result);
 }
 
 // ============================================================================
@@ -447,11 +433,7 @@ class Vector2D:
         return Vector2D(self.x * factor, self.y * factor)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Vector2D"),
-        "Should transpile Vector2D. Got: {}",
-        result
-    );
+    assert!(result.contains("Vector2D"), "Should transpile Vector2D. Got: {}", result);
 }
 
 // ============================================================================
@@ -575,11 +557,7 @@ def status_message(code: int) -> str:
         return "Unknown"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn status_message"),
-        "Should transpile HTTP status. Got: {}",
-        result
-    );
+    assert!(result.contains("fn status_message"), "Should transpile HTTP status. Got: {}", result);
 }
 
 // ============================================================================
@@ -628,11 +606,7 @@ class Registry:
         return len(self.handlers)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Registry"),
-        "Should transpile Registry. Got: {}",
-        result
-    );
+    assert!(result.contains("Registry"), "Should transpile Registry. Got: {}", result);
 }
 
 // ============================================================================

@@ -29,10 +29,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // DEPYLER-0594: Removed maybe_borrow closure - always use explicit & for Path::new()
         // Path::new() requires &S, and subcommand field bindings create owned Strings

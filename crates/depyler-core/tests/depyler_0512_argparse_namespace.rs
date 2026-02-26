@@ -18,9 +18,7 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile_to_rust(python_code: &str) -> Result<String, String> {
     let ast = parse(python_code, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
     let type_mapper = TypeMapper::default();
     let (rust_code, _deps) = generate_rust_file(&hir, &type_mapper).map_err(|e| e.to_string())?;
     Ok(rust_code)
@@ -51,10 +49,7 @@ def parse_args() -> argparse.Namespace:
     let rust_code = result.unwrap();
 
     // Should generate valid Rust (exact type TBD - could be struct or HashMap)
-    assert!(
-        !rust_code.is_empty(),
-        "DEPYLER-0512: Should generate non-empty Rust code"
-    );
+    assert!(!rust_code.is_empty(), "DEPYLER-0512: Should generate non-empty Rust code");
 }
 
 #[test]

@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -222,7 +220,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_call_026_class_no_args() {
-        let code = "class Foo:\n    def __init__(self):\n        self.x = 0\n\ndef f():\n    obj = Foo()";
+        let code =
+            "class Foo:\n    def __init__(self):\n        self.x = 0\n\ndef f():\n    obj = Foo()";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("Foo") && result.contains("new"), "class no args: {result}");
@@ -343,7 +342,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_call_042_enumerate_loop() {
-        let code = "def f(items: list):\n    for i, val in enumerate(items):\n        print(i, val)";
+        let code =
+            "def f(items: list):\n    for i, val in enumerate(items):\n        print(i, val)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -870,7 +870,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_110_annotated_list_int() {
-        let code = "from typing import List\ndef f():\n    items: List[int] = [1, 2, 3]\n    print(items)";
+        let code =
+            "from typing import List\ndef f():\n    items: List[int] = [1, 2, 3]\n    print(items)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -894,7 +895,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_113_mutable_list() {
-        let code = "def f():\n    items = []\n    items.append(1)\n    items.append(2)\n    print(items)";
+        let code =
+            "def f():\n    items = []\n    items.append(1)\n    items.append(2)\n    print(items)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1103,14 +1105,16 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_141_list_comp_with_filter() {
-        let code = "def f() -> list:\n    evens = [x for x in range(20) if x % 2 == 0]\n    return evens";
+        let code =
+            "def f() -> list:\n    evens = [x for x in range(20) if x % 2 == 0]\n    return evens";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w18ca_assign_142_dict_comp() {
-        let code = "def f() -> dict:\n    squares = {x: x * x for x in range(5)}\n    return squares";
+        let code =
+            "def f() -> dict:\n    squares = {x: x * x for x in range(5)}\n    return squares";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1133,7 +1137,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_145_from_method_return() {
-        let code = "def f():\n    s = \"Hello World\"\n    words = s.split(\" \")\n    print(words)";
+        let code =
+            "def f():\n    s = \"Hello World\"\n    words = s.split(\" \")\n    print(words)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1142,14 +1147,16 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_146_arithmetic_rhs() {
-        let code = "def f(a: int, b: int, c: int) -> int:\n    result = a + b * c\n    return result";
+        let code =
+            "def f(a: int, b: int, c: int) -> int:\n    result = a + b * c\n    return result";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w18ca_assign_147_ternary_rhs() {
-        let code = "def f(x: int) -> str:\n    label = \"pos\" if x > 0 else \"neg\"\n    return label";
+        let code =
+            "def f(x: int) -> str:\n    label = \"pos\" if x > 0 else \"neg\"\n    return label";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1244,7 +1251,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_160_slice_step() {
-        let code = "def f():\n    items = [1, 2, 3, 4, 5, 6]\n    evens = items[::2]\n    print(evens)";
+        let code =
+            "def f():\n    items = [1, 2, 3, 4, 5, 6]\n    evens = items[::2]\n    print(evens)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1276,7 +1284,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_164_reassign_different_expr() {
-        let code = "def f(a: int, b: int) -> int:\n    result = a\n    result = a + b\n    return result";
+        let code =
+            "def f(a: int, b: int) -> int:\n    result = a\n    result = a + b\n    return result";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1515,7 +1524,8 @@ mod tests {
 
     #[test]
     fn test_w18ca_assign_195_nested_index_assign() {
-        let code = "def f():\n    matrix = [[0, 0], [0, 0]]\n    matrix[0][1] = 5\n    print(matrix)";
+        let code =
+            "def f():\n    matrix = [[0, 0], [0, 0]]\n    matrix[0][1] = 5\n    print(matrix)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

@@ -9,29 +9,13 @@ use std::collections::HashMap;
 /// Known error code to category mapping based on verificar corpus analysis.
 const ERROR_CATEGORY_MAP: &[(&str, ErrorCategory, &str)] = &[
     // E0308 - Type mismatches (most common in depyler output)
-    (
-        "E0308",
-        ErrorCategory::TypeMismatch,
-        "Check type inference for parameters and return types",
-    ),
+    ("E0308", ErrorCategory::TypeMismatch, "Check type inference for parameters and return types"),
     // E0432 - Unresolved imports (serde_json, chrono, etc.)
-    (
-        "E0432",
-        ErrorCategory::MissingImport,
-        "Add missing crate dependency to Cargo.toml",
-    ),
+    ("E0432", ErrorCategory::MissingImport, "Add missing crate dependency to Cargo.toml"),
     // E0277 - Trait bounds not satisfied
-    (
-        "E0277",
-        ErrorCategory::TraitBound,
-        "Implement required trait or change type",
-    ),
+    ("E0277", ErrorCategory::TraitBound, "Implement required trait or change type"),
     // E0425 - Cannot find value/function in scope
-    (
-        "E0425",
-        ErrorCategory::MissingImport,
-        "Variable not declared or out of scope",
-    ),
+    ("E0425", ErrorCategory::MissingImport, "Variable not declared or out of scope"),
     // E0599 - No method found on type
     (
         "E0599",
@@ -39,29 +23,13 @@ const ERROR_CATEGORY_MAP: &[(&str, ErrorCategory, &str)] = &[
         "Method doesn't exist on this type - check stdlib mapping",
     ),
     // E0609 - No field on type
-    (
-        "E0609",
-        ErrorCategory::TypeMismatch,
-        "Struct field access failed - check class codegen",
-    ),
+    ("E0609", ErrorCategory::TypeMismatch, "Struct field access failed - check class codegen"),
     // E0282 - Type annotations needed
-    (
-        "E0282",
-        ErrorCategory::TypeMismatch,
-        "Add explicit type annotation",
-    ),
+    ("E0282", ErrorCategory::TypeMismatch, "Add explicit type annotation"),
     // E0061 - Wrong number of arguments
-    (
-        "E0061",
-        ErrorCategory::SyntaxError,
-        "Function call has wrong argument count",
-    ),
+    ("E0061", ErrorCategory::SyntaxError, "Function call has wrong argument count"),
     // E0596 - Cannot borrow as mutable
-    (
-        "E0596",
-        ErrorCategory::BorrowChecker,
-        "Add mut to variable declaration",
-    ),
+    ("E0596", ErrorCategory::BorrowChecker, "Add mut to variable declaration"),
 ];
 
 /// Synthetic error patterns from verificar corpus analysis.
@@ -565,26 +533,14 @@ mod tests {
     #[test]
     fn test_verificar_corpus_size() {
         let corpus = build_verificar_corpus();
-        assert!(
-            corpus.len() >= 25,
-            "Should have at least 25 synthetic samples"
-        );
+        assert!(corpus.len() >= 25, "Should have at least 25 synthetic samples");
     }
 
     #[test]
     fn test_error_categorization() {
-        assert_eq!(
-            categorize_error("E0308").map(|(c, _)| c),
-            Some(ErrorCategory::TypeMismatch)
-        );
-        assert_eq!(
-            categorize_error("E0432").map(|(c, _)| c),
-            Some(ErrorCategory::MissingImport)
-        );
-        assert_eq!(
-            categorize_error("E0596").map(|(c, _)| c),
-            Some(ErrorCategory::BorrowChecker)
-        );
+        assert_eq!(categorize_error("E0308").map(|(c, _)| c), Some(ErrorCategory::TypeMismatch));
+        assert_eq!(categorize_error("E0432").map(|(c, _)| c), Some(ErrorCategory::MissingImport));
+        assert_eq!(categorize_error("E0596").map(|(c, _)| c), Some(ErrorCategory::BorrowChecker));
     }
 
     #[test]

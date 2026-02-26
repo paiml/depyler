@@ -61,11 +61,7 @@ pub struct Snippet {
 
 impl Diagnostic {
     /// Construct a diagnostic from an anyhow error, an optional file path, and optional source.
-    pub fn from_anyhow(
-        err: &anyhow::Error,
-        file: Option<String>,
-        source: Option<&str>,
-    ) -> Self {
+    pub fn from_anyhow(err: &anyhow::Error, file: Option<String>, source: Option<&str>) -> Self {
         let msg = err.to_string();
         let (category, note, help) = categorize_error(&msg);
         let (mut line, mut column) = extract_location(&msg);
@@ -85,16 +81,7 @@ impl Diagnostic {
             _ => None,
         };
 
-        Self {
-            category,
-            message: clean_message(&msg),
-            file,
-            line,
-            column,
-            snippet,
-            note,
-            help,
-        }
+        Self { category, message: clean_message(&msg), file, line, column, snippet, note, help }
     }
 
     /// Quality score for diagnostic completeness (0.0 - 1.0).
@@ -242,29 +229,16 @@ pub fn extract_snippet(source: &str, line: usize, column: Option<usize>) -> Snip
     let lines: Vec<&str> = source.lines().collect();
     let idx = line.saturating_sub(1); // 0-indexed
 
-    let before = if idx > 0 {
-        lines.get(idx - 1).map(|l| (line - 1, l.to_string()))
-    } else {
-        None
-    };
+    let before = if idx > 0 { lines.get(idx - 1).map(|l| (line - 1, l.to_string())) } else { None };
 
-    let error_line = lines
-        .get(idx)
-        .map(|l| (line, l.to_string()))
-        .unwrap_or((line, String::new()));
+    let error_line = lines.get(idx).map(|l| (line, l.to_string())).unwrap_or((line, String::new()));
 
     let after = lines.get(idx + 1).map(|l| (line + 1, l.to_string()));
 
     // Try to estimate caret width from the error token
     let caret_width = estimate_caret_width(&error_line.1, column);
 
-    Snippet {
-        before,
-        error_line,
-        after,
-        caret_col: column,
-        caret_width,
-    }
+    Snippet { before, error_line, after, caret_col: column, caret_width }
 }
 
 /// Estimate width of the token at the caret position.
@@ -300,10 +274,7 @@ fn estimate_caret_width(line: &str, column: Option<usize>) -> usize {
 /// - ":N:M:" (file:line:col)
 fn extract_location(msg: &str) -> (Option<usize>, Option<usize>) {
     // Pattern: "at row N, column M" (rustpython)
-    if let Some(rest) = msg
-        .find("at row ")
-        .map(|i| &msg[i + "at row ".len()..])
-    {
+    if let Some(rest) = msg.find("at row ").map(|i| &msg[i + "at row ".len()..]) {
         if let Some((line_str, after)) = rest.split_once(',') {
             let line = line_str.trim().parse::<usize>().ok();
             let col = after
@@ -339,9 +310,7 @@ fn extract_location_from_byte_offset(msg: &str, source: &str) -> Option<(usize, 
     let prefix = "byte offset ";
     let idx = lower.find(prefix)?;
     let rest = &msg[idx + prefix.len()..];
-    let offset_str = rest
-        .split(|c: char| !c.is_ascii_digit())
-        .next()?;
+    let offset_str = rest.split(|c: char| !c.is_ascii_digit()).next()?;
     let offset: usize = offset_str.parse().ok()?;
 
     // Convert byte offset to line/column
@@ -424,7 +393,10 @@ fn try_match_codegen(lower: &str) -> Option<Categorization> {
         (
             ErrorCategory::CodeGeneration,
             Some("The transpiler failed during Rust code generation".to_string()),
-            Some("This may be a transpiler bug — please report it with a minimal reproducer".to_string()),
+            Some(
+                "This may be a transpiler bug — please report it with a minimal reproducer"
+                    .to_string(),
+            ),
         )
     })
 }
@@ -534,11 +506,7 @@ fn clean_message(msg: &str) -> String {
     let msg = msg.trim();
 
     // Strip "Python parse error: " prefix
-    for prefix in &[
-        "Python parse error: ",
-        "Failed to parse: ",
-        "Transpilation error: ",
-    ] {
+    for prefix in &["Python parse error: ", "Failed to parse: ", "Transpilation error: "] {
         if let Some(rest) = msg.strip_prefix(prefix) {
             return rest.to_string();
         }
@@ -900,18 +868,9 @@ mod tests {
 
     #[test]
     fn test_clean_message_strips_prefix() {
-        assert_eq!(
-            clean_message("Python parse error: bad syntax"),
-            "bad syntax"
-        );
-        assert_eq!(
-            clean_message("Failed to parse: something"),
-            "something"
-        );
-        assert_eq!(
-            clean_message("no prefix here"),
-            "no prefix here"
-        );
+        assert_eq!(clean_message("Python parse error: bad syntax"), "bad syntax");
+        assert_eq!(clean_message("Failed to parse: something"), "something");
+        assert_eq!(clean_message("no prefix here"), "no prefix here");
     }
 
     // ---- estimate_caret_width ----

@@ -25,10 +25,8 @@ pub fn convert_pathlib_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         // Path queries
@@ -309,10 +307,7 @@ mod tests {
     #[test]
     fn test_convert_pathlib_mkdir_parents() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("p".to_string()),
-            HirExpr::Literal(Literal::Bool(true)),
-        ];
+        let args = vec![HirExpr::Var("p".to_string()), HirExpr::Literal(Literal::Bool(true))];
         let result = convert_pathlib_method("mkdir", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -372,10 +367,7 @@ mod tests {
     #[test]
     fn test_convert_pathlib_write_bytes() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("p".to_string()),
-            HirExpr::Var("data".to_string()),
-        ];
+        let args = vec![HirExpr::Var("p".to_string()), HirExpr::Var("data".to_string())];
         let result = convert_pathlib_method("write_bytes", &args, &mut ctx);
         assert!(result.is_ok());
     }

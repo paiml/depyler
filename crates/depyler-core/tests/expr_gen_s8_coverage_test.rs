@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -28,10 +26,7 @@ def f(a: int, b: int) -> int:
     return a // b
 "#,
     );
-    assert!(
-        code.contains("/") || code.contains("div"),
-        "Should generate integer division: {code}"
-    );
+    assert!(code.contains("/") || code.contains("div"), "Should generate integer division: {code}");
 }
 
 #[test]
@@ -53,10 +48,7 @@ def f(base: int, exp: int) -> int:
     return base ** exp
 "#,
     );
-    assert!(
-        code.contains("pow") || code.contains("**"),
-        "Should generate power: {code}"
-    );
+    assert!(code.contains("pow") || code.contains("**"), "Should generate power: {code}");
 }
 
 #[test]
@@ -187,10 +179,7 @@ def f(x: int, items: list) -> bool:
     return x in items
 "#,
     );
-    assert!(
-        code.contains("contains"),
-        "Should generate contains: {code}"
-    );
+    assert!(code.contains("contains"), "Should generate contains: {code}");
 }
 
 #[test]
@@ -245,10 +234,7 @@ def f(d: dict) -> int:
     return d["key"]
 "#,
     );
-    assert!(
-        code.contains("[") || code.contains("get"),
-        "Should generate dict access: {code}"
-    );
+    assert!(code.contains("[") || code.contains("get"), "Should generate dict access: {code}");
 }
 
 // ── Call expressions ────────────────────────────────────────────
@@ -275,10 +261,7 @@ def f(n: int) -> list:
     return result
 "#,
     );
-    assert!(
-        code.contains("0..") || code.contains("range"),
-        "Should generate range: {code}"
-    );
+    assert!(code.contains("0..") || code.contains("range"), "Should generate range: {code}");
 }
 
 #[test]
@@ -292,10 +275,7 @@ def f() -> list:
     return result
 "#,
     );
-    assert!(
-        code.contains("1..10") || code.contains("1.."),
-        "Should generate range(1, 10): {code}"
-    );
+    assert!(code.contains("1..10") || code.contains("1.."), "Should generate range(1, 10): {code}");
 }
 
 #[test]
@@ -323,10 +303,7 @@ def f() -> None:
     print("hello")
 "#,
     );
-    assert!(
-        code.contains("println!") || code.contains("print"),
-        "Should generate println: {code}"
-    );
+    assert!(code.contains("println!") || code.contains("print"), "Should generate println: {code}");
 }
 
 #[test]
@@ -351,10 +328,7 @@ def f(s: str) -> int:
     return int(s)
 "#,
     );
-    assert!(
-        code.contains("parse") || code.contains("to_i"),
-        "Should generate parse: {code}"
-    );
+    assert!(code.contains("parse") || code.contains("to_i"), "Should generate parse: {code}");
 }
 
 #[test]
@@ -379,10 +353,7 @@ def f(s: str) -> float:
     return float(s)
 "#,
     );
-    assert!(
-        code.contains("parse") || code.contains("f64"),
-        "Should generate float parse: {code}"
-    );
+    assert!(code.contains("parse") || code.contains("f64"), "Should generate float parse: {code}");
 }
 
 #[test]
@@ -404,10 +375,7 @@ def f(a: int, b: int) -> int:
     return max(a, b)
 "#,
     );
-    assert!(
-        code.contains("max") || code.contains("std::cmp::max"),
-        "Should generate max: {code}"
-    );
+    assert!(code.contains("max") || code.contains("std::cmp::max"), "Should generate max: {code}");
 }
 
 #[test]
@@ -418,10 +386,7 @@ def f(a: int, b: int) -> int:
     return min(a, b)
 "#,
     );
-    assert!(
-        code.contains("min") || code.contains("std::cmp::min"),
-        "Should generate min: {code}"
-    );
+    assert!(code.contains("min") || code.contains("std::cmp::min"), "Should generate min: {code}");
 }
 
 #[test]
@@ -432,10 +397,7 @@ def f(items: list) -> int:
     return sum(items)
 "#,
     );
-    assert!(
-        code.contains("sum()") || code.contains("iter()"),
-        "Should generate sum: {code}"
-    );
+    assert!(code.contains("sum()") || code.contains("iter()"), "Should generate sum: {code}");
 }
 
 #[test]
@@ -446,10 +408,7 @@ def f(items: list) -> bool:
     return any(items)
 "#,
     );
-    assert!(
-        code.contains("any") || code.contains("iter()"),
-        "Should generate any: {code}"
-    );
+    assert!(code.contains("any") || code.contains("iter()"), "Should generate any: {code}");
 }
 
 #[test]
@@ -460,10 +419,7 @@ def f(items: list) -> bool:
     return all(items)
 "#,
     );
-    assert!(
-        code.contains("all") || code.contains("iter()"),
-        "Should generate all: {code}"
-    );
+    assert!(code.contains("all") || code.contains("iter()"), "Should generate all: {code}");
 }
 
 // ── Lambda expressions ──────────────────────────────────────────
@@ -491,10 +447,7 @@ def f(items: list) -> list:
     return sorted(items, key=lambda x: x[0])
 "#,
     );
-    assert!(
-        code.contains("sort") || code.contains("|"),
-        "Should generate sorted with key: {code}"
-    );
+    assert!(code.contains("sort") || code.contains("|"), "Should generate sorted with key: {code}");
 }
 
 #[test]
@@ -505,10 +458,7 @@ def f(items: list) -> list:
     return list(map(lambda x: x * 2, items))
 "#,
     );
-    assert!(
-        code.contains("map") || code.contains("|"),
-        "Should generate map with lambda: {code}"
-    );
+    assert!(code.contains("map") || code.contains("|"), "Should generate map with lambda: {code}");
 }
 
 #[test]
@@ -557,10 +507,7 @@ def f(s: str) -> str:
     return s.strip()
 "#,
     );
-    assert!(
-        code.contains("trim"),
-        "Should generate trim for strip: {code}"
-    );
+    assert!(code.contains("trim"), "Should generate trim for strip: {code}");
 }
 
 #[test]
@@ -582,10 +529,7 @@ def f(s: str) -> bool:
     return s.startswith("prefix")
 "#,
     );
-    assert!(
-        code.contains("starts_with"),
-        "Should generate starts_with: {code}"
-    );
+    assert!(code.contains("starts_with"), "Should generate starts_with: {code}");
 }
 
 #[test]
@@ -596,10 +540,7 @@ def f(s: str) -> bool:
     return s.endswith("suffix")
 "#,
     );
-    assert!(
-        code.contains("ends_with"),
-        "Should generate ends_with: {code}"
-    );
+    assert!(code.contains("ends_with"), "Should generate ends_with: {code}");
 }
 
 #[test]
@@ -610,10 +551,7 @@ def f(s: str) -> str:
     return s.upper()
 "#,
     );
-    assert!(
-        code.contains("to_uppercase"),
-        "Should generate to_uppercase: {code}"
-    );
+    assert!(code.contains("to_uppercase"), "Should generate to_uppercase: {code}");
 }
 
 #[test]
@@ -624,10 +562,7 @@ def f(s: str) -> str:
     return s.lower()
 "#,
     );
-    assert!(
-        code.contains("to_lowercase"),
-        "Should generate to_lowercase: {code}"
-    );
+    assert!(code.contains("to_lowercase"), "Should generate to_lowercase: {code}");
 }
 
 #[test]
@@ -638,10 +573,7 @@ def f(s: str, sub: str) -> int:
     return s.find(sub)
 "#,
     );
-    assert!(
-        code.contains("find") || code.contains("position"),
-        "Should generate find: {code}"
-    );
+    assert!(code.contains("find") || code.contains("position"), "Should generate find: {code}");
 }
 
 #[test]
@@ -652,10 +584,7 @@ def f(s: str, sub: str) -> int:
     return s.count(sub)
 "#,
     );
-    assert!(
-        code.contains("matches") || code.contains("count"),
-        "Should generate count: {code}"
-    );
+    assert!(code.contains("matches") || code.contains("count"), "Should generate count: {code}");
 }
 
 #[test]
@@ -866,10 +795,7 @@ def f(s: str, n: int) -> str:
     return s * n
 "#,
     );
-    assert!(
-        code.contains("repeat") || code.contains("*"),
-        "Should generate string repeat: {code}"
-    );
+    assert!(code.contains("repeat") || code.contains("*"), "Should generate string repeat: {code}");
 }
 
 #[test]
@@ -880,10 +806,7 @@ def f() -> tuple:
     return (1, "hello", 3.14)
 "#,
     );
-    assert!(
-        code.contains("(") && code.contains("1"),
-        "Should generate tuple: {code}"
-    );
+    assert!(code.contains("(") && code.contains("1"), "Should generate tuple: {code}");
 }
 
 #[test]
@@ -909,8 +832,5 @@ def f() -> None:
 "#,
     );
     // Transpiler typically generates empty function or ()
-    assert!(
-        code.contains("()") || code.contains("fn f"),
-        "Should generate None return: {code}"
-    );
+    assert!(code.contains("()") || code.contains("fn f"), "Should generate None return: {code}");
 }

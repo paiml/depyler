@@ -16,9 +16,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -88,9 +86,7 @@ fn test_set_symmetric_diff_operator() {
 
 #[test]
 fn test_dict_merge_operator() {
-    let code = transpile(
-        "def merge(d1: dict, d2: dict) -> dict:\n    return d1 | d2",
-    );
+    let code = transpile("def merge(d1: dict, d2: dict) -> dict:\n    return d1 | d2");
     assert!(!code.is_empty(), "dict merge: {}", code);
 }
 
@@ -100,41 +96,31 @@ fn test_dict_merge_operator() {
 
 #[test]
 fn test_or_with_string_default() {
-    let code = transpile(
-        "def default_str(name: str) -> str:\n    return name or \"unknown\"",
-    );
+    let code = transpile("def default_str(name: str) -> str:\n    return name or \"unknown\"");
     assert!(!code.is_empty(), "or string default: {}", code);
 }
 
 #[test]
 fn test_and_boolean_exprs() {
-    let code = transpile(
-        "def both_true(a: int, b: int) -> bool:\n    return a > 0 and b > 0",
-    );
+    let code = transpile("def both_true(a: int, b: int) -> bool:\n    return a > 0 and b > 0");
     assert!(!code.is_empty(), "and boolean: {}", code);
 }
 
 #[test]
 fn test_or_boolean_exprs() {
-    let code = transpile(
-        "def either_true(a: int, b: int) -> bool:\n    return a > 0 or b > 0",
-    );
+    let code = transpile("def either_true(a: int, b: int) -> bool:\n    return a > 0 or b > 0");
     assert!(!code.is_empty(), "or boolean: {}", code);
 }
 
 #[test]
 fn test_or_numeric_default() {
-    let code = transpile(
-        "def num_default(x: int) -> int:\n    return x or 42",
-    );
+    let code = transpile("def num_default(x: int) -> int:\n    return x or 42");
     assert!(!code.is_empty(), "or numeric default: {}", code);
 }
 
 #[test]
 fn test_and_numeric_default() {
-    let code = transpile(
-        "def check_and(x: int) -> int:\n    return x and 42",
-    );
+    let code = transpile("def check_and(x: int) -> int:\n    return x and 42");
     assert!(!code.is_empty(), "and numeric: {}", code);
 }
 
@@ -144,17 +130,13 @@ fn test_and_numeric_default() {
 
 #[test]
 fn test_string_ordering_compare() {
-    let code = transpile(
-        "def compare_chars(s: str) -> bool:\n    return s[0] >= \"a\"",
-    );
+    let code = transpile("def compare_chars(s: str) -> bool:\n    return s[0] >= \"a\"");
     assert!(!code.is_empty(), "string ordering compare: {}", code);
 }
 
 #[test]
 fn test_string_equality_compare() {
-    let code = transpile(
-        "def eq_check(s: str, t: str) -> bool:\n    return s == t",
-    );
+    let code = transpile("def eq_check(s: str, t: str) -> bool:\n    return s == t");
     assert!(!code.is_empty(), "string equality: {}", code);
 }
 
@@ -188,9 +170,7 @@ fn test_pow_float_exp() {
 
 #[test]
 fn test_pow_variable_exponents() {
-    let code = transpile(
-        "def var_pow(base: int, exp: int) -> int:\n    return base ** exp",
-    );
+    let code = transpile("def var_pow(base: int, exp: int) -> int:\n    return base ** exp");
     assert!(!code.is_empty(), "pow variables: {}", code);
 }
 
@@ -200,57 +180,43 @@ fn test_pow_variable_exponents() {
 
 #[test]
 fn test_in_string_containment() {
-    let code = transpile(
-        "def contains_sub(s: str) -> bool:\n    return \"hello\" in s",
-    );
+    let code = transpile("def contains_sub(s: str) -> bool:\n    return \"hello\" in s");
     assert!(!code.is_empty(), "string in: {}", code);
 }
 
 #[test]
 fn test_not_in_string() {
-    let code = transpile(
-        "def not_contains(s: str) -> bool:\n    return \"x\" not in s",
-    );
+    let code = transpile("def not_contains(s: str) -> bool:\n    return \"x\" not in s");
     assert!(!code.is_empty(), "string not in: {}", code);
 }
 
 #[test]
 fn test_in_list_containment() {
-    let code = transpile(
-        "def in_list(x: int) -> bool:\n    return x in [1, 2, 3]",
-    );
+    let code = transpile("def in_list(x: int) -> bool:\n    return x in [1, 2, 3]");
     assert!(!code.is_empty(), "list in: {}", code);
 }
 
 #[test]
 fn test_in_tuple_containment() {
-    let code = transpile(
-        "def in_tup(x: str) -> bool:\n    return x in (\"a\", \"b\", \"c\")",
-    );
+    let code = transpile("def in_tup(x: str) -> bool:\n    return x in (\"a\", \"b\", \"c\")");
     assert!(!code.is_empty(), "tuple in: {}", code);
 }
 
 #[test]
 fn test_not_in_tuple() {
-    let code = transpile(
-        "def not_in_tup(x: str) -> bool:\n    return x not in (\"a\", \"b\")",
-    );
+    let code = transpile("def not_in_tup(x: str) -> bool:\n    return x not in (\"a\", \"b\")");
     assert!(!code.is_empty(), "not in tuple: {}", code);
 }
 
 #[test]
 fn test_in_dict_containment() {
-    let code = transpile(
-        "def in_dict(k: str, d: dict) -> bool:\n    return k in d",
-    );
+    let code = transpile("def in_dict(k: str, d: dict) -> bool:\n    return k in d");
     assert!(!code.is_empty(), "dict in: {}", code);
 }
 
 #[test]
 fn test_not_in_dict() {
-    let code = transpile(
-        "def not_in_dict(k: str, d: dict) -> bool:\n    return k not in d",
-    );
+    let code = transpile("def not_in_dict(k: str, d: dict) -> bool:\n    return k not in d");
     assert!(!code.is_empty(), "dict not in: {}", code);
 }
 
@@ -282,17 +248,13 @@ fn test_int_times_string() {
 
 #[test]
 fn test_list_concatenation() {
-    let code = transpile(
-        "def concat(a: list, b: list) -> list:\n    return a + b",
-    );
+    let code = transpile("def concat(a: list, b: list) -> list:\n    return a + b");
     assert!(!code.is_empty(), "list concat: {}", code);
 }
 
 #[test]
 fn test_string_concat_literals() {
-    let code = transpile(
-        "def greet(name: str) -> str:\n    return \"Hello, \" + name",
-    );
+    let code = transpile("def greet(name: str) -> str:\n    return \"Hello, \" + name");
     assert!(!code.is_empty(), "string concat: {}", code);
 }
 
@@ -314,18 +276,14 @@ fn test_path_division_join() {
 
 #[test]
 fn test_float_division_returns_float() {
-    let code = transpile(
-        "def divide(a: int, b: int) -> float:\n    return a / b",
-    );
+    let code = transpile("def divide(a: int, b: int) -> float:\n    return a / b");
     assert!(!code.is_empty(), "float division: {}", code);
     assert!(code.contains("f64"), "should cast to f64: {}", code);
 }
 
 #[test]
 fn test_integer_division() {
-    let code = transpile(
-        "def int_div(a: int, b: int) -> int:\n    return a / b",
-    );
+    let code = transpile("def int_div(a: int, b: int) -> int:\n    return a / b");
     assert!(!code.is_empty(), "integer division: {}", code);
 }
 
@@ -365,9 +323,7 @@ fn test_generic_constructor_with_args() {
 
 #[test]
 fn test_isinstance_returns_true() {
-    let code = transpile(
-        "def check(x: int) -> bool:\n    return isinstance(x, int)",
-    );
+    let code = transpile("def check(x: int) -> bool:\n    return isinstance(x, int)");
     assert!(!code.is_empty(), "isinstance: {}", code);
 }
 
@@ -387,27 +343,21 @@ fn test_isqrt_fallback() {
 
 #[test]
 fn test_not_on_list_var() {
-    let code = transpile(
-        "def is_empty(items: list) -> bool:\n    return not items",
-    );
+    let code = transpile("def is_empty(items: list) -> bool:\n    return not items");
     assert!(!code.is_empty(), "not on list: {}", code);
     assert!(code.contains("is_empty"), "should use is_empty: {}", code);
 }
 
 #[test]
 fn test_not_on_string_var() {
-    let code = transpile(
-        "def blank(s: str) -> bool:\n    return not s",
-    );
+    let code = transpile("def blank(s: str) -> bool:\n    return not s");
     assert!(!code.is_empty(), "not on string: {}", code);
     assert!(code.contains("is_empty"), "should use is_empty: {}", code);
 }
 
 #[test]
 fn test_not_on_dict_var() {
-    let code = transpile(
-        "def empty_dict(d: dict) -> bool:\n    return not d",
-    );
+    let code = transpile("def empty_dict(d: dict) -> bool:\n    return not d");
     assert!(!code.is_empty(), "not on dict: {}", code);
     assert!(code.contains("is_empty"), "should use is_empty: {}", code);
 }
@@ -438,9 +388,7 @@ fn test_counter_empty() {
 
 #[test]
 fn test_list_from_string() {
-    let code = transpile(
-        "def chars(s: str) -> list:\n    return list(s)",
-    );
+    let code = transpile("def chars(s: str) -> list:\n    return list(s)");
     assert!(!code.is_empty(), "list(string): {}", code);
     assert!(code.contains("chars"), "should use .chars(): {}", code);
 }
@@ -469,17 +417,13 @@ fn test_bytes_from_int() {
 
 #[test]
 fn test_bytes_from_list() {
-    let code = transpile(
-        "def make_bytes() -> bytes:\n    return bytes([72, 101, 108])",
-    );
+    let code = transpile("def make_bytes() -> bytes:\n    return bytes([72, 101, 108])");
     assert!(!code.is_empty(), "bytes(list): {}", code);
 }
 
 #[test]
 fn test_bytes_from_string() {
-    let code = transpile(
-        "def str_bytes(s: str) -> bytes:\n    return bytes(s, \"utf-8\")",
-    );
+    let code = transpile("def str_bytes(s: str) -> bytes:\n    return bytes(s, \"utf-8\")");
     assert!(!code.is_empty(), "bytes(str, enc): {}", code);
 }
 
@@ -497,9 +441,7 @@ fn test_bytearray_from_int() {
 
 #[test]
 fn test_bytearray_from_list() {
-    let code = transpile(
-        "def make_ba() -> bytes:\n    return bytearray([1, 2, 3])",
-    );
+    let code = transpile("def make_ba() -> bytes:\n    return bytearray([1, 2, 3])");
     assert!(!code.is_empty(), "bytearray(list): {}", code);
 }
 
@@ -509,25 +451,20 @@ fn test_bytearray_from_list() {
 
 #[test]
 fn test_map_with_str() {
-    let code = transpile(
-        "def stringify(nums: list) -> list:\n    return list(map(str, nums))",
-    );
+    let code = transpile("def stringify(nums: list) -> list:\n    return list(map(str, nums))");
     assert!(!code.is_empty(), "map(str, ...): {}", code);
 }
 
 #[test]
 fn test_map_with_int() {
-    let code = transpile(
-        "def parse_ints(strs: list) -> list:\n    return list(map(int, strs))",
-    );
+    let code = transpile("def parse_ints(strs: list) -> list:\n    return list(map(int, strs))");
     assert!(!code.is_empty(), "map(int, ...): {}", code);
 }
 
 #[test]
 fn test_map_with_lambda() {
-    let code = transpile(
-        "def double(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))",
-    );
+    let code =
+        transpile("def double(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))");
     assert!(!code.is_empty(), "map(lambda, ...): {}", code);
 }
 
@@ -583,9 +520,7 @@ fn test_tuple_empty() {
 
 #[test]
 fn test_tuple_from_string() {
-    let code = transpile(
-        "def chars(s: str) -> tuple:\n    return tuple(s)",
-    );
+    let code = transpile("def chars(s: str) -> tuple:\n    return tuple(s)");
     assert!(!code.is_empty(), "tuple(string): {}", code);
 }
 
@@ -699,25 +634,20 @@ fn test_fnmatch_translate() {
 
 #[test]
 fn test_shlex_quote() {
-    let code = transpile(
-        "import shlex\ndef safe_quote(s: str) -> str:\n    return shlex.quote(s)",
-    );
+    let code = transpile("import shlex\ndef safe_quote(s: str) -> str:\n    return shlex.quote(s)");
     assert!(!code.is_empty(), "shlex.quote: {}", code);
 }
 
 #[test]
 fn test_shlex_split() {
-    let code = transpile(
-        "import shlex\ndef split_cmd(s: str) -> list:\n    return shlex.split(s)",
-    );
+    let code = transpile("import shlex\ndef split_cmd(s: str) -> list:\n    return shlex.split(s)");
     assert!(!code.is_empty(), "shlex.split: {}", code);
 }
 
 #[test]
 fn test_shlex_join() {
-    let code = transpile(
-        "import shlex\ndef join_args(args: list) -> str:\n    return shlex.join(args)",
-    );
+    let code =
+        transpile("import shlex\ndef join_args(args: list) -> str:\n    return shlex.join(args)");
     assert!(!code.is_empty(), "shlex.join: {}", code);
 }
 
@@ -807,25 +737,21 @@ fn test_bisect_insort_right() {
 
 #[test]
 fn test_heapq_heappush() {
-    let code = transpile(
-        "import heapq\ndef push(heap: list, val: int):\n    heapq.heappush(heap, val)",
-    );
+    let code =
+        transpile("import heapq\ndef push(heap: list, val: int):\n    heapq.heappush(heap, val)");
     assert!(!code.is_empty(), "heapq.heappush: {}", code);
 }
 
 #[test]
 fn test_heapq_heappop() {
-    let code = transpile(
-        "import heapq\ndef pop(heap: list) -> int:\n    return heapq.heappop(heap)",
-    );
+    let code =
+        transpile("import heapq\ndef pop(heap: list) -> int:\n    return heapq.heappop(heap)");
     assert!(!code.is_empty(), "heapq.heappop: {}", code);
 }
 
 #[test]
 fn test_heapq_heapify() {
-    let code = transpile(
-        "import heapq\ndef make_heap(arr: list):\n    heapq.heapify(arr)",
-    );
+    let code = transpile("import heapq\ndef make_heap(arr: list):\n    heapq.heapify(arr)");
     assert!(!code.is_empty(), "heapq.heapify: {}", code);
 }
 
@@ -851,18 +777,16 @@ fn test_heapq_nsmallest() {
 
 #[test]
 fn test_copy_deepcopy() {
-    let code = transpile(
-        "import copy\ndef dup(data: list) -> list:\n    return copy.deepcopy(data)",
-    );
+    let code =
+        transpile("import copy\ndef dup(data: list) -> list:\n    return copy.deepcopy(data)");
     assert!(!code.is_empty(), "copy.deepcopy: {}", code);
     assert!(code.contains("clone"), "should use clone: {}", code);
 }
 
 #[test]
 fn test_copy_copy() {
-    let code = transpile(
-        "import copy\ndef shallow(data: list) -> list:\n    return copy.copy(data)",
-    );
+    let code =
+        transpile("import copy\ndef shallow(data: list) -> list:\n    return copy.copy(data)");
     assert!(!code.is_empty(), "copy.copy: {}", code);
     assert!(code.contains("clone"), "should use clone: {}", code);
 }
@@ -961,9 +885,7 @@ fn test_fractions_constructor() {
 
 #[test]
 fn test_sys_exit() {
-    let code = transpile(
-        "import sys\ndef quit_now():\n    sys.exit(1)",
-    );
+    let code = transpile("import sys\ndef quit_now():\n    sys.exit(1)");
     assert!(!code.is_empty(), "sys.exit: {}", code);
 }
 
@@ -993,9 +915,7 @@ fn test_pickle_loads() {
 
 #[test]
 fn test_pprint_pprint() {
-    let code = transpile(
-        "import pprint\ndef show(data: dict):\n    pprint.pprint(data)",
-    );
+    let code = transpile("import pprint\ndef show(data: dict):\n    pprint.pprint(data)");
     assert!(!code.is_empty(), "pprint.pprint: {}", code);
 }
 
@@ -1005,9 +925,8 @@ fn test_pprint_pprint() {
 
 #[test]
 fn test_datetime_now() {
-    let code = transpile(
-        "from datetime import datetime\ndef current():\n    return datetime.now()",
-    );
+    let code =
+        transpile("from datetime import datetime\ndef current():\n    return datetime.now()");
     assert!(!code.is_empty(), "datetime.now: {}", code);
 }
 
@@ -1021,9 +940,8 @@ fn test_datetime_utcnow() {
 
 #[test]
 fn test_datetime_today() {
-    let code = transpile(
-        "from datetime import datetime\ndef today():\n    return datetime.today()",
-    );
+    let code =
+        transpile("from datetime import datetime\ndef today():\n    return datetime.today()");
     assert!(!code.is_empty(), "datetime.today: {}", code);
 }
 
@@ -1089,17 +1007,14 @@ fn test_datetime_weekday() {
 
 #[test]
 fn test_np_array_literal() {
-    let code = transpile(
-        "import numpy as np\ndef make_arr():\n    return np.array([1.0, 2.0, 3.0])",
-    );
+    let code =
+        transpile("import numpy as np\ndef make_arr():\n    return np.array([1.0, 2.0, 3.0])");
     assert!(!code.is_empty(), "np.array: {}", code);
 }
 
 #[test]
 fn test_np_array_empty() {
-    let code = transpile(
-        "import numpy as np\ndef empty_arr():\n    return np.array([])",
-    );
+    let code = transpile("import numpy as np\ndef empty_arr():\n    return np.array([])");
     assert!(!code.is_empty(), "np.array([]): {}", code);
 }
 
@@ -1109,17 +1024,13 @@ fn test_np_array_empty() {
 
 #[test]
 fn test_np_zeros() {
-    let code = transpile(
-        "import numpy as np\ndef zero_arr(n: int):\n    return np.zeros(n)",
-    );
+    let code = transpile("import numpy as np\ndef zero_arr(n: int):\n    return np.zeros(n)");
     assert!(!code.is_empty(), "np.zeros: {}", code);
 }
 
 #[test]
 fn test_np_ones() {
-    let code = transpile(
-        "import numpy as np\ndef one_arr(n: int):\n    return np.ones(n)",
-    );
+    let code = transpile("import numpy as np\ndef one_arr(n: int):\n    return np.ones(n)");
     assert!(!code.is_empty(), "np.ones: {}", code);
 }
 
@@ -1141,17 +1052,14 @@ fn test_np_dot() {
 
 #[test]
 fn test_np_sum() {
-    let code = transpile(
-        "import numpy as np\ndef total(a: list) -> float:\n    return np.sum(a)",
-    );
+    let code = transpile("import numpy as np\ndef total(a: list) -> float:\n    return np.sum(a)");
     assert!(!code.is_empty(), "np.sum: {}", code);
 }
 
 #[test]
 fn test_np_mean() {
-    let code = transpile(
-        "import numpy as np\ndef average(a: list) -> float:\n    return np.mean(a)",
-    );
+    let code =
+        transpile("import numpy as np\ndef average(a: list) -> float:\n    return np.mean(a)");
     assert!(!code.is_empty(), "np.mean: {}", code);
 }
 
@@ -1161,17 +1069,14 @@ fn test_np_mean() {
 
 #[test]
 fn test_np_sqrt_scalar() {
-    let code = transpile(
-        "import numpy as np\ndef root(x: float) -> float:\n    return np.sqrt(x)",
-    );
+    let code = transpile("import numpy as np\ndef root(x: float) -> float:\n    return np.sqrt(x)");
     assert!(!code.is_empty(), "np.sqrt scalar: {}", code);
 }
 
 #[test]
 fn test_np_abs_scalar() {
-    let code = transpile(
-        "import numpy as np\ndef absolute(x: float) -> float:\n    return np.abs(x)",
-    );
+    let code =
+        transpile("import numpy as np\ndef absolute(x: float) -> float:\n    return np.abs(x)");
     assert!(!code.is_empty(), "np.abs scalar: {}", code);
 }
 
@@ -1181,33 +1086,26 @@ fn test_np_abs_scalar() {
 
 #[test]
 fn test_np_exp_scalar() {
-    let code = transpile(
-        "import numpy as np\ndef e_x(x: float) -> float:\n    return np.exp(x)",
-    );
+    let code = transpile("import numpy as np\ndef e_x(x: float) -> float:\n    return np.exp(x)");
     assert!(!code.is_empty(), "np.exp: {}", code);
 }
 
 #[test]
 fn test_np_log_scalar() {
-    let code = transpile(
-        "import numpy as np\ndef ln_x(x: float) -> float:\n    return np.log(x)",
-    );
+    let code = transpile("import numpy as np\ndef ln_x(x: float) -> float:\n    return np.log(x)");
     assert!(!code.is_empty(), "np.log: {}", code);
 }
 
 #[test]
 fn test_np_sin_scalar() {
-    let code = transpile(
-        "import numpy as np\ndef sine(x: float) -> float:\n    return np.sin(x)",
-    );
+    let code = transpile("import numpy as np\ndef sine(x: float) -> float:\n    return np.sin(x)");
     assert!(!code.is_empty(), "np.sin: {}", code);
 }
 
 #[test]
 fn test_np_cos_scalar() {
-    let code = transpile(
-        "import numpy as np\ndef cosine(x: float) -> float:\n    return np.cos(x)",
-    );
+    let code =
+        transpile("import numpy as np\ndef cosine(x: float) -> float:\n    return np.cos(x)");
     assert!(!code.is_empty(), "np.cos: {}", code);
 }
 
@@ -1217,33 +1115,28 @@ fn test_np_cos_scalar() {
 
 #[test]
 fn test_np_min() {
-    let code = transpile(
-        "import numpy as np\ndef smallest(a: list) -> float:\n    return np.min(a)",
-    );
+    let code =
+        transpile("import numpy as np\ndef smallest(a: list) -> float:\n    return np.min(a)");
     assert!(!code.is_empty(), "np.min: {}", code);
 }
 
 #[test]
 fn test_np_max() {
-    let code = transpile(
-        "import numpy as np\ndef largest(a: list) -> float:\n    return np.max(a)",
-    );
+    let code =
+        transpile("import numpy as np\ndef largest(a: list) -> float:\n    return np.max(a)");
     assert!(!code.is_empty(), "np.max: {}", code);
 }
 
 #[test]
 fn test_np_std() {
-    let code = transpile(
-        "import numpy as np\ndef stddev(a: list) -> float:\n    return np.std(a)",
-    );
+    let code = transpile("import numpy as np\ndef stddev(a: list) -> float:\n    return np.std(a)");
     assert!(!code.is_empty(), "np.std: {}", code);
 }
 
 #[test]
 fn test_np_var() {
-    let code = transpile(
-        "import numpy as np\ndef variance(a: list) -> float:\n    return np.var(a)",
-    );
+    let code =
+        transpile("import numpy as np\ndef variance(a: list) -> float:\n    return np.var(a)");
     assert!(!code.is_empty(), "np.var: {}", code);
 }
 
@@ -1253,17 +1146,15 @@ fn test_np_var() {
 
 #[test]
 fn test_np_argmax() {
-    let code = transpile(
-        "import numpy as np\ndef max_idx(a: list) -> int:\n    return np.argmax(a)",
-    );
+    let code =
+        transpile("import numpy as np\ndef max_idx(a: list) -> int:\n    return np.argmax(a)");
     assert!(!code.is_empty(), "np.argmax: {}", code);
 }
 
 #[test]
 fn test_np_argmin() {
-    let code = transpile(
-        "import numpy as np\ndef min_idx(a: list) -> int:\n    return np.argmin(a)",
-    );
+    let code =
+        transpile("import numpy as np\ndef min_idx(a: list) -> int:\n    return np.argmin(a)");
     assert!(!code.is_empty(), "np.argmin: {}", code);
 }
 
@@ -1273,9 +1164,7 @@ fn test_np_argmin() {
 
 #[test]
 fn test_np_norm() {
-    let code = transpile(
-        "import numpy as np\ndef l2(a: list) -> float:\n    return np.norm(a)",
-    );
+    let code = transpile("import numpy as np\ndef l2(a: list) -> float:\n    return np.norm(a)");
     assert!(!code.is_empty(), "np.norm: {}", code);
 }
 
@@ -1317,9 +1206,7 @@ fn test_pathlib_read_text() {
 
 #[test]
 fn test_pathlib_mkdir() {
-    let code = transpile(
-        "from pathlib import Path\ndef make_dir(p: str):\n    Path(p).mkdir()",
-    );
+    let code = transpile("from pathlib import Path\ndef make_dir(p: str):\n    Path(p).mkdir()");
     assert!(!code.is_empty(), "Path.mkdir: {}", code);
 }
 
@@ -1337,97 +1224,75 @@ fn test_os_path_join() {
 
 #[test]
 fn test_os_path_basename() {
-    let code = transpile(
-        "import os\ndef base(p: str) -> str:\n    return os.path.basename(p)",
-    );
+    let code = transpile("import os\ndef base(p: str) -> str:\n    return os.path.basename(p)");
     assert!(!code.is_empty(), "os.path.basename: {}", code);
 }
 
 #[test]
 fn test_os_path_dirname() {
-    let code = transpile(
-        "import os\ndef dir_name(p: str) -> str:\n    return os.path.dirname(p)",
-    );
+    let code = transpile("import os\ndef dir_name(p: str) -> str:\n    return os.path.dirname(p)");
     assert!(!code.is_empty(), "os.path.dirname: {}", code);
 }
 
 #[test]
 fn test_os_path_exists() {
-    let code = transpile(
-        "import os\ndef file_exists(p: str) -> bool:\n    return os.path.exists(p)",
-    );
+    let code =
+        transpile("import os\ndef file_exists(p: str) -> bool:\n    return os.path.exists(p)");
     assert!(!code.is_empty(), "os.path.exists: {}", code);
 }
 
 #[test]
 fn test_os_path_isfile() {
-    let code = transpile(
-        "import os\ndef is_file(p: str) -> bool:\n    return os.path.isfile(p)",
-    );
+    let code = transpile("import os\ndef is_file(p: str) -> bool:\n    return os.path.isfile(p)");
     assert!(!code.is_empty(), "os.path.isfile: {}", code);
 }
 
 #[test]
 fn test_os_path_isdir() {
-    let code = transpile(
-        "import os\ndef is_dir(p: str) -> bool:\n    return os.path.isdir(p)",
-    );
+    let code = transpile("import os\ndef is_dir(p: str) -> bool:\n    return os.path.isdir(p)");
     assert!(!code.is_empty(), "os.path.isdir: {}", code);
 }
 
 #[test]
 fn test_os_path_splitext() {
-    let code = transpile(
-        "import os\ndef split_ext(p: str):\n    return os.path.splitext(p)",
-    );
+    let code = transpile("import os\ndef split_ext(p: str):\n    return os.path.splitext(p)");
     assert!(!code.is_empty(), "os.path.splitext: {}", code);
 }
 
 #[test]
 fn test_os_path_isabs() {
-    let code = transpile(
-        "import os\ndef check_abs(p: str) -> bool:\n    return os.path.isabs(p)",
-    );
+    let code = transpile("import os\ndef check_abs(p: str) -> bool:\n    return os.path.isabs(p)");
     assert!(!code.is_empty(), "os.path.isabs: {}", code);
 }
 
 #[test]
 fn test_os_path_abspath() {
-    let code = transpile(
-        "import os\ndef abs_path(p: str) -> str:\n    return os.path.abspath(p)",
-    );
+    let code = transpile("import os\ndef abs_path(p: str) -> str:\n    return os.path.abspath(p)");
     assert!(!code.is_empty(), "os.path.abspath: {}", code);
 }
 
 #[test]
 fn test_os_path_split() {
-    let code = transpile(
-        "import os\ndef split_path(p: str):\n    return os.path.split(p)",
-    );
+    let code = transpile("import os\ndef split_path(p: str):\n    return os.path.split(p)");
     assert!(!code.is_empty(), "os.path.split: {}", code);
 }
 
 #[test]
 fn test_os_path_getsize() {
-    let code = transpile(
-        "import os\ndef fsize(p: str) -> int:\n    return os.path.getsize(p)",
-    );
+    let code = transpile("import os\ndef fsize(p: str) -> int:\n    return os.path.getsize(p)");
     assert!(!code.is_empty(), "os.path.getsize: {}", code);
 }
 
 #[test]
 fn test_os_path_expanduser() {
-    let code = transpile(
-        "import os\ndef expand(p: str) -> str:\n    return os.path.expanduser(p)",
-    );
+    let code = transpile("import os\ndef expand(p: str) -> str:\n    return os.path.expanduser(p)");
     assert!(!code.is_empty(), "os.path.expanduser: {}", code);
 }
 
 #[test]
 fn test_os_path_normpath() {
-    let code = transpile(
-        "import os\ndef normalize(p: str) -> str:\n    return os.path.normpath(p)",
-    );
+    let code =
+        transpile("import os\ndef normalize(p: str) -> str:\n    return os.path.normpath(p)");
     assert!(!code.is_empty(), "os.path.normpath: {}", code);
 }
 
@@ -1437,9 +1302,8 @@ fn test_os_path_normpath() {
 
 #[test]
 fn test_subprocess_run_basic() {
-    let code = transpile(
-        "import subprocess\ndef run_cmd(cmd: list):\n    return subprocess.run(cmd)",
-    );
+    let code =
+        transpile("import subprocess\ndef run_cmd(cmd: list):\n    return subprocess.run(cmd)");
     assert!(!code.is_empty(), "subprocess.run basic: {}", code);
 }
 
@@ -1457,25 +1321,19 @@ fn test_subprocess_run_capture() {
 
 #[test]
 fn test_add_int_and_float() {
-    let code = transpile(
-        "def mixed(a: int, b: float) -> float:\n    return a + b",
-    );
+    let code = transpile("def mixed(a: int, b: float) -> float:\n    return a + b");
     assert!(!code.is_empty(), "int+float: {}", code);
 }
 
 #[test]
 fn test_subtract_int_from_float() {
-    let code = transpile(
-        "def sub_mixed(a: float, b: int) -> float:\n    return a - b",
-    );
+    let code = transpile("def sub_mixed(a: float, b: int) -> float:\n    return a - b");
     assert!(!code.is_empty(), "float-int: {}", code);
 }
 
 #[test]
 fn test_multiply_int_and_float() {
-    let code = transpile(
-        "def mul_mixed(a: int, b: float) -> float:\n    return a * b",
-    );
+    let code = transpile("def mul_mixed(a: int, b: float) -> float:\n    return a * b");
     assert!(!code.is_empty(), "int*float: {}", code);
 }
 
@@ -1485,33 +1343,25 @@ fn test_multiply_int_and_float() {
 
 #[test]
 fn test_less_than() {
-    let code = transpile(
-        "def is_less(a: int, b: int) -> bool:\n    return a < b",
-    );
+    let code = transpile("def is_less(a: int, b: int) -> bool:\n    return a < b");
     assert!(!code.is_empty(), "less than: {}", code);
 }
 
 #[test]
 fn test_greater_equal() {
-    let code = transpile(
-        "def is_gte(a: int, b: int) -> bool:\n    return a >= b",
-    );
+    let code = transpile("def is_gte(a: int, b: int) -> bool:\n    return a >= b");
     assert!(!code.is_empty(), "greater equal: {}", code);
 }
 
 #[test]
 fn test_not_equal() {
-    let code = transpile(
-        "def neq(a: int, b: int) -> bool:\n    return a != b",
-    );
+    let code = transpile("def neq(a: int, b: int) -> bool:\n    return a != b");
     assert!(!code.is_empty(), "not equal: {}", code);
 }
 
 #[test]
 fn test_float_int_comparison() {
-    let code = transpile(
-        "def compare_fi(x: float, n: int) -> bool:\n    return x > n",
-    );
+    let code = transpile("def compare_fi(x: float, n: int) -> bool:\n    return x > n");
     assert!(!code.is_empty(), "float>int compare: {}", code);
 }
 
@@ -1549,49 +1399,37 @@ fn test_not_bool() {
 
 #[test]
 fn test_format_binary() {
-    let code = transpile(
-        "def to_bin(n: int) -> str:\n    return format(n, \"b\")",
-    );
+    let code = transpile("def to_bin(n: int) -> str:\n    return format(n, \"b\")");
     assert!(!code.is_empty(), "format binary: {}", code);
 }
 
 #[test]
 fn test_format_hex() {
-    let code = transpile(
-        "def to_hex(n: int) -> str:\n    return format(n, \"x\")",
-    );
+    let code = transpile("def to_hex(n: int) -> str:\n    return format(n, \"x\")");
     assert!(!code.is_empty(), "format hex: {}", code);
 }
 
 #[test]
 fn test_format_octal() {
-    let code = transpile(
-        "def to_oct(n: int) -> str:\n    return format(n, \"o\")",
-    );
+    let code = transpile("def to_oct(n: int) -> str:\n    return format(n, \"o\")");
     assert!(!code.is_empty(), "format octal: {}", code);
 }
 
 #[test]
 fn test_format_decimal() {
-    let code = transpile(
-        "def to_dec(n: int) -> str:\n    return format(n, \"d\")",
-    );
+    let code = transpile("def to_dec(n: int) -> str:\n    return format(n, \"d\")");
     assert!(!code.is_empty(), "format decimal: {}", code);
 }
 
 #[test]
 fn test_format_upper_hex() {
-    let code = transpile(
-        "def to_hex_upper(n: int) -> str:\n    return format(n, \"X\")",
-    );
+    let code = transpile("def to_hex_upper(n: int) -> str:\n    return format(n, \"X\")");
     assert!(!code.is_empty(), "format upper hex: {}", code);
 }
 
 #[test]
 fn test_divmod_call() {
-    let code = transpile(
-        "def div_mod(a: int, b: int):\n    return divmod(a, b)",
-    );
+    let code = transpile("def div_mod(a: int, b: int):\n    return divmod(a, b)");
     assert!(!code.is_empty(), "divmod: {}", code);
 }
 
@@ -1601,9 +1439,7 @@ fn test_divmod_call() {
 
 #[test]
 fn test_pow_builtin() {
-    let code = transpile(
-        "def power(base: int, exp: int) -> int:\n    return pow(base, exp)",
-    );
+    let code = transpile("def power(base: int, exp: int) -> int:\n    return pow(base, exp)");
     assert!(!code.is_empty(), "pow builtin: {}", code);
 }
 
@@ -1615,9 +1451,7 @@ fn test_abs_builtin() {
 
 #[test]
 fn test_round_builtin() {
-    let code = transpile(
-        "def rounded(x: float) -> int:\n    return round(x)",
-    );
+    let code = transpile("def rounded(x: float) -> int:\n    return round(x)");
     assert!(!code.is_empty(), "round builtin: {}", code);
 }
 
@@ -1627,9 +1461,7 @@ fn test_round_builtin() {
 
 #[test]
 fn test_map_with_float() {
-    let code = transpile(
-        "def to_floats(strs: list) -> list:\n    return list(map(float, strs))",
-    );
+    let code = transpile("def to_floats(strs: list) -> list:\n    return list(map(float, strs))");
     assert!(!code.is_empty(), "map(float, ...): {}", code);
 }
 
@@ -1703,9 +1535,8 @@ fn test_np_clip() {
 
 #[test]
 fn test_in_os_environ() {
-    let code = transpile(
-        "import os\ndef check_env(key: str) -> bool:\n    return key in os.environ",
-    );
+    let code =
+        transpile("import os\ndef check_env(key: str) -> bool:\n    return key in os.environ");
     assert!(!code.is_empty(), "in os.environ: {}", code);
 }
 
@@ -1723,25 +1554,19 @@ fn test_not_in_os_environ() {
 
 #[test]
 fn test_bitwise_and() {
-    let code = transpile(
-        "def bit_and(a: int, b: int) -> int:\n    return a & b",
-    );
+    let code = transpile("def bit_and(a: int, b: int) -> int:\n    return a & b");
     assert!(!code.is_empty(), "bitwise and: {}", code);
 }
 
 #[test]
 fn test_bitwise_or() {
-    let code = transpile(
-        "def bit_or(a: int, b: int) -> int:\n    return a | b",
-    );
+    let code = transpile("def bit_or(a: int, b: int) -> int:\n    return a | b");
     assert!(!code.is_empty(), "bitwise or: {}", code);
 }
 
 #[test]
 fn test_bitwise_xor() {
-    let code = transpile(
-        "def bit_xor(a: int, b: int) -> int:\n    return a ^ b",
-    );
+    let code = transpile("def bit_xor(a: int, b: int) -> int:\n    return a ^ b");
     assert!(!code.is_empty(), "bitwise xor: {}", code);
 }
 
@@ -1751,33 +1576,25 @@ fn test_bitwise_xor() {
 
 #[test]
 fn test_enumerate_call() {
-    let code = transpile(
-        "def indexed(items: list) -> list:\n    return list(enumerate(items))",
-    );
+    let code = transpile("def indexed(items: list) -> list:\n    return list(enumerate(items))");
     assert!(!code.is_empty(), "enumerate: {}", code);
 }
 
 #[test]
 fn test_zip_call() {
-    let code = transpile(
-        "def pair(a: list, b: list) -> list:\n    return list(zip(a, b))",
-    );
+    let code = transpile("def pair(a: list, b: list) -> list:\n    return list(zip(a, b))");
     assert!(!code.is_empty(), "zip: {}", code);
 }
 
 #[test]
 fn test_reversed_call() {
-    let code = transpile(
-        "def rev(items: list) -> list:\n    return list(reversed(items))",
-    );
+    let code = transpile("def rev(items: list) -> list:\n    return list(reversed(items))");
     assert!(!code.is_empty(), "reversed: {}", code);
 }
 
 #[test]
 fn test_sorted_call() {
-    let code = transpile(
-        "def sort(items: list) -> list:\n    return sorted(items)",
-    );
+    let code = transpile("def sort(items: list) -> list:\n    return sorted(items)");
     assert!(!code.is_empty(), "sorted: {}", code);
 }
 
@@ -1787,9 +1604,7 @@ fn test_sorted_call() {
 
 #[test]
 fn test_memoryview_noop() {
-    let code = transpile(
-        "def view(data: bytes) -> bytes:\n    return memoryview(data)",
-    );
+    let code = transpile("def view(data: bytes) -> bytes:\n    return memoryview(data)");
     assert!(!code.is_empty(), "memoryview: {}", code);
 }
 
@@ -1801,9 +1616,7 @@ fn test_chr_builtin() {
 
 #[test]
 fn test_ord_builtin() {
-    let code = transpile(
-        "def to_code(s: str) -> int:\n    return ord(s)",
-    );
+    let code = transpile("def to_code(s: str) -> int:\n    return ord(s)");
     assert!(!code.is_empty(), "ord: {}", code);
 }
 
@@ -1813,25 +1626,19 @@ fn test_ord_builtin() {
 
 #[test]
 fn test_int_cast_from_float() {
-    let code = transpile(
-        "def to_int(x: float) -> int:\n    return int(x)",
-    );
+    let code = transpile("def to_int(x: float) -> int:\n    return int(x)");
     assert!(!code.is_empty(), "int(float): {}", code);
 }
 
 #[test]
 fn test_float_cast_from_int() {
-    let code = transpile(
-        "def to_float(x: int) -> float:\n    return float(x)",
-    );
+    let code = transpile("def to_float(x: int) -> float:\n    return float(x)");
     assert!(!code.is_empty(), "float(int): {}", code);
 }
 
 #[test]
 fn test_str_cast_from_int() {
-    let code = transpile(
-        "def to_str(x: int) -> str:\n    return str(x)",
-    );
+    let code = transpile("def to_str(x: int) -> str:\n    return str(x)");
     assert!(!code.is_empty(), "str(int): {}", code);
 }
 
@@ -1909,17 +1716,13 @@ fn test_statistics_quantiles_with_n() {
 
 #[test]
 fn test_os_path_realpath() {
-    let code = transpile(
-        "import os\ndef real(p: str) -> str:\n    return os.path.realpath(p)",
-    );
+    let code = transpile("import os\ndef real(p: str) -> str:\n    return os.path.realpath(p)");
     assert!(!code.is_empty(), "os.path.realpath: {}", code);
 }
 
 #[test]
 fn test_os_path_getmtime() {
-    let code = transpile(
-        "import os\ndef mtime(p: str) -> float:\n    return os.path.getmtime(p)",
-    );
+    let code = transpile("import os\ndef mtime(p: str) -> float:\n    return os.path.getmtime(p)");
     assert!(!code.is_empty(), "os.path.getmtime: {}", code);
 }
 
@@ -1929,17 +1732,13 @@ fn test_os_path_getmtime() {
 
 #[test]
 fn test_and_with_string_truthiness() {
-    let code = transpile(
-        "def check(s: str) -> bool:\n    return len(s) > 0 and s[0] == \"a\"",
-    );
+    let code = transpile("def check(s: str) -> bool:\n    return len(s) > 0 and s[0] == \"a\"");
     assert!(!code.is_empty(), "and with string: {}", code);
 }
 
 #[test]
 fn test_or_with_empty_string_default() {
-    let code = transpile(
-        "def default_name(name: str) -> str:\n    return name or \"\"",
-    );
+    let code = transpile("def default_name(name: str) -> str:\n    return name or \"\"");
     assert!(!code.is_empty(), "or empty string: {}", code);
 }
 
@@ -1949,25 +1748,19 @@ fn test_or_with_empty_string_default() {
 
 #[test]
 fn test_len_string() {
-    let code = transpile(
-        "def length(s: str) -> int:\n    return len(s)",
-    );
+    let code = transpile("def length(s: str) -> int:\n    return len(s)");
     assert!(!code.is_empty(), "len(str): {}", code);
 }
 
 #[test]
 fn test_len_list() {
-    let code = transpile(
-        "def count(items: list) -> int:\n    return len(items)",
-    );
+    let code = transpile("def count(items: list) -> int:\n    return len(items)");
     assert!(!code.is_empty(), "len(list): {}", code);
 }
 
 #[test]
 fn test_len_dict() {
-    let code = transpile(
-        "def num_keys(d: dict) -> int:\n    return len(d)",
-    );
+    let code = transpile("def num_keys(d: dict) -> int:\n    return len(d)");
     assert!(!code.is_empty(), "len(dict): {}", code);
 }
 
@@ -1977,17 +1770,14 @@ fn test_len_dict() {
 
 #[test]
 fn test_in_string_list() {
-    let code = transpile(
-        "def check(name: str) -> bool:\n    return name in [\"alice\", \"bob\"]",
-    );
+    let code = transpile("def check(name: str) -> bool:\n    return name in [\"alice\", \"bob\"]");
     assert!(!code.is_empty(), "in string list: {}", code);
 }
 
 #[test]
 fn test_not_in_string_list() {
-    let code = transpile(
-        "def check(name: str) -> bool:\n    return name not in [\"alice\", \"bob\"]",
-    );
+    let code =
+        transpile("def check(name: str) -> bool:\n    return name not in [\"alice\", \"bob\"]");
     assert!(!code.is_empty(), "not in string list: {}", code);
 }
 
@@ -2017,17 +1807,13 @@ fn test_pathlib_read_bytes() {
 
 #[test]
 fn test_list_times_variable() {
-    let code = transpile(
-        "def zeros(n: int) -> list:\n    return [0] * n",
-    );
+    let code = transpile("def zeros(n: int) -> list:\n    return [0] * n");
     assert!(!code.is_empty(), "list*var: {}", code);
 }
 
 #[test]
 fn test_list_times_expression() {
-    let code = transpile(
-        "def make(n: int) -> list:\n    return [True] * (n + 1)",
-    );
+    let code = transpile("def make(n: int) -> list:\n    return [True] * (n + 1)");
     assert!(!code.is_empty(), "list*expr: {}", code);
 }
 
@@ -2049,24 +1835,18 @@ fn test_subprocess_popen() {
 
 #[test]
 fn test_int_from_string_literal() {
-    let code = transpile(
-        "def parse() -> int:\n    return int(\"42\")",
-    );
+    let code = transpile("def parse() -> int:\n    return int(\"42\")");
     assert!(!code.is_empty(), "int(str): {}", code);
 }
 
 #[test]
 fn test_float_from_string_literal() {
-    let code = transpile(
-        "def parse() -> float:\n    return float(\"3.14\")",
-    );
+    let code = transpile("def parse() -> float:\n    return float(\"3.14\")");
     assert!(!code.is_empty(), "float(str): {}", code);
 }
 
 #[test]
 fn test_bool_of_empty_string() {
-    let code = transpile(
-        "def falsy() -> bool:\n    return bool(\"\")",
-    );
+    let code = transpile("def falsy() -> bool:\n    return bool(\"\")");
     assert!(!code.is_empty(), "bool(empty str): {}", code);
 }

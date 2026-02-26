@@ -29,10 +29,8 @@ pub fn convert_random_method(
         return convert_random_method_nasa_stub(method, args, ctx);
     }
 
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     ctx.needs_rand = true;
 
@@ -289,10 +287,8 @@ fn convert_random_method_nasa_stub(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         // random() returns 0.5 (middle of [0, 1))
@@ -350,11 +346,7 @@ fn convert_random_method_nasa_stub(
         "choices" => {
             if !arg_exprs.is_empty() {
                 let seq = &arg_exprs[0];
-                let k = if arg_exprs.len() >= 2 {
-                    &arg_exprs[1]
-                } else {
-                    &parse_quote! { 1 }
-                };
+                let k = if arg_exprs.len() >= 2 { &arg_exprs[1] } else { &parse_quote! { 1 } };
                 parse_quote! { vec![#seq[0].clone(); #k as usize] }
             } else {
                 bail!("random.choices() requires a sequence argument")
@@ -431,10 +423,7 @@ mod tests {
     #[test]
     fn test_convert_random_randint() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(1)),
-            HirExpr::Literal(Literal::Int(10)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(10))];
         let result = convert_random_method("randint", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -461,10 +450,7 @@ mod tests {
     #[test]
     fn test_convert_random_randrange_two() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(5)),
-            HirExpr::Literal(Literal::Int(10)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(5)), HirExpr::Literal(Literal::Int(10))];
         let result = convert_random_method("randrange", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -492,10 +478,8 @@ mod tests {
     #[test]
     fn test_convert_random_uniform() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(0.0)),
-            HirExpr::Literal(Literal::Float(1.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(0.0)), HirExpr::Literal(Literal::Float(1.0))];
         let result = convert_random_method("uniform", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -549,10 +533,7 @@ mod tests {
     #[test]
     fn test_convert_random_sample() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Var("items".to_string()),
-            HirExpr::Literal(Literal::Int(3)),
-        ];
+        let args = vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(3))];
         let result = convert_random_method("sample", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -579,10 +560,7 @@ mod tests {
     #[test]
     fn test_convert_random_choices_with_k() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Var("items".to_string()),
-            HirExpr::Literal(Literal::Int(5)),
-        ];
+        let args = vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(5))];
         let result = convert_random_method("choices", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -598,10 +576,8 @@ mod tests {
     #[test]
     fn test_convert_random_gauss() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(0.0)),
-            HirExpr::Literal(Literal::Float(1.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(0.0)), HirExpr::Literal(Literal::Float(1.0))];
         let result = convert_random_method("gauss", &args, &mut ctx);
         assert!(result.is_ok());
         assert!(ctx.needs_rand_distr);
@@ -613,10 +589,8 @@ mod tests {
     #[test]
     fn test_convert_random_normalvariate() {
         let mut ctx = ctx_with_rand_enabled();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(0.0)),
-            HirExpr::Literal(Literal::Float(1.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(0.0)), HirExpr::Literal(Literal::Float(1.0))];
         let result = convert_random_method("normalvariate", &args, &mut ctx);
         assert!(result.is_ok());
         assert!(ctx.needs_rand_distr);

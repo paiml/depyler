@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -33,10 +31,7 @@ def f(s: str) -> int:
     return result
 "#,
     );
-    assert!(
-        code.contains("result") && code.contains("let"),
-        "Should hoist variable: {code}"
-    );
+    assert!(code.contains("result") && code.contains("let"), "Should hoist variable: {code}");
 }
 
 #[test]
@@ -53,10 +48,7 @@ def f(s: str) -> int:
     return 0
 "#,
     );
-    assert!(
-        code.contains("fn f") && code.contains("-1"),
-        "Should handle try/except/else: {code}"
-    );
+    assert!(code.contains("fn f") && code.contains("-1"), "Should handle try/except/else: {code}");
 }
 
 #[test]
@@ -112,10 +104,7 @@ def f(data: dict, key: str) -> int:
         return -3
 "#,
     );
-    assert!(
-        code.contains("fn f"),
-        "Should handle multiple exception types: {code}"
-    );
+    assert!(code.contains("fn f"), "Should handle multiple exception types: {code}");
 }
 
 #[test]
@@ -132,10 +121,7 @@ def f(s: str) -> int:
         return -2
 "#,
     );
-    assert!(
-        code.contains("-1") || code.contains("-2"),
-        "Should handle nested try: {code}"
-    );
+    assert!(code.contains("-1") || code.contains("-2"), "Should handle nested try: {code}");
 }
 
 #[test]
@@ -151,10 +137,7 @@ def f(x: int) -> int:
         return 0
 "#,
     );
-    assert!(
-        code.contains("fn f"),
-        "Should handle raise in try block: {code}"
-    );
+    assert!(code.contains("fn f"), "Should handle raise in try block: {code}");
 }
 
 // ── Nested function definitions ─────────────────────────────────
@@ -203,10 +186,7 @@ def outer() -> int:
     return factorial(5)
 "#,
     );
-    assert!(
-        code.contains("factorial"),
-        "Should handle recursive nested function: {code}"
-    );
+    assert!(code.contains("factorial"), "Should handle recursive nested function: {code}");
 }
 
 // ── Generator patterns ──────────────────────────────────────────
@@ -300,10 +280,7 @@ def safe_div(a: int, b: int) -> float:
     return result
 "#,
     );
-    assert!(
-        code.contains("result"),
-        "Should handle try/except assignment: {code}"
-    );
+    assert!(code.contains("result"), "Should handle try/except assignment: {code}");
 }
 
 // ── Complex raise patterns ──────────────────────────────────────
@@ -350,10 +327,7 @@ def f(x: int) -> int:
     return x
 "#,
     );
-    assert!(
-        code.contains("fn f"),
-        "Should handle TypeError raise: {code}"
-    );
+    assert!(code.contains("fn f"), "Should handle TypeError raise: {code}");
 }
 
 // ── With statement patterns ─────────────────────────────────────
@@ -387,10 +361,7 @@ def f() -> int:
     return x + y + z
 "#,
     );
-    assert!(
-        code.contains("let") && code.contains("0"),
-        "Should handle chained assignment: {code}"
-    );
+    assert!(code.contains("let") && code.contains("0"), "Should handle chained assignment: {code}");
 }
 
 #[test]
@@ -420,10 +391,7 @@ def f() -> int:
     return a + b + x + y + z
 "#,
     );
-    assert!(
-        code.contains("let") && code.contains("10"),
-        "Should unpack tuples: {code}"
-    );
+    assert!(code.contains("let") && code.contains("10"), "Should unpack tuples: {code}");
 }
 
 // ── Pass statement patterns ─────────────────────────────────────
@@ -440,10 +408,7 @@ def f(x: int) -> int:
     return x
 "#,
     );
-    assert!(
-        code.contains("fn f"),
-        "Should handle pass in if block: {code}"
-    );
+    assert!(code.contains("fn f"), "Should handle pass in if block: {code}");
 }
 
 #[test]
@@ -458,10 +423,7 @@ def f(x: int) -> int:
     return 0
 "#,
     );
-    assert!(
-        code.contains("fn f"),
-        "Should handle pass in except: {code}"
-    );
+    assert!(code.contains("fn f"), "Should handle pass in except: {code}");
 }
 
 // ── Break/continue in complex patterns ──────────────────────────
@@ -532,10 +494,7 @@ def find_first(items: list, target: int) -> int:
     return -1
 "#,
     );
-    assert!(
-        code.contains("return") && code.contains("-1"),
-        "Should handle early return: {code}"
-    );
+    assert!(code.contains("return") && code.contains("-1"), "Should handle early return: {code}");
 }
 
 #[test]
@@ -677,10 +636,7 @@ def f(s: str) -> int:
     return int(s)
 "#,
     );
-    assert!(
-        code.contains("parse") || code.contains("i64"),
-        "Should convert str to int: {code}"
-    );
+    assert!(code.contains("parse") || code.contains("i64"), "Should convert str to int: {code}");
 }
 
 #[test]
@@ -758,8 +714,5 @@ def f() -> int:
     return 0
 "#,
     );
-    assert!(
-        code.contains("fn f") && code.contains("42"),
-        "Should handle del statement: {code}"
-    );
+    assert!(code.contains("fn f") && code.contains("42"), "Should handle del statement: {code}");
 }

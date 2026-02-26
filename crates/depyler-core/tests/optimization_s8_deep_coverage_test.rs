@@ -26,19 +26,11 @@ fn float_lit(f: f64) -> HirExpr {
 }
 
 fn binary(left: HirExpr, op: BinOp, right: HirExpr) -> HirExpr {
-    HirExpr::Binary {
-        op,
-        left: Box::new(left),
-        right: Box::new(right),
-    }
+    HirExpr::Binary { op, left: Box::new(left), right: Box::new(right) }
 }
 
 fn assign(name: &str, value: HirExpr) -> HirStmt {
-    HirStmt::Assign {
-        target: AssignTarget::Symbol(name.to_string()),
-        value,
-        type_annotation: None,
-    }
+    HirStmt::Assign { target: AssignTarget::Symbol(name.to_string()), value, type_annotation: None }
 }
 
 fn return_expr(expr: HirExpr) -> HirStmt {
@@ -148,11 +140,7 @@ fn test_conservative_folds_int_mul() {
 fn test_conservative_folds_float_add() {
     let mut opt = PerformanceOptimizer::new();
     let mut func = simple_func(
-        vec![return_expr(binary(
-            float_lit(1.5),
-            BinOp::Add,
-            float_lit(2.5),
-        ))],
+        vec![return_expr(binary(float_lit(1.5), BinOp::Add, float_lit(2.5)))],
         OptimizationLevel::Conservative,
     );
     opt.optimize_function(&mut func);
@@ -167,11 +155,7 @@ fn test_conservative_folds_float_add() {
 fn test_conservative_folds_float_sub() {
     let mut opt = PerformanceOptimizer::new();
     let mut func = simple_func(
-        vec![return_expr(binary(
-            float_lit(5.0),
-            BinOp::Sub,
-            float_lit(2.0),
-        ))],
+        vec![return_expr(binary(float_lit(5.0), BinOp::Sub, float_lit(2.0)))],
         OptimizationLevel::Conservative,
     );
     opt.optimize_function(&mut func);
@@ -186,11 +170,7 @@ fn test_conservative_folds_float_sub() {
 fn test_conservative_folds_float_mul() {
     let mut opt = PerformanceOptimizer::new();
     let mut func = simple_func(
-        vec![return_expr(binary(
-            float_lit(3.0),
-            BinOp::Mul,
-            float_lit(4.0),
-        ))],
+        vec![return_expr(binary(float_lit(3.0), BinOp::Mul, float_lit(4.0)))],
         OptimizationLevel::Conservative,
     );
     opt.optimize_function(&mut func);
@@ -267,11 +247,7 @@ fn test_conservative_dce_after_return() {
         OptimizationLevel::Conservative,
     );
     opt.optimize_function(&mut func);
-    assert_eq!(
-        func.body.len(),
-        1,
-        "Should eliminate dead code after return"
-    );
+    assert_eq!(func.body.len(), 1, "Should eliminate dead code after return");
 }
 
 #[test]
@@ -432,12 +408,8 @@ fn test_aggressive_includes_all() {
 #[test]
 fn test_aggressive_with_bounds_disabled() {
     let mut opt = PerformanceOptimizer::new();
-    let mut func = make_func(
-        vec![],
-        OptimizationLevel::Aggressive,
-        vec![],
-        BoundsChecking::Disabled,
-    );
+    let mut func =
+        make_func(vec![], OptimizationLevel::Aggressive, vec![], BoundsChecking::Disabled);
     opt.optimize_function(&mut func);
     let applied = opt.get_applied_optimizations();
     assert!(applied.contains(&"remove_bounds_checks".to_string()));
@@ -547,10 +519,7 @@ fn test_multiple_hints() {
     let mut func = make_func(
         vec![],
         OptimizationLevel::Conservative,
-        vec![
-            PerformanceHint::Vectorize,
-            PerformanceHint::OptimizeForLatency,
-        ],
+        vec![PerformanceHint::Vectorize, PerformanceHint::OptimizeForLatency],
         BoundsChecking::Explicit,
     );
     opt.optimize_function(&mut func);
@@ -651,10 +620,7 @@ fn test_fold_expr_not_binary() {
 #[test]
 fn test_dce_preserves_single_return() {
     let mut opt = PerformanceOptimizer::new();
-    let mut func = simple_func(
-        vec![return_expr(int_lit(42))],
-        OptimizationLevel::Conservative,
-    );
+    let mut func = simple_func(vec![return_expr(int_lit(42))], OptimizationLevel::Conservative);
     opt.optimize_function(&mut func);
     assert_eq!(func.body.len(), 1);
 }

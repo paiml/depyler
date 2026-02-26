@@ -57,11 +57,8 @@ impl<'a> ErrorOverlay<'a> {
         let (node_id, confidence) = self.find_associated_node(python_line_estimate);
 
         // Find upstream nodes that might be the root cause
-        let upstream_suspects = if let Some(ref nid) = node_id {
-            self.find_upstream_suspects(nid)
-        } else {
-            vec![]
-        };
+        let upstream_suspects =
+            if let Some(ref nid) = node_id { self.find_upstream_suspects(nid) } else { vec![] };
 
         OverlaidError {
             code: code.to_string(),
@@ -236,11 +233,7 @@ def caller():
         let graph = builder.build_from_source(python).unwrap();
 
         let overlay = ErrorOverlay::new(&graph);
-        let errors = vec![(
-            "E0308".to_string(),
-            "expected i32, found String".to_string(),
-            5,
-        )];
+        let errors = vec![("E0308".to_string(), "expected i32, found String".to_string(), 5)];
         let overlaid = overlay.overlay_errors(&errors);
 
         assert_eq!(overlaid[0].message, "expected i32, found String");

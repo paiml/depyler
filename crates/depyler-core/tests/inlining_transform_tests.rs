@@ -14,9 +14,7 @@ fn create_simple_function(name: &str, return_value: i64) -> HirFunction {
         name: name.to_string(),
         params: smallvec![],
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-            return_value,
-        ))))],
+        body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(return_value))))],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -24,24 +22,20 @@ fn create_simple_function(name: &str, return_value: i64) -> HirFunction {
 }
 
 fn create_function_with_params(name: &str, param_names: &[&str]) -> HirFunction {
-    let params: smallvec::SmallVec<[HirParam; 4]> = param_names
-        .iter()
-        .map(|n| HirParam::new(n.to_string(), Type::Int))
-        .collect();
+    let params: smallvec::SmallVec<[HirParam; 4]> =
+        param_names.iter().map(|n| HirParam::new(n.to_string(), Type::Int)).collect();
 
-    let sum_expr =
-        if param_names.len() == 1 {
-            HirExpr::Var(param_names[0].to_string())
-        } else {
-            param_names.iter().skip(1).fold(
-                HirExpr::Var(param_names[0].to_string()),
-                |acc, param| HirExpr::Binary {
-                    left: Box::new(acc),
-                    op: BinOp::Add,
-                    right: Box::new(HirExpr::Var(param.to_string())),
-                },
-            )
-        };
+    let sum_expr = if param_names.len() == 1 {
+        HirExpr::Var(param_names[0].to_string())
+    } else {
+        param_names.iter().skip(1).fold(HirExpr::Var(param_names[0].to_string()), |acc, param| {
+            HirExpr::Binary {
+                left: Box::new(acc),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Var(param.to_string())),
+            }
+        })
+    };
 
     HirFunction {
         name: name.to_string(),
@@ -59,11 +53,7 @@ fn create_function_with_params(name: &str, param_names: &[&str]) -> HirFunction 
 #[test]
 fn test_apply_inlining_empty_program() {
     let analyzer = InliningAnalyzer::new(InliningConfig::default());
-    let program = HirProgram {
-        functions: vec![],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert!(result.functions.is_empty());
@@ -107,11 +97,7 @@ fn test_apply_inlining_decision_false() {
 #[test]
 fn test_apply_inlining_preserves_classes() {
     let analyzer = InliningAnalyzer::new(InliningConfig::default());
-    let program = HirProgram {
-        functions: vec![],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert!(result.classes.is_empty());
@@ -120,11 +106,7 @@ fn test_apply_inlining_preserves_classes() {
 #[test]
 fn test_apply_inlining_preserves_imports() {
     let analyzer = InliningAnalyzer::new(InliningConfig::default());
-    let program = HirProgram {
-        functions: vec![],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert!(result.imports.is_empty());
@@ -230,11 +212,7 @@ fn test_apply_caller_with_call() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert_eq!(result.functions.len(), 2);
@@ -259,11 +237,7 @@ fn test_apply_with_inlining_decision() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
 
     let mut decisions = HashMap::new();
     decisions.insert(
@@ -297,20 +271,14 @@ fn test_apply_function_with_if() {
                 right: Box::new(HirExpr::Literal(Literal::Int(0))),
             },
             then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                0,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
         }],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert_eq!(result.functions[0].name, "conditional");
@@ -353,11 +321,7 @@ fn test_apply_function_with_loop() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert_eq!(result.functions[0].name, "looper");
@@ -369,10 +333,7 @@ fn test_apply_function_with_for() {
 
     let func = HirFunction {
         name: "for_loop".to_string(),
-        params: smallvec![HirParam::new(
-            "items".to_string(),
-            Type::List(Box::new(Type::Int))
-        )],
+        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::Int,
         body: vec![
             HirStmt::Assign {
@@ -400,11 +361,7 @@ fn test_apply_function_with_for() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     assert_eq!(result.functions[0].name, "for_loop");
@@ -414,10 +371,7 @@ fn test_apply_function_with_for() {
 
 #[test]
 fn test_apply_respects_max_depth() {
-    let config = InliningConfig {
-        max_inline_depth: 1,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_depth: 1, ..Default::default() };
     let analyzer = InliningAnalyzer::new(config);
 
     let deep_callee = create_simple_function("deep", 1);
@@ -491,11 +445,7 @@ fn test_apply_assignment_with_call() {
         body: vec![
             HirStmt::Assign {
                 target: AssignTarget::Symbol("x".to_string()),
-                value: HirExpr::Call {
-                    func: "getter".to_string(),
-                    args: vec![],
-                    kwargs: vec![],
-                },
+                value: HirExpr::Call { func: "getter".to_string(), args: vec![], kwargs: vec![] },
                 type_annotation: None,
             },
             HirStmt::Return(Some(HirExpr::Var("x".to_string()))),
@@ -505,11 +455,7 @@ fn test_apply_assignment_with_call() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
 
     let mut decisions = HashMap::new();
     decisions.insert(
@@ -529,10 +475,7 @@ fn test_apply_assignment_with_call() {
 
 #[test]
 fn test_apply_single_use_function_removal() {
-    let config = InliningConfig {
-        inline_single_use: true,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_single_use: true, ..Default::default() };
     let analyzer = InliningAnalyzer::new(config);
 
     let callee = create_simple_function("once", 42);
@@ -550,11 +493,7 @@ fn test_apply_single_use_function_removal() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
 
     let mut decisions = HashMap::new();
     decisions.insert(
@@ -573,10 +512,7 @@ fn test_apply_single_use_function_removal() {
 
 #[test]
 fn test_apply_multi_use_function_kept() {
-    let config = InliningConfig {
-        inline_single_use: true,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_single_use: true, ..Default::default() };
     let analyzer = InliningAnalyzer::new(config);
 
     let callee = create_simple_function("multi", 42);
@@ -601,11 +537,7 @@ fn test_apply_multi_use_function_kept() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![callee, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![callee, caller], classes: vec![], imports: vec![] };
 
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
@@ -617,10 +549,7 @@ fn test_apply_multi_use_function_kept() {
 
 #[test]
 fn test_apply_with_no_single_use() {
-    let config = InliningConfig {
-        inline_single_use: false,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_single_use: false, ..Default::default() };
     let analyzer = InliningAnalyzer::new(config);
 
     let program = HirProgram {
@@ -646,10 +575,7 @@ fn test_apply_with_aggressive_config() {
     let analyzer = InliningAnalyzer::new(config);
 
     let program = HirProgram {
-        functions: vec![
-            create_simple_function("a", 1),
-            create_simple_function("b", 2),
-        ],
+        functions: vec![create_simple_function("a", 1), create_simple_function("b", 2)],
         classes: vec![],
         imports: vec![],
     };

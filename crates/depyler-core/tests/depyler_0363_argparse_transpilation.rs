@@ -19,9 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 fn compile_rust_as_bin(rust_code: &str) -> Result<(), String> {
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
-    temp_file
-        .write_all(rust_code.as_bytes())
-        .map_err(|e| e.to_string())?;
+    temp_file.write_all(rust_code.as_bytes()).map_err(|e| e.to_string())?;
 
     let output = Command::new("rustc")
         .arg("--crate-type")
@@ -60,14 +58,8 @@ def main():
     eprintln!("Generated Rust code:\n{}\n", rust);
 
     // Must NOT contain Python artifacts
-    assert!(
-        !rust.contains("argparse"),
-        "Should not contain 'argparse' in Rust output"
-    );
-    assert!(
-        !rust.contains("TODO"),
-        "Should not contain TODO comments about argparse"
-    );
+    assert!(!rust.contains("argparse"), "Should not contain 'argparse' in Rust output");
+    assert!(!rust.contains("TODO"), "Should not contain TODO comments about argparse");
 
     // If argparse is used, should contain clap
     // (This test just imports, so may not need clap yet)
@@ -92,17 +84,11 @@ def main():
 
     // Should contain clap usage
     assert!(rust.contains("clap"), "Should use clap crate");
-    assert!(
-        rust.contains("Parser") || rust.contains("#[derive"),
-        "Should use clap Parser derive"
-    );
+    assert!(rust.contains("Parser") || rust.contains("#[derive"), "Should use clap Parser derive");
 
     // Must NOT contain Python artifacts
     assert!(!rust.contains("argparse"), "Should not contain 'argparse'");
-    assert!(
-        !rust.contains("ArgumentParser"),
-        "Should not contain 'ArgumentParser'"
-    );
+    assert!(!rust.contains("ArgumentParser"), "Should not contain 'ArgumentParser'");
 
     // Must compile
     compile_rust_as_bin(&rust).expect("Generated Rust code should compile");
@@ -138,10 +124,7 @@ def main() -> int:
     // - Can't extract nargs/type/help: ✗ (HIR limitation)
 
     // Verify ArgumentParser transformation worked
-    assert!(
-        rust.contains("#[derive(clap::Parser)]"),
-        "Should have clap::Parser derive"
-    );
+    assert!(rust.contains("#[derive(clap::Parser)]"), "Should have clap::Parser derive");
     assert!(rust.contains("struct Args"), "Should have Args struct");
     assert!(rust.contains("files"), "Should have files field");
     assert!(rust.contains("Args::parse()"), "Should call Args::parse()");
@@ -171,16 +154,10 @@ def main():
     // Should contain clap arguments
     assert!(rust.contains("verbose"), "Should have verbose field");
     assert!(rust.contains("count"), "Should have count field");
-    assert!(
-        rust.contains("bool") || rust.contains("true"),
-        "store_true should map to bool"
-    );
+    assert!(rust.contains("bool") || rust.contains("true"), "store_true should map to bool");
 
     // Should have clap attributes
-    assert!(
-        rust.contains("#[arg") || rust.contains("#[clap"),
-        "Should use clap attributes"
-    );
+    assert!(rust.contains("#[arg") || rust.contains("#[clap"), "Should use clap attributes");
 
     // Must compile
     compile_rust_as_bin(&rust).expect("Generated Rust code should compile");
@@ -214,10 +191,7 @@ def read_file(filepath: Path) -> str:
     );
 
     // Must NOT have Python method
-    assert!(
-        !rust.contains("read_text"),
-        "Should not contain Python read_text method"
-    );
+    assert!(!rust.contains("read_text"), "Should not contain Python read_text method");
 
     // Note: Skipping compilation - test transpiles function only, not full program
 }
@@ -239,10 +213,7 @@ def count_lines(text: str) -> int:
     assert!(rust.contains(".lines()"), "Should use .lines() method");
 
     // Must NOT have Python method
-    assert!(
-        !rust.contains("splitlines"),
-        "Should not contain Python splitlines method"
-    );
+    assert!(!rust.contains("splitlines"), "Should not contain Python splitlines method");
 
     // Note: Skipping compilation - test transpiles function only, not full program
 }
@@ -261,10 +232,7 @@ def count_words(text: str) -> int:
     eprintln!("Generated Rust code:\n{}\n", rust);
 
     // Should use .split_whitespace()
-    assert!(
-        rust.contains("split_whitespace"),
-        "Should use split_whitespace()"
-    );
+    assert!(rust.contains("split_whitespace"), "Should use split_whitespace()");
 
     // Note: Skipping compilation - test transpiles function only, not full program
 }
@@ -289,14 +257,8 @@ def safe_read(filepath: Path) -> str:
     eprintln!("Generated Rust code:\n{}\n", rust);
 
     // Should use match on Result
-    assert!(
-        rust.contains("match"),
-        "Should use match for error handling"
-    );
-    assert!(
-        rust.contains("Ok(") && rust.contains("Err("),
-        "Should have Ok and Err branches"
-    );
+    assert!(rust.contains("match"), "Should use match for error handling");
+    assert!(rust.contains("Ok(") && rust.contains("Err("), "Should have Ok and Err branches");
 
     // Should NOT have orphaned statements
     let brace_count = rust.chars().filter(|&c| c == '{').count() as i32
@@ -354,10 +316,7 @@ if __name__ == "__main__":
 
     // High-level checks
     assert!(!rust.contains("TODO"), "Should not have TODO comments");
-    assert!(
-        !rust.contains("argparse"),
-        "Should not contain Python argparse"
-    );
+    assert!(!rust.contains("argparse"), "Should not contain Python argparse");
     assert!(rust.contains("clap"), "Should use clap");
 
     // Must compile

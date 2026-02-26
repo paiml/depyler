@@ -24,24 +24,9 @@ fn create_complex_function() -> HirFunction {
     HirFunction {
         name: "complex".to_string(),
         params: smallvec![
-            HirParam {
-                name: Symbol::from("a"),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
-            HirParam {
-                name: Symbol::from("b"),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
-            HirParam {
-                name: Symbol::from("c"),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            }
+            HirParam { name: Symbol::from("a"), ty: Type::Int, default: None, is_vararg: false },
+            HirParam { name: Symbol::from("b"), ty: Type::Int, default: None, is_vararg: false },
+            HirParam { name: Symbol::from("c"), ty: Type::Int, default: None, is_vararg: false }
         ],
         ret_type: Type::Int,
         body: vec![HirStmt::If {
@@ -63,9 +48,7 @@ fn create_complex_function() -> HirFunction {
                 }))],
                 else_body: Some(vec![HirStmt::Return(Some(HirExpr::Var("a".to_string())))]),
             }],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                0,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
         }],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
@@ -164,18 +147,9 @@ fn test_quality_requirements_evaluation() {
     let req_max_tdg = QualityRequirement::MaxPmatTdg(2.0);
 
     // Just ensure they can be created and used
-    assert!(matches!(
-        req_coverage,
-        QualityRequirement::MinTestCoverage(_)
-    ));
-    assert!(matches!(
-        req_complexity,
-        QualityRequirement::MaxComplexity(_)
-    ));
-    assert!(matches!(
-        req_compilation,
-        QualityRequirement::CompilationSuccess
-    ));
+    assert!(matches!(req_coverage, QualityRequirement::MinTestCoverage(_)));
+    assert!(matches!(req_complexity, QualityRequirement::MaxComplexity(_)));
+    assert!(matches!(req_compilation, QualityRequirement::CompilationSuccess));
     assert!(matches!(req_clippy, QualityRequirement::ClippyClean));
     assert!(matches!(req_panic_free, QualityRequirement::PanicFree));
     assert!(matches!(req_energy, QualityRequirement::EnergyEfficient(_)));
@@ -233,11 +207,8 @@ fn test_pmat_edge_cases() {
 
 #[test]
 fn test_coverage_metrics_structure() {
-    let coverage = CoverageMetrics {
-        line_coverage: 0.85,
-        branch_coverage: 0.75,
-        function_coverage: 0.90,
-    };
+    let coverage =
+        CoverageMetrics { line_coverage: 0.85, branch_coverage: 0.75, function_coverage: 0.90 };
 
     assert_eq!(coverage.line_coverage, 0.85);
     assert_eq!(coverage.branch_coverage, 0.75);

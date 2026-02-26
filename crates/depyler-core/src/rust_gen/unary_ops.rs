@@ -38,10 +38,7 @@ pub fn is_bitwise_not(op: UnaryOp) -> bool {
 
 /// Check if a type requires special NOT handling (collections use .is_empty())
 pub fn type_needs_is_empty_for_not(ty: &Type) -> bool {
-    matches!(
-        ty,
-        Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String
-    )
+    matches!(ty, Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String)
 }
 
 /// Check if a type requires .is_none() for NOT (Optional types)
@@ -73,16 +70,8 @@ pub fn is_double_not(expr: &HirExpr) -> bool {
 
 /// Simplify double negation to the inner operand
 pub fn simplify_double_negation(expr: &HirExpr) -> Option<&HirExpr> {
-    if let HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand: outer,
-    } = expr
-    {
-        if let HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: inner,
-        } = outer.as_ref()
-        {
+    if let HirExpr::Unary { op: UnaryOp::Neg, operand: outer } = expr {
+        if let HirExpr::Unary { op: UnaryOp::Neg, operand: inner } = outer.as_ref() {
             return Some(inner.as_ref());
         }
     }
@@ -91,16 +80,8 @@ pub fn simplify_double_negation(expr: &HirExpr) -> Option<&HirExpr> {
 
 /// Simplify double NOT to the inner operand
 pub fn simplify_double_not(expr: &HirExpr) -> Option<&HirExpr> {
-    if let HirExpr::Unary {
-        op: UnaryOp::Not,
-        operand: outer,
-    } = expr
-    {
-        if let HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: inner,
-        } = outer.as_ref()
-        {
+    if let HirExpr::Unary { op: UnaryOp::Not, operand: outer } = expr {
+        if let HirExpr::Unary { op: UnaryOp::Not, operand: inner } = outer.as_ref() {
             return Some(inner.as_ref());
         }
     }
@@ -120,11 +101,7 @@ pub fn is_negated_literal(expr: &HirExpr) -> bool {
 
 /// Get the value of a negated int literal
 pub fn get_negated_int_value(expr: &HirExpr) -> Option<i64> {
-    if let HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand,
-    } = expr
-    {
+    if let HirExpr::Unary { op: UnaryOp::Neg, operand } = expr {
         if let HirExpr::Literal(Literal::Int(n)) = operand.as_ref() {
             return Some(-n);
         }
@@ -134,11 +111,7 @@ pub fn get_negated_int_value(expr: &HirExpr) -> Option<i64> {
 
 /// Get the value of a negated float literal
 pub fn get_negated_float_value(expr: &HirExpr) -> Option<f64> {
-    if let HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand,
-    } = expr
-    {
+    if let HirExpr::Unary { op: UnaryOp::Neg, operand } = expr {
         if let HirExpr::Literal(Literal::Float(f)) = operand.as_ref() {
             return Some(-f);
         }
@@ -259,9 +232,7 @@ mod tests {
 
     #[test]
     fn test_type_needs_is_empty_list() {
-        assert!(type_needs_is_empty_for_not(&Type::List(Box::new(
-            Type::Int
-        ))));
+        assert!(type_needs_is_empty_for_not(&Type::List(Box::new(Type::Int))));
     }
 
     #[test]
@@ -291,21 +262,15 @@ mod tests {
 
     #[test]
     fn test_type_needs_is_none() {
-        assert!(type_needs_is_none_for_not(&Type::Optional(Box::new(
-            Type::Int
-        ))));
-        assert!(type_needs_is_none_for_not(&Type::Optional(Box::new(
-            Type::String
-        ))));
+        assert!(type_needs_is_none_for_not(&Type::Optional(Box::new(Type::Int))));
+        assert!(type_needs_is_none_for_not(&Type::Optional(Box::new(Type::String))));
     }
 
     #[test]
     fn test_type_not_needs_is_none() {
         assert!(!type_needs_is_none_for_not(&Type::Int));
         assert!(!type_needs_is_none_for_not(&Type::String));
-        assert!(!type_needs_is_none_for_not(&Type::List(Box::new(
-            Type::Int
-        ))));
+        assert!(!type_needs_is_none_for_not(&Type::List(Box::new(Type::Int))));
     }
 
     // ============================================================================
@@ -326,10 +291,8 @@ mod tests {
 
     #[test]
     fn test_is_double_negation_false() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(!is_double_negation(&expr));
     }
 
@@ -359,10 +322,8 @@ mod tests {
 
     #[test]
     fn test_is_double_not_false() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(!is_double_not(&expr));
     }
 
@@ -387,10 +348,8 @@ mod tests {
 
     #[test]
     fn test_simplify_double_negation_not_double() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(simplify_double_negation(&expr).is_none());
     }
 
@@ -411,10 +370,8 @@ mod tests {
 
     #[test]
     fn test_simplify_double_not_not_double() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(simplify_double_not(&expr).is_none());
     }
 
@@ -442,10 +399,8 @@ mod tests {
 
     #[test]
     fn test_is_negated_var_not_literal() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(!is_negated_literal(&expr));
     }
 
@@ -482,10 +437,8 @@ mod tests {
 
     #[test]
     fn test_get_negated_int_value_not_int() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert_eq!(get_negated_int_value(&expr), None);
     }
 

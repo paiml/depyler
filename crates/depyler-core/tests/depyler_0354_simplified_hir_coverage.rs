@@ -34,10 +34,7 @@ fn test_depyler_0354_hir_struct_basic_construction() {
         module_name: Some("test_module".to_string()),
     };
 
-    let hir = Hir {
-        root: HirExpr::Literal(HirLiteral::Integer(42)),
-        metadata,
-    };
+    let hir = Hir { root: HirExpr::Literal(HirLiteral::Integer(42)), metadata };
 
     assert_eq!(hir.metadata.source_file, Some("test.py".to_string()));
     assert_eq!(hir.metadata.module_name, Some("test_module".to_string()));
@@ -45,10 +42,8 @@ fn test_depyler_0354_hir_struct_basic_construction() {
 
 #[test]
 fn test_depyler_0354_hir_struct_clone() {
-    let hir1 = Hir {
-        root: HirExpr::Literal(HirLiteral::Bool(true)),
-        metadata: HirMetadata::default(),
-    };
+    let hir1 =
+        Hir { root: HirExpr::Literal(HirLiteral::Bool(true)), metadata: HirMetadata::default() };
 
     let hir2 = hir1.clone();
     assert_eq!(hir1, hir2);
@@ -56,10 +51,7 @@ fn test_depyler_0354_hir_struct_clone() {
 
 #[test]
 fn test_depyler_0354_hir_struct_debug_format() {
-    let hir = Hir {
-        root: HirExpr::Identifier("x".to_string()),
-        metadata: HirMetadata::default(),
-    };
+    let hir = Hir { root: HirExpr::Identifier("x".to_string()), metadata: HirMetadata::default() };
 
     let debug = format!("{:?}", hir);
     assert!(debug.contains("Hir"));
@@ -70,10 +62,7 @@ fn test_depyler_0354_hir_struct_debug_format() {
 fn test_depyler_0354_hir_struct_serde_roundtrip() {
     let hir = Hir {
         root: HirExpr::Literal(HirLiteral::String("hello".to_string())),
-        metadata: HirMetadata {
-            source_file: Some("main.py".to_string()),
-            module_name: None,
-        },
+        metadata: HirMetadata { source_file: Some("main.py".to_string()), module_name: None },
     };
 
     let json = serde_json::to_string(&hir).unwrap();
@@ -94,10 +83,7 @@ fn test_depyler_0354_metadata_default() {
 
 #[test]
 fn test_depyler_0354_metadata_with_source_file_only() {
-    let metadata = HirMetadata {
-        source_file: Some("script.py".to_string()),
-        module_name: None,
-    };
+    let metadata = HirMetadata { source_file: Some("script.py".to_string()), module_name: None };
 
     assert_eq!(metadata.source_file, Some("script.py".to_string()));
     assert_eq!(metadata.module_name, None);
@@ -105,10 +91,7 @@ fn test_depyler_0354_metadata_with_source_file_only() {
 
 #[test]
 fn test_depyler_0354_metadata_with_module_name_only() {
-    let metadata = HirMetadata {
-        source_file: None,
-        module_name: Some("my_module".to_string()),
-    };
+    let metadata = HirMetadata { source_file: None, module_name: Some("my_module".to_string()) };
 
     assert_eq!(metadata.source_file, None);
     assert_eq!(metadata.module_name, Some("my_module".to_string()));
@@ -116,10 +99,8 @@ fn test_depyler_0354_metadata_with_module_name_only() {
 
 #[test]
 fn test_depyler_0354_metadata_clone_and_equality() {
-    let meta1 = HirMetadata {
-        source_file: Some("a.py".to_string()),
-        module_name: Some("a".to_string()),
-    };
+    let meta1 =
+        HirMetadata { source_file: Some("a.py".to_string()), module_name: Some("a".to_string()) };
 
     let meta2 = meta1.clone();
     assert_eq!(meta1, meta2);
@@ -276,13 +257,7 @@ fn test_depyler_0354_unary_op_all_variants_distinct() {
 
 #[test]
 fn test_depyler_0354_type_primitives() {
-    let types = vec![
-        HirType::Int,
-        HirType::Float,
-        HirType::String,
-        HirType::Bool,
-        HirType::Any,
-    ];
+    let types = vec![HirType::Int, HirType::Float, HirType::String, HirType::Bool, HirType::Any];
 
     for typ in types {
         let cloned = typ.clone();
@@ -328,11 +303,7 @@ fn test_depyler_0354_type_optional_list() {
 
 #[test]
 fn test_depyler_0354_param_name_only() {
-    let param = HirParam {
-        name: "x".to_string(),
-        typ: None,
-        default: None,
-    };
+    let param = HirParam { name: "x".to_string(), typ: None, default: None };
 
     assert_eq!(param.name, "x");
     assert_eq!(param.typ, None);
@@ -341,11 +312,7 @@ fn test_depyler_0354_param_name_only() {
 
 #[test]
 fn test_depyler_0354_param_with_type() {
-    let param = HirParam {
-        name: "y".to_string(),
-        typ: Some(HirType::Int),
-        default: None,
-    };
+    let param = HirParam { name: "y".to_string(), typ: Some(HirType::Int), default: None };
 
     assert_eq!(param.typ, Some(HirType::Int));
 }
@@ -366,9 +333,7 @@ fn test_depyler_0354_param_clone_equality() {
     let param1 = HirParam {
         name: "param".to_string(),
         typ: Some(HirType::String),
-        default: Some(Box::new(HirExpr::Literal(HirLiteral::String(
-            "default".to_string(),
-        )))),
+        default: Some(Box::new(HirExpr::Literal(HirLiteral::String("default".to_string())))),
     };
 
     let param2 = param1.clone();
@@ -532,10 +497,7 @@ fn test_depyler_0354_expr_unary_nested() {
         operand: Box::new(HirExpr::Identifier("x".to_string())),
     };
 
-    let outer = HirExpr::Unary {
-        op: HirUnaryOp::Negate,
-        operand: Box::new(inner),
-    };
+    let outer = HirExpr::Unary { op: HirUnaryOp::Negate, operand: Box::new(inner) };
 
     let _serialized = serde_json::to_string(&outer).unwrap();
 }
@@ -546,10 +508,8 @@ fn test_depyler_0354_expr_unary_nested() {
 
 #[test]
 fn test_depyler_0354_expr_call_no_args() {
-    let expr = HirExpr::Call {
-        func: Box::new(HirExpr::Identifier("foo".to_string())),
-        args: vec![],
-    };
+    let expr =
+        HirExpr::Call { func: Box::new(HirExpr::Identifier("foo".to_string())), args: vec![] };
 
     assert_eq!(expr.clone(), expr);
 }
@@ -684,16 +644,8 @@ fn test_depyler_0354_expr_function_with_params() {
     let expr = HirExpr::Function {
         name: "multiply".to_string(),
         params: vec![
-            HirParam {
-                name: "a".to_string(),
-                typ: Some(HirType::Int),
-                default: None,
-            },
-            HirParam {
-                name: "b".to_string(),
-                typ: Some(HirType::Int),
-                default: None,
-            },
+            HirParam { name: "a".to_string(), typ: Some(HirType::Int), default: None },
+            HirParam { name: "b".to_string(), typ: Some(HirType::Int), default: None },
         ],
         body: Box::new(HirExpr::Binary {
             left: Box::new(HirExpr::Identifier("a".to_string())),
@@ -713,9 +665,7 @@ fn test_depyler_0354_expr_function_async() {
     let expr = HirExpr::Function {
         name: "async_func".to_string(),
         params: vec![],
-        body: Box::new(HirExpr::Await(Box::new(HirExpr::Identifier(
-            "future".to_string(),
-        )))),
+        body: Box::new(HirExpr::Await(Box::new(HirExpr::Identifier("future".to_string())))),
         is_async: true,
         return_type: None,
     };
@@ -740,11 +690,7 @@ fn test_depyler_0354_expr_lambda_no_params() {
 #[test]
 fn test_depyler_0354_expr_lambda_with_params() {
     let expr = HirExpr::Lambda {
-        params: vec![HirParam {
-            name: "x".to_string(),
-            typ: None,
-            default: None,
-        }],
+        params: vec![HirParam { name: "x".to_string(), typ: None, default: None }],
         body: Box::new(HirExpr::Binary {
             left: Box::new(HirExpr::Identifier("x".to_string())),
             op: HirBinaryOp::Add,
@@ -803,9 +749,9 @@ fn test_depyler_0354_expr_for_loop_nested() {
 fn test_depyler_0354_expr_while_loop() {
     let expr = HirExpr::While {
         condition: Box::new(HirExpr::Literal(HirLiteral::Bool(true))),
-        body: Box::new(HirExpr::Block(vec![HirStatement::Expression(Box::new(
-            HirExpr::Break(None),
-        ))])),
+        body: Box::new(HirExpr::Block(vec![HirStatement::Expression(Box::new(HirExpr::Break(
+            None,
+        )))])),
     };
 
     assert_eq!(expr.clone(), expr);
@@ -905,11 +851,7 @@ fn test_depyler_0354_complex_nested_structure() {
 fn test_depyler_0354_function_with_control_flow() {
     let expr = HirExpr::Function {
         name: "factorial".to_string(),
-        params: vec![HirParam {
-            name: "n".to_string(),
-            typ: Some(HirType::Int),
-            default: None,
-        }],
+        params: vec![HirParam { name: "n".to_string(), typ: Some(HirType::Int), default: None }],
         body: Box::new(HirExpr::If {
             condition: Box::new(HirExpr::Binary {
                 left: Box::new(HirExpr::Identifier("n".to_string())),
@@ -1135,9 +1077,8 @@ fn test_depyler_0354_all_binary_ops_distinct() {
 
 #[test]
 fn test_depyler_0354_recursive_type_list_of_lists() {
-    let typ = HirType::List(Box::new(HirType::List(Box::new(HirType::List(Box::new(
-        HirType::Int,
-    ))))));
+    let typ =
+        HirType::List(Box::new(HirType::List(Box::new(HirType::List(Box::new(HirType::Int))))));
 
     let json = serde_json::to_string(&typ).unwrap();
     let deserialized: HirType = serde_json::from_str(&json).unwrap();

@@ -129,11 +129,7 @@ def get_count() -> int:
     let rust = transpile(python).unwrap();
 
     // x should be typed, code should compile
-    assert!(
-        compiles(python),
-        "Return type should propagate backward.\nGenerated:\n{}",
-        rust
-    );
+    assert!(compiles(python), "Return type should propagate backward.\nGenerated:\n{}", rust);
 }
 
 #[test]
@@ -148,11 +144,7 @@ def double(x: int) -> int:
     let rust = transpile(python).unwrap();
 
     // result should be typed as i32/i64
-    assert!(
-        compiles(python),
-        "Parameter types should propagate to body.\nGenerated:\n{}",
-        rust
-    );
+    assert!(compiles(python), "Parameter types should propagate to body.\nGenerated:\n{}", rust);
 }
 
 #[test]
@@ -167,11 +159,7 @@ def process(text: str) -> str:
     let rust = transpile(python).unwrap();
 
     // Each method in chain should preserve String type
-    assert!(
-        compiles(python),
-        "Method chain should preserve types.\nGenerated:\n{}",
-        rust
-    );
+    assert!(compiles(python), "Method chain should preserve types.\nGenerated:\n{}", rust);
 }
 
 // ============================================================================

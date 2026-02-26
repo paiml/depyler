@@ -59,27 +59,19 @@ impl TypeConstraintStore {
 
     /// Add a constraint to the store
     pub fn add_constraint(&mut self, constraint: TypeConstraint) {
-        let key = (
-            constraint.source_file.to_string_lossy().to_string(),
-            constraint.target.clone(),
-        );
+        let key = (constraint.source_file.to_string_lossy().to_string(), constraint.target.clone());
         self.variable_constraints.insert(key, constraint);
         self.stats.constraints_extracted += 1;
     }
 
     /// Get constraint for a variable in a file
     pub fn get_constraint(&self, file: &str, variable: &str) -> Option<&TypeConstraint> {
-        self.variable_constraints
-            .get(&(file.to_string(), variable.to_string()))
+        self.variable_constraints.get(&(file.to_string(), variable.to_string()))
     }
 
     /// Get all constraints for a file
     pub fn get_file_constraints(&self, file: &str) -> Vec<&TypeConstraint> {
-        self.variable_constraints
-            .iter()
-            .filter(|((f, _), _)| f == file)
-            .map(|(_, c)| c)
-            .collect()
+        self.variable_constraints.iter().filter(|((f, _), _)| f == file).map(|(_, c)| c).collect()
     }
 
     /// Save to JSON file
@@ -292,17 +284,9 @@ mod tests {
     #[test]
     fn test_parse_e0308_batch() {
         let errors = vec![
-            (
-                "E0308".to_string(),
-                "expected `f64`, found `{integer}`".to_string(),
-                10,
-            ),
+            ("E0308".to_string(), "expected `f64`, found `{integer}`".to_string(), 10),
             ("E0599".to_string(), "no method named `foo`".to_string(), 20),
-            (
-                "E0308".to_string(),
-                "expected `String`, found `&str`".to_string(),
-                30,
-            ),
+            ("E0308".to_string(), "expected `String`, found `&str`".to_string(), 30),
         ];
         let source = PathBuf::from("test.rs");
         let constraints = parse_e0308_batch(&errors, &source);

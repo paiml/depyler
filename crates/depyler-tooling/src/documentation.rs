@@ -42,10 +42,7 @@ pub struct DocGenerator {
 
 impl DocGenerator {
     pub fn new(config: DocConfig) -> Self {
-        Self {
-            config,
-            python_source: None,
-        }
+        Self { config, python_source: None }
     }
 
     pub fn with_python_source(mut self, source: String) -> Self {
@@ -200,13 +197,8 @@ impl DocGenerator {
         if !class.fields.is_empty() {
             doc.push_str("**Fields:**\n");
             for field in &class.fields {
-                writeln!(
-                    doc,
-                    "- `{}`: {}",
-                    field.name,
-                    self.format_type(&field.field_type)
-                )
-                .expect("write to String");
+                writeln!(doc, "- `{}`: {}", field.name, self.format_type(&field.field_type))
+                    .expect("write to String");
             }
             doc.push('\n');
         }
@@ -261,11 +253,7 @@ impl DocGenerator {
 
         // Specific migration notes for functions
         for func in &module.functions {
-            if func
-                .params
-                .iter()
-                .any(|param| matches!(param.ty, Type::List(_)))
-            {
+            if func.params.iter().any(|param| matches!(param.ty, Type::List(_))) {
                 writeln!(
                     doc,
                     "- `{}`: List parameters are passed as slices (`&[T]`) for efficiency",
@@ -311,11 +299,7 @@ impl DocGenerator {
             doc.push_str("- May have deep recursion, consider iterative implementation\n");
         }
 
-        if func
-            .params
-            .iter()
-            .any(|param| matches!(param.ty, Type::String))
-        {
+        if func.params.iter().any(|param| matches!(param.ty, Type::String)) {
             doc.push_str("- String parameters use `&str` for zero-copy performance\n");
         }
 
@@ -359,12 +343,7 @@ impl DocGenerator {
         if matches!(method.ret_type, Type::None) {
             format!("fn {}({})", method.name, all_params)
         } else {
-            format!(
-                "fn {}({}) -> {}",
-                method.name,
-                all_params,
-                self.format_type(&method.ret_type)
-            )
+            format!("fn {}({}) -> {}", method.name, all_params, self.format_type(&method.ret_type))
         }
     }
 
@@ -382,11 +361,9 @@ fn format_type_inner(ty: &Type) -> String {
         Type::Float => "f64".to_string(),
         Type::String => "&str".to_string(),
         Type::List(inner) => format!("&[{}]", format_type_inner(inner)),
-        Type::Dict(key, val) => format!(
-            "HashMap<{}, {}>",
-            format_type_inner(key),
-            format_type_inner(val)
-        ),
+        Type::Dict(key, val) => {
+            format!("HashMap<{}, {}>", format_type_inner(key), format_type_inner(val))
+        }
         Type::Tuple(types) => {
             let inner: Vec<String> = types.iter().map(format_type_inner).collect();
             format!("({})", inner.join(", "))
@@ -409,17 +386,10 @@ fn format_type_inner(ty: &Type) -> String {
         }
         Type::Function { params, ret } => {
             let param_types: Vec<String> = params.iter().map(format_type_inner).collect();
-            format!(
-                "fn({}) -> {}",
-                param_types.join(", "),
-                format_type_inner(ret)
-            )
+            format!("fn({}) -> {}", param_types.join(", "), format_type_inner(ret))
         }
         Type::TypeVar(name) => name.clone(),
-        Type::Array {
-            element_type,
-            size: _,
-        } => format!("&[{}]", format_type_inner(element_type)),
+        Type::Array { element_type, size: _ } => format!("&[{}]", format_type_inner(element_type)),
         Type::UnificationVar(id) => {
             // UnificationVar should never appear in documentation generation
             panic!("BUG: UnificationVar({}) encountered during documentation. Type inference incomplete.", id)
@@ -531,10 +501,7 @@ mod tests {
 
     fn create_test_module() -> HirModule {
         HirModule {
-            functions: vec![
-                create_test_function("add"),
-                create_test_function("multiply"),
-            ],
+            functions: vec![create_test_function("add"), create_test_function("multiply")],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
@@ -587,14 +554,8 @@ mod tests {
 
         assert_eq!(generator.format_type(&Type::Int), "i32");
         assert_eq!(generator.format_type(&Type::String), "&str");
-        assert_eq!(
-            generator.format_type(&Type::List(Box::new(Type::Int))),
-            "&[i32]"
-        );
-        assert_eq!(
-            generator.format_type(&Type::Optional(Box::new(Type::String))),
-            "Option<&str>"
-        );
+        assert_eq!(generator.format_type(&Type::List(Box::new(Type::Int))), "&[i32]");
+        assert_eq!(generator.format_type(&Type::Optional(Box::new(Type::String))), "Option<&str>");
     }
 
     #[test]
@@ -680,18 +641,12 @@ mod tests {
 
     #[test]
     fn test_migration_notes() {
-        let config = DocConfig {
-            include_migration_notes: true,
-            ..Default::default()
-        };
+        let config = DocConfig { include_migration_notes: true, ..Default::default() };
         let generator = DocGenerator::new(config);
 
         let func = HirFunction {
             name: "process_list".to_string(),
-            params: smallvec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int))
-            ),],
+            params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int))),],
             ret_type: Type::Optional(Box::new(Type::Int)),
             body: vec![],
             properties: FunctionProperties::default(),
@@ -808,19 +763,14 @@ mod tests {
 
     #[test]
     fn test_format_type_generic_no_params() {
-        let result = format_type_inner(&Type::Generic {
-            base: "Vec".to_string(),
-            params: vec![],
-        });
+        let result = format_type_inner(&Type::Generic { base: "Vec".to_string(), params: vec![] });
         assert_eq!(result, "Vec");
     }
 
     #[test]
     fn test_format_type_generic_with_params() {
-        let result = format_type_inner(&Type::Generic {
-            base: "Vec".to_string(),
-            params: vec![Type::Int],
-        });
+        let result =
+            format_type_inner(&Type::Generic { base: "Vec".to_string(), params: vec![Type::Int] });
         assert_eq!(result, "Vec<i32>");
     }
 
@@ -989,16 +939,8 @@ mod tests {
         let module = HirModule {
             functions: vec![],
             imports: vec![
-                Import {
-                    module: "std".to_string(),
-                    alias: None,
-                    items: vec![],
-                },
-                Import {
-                    module: "json".to_string(),
-                    alias: None,
-                    items: vec![],
-                },
+                Import { module: "std".to_string(), alias: None, items: vec![] },
+                Import { module: "json".to_string(), alias: None, items: vec![] },
             ],
             type_aliases: vec![],
             protocols: vec![],
@@ -1177,10 +1119,7 @@ mod tests {
 
     #[test]
     fn test_no_python_source_when_disabled() {
-        let config = DocConfig {
-            include_python_source: false,
-            ..Default::default()
-        };
+        let config = DocConfig { include_python_source: false, ..Default::default() };
         let generator = DocGenerator::new(config).with_python_source("def foo(): pass".to_string());
         let module = create_test_module();
 
@@ -1190,10 +1129,7 @@ mod tests {
 
     #[test]
     fn test_no_migration_notes_when_disabled() {
-        let config = DocConfig {
-            include_migration_notes: false,
-            ..Default::default()
-        };
+        let config = DocConfig { include_migration_notes: false, ..Default::default() };
         let generator = DocGenerator::new(config);
         let module = create_test_module();
 
@@ -1203,10 +1139,7 @@ mod tests {
 
     #[test]
     fn test_no_examples_when_disabled() {
-        let config = DocConfig {
-            generate_examples: false,
-            ..Default::default()
-        };
+        let config = DocConfig { generate_examples: false, ..Default::default() };
         let generator = DocGenerator::new(config);
         let module = create_test_module();
 
@@ -1216,10 +1149,7 @@ mod tests {
 
     #[test]
     fn test_no_module_docs_when_disabled() {
-        let config = DocConfig {
-            generate_module_docs: false,
-            ..Default::default()
-        };
+        let config = DocConfig { generate_module_docs: false, ..Default::default() };
         let generator = DocGenerator::new(config);
         let module = create_test_module();
 

@@ -491,10 +491,7 @@ impl TypeMapper {
                 // For now, map Union to an enum or use dynamic typing
                 if types.len() == 2 && types.iter().any(|t| matches!(t, PythonType::None)) {
                     // Union[T, None] is Optional[T]
-                    let non_none = types
-                        .iter()
-                        .find(|t| !matches!(t, PythonType::None))
-                        .unwrap();
+                    let non_none = types.iter().find(|t| !matches!(t, PythonType::None)).unwrap();
                     RustType::Option(Box::new(self.map_type(non_none)))
                 } else {
                     // For non-optional unions, we'll need to generate an enum
@@ -625,11 +622,7 @@ impl RustType {
             RustType::Result(ok, err) => {
                 format!("Result<{}, {}>", ok.to_rust_string(), err.to_rust_string())
             }
-            RustType::Reference {
-                lifetime,
-                mutable,
-                inner,
-            } => {
+            RustType::Reference { lifetime, mutable, inner } => {
                 let mut_str = if *mutable { "mut " } else { "" };
                 if let Some(lt) = lifetime {
                     format!("&{} {}{}", lt, mut_str, inner.to_rust_string())
@@ -655,11 +648,7 @@ impl RustType {
             }
             RustType::Enum { name, .. } => name.clone(),
             RustType::Array { element_type, size } => {
-                format!(
-                    "[{}; {}]",
-                    element_type.to_rust_string(),
-                    size.to_rust_string()
-                )
+                format!("[{}; {}]", element_type.to_rust_string(), size.to_rust_string())
             }
         }
     }
@@ -725,22 +714,13 @@ mod tests {
     fn test_basic_type_mapping() {
         let mapper = TypeMapper::new();
 
-        assert_eq!(
-            mapper.map_type(&PythonType::Int),
-            RustType::Primitive(PrimitiveType::I32)
-        );
+        assert_eq!(mapper.map_type(&PythonType::Int), RustType::Primitive(PrimitiveType::I32));
 
-        assert_eq!(
-            mapper.map_type(&PythonType::Float),
-            RustType::Primitive(PrimitiveType::F64)
-        );
+        assert_eq!(mapper.map_type(&PythonType::Float), RustType::Primitive(PrimitiveType::F64));
 
         assert_eq!(mapper.map_type(&PythonType::String), RustType::String);
 
-        assert_eq!(
-            mapper.map_type(&PythonType::Bool),
-            RustType::Primitive(PrimitiveType::Bool)
-        );
+        assert_eq!(mapper.map_type(&PythonType::Bool), RustType::Primitive(PrimitiveType::Bool));
 
         assert_eq!(mapper.map_type(&PythonType::None), RustType::Unit);
     }
@@ -748,16 +728,10 @@ mod tests {
     #[test]
     fn test_width_preference() {
         let mapper_i32 = TypeMapper::new();
-        assert_eq!(
-            mapper_i32.map_type(&PythonType::Int),
-            RustType::Primitive(PrimitiveType::I32)
-        );
+        assert_eq!(mapper_i32.map_type(&PythonType::Int), RustType::Primitive(PrimitiveType::I32));
 
         let mapper_i64 = TypeMapper::new().with_i64();
-        assert_eq!(
-            mapper_i64.map_type(&PythonType::Int),
-            RustType::Primitive(PrimitiveType::I64)
-        );
+        assert_eq!(mapper_i64.map_type(&PythonType::Int), RustType::Primitive(PrimitiveType::I64));
 
         let mut mapper_isize = TypeMapper::new();
         mapper_isize.width_preference = IntWidth::ISize;
@@ -780,10 +754,7 @@ mod tests {
 
         // Optional[str]
         let optional_type = PythonType::Optional(Box::new(PythonType::String));
-        assert_eq!(
-            mapper.map_type(&optional_type),
-            RustType::Option(Box::new(RustType::String))
-        );
+        assert_eq!(mapper.map_type(&optional_type), RustType::Option(Box::new(RustType::String)));
 
         // Dict[str, int]
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
@@ -845,11 +816,7 @@ mod tests {
         assert!(mapper.can_copy(&RustType::Primitive(PrimitiveType::I32)));
         assert!(mapper.can_copy(&RustType::Unit));
         assert!(!mapper.can_copy(&RustType::String));
-        assert!(
-            !mapper.can_copy(&RustType::Vec(Box::new(RustType::Primitive(
-                PrimitiveType::I32
-            ))))
-        );
+        assert!(!mapper.can_copy(&RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)))));
 
         // Tuple of copyable types
         let copyable_tuple = RustType::Tuple(vec![
@@ -859,19 +826,14 @@ mod tests {
         assert!(mapper.can_copy(&copyable_tuple));
 
         // Tuple with non-copyable type
-        let non_copyable_tuple = RustType::Tuple(vec![
-            RustType::Primitive(PrimitiveType::I32),
-            RustType::String,
-        ]);
+        let non_copyable_tuple =
+            RustType::Tuple(vec![RustType::Primitive(PrimitiveType::I32), RustType::String]);
         assert!(!mapper.can_copy(&non_copyable_tuple));
     }
 
     #[test]
     fn test_rust_type_to_string() {
-        assert_eq!(
-            RustType::Primitive(PrimitiveType::I32).to_rust_string(),
-            "i32"
-        );
+        assert_eq!(RustType::Primitive(PrimitiveType::I32).to_rust_string(), "i32");
         assert_eq!(RustType::String.to_rust_string(), "String");
         assert_eq!(RustType::Unit.to_rust_string(), "()");
 
@@ -887,10 +849,8 @@ mod tests {
         );
         assert_eq!(hashmap_type.to_rust_string(), "HashMap<String, i32>");
 
-        let tuple_type = RustType::Tuple(vec![
-            RustType::Primitive(PrimitiveType::I32),
-            RustType::String,
-        ]);
+        let tuple_type =
+            RustType::Tuple(vec![RustType::Primitive(PrimitiveType::I32), RustType::String]);
         assert_eq!(tuple_type.to_rust_string(), "(i32, String)");
 
         let empty_tuple = RustType::Tuple(vec![]);
@@ -911,15 +871,9 @@ mod tests {
         let mapper = TypeMapper::new();
 
         let custom_type = PythonType::Custom("MyClass".to_string());
-        assert_eq!(
-            mapper.map_type(&custom_type),
-            RustType::Custom("MyClass".to_string())
-        );
+        assert_eq!(mapper.map_type(&custom_type), RustType::Custom("MyClass".to_string()));
 
-        assert_eq!(
-            RustType::Custom("MyClass".to_string()).to_rust_string(),
-            "MyClass"
-        );
+        assert_eq!(RustType::Custom("MyClass".to_string()).to_rust_string(), "MyClass");
 
         // DEPYLER-0781/1015/1051: Unknown type now maps to DepylerValue in NASA mode (default)
         // This prevents unused generic parameter errors (E0283) and ensures single-shot compile
@@ -954,24 +908,15 @@ mod tests {
 
         // Lowercase 'any' - maps to DepylerValue in NASA mode (Hybrid Fallback)
         let any_lower = PythonType::Custom("any".to_string());
-        assert_eq!(
-            mapper.map_type(&any_lower),
-            RustType::Custom("DepylerValue".to_string())
-        );
+        assert_eq!(mapper.map_type(&any_lower), RustType::Custom("DepylerValue".to_string()));
 
         // Uppercase 'Any'
         let any_upper = PythonType::Custom("Any".to_string());
-        assert_eq!(
-            mapper.map_type(&any_upper),
-            RustType::Custom("DepylerValue".to_string())
-        );
+        assert_eq!(mapper.map_type(&any_upper), RustType::Custom("DepylerValue".to_string()));
 
         // typing.Any
         let typing_any = PythonType::Custom("typing.Any".to_string());
-        assert_eq!(
-            mapper.map_type(&typing_any),
-            RustType::Custom("DepylerValue".to_string())
-        );
+        assert_eq!(mapper.map_type(&typing_any), RustType::Custom("DepylerValue".to_string()));
 
         // Non-NASA mode should use serde_json::Value
         let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
@@ -1017,10 +962,7 @@ mod tests {
 
         // Set[str]
         let set_str_type = PythonType::Set(Box::new(PythonType::String));
-        assert_eq!(
-            mapper.map_type(&set_str_type),
-            RustType::HashSet(Box::new(RustType::String))
-        );
+        assert_eq!(mapper.map_type(&set_str_type), RustType::HashSet(Box::new(RustType::String)));
 
         assert_eq!(
             RustType::HashSet(Box::new(RustType::Primitive(PrimitiveType::I32))).to_rust_string(),
@@ -1259,10 +1201,7 @@ mod tests {
         let mapper = TypeMapper::new();
 
         let object = PythonType::Custom("object".to_string());
-        assert_eq!(
-            mapper.map_type(&object),
-            RustType::Custom("DepylerValue".to_string())
-        );
+        assert_eq!(mapper.map_type(&object), RustType::Custom("DepylerValue".to_string()));
     }
 
     // ============ bare collection type mappings (DEPYLER-0718/1015/1051) ============
@@ -1320,10 +1259,8 @@ mod tests {
         // DEPYLER-1401: Sequence[T] maps to Vec<T>
         let mapper = TypeMapper::new();
 
-        let seq = PythonType::Generic {
-            base: "Sequence".to_string(),
-            params: vec![PythonType::Int],
-        };
+        let seq =
+            PythonType::Generic { base: "Sequence".to_string(), params: vec![PythonType::Int] };
         // Python int maps to i32 by default
         assert_eq!(
             mapper.map_type(&seq),
@@ -1397,18 +1334,12 @@ mod tests {
 
     #[test]
     fn test_const_generic_parameter() {
-        assert_eq!(
-            RustConstGeneric::Parameter("N".to_string()).to_rust_string(),
-            "N"
-        );
+        assert_eq!(RustConstGeneric::Parameter("N".to_string()).to_rust_string(), "N");
     }
 
     #[test]
     fn test_const_generic_expression() {
-        assert_eq!(
-            RustConstGeneric::Expression("N + 1".to_string()).to_rust_string(),
-            "N + 1"
-        );
+        assert_eq!(RustConstGeneric::Expression("N + 1".to_string()).to_rust_string(), "N + 1");
     }
 
     // ============ Array type tests ============
@@ -1440,10 +1371,7 @@ mod tests {
         // Callable[[int], str] -> impl Fn(i32) -> String
         let callable = PythonType::Generic {
             base: "Callable".to_string(),
-            params: vec![
-                PythonType::List(Box::new(PythonType::Int)),
-                PythonType::String,
-            ],
+            params: vec![PythonType::List(Box::new(PythonType::Int)), PythonType::String],
         };
         if let RustType::Custom(name) = mapper.map_type(&callable) {
             assert!(name.contains("impl Fn"));
@@ -1534,10 +1462,7 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // Bare Callable without params
-        let callable = PythonType::Generic {
-            base: "Callable".to_string(),
-            params: vec![],
-        };
+        let callable = PythonType::Generic { base: "Callable".to_string(), params: vec![] };
         if let RustType::Custom(name) = mapper.map_type(&callable) {
             assert_eq!(name, "impl Fn()");
         } else {
@@ -1569,10 +1494,8 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // Iterator[str] -> impl Iterator<Item=String>
-        let iter = PythonType::Generic {
-            base: "Iterator".to_string(),
-            params: vec![PythonType::String],
-        };
+        let iter =
+            PythonType::Generic { base: "Iterator".to_string(), params: vec![PythonType::String] };
         if let RustType::Custom(name) = mapper.map_type(&iter) {
             assert!(name.contains("impl Iterator"));
             assert!(name.contains("Item=String"));
@@ -1586,10 +1509,8 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // Iterable[int] -> impl IntoIterator<Item=i32>
-        let iterable = PythonType::Generic {
-            base: "Iterable".to_string(),
-            params: vec![PythonType::Int],
-        };
+        let iterable =
+            PythonType::Generic { base: "Iterable".to_string(), params: vec![PythonType::Int] };
         if let RustType::Custom(name) = mapper.map_type(&iterable) {
             assert!(name.contains("impl IntoIterator"));
             assert!(name.contains("Item=i32"));
@@ -1605,10 +1526,8 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // deque[int] -> VecDeque<i32>
-        let deque = PythonType::Generic {
-            base: "deque".to_string(),
-            params: vec![PythonType::Int],
-        };
+        let deque =
+            PythonType::Generic { base: "deque".to_string(), params: vec![PythonType::Int] };
         if let RustType::Custom(name) = mapper.map_type(&deque) {
             assert!(name.contains("VecDeque"));
             assert!(name.contains("i32"));
@@ -1717,13 +1636,7 @@ mod tests {
     fn test_general_exception_mapping() {
         let mapper = TypeMapper::new();
 
-        for exc in [
-            "ValueError",
-            "TypeError",
-            "KeyError",
-            "IndexError",
-            "RuntimeError",
-        ] {
+        for exc in ["ValueError", "TypeError", "KeyError", "IndexError", "RuntimeError"] {
             let error = PythonType::Custom(exc.to_string());
             if let RustType::Custom(name) = mapper.map_type(&error) {
                 assert_eq!(name, "Box<dyn std::error::Error>");
@@ -1741,19 +1654,14 @@ mod tests {
 
         // DEPYLER-1015/1051: In NASA mode, builtins.object maps to DepylerValue (Hybrid Fallback)
         let obj = PythonType::Custom("builtins.object".to_string());
-        assert_eq!(
-            mapper.map_type(&obj),
-            RustType::Custom("DepylerValue".to_string())
-        );
+        assert_eq!(mapper.map_type(&obj), RustType::Custom("DepylerValue".to_string()));
     }
 
     // ============ Additional RustType tests ============
 
     #[test]
     fn test_str_type_to_string() {
-        let str_type = RustType::Str {
-            lifetime: Some("'a".to_string()),
-        };
+        let str_type = RustType::Str { lifetime: Some("'a".to_string()) };
         assert_eq!(str_type.to_rust_string(), "&'a str");
 
         let str_no_lt = RustType::Str { lifetime: None };
@@ -1762,9 +1670,7 @@ mod tests {
 
     #[test]
     fn test_cow_type_to_string() {
-        let cow = RustType::Cow {
-            lifetime: "'static".to_string(),
-        };
+        let cow = RustType::Cow { lifetime: "'static".to_string() };
         assert_eq!(cow.to_rust_string(), "Cow<'static, str>");
     }
 
@@ -1863,24 +1769,16 @@ mod tests {
         let mapper = TypeMapper::new();
 
         let type_var = PythonType::TypeVar("T".to_string());
-        assert_eq!(
-            mapper.map_type(&type_var),
-            RustType::TypeParam("T".to_string())
-        );
+        assert_eq!(mapper.map_type(&type_var), RustType::TypeParam("T".to_string()));
     }
 
     #[test]
     fn test_generic_list_mapping() {
         let mapper = TypeMapper::new();
 
-        let list = PythonType::Generic {
-            base: "List".to_string(),
-            params: vec![PythonType::String],
-        };
-        assert_eq!(
-            mapper.map_type(&list),
-            RustType::Vec(Box::new(RustType::String))
-        );
+        let list =
+            PythonType::Generic { base: "List".to_string(), params: vec![PythonType::String] };
+        assert_eq!(mapper.map_type(&list), RustType::Vec(Box::new(RustType::String)));
     }
 
     #[test]
@@ -1957,11 +1855,8 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // Option doesn't need reference (falls through to default false)
-        assert!(
-            !mapper.needs_reference(&RustType::Option(Box::new(RustType::Primitive(
-                PrimitiveType::I32
-            ))))
-        );
+        assert!(!mapper
+            .needs_reference(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32)))));
     }
 
     #[test]
@@ -1996,9 +1891,7 @@ mod tests {
 
         // Option is NOT Copy in this implementation
         assert!(
-            !mapper.can_copy(&RustType::Option(Box::new(RustType::Primitive(
-                PrimitiveType::I32
-            ))))
+            !mapper.can_copy(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32))))
         );
     }
 
@@ -2082,8 +1975,7 @@ mod coverage_tests {
     fn test_optional_of_list() {
         let mapper = TypeMapper::new();
         // Optional[List[str]] -> Option<Vec<String>>
-        let nested =
-            PythonType::Optional(Box::new(PythonType::List(Box::new(PythonType::String))));
+        let nested = PythonType::Optional(Box::new(PythonType::List(Box::new(PythonType::String))));
         let result = mapper.map_type(&nested);
         assert_eq!(result.to_rust_string(), "Option<Vec<String>>");
     }
@@ -2116,10 +2008,7 @@ mod coverage_tests {
         let mapper = TypeMapper::new();
         // Final[int] -> i32 (unwraps Final)
         let final_int = PythonType::Final(Box::new(PythonType::Int));
-        assert_eq!(
-            mapper.map_type(&final_int),
-            RustType::Primitive(PrimitiveType::I32)
-        );
+        assert_eq!(mapper.map_type(&final_int), RustType::Primitive(PrimitiveType::I32));
     }
 
     #[test]
@@ -2204,10 +2093,7 @@ mod coverage_tests {
     fn test_non_nasa_mode_unknown_fallback() {
         let mapper = TypeMapper::new().with_nasa_mode(false);
         let unknown = PythonType::Unknown;
-        assert_eq!(
-            mapper.map_type(&unknown),
-            RustType::Custom("serde_json::Value".to_string())
-        );
+        assert_eq!(mapper.map_type(&unknown), RustType::Custom("serde_json::Value".to_string()));
     }
 
     #[test]
@@ -2238,10 +2124,7 @@ mod coverage_tests {
     #[test]
     fn test_return_type_string() {
         let mapper = TypeMapper::new();
-        assert_eq!(
-            mapper.map_return_type(&PythonType::String),
-            RustType::String
-        );
+        assert_eq!(mapper.map_return_type(&PythonType::String), RustType::String);
     }
 
     #[test]
@@ -2294,9 +2177,7 @@ mod coverage_tests {
     #[test]
     fn test_can_copy_single_element_tuple() {
         let mapper = TypeMapper::new();
-        assert!(mapper.can_copy(&RustType::Tuple(vec![RustType::Primitive(
-            PrimitiveType::F64
-        )])));
+        assert!(mapper.can_copy(&RustType::Tuple(vec![RustType::Primitive(PrimitiveType::F64)])));
     }
 
     #[test]
@@ -2359,11 +2240,7 @@ mod coverage_tests {
     #[test]
     fn test_union_three_types() {
         let mapper = TypeMapper::new();
-        let union = PythonType::Union(vec![
-            PythonType::Int,
-            PythonType::String,
-            PythonType::Bool,
-        ]);
+        let union = PythonType::Union(vec![PythonType::Int, PythonType::String, PythonType::Bool]);
         if let RustType::Enum { variants, .. } = mapper.map_type(&union) {
             assert_eq!(variants.len(), 3);
             assert_eq!(variants[0].0, "Integer");

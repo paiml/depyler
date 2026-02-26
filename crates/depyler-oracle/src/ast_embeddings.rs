@@ -76,11 +76,7 @@ impl AstEmbedding {
     /// Create an empty embedding with the given dimension
     #[must_use]
     pub fn empty(dim: usize) -> Self {
-        Self {
-            vector: vec![0.0; dim],
-            path_count: 0,
-            source_hash: 0,
-        }
+        Self { vector: vec![0.0; dim], path_count: 0, source_hash: 0 }
     }
 
     /// Convert to a row matrix
@@ -106,12 +102,7 @@ impl AstEmbedding {
         }
 
         // For normalized vectors, cosine similarity = dot product
-        let dot_product: f32 = self
-            .vector
-            .iter()
-            .zip(&other.vector)
-            .map(|(a, b)| a * b)
-            .sum();
+        let dot_product: f32 = self.vector.iter().zip(&other.vector).map(|(a, b)| a * b).sum();
 
         dot_product
     }
@@ -138,11 +129,7 @@ struct PythonPathVisitor {
 
 impl PythonPathVisitor {
     fn new(max_path_length: usize) -> Self {
-        Self {
-            paths: Vec::new(),
-            max_path_length,
-            current_path: Vec::new(),
-        }
+        Self { paths: Vec::new(), max_path_length, current_path: Vec::new() }
     }
 
     /// Visit a parsed Python module
@@ -171,9 +158,7 @@ impl PythonPathVisitor {
         use rustpython_parser::ast::*;
 
         match stmt {
-            Stmt::FunctionDef(StmtFunctionDef {
-                name, args, body, ..
-            }) => {
+            Stmt::FunctionDef(StmtFunctionDef { name, args, body, .. }) => {
                 self.current_path.push("FunctionDef".to_string());
 
                 // Path: FunctionDef -> name
@@ -199,9 +184,7 @@ impl PythonPathVisitor {
 
                 self.current_path.pop();
             }
-            Stmt::AsyncFunctionDef(StmtAsyncFunctionDef {
-                name, args, body, ..
-            }) => {
+            Stmt::AsyncFunctionDef(StmtAsyncFunctionDef { name, args, body, .. }) => {
                 self.current_path.push("AsyncFunctionDef".to_string());
 
                 self.paths.push(PathContext {
@@ -252,12 +235,7 @@ impl PythonPathVisitor {
                 }
                 self.visit_expr(value);
             }
-            Stmt::AnnAssign(StmtAnnAssign {
-                target,
-                value,
-                annotation,
-                ..
-            }) => {
+            Stmt::AnnAssign(StmtAnnAssign { target, value, annotation, .. }) => {
                 if let Expr::Name(ExprName { id, .. }) = target.as_ref() {
                     let ann_type = self.expr_type_name(annotation);
                     self.paths.push(PathContext {
@@ -270,9 +248,7 @@ impl PythonPathVisitor {
                     self.visit_expr(val);
                 }
             }
-            Stmt::Return(StmtReturn {
-                value: Some(val), ..
-            }) => {
+            Stmt::Return(StmtReturn { value: Some(val), .. }) => {
                 let val_type = self.expr_type_name(val);
                 self.paths.push(PathContext {
                     start_terminal: "Return".to_string(),
@@ -282,9 +258,7 @@ impl PythonPathVisitor {
                 self.visit_expr(val);
             }
             Stmt::Return(StmtReturn { value: None, .. }) => {}
-            Stmt::For(StmtFor {
-                target, iter, body, ..
-            }) => {
+            Stmt::For(StmtFor { target, iter, body, .. }) => {
                 self.current_path.push("For".to_string());
 
                 if let Expr::Name(ExprName { id, .. }) = target.as_ref() {
@@ -301,9 +275,7 @@ impl PythonPathVisitor {
 
                 self.current_path.pop();
             }
-            Stmt::If(StmtIf {
-                test, body, orelse, ..
-            }) => {
+            Stmt::If(StmtIf { test, body, orelse, .. }) => {
                 self.current_path.push("If".to_string());
                 self.visit_expr(test);
 
@@ -363,9 +335,7 @@ impl PythonPathVisitor {
                     self.visit_expr(arg);
                 }
             }
-            Expr::BinOp(ExprBinOp {
-                left, op, right, ..
-            }) => {
+            Expr::BinOp(ExprBinOp { left, op, right, .. }) => {
                 let op_str = format!("{:?}", op);
                 self.paths.push(PathContext {
                     start_terminal: self.expr_type_name(left),
@@ -373,12 +343,7 @@ impl PythonPathVisitor {
                     end_terminal: self.expr_type_name(right),
                 });
             }
-            Expr::Compare(ExprCompare {
-                left,
-                ops,
-                comparators,
-                ..
-            }) => {
+            Expr::Compare(ExprCompare { left, ops, comparators, .. }) => {
                 if !ops.is_empty() && !comparators.is_empty() {
                     let op_str = format!("{:?}", ops[0]);
                     self.paths.push(PathContext {
@@ -462,11 +427,7 @@ struct RustPathVisitor {
 
 impl RustPathVisitor {
     fn new(max_path_length: usize) -> Self {
-        Self {
-            paths: Vec::new(),
-            max_path_length,
-            current_path: Vec::new(),
-        }
+        Self { paths: Vec::new(), max_path_length, current_path: Vec::new() }
     }
 }
 
@@ -603,11 +564,7 @@ impl<'ast> Visit<'ast> for RustPathVisitor {
 
         if let syn::Pat::Ident(pat_ident) = &node.pat {
             let var_name = pat_ident.ident.to_string();
-            let mutability = if pat_ident.mutability.is_some() {
-                "mut "
-            } else {
-                ""
-            };
+            let mutability = if pat_ident.mutability.is_some() { "mut " } else { "" };
 
             self.paths.push(PathContext {
                 start_terminal: "let".to_string(),
@@ -806,10 +763,7 @@ impl AstEmbedder {
 
         // Simple bag-of-paths embedding using hash-based features
         for path in paths {
-            let path_str = format!(
-                "{}|{}|{}",
-                path.start_terminal, path.path, path.end_terminal
-            );
+            let path_str = format!("{}|{}|{}", path.start_terminal, path.path, path.end_terminal);
             let hash = self.hash_string(&path_str);
 
             // Distribute hash across embedding dimensions
@@ -858,9 +812,7 @@ impl CombinedEmbeddingExtractor {
     /// Create a new combined extractor
     #[must_use]
     pub fn new(config: AstEmbeddingConfig) -> Self {
-        Self {
-            ast_embedder: AstEmbedder::new(config),
-        }
+        Self { ast_embedder: AstEmbedder::new(config) }
     }
 
     /// Create with defaults
@@ -881,11 +833,7 @@ impl CombinedEmbeddingExtractor {
         let rust_embedding = self.ast_embedder.embed_rust(rust_source);
         let keyword_features = crate::features::ErrorFeatures::from_error_message(error_message);
 
-        CombinedFeatures {
-            python_embedding,
-            rust_embedding,
-            keyword_features,
-        }
+        CombinedFeatures { python_embedding, rust_embedding, keyword_features }
     }
 
     /// Get total feature dimension
@@ -1010,18 +958,8 @@ class Foo:
         let emb3 = embedder.embed_python(source3);
 
         // Cosine similarity
-        let sim_1_2: f32 = emb1
-            .vector
-            .iter()
-            .zip(&emb2.vector)
-            .map(|(a, b)| a * b)
-            .sum();
-        let sim_1_3: f32 = emb1
-            .vector
-            .iter()
-            .zip(&emb3.vector)
-            .map(|(a, b)| a * b)
-            .sum();
+        let sim_1_2: f32 = emb1.vector.iter().zip(&emb2.vector).map(|(a, b)| a * b).sum();
+        let sim_1_3: f32 = emb1.vector.iter().zip(&emb3.vector).map(|(a, b)| a * b).sum();
 
         // Similar functions should have higher similarity than different structures
         assert!(
@@ -1098,10 +1036,7 @@ def calculate(x, y):
         let emb1 = embedder.embed_python(source);
         let emb2 = embedder.embed_python(source);
 
-        assert_eq!(
-            emb1.vector, emb2.vector,
-            "Same source should produce same embedding"
-        );
+        assert_eq!(emb1.vector, emb2.vector, "Same source should produce same embedding");
         assert_eq!(emb1.source_hash, emb2.source_hash);
     }
 
@@ -1366,12 +1301,7 @@ class ComplexProcessor:
     fn test_cosine_similarity_range() {
         let embedder = AstEmbedder::with_defaults();
 
-        let sources = [
-            "def foo(): pass",
-            "def bar(x): return x",
-            "class Baz: pass",
-            "x = 1 + 2",
-        ];
+        let sources = ["def foo(): pass", "def bar(x): return x", "class Baz: pass", "x = 1 + 2"];
 
         let embeddings: Vec<_> = sources.iter().map(|s| embedder.embed_python(s)).collect();
 
@@ -1397,10 +1327,7 @@ class ComplexProcessor:
         let emb = embedder.embed_python(source);
 
         // Identical embedding should be similar at any positive threshold
-        assert!(
-            emb.is_similar_to(&emb, 0.99),
-            "Identical embeddings should be similar"
-        );
+        assert!(emb.is_similar_to(&emb, 0.99), "Identical embeddings should be similar");
     }
 
     #[test]

@@ -31,9 +31,7 @@ fn collect_string_type_aliases(code: &str) -> Vec<String> {
     let mut aliases = Vec::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        let rest = match trimmed
-            .strip_prefix("pub type ")
-            .or_else(|| trimmed.strip_prefix("type "))
+        let rest = match trimmed.strip_prefix("pub type ").or_else(|| trimmed.strip_prefix("type "))
         {
             Some(r) => r,
             None => continue,
@@ -178,10 +176,7 @@ fn try_replace_deref_comparison(result: &str, i: usize) -> Option<(String, usize
     let close = after.find(')')?;
     let var_name = &after[..close];
     // Check it's a simple identifier
-    if !var_name
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
-    {
+    if !var_name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
         return None;
     }
     let var_end = abs_pos + 2 + close + 1;
@@ -190,12 +185,7 @@ fn try_replace_deref_comparison(result: &str, i: usize) -> Option<(String, usize
     }
     let old = format!("(*{})", var_name);
     let new = var_name.to_string();
-    let replaced = format!(
-        "{}{}{}",
-        &result[..abs_pos],
-        new,
-        &result[abs_pos + old.len()..]
-    );
+    let replaced = format!("{}{}{}", &result[..abs_pos], new, &result[abs_pos + old.len()..]);
     Some((replaced, abs_pos + new.len()))
 }
 
@@ -223,12 +213,7 @@ pub(super) fn fix_deref_string_comparison(code: &str) -> String {
 
 pub(super) fn fix_deref_unwrap_result(code: &str) -> String {
     let mut result = code.to_string();
-    for method in &[
-        "unwrap_or_default()",
-        "unwrap()",
-        "unwrap_or(0)",
-        "unwrap_or(0.0)",
-    ] {
+    for method in &["unwrap_or_default()", "unwrap()", "unwrap_or(0)", "unwrap_or(0.0)"] {
         let search = format!(".{}", method);
         let mut i = 0;
         while i < result.len() {
@@ -349,10 +334,7 @@ pub(super) fn fix_deref_ref_option_unwrap(code: &str) -> String {
         let before = &result[..abs];
         if let Some(star_pos) = before.rfind("(*") {
             let var = result[star_pos + 2..abs].trim().to_string();
-            if var
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
-            {
+            if var.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
                 let old = format!("(*{}.unwrap_or_default())", var);
                 let new = format!("(*{}).unwrap_or_default()", var);
                 result = result.replacen(&old, &new, 1);
@@ -444,11 +426,7 @@ pub(super) fn extract_mut_param_positions(sig: &str) -> Option<(String, Vec<usiz
     let rest = &sig[start..];
     let paren = rest.find('(')?;
     let raw_name = rest[..paren].trim();
-    let name = if let Some(lt) = raw_name.find('<') {
-        raw_name[..lt].trim()
-    } else {
-        raw_name
-    };
+    let name = if let Some(lt) = raw_name.find('<') { raw_name[..lt].trim() } else { raw_name };
     if name.is_empty() {
         return None;
     }
@@ -569,12 +547,7 @@ pub(super) fn fix_mut_args_in_call(line: &str, fname: &str, positions: &[usize])
     if !changed {
         return line.to_string();
     }
-    format!(
-        "{}{}{}",
-        &line[..args_start],
-        args.join(","),
-        &line[args_end..]
-    )
+    format!("{}{}{}", &line[..args_start], args.join(","), &line[args_end..])
 }
 
 /// If an argument starts with `&` but not `&mut `, return the `&mut` version.
@@ -597,11 +570,7 @@ fn try_fix_deref_expect_in_line(line: &str) -> Option<String> {
     let after_star = &line[star_pos + 2..];
     let close_paren = after_star.find(')')?;
     let var_name = &after_star[..close_paren];
-    if var_name.is_empty()
-        || !var_name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_')
-    {
+    if var_name.is_empty() || !var_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
         return None;
     }
     let after_close = &after_star[close_paren + 1..];
@@ -708,10 +677,7 @@ fn try_parse_double_expect(trimmed: &str) -> Option<(String, String, String)> {
     let star_idx = trimmed.find("(*")?;
     let exp1_offset = trimmed[star_idx + 2..].find(".expect(")?;
     let var_name = &trimmed[star_idx + 2..star_idx + 2 + exp1_offset];
-    if !var_name
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '_')
-    {
+    if !var_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
         return None;
     }
     let exp1_start = star_idx + 2 + exp1_offset;
@@ -780,11 +746,7 @@ fn find_closure_body_end(lines: &[&str], start_line: usize) -> usize {
 
 /// Find variables declared as `let mut VAR` before `closure_start` that are used both
 /// inside the closure body and after it.
-fn find_captured_vars(
-    lines: &[&str],
-    closure_start: usize,
-    closure_end: usize,
-) -> Vec<String> {
+fn find_captured_vars(lines: &[&str], closure_start: usize, closure_end: usize) -> Vec<String> {
     let mut captured_vars = Vec::new();
     for k in 0..closure_start {
         let prev_trimmed = lines[k].trim();
@@ -811,22 +773,13 @@ fn build_clone_replacement_patterns(var: &str) -> Vec<(String, String)> {
     let clone_name = format!("{}_clone", var);
     vec![
         (format!("{}.get", var), format!("{}.get", clone_name)),
-        (
-            format!("{}.insert", var),
-            format!("{}.insert", clone_name),
-        ),
-        (
-            format!("{}.contains", var),
-            format!("{}.contains", clone_name),
-        ),
+        (format!("{}.insert", var), format!("{}.insert", clone_name)),
+        (format!("{}.contains", var), format!("{}.contains", clone_name)),
         (format!("{}.entry", var), format!("{}.entry", clone_name)),
         (format!("{}.len", var), format!("{}.len", clone_name)),
         (format!("{}.push", var), format!("{}.push", clone_name)),
         (format!("{}.clone", var), format!("{}.clone", clone_name)),
-        (
-            format!("{}.remove", var),
-            format!("{}.remove", clone_name),
-        ),
+        (format!("{}.remove", var), format!("{}.remove", clone_name)),
         (format!(" {} ", var), format!(" {} ", clone_name)),
         (format!("[{} as", var), format!("[{} as", clone_name)),
         (format!("[{}]", var), format!("[{}]", clone_name)),
@@ -873,10 +826,7 @@ pub(super) fn fix_move_closure_capture(code: &str) -> String {
 
         // Add clone statements before the closure
         for var in &captured_vars {
-            result.push_str(&format!(
-                "{}let {}_clone = {}.clone();\n",
-                indent, var, var
-            ));
+            result.push_str(&format!("{}let {}_clone = {}.clone();\n", indent, var, var));
         }
 
         // Insert the original closure line
@@ -979,11 +929,7 @@ fn try_clone_ref_pattern(line: &str, fn_name: &str, pattern: &str) -> Option<Str
     if var.is_empty() || !var.chars().all(|c| c.is_alphanumeric() || c == '_') {
         return None;
     }
-    let delim = if after.as_bytes()[end] == b')' {
-        ")"
-    } else {
-        ","
-    };
+    let delim = if after.as_bytes()[end] == b')' { ")" } else { "," };
     let old = format!("{}{}{}", pattern, var, delim);
     let new_str = format!("{}({}.clone(){}", fn_name, var, delim);
     Some(line.replace(&old, &new_str))
@@ -1067,10 +1013,7 @@ fn extract_caller_var(trimmed: &str, method: &str) -> Option<String> {
     let call_pattern = format!(".{}(", method);
     let dot_idx = trimmed.find(&call_pattern)?;
     let before = trimmed[..dot_idx].trim();
-    let var = before
-        .split(|c: char| !c.is_alphanumeric() && c != '_')
-        .next_back()
-        .unwrap_or("");
+    let var = before.split(|c: char| !c.is_alphanumeric() && c != '_').next_back().unwrap_or("");
     if !var.is_empty()
         && var != "self"
         && var != "mut"
@@ -1132,8 +1075,7 @@ pub(super) fn fix_missing_mut_for_method_calls(code: &str) -> String {
 }
 
 pub(super) fn fix_deref_on_unwrap_or(code: &str) -> String {
-    code.replace("(*self.", "(self.")
-        .replace("(* self.", "(self.")
+    code.replace("(*self.", "(self.").replace("(* self.", "(self.")
 }
 
 // ── fix_missing_ref_in_fn_call and helpers ───────────────────────────────

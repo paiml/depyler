@@ -109,20 +109,11 @@ pub struct CompilationError {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TranspilerDecision {
     /// Type inference decision
-    TypeInference {
-        variable: String,
-        inferred_type: String,
-    },
+    TypeInference { variable: String, inferred_type: String },
     /// Method translation decision
-    MethodTranslation {
-        python_method: String,
-        rust_method: String,
-    },
+    MethodTranslation { python_method: String, rust_method: String },
     /// Import mapping decision
-    ImportMapping {
-        python_import: String,
-        rust_import: String,
-    },
+    ImportMapping { python_import: String, rust_import: String },
     /// Fallback to serde_json::Value
     ValueFallback { context: String },
     /// Other decision
@@ -315,9 +306,7 @@ pub struct ScoreCalculator {
 impl ScoreCalculator {
     /// Create a new score calculator with default config
     pub fn new() -> Self {
-        Self {
-            config: ScoringConfig::default(),
-        }
+        Self { config: ScoringConfig::default() }
     }
 
     /// Create with custom config
@@ -416,10 +405,7 @@ impl ScoreCalculator {
         let aggregate_score: f32 = results.iter().map(|r| r.score.total as f32).sum::<f32>() / n;
 
         let category_averages = CategoryBreakdown {
-            a1_parse: (results
-                .iter()
-                .map(|r| r.category_breakdown.a1_parse as f32)
-                .sum::<f32>()
+            a1_parse: (results.iter().map(|r| r.category_breakdown.a1_parse as f32).sum::<f32>()
                 / n) as u8,
             a2_type_check: (results
                 .iter()
@@ -461,16 +447,10 @@ impl ScoreCalculator {
                 .map(|r| r.category_breakdown.c3_property_test as f32)
                 .sum::<f32>()
                 / n) as u8,
-            d1_clippy: (results
-                .iter()
-                .map(|r| r.category_breakdown.d1_clippy as f32)
-                .sum::<f32>()
+            d1_clippy: (results.iter().map(|r| r.category_breakdown.d1_clippy as f32).sum::<f32>()
                 / n) as u8,
-            d2_tdg: (results
-                .iter()
-                .map(|r| r.category_breakdown.d2_tdg as f32)
-                .sum::<f32>()
-                / n) as u8,
+            d2_tdg: (results.iter().map(|r| r.category_breakdown.d2_tdg as f32).sum::<f32>() / n)
+                as u8,
             d3_complexity: (results
                 .iter()
                 .map(|r| r.category_breakdown.d3_complexity as f32)
@@ -547,17 +527,11 @@ pub struct DecisionStats {
 impl DecisionStats {
     /// Calculate Tarantula suspiciousness score
     pub fn tarantula_score(&self, total_failed: usize, total_passed: usize) -> TarantulaScore {
-        let failed_ratio = if total_failed > 0 {
-            self.failed_count as f32 / total_failed as f32
-        } else {
-            0.0
-        };
+        let failed_ratio =
+            if total_failed > 0 { self.failed_count as f32 / total_failed as f32 } else { 0.0 };
 
-        let passed_ratio = if total_passed > 0 {
-            self.passed_count as f32 / total_passed as f32
-        } else {
-            0.0
-        };
+        let passed_ratio =
+            if total_passed > 0 { self.passed_count as f32 / total_passed as f32 } else { 0.0 };
 
         let suspiciousness = if failed_ratio + passed_ratio > 0.0 {
             failed_ratio / (failed_ratio + passed_ratio)
@@ -599,10 +573,7 @@ pub fn analyze_score_failures(
         }
     }
 
-    stats
-        .into_iter()
-        .map(|(d, s)| (d, s.tarantula_score(total_failed, total_passed)))
-        .collect()
+    stats.into_iter().map(|(d, s)| (d, s.tarantula_score(total_failed, total_passed))).collect()
 }
 
 #[cfg(test)]
@@ -688,11 +659,7 @@ mod tests {
 
     #[test]
     fn test_category_breakdown_clone() {
-        let breakdown = CategoryBreakdown {
-            a1_parse: 10,
-            a2_type_check: 15,
-            ..Default::default()
-        };
+        let breakdown = CategoryBreakdown { a1_parse: 10, a2_type_check: 15, ..Default::default() };
         let cloned = breakdown.clone();
         assert_eq!(cloned.a1_parse, 10);
         assert_eq!(cloned.a2_type_check, 15);
@@ -774,10 +741,7 @@ mod tests {
             python_method: "append".to_string(),
             rust_method: "push".to_string(),
         };
-        assert!(matches!(
-            decision,
-            TranspilerDecision::MethodTranslation { .. }
-        ));
+        assert!(matches!(decision, TranspilerDecision::MethodTranslation { .. }));
     }
 
     #[test]
@@ -791,9 +755,7 @@ mod tests {
 
     #[test]
     fn test_transpiler_decision_value_fallback() {
-        let decision = TranspilerDecision::ValueFallback {
-            context: "unknown type".to_string(),
-        };
+        let decision = TranspilerDecision::ValueFallback { context: "unknown type".to_string() };
         assert!(matches!(decision, TranspilerDecision::ValueFallback { .. }));
     }
 
@@ -948,11 +910,8 @@ mod tests {
 
     #[test]
     fn test_blocker_fields() {
-        let blocker = Blocker {
-            pattern: "E0308".to_string(),
-            affected_files: 5,
-            avg_points_lost: 15.5,
-        };
+        let blocker =
+            Blocker { pattern: "E0308".to_string(), affected_files: 5, avg_points_lost: 15.5 };
         assert_eq!(blocker.pattern, "E0308");
         assert_eq!(blocker.affected_files, 5);
         assert!((blocker.avg_points_lost - 15.5).abs() < f32::EPSILON);
@@ -960,22 +919,16 @@ mod tests {
 
     #[test]
     fn test_blocker_clone() {
-        let blocker = Blocker {
-            pattern: "test".to_string(),
-            affected_files: 3,
-            avg_points_lost: 10.0,
-        };
+        let blocker =
+            Blocker { pattern: "test".to_string(), affected_files: 3, avg_points_lost: 10.0 };
         let cloned = blocker.clone();
         assert_eq!(cloned.pattern, blocker.pattern);
     }
 
     #[test]
     fn test_blocker_debug() {
-        let blocker = Blocker {
-            pattern: "test".to_string(),
-            affected_files: 1,
-            avg_points_lost: 5.0,
-        };
+        let blocker =
+            Blocker { pattern: "test".to_string(), affected_files: 1, avg_points_lost: 5.0 };
         let debug = format!("{:?}", blocker);
         assert!(debug.contains("Blocker"));
     }
@@ -1027,10 +980,7 @@ mod tests {
 
     #[test]
     fn test_score_calculator_with_config() {
-        let config = ScoringConfig {
-            gateway_threshold: 0.8,
-            ..Default::default()
-        };
+        let config = ScoringConfig { gateway_threshold: 0.8, ..Default::default() };
         let calc = ScoreCalculator::with_config(config);
         assert!((calc.config.gateway_threshold - 0.8).abs() < f32::EPSILON);
     }
@@ -1224,10 +1174,7 @@ mod tests {
 
     #[test]
     fn test_tarantula_score() {
-        let stats = DecisionStats {
-            failed_count: 8,
-            passed_count: 2,
-        };
+        let stats = DecisionStats { failed_count: 8, passed_count: 2 };
 
         let tarantula = stats.tarantula_score(10, 10);
 
@@ -1239,10 +1186,7 @@ mod tests {
 
     #[test]
     fn test_tarantula_score_zero_failed() {
-        let stats = DecisionStats {
-            failed_count: 0,
-            passed_count: 5,
-        };
+        let stats = DecisionStats { failed_count: 0, passed_count: 5 };
 
         let tarantula = stats.tarantula_score(0, 10);
         assert_eq!(tarantula.suspiciousness, 0.0);
@@ -1250,10 +1194,7 @@ mod tests {
 
     #[test]
     fn test_tarantula_score_zero_passed() {
-        let stats = DecisionStats {
-            failed_count: 5,
-            passed_count: 0,
-        };
+        let stats = DecisionStats { failed_count: 5, passed_count: 0 };
 
         let tarantula = stats.tarantula_score(10, 0);
         // failed_ratio = 5/10 = 0.5
@@ -1264,10 +1205,7 @@ mod tests {
 
     #[test]
     fn test_tarantula_score_both_zero() {
-        let stats = DecisionStats {
-            failed_count: 0,
-            passed_count: 0,
-        };
+        let stats = DecisionStats { failed_count: 0, passed_count: 0 };
 
         let tarantula = stats.tarantula_score(0, 0);
         assert_eq!(tarantula.suspiciousness, 0.0);
@@ -1275,22 +1213,14 @@ mod tests {
 
     #[test]
     fn test_tarantula_score_clone() {
-        let score = TarantulaScore {
-            suspiciousness: 0.5,
-            failed_count: 3,
-            passed_count: 7,
-        };
+        let score = TarantulaScore { suspiciousness: 0.5, failed_count: 3, passed_count: 7 };
         let cloned = score.clone();
         assert_eq!(cloned.suspiciousness, score.suspiciousness);
     }
 
     #[test]
     fn test_tarantula_score_debug() {
-        let score = TarantulaScore {
-            suspiciousness: 0.5,
-            failed_count: 3,
-            passed_count: 7,
-        };
+        let score = TarantulaScore { suspiciousness: 0.5, failed_count: 3, passed_count: 7 };
         let debug = format!("{:?}", score);
         assert!(debug.contains("TarantulaScore"));
     }
@@ -1306,10 +1236,7 @@ mod tests {
 
     #[test]
     fn test_decision_stats_clone() {
-        let stats = DecisionStats {
-            failed_count: 5,
-            passed_count: 10,
-        };
+        let stats = DecisionStats { failed_count: 5, passed_count: 10 };
         let cloned = stats.clone();
         assert_eq!(cloned.failed_count, stats.failed_count);
     }
@@ -1388,10 +1315,7 @@ mod tests {
         let results = vec![
             SingleShotResult {
                 file_path: PathBuf::from("a.py"),
-                score: SingleShotScore {
-                    total: 50,
-                    ..Default::default()
-                },
+                score: SingleShotScore { total: 50, ..Default::default() },
                 category_breakdown: CategoryBreakdown::default(),
                 error_details: vec![CompilationError {
                     code: "E0308".to_string(),
@@ -1403,10 +1327,7 @@ mod tests {
             },
             SingleShotResult {
                 file_path: PathBuf::from("b.py"),
-                score: SingleShotScore {
-                    total: 50,
-                    ..Default::default()
-                },
+                score: SingleShotScore { total: 50, ..Default::default() },
                 category_breakdown: CategoryBreakdown::default(),
                 error_details: vec![CompilationError {
                     code: "E0308".to_string(),

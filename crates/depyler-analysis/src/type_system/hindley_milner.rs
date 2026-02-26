@@ -64,11 +64,7 @@ impl std::fmt::Display for TypeError {
                 write!(f, "Infinite type: variable {} occurs in {:?}", var, ty)
             }
             TypeError::Mismatch(expected, actual) => {
-                write!(
-                    f,
-                    "Type mismatch: expected {:?}, got {:?}",
-                    expected, actual
-                )
+                write!(f, "Type mismatch: expected {:?}, got {:?}", expected, actual)
             }
             TypeError::UnificationFailed(msg) => {
                 write!(f, "Unification failed: {}", msg)
@@ -95,11 +91,7 @@ pub struct TypeConstraintSolver {
 impl TypeConstraintSolver {
     /// Create a new type constraint solver
     pub fn new() -> Self {
-        Self {
-            constraints: Vec::new(),
-            substitutions: HashMap::new(),
-            next_type_var: 0,
-        }
+        Self { constraints: Vec::new(), substitutions: HashMap::new(), next_type_var: 0 }
     }
 
     /// Generate a fresh type variable
@@ -199,10 +191,7 @@ impl TypeConstraintSolver {
 
             (Type::Tuple(types1), Type::Tuple(types2)) => {
                 if types1.len() != types2.len() {
-                    return Err(TypeError::Mismatch(
-                        Type::Tuple(types1),
-                        Type::Tuple(types2),
-                    ));
+                    return Err(TypeError::Mismatch(Type::Tuple(types1), Type::Tuple(types2)));
                 }
                 for (t1, t2) in types1.into_iter().zip(types2.into_iter()) {
                     self.unify(t1, t2)?;
@@ -213,25 +202,13 @@ impl TypeConstraintSolver {
             (Type::Set(inner1), Type::Set(inner2)) => self.unify(*inner1, *inner2),
 
             (
-                Type::Function {
-                    params: params1,
-                    ret: ret1,
-                },
-                Type::Function {
-                    params: params2,
-                    ret: ret2,
-                },
+                Type::Function { params: params1, ret: ret1 },
+                Type::Function { params: params2, ret: ret2 },
             ) => {
                 if params1.len() != params2.len() {
                     return Err(TypeError::Mismatch(
-                        Type::Function {
-                            params: params1,
-                            ret: ret1,
-                        },
-                        Type::Function {
-                            params: params2,
-                            ret: ret2,
-                        },
+                        Type::Function { params: params1, ret: ret1 },
+                        Type::Function { params: params2, ret: ret2 },
                     ));
                 }
                 for (p1, p2) in params1.into_iter().zip(params2.into_iter()) {
@@ -443,24 +420,17 @@ mod tests {
         // Mismatched lengths
         let tuple3 = Type::Tuple(vec![Type::Int]);
         let tuple4 = Type::Tuple(vec![Type::Int, Type::String]);
-        assert!(matches!(
-            solver.unify(tuple3, tuple4),
-            Err(TypeError::Mismatch(_, _))
-        ));
+        assert!(matches!(solver.unify(tuple3, tuple4), Err(TypeError::Mismatch(_, _))));
     }
 
     #[test]
     fn test_unify_functions() {
         let mut solver = TypeConstraintSolver::new();
 
-        let func1 = Type::Function {
-            params: vec![Type::Int, Type::String],
-            ret: Box::new(Type::Bool),
-        };
-        let func2 = Type::Function {
-            params: vec![Type::Int, Type::String],
-            ret: Box::new(Type::Bool),
-        };
+        let func1 =
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) };
+        let func2 =
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) };
         assert!(solver.unify(func1, func2).is_ok());
     }
 
@@ -503,15 +473,11 @@ mod tests {
     fn test_occurs_check_dict() {
         let solver = TypeConstraintSolver::new();
         // var occurs in Dict<var, Int>
-        assert!(solver.occurs_check(
-            0,
-            &Type::Dict(Box::new(Type::UnificationVar(0)), Box::new(Type::Int))
-        ));
+        assert!(solver
+            .occurs_check(0, &Type::Dict(Box::new(Type::UnificationVar(0)), Box::new(Type::Int))));
         // var occurs in Dict<Int, var>
-        assert!(solver.occurs_check(
-            0,
-            &Type::Dict(Box::new(Type::Int), Box::new(Type::UnificationVar(0)))
-        ));
+        assert!(solver
+            .occurs_check(0, &Type::Dict(Box::new(Type::Int), Box::new(Type::UnificationVar(0)))));
         // var does not occur
         assert!(!solver.occurs_check(0, &Type::Dict(Box::new(Type::Int), Box::new(Type::String))));
     }
@@ -526,10 +492,8 @@ mod tests {
     #[test]
     fn test_occurs_check_tuple() {
         let solver = TypeConstraintSolver::new();
-        assert!(solver.occurs_check(
-            0,
-            &Type::Tuple(vec![Type::Int, Type::UnificationVar(0), Type::String])
-        ));
+        assert!(solver
+            .occurs_check(0, &Type::Tuple(vec![Type::Int, Type::UnificationVar(0), Type::String])));
         assert!(!solver.occurs_check(0, &Type::Tuple(vec![Type::Int, Type::String])));
     }
 
@@ -554,18 +518,12 @@ mod tests {
         // var in return type
         assert!(solver.occurs_check(
             0,
-            &Type::Function {
-                params: vec![Type::Int],
-                ret: Box::new(Type::UnificationVar(0))
-            }
+            &Type::Function { params: vec![Type::Int], ret: Box::new(Type::UnificationVar(0)) }
         ));
         // var not present
         assert!(!solver.occurs_check(
             0,
-            &Type::Function {
-                params: vec![Type::Int],
-                ret: Box::new(Type::Bool)
-            }
+            &Type::Function { params: vec![Type::Int], ret: Box::new(Type::Bool) }
         ));
     }
 
@@ -574,17 +532,11 @@ mod tests {
         let solver = TypeConstraintSolver::new();
         assert!(solver.occurs_check(
             0,
-            &Type::Generic {
-                base: "Iterator".to_string(),
-                params: vec![Type::UnificationVar(0)]
-            }
+            &Type::Generic { base: "Iterator".to_string(), params: vec![Type::UnificationVar(0)] }
         ));
         assert!(!solver.occurs_check(
             0,
-            &Type::Generic {
-                base: "Iterator".to_string(),
-                params: vec![Type::Int]
-            }
+            &Type::Generic { base: "Iterator".to_string(), params: vec![Type::Int] }
         ));
     }
 
@@ -608,10 +560,7 @@ mod tests {
         ));
         assert!(!solver.occurs_check(
             0,
-            &Type::Array {
-                element_type: Box::new(Type::Int),
-                size: ConstGeneric::Literal(10)
-            }
+            &Type::Array { element_type: Box::new(Type::Int), size: ConstGeneric::Literal(10) }
         ));
     }
 
@@ -633,15 +582,9 @@ mod tests {
         solver.substitutions.insert(0, Type::String);
         solver.substitutions.insert(1, Type::Int);
 
-        let ty = Type::Dict(
-            Box::new(Type::UnificationVar(0)),
-            Box::new(Type::UnificationVar(1)),
-        );
+        let ty = Type::Dict(Box::new(Type::UnificationVar(0)), Box::new(Type::UnificationVar(1)));
         let result = solver.apply_substitution(&ty);
-        assert_eq!(
-            result,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
-        );
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
     }
 
     #[test]
@@ -660,16 +603,9 @@ mod tests {
         solver.substitutions.insert(0, Type::Int);
         solver.substitutions.insert(1, Type::String);
 
-        let ty = Type::Tuple(vec![
-            Type::UnificationVar(0),
-            Type::Bool,
-            Type::UnificationVar(1),
-        ]);
+        let ty = Type::Tuple(vec![Type::UnificationVar(0), Type::Bool, Type::UnificationVar(1)]);
         let result = solver.apply_substitution(&ty);
-        assert_eq!(
-            result,
-            Type::Tuple(vec![Type::Int, Type::Bool, Type::String])
-        );
+        assert_eq!(result, Type::Tuple(vec![Type::Int, Type::Bool, Type::String]));
     }
 
     #[test]
@@ -695,10 +631,7 @@ mod tests {
         let result = solver.apply_substitution(&ty);
         assert_eq!(
             result,
-            Type::Function {
-                params: vec![Type::Int, Type::String],
-                ret: Box::new(Type::Bool)
-            }
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) }
         );
     }
 
@@ -707,18 +640,9 @@ mod tests {
         let mut solver = TypeConstraintSolver::new();
         solver.substitutions.insert(0, Type::Int);
 
-        let ty = Type::Generic {
-            base: "Vec".to_string(),
-            params: vec![Type::UnificationVar(0)],
-        };
+        let ty = Type::Generic { base: "Vec".to_string(), params: vec![Type::UnificationVar(0)] };
         let result = solver.apply_substitution(&ty);
-        assert_eq!(
-            result,
-            Type::Generic {
-                base: "Vec".to_string(),
-                params: vec![Type::Int]
-            }
-        );
+        assert_eq!(result, Type::Generic { base: "Vec".to_string(), params: vec![Type::Int] });
     }
 
     #[test]
@@ -744,10 +668,7 @@ mod tests {
         let result = solver.apply_substitution(&ty);
         assert_eq!(
             result,
-            Type::Array {
-                element_type: Box::new(Type::Float),
-                size: ConstGeneric::Literal(5)
-            }
+            Type::Array { element_type: Box::new(Type::Float), size: ConstGeneric::Literal(5) }
         );
     }
 
@@ -788,10 +709,7 @@ mod tests {
         let mut solver = TypeConstraintSolver::new();
         let opt1 = Type::Optional(Box::new(Type::Int));
         let opt2 = Type::Optional(Box::new(Type::String));
-        assert!(matches!(
-            solver.unify(opt1, opt2),
-            Err(TypeError::Mismatch(_, _))
-        ));
+        assert!(matches!(solver.unify(opt1, opt2), Err(TypeError::Mismatch(_, _))));
     }
 
     #[test]
@@ -807,10 +725,7 @@ mod tests {
         let mut solver = TypeConstraintSolver::new();
         let list1 = Type::List(Box::new(Type::Int));
         let list2 = Type::List(Box::new(Type::String));
-        assert!(matches!(
-            solver.unify(list1, list2),
-            Err(TypeError::Mismatch(_, _))
-        ));
+        assert!(matches!(solver.unify(list1, list2), Err(TypeError::Mismatch(_, _))));
     }
 
     #[test]
@@ -818,27 +733,16 @@ mod tests {
         let mut solver = TypeConstraintSolver::new();
         let dict1 = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
         let dict2 = Type::Dict(Box::new(Type::Int), Box::new(Type::Int));
-        assert!(matches!(
-            solver.unify(dict1, dict2),
-            Err(TypeError::Mismatch(_, _))
-        ));
+        assert!(matches!(solver.unify(dict1, dict2), Err(TypeError::Mismatch(_, _))));
     }
 
     #[test]
     fn test_unify_function_param_mismatch() {
         let mut solver = TypeConstraintSolver::new();
-        let func1 = Type::Function {
-            params: vec![Type::Int],
-            ret: Box::new(Type::Bool),
-        };
-        let func2 = Type::Function {
-            params: vec![Type::Int, Type::String],
-            ret: Box::new(Type::Bool),
-        };
-        assert!(matches!(
-            solver.unify(func1, func2),
-            Err(TypeError::Mismatch(_, _))
-        ));
+        let func1 = Type::Function { params: vec![Type::Int], ret: Box::new(Type::Bool) };
+        let func2 =
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) };
+        assert!(matches!(solver.unify(func1, func2), Err(TypeError::Mismatch(_, _))));
     }
 
     #[test]

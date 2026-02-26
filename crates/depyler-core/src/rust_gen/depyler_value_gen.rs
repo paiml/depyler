@@ -2605,5 +2605,4 @@ pub(super) fn generate_depyler_value_tokens() -> proc_macro2::TokenStream {
                 }
             }
     }
-
 }

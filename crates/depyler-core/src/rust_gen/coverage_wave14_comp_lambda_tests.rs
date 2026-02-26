@@ -18,10 +18,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -49,14 +47,16 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_003_list_comp_nested_product() {
-        let code = "def products() -> list:\n    return [i * j for i in range(3) for j in range(3)]\n";
+        let code =
+            "def products() -> list:\n    return [i * j for i in range(3) for j in range(3)]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14cl_comp_004_list_comp_nested_pairs() {
-        let code = "def pairs() -> list:\n    return [(i, j) for i in range(2) for j in range(2)]\n";
+        let code =
+            "def pairs() -> list:\n    return [(i, j) for i in range(2) for j in range(2)]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -66,7 +66,11 @@ mod tests {
         let code = "def upper_all(words: list) -> list:\n    return [s.upper() for s in words]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_uppercase") || result.contains("upper") || result.contains("into_iter"));
+        assert!(
+            result.contains("to_uppercase")
+                || result.contains("upper")
+                || result.contains("into_iter")
+        );
     }
 
     #[test]
@@ -74,7 +78,9 @@ mod tests {
         let code = "def stripped(lines: list) -> list:\n    return [s.strip() for s in lines]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("trim") || result.contains("strip") || result.contains("into_iter"));
+        assert!(
+            result.contains("trim") || result.contains("strip") || result.contains("into_iter")
+        );
     }
 
     #[test]
@@ -86,7 +92,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_008_list_comp_ternary_abs() {
-        let code = "def abs_values(nums: list) -> list:\n    return [x if x > 0 else -x for x in nums]\n";
+        let code =
+            "def abs_values(nums: list) -> list:\n    return [x if x > 0 else -x for x in nums]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("if") || result.contains("into_iter"));
@@ -112,7 +119,9 @@ mod tests {
         let code = "def big_items(items: list) -> set:\n    return {x for x in items if x > 5}\n";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("HashSet") || result.contains("filter") || result.contains("collect"));
+        assert!(
+            result.contains("HashSet") || result.contains("filter") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -175,7 +184,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_020_nested_comp_flatten() {
-        let code = "def flatten() -> list:\n    return [x for row in [[1, 2], [3, 4]] for x in row]\n";
+        let code =
+            "def flatten() -> list:\n    return [x for row in [[1, 2], [3, 4]] for x in row]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -210,7 +220,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_025_genexpr_with_filter() {
-        let code = "def sum_even(n: int) -> int:\n    return sum(x for x in range(n) if x % 2 == 0)\n";
+        let code =
+            "def sum_even(n: int) -> int:\n    return sum(x for x in range(n) if x % 2 == 0)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -245,7 +256,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_030_comp_over_enumerate() {
-        let code = "def indices(items: list) -> list:\n    return [i for i, x in enumerate(items)]\n";
+        let code =
+            "def indices(items: list) -> list:\n    return [i for i, x in enumerate(items)]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -316,14 +328,16 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_040_dict_comp_length_map() {
-        let code = "def word_len_map(words: list) -> dict:\n    return {w: len(w) for w in words}\n";
+        let code =
+            "def word_len_map(words: list) -> dict:\n    return {w: len(w) for w in words}\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14cl_comp_041_comp_assign_to_var() {
-        let code = "def f(n: int) -> list:\n    squares = [x * x for x in range(n)]\n    return squares\n";
+        let code =
+            "def f(n: int) -> list:\n    squares = [x * x for x in range(n)]\n    return squares\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
@@ -331,7 +345,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_042_set_comp_assign_to_var() {
-        let code = "def f(items: list) -> set:\n    unique = {x for x in items}\n    return unique\n";
+        let code =
+            "def f(items: list) -> set:\n    unique = {x for x in items}\n    return unique\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -345,7 +360,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_044_comp_with_not_filter() {
-        let code = "def non_zero(items: list) -> list:\n    return [x for x in items if not x == 0]\n";
+        let code =
+            "def non_zero(items: list) -> list:\n    return [x for x in items if not x == 0]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -380,14 +396,16 @@ mod tests {
 
     #[test]
     fn test_w14cl_comp_049_genexpr_all_even() {
-        let code = "def all_even(items: list) -> bool:\n    return all(x % 2 == 0 for x in items)\n";
+        let code =
+            "def all_even(items: list) -> bool:\n    return all(x % 2 == 0 for x in items)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14cl_comp_050_comp_with_subtraction() {
-        let code = "def offsets(items: list, base: int) -> list:\n    return [x - base for x in items]\n";
+        let code =
+            "def offsets(items: list, base: int) -> list:\n    return [x - base for x in items]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -420,7 +438,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_lambda_004_ternary_body() {
-        let code = "def f() -> int:\n    abs_val = lambda x: x if x > 0 else -x\n    return abs_val(-5)\n";
+        let code =
+            "def f() -> int:\n    abs_val = lambda x: x if x > 0 else -x\n    return abs_val(-5)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -441,7 +460,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_lambda_007_three_args() {
-        let code = "def f() -> int:\n    add3 = lambda a, b, c: a + b + c\n    return add3(1, 2, 3)\n";
+        let code =
+            "def f() -> int:\n    add3 = lambda a, b, c: a + b + c\n    return add3(1, 2, 3)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -504,14 +524,16 @@ mod tests {
 
     #[test]
     fn test_w14cl_lambda_016_and_logic() {
-        let code = "def f() -> bool:\n    both = lambda a, b: a and b\n    return both(True, False)\n";
+        let code =
+            "def f() -> bool:\n    both = lambda a, b: a and b\n    return both(True, False)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14cl_lambda_017_or_logic() {
-        let code = "def f() -> bool:\n    either = lambda a, b: a or b\n    return either(True, False)\n";
+        let code =
+            "def f() -> bool:\n    either = lambda a, b: a or b\n    return either(True, False)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -525,21 +547,24 @@ mod tests {
 
     #[test]
     fn test_w14cl_lambda_019_comparison_ge() {
-        let code = "def f() -> bool:\n    at_least = lambda x, y: x >= y\n    return at_least(5, 3)\n";
+        let code =
+            "def f() -> bool:\n    at_least = lambda x, y: x >= y\n    return at_least(5, 3)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14cl_lambda_020_comparison_le() {
-        let code = "def f() -> bool:\n    at_most = lambda x, y: x <= y\n    return at_most(3, 5)\n";
+        let code =
+            "def f() -> bool:\n    at_most = lambda x, y: x <= y\n    return at_most(3, 5)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w14cl_lambda_021_sorted_key() {
-        let code = "def f(items: list) -> list:\n    items.sort(key=lambda x: x)\n    return items\n";
+        let code =
+            "def f(items: list) -> list:\n    items.sort(key=lambda x: x)\n    return items\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -730,7 +755,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_fstr_016_string_concat_in_expr() {
-        let code = "def full_name(first: str, last: str) -> str:\n    return f\"Name: {first + last}\"\n";
+        let code =
+            "def full_name(first: str, last: str) -> str:\n    return f\"Name: {first + last}\"\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("format!"));
@@ -910,7 +936,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_fstr_039_concatenated_fstrings() {
-        let code = "def full(first: str, last: str) -> str:\n    return f\"{first}\" + f\" {last}\"\n";
+        let code =
+            "def full(first: str, last: str) -> str:\n    return f\"{first}\" + f\" {last}\"\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1059,7 +1086,8 @@ mod tests {
 
     #[test]
     fn test_w14cl_special_019_star_unpack_rest() {
-        let code = "def f() -> list:\n    items = [1, 2, 3, 4]\n    rest = items[1:]\n    return rest\n";
+        let code =
+            "def f() -> list:\n    items = [1, 2, 3, 4]\n    rest = items[1:]\n    return rest\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

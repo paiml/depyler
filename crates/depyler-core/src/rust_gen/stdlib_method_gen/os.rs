@@ -33,10 +33,8 @@ pub fn convert_os_method(
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
     // Convert arguments first
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         "getenv" => convert_getenv(&arg_exprs)?,
@@ -294,9 +292,7 @@ mod tests {
     #[test]
     fn test_convert_os_unlink_basic() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String(
-            "/tmp/file.txt".to_string(),
-        ))];
+        let args = vec![HirExpr::Literal(Literal::String("/tmp/file.txt".to_string()))];
         let result = convert_os_method("unlink", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -307,9 +303,7 @@ mod tests {
     #[test]
     fn test_convert_os_remove_basic() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String(
-            "/tmp/file.txt".to_string(),
-        ))];
+        let args = vec![HirExpr::Literal(Literal::String("/tmp/file.txt".to_string()))];
         let result = convert_os_method("remove", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

@@ -397,11 +397,7 @@ mod tests {
         // All non-raw keywords should also be regular keywords
         let non_raw = ["self", "Self", "super", "crate"];
         for kw in non_raw {
-            assert!(
-                is_rust_keyword(kw),
-                "{} should be both a keyword and a non-raw keyword",
-                kw
-            );
+            assert!(is_rust_keyword(kw), "{} should be both a keyword and a non-raw keyword", kw);
             assert!(
                 is_non_raw_keyword(kw),
                 "{} should be both a keyword and a non-raw keyword",
@@ -413,16 +409,11 @@ mod tests {
     #[test]
     fn test_non_raw_keywords_subset_of_keywords() {
         // Every non-raw keyword must be a keyword (inverse not true)
-        let test_strings = [
-            "self", "Self", "super", "crate", "match", "type", "fn", "let", "value", "",
-        ];
+        let test_strings =
+            ["self", "Self", "super", "crate", "match", "type", "fn", "let", "value", ""];
         for s in test_strings {
             if is_non_raw_keyword(s) {
-                assert!(
-                    is_rust_keyword(s),
-                    "non-raw keyword {} must also be a rust keyword",
-                    s
-                );
+                assert!(is_rust_keyword(s), "non-raw keyword {} must also be a rust keyword", s);
             }
         }
     }

@@ -17,21 +17,13 @@ def has_key(d: dict[str, int], key: str) -> bool:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT use Cow<'_, str>
-    assert!(
-        !rust_code.contains("Cow<"),
-        "Should NOT use Cow for simple string parameter"
-    );
+    assert!(!rust_code.contains("Cow<"), "Should NOT use Cow for simple string parameter");
 
     // Should use simple &str
-    assert!(
-        rust_code.contains("key: &"),
-        "Should use &str for string parameter"
-    );
+    assert!(rust_code.contains("key: &"), "Should use &str for string parameter");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -47,15 +39,10 @@ def find_value(d: dict[str, int], search_key: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // String parameter used in comparison shouldn't use Cow
-    assert!(
-        !rust_code.contains("Cow<"),
-        "Should NOT use Cow when string doesn't escape"
-    );
+    assert!(!rust_code.contains("Cow<"), "Should NOT use Cow when string doesn't escape");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -73,9 +60,7 @@ def get_without_default(d: dict[str, int], key: str) -> int | None:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT unwrap_or_default when return type is Optional
     assert!(
@@ -84,10 +69,7 @@ def get_without_default(d: dict[str, int], key: str) -> int | None:
     );
 
     // Should have .cloned() to get Option
-    assert!(
-        rust_code.contains(".cloned()"),
-        "Should use .cloned() to get Option"
-    );
+    assert!(rust_code.contains(".cloned()"), "Should use .cloned() to get Option");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -100,9 +82,7 @@ def get_with_default(d: dict[str, int], key: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // With default value, should still unwrap
     assert!(
@@ -124,9 +104,7 @@ def get_or_zero(d: dict[str, int], key: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Non-optional return should unwrap
     // Note: This may not be perfect yet, but should not break
@@ -152,21 +130,13 @@ def sum_dict(d: dict[str, int]) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Both k and v are used, so pattern should be (k, v) not (_k, v)
-    assert!(
-        rust_code.contains("for (k, v)"),
-        "Should use (k, v) when both variables are used"
-    );
+    assert!(rust_code.contains("for (k, v)"), "Should use (k, v) when both variables are used");
 
     // Should NOT have underscore prefix
-    assert!(
-        !rust_code.contains("for (_k, v)"),
-        "Should NOT use (_k, v) when k is used"
-    );
+    assert!(!rust_code.contains("for (_k, v)"), "Should NOT use (_k, v) when k is used");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -180,9 +150,7 @@ def update_dict(d1: dict[str, int], d2: dict[str, int]) -> None:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // k is used in assignment target (d1[k]), so should be (k, v)
     assert!(
@@ -191,10 +159,7 @@ def update_dict(d1: dict[str, int], d2: dict[str, int]) -> None:
     );
 
     // Should NOT have underscore prefix
-    assert!(
-        !rust_code.contains("for (_k,"),
-        "Should NOT use _k when k is used in d1[k]"
-    );
+    assert!(!rust_code.contains("for (_k,"), "Should NOT use _k when k is used in d1[k]");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -210,9 +175,7 @@ def sum_values(d: dict[str, int]) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // k is unused, v is used, so pattern should be (_k, v)
     assert!(
@@ -234,9 +197,7 @@ def copy_keys(d: dict[str, int]) -> list[str]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .iter().map(...).collect() for items()
     assert!(
@@ -269,15 +230,11 @@ def merge_and_get(d1: dict[str, int], d2: dict[str, int], key: str) -> int | Non
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1131: Check only the merge_and_get function, not entire file
     // (PyMatch trait implementation has legitimate .cloned().unwrap_or_default() usage)
-    let fn_start = rust_code
-        .find("fn merge_and_get")
-        .expect("Should have merge_and_get function");
+    let fn_start = rust_code.find("fn merge_and_get").expect("Should have merge_and_get function");
     let fn_end = rust_code[fn_start..].find("\n}\n").unwrap_or(1000) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -296,10 +253,7 @@ def merge_and_get(d1: dict[str, int], d2: dict[str, int], key: str) -> int | Non
     );
 
     // Fix #4: For loop should use (k, v) not (_k, v) when k is used
-    assert!(
-        rust_code.contains("for (k, v)"),
-        "Should use (k, v) when both variables are used"
-    );
+    assert!(rust_code.contains("for (k, v)"), "Should use (k, v) when both variables are used");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -316,15 +270,10 @@ def dict_ops(d: dict[str, int]) -> None:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Basic dict operations should still work
-    assert!(
-        rust_code.contains(".insert("),
-        "Should still use .insert() for dict assignment"
-    );
+    assert!(rust_code.contains(".insert("), "Should still use .insert() for dict assignment");
     assert!(
         rust_code.contains(".remove(") || rust_code.contains(".pop("),
         "Should still handle .pop() method"

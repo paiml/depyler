@@ -86,11 +86,7 @@ fn test_analyzer_new_with_custom_config() {
 #[test]
 fn test_analyze_empty_program() {
     let mut analyzer = InliningAnalyzer::new(InliningConfig::default());
-    let program = HirProgram {
-        functions: vec![],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     assert!(decisions.is_empty());
@@ -110,11 +106,7 @@ fn test_analyze_single_function_no_calls() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
 
@@ -141,11 +133,7 @@ fn test_analyze_trivial_function() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     let _decision = decisions.get("add_one").unwrap();
@@ -180,11 +168,7 @@ fn test_analyze_large_function() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![func],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
     let decisions = analyzer.analyze_program(&program);
     let decision = decisions.get("large_func").unwrap();
@@ -222,11 +206,7 @@ fn test_call_graph_simple_call() {
         docstring: None,
     };
 
-    let program = HirProgram {
-        functions: vec![helper, caller],
-        classes: vec![],
-        imports: vec![],
-    };
+    let program = HirProgram { functions: vec![helper, caller], classes: vec![], imports: vec![] };
 
     let _decisions = analyzer.analyze_program(&program);
 

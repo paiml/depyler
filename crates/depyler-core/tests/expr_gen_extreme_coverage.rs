@@ -34,30 +34,22 @@ mod binary_ops {
 
     #[test]
     fn test_add_int_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a + b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a + b"));
     }
 
     #[test]
     fn test_add_float_float() {
-        assert!(transpile_ok(
-            "def f(a: float, b: float) -> float:\n    return a + b"
-        ));
+        assert!(transpile_ok("def f(a: float, b: float) -> float:\n    return a + b"));
     }
 
     #[test]
     fn test_add_int_float_coercion() {
-        assert!(transpile_ok(
-            "def f(a: int, b: float) -> float:\n    return a + b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: float) -> float:\n    return a + b"));
     }
 
     #[test]
     fn test_add_string_concat() {
-        assert!(transpile_ok(
-            "def f(a: str, b: str) -> str:\n    return a + b"
-        ));
+        assert!(transpile_ok("def f(a: str, b: str) -> str:\n    return a + b"));
     }
 
     #[test]
@@ -68,212 +60,152 @@ mod binary_ops {
 
     #[test]
     fn test_sub_int_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a - b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a - b"));
     }
 
     #[test]
     fn test_sub_float_float() {
-        assert!(transpile_ok(
-            "def f(a: float, b: float) -> float:\n    return a - b"
-        ));
+        assert!(transpile_ok("def f(a: float, b: float) -> float:\n    return a - b"));
     }
 
     #[test]
     fn test_mul_int_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a * b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a * b"));
     }
 
     #[test]
     fn test_mul_string_repeat() {
-        assert!(transpile_ok(
-            "def f(s: str, n: int) -> str:\n    return s * n"
-        ));
+        assert!(transpile_ok("def f(s: str, n: int) -> str:\n    return s * n"));
     }
 
     #[test]
     fn test_mul_list_repeat() {
-        assert!(transpile_ok(
-            "def f(lst: list, n: int) -> list:\n    return lst * n"
-        ));
+        assert!(transpile_ok("def f(lst: list, n: int) -> list:\n    return lst * n"));
     }
 
     #[test]
     fn test_div_float() {
-        assert!(transpile_ok(
-            "def f(a: float, b: float) -> float:\n    return a / b"
-        ));
+        assert!(transpile_ok("def f(a: float, b: float) -> float:\n    return a / b"));
     }
 
     #[test]
     fn test_floordiv_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a // b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a // b"));
     }
 
     #[test]
     fn test_mod_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a % b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a % b"));
     }
 
     #[test]
     fn test_pow_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a ** b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a ** b"));
     }
 
     #[test]
     fn test_pow_float() {
-        assert!(transpile_ok(
-            "def f(a: float, b: float) -> float:\n    return a ** b"
-        ));
+        assert!(transpile_ok("def f(a: float, b: float) -> float:\n    return a ** b"));
     }
 
     #[test]
     fn test_bitand() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a & b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a & b"));
     }
 
     #[test]
     fn test_bitor() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a | b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a | b"));
     }
 
     #[test]
     fn test_bitxor() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a ^ b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a ^ b"));
     }
 
     #[test]
     fn test_lshift() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a << b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a << b"));
     }
 
     #[test]
     fn test_rshift() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return a >> b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a >> b"));
     }
 
     #[test]
     fn test_eq_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> bool:\n    return a == b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> bool:\n    return a == b"));
     }
 
     #[test]
     fn test_ne_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> bool:\n    return a != b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> bool:\n    return a != b"));
     }
 
     #[test]
     fn test_lt_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> bool:\n    return a < b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> bool:\n    return a < b"));
     }
 
     #[test]
     fn test_le_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> bool:\n    return a <= b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> bool:\n    return a <= b"));
     }
 
     #[test]
     fn test_gt_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> bool:\n    return a > b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> bool:\n    return a > b"));
     }
 
     #[test]
     fn test_ge_int() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> bool:\n    return a >= b"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> bool:\n    return a >= b"));
     }
 
     #[test]
     fn test_and_bool() {
-        assert!(transpile_ok(
-            "def f(a: bool, b: bool) -> bool:\n    return a and b"
-        ));
+        assert!(transpile_ok("def f(a: bool, b: bool) -> bool:\n    return a and b"));
     }
 
     #[test]
     fn test_or_bool() {
-        assert!(transpile_ok(
-            "def f(a: bool, b: bool) -> bool:\n    return a or b"
-        ));
+        assert!(transpile_ok("def f(a: bool, b: bool) -> bool:\n    return a or b"));
     }
 
     #[test]
     fn test_in_list() {
-        assert!(transpile_ok(
-            "def f(x: int, lst: list) -> bool:\n    return x in lst"
-        ));
+        assert!(transpile_ok("def f(x: int, lst: list) -> bool:\n    return x in lst"));
     }
 
     #[test]
     fn test_not_in_list() {
-        assert!(transpile_ok(
-            "def f(x: int, lst: list) -> bool:\n    return x not in lst"
-        ));
+        assert!(transpile_ok("def f(x: int, lst: list) -> bool:\n    return x not in lst"));
     }
 
     #[test]
     fn test_in_string() {
-        assert!(transpile_ok(
-            "def f(sub: str, s: str) -> bool:\n    return sub in s"
-        ));
+        assert!(transpile_ok("def f(sub: str, s: str) -> bool:\n    return sub in s"));
     }
 
     #[test]
     fn test_in_dict() {
-        assert!(transpile_ok(
-            "def f(key: str, d: dict) -> bool:\n    return key in d"
-        ));
+        assert!(transpile_ok("def f(key: str, d: dict) -> bool:\n    return key in d"));
     }
 
     #[test]
     fn test_chained_comparison() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int, c: int) -> bool:\n    return a < b < c"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int, c: int) -> bool:\n    return a < b < c"));
     }
 
     #[test]
     fn test_complex_expression_precedence() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int, c: int) -> int:\n    return a + b * c"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int, c: int) -> int:\n    return a + b * c"));
     }
 
     #[test]
     fn test_parenthesized_expr() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int, c: int) -> int:\n    return (a + b) * c"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int, c: int) -> int:\n    return (a + b) * c"));
     }
 }
 
@@ -316,9 +248,7 @@ mod unary_ops {
 
     #[test]
     fn test_not_not() {
-        assert!(transpile_ok(
-            "def f(a: bool) -> bool:\n    return not not a"
-        ));
+        assert!(transpile_ok("def f(a: bool) -> bool:\n    return not not a"));
     }
 }
 
@@ -331,9 +261,7 @@ mod builtins {
 
     #[test]
     fn test_len_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return len(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return len(lst)"));
     }
 
     #[test]
@@ -348,9 +276,7 @@ mod builtins {
 
     #[test]
     fn test_range_one_arg() {
-        assert!(transpile_ok(
-            "def f(n: int):\n    for i in range(n):\n        print(i)"
-        ));
+        assert!(transpile_ok("def f(n: int):\n    for i in range(n):\n        print(i)"));
     }
 
     #[test]
@@ -407,44 +333,32 @@ mod builtins {
 
     #[test]
     fn test_min_two_args() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return min(a, b)"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return min(a, b)"));
     }
 
     #[test]
     fn test_min_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return min(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return min(lst)"));
     }
 
     #[test]
     fn test_max_two_args() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int) -> int:\n    return max(a, b)"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return max(a, b)"));
     }
 
     #[test]
     fn test_max_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return max(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return max(lst)"));
     }
 
     #[test]
     fn test_sum_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return sum(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return sum(lst)"));
     }
 
     #[test]
     fn test_sum_with_start() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return sum(lst, 10)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return sum(lst, 10)"));
     }
 
     #[test]
@@ -454,23 +368,17 @@ mod builtins {
 
     #[test]
     fn test_round_two_args() {
-        assert!(transpile_ok(
-            "def f(x: float) -> float:\n    return round(x, 2)"
-        ));
+        assert!(transpile_ok("def f(x: float) -> float:\n    return round(x, 2)"));
     }
 
     #[test]
     fn test_pow_builtin() {
-        assert!(transpile_ok(
-            "def f(x: int, y: int) -> int:\n    return pow(x, y)"
-        ));
+        assert!(transpile_ok("def f(x: int, y: int) -> int:\n    return pow(x, y)"));
     }
 
     #[test]
     fn test_divmod() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int):\n    q, r = divmod(a, b)"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int):\n    q, r = divmod(a, b)"));
     }
 
     #[test]
@@ -496,23 +404,17 @@ mod builtins {
 
     #[test]
     fn test_reversed() {
-        assert!(transpile_ok(
-            "def f(lst: list):\n    for x in reversed(lst):\n        print(x)"
-        ));
+        assert!(transpile_ok("def f(lst: list):\n    for x in reversed(lst):\n        print(x)"));
     }
 
     #[test]
     fn test_sorted() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return sorted(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return sorted(lst)"));
     }
 
     #[test]
     fn test_sorted_reverse() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return sorted(lst, reverse=True)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return sorted(lst, reverse=True)"));
     }
 
     #[test]
@@ -524,16 +426,12 @@ mod builtins {
 
     #[test]
     fn test_any_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> bool:\n    return any(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> bool:\n    return any(lst)"));
     }
 
     #[test]
     fn test_all_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> bool:\n    return all(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> bool:\n    return all(lst)"));
     }
 
     #[test]
@@ -573,9 +471,7 @@ mod builtins {
 
     #[test]
     fn test_format_builtin() {
-        assert!(transpile_ok(
-            "def f(x: int) -> str:\n    return format(x, '08b')"
-        ));
+        assert!(transpile_ok("def f(x: int) -> str:\n    return format(x, '08b')"));
     }
 
     #[test]
@@ -595,9 +491,7 @@ mod builtins {
 
     #[test]
     fn test_print_sep() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int):\n    print(a, b, sep=', ')"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int):\n    print(a, b, sep=', ')"));
     }
 
     #[test]
@@ -664,9 +558,7 @@ mod collections {
 
     #[test]
     fn test_dict_literal() {
-        assert!(transpile_ok(
-            "def f() -> dict:\n    return {'a': 1, 'b': 2}"
-        ));
+        assert!(transpile_ok("def f() -> dict:\n    return {'a': 1, 'b': 2}"));
     }
 
     #[test]
@@ -686,9 +578,7 @@ mod collections {
 
     #[test]
     fn test_set_from_list() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> set:\n    return set(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> set:\n    return set(lst)"));
     }
 
     #[test]
@@ -703,9 +593,7 @@ mod collections {
 
     #[test]
     fn test_frozenset() {
-        assert!(transpile_ok(
-            "def f() -> frozenset:\n    return frozenset([1, 2, 3])"
-        ));
+        assert!(transpile_ok("def f() -> frozenset:\n    return frozenset([1, 2, 3])"));
     }
 
     #[test]
@@ -715,16 +603,12 @@ mod collections {
 
     #[test]
     fn test_bytes_constructor() {
-        assert!(transpile_ok(
-            "def f() -> bytes:\n    return bytes([65, 66, 67])"
-        ));
+        assert!(transpile_ok("def f() -> bytes:\n    return bytes([65, 66, 67])"));
     }
 
     #[test]
     fn test_bytearray_constructor() {
-        assert!(transpile_ok(
-            "def f() -> bytearray:\n    return bytearray(10)"
-        ));
+        assert!(transpile_ok("def f() -> bytearray:\n    return bytearray(10)"));
     }
 }
 
@@ -758,72 +642,52 @@ mod method_calls {
 
     #[test]
     fn test_str_split_sep() {
-        assert!(transpile_ok(
-            "def f(s: str) -> list:\n    return s.split(',')"
-        ));
+        assert!(transpile_ok("def f(s: str) -> list:\n    return s.split(',')"));
     }
 
     #[test]
     fn test_str_join() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> str:\n    return ', '.join(lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> str:\n    return ', '.join(lst)"));
     }
 
     #[test]
     fn test_str_replace() {
-        assert!(transpile_ok(
-            "def f(s: str) -> str:\n    return s.replace('a', 'b')"
-        ));
+        assert!(transpile_ok("def f(s: str) -> str:\n    return s.replace('a', 'b')"));
     }
 
     #[test]
     fn test_str_startswith() {
-        assert!(transpile_ok(
-            "def f(s: str) -> bool:\n    return s.startswith('pre')"
-        ));
+        assert!(transpile_ok("def f(s: str) -> bool:\n    return s.startswith('pre')"));
     }
 
     #[test]
     fn test_str_endswith() {
-        assert!(transpile_ok(
-            "def f(s: str) -> bool:\n    return s.endswith('suf')"
-        ));
+        assert!(transpile_ok("def f(s: str) -> bool:\n    return s.endswith('suf')"));
     }
 
     #[test]
     fn test_str_find() {
-        assert!(transpile_ok(
-            "def f(s: str) -> int:\n    return s.find('sub')"
-        ));
+        assert!(transpile_ok("def f(s: str) -> int:\n    return s.find('sub')"));
     }
 
     #[test]
     fn test_str_count() {
-        assert!(transpile_ok(
-            "def f(s: str) -> int:\n    return s.count('a')"
-        ));
+        assert!(transpile_ok("def f(s: str) -> int:\n    return s.count('a')"));
     }
 
     #[test]
     fn test_str_isdigit() {
-        assert!(transpile_ok(
-            "def f(s: str) -> bool:\n    return s.isdigit()"
-        ));
+        assert!(transpile_ok("def f(s: str) -> bool:\n    return s.isdigit()"));
     }
 
     #[test]
     fn test_str_isalpha() {
-        assert!(transpile_ok(
-            "def f(s: str) -> bool:\n    return s.isalpha()"
-        ));
+        assert!(transpile_ok("def f(s: str) -> bool:\n    return s.isalpha()"));
     }
 
     #[test]
     fn test_str_format() {
-        assert!(transpile_ok(
-            "def f(name: str) -> str:\n    return 'Hello, {}'.format(name)"
-        ));
+        assert!(transpile_ok("def f(name: str) -> str:\n    return 'Hello, {}'.format(name)"));
     }
 
     // List methods
@@ -839,9 +703,7 @@ mod method_calls {
 
     #[test]
     fn test_list_insert() {
-        assert!(transpile_ok(
-            "def f(lst: list, x: int):\n    lst.insert(0, x)"
-        ));
+        assert!(transpile_ok("def f(lst: list, x: int):\n    lst.insert(0, x)"));
     }
 
     #[test]
@@ -851,16 +713,12 @@ mod method_calls {
 
     #[test]
     fn test_list_pop() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return lst.pop()"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return lst.pop()"));
     }
 
     #[test]
     fn test_list_pop_index() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return lst.pop(0)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return lst.pop(0)"));
     }
 
     #[test]
@@ -870,16 +728,12 @@ mod method_calls {
 
     #[test]
     fn test_list_index() {
-        assert!(transpile_ok(
-            "def f(lst: list, x: int) -> int:\n    return lst.index(x)"
-        ));
+        assert!(transpile_ok("def f(lst: list, x: int) -> int:\n    return lst.index(x)"));
     }
 
     #[test]
     fn test_list_count() {
-        assert!(transpile_ok(
-            "def f(lst: list, x: int) -> int:\n    return lst.count(x)"
-        ));
+        assert!(transpile_ok("def f(lst: list, x: int) -> int:\n    return lst.count(x)"));
     }
 
     #[test]
@@ -894,24 +748,18 @@ mod method_calls {
 
     #[test]
     fn test_list_copy() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return lst.copy()"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return lst.copy()"));
     }
 
     // Dict methods
     #[test]
     fn test_dict_get() {
-        assert!(transpile_ok(
-            "def f(d: dict, key: str):\n    return d.get(key)"
-        ));
+        assert!(transpile_ok("def f(d: dict, key: str):\n    return d.get(key)"));
     }
 
     #[test]
     fn test_dict_get_default() {
-        assert!(transpile_ok(
-            "def f(d: dict, key: str):\n    return d.get(key, 0)"
-        ));
+        assert!(transpile_ok("def f(d: dict, key: str):\n    return d.get(key, 0)"));
     }
 
     #[test]
@@ -926,16 +774,12 @@ mod method_calls {
 
     #[test]
     fn test_dict_items() {
-        assert!(transpile_ok(
-            "def f(d: dict):\n    for k, v in d.items():\n        print(k, v)"
-        ));
+        assert!(transpile_ok("def f(d: dict):\n    for k, v in d.items():\n        print(k, v)"));
     }
 
     #[test]
     fn test_dict_pop() {
-        assert!(transpile_ok(
-            "def f(d: dict, key: str):\n    return d.pop(key)"
-        ));
+        assert!(transpile_ok("def f(d: dict, key: str):\n    return d.pop(key)"));
     }
 
     #[test]
@@ -950,9 +794,7 @@ mod method_calls {
 
     #[test]
     fn test_dict_setdefault() {
-        assert!(transpile_ok(
-            "def f(d: dict, key: str):\n    return d.setdefault(key, 0)"
-        ));
+        assert!(transpile_ok("def f(d: dict, key: str):\n    return d.setdefault(key, 0)"));
     }
 
     // Set methods
@@ -973,23 +815,17 @@ mod method_calls {
 
     #[test]
     fn test_set_union() {
-        assert!(transpile_ok(
-            "def f(a: set, b: set) -> set:\n    return a.union(b)"
-        ));
+        assert!(transpile_ok("def f(a: set, b: set) -> set:\n    return a.union(b)"));
     }
 
     #[test]
     fn test_set_intersection() {
-        assert!(transpile_ok(
-            "def f(a: set, b: set) -> set:\n    return a.intersection(b)"
-        ));
+        assert!(transpile_ok("def f(a: set, b: set) -> set:\n    return a.intersection(b)"));
     }
 
     #[test]
     fn test_set_difference() {
-        assert!(transpile_ok(
-            "def f(a: set, b: set) -> set:\n    return a.difference(b)"
-        ));
+        assert!(transpile_ok("def f(a: set, b: set) -> set:\n    return a.difference(b)"));
     }
 }
 
@@ -1012,23 +848,17 @@ mod access {
 
     #[test]
     fn test_list_slice() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return lst[1:3]"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return lst[1:3]"));
     }
 
     #[test]
     fn test_list_slice_step() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return lst[::2]"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return lst[::2]"));
     }
 
     #[test]
     fn test_list_slice_reverse() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return lst[::-1]"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return lst[::-1]"));
     }
 
     #[test]
@@ -1048,9 +878,7 @@ mod access {
 
     #[test]
     fn test_nested_subscript() {
-        assert!(transpile_ok(
-            "def f(matrix: list) -> int:\n    return matrix[0][0]"
-        ));
+        assert!(transpile_ok("def f(matrix: list) -> int:\n    return matrix[0][0]"));
     }
 
     #[test]
@@ -1068,16 +896,12 @@ mod comprehensions {
 
     #[test]
     fn test_list_comp_simple() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return [x * 2 for x in lst]"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return [x * 2 for x in lst]"));
     }
 
     #[test]
     fn test_list_comp_with_if() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> list:\n    return [x for x in lst if x > 0]"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> list:\n    return [x for x in lst if x > 0]"));
     }
 
     #[test]
@@ -1089,9 +913,7 @@ mod comprehensions {
 
     #[test]
     fn test_dict_comp() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> dict:\n    return {x: x*2 for x in lst}"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> dict:\n    return {x: x*2 for x in lst}"));
     }
 
     #[test]
@@ -1103,23 +925,17 @@ mod comprehensions {
 
     #[test]
     fn test_set_comp() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> set:\n    return {x * 2 for x in lst}"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> set:\n    return {x * 2 for x in lst}"));
     }
 
     #[test]
     fn test_generator_expr() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return sum(x * 2 for x in lst)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return sum(x * 2 for x in lst)"));
     }
 
     #[test]
     fn test_generator_with_if() {
-        assert!(transpile_ok(
-            "def f(lst: list) -> int:\n    return sum(x for x in lst if x > 0)"
-        ));
+        assert!(transpile_ok("def f(lst: list) -> int:\n    return sum(x for x in lst if x > 0)"));
     }
 }
 
@@ -1132,23 +948,17 @@ mod lambdas {
 
     #[test]
     fn test_lambda_simple() {
-        assert!(transpile_ok(
-            "def f():\n    fn = lambda x: x * 2\n    return fn(5)"
-        ));
+        assert!(transpile_ok("def f():\n    fn = lambda x: x * 2\n    return fn(5)"));
     }
 
     #[test]
     fn test_lambda_two_params() {
-        assert!(transpile_ok(
-            "def f():\n    fn = lambda x, y: x + y\n    return fn(2, 3)"
-        ));
+        assert!(transpile_ok("def f():\n    fn = lambda x, y: x + y\n    return fn(2, 3)"));
     }
 
     #[test]
     fn test_lambda_no_params() {
-        assert!(transpile_ok(
-            "def f():\n    fn = lambda: 42\n    return fn()"
-        ));
+        assert!(transpile_ok("def f():\n    fn = lambda: 42\n    return fn()"));
     }
 
     #[test]
@@ -1182,9 +992,7 @@ mod ternary {
 
     #[test]
     fn test_simple_ternary() {
-        assert!(transpile_ok(
-            "def f(x: int) -> str:\n    return 'pos' if x > 0 else 'neg'"
-        ));
+        assert!(transpile_ok("def f(x: int) -> str:\n    return 'pos' if x > 0 else 'neg'"));
     }
 
     #[test]
@@ -1196,9 +1004,7 @@ mod ternary {
 
     #[test]
     fn test_ternary_with_call() {
-        assert!(transpile_ok(
-            "def f(x: int) -> int:\n    return abs(x) if x < 0 else x"
-        ));
+        assert!(transpile_ok("def f(x: int) -> int:\n    return abs(x) if x < 0 else x"));
     }
 }
 
@@ -1211,9 +1017,7 @@ mod walrus {
 
     #[test]
     fn test_walrus_in_if() {
-        assert!(transpile_ok(
-            "def f(lst: list):\n    if (n := len(lst)) > 0:\n        print(n)"
-        ));
+        assert!(transpile_ok("def f(lst: list):\n    if (n := len(lst)) > 0:\n        print(n)"));
     }
 
     #[test]
@@ -1240,37 +1044,27 @@ mod fstrings {
 
     #[test]
     fn test_fstring_simple() {
-        assert!(transpile_ok(
-            "def f(name: str) -> str:\n    return f'Hello, {name}'"
-        ));
+        assert!(transpile_ok("def f(name: str) -> str:\n    return f'Hello, {name}'"));
     }
 
     #[test]
     fn test_fstring_expr() {
-        assert!(transpile_ok(
-            "def f(x: int) -> str:\n    return f'Result: {x * 2}'"
-        ));
+        assert!(transpile_ok("def f(x: int) -> str:\n    return f'Result: {x * 2}'"));
     }
 
     #[test]
     fn test_fstring_multiple() {
-        assert!(transpile_ok(
-            "def f(a: int, b: str) -> str:\n    return f'{a} and {b}'"
-        ));
+        assert!(transpile_ok("def f(a: int, b: str) -> str:\n    return f'{a} and {b}'"));
     }
 
     #[test]
     fn test_fstring_format_spec() {
-        assert!(transpile_ok(
-            "def f(x: float) -> str:\n    return f'{x:.2f}'"
-        ));
+        assert!(transpile_ok("def f(x: float) -> str:\n    return f'{x:.2f}'"));
     }
 
     #[test]
     fn test_fstring_nested_braces() {
-        assert!(transpile_ok(
-            "def f() -> str:\n    return f'Value: {{escaped}}'"
-        ));
+        assert!(transpile_ok("def f() -> str:\n    return f'Value: {{escaped}}'"));
     }
 }
 
@@ -1288,9 +1082,7 @@ mod edge_cases {
 
     #[test]
     fn test_deeply_nested_expr() {
-        assert!(transpile_ok(
-            "def f(a: int) -> int:\n    return ((((a + 1) * 2) - 3) // 4) % 5"
-        ));
+        assert!(transpile_ok("def f(a: int) -> int:\n    return ((((a + 1) * 2) - 3) // 4) % 5"));
     }
 
     #[test]
@@ -1302,9 +1094,7 @@ mod edge_cases {
 
     #[test]
     fn test_complex_subscript() {
-        assert!(transpile_ok(
-            "def f(data: dict):\n    return data['outer']['inner'][0]"
-        ));
+        assert!(transpile_ok("def f(data: dict):\n    return data['outer']['inner'][0]"));
     }
 
     #[test]
@@ -1330,9 +1120,7 @@ mod edge_cases {
 
     #[test]
     fn test_large_int_literal() {
-        assert!(transpile_ok(
-            "def f() -> int:\n    return 9999999999999999999"
-        ));
+        assert!(transpile_ok("def f() -> int:\n    return 9999999999999999999"));
     }
 
     #[test]
@@ -1347,9 +1135,7 @@ mod edge_cases {
 
     #[test]
     fn test_multiline_string() {
-        assert!(transpile_ok(
-            "def f() -> str:\n    return '''line1\nline2'''"
-        ));
+        assert!(transpile_ok("def f() -> str:\n    return '''line1\nline2'''"));
     }
 
     #[test]

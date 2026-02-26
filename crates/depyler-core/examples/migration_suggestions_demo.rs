@@ -44,10 +44,7 @@ fn create_sample_program() -> HirProgram {
 fn create_accumulator_function() -> HirFunction {
     HirFunction {
         name: "filter_even_numbers".to_string(),
-        params: smallvec![HirParam::new(
-            "numbers".to_string(),
-            Type::List(Box::new(Type::Int))
-        )],
+        params: smallvec![HirParam::new("numbers".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::List(Box::new(Type::Int)),
         body: vec![
             // result = []
@@ -105,10 +102,7 @@ fn create_type_check_function() -> HirFunction {
             HirStmt::If {
                 condition: HirExpr::Call {
                     func: "isinstance".to_string(),
-                    args: vec![
-                        HirExpr::Var("value".to_string()),
-                        HirExpr::Var("str".to_string()),
-                    ],
+                    args: vec![HirExpr::Var("value".to_string()), HirExpr::Var("str".to_string())],
                     kwargs: vec![],
                 },
                 then_body: vec![

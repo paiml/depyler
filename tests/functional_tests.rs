@@ -20,10 +20,7 @@ fn test_cli_functionality() {
     assert!(output.status.success(), "CLI transpile should succeed");
 
     // Check that output file was created
-    assert!(
-        std::path::Path::new("test_cli.rs").exists(),
-        "Output Rust file should be created"
-    );
+    assert!(std::path::Path::new("test_cli.rs").exists(), "Output Rust file should be created");
 
     // Test CLI check command
     let output = Command::new("cargo")
@@ -60,17 +57,11 @@ fn test_integration_transpilation_pipeline() {
     let python_code = "def square(n: int) -> int:\n    return n * n";
     let result = pipeline.transpile(python_code);
 
-    assert!(
-        result.is_ok(),
-        "Simple function should transpile successfully"
-    );
+    assert!(result.is_ok(), "Simple function should transpile successfully");
 
     if let Ok(rust_code) = result {
         assert!(rust_code.contains("square"), "Should contain function name");
-        assert!(
-            rust_code.contains("i32"),
-            "Should contain Rust integer type"
-        );
+        assert!(rust_code.contains("i32"), "Should contain Rust integer type");
         // DEPYLER-0271: Transpiler uses implicit return for final statements (idiomatic Rust)
         // Accept either "return" (early returns) or "n * n" (implicit return)
         assert!(

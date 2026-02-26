@@ -305,9 +305,8 @@ fn try_fix_f64_literal_for_op(
     }
     let after_op = op_pos + op.len();
     let rest = &line[after_op..];
-    let lit_end = rest
-        .find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'f')
-        .unwrap_or(rest.len());
+    let lit_end =
+        rest.find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'f').unwrap_or(rest.len());
     let literal = &rest[..lit_end];
     if !literal.ends_with("f64") || lit_end <= 3 {
         return line.to_string();
@@ -346,10 +345,8 @@ fn collect_min_max_typed_var(
         return;
     }
     let name = &t[4..];
-    let types_and_sets: &[(&[&str], bool)] = &[
-        (&["i32", "i64", "isize", "usize"], true),
-        (&["f64", "f32"], false),
-    ];
+    let types_and_sets: &[(&[&str], bool)] =
+        &[(&["i32", "i64", "isize", "usize"], true), (&["f64", "f32"], false)];
     for &(type_names, is_int) in types_and_sets {
         for type_name in type_names {
             let pat = format!(": {} ", type_name);
@@ -404,14 +401,8 @@ fn try_cast_min_max_args(
     };
     let arg1 = args_str[..comma].trim().to_string();
     let arg2 = args_str[comma + 1..].trim().to_string();
-    let a1_base = arg1
-        .trim_start_matches('(')
-        .trim_end_matches(')')
-        .replace(".clone()", "");
-    let a2_base = arg2
-        .trim_start_matches('(')
-        .trim_end_matches(')')
-        .replace(".clone()", "");
+    let a1_base = arg1.trim_start_matches('(').trim_end_matches(')').replace(".clone()", "");
+    let a2_base = arg2.trim_start_matches('(').trim_end_matches(')').replace(".clone()", "");
     let a1_is_int = int_vars.contains(a1_base.trim());
     let a1_is_float = float_vars.contains(a1_base.trim());
     let a2_is_int = int_vars.contains(a2_base.trim());
@@ -598,11 +589,29 @@ pub(super) fn fix_spurious_to_string_in_numeric_call(code: &str) -> String {
 pub(super) fn fix_numeric_field_to_string(line: &str) -> String {
     // Common numeric field names in struct constructors
     let numeric_fields = [
-        "self.day", "self.month", "self.year", "self.hour", "self.minute",
-        "self.second", "self.width", "self.height", "self.x", "self.y",
-        "self.index", "self.count", "self.size", "self.length", "self.age",
-        "self.port", "self.timeout", "self.max_size", "self.min_size",
-        "self.capacity", "self.priority", "self.weight", "self.score",
+        "self.day",
+        "self.month",
+        "self.year",
+        "self.hour",
+        "self.minute",
+        "self.second",
+        "self.width",
+        "self.height",
+        "self.x",
+        "self.y",
+        "self.index",
+        "self.count",
+        "self.size",
+        "self.length",
+        "self.age",
+        "self.port",
+        "self.timeout",
+        "self.max_size",
+        "self.min_size",
+        "self.capacity",
+        "self.priority",
+        "self.weight",
+        "self.score",
     ];
     let mut result = line.to_string();
     for field in &numeric_fields {
@@ -623,9 +632,8 @@ pub(super) fn fix_usize_to_string_in_constructor(code: &str) -> String {
         let trimmed = line.trim();
         // Match pattern: `VAR.to_string())` at end of line where VAR is a known usize-like name
         // Common usize vars: end, start, len, size, idx, index, pos, offset, count
-        let usize_vars = [
-            "end", "start", "len", "size", "idx", "index", "pos", "offset", "count", "capacity",
-        ];
+        let usize_vars =
+            ["end", "start", "len", "size", "idx", "index", "pos", "offset", "count", "capacity"];
         let mut new_line = line.to_string();
         for var in &usize_vars {
             // Replace `VAR.to_string()` with just `VAR` when inside a constructor/function call

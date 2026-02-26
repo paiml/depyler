@@ -253,13 +253,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             // DEPYLER-0573: Dict.get() chain with string-like keys
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } if (method == "get" || method == "cloned" || method == "unwrap_or_default")
-                && self.is_dict_value_access(object) =>
+            HirExpr::MethodCall { object, method, args, .. }
+                if (method == "get" || method == "cloned" || method == "unwrap_or_default")
+                    && self.is_dict_value_access(object) =>
             {
                 // If it's a get() call, check the key
                 if method == "get" && !args.is_empty() {
@@ -294,10 +290,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Heuristic: common tuple variable names
                     let name = sym.as_str();
-                    matches!(
-                        name,
-                        "pair" | "tuple" | "entry" | "item" | "elem" | "row" | "t"
-                    )
+                    matches!(name, "pair" | "tuple" | "entry" | "item" | "elem" | "row" | "t")
                 }
             }
             // Method call returning tuple (e.g., dict.items() element)
@@ -359,8 +352,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
                 ) =>
             {
-                args.first()
-                    .is_some_and(|arg| self.is_numpy_array_expr(arg))
+                args.first().is_some_and(|arg| self.is_numpy_array_expr(arg))
             }
             // DEPYLER-1044: Method calls on numpy arrays return numpy arrays
             // BUT scalar.abs() returns scalar, not vector
@@ -462,10 +454,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             // Path() or pathlib.Path() call
             HirExpr::Call { func, .. } => {
-                matches!(
-                    func.as_str(),
-                    "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath"
-                )
+                matches!(func.as_str(), "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath")
             }
             // Method calls that return paths
             // Note: "resolve" and "absolute" are NOT included because they are converted
@@ -528,11 +517,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || n_lower.starts_with("script")
             }
             // Recursive: path / segment is still a path
-            HirExpr::Binary {
-                left,
-                op: BinOp::Div,
-                ..
-            } => self.is_path_expr(left),
+            HirExpr::Binary { left, op: BinOp::Div, .. } => self.is_path_expr(left),
             _ => false,
         }
     }
@@ -1037,11 +1022,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             // DEPYLER-0811: Binary Add of lists produces a list (for chained concat)
-            HirExpr::Binary {
-                op: BinOp::Add,
-                left,
-                right,
-            } => self.is_list_expr(left) || self.is_list_expr(right),
+            HirExpr::Binary { op: BinOp::Add, left, right } => {
+                self.is_list_expr(left) || self.is_list_expr(right)
+            }
             // DEPYLER-1044: Handle attribute access (e.g., self.permissions)
             // Check class_field_types for the attribute's type
             HirExpr::Attribute { attr, .. } => {
@@ -1083,10 +1066,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     type_str.contains("deque") || type_str.contains("VecDeque")
                 } else {
                     // Fallback: common deque variable names
-                    matches!(
-                        name.as_str(),
-                        "d" | "dq" | "deque" | "queue" | "buffer" | "deck"
-                    )
+                    matches!(name.as_str(), "d" | "dq" | "deque" | "queue" | "buffer" | "deck")
                 }
             }
             _ => false,
@@ -1550,10 +1530,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 self.expr_is_float_type(left) || self.expr_is_float_type(right)
             }
             HirExpr::Call { func, .. } => {
-                matches!(
-                    self.ctx.function_return_types.get(func),
-                    Some(Type::Float)
-                )
+                matches!(self.ctx.function_return_types.get(func), Some(Type::Float))
             }
             _ => false,
         }
@@ -1587,9 +1564,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     | BinOp::NotIn
             ),
             // not x returns bool
-            HirExpr::Unary {
-                op: UnaryOp::Not, ..
-            } => true,
+            HirExpr::Unary { op: UnaryOp::Not, .. } => true,
             // isinstance, hasattr, callable return bool
             HirExpr::Call { func, .. } => {
                 matches!(
@@ -1814,12 +1789,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::None) => Type::Optional(Box::new(Type::Unknown)),
 
             // Variable - look up in context
-            HirExpr::Var(name) => self
-                .ctx
-                .var_types
-                .get(name)
-                .cloned()
-                .unwrap_or(Type::Unknown),
+            HirExpr::Var(name) => self.ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown),
 
             // List literal - infer element type from first element
             HirExpr::List(elements) => {
@@ -1848,10 +1818,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if elements.is_empty() {
                     Type::Tuple(vec![])
                 } else {
-                    let types: Vec<Type> = elements
-                        .iter()
-                        .map(|e| self.infer_type_from_hir_expr(e))
-                        .collect();
+                    let types: Vec<Type> =
+                        elements.iter().map(|e| self.infer_type_from_hir_expr(e)).collect();
                     Type::Tuple(types)
                 }
             }
@@ -1910,12 +1878,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Attribute access - check class field types
-            HirExpr::Attribute { attr, .. } => self
-                .ctx
-                .class_field_types
-                .get(attr)
-                .cloned()
-                .unwrap_or(Type::Unknown),
+            HirExpr::Attribute { attr, .. } => {
+                self.ctx.class_field_types.get(attr).cloned().unwrap_or(Type::Unknown)
+            }
 
             // Index (subscript) - try to infer element type
             HirExpr::Index { base, .. } => {
@@ -1987,14 +1952,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 self.param_used_as_condition(param, left)
                     || self.param_used_as_condition(param, right)
             }
-            HirExpr::Call { args, .. } => args
-                .iter()
-                .any(|arg| self.param_used_as_condition(param, arg)),
+            HirExpr::Call { args, .. } => {
+                args.iter().any(|arg| self.param_used_as_condition(param, arg))
+            }
             HirExpr::MethodCall { object, args, .. } => {
                 self.param_used_as_condition(param, object)
-                    || args
-                        .iter()
-                        .any(|arg| self.param_used_as_condition(param, arg))
+                    || args.iter().any(|arg| self.param_used_as_condition(param, arg))
             }
             _ => false,
         }
@@ -2010,20 +1973,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Direct method call on the parameter (but not iter/map/filter)
             HirExpr::MethodCall { object, method, .. } => {
                 // Skip iterator methods - those indicate collection type
-                if matches!(
-                    method.as_str(),
-                    "iter" | "into_iter" | "map" | "filter" | "cloned"
-                ) {
+                if matches!(method.as_str(), "iter" | "into_iter" | "map" | "filter" | "cloned") {
                     return false;
                 }
                 self.is_direct_var(param, object)
             }
             // Ternary expression - check all branches
-            HirExpr::IfExpr {
-                test,
-                body: if_body,
-                orelse,
-            } => {
+            HirExpr::IfExpr { test, body: if_body, orelse } => {
                 self.param_directly_in_pyops(param, test)
                     || self.param_directly_in_pyops(param, if_body)
                     || self.param_directly_in_pyops(param, orelse)
@@ -2041,21 +1997,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     pub(super) fn body_uses_iter_on_param(&self, param: &str, body: &HirExpr) -> bool {
         match body {
             // DEPYLER-1117: List comprehension `[x for x in param]` - param is iterable
-            HirExpr::ListComp { generators, .. } => generators
-                .iter()
-                .any(|gen| self.is_direct_var(param, &gen.iter)),
+            HirExpr::ListComp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
             // Set comprehension `{x for x in param}` - param is iterable
-            HirExpr::SetComp { generators, .. } => generators
-                .iter()
-                .any(|gen| self.is_direct_var(param, &gen.iter)),
+            HirExpr::SetComp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
             // Dict comprehension `{k: v for k, v in param}` - param is iterable
-            HirExpr::DictComp { generators, .. } => generators
-                .iter()
-                .any(|gen| self.is_direct_var(param, &gen.iter)),
+            HirExpr::DictComp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
             // Generator expression `(x for x in param)` - param is iterable
-            HirExpr::GeneratorExp { generators, .. } => generators
-                .iter()
-                .any(|gen| self.is_direct_var(param, &gen.iter)),
+            HirExpr::GeneratorExp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
             // Method call - check for iter() or chained iterator methods
             HirExpr::MethodCall { object, method, .. } => {
                 // Check if this is an iterator method call directly on the parameter
@@ -2063,11 +2019,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return self.is_direct_var(param, object);
                 }
                 // Also check if this is a chained call like param.iter().map()...
-                if let HirExpr::MethodCall {
-                    object: inner_obj,
-                    method: inner_method,
-                    ..
-                } = object.as_ref()
+                if let HirExpr::MethodCall { object: inner_obj, method: inner_method, .. } =
+                    object.as_ref()
                 {
                     if matches!(inner_method.as_str(), "iter" | "into_iter") {
                         return self.is_direct_var(param, inner_obj);
@@ -2076,9 +2029,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             // Check in nested expressions
-            HirExpr::Call { args, .. } => args
-                .iter()
-                .any(|arg| self.body_uses_iter_on_param(param, arg)),
+            HirExpr::Call { args, .. } => {
+                args.iter().any(|arg| self.body_uses_iter_on_param(param, arg))
+            }
             _ => false,
         }
     }
@@ -2161,5 +2114,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             _ => false,
         }
     }
-
 }

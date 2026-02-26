@@ -43,9 +43,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // If so, ALL dicts must use Option<V> for type consistency
         let any_dict_has_none = elts.iter().any(|e| {
             if let HirExpr::Dict(items) = e {
-                items
-                    .iter()
-                    .any(|(_, v)| matches!(v, HirExpr::Literal(Literal::None)))
+                items.iter().any(|(_, v)| matches!(v, HirExpr::Literal(Literal::None)))
             } else {
                 false
             }
@@ -222,9 +220,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0739: Detect if list contains None elements
         // If so, wrap non-None elements in Some() to create Vec<Option<T>>
-        let has_none = elts
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+        let has_none = elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::None)));
 
         if has_none {
             let elt_exprs: Vec<syn::Expr> = elts
@@ -249,9 +245,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0782: Check if list has string literals to determine if it's Vec<String>
-        let has_string_literals = elts
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(Literal::String(_))));
+        let has_string_literals =
+            elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::String(_))));
 
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
@@ -371,23 +366,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
                 // DEPYLER-99MODE-S9: Try to infer type from complex expressions
-                _ => {
-                    match self.infer_element_type_from_expr(elem) {
-                        Some(Type::Bool) => has_bool = true,
-                        Some(Type::Int) => has_int = true,
-                        Some(Type::Float) => has_float = true,
-                        Some(Type::String) => has_string = true,
-                        _ => has_unknown = true,
-                    }
-                }
+                _ => match self.infer_element_type_from_expr(elem) {
+                    Some(Type::Bool) => has_bool = true,
+                    Some(Type::Int) => has_int = true,
+                    Some(Type::Float) => has_float = true,
+                    Some(Type::String) => has_string = true,
+                    _ => has_unknown = true,
+                },
             }
         }
 
         // Count how many distinct known types we have
-        let distinct_types = [has_bool, has_int, has_float, has_string]
-            .iter()
-            .filter(|&&b| b)
-            .count();
+        let distinct_types =
+            [has_bool, has_int, has_float, has_string].iter().filter(|&&b| b).count();
 
         // Mixed types if:
         // 1. We have more than one distinct known type, OR
@@ -412,9 +403,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             // Call to a function with known return type
-            HirExpr::Call { func, .. } => {
-                self.ctx.function_return_types.get(func).cloned()
-            }
+            HirExpr::Call { func, .. } => self.ctx.function_return_types.get(func).cloned(),
             // Binary: if both sides are int, result is int; if either float, result is float
             HirExpr::Binary { left, right, .. } => {
                 let lt = self.infer_element_type_from_expr(left);
@@ -437,13 +426,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Variables (shouldn't reach here but be safe)
             HirExpr::Var(name) => self.ctx.var_types.get(name).cloned(),
             // MethodCall: check if method is known to return a specific type
-            HirExpr::MethodCall { method, .. } => {
-                match method.as_str() {
-                    "len" | "count" | "index" | "find" => Some(Type::Int),
-                    "lower" | "upper" | "strip" | "replace" | "join" => Some(Type::String),
-                    _ => None,
-                }
-            }
+            HirExpr::MethodCall { method, .. } => match method.as_str() {
+                "len" | "count" | "index" | "find" => Some(Type::Int),
+                "lower" | "upper" | "strip" | "replace" | "join" => Some(Type::String),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -464,12 +451,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 HirExpr::Literal(Literal::Float(_)) => Type::Float,
                 HirExpr::Literal(Literal::String(_)) => Type::String,
                 HirExpr::Literal(Literal::None) => continue, // Skip None for type inference
-                HirExpr::Var(name) => self
-                    .ctx
-                    .var_types
-                    .get(name)
-                    .cloned()
-                    .unwrap_or(Type::Unknown),
+                HirExpr::Var(name) => {
+                    self.ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown)
+                }
                 _ => Type::Unknown,
             };
             types.push(elem_type);
@@ -482,10 +466,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check if all types are the same (ignoring Unknown)
         let first_known = types.iter().find(|t| !matches!(t, Type::Unknown));
         if let Some(first) = first_known {
-            if types
-                .iter()
-                .all(|t| matches!(t, Type::Unknown) || t == first)
-            {
+            if types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
                 return Some(first.clone());
             }
         }
@@ -609,9 +590,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_hashset = true;
 
         // DEPYLER-0742: Detect if set contains None
-        let has_none = elts
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+        let has_none = elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::None)));
 
         // DEPYLER-1163: Detect if elements need DepylerValue wrapping
         // In NASA mode, sets with mixed or unknown types use HashSet<DepylerValue>
@@ -710,9 +689,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_arc = true;
 
         // DEPYLER-0742: Detect if frozenset contains None
-        let has_none = elts
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+        let has_none = elts.iter().any(|e| matches!(e, HirExpr::Literal(Literal::None)));
 
         let mut insert_stmts = Vec::new();
         for elem in elts {
@@ -738,5 +715,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         })
     }
-
 }

@@ -23,11 +23,8 @@ pub struct ContractChecker;
 
 impl ContractChecker {
     pub fn extract_contracts(func: &HirFunction) -> Contract {
-        let mut contract = Contract {
-            preconditions: vec![],
-            postconditions: vec![],
-            invariants: vec![],
-        };
+        let mut contract =
+            Contract { preconditions: vec![], postconditions: vec![], invariants: vec![] };
 
         Self::extract_docstring_into_contract(&mut contract, &func.docstring);
         Self::extract_param_preconditions(&mut contract, &func.params);
@@ -194,11 +191,8 @@ impl ContractChecker {
 
     /// Extract contracts from Python docstring annotations
     fn extract_docstring_contracts(docstring: &str) -> Contract {
-        let mut contract = Contract {
-            preconditions: vec![],
-            postconditions: vec![],
-            invariants: vec![],
-        };
+        let mut contract =
+            Contract { preconditions: vec![], postconditions: vec![], invariants: vec![] };
 
         for line in docstring.lines() {
             let trimmed = line.trim();
@@ -283,12 +277,8 @@ impl ContractChecker {
         // Merge results
         result.violations.extend(post_result.violations);
         result.warnings.extend(post_result.warnings);
-        result
-            .proven_conditions
-            .extend(post_result.proven_conditions);
-        result
-            .unproven_conditions
-            .extend(post_result.unproven_conditions);
+        result.proven_conditions.extend(post_result.proven_conditions);
+        result.unproven_conditions.extend(post_result.unproven_conditions);
         result.success = result.success && post_result.success;
 
         // Check invariants
@@ -406,11 +396,7 @@ impl ContractChecker {
     }
 
     fn append_old_value_storage(result: &mut String, contract: &Contract) {
-        if contract
-            .postconditions
-            .iter()
-            .any(|p| p.expression.contains("old("))
-        {
+        if contract.postconditions.iter().any(|p| p.expression.contains("old(")) {
             result.push_str("    // Store old values for postcondition checks\n");
             result.push('\n');
         }
@@ -480,11 +466,7 @@ fn format_container_type(container: &str, inner: &Type) -> String {
 }
 
 fn format_dict_type(key: &Type, value: &Type) -> String {
-    format!(
-        "HashMap<{}, {}>",
-        type_to_rust_string(key),
-        type_to_rust_string(value)
-    )
+    format!("HashMap<{}, {}>", type_to_rust_string(key), type_to_rust_string(value))
 }
 
 fn format_tuple_type(types: &[Type]) -> String {
@@ -494,11 +476,7 @@ fn format_tuple_type(types: &[Type]) -> String {
 
 fn format_function_type(params: &[Type], ret: &Type) -> String {
     let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
-    format!(
-        "fn({}) -> {}",
-        param_strs.join(", "),
-        type_to_rust_string(ret)
-    )
+    format!("fn({}) -> {}", param_strs.join(", "), type_to_rust_string(ret))
 }
 
 fn format_generic_type(base: &str, params: &[Type]) -> String {
@@ -525,11 +503,9 @@ fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {
     match stmt {
         HirStmt::Assign { value, .. } => check_expr_contracts(value),
         HirStmt::Return(Some(expr)) => check_expr_contracts(expr),
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => check_if_contracts(condition, then_body, else_body),
+        HirStmt::If { condition, then_body, else_body } => {
+            check_if_contracts(condition, then_body, else_body)
+        }
         HirStmt::While { condition, body } => check_while_contracts(condition, body),
         HirStmt::For { iter, body, .. } => check_for_contracts(iter, body),
         HirStmt::Expr(expr) => check_expr_contracts(expr),
@@ -681,19 +657,14 @@ mod tests {
 
         assert_eq!(contract.preconditions.len(), 1);
         assert_eq!(contract.preconditions[0].name, "items_not_null");
-        assert!(contract.preconditions[0]
-            .expression
-            .contains("items is not None"));
+        assert!(contract.preconditions[0].expression.contains("items is not None"));
     }
 
     #[test]
     fn test_extract_contracts_with_int_param() {
         let func = create_test_function(
             "calculate",
-            vec![depyler_core::hir::HirParam::new(
-                "num".to_string(),
-                Type::Int,
-            )],
+            vec![depyler_core::hir::HirParam::new("num".to_string(), Type::Int)],
             Type::Int,
             vec![],
             FunctionProperties::default(),
@@ -760,9 +731,7 @@ mod tests {
 
         assert_eq!(contract.invariants.len(), 1);
         assert_eq!(contract.invariants[0].name, "no_panics");
-        assert!(contract.invariants[0]
-            .expression
-            .contains("array accesses are bounds-checked"));
+        assert!(contract.invariants[0].expression.contains("array accesses are bounds-checked"));
     }
 
     #[test]
@@ -778,21 +747,14 @@ mod tests {
             is_generator: false,
         };
 
-        let func = create_test_function(
-            "terminating_function",
-            vec![],
-            Type::Int,
-            vec![],
-            properties,
-        );
+        let func =
+            create_test_function("terminating_function", vec![], Type::Int, vec![], properties);
 
         let contract = ContractChecker::extract_contracts(&func);
 
         assert_eq!(contract.invariants.len(), 1);
         assert_eq!(contract.invariants[0].name, "termination");
-        assert!(contract.invariants[0]
-            .expression
-            .contains("loop variants decrease monotonically"));
+        assert!(contract.invariants[0].expression.contains("loop variants decrease monotonically"));
     }
 
     #[test]
@@ -860,11 +822,8 @@ mod tests {
 
     #[test]
     fn test_generate_contract_checks_empty() {
-        let contract = Contract {
-            preconditions: vec![],
-            postconditions: vec![],
-            invariants: vec![],
-        };
+        let contract =
+            Contract { preconditions: vec![], postconditions: vec![], invariants: vec![] };
 
         let checks = ContractChecker::generate_contract_checks(&contract, "empty_func");
 
@@ -923,9 +882,7 @@ mod tests {
 
         // Should detect two potential array bounds violations
         assert_eq!(violations.len(), 2);
-        assert!(violations
-            .iter()
-            .all(|v| v == "Potential array bounds violation"));
+        assert!(violations.iter().all(|v| v == "Potential array bounds violation"));
     }
 
     #[test]
@@ -1193,10 +1150,7 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_custom_types() {
-        assert_eq!(
-            type_to_rust_string(&Type::Custom("MyType".to_string())),
-            "MyType"
-        );
+        assert_eq!(type_to_rust_string(&Type::Custom("MyType".to_string())), "MyType");
         assert_eq!(type_to_rust_string(&Type::TypeVar("T".to_string())), "T");
     }
 
@@ -1235,10 +1189,8 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_function() {
-        let func_type = Type::Function {
-            params: vec![Type::Int, Type::String],
-            ret: Box::new(Type::Bool),
-        };
+        let func_type =
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) };
         assert_eq!(type_to_rust_string(&func_type), "fn(i32, String) -> bool");
     }
 

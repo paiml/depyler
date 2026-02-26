@@ -63,10 +63,7 @@ mod tests {
             file: "mod.pyi".to_string(),
             message: "syntax error".to_string(),
         };
-        assert_eq!(
-            err.to_string(),
-            "stub parse error in mod.pyi: syntax error"
-        );
+        assert_eq!(err.to_string(), "stub parse error in mod.pyi: syntax error");
     }
 
     #[test]

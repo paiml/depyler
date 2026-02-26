@@ -30,10 +30,7 @@ mod hybrid_config_tests {
         // Clear any existing key for deterministic test
         let config = HybridConfig::with_api();
         // enable_api should depend on ANTHROPIC_API_KEY env var
-        assert_eq!(
-            config.enable_api,
-            std::env::var("ANTHROPIC_API_KEY").is_ok()
-        );
+        assert_eq!(config.enable_api, std::env::var("ANTHROPIC_API_KEY").is_ok());
         assert!(!config.enable_local_model);
     }
 
@@ -89,10 +86,7 @@ mod pattern_complexity_tests {
         assert_eq!(PatternComplexity::Simple, PatternComplexity::Simple);
         assert_eq!(PatternComplexity::Medium, PatternComplexity::Medium);
         assert_eq!(PatternComplexity::Complex, PatternComplexity::Complex);
-        assert_eq!(
-            PatternComplexity::Unsupported,
-            PatternComplexity::Unsupported
-        );
+        assert_eq!(PatternComplexity::Unsupported, PatternComplexity::Unsupported);
     }
 
     #[test]
@@ -370,47 +364,26 @@ mod hybrid_transpiler_tests {
     #[test]
     fn test_analyze_complexity_simple() {
         let transpiler = HybridTranspiler::new();
-        assert_eq!(
-            transpiler.analyze_complexity("x = 1"),
-            PatternComplexity::Simple
-        );
-        assert_eq!(
-            transpiler.analyze_complexity("def foo(): pass"),
-            PatternComplexity::Simple
-        );
-        assert_eq!(
-            transpiler.analyze_complexity("if x: y = 1"),
-            PatternComplexity::Simple
-        );
+        assert_eq!(transpiler.analyze_complexity("x = 1"), PatternComplexity::Simple);
+        assert_eq!(transpiler.analyze_complexity("def foo(): pass"), PatternComplexity::Simple);
+        assert_eq!(transpiler.analyze_complexity("if x: y = 1"), PatternComplexity::Simple);
     }
 
     #[test]
     fn test_analyze_complexity_medium() {
         let transpiler = HybridTranspiler::new();
-        assert_eq!(
-            transpiler.analyze_complexity("class Foo: pass"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(transpiler.analyze_complexity("class Foo: pass"), PatternComplexity::Medium);
         assert_eq!(
             transpiler.analyze_complexity("@decorator\ndef foo(): pass"),
             PatternComplexity::Medium
         );
-        assert_eq!(
-            transpiler.analyze_complexity("yield x"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(transpiler.analyze_complexity("yield x"), PatternComplexity::Medium);
         assert_eq!(
             transpiler.analyze_complexity("async def foo(): pass"),
             PatternComplexity::Medium
         );
-        assert_eq!(
-            transpiler.analyze_complexity("lambda x: x"),
-            PatternComplexity::Medium
-        );
-        assert_eq!(
-            transpiler.analyze_complexity("type(x)"),
-            PatternComplexity::Medium
-        );
+        assert_eq!(transpiler.analyze_complexity("lambda x: x"), PatternComplexity::Medium);
+        assert_eq!(transpiler.analyze_complexity("type(x)"), PatternComplexity::Medium);
     }
 
     #[test]
@@ -432,27 +405,15 @@ mod hybrid_transpiler_tests {
             transpiler.analyze_complexity("def __getattr__(self, name): pass"),
             PatternComplexity::Complex
         );
-        assert_eq!(
-            transpiler.analyze_complexity("globals()"),
-            PatternComplexity::Complex
-        );
-        assert_eq!(
-            transpiler.analyze_complexity("locals()"),
-            PatternComplexity::Complex
-        );
+        assert_eq!(transpiler.analyze_complexity("globals()"), PatternComplexity::Complex);
+        assert_eq!(transpiler.analyze_complexity("locals()"), PatternComplexity::Complex);
     }
 
     #[test]
     fn test_analyze_complexity_unsupported() {
         let transpiler = HybridTranspiler::new();
-        assert_eq!(
-            transpiler.analyze_complexity("exec('code')"),
-            PatternComplexity::Unsupported
-        );
-        assert_eq!(
-            transpiler.analyze_complexity("eval('1 + 1')"),
-            PatternComplexity::Unsupported
-        );
+        assert_eq!(transpiler.analyze_complexity("exec('code')"), PatternComplexity::Unsupported);
+        assert_eq!(transpiler.analyze_complexity("eval('1 + 1')"), PatternComplexity::Unsupported);
         assert_eq!(
             transpiler.analyze_complexity("__import__('os')"),
             PatternComplexity::Unsupported
@@ -562,11 +523,7 @@ mod training_data_collector_tests {
     #[test]
     fn test_export_jsonl() {
         let mut collector = TrainingDataCollector::new();
-        collector.add_pair(
-            "def foo(): pass".to_string(),
-            "fn foo() {}".to_string(),
-            "test",
-        );
+        collector.add_pair("def foo(): pass".to_string(), "fn foo() {}".to_string(), "test");
         let jsonl = collector.export_jsonl();
         assert!(jsonl.contains("Convert to Rust"));
         assert!(jsonl.contains("def foo"));

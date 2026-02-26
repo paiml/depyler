@@ -47,10 +47,7 @@ fn main() -> anyhow::Result<()> {
     };
     println!("   Cache directory: {}", cache_dir.display());
     println!("   Max size: {} MB", config.max_size_bytes / (1024 * 1024));
-    println!(
-        "   Max age: {} days\n",
-        config.max_age_secs / (24 * 60 * 60)
-    );
+    println!("   Max age: {} days\n", config.max_age_secs / (24 * 60 * 60));
 
     // Open the cache
     println!("2. Opening SQLite cache with CAS backend...");

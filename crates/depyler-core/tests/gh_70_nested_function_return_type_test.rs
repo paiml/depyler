@@ -46,9 +46,7 @@ def outer():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // ASSERTION 1: Generated code should compile without errors
     compile_rust_code(&rust_code, "string_return")
@@ -76,9 +74,7 @@ def get_first_element():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // Must compile
     compile_rust_code(&rust_code, "int_return")
@@ -97,9 +93,7 @@ def outer():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // Should have explicit return type when annotated
     assert!(
@@ -126,9 +120,7 @@ def group_by_hour(entries):
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     compile_rust_code(&rust_code, "groupby_pattern")
         .expect("groupby key extractor pattern MUST compile");
@@ -148,9 +140,7 @@ def outer():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // Void function can have `-> ()` or omit it
     compile_rust_code(&rust_code, "void_function").expect("Void nested function MUST compile");

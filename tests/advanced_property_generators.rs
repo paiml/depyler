@@ -37,10 +37,7 @@ pub fn weighted_python_function() -> impl Strategy<Value = PythonFunctionPattern
     )
         .prop_map(
             |(name, params, return_type, complexity, docstring, collections, control_flow)| {
-                let typed_params = params
-                    .into_iter()
-                    .map(|(n, t)| (n, t.to_string()))
-                    .collect();
+                let typed_params = params.into_iter().map(|(n, t)| (n, t.to_string())).collect();
                 let typed_return = return_type.map(|s| s.to_string());
 
                 PythonFunctionPattern {
@@ -76,20 +73,12 @@ impl Default for OptimizedGenerator {
 
 impl OptimizedGenerator {
     pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-            hit_count: 0,
-            miss_count: 0,
-        }
+        Self { cache: HashMap::new(), hit_count: 0, miss_count: 0 }
     }
 
     pub fn generate_cached(&mut self, pattern: &PythonFunctionPattern) -> String {
-        let key = format!(
-            "{}-{}-{}",
-            pattern.name,
-            pattern.parameters.len(),
-            pattern.body_complexity
-        );
+        let key =
+            format!("{}-{}-{}", pattern.name, pattern.parameters.len(), pattern.body_complexity);
         if let Some(cached) = self.cache.get(&key) {
             self.hit_count += 1;
             cached.clone()
@@ -103,11 +92,7 @@ impl OptimizedGenerator {
 
     pub fn cache_stats(&self) -> (usize, usize, f64) {
         let total = self.hit_count + self.miss_count;
-        let hit_rate = if total > 0 {
-            self.hit_count as f64 / total as f64
-        } else {
-            0.0
-        };
+        let hit_rate = if total > 0 { self.hit_count as f64 / total as f64 } else { 0.0 };
         (self.hit_count, self.miss_count, hit_rate)
     }
 }
@@ -123,25 +108,14 @@ fn generate_function_code(pattern: &PythonFunctionPattern) -> String {
         .map(|(name, type_hint)| format!("{}: {}", name, type_hint))
         .collect();
 
-    let return_annotation = pattern
-        .return_type
-        .as_ref()
-        .map(|t| format!(" -> {}", t))
-        .unwrap_or_default();
+    let return_annotation =
+        pattern.return_type.as_ref().map(|t| format!(" -> {}", t)).unwrap_or_default();
 
-    code.push_str(&format!(
-        "def {}({}){}: ",
-        pattern.name,
-        params.join(", "),
-        return_annotation
-    ));
+    code.push_str(&format!("def {}({}){}: ", pattern.name, params.join(", "), return_annotation));
 
     // Docstring
     if pattern.has_docstring {
-        code.push_str(&format!(
-            "\n    \"\"\"{}\"\"\" ",
-            generate_docstring(pattern)
-        ));
+        code.push_str(&format!("\n    \"\"\"{}\"\"\" ", generate_docstring(pattern)));
     }
 
     // Function body based on complexity
@@ -151,11 +125,7 @@ fn generate_function_code(pattern: &PythonFunctionPattern) -> String {
 }
 
 fn generate_docstring(pattern: &PythonFunctionPattern) -> String {
-    format!(
-        "Function {} with {} parameters.",
-        pattern.name,
-        pattern.parameters.len()
-    )
+    format!("Function {} with {} parameters.", pattern.name, pattern.parameters.len())
 }
 
 fn generate_function_body(pattern: &PythonFunctionPattern) -> String {
@@ -269,11 +239,7 @@ mod tests {
         for test_case in 0..10 {
             let module_patterns = strategy.new_tree(&mut runner).unwrap().current();
 
-            println!(
-                "Module {} with {} functions:",
-                test_case,
-                module_patterns.len()
-            );
+            println!("Module {} with {} functions:", test_case, module_patterns.len());
 
             let mut module_code = String::new();
             for pattern in &module_patterns {
@@ -327,10 +293,7 @@ mod tests {
             for _ in 0..5 {
                 let mutated_code = generate_mutated_code(base_code);
 
-                println!(
-                    "  Mutated: {}",
-                    mutated_code.chars().take(60).collect::<String>()
-                );
+                println!("  Mutated: {}", mutated_code.chars().take(60).collect::<String>());
 
                 // Test with pipeline
                 let pipeline = DepylerPipeline::new();
@@ -359,11 +322,8 @@ mod tests {
         let pipeline = DepylerPipeline::new();
 
         // Test various composition patterns
-        let composition_patterns = vec![
-            ("Single Function", 1, 1),
-            ("Small Module", 2, 3),
-            ("Medium Module", 3, 4),
-        ];
+        let composition_patterns =
+            vec![("Single Function", 1, 1), ("Small Module", 2, 3), ("Medium Module", 3, 4)];
 
         for (pattern_name, min_funcs, max_funcs) in composition_patterns {
             let mut runner = proptest::test_runner::TestRunner::default();
@@ -443,24 +403,13 @@ mod tests {
         );
 
         // Should achieve some cache hits with duplicates
-        assert!(
-            hit_rate >= 0.0,
-            "Cache hit rate should be non-negative: {:.2}%",
-            hit_rate * 100.0
-        );
-        assert!(
-            duration.as_millis() < 1000,
-            "Generation took too long: {:?}",
-            duration
-        );
+        assert!(hit_rate >= 0.0, "Cache hit rate should be non-negative: {:.2}%", hit_rate * 100.0);
+        assert!(duration.as_millis() < 1000, "Generation took too long: {:?}", duration);
 
         // Performance should improve with caching
         let cache_size = generator.cache.len();
         println!("Final cache size: {} entries", cache_size);
-        assert!(
-            cache_size <= patterns.len(),
-            "Cache size should not exceed unique patterns"
-        );
+        assert!(cache_size <= patterns.len(), "Cache size should not exceed unique patterns");
     }
 
     /// Test generator efficiency and performance characteristics
@@ -527,9 +476,6 @@ mod tests {
         println!("Cache test: first {:?}, second {:?}", time1, time2);
 
         // Second execution should be faster due to caching
-        assert!(
-            time2 <= time1 * 5,
-            "Caching should not significantly slow down execution"
-        );
+        assert!(time2 <= time1 * 5, "Caching should not significantly slow down execution");
     }
 }

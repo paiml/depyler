@@ -33,10 +33,7 @@ def test_upper(s: str) -> str:
     println!("Generated upper() code:\n{}", rust_code);
 
     // str.upper() should generate .to_uppercase()
-    assert!(
-        rust_code.contains(".to_uppercase("),
-        "s.upper() should generate .to_uppercase()"
-    );
+    assert!(rust_code.contains(".to_uppercase("), "s.upper() should generate .to_uppercase()");
 }
 
 #[test]
@@ -51,10 +48,7 @@ def test_lower(s: str) -> str:
     println!("Generated lower() code:\n{}", rust_code);
 
     // str.lower() should generate .to_lowercase()
-    assert!(
-        rust_code.contains(".to_lowercase("),
-        "s.lower() should generate .to_lowercase()"
-    );
+    assert!(rust_code.contains(".to_lowercase("), "s.lower() should generate .to_lowercase()");
 }
 
 #[test]
@@ -69,10 +63,7 @@ def test_strip(s: str) -> str:
     println!("Generated strip() code:\n{}", rust_code);
 
     // str.strip() should generate .trim()
-    assert!(
-        rust_code.contains(".trim("),
-        "s.strip() should generate .trim()"
-    );
+    assert!(rust_code.contains(".trim("), "s.strip() should generate .trim()");
 }
 
 #[test]
@@ -105,10 +96,7 @@ def test_join(items: list) -> str:
     println!("Generated join() code:\n{}", rust_code);
 
     // sep.join(items) should generate items.join(sep)
-    assert!(
-        rust_code.contains(".join("),
-        "sep.join(items) should generate .join()"
-    );
+    assert!(rust_code.contains(".join("), "sep.join(items) should generate .join()");
 }
 
 #[test]
@@ -123,10 +111,7 @@ def test_replace(s: str) -> str:
     println!("Generated replace() code:\n{}", rust_code);
 
     // str.replace(old, new) should generate .replace(old, new)
-    assert!(
-        rust_code.contains(".replace("),
-        "s.replace() should generate .replace()"
-    );
+    assert!(rust_code.contains(".replace("), "s.replace() should generate .replace()");
 }
 
 #[test]
@@ -177,10 +162,7 @@ def test_startswith(s: str) -> bool:
     println!("Generated startswith() code:\n{}", rust_code);
 
     // str.startswith(prefix) should generate .starts_with(prefix)
-    assert!(
-        rust_code.contains(".starts_with("),
-        "s.startswith() should generate .starts_with()"
-    );
+    assert!(rust_code.contains(".starts_with("), "s.startswith() should generate .starts_with()");
 }
 
 #[test]
@@ -195,10 +177,7 @@ def test_endswith(s: str) -> bool:
     println!("Generated endswith() code:\n{}", rust_code);
 
     // str.endswith(suffix) should generate .ends_with(suffix)
-    assert!(
-        rust_code.contains(".ends_with("),
-        "s.endswith() should generate .ends_with()"
-    );
+    assert!(rust_code.contains(".ends_with("), "s.endswith() should generate .ends_with()");
 }
 
 #[test]
@@ -254,10 +233,7 @@ def test_append(items: list, value: int):
     println!("Generated append() code:\n{}", rust_code);
 
     // list.append(item) should generate .push(item)
-    assert!(
-        rust_code.contains(".push("),
-        "list.append() should generate .push()"
-    );
+    assert!(rust_code.contains(".push("), "list.append() should generate .push()");
 }
 
 #[test]
@@ -272,10 +248,7 @@ def test_extend(items: list, other: list):
     println!("Generated extend() code:\n{}", rust_code);
 
     // list.extend(other) should generate .extend(other)
-    assert!(
-        rust_code.contains(".extend("),
-        "list.extend() should generate .extend()"
-    );
+    assert!(rust_code.contains(".extend("), "list.extend() should generate .extend()");
 }
 
 #[test]
@@ -290,10 +263,7 @@ def test_pop(items: list):
     println!("Generated pop() code:\n{}", rust_code);
 
     // list.pop() should generate .pop()
-    assert!(
-        rust_code.contains(".pop("),
-        "list.pop() should generate .pop()"
-    );
+    assert!(rust_code.contains(".pop("), "list.pop() should generate .pop()");
 }
 
 #[test]
@@ -326,10 +296,7 @@ def test_insert(items: list, value: int):
     println!("Generated insert() code:\n{}", rust_code);
 
     // list.insert(index, item) should generate .insert(index, item)
-    assert!(
-        rust_code.contains(".insert("),
-        "list.insert() should generate .insert()"
-    );
+    assert!(rust_code.contains(".insert("), "list.insert() should generate .insert()");
 }
 
 #[test]
@@ -380,10 +347,7 @@ def test_clear(items: list):
     println!("Generated clear() code:\n{}", rust_code);
 
     // list.clear() should generate .clear()
-    assert!(
-        rust_code.contains(".clear("),
-        "list.clear() should generate .clear()"
-    );
+    assert!(rust_code.contains(".clear("), "list.clear() should generate .clear()");
 }
 
 #[test]
@@ -398,10 +362,7 @@ def test_copy(items: list) -> list:
     println!("Generated copy() code:\n{}", rust_code);
 
     // list.copy() should generate .clone()
-    assert!(
-        rust_code.contains(".clone("),
-        "list.copy() should generate .clone()"
-    );
+    assert!(rust_code.contains(".clone("), "list.copy() should generate .clone()");
 }
 
 #[test]
@@ -416,10 +377,7 @@ def test_reverse(items: list):
     println!("Generated reverse() code:\n{}", rust_code);
 
     // list.reverse() should generate .reverse()
-    assert!(
-        rust_code.contains(".reverse("),
-        "list.reverse() should generate .reverse()"
-    );
+    assert!(rust_code.contains(".reverse("), "list.reverse() should generate .reverse()");
 }
 
 #[test]
@@ -434,10 +392,7 @@ def test_sort(items: list):
     println!("Generated sort() code:\n{}", rust_code);
 
     // list.sort() should generate .sort()
-    assert!(
-        rust_code.contains(".sort("),
-        "list.sort() should generate .sort()"
-    );
+    assert!(rust_code.contains(".sort("), "list.sort() should generate .sort()");
 }
 
 // ============================================================================
@@ -456,10 +411,7 @@ def test_get(d: dict, key: str):
     println!("Generated get() code:\n{}", rust_code);
 
     // dict.get(key) should generate .get(key)
-    assert!(
-        rust_code.contains(".get("),
-        "dict.get() should generate .get()"
-    );
+    assert!(rust_code.contains(".get("), "dict.get() should generate .get()");
 }
 
 #[test]
@@ -493,10 +445,7 @@ def test_keys(d: dict):
     println!("Generated keys() code:\n{}", rust_code);
 
     // dict.keys() should generate .keys()
-    assert!(
-        rust_code.contains(".keys("),
-        "dict.keys() should generate .keys()"
-    );
+    assert!(rust_code.contains(".keys("), "dict.keys() should generate .keys()");
 }
 
 #[test]
@@ -511,10 +460,7 @@ def test_values(d: dict):
     println!("Generated values() code:\n{}", rust_code);
 
     // dict.values() should generate .values()
-    assert!(
-        rust_code.contains(".values("),
-        "dict.values() should generate .values()"
-    );
+    assert!(rust_code.contains(".values("), "dict.values() should generate .values()");
 }
 
 #[test]
@@ -586,10 +532,7 @@ def test_pop(d: dict, key: str):
     println!("Generated pop() code:\n{}", rust_code);
 
     // dict.pop(key) should generate .remove(key)
-    assert!(
-        rust_code.contains(".remove("),
-        "dict.pop() should generate .remove()"
-    );
+    assert!(rust_code.contains(".remove("), "dict.pop() should generate .remove()");
 }
 
 #[test]
@@ -604,10 +547,7 @@ def test_clear(d: dict):
     println!("Generated clear() code:\n{}", rust_code);
 
     // dict.clear() should generate .clear()
-    assert!(
-        rust_code.contains(".clear("),
-        "dict.clear() should generate .clear()"
-    );
+    assert!(rust_code.contains(".clear("), "dict.clear() should generate .clear()");
 }
 
 // ============================================================================

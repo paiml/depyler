@@ -255,11 +255,7 @@ pub fn lint_file(path: &Path, strict: bool) -> Result<FileReport> {
 
     let compliant = !violations.iter().any(|v| v.severity == Severity::Error);
 
-    Ok(FileReport {
-        path: path.to_path_buf(),
-        violations,
-        compliant,
-    })
+    Ok(FileReport { path: path.to_path_buf(), violations, compliant })
 }
 
 /// Check if a line contains a function call (not just the word)
@@ -386,10 +382,7 @@ fn find_function_line(source: &str, func_name: &str) -> usize {
 
 /// Get a specific line from source
 fn get_source_line(source: &str, line_num: usize) -> Option<String> {
-    source
-        .lines()
-        .nth(line_num.saturating_sub(1))
-        .map(String::from)
+    source.lines().nth(line_num.saturating_sub(1)).map(String::from)
 }
 
 /// Lint a directory of Python files
@@ -417,19 +410,10 @@ pub fn lint_corpus(path: &Path, strict: bool) -> Result<CorpusReport> {
     }
 
     let compliant_files = files.iter().filter(|f| f.compliant).count();
-    let compliance_rate = if total_files > 0 {
-        (compliant_files as f64 / total_files as f64) * 100.0
-    } else {
-        100.0
-    };
+    let compliance_rate =
+        if total_files > 0 { (compliant_files as f64 / total_files as f64) * 100.0 } else { 100.0 };
 
-    Ok(CorpusReport {
-        total_files,
-        compliant_files,
-        compliance_rate,
-        files,
-        violation_counts,
-    })
+    Ok(CorpusReport { total_files, compliant_files, compliance_rate, files, violation_counts })
 }
 
 /// Run the lint command
@@ -470,11 +454,7 @@ pub fn lint_command(
 /// Print file report in text format
 fn print_file_report(report: &FileReport, fail_fast: bool) {
     if report.violations.is_empty() {
-        println!(
-            "{} {} is Depyler Python compliant",
-            "✓".green(),
-            report.path.display()
-        );
+        println!("{} {} is Depyler Python compliant", "✓".green(), report.path.display());
         return;
     }
 
@@ -486,14 +466,7 @@ fn print_file_report(report: &FileReport, fail_fast: bool) {
             Severity::Warning => "warning".yellow(),
         };
 
-        println!(
-            "  {}:{}: {} [{}] {}",
-            v.line,
-            v.column,
-            severity_str,
-            v.code.cyan(),
-            v.message
-        );
+        println!("  {}:{}: {} [{}] {}", v.line, v.column, severity_str, v.code.cyan(), v.message);
 
         if let Some(ref source) = v.source_line {
             println!("    {}", source.dimmed());
@@ -504,16 +477,9 @@ fn print_file_report(report: &FileReport, fail_fast: bool) {
         }
     }
 
-    let error_count = report
-        .violations
-        .iter()
-        .filter(|v| v.severity == Severity::Error)
-        .count();
-    let warning_count = report
-        .violations
-        .iter()
-        .filter(|v| v.severity == Severity::Warning)
-        .count();
+    let error_count = report.violations.iter().filter(|v| v.severity == Severity::Error).count();
+    let warning_count =
+        report.violations.iter().filter(|v| v.severity == Severity::Warning).count();
 
     println!(
         "\nFound {} error(s), {} warning(s)",
@@ -566,11 +532,7 @@ mod tests {
     fn test_lint_clean_file() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("clean.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let report = lint_file(&py_file, true).unwrap();
         assert!(report.compliant);
@@ -711,11 +673,8 @@ mod tests {
     fn test_lint_getattr_def_prohibited() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("bad.py");
-        fs::write(
-            &py_file,
-            "class Foo:\n    def __getattr__(self, name):\n        pass\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class Foo:\n    def __getattr__(self, name):\n        pass\n")
+            .unwrap();
 
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP009));
@@ -725,11 +684,8 @@ mod tests {
     fn test_lint_setattr_def_prohibited() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("bad.py");
-        fs::write(
-            &py_file,
-            "class Foo:\n    def __setattr__(self, name, value):\n        pass\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class Foo:\n    def __setattr__(self, name, value):\n        pass\n")
+            .unwrap();
 
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP010));
@@ -744,10 +700,7 @@ mod tests {
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP015));
         // DP015 is a Warning, not Error
-        assert!(report
-            .violations
-            .iter()
-            .any(|v| v.severity == Severity::Warning));
+        assert!(report.violations.iter().any(|v| v.severity == Severity::Warning));
     }
 
     #[test]
@@ -914,11 +867,7 @@ mod tests {
 
     #[test]
     fn test_file_report_clone() {
-        let r = FileReport {
-            path: PathBuf::from("test.py"),
-            violations: vec![],
-            compliant: true,
-        };
+        let r = FileReport { path: PathBuf::from("test.py"), violations: vec![], compliant: true };
         let r2 = r.clone();
         assert!(r2.compliant);
     }
@@ -940,11 +889,7 @@ mod tests {
     fn test_lint_multiple_violations_same_file() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("bad.py");
-        fs::write(
-            &py_file,
-            "x = eval('1')\ny = exec('2')\nz = getattr(o, 'a')\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "x = eval('1')\ny = exec('2')\nz = getattr(o, 'a')\n").unwrap();
 
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.len() >= 3);
@@ -1006,24 +951,13 @@ mod tests {
     fn test_s11_lint_multiple_functions_missing_types() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("untyped.py");
-        fs::write(
-            &py_file,
-            "def foo(x):\n    return x\n\ndef bar(y):\n    return y * 2\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def foo(x):\n    return x\n\ndef bar(y):\n    return y * 2\n")
+            .unwrap();
 
         let report = lint_file(&py_file, true).unwrap();
         // Should find DP001 and DP002 violations for both functions
-        let dp001_count = report
-            .violations
-            .iter()
-            .filter(|v| v.code == codes::DP001)
-            .count();
-        let dp002_count = report
-            .violations
-            .iter()
-            .filter(|v| v.code == codes::DP002)
-            .count();
+        let dp001_count = report.violations.iter().filter(|v| v.code == codes::DP001).count();
+        let dp002_count = report.violations.iter().filter(|v| v.code == codes::DP002).count();
         assert!(dp001_count >= 2);
         assert!(dp002_count >= 2);
     }
@@ -1053,16 +987,10 @@ mod tests {
     #[test]
     fn test_s11_lint_corpus_all_compliant() {
         let temp = TempDir::new().unwrap();
-        fs::write(
-            temp.path().join("a.py"),
-            "def add(x: int, y: int) -> int:\n    return x + y\n",
-        )
-        .unwrap();
-        fs::write(
-            temp.path().join("b.py"),
-            "def sub(x: int, y: int) -> int:\n    return x - y\n",
-        )
-        .unwrap();
+        fs::write(temp.path().join("a.py"), "def add(x: int, y: int) -> int:\n    return x + y\n")
+            .unwrap();
+        fs::write(temp.path().join("b.py"), "def sub(x: int, y: int) -> int:\n    return x - y\n")
+            .unwrap();
 
         let report = lint_corpus(temp.path(), true).unwrap();
         assert_eq!(report.total_files, 2);
@@ -1163,11 +1091,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let subdir = temp.path().join("subdir");
         fs::create_dir_all(&subdir).unwrap();
-        fs::write(
-            subdir.join("test.py"),
-            "x = eval('1')\n",
-        )
-        .unwrap();
+        fs::write(subdir.join("test.py"), "x = eval('1')\n").unwrap();
 
         let report = lint_corpus(temp.path(), false).unwrap();
         assert_eq!(report.total_files, 1);
@@ -1196,11 +1120,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("ok.py");
         // Dict[str, int] should not count as multiple inheritance
-        fs::write(
-            &py_file,
-            "class MyDict(Dict[str, int]):\n    pass\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class MyDict(Dict[str, int]):\n    pass\n").unwrap();
 
         let report = lint_file(&py_file, true).unwrap();
         assert!(!report.violations.iter().any(|v| v.code == codes::DP008));
@@ -1226,11 +1146,7 @@ mod tests {
     fn test_lint_triple_inheritance() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("bad.py");
-        fs::write(
-            &py_file,
-            "class Franken(Base1, Base2, Base3):\n    pass\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class Franken(Base1, Base2, Base3):\n    pass\n").unwrap();
 
         let report = lint_file(&py_file, true).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP008));
@@ -1274,11 +1190,8 @@ mod tests {
     fn test_lint_dunder_getattr_detection() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("bad.py");
-        fs::write(
-            &py_file,
-            "class Foo:\n    def __getattr__(self, name):\n        pass\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class Foo:\n    def __getattr__(self, name):\n        pass\n")
+            .unwrap();
 
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP009));
@@ -1288,11 +1201,8 @@ mod tests {
     fn test_lint_dunder_setattr_detection() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("bad.py");
-        fs::write(
-            &py_file,
-            "class Foo:\n    def __setattr__(self, name, value):\n        pass\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class Foo:\n    def __setattr__(self, name, value):\n        pass\n")
+            .unwrap();
 
         let report = lint_file(&py_file, false).unwrap();
         assert!(report.violations.iter().any(|v| v.code == codes::DP010));
@@ -1324,11 +1234,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("ok.py");
         // Class without inheritance parens
-        fs::write(
-            &py_file,
-            "class Simple:\n    x: int = 0\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "class Simple:\n    x: int = 0\n").unwrap();
 
         let report = lint_file(&py_file, true).unwrap();
         assert!(!report.violations.iter().any(|v| v.code == codes::DP008));

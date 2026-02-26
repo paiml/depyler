@@ -235,11 +235,7 @@ def fibonacci_generator(limit=None):
     );
 
     // Should access count via self
-    assert!(
-        rust.contains("self.count"),
-        "BUG: count not accessed via self\nGenerated:\n{}",
-        rust
-    );
+    assert!(rust.contains("self.count"), "BUG: count not accessed via self\nGenerated:\n{}", rust);
 }
 
 #[test]
@@ -260,11 +256,7 @@ def simple_yield():
     println!("Generated Rust code:\n{}", rust);
 
     // x should be a struct field
-    assert!(
-        rust.contains("x:"),
-        "BUG: State struct missing variable 'x'\nGenerated:\n{}",
-        rust
-    );
+    assert!(rust.contains("x:"), "BUG: State struct missing variable 'x'\nGenerated:\n{}", rust);
 
     // Should yield self.x
     assert!(

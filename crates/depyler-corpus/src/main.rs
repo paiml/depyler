@@ -78,14 +78,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Analyze {
-            corpus,
-            format,
-            output,
-            skip_clean,
-            target_rate,
-            depyler_bin,
-        } => {
+        Commands::Analyze { corpus, format, output, skip_clean, target_rate, depyler_bin } => {
             let corpus_path = corpus.unwrap_or_else(default_corpus_path);
 
             println!(
@@ -125,11 +118,7 @@ fn main() -> anyhow::Result<()> {
                 "[INFO]".yellow(),
                 analyzer.config().corpus_path.display()
             );
-            println!(
-                "{} Target rate: {:.1}%",
-                "[INFO]".yellow(),
-                analyzer.config().target_rate
-            );
+            println!("{} Target rate: {:.1}%", "[INFO]".yellow(), analyzer.config().target_rate);
 
             match format {
                 OutputFormat::Terminal => {
@@ -160,10 +149,7 @@ fn main() -> anyhow::Result<()> {
             );
 
             if dry_run {
-                println!(
-                    "{} Dry run mode - no files will be deleted",
-                    "[INFO]".yellow()
-                );
+                println!("{} Dry run mode - no files will be deleted", "[INFO]".yellow());
             }
 
             let cleaner = depyler_corpus::cleaner::ArtifactCleaner::new(&corpus_path);
@@ -174,16 +160,8 @@ fn main() -> anyhow::Result<()> {
             let target_dirs = cleaner.find_target_dirs()?;
 
             println!("{} Found {} .rs files", "  ->".cyan(), rs_files.len());
-            println!(
-                "{} Found {} Cargo.toml files",
-                "  ->".cyan(),
-                cargo_files.len()
-            );
-            println!(
-                "{} Found {} target/ directories",
-                "  ->".cyan(),
-                target_dirs.len()
-            );
+            println!("{} Found {} Cargo.toml files", "  ->".cyan(), cargo_files.len());
+            println!("{} Found {} target/ directories", "  ->".cyan(), target_dirs.len());
 
             if !dry_run {
                 let summary = cleaner.clean()?;
@@ -201,11 +179,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Stats { corpus } => {
             let corpus_path = corpus.unwrap_or_else(default_corpus_path);
 
-            println!(
-                "{} Statistics for: {}",
-                "[STATS]".blue().bold(),
-                corpus_path.display()
-            );
+            println!("{} Statistics for: {}", "[STATS]".blue().bold(), corpus_path.display());
 
             let config = CorpusConfig::default().with_corpus_path(corpus_path);
             let runner = depyler_corpus::transpiler::TranspileRunner::new(&config);
@@ -214,21 +188,14 @@ fn main() -> anyhow::Result<()> {
             println!("{} Python files: {}", "  ->".cyan(), python_files.len());
 
             // Count by pattern
-            let cli_files = python_files
-                .iter()
-                .filter(|p| p.to_string_lossy().contains("_cli.py"))
-                .count();
+            let cli_files =
+                python_files.iter().filter(|p| p.to_string_lossy().contains("_cli.py")).count();
             let test_files = python_files
                 .iter()
-                .filter(|p| {
-                    p.file_name()
-                        .is_some_and(|n| n.to_string_lossy().starts_with("test_"))
-                })
+                .filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("test_")))
                 .count();
-            let tool_files = python_files
-                .iter()
-                .filter(|p| p.to_string_lossy().contains("_tool.py"))
-                .count();
+            let tool_files =
+                python_files.iter().filter(|p| p.to_string_lossy().contains("_tool.py")).count();
 
             println!("{} CLI files (*_cli.py): {}", "  ->".cyan(), cli_files);
             println!("{} Test files (test_*.py): {}", "  ->".cyan(), test_files);

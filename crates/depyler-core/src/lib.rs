@@ -46,10 +46,10 @@
 //! - [`TranspilationBackend`] - Backend trait for target languages
 
 // Re-export macros from depyler-hir so `use crate::trace_decision` etc. continue to work
-pub use depyler_hir::trace_decision;
 pub use depyler_hir::emit_decision;
-pub use depyler_hir::transpile_error;
+pub use depyler_hir::trace_decision;
 pub use depyler_hir::transpile_bail;
+pub use depyler_hir::transpile_error;
 
 // Re-exports from depyler-hir
 pub use depyler_hir::decision_trace;
@@ -69,9 +69,9 @@ pub use depyler_lambda::lambda_types;
 pub use depyler_analysis::annotation_aware_type_mapper;
 pub use depyler_analysis::borrowing;
 pub use depyler_analysis::borrowing_context;
-pub use depyler_analysis::container_element_inference;
 pub use depyler_analysis::borrowing_shim;
 pub use depyler_analysis::const_generic_inference;
+pub use depyler_analysis::container_element_inference;
 pub use depyler_analysis::depylint;
 pub use depyler_analysis::error_reporting;
 pub use depyler_analysis::escape_analysis;
@@ -114,11 +114,11 @@ pub use depyler_tooling::typeshed_ingest;
 
 // Modules that remain in depyler-core (codegen engine)
 pub mod ast_bridge;
-pub mod diagnostic;
 pub mod backend;
 pub mod cargo_first;
 pub mod cargo_toml_gen;
 pub mod codegen;
+pub mod diagnostic;
 pub mod direct_rules;
 mod direct_rules_convert; // DEPYLER-COVERAGE-95: Split from direct_rules.rs
 pub mod lsp;
@@ -296,13 +296,8 @@ impl DepylerPipeline {
     /// ```
     pub fn new() -> Self {
         Self {
-            analyzer: CoreAnalyzer {
-                metrics_enabled: true,
-                type_inference_enabled: true,
-            },
-            transpiler: DirectTranspiler {
-                type_mapper: type_mapper::TypeMapper::default(),
-            },
+            analyzer: CoreAnalyzer { metrics_enabled: true, type_inference_enabled: true },
+            transpiler: DirectTranspiler { type_mapper: type_mapper::TypeMapper::default() },
             verifier: None,
             mcp_client: LazyMcpClient::default(),
             debug_config: None,
@@ -310,10 +305,7 @@ impl DepylerPipeline {
     }
 
     pub fn with_verification(mut self) -> Self {
-        self.verifier = Some(PropertyVerifier {
-            enable_quickcheck: true,
-            enable_contracts: true,
-        });
+        self.verifier = Some(PropertyVerifier { enable_quickcheck: true, enable_contracts: true });
         self
     }
 
@@ -1065,9 +1057,8 @@ impl DepylerPipeline {
 
     pub fn parse_to_hir(&self, source: &str) -> Result<hir::HirModule> {
         let ast = self.parse_python(source)?;
-        let (hir, _type_env) = ast_bridge::AstBridge::new()
-            .with_source(source.to_string())
-            .python_to_hir(ast)?;
+        let (hir, _type_env) =
+            ast_bridge::AstBridge::new().with_source(source.to_string()).python_to_hir(ast)?;
         Ok(hir)
     }
 
@@ -1222,11 +1213,7 @@ def test_func(x: int) -> str:
             }
 
             fn validate(&self, _output: &Self::Output) -> ValidationResult {
-                ValidationResult {
-                    is_valid: true,
-                    errors: vec![],
-                    warnings: vec![],
-                }
+                ValidationResult { is_valid: true, errors: vec![], warnings: vec![] }
             }
         }
 
@@ -1272,14 +1259,8 @@ def process_list(items: List[str]) -> Optional[str]:
         let hir = pipeline.parse_to_hir(python_code).unwrap();
         assert_eq!(hir.functions.len(), 1);
         let func = &hir.functions[0];
-        assert_eq!(
-            func.params[0].ty,
-            hir::Type::List(Box::new(hir::Type::String))
-        );
-        assert_eq!(
-            func.ret_type,
-            hir::Type::Optional(Box::new(hir::Type::String))
-        );
+        assert_eq!(func.params[0].ty, hir::Type::List(Box::new(hir::Type::String)));
+        assert_eq!(func.ret_type, hir::Type::Optional(Box::new(hir::Type::String)));
     }
 
     #[test]
@@ -1304,14 +1285,8 @@ def compute_sum(numbers: List[int]) -> int:
             func.annotations.optimization_level,
             depyler_annotations::OptimizationLevel::Aggressive
         );
-        assert_eq!(
-            func.annotations.thread_safety,
-            depyler_annotations::ThreadSafety::Required
-        );
-        assert_eq!(
-            func.annotations.bounds_checking,
-            depyler_annotations::BoundsChecking::Explicit
-        );
+        assert_eq!(func.annotations.thread_safety, depyler_annotations::ThreadSafety::Required);
+        assert_eq!(func.annotations.bounds_checking, depyler_annotations::BoundsChecking::Explicit);
 
         // Verify transpilation works
         let rust_code = pipeline.transpile(python_code).unwrap();
@@ -1332,14 +1307,8 @@ def process_string(s: str) -> str:
         let func = &hir.functions[0];
 
         // Verify string strategy was extracted
-        assert_eq!(
-            func.annotations.string_strategy,
-            depyler_annotations::StringStrategy::ZeroCopy
-        );
-        assert_eq!(
-            func.annotations.ownership_model,
-            depyler_annotations::OwnershipModel::Borrowed
-        );
+        assert_eq!(func.annotations.string_strategy, depyler_annotations::StringStrategy::ZeroCopy);
+        assert_eq!(func.annotations.ownership_model, depyler_annotations::OwnershipModel::Borrowed);
 
         // The generated code should use borrowed strings
         let rust_code = pipeline.transpile(python_code).unwrap();
@@ -1361,10 +1330,7 @@ def create_map() -> Dict[str, int]:
         let func = &hir.functions[0];
 
         // Verify hash strategy was extracted
-        assert_eq!(
-            func.annotations.hash_strategy,
-            depyler_annotations::HashStrategy::Fnv
-        );
+        assert_eq!(func.annotations.hash_strategy, depyler_annotations::HashStrategy::Fnv);
     }
 
     // DEPYLER-COVERAGE-95: Additional tests for untested components
@@ -1407,10 +1373,7 @@ def create_map() -> Dict[str, int]:
         let config: Config = Default::default();
         assert!(!config.enable_verification);
         assert!(!config.enable_metrics);
-        assert!(matches!(
-            config.optimization_level,
-            OptimizationLevel::Debug
-        ));
+        assert!(matches!(config.optimization_level, OptimizationLevel::Debug));
     }
 
     #[test]
@@ -1439,10 +1402,7 @@ def create_map() -> Dict[str, int]:
 
     #[test]
     fn test_core_analyzer_debug() {
-        let analyzer = CoreAnalyzer {
-            metrics_enabled: true,
-            type_inference_enabled: false,
-        };
+        let analyzer = CoreAnalyzer { metrics_enabled: true, type_inference_enabled: false };
         let debug_str = format!("{:?}", analyzer);
         assert!(debug_str.contains("CoreAnalyzer"));
         assert!(debug_str.contains("metrics_enabled"));
@@ -1450,10 +1410,7 @@ def create_map() -> Dict[str, int]:
 
     #[test]
     fn test_core_analyzer_clone() {
-        let analyzer = CoreAnalyzer {
-            metrics_enabled: false,
-            type_inference_enabled: true,
-        };
+        let analyzer = CoreAnalyzer { metrics_enabled: false, type_inference_enabled: true };
         let cloned = analyzer.clone();
         assert!(!cloned.metrics_enabled);
         assert!(cloned.type_inference_enabled);
@@ -1461,28 +1418,21 @@ def create_map() -> Dict[str, int]:
 
     #[test]
     fn test_direct_transpiler_debug() {
-        let transpiler = DirectTranspiler {
-            type_mapper: type_mapper::TypeMapper::default(),
-        };
+        let transpiler = DirectTranspiler { type_mapper: type_mapper::TypeMapper::default() };
         let debug_str = format!("{:?}", transpiler);
         assert!(debug_str.contains("DirectTranspiler"));
     }
 
     #[test]
     fn test_direct_transpiler_clone() {
-        let transpiler = DirectTranspiler {
-            type_mapper: type_mapper::TypeMapper::default(),
-        };
+        let transpiler = DirectTranspiler { type_mapper: type_mapper::TypeMapper::default() };
         let _cloned = transpiler.clone();
         // If clone compiles and runs, the test passes
     }
 
     #[test]
     fn test_property_verifier_debug() {
-        let verifier = PropertyVerifier {
-            enable_quickcheck: true,
-            enable_contracts: false,
-        };
+        let verifier = PropertyVerifier { enable_quickcheck: true, enable_contracts: false };
         let debug_str = format!("{:?}", verifier);
         assert!(debug_str.contains("PropertyVerifier"));
         assert!(debug_str.contains("enable_quickcheck"));
@@ -1490,10 +1440,7 @@ def create_map() -> Dict[str, int]:
 
     #[test]
     fn test_property_verifier_clone() {
-        let verifier = PropertyVerifier {
-            enable_quickcheck: false,
-            enable_contracts: true,
-        };
+        let verifier = PropertyVerifier { enable_quickcheck: false, enable_contracts: true };
         let cloned = verifier.clone();
         assert!(!cloned.enable_quickcheck);
         assert!(cloned.enable_contracts);
@@ -1513,11 +1460,8 @@ def create_map() -> Dict[str, int]:
 
     #[test]
     fn test_validation_result_clone() {
-        let result = ValidationResult {
-            is_valid: true,
-            errors: vec![],
-            warnings: vec!["warn".to_string()],
-        };
+        let result =
+            ValidationResult { is_valid: true, errors: vec![], warnings: vec!["warn".to_string()] };
         let cloned = result.clone();
         assert!(cloned.is_valid);
         assert_eq!(cloned.warnings.len(), 1);

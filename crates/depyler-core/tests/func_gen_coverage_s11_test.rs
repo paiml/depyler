@@ -15,10 +15,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -39,11 +37,7 @@ def find_index(items: list, target: int) -> int:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_index"),
-        "Should handle loop-escaping var. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_index"), "Should handle loop-escaping var. Got: {}", result);
 }
 
 #[test]
@@ -58,11 +52,7 @@ def sum_until(items: list, limit: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sum_until"),
-        "Should hoist loop var. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sum_until"), "Should hoist loop var. Got: {}", result);
 }
 
 #[test]
@@ -77,11 +67,7 @@ def count_down(n: int) -> int:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_down"),
-        "Should handle while var. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_down"), "Should handle while var. Got: {}", result);
 }
 
 // ============================================================================
@@ -95,11 +81,7 @@ def auto_int():
     return 42
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn auto_int"),
-        "Should infer int return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn auto_int"), "Should infer int return. Got: {}", result);
 }
 
 #[test]
@@ -109,11 +91,7 @@ def auto_str():
     return "hello"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn auto_str"),
-        "Should infer str return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn auto_str"), "Should infer str return. Got: {}", result);
 }
 
 #[test]
@@ -123,11 +101,7 @@ def auto_bool():
     return True
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn auto_bool"),
-        "Should infer bool return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn auto_bool"), "Should infer bool return. Got: {}", result);
 }
 
 #[test]
@@ -137,11 +111,7 @@ def auto_list():
     return [1, 2, 3]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn auto_list"),
-        "Should infer list return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn auto_list"), "Should infer list return. Got: {}", result);
 }
 
 #[test]
@@ -156,11 +126,7 @@ def classify(x: int) -> str:
         return "zero"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn classify"),
-        "Should handle multiple returns. Got: {}",
-        result
-    );
+    assert!(result.contains("fn classify"), "Should handle multiple returns. Got: {}", result);
 }
 
 // ============================================================================
@@ -176,11 +142,7 @@ def outer(x: int) -> int:
     return inner(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn outer"),
-        "Should transpile nested func. Got: {}",
-        result
-    );
+    assert!(result.contains("fn outer"), "Should transpile nested func. Got: {}", result);
 }
 
 #[test]
@@ -192,11 +154,7 @@ def make_adder(n: int) -> int:
     return add(10)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn make_adder"),
-        "Should transpile closure. Got: {}",
-        result
-    );
+    assert!(result.contains("fn make_adder"), "Should transpile closure. Got: {}", result);
 }
 
 // ============================================================================
@@ -210,11 +168,7 @@ def inc(x: int, step: int = 1) -> int:
     return x + step
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn inc"),
-        "Should handle default int param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn inc"), "Should handle default int param. Got: {}", result);
 }
 
 #[test]
@@ -224,11 +178,7 @@ def greet(name: str = "World") -> str:
     return f"Hello, {name}!"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn greet"),
-        "Should handle default str param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn greet"), "Should handle default str param. Got: {}", result);
 }
 
 #[test]
@@ -239,11 +189,7 @@ def log(msg: str, verbose: bool = False) -> None:
         print(msg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn log"),
-        "Should handle default bool param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn log"), "Should handle default bool param. Got: {}", result);
 }
 
 #[test]
@@ -274,11 +220,7 @@ def compute(a: int, b: int) -> int:
     return z
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn compute"),
-        "Should handle multiple assignments. Got: {}",
-        result
-    );
+    assert!(result.contains("fn compute"), "Should handle multiple assignments. Got: {}", result);
 }
 
 #[test]
@@ -290,11 +232,7 @@ def safe_divide(a: float, b: float) -> float:
     return a / b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_divide"),
-        "Should handle early return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_divide"), "Should handle early return. Got: {}", result);
 }
 
 #[test]
@@ -304,11 +242,7 @@ def do_nothing() -> None:
     pass
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn do_nothing"),
-        "Should handle void return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn do_nothing"), "Should handle void return. Got: {}", result);
 }
 
 #[test]
@@ -335,11 +269,7 @@ def factorial(n: int) -> int:
     return n * factorial(n - 1)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn factorial"),
-        "Should handle recursion. Got: {}",
-        result
-    );
+    assert!(result.contains("fn factorial"), "Should handle recursion. Got: {}", result);
 }
 
 #[test]
@@ -350,11 +280,7 @@ def documented(x: int) -> int:
     return x * 2
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn documented"),
-        "Should handle docstring. Got: {}",
-        result
-    );
+    assert!(result.contains("fn documented"), "Should handle docstring. Got: {}", result);
 }
 
 // ============================================================================
@@ -372,11 +298,7 @@ def flatten(matrix: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn flatten"),
-        "Should handle nested loops. Got: {}",
-        result
-    );
+    assert!(result.contains("fn flatten"), "Should handle nested loops. Got: {}", result);
 }
 
 #[test]
@@ -389,11 +311,7 @@ def safe_parse(s: str) -> int:
         return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_parse"),
-        "Should handle try/except. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_parse"), "Should handle try/except. Got: {}", result);
 }
 
 #[test]
@@ -404,11 +322,7 @@ def read_file(path: str) -> str:
         return f.read()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn read_file"),
-        "Should handle with. Got: {}",
-        result
-    );
+    assert!(result.contains("fn read_file"), "Should handle with. Got: {}", result);
 }
 
 #[test]
@@ -421,11 +335,7 @@ def accumulate(items: list) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn accumulate"),
-        "Should handle augmented assign. Got: {}",
-        result
-    );
+    assert!(result.contains("fn accumulate"), "Should handle augmented assign. Got: {}", result);
 }
 
 #[test]
@@ -439,9 +349,5 @@ def validate(name: str, age: int) -> bool:
     return True
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn validate"),
-        "Should handle complex conditions. Got: {}",
-        result
-    );
+    assert!(result.contains("fn validate"), "Should handle complex conditions. Got: {}", result);
 }

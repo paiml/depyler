@@ -332,12 +332,7 @@ def test_{}(items: list[int], i: int, x: int) -> list[int]:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", name, result.err());
     }
 }
 

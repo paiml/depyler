@@ -87,10 +87,7 @@ def triple_combine(a: list[int], b: list[int], c: list[int]) -> list[int]:
     let result = pipeline.transpile(python_code);
 
     // Should handle 3 iterables (izip3 pattern)
-    assert!(
-        result.is_ok() || result.is_err(),
-        "Map with 3 iterables handled"
-    );
+    assert!(result.is_ok() || result.is_err(), "Map with 3 iterables handled");
 }
 
 // ============================================================================
@@ -417,10 +414,7 @@ def get_constant_function():
     let result = pipeline.transpile(python_code);
 
     // Should handle parameterless lambda
-    assert!(
-        result.is_ok() || result.is_err(),
-        "Parameterless lambda handled"
-    );
+    assert!(result.is_ok() || result.is_err(), "Parameterless lambda handled");
 }
 
 /// Unit Test: F-string with only literal (no interpolation)
@@ -483,12 +477,7 @@ def test_{}_op(a: int, b: int) -> bool:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            op,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", op, result.err());
     }
 }
 
@@ -521,12 +510,7 @@ def test_{}_op(value: int) -> int:
 
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", name, result.err());
     }
 }
 

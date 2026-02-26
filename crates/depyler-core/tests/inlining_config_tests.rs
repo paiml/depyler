@@ -45,82 +45,55 @@ fn test_config_default_inline_loops() {
 
 #[test]
 fn test_config_custom_max_inline_size_small() {
-    let config = InliningConfig {
-        max_inline_size: 5,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_size: 5, ..Default::default() };
     assert_eq!(config.max_inline_size, 5);
 }
 
 #[test]
 fn test_config_custom_max_inline_size_large() {
-    let config = InliningConfig {
-        max_inline_size: 100,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_size: 100, ..Default::default() };
     assert_eq!(config.max_inline_size, 100);
 }
 
 #[test]
 fn test_config_custom_max_inline_depth_zero() {
-    let config = InliningConfig {
-        max_inline_depth: 0,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_depth: 0, ..Default::default() };
     assert_eq!(config.max_inline_depth, 0);
 }
 
 #[test]
 fn test_config_custom_max_inline_depth_deep() {
-    let config = InliningConfig {
-        max_inline_depth: 10,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_depth: 10, ..Default::default() };
     assert_eq!(config.max_inline_depth, 10);
 }
 
 #[test]
 fn test_config_custom_disable_single_use() {
-    let config = InliningConfig {
-        inline_single_use: false,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_single_use: false, ..Default::default() };
     assert!(!config.inline_single_use);
 }
 
 #[test]
 fn test_config_custom_disable_trivial() {
-    let config = InliningConfig {
-        inline_trivial: false,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_trivial: false, ..Default::default() };
     assert!(!config.inline_trivial);
 }
 
 #[test]
 fn test_config_custom_cost_threshold_low() {
-    let config = InliningConfig {
-        cost_threshold: 0.5,
-        ..Default::default()
-    };
+    let config = InliningConfig { cost_threshold: 0.5, ..Default::default() };
     assert_eq!(config.cost_threshold, 0.5);
 }
 
 #[test]
 fn test_config_custom_cost_threshold_high() {
-    let config = InliningConfig {
-        cost_threshold: 5.0,
-        ..Default::default()
-    };
+    let config = InliningConfig { cost_threshold: 5.0, ..Default::default() };
     assert_eq!(config.cost_threshold, 5.0);
 }
 
 #[test]
 fn test_config_custom_enable_inline_loops() {
-    let config = InliningConfig {
-        inline_loops: true,
-        ..Default::default()
-    };
+    let config = InliningConfig { inline_loops: true, ..Default::default() };
     assert!(config.inline_loops);
 }
 
@@ -249,36 +222,24 @@ fn test_config_debug() {
 
 #[test]
 fn test_config_zero_cost_threshold() {
-    let config = InliningConfig {
-        cost_threshold: 0.0,
-        ..Default::default()
-    };
+    let config = InliningConfig { cost_threshold: 0.0, ..Default::default() };
     assert_eq!(config.cost_threshold, 0.0);
 }
 
 #[test]
 fn test_config_negative_cost_threshold() {
-    let config = InliningConfig {
-        cost_threshold: -1.0,
-        ..Default::default()
-    };
+    let config = InliningConfig { cost_threshold: -1.0, ..Default::default() };
     assert_eq!(config.cost_threshold, -1.0);
 }
 
 #[test]
 fn test_config_very_large_size() {
-    let config = InliningConfig {
-        max_inline_size: usize::MAX,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_size: usize::MAX, ..Default::default() };
     assert_eq!(config.max_inline_size, usize::MAX);
 }
 
 #[test]
 fn test_config_very_large_depth() {
-    let config = InliningConfig {
-        max_inline_depth: usize::MAX,
-        ..Default::default()
-    };
+    let config = InliningConfig { max_inline_depth: usize::MAX, ..Default::default() };
     assert_eq!(config.max_inline_depth, usize::MAX);
 }

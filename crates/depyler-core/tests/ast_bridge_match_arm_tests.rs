@@ -180,10 +180,7 @@ result = 42
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle assignment statements
-    assert!(
-        hir.type_aliases.len() >= 2,
-        "Should have type aliases from assignments"
-    );
+    assert!(hir.type_aliases.len() >= 2, "Should have type aliases from assignments");
 
     // If match arm deleted: assignments would be skipped
 }
@@ -221,10 +218,7 @@ Names = dict[str, str]
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle subscript type expressions
-    assert!(
-        !hir.type_aliases.is_empty(),
-        "Should have type aliases with subscripts"
-    );
+    assert!(!hir.type_aliases.is_empty(), "Should have type aliases with subscripts");
 
     // If match arm deleted: subscript types would fail
 }
@@ -258,10 +252,7 @@ Container = list[int]
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle subscript in annotated type alias
-    assert!(
-        !hir.type_aliases.is_empty(),
-        "Should have annotated type alias"
-    );
+    assert!(!hir.type_aliases.is_empty(), "Should have annotated type alias");
 }
 
 #[test]
@@ -473,10 +464,7 @@ class Service:
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
-    assert!(
-        hir.classes[0].methods.len() >= 2,
-        "Should have both methods"
-    );
+    assert!(hir.classes[0].methods.len() >= 2, "Should have both methods");
 
     // Negation ensures correct filtering logic
     // If ! deleted: logic would be inverted

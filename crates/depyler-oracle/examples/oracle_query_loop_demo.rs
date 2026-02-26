@@ -34,10 +34,7 @@ fn main() {
     println!("\nPhase 2: Oracle Query Loop");
     let mut oracle = OracleQueryLoop::with_config(config);
     println!("  - Oracle created with custom config");
-    println!(
-        "  - Default pattern path: {:?}",
-        OracleQueryLoop::default_pattern_path()
-    );
+    println!("  - Default pattern path: {:?}", OracleQueryLoop::default_pattern_path());
 
     // Phase 3: Error Code Parsing
     println!("\nPhase 3: Error Code Parsing");
@@ -72,24 +69,11 @@ fn main() {
         AutoFixResult::NoSuggestion => {
             println!("  - Result: NoSuggestion (no patterns loaded in demo)");
         }
-        AutoFixResult::Success {
-            pattern_id,
-            attempts,
-            ..
-        } => {
-            println!(
-                "  - Result: Success with pattern {} after {} attempts",
-                pattern_id, attempts
-            );
+        AutoFixResult::Success { pattern_id, attempts, .. } => {
+            println!("  - Result: Success with pattern {} after {} attempts", pattern_id, attempts);
         }
-        AutoFixResult::Exhausted {
-            error_code,
-            attempts,
-        } => {
-            println!(
-                "  - Result: Exhausted {} attempts for {}",
-                attempts, error_code
-            );
+        AutoFixResult::Exhausted { error_code, attempts } => {
+            println!("  - Result: Exhausted {} attempts for {}", attempts, error_code);
         }
     }
 

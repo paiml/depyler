@@ -4,8 +4,8 @@
 //! of Python code and its transpiled Rust equivalent, helping developers understand
 //! performance improvements and bottlenecks.
 
-use depyler_hir::hir::{HirExpr, HirFunction, HirProgram, HirStmt};
 use colored::Colorize;
+use depyler_hir::hir::{HirExpr, HirFunction, HirProgram, HirStmt};
 use std::collections::HashMap;
 
 /// Profiling configuration and results collector
@@ -134,12 +134,7 @@ pub enum AnnotationKind {
 
 impl Profiler {
     pub fn new(config: ProfileConfig) -> Self {
-        Self {
-            config,
-            metrics: HashMap::new(),
-            hot_paths: Vec::new(),
-            predictions: Vec::new(),
-        }
+        Self { config, metrics: HashMap::new(), hot_paths: Vec::new(), predictions: Vec::new() }
     }
 
     /// Analyze a program for profiling insights
@@ -218,11 +213,9 @@ impl Profiler {
             HirStmt::Expr(expr) => self.analyze_expr_stmt(expr),
             HirStmt::Return(Some(expr)) => self.analyze_return_with_value(expr),
             HirStmt::Return(None) => (1, 0, 1.0),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => self.analyze_if(condition, then_body, else_body.as_deref(), loop_depth),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if(condition, then_body, else_body.as_deref(), loop_depth)
+            }
             HirStmt::While { condition, body } => self.analyze_while(condition, body, loop_depth),
             HirStmt::For { iter, body, .. } => self.analyze_for(iter, body, loop_depth),
             _ => (1, 0, 1.0),
@@ -281,11 +274,7 @@ impl Profiler {
         let (cond_inst, cond_alloc) = self.analyze_expr(condition);
         let (body_inst, body_alloc) = self.analyze_body(body, loop_depth + 1);
         let loop_factor = 10.0_f64.powi(loop_depth as i32);
-        (
-            cond_inst + (body_inst * 10),
-            cond_alloc + (body_alloc * 10),
-            loop_factor,
-        )
+        (cond_inst + (body_inst * 10), cond_alloc + (body_alloc * 10), loop_factor)
     }
 
     fn analyze_for(
@@ -297,11 +286,7 @@ impl Profiler {
         let (iter_inst, iter_alloc) = self.analyze_expr(iter);
         let (body_inst, body_alloc) = self.analyze_body(body, loop_depth + 1);
         let loop_factor = 10.0_f64.powi(loop_depth as i32);
-        (
-            iter_inst + (body_inst * 10),
-            iter_alloc + (body_alloc * 10),
-            loop_factor,
-        )
+        (iter_inst + (body_inst * 10), iter_alloc + (body_alloc * 10), loop_factor)
     }
 
     fn analyze_body(&self, body: &[HirStmt], loop_depth: usize) -> (usize, usize) {
@@ -321,12 +306,8 @@ impl Profiler {
 
     fn detect_hot_paths(&mut self, _program: &HirProgram) {
         // Find functions that consume > 10% of time
-        let hot_functions: Vec<_> = self
-            .metrics
-            .values()
-            .filter(|m| m.is_hot)
-            .map(|m| m.name.clone())
-            .collect();
+        let hot_functions: Vec<_> =
+            self.metrics.values().filter(|m| m.is_hot).map(|m| m.name.clone()).collect();
 
         // For now, create simple hot paths from hot functions
         for func_name in hot_functions {
@@ -391,11 +372,7 @@ impl Profiler {
 
     fn count_type_checks_in_stmt(&self, stmt: &HirStmt) -> usize {
         match stmt {
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 let mut count = 0;
                 if self.is_type_check_expr(condition) {
                     count += 1;
@@ -534,9 +511,7 @@ impl ProfilingReport {
         output.push_str(&format!("{}\n", "Function Metrics".bold()));
         let mut sorted_metrics: Vec<_> = self.metrics.values().collect();
         sorted_metrics.sort_by(|a, b| {
-            b.time_percentage
-                .partial_cmp(&a.time_percentage)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.time_percentage.partial_cmp(&a.time_percentage).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         for metrics in sorted_metrics.iter().take(10) {
@@ -597,11 +572,8 @@ impl ProfilingReport {
 
     /// Generate perf-compatible annotations
     pub fn generate_perf_annotations(&self) -> String {
-        let annotations: Vec<String> = self
-            .annotations
-            .iter()
-            .map(|annotation| self.format_annotation(annotation))
-            .collect();
+        let annotations: Vec<String> =
+            self.annotations.iter().map(|annotation| self.format_annotation(annotation)).collect();
         annotations.join("\n")
     }
 
@@ -810,12 +782,8 @@ mod tests {
 
     #[test]
     fn test_hot_path_debug() {
-        let path = HotPath {
-            call_chain: vec![],
-            time_percentage: 0.0,
-            loop_depth: 0,
-            has_io: false,
-        };
+        let path =
+            HotPath { call_chain: vec![], time_percentage: 0.0, loop_depth: 0, has_io: false };
         let debug = format!("{:?}", path);
         assert!(debug.contains("HotPath"));
     }
@@ -974,11 +942,7 @@ mod tests {
     #[test]
     fn test_profiler_empty_program() {
         let mut profiler = Profiler::new(ProfileConfig::default());
-        let program = HirProgram {
-            functions: vec![],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
         let report = profiler.analyze_program(&program);
         assert!(report.metrics.is_empty());
         assert_eq!(report.total_instructions, 0);
@@ -1000,11 +964,7 @@ mod tests {
             ],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert_eq!(report.metrics.len(), 1);
@@ -1028,11 +988,7 @@ mod tests {
             }],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         let metrics = report.metrics.get("with_loop").unwrap();
@@ -1051,11 +1007,7 @@ mod tests {
             }],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(report.metrics.contains_key("with_while"));
@@ -1070,17 +1022,11 @@ mod tests {
             vec![HirStmt::If {
                 condition: HirExpr::Literal(Literal::Bool(true)),
                 then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                    0,
-                ))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
             }],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(report.metrics.contains_key("with_if"));
@@ -1088,10 +1034,8 @@ mod tests {
 
     #[test]
     fn test_hot_path_detection() {
-        let mut profiler = Profiler::new(ProfileConfig {
-            detect_hot_paths: true,
-            ..Default::default()
-        });
+        let mut profiler =
+            Profiler::new(ProfileConfig { detect_hot_paths: true, ..Default::default() });
 
         // Create a function that will be "hot" (high percentage of time)
         let func = create_test_function(
@@ -1119,11 +1063,7 @@ mod tests {
             }],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(!report.hot_paths.is_empty());
@@ -1131,17 +1071,11 @@ mod tests {
 
     #[test]
     fn test_hot_path_disabled() {
-        let mut profiler = Profiler::new(ProfileConfig {
-            detect_hot_paths: false,
-            ..Default::default()
-        });
+        let mut profiler =
+            Profiler::new(ProfileConfig { detect_hot_paths: false, ..Default::default() });
 
         let func = create_test_function("test", vec![]);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(report.hot_paths.is_empty());
@@ -1157,10 +1091,7 @@ mod tests {
             vec![HirStmt::If {
                 condition: HirExpr::Call {
                     func: "isinstance".to_string(),
-                    args: vec![
-                        HirExpr::Var("x".to_string()),
-                        HirExpr::Var("int".to_string()),
-                    ],
+                    args: vec![HirExpr::Var("x".to_string()), HirExpr::Var("int".to_string())],
                     kwargs: vec![],
                 },
                 then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
@@ -1168,11 +1099,7 @@ mod tests {
             }],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(!report.predictions.is_empty());
@@ -1197,11 +1124,7 @@ mod tests {
             }],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(report
@@ -1215,11 +1138,7 @@ mod tests {
         let mut profiler = Profiler::new(ProfileConfig::default());
 
         let func = create_test_function("empty", vec![]);
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert!(report
@@ -1239,11 +1158,7 @@ mod tests {
             vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
         );
 
-        let program = HirProgram {
-            functions: vec![func],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![func], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         let formatted = report.format_report();
@@ -1493,16 +1408,11 @@ mod tests {
         let mut profiler = Profiler::new(ProfileConfig::default());
 
         let func1 = create_test_function("func1", vec![HirStmt::Return(None)]);
-        let func2 = create_test_function(
-            "func2",
-            vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(1)))],
-        );
+        let func2 =
+            create_test_function("func2", vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(1)))]);
 
-        let program = HirProgram {
-            functions: vec![func1, func2],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program =
+            HirProgram { functions: vec![func1, func2], classes: vec![], imports: vec![] };
 
         let report = profiler.analyze_program(&program);
         assert_eq!(report.metrics.len(), 2);
@@ -1515,33 +1425,21 @@ mod tests {
     #[test]
     fn test_type_check_isinstance() {
         let profiler = Profiler::new(ProfileConfig::default());
-        let expr = HirExpr::Call {
-            func: "isinstance".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "isinstance".to_string(), args: vec![], kwargs: vec![] };
         assert!(profiler.is_type_check_expr(&expr));
     }
 
     #[test]
     fn test_type_check_type() {
         let profiler = Profiler::new(ProfileConfig::default());
-        let expr = HirExpr::Call {
-            func: "type".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "type".to_string(), args: vec![], kwargs: vec![] };
         assert!(profiler.is_type_check_expr(&expr));
     }
 
     #[test]
     fn test_not_type_check() {
         let profiler = Profiler::new(ProfileConfig::default());
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!profiler.is_type_check_expr(&expr));
     }
 
@@ -1571,9 +1469,7 @@ mod tests {
         );
 
         let annotations = profiler.generate_annotations();
-        assert!(annotations
-            .iter()
-            .any(|a| matches!(a.kind, AnnotationKind::TimingProbe)));
+        assert!(annotations.iter().any(|a| matches!(a.kind, AnnotationKind::TimingProbe)));
     }
 
     #[test]
@@ -1593,8 +1489,6 @@ mod tests {
         );
 
         let annotations = profiler.generate_annotations();
-        assert!(annotations
-            .iter()
-            .any(|a| matches!(a.kind, AnnotationKind::AllocationCounter)));
+        assert!(annotations.iter().any(|a| matches!(a.kind, AnnotationKind::AllocationCounter)));
     }
 }

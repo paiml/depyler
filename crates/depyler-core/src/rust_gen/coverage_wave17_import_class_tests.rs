@@ -25,10 +25,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -106,25 +104,32 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_012_from_collections_import_defaultdict() {
-        let result = transpile("from collections import defaultdict\ndef make_dd() -> dict:\n    return {}\n");
+        let result = transpile(
+            "from collections import defaultdict\ndef make_dd() -> dict:\n    return {}\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_013_from_collections_import_counter() {
-        let result = transpile("from collections import Counter\ndef count_items() -> dict:\n    return {}\n");
+        let result = transpile(
+            "from collections import Counter\ndef count_items() -> dict:\n    return {}\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_014_from_typing_import_list() {
-        let result = transpile("from typing import List\ndef get_items() -> List[int]:\n    return [1, 2, 3]\n");
+        let result = transpile(
+            "from typing import List\ndef get_items() -> List[int]:\n    return [1, 2, 3]\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_015_from_typing_import_dict() {
-        let result = transpile("from typing import Dict\ndef get_map() -> Dict[str, int]:\n    return {}\n");
+        let result =
+            transpile("from typing import Dict\ndef get_map() -> Dict[str, int]:\n    return {}\n");
         assert!(!result.is_empty());
     }
 
@@ -136,13 +141,16 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_017_from_typing_import_tuple() {
-        let result = transpile("from typing import Tuple\ndef pair() -> Tuple[int, int]:\n    return (1, 2)\n");
+        let result = transpile(
+            "from typing import Tuple\ndef pair() -> Tuple[int, int]:\n    return (1, 2)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_018_from_typing_import_set() {
-        let result = transpile("from typing import Set\ndef unique() -> Set[int]:\n    return {1, 2, 3}\n");
+        let result =
+            transpile("from typing import Set\ndef unique() -> Set[int]:\n    return {1, 2, 3}\n");
         assert!(!result.is_empty());
     }
 
@@ -154,25 +162,31 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_020_from_typing_import_multiple() {
-        let result = transpile("from typing import List, Dict, Optional\ndef func() -> int:\n    return 0\n");
+        let result = transpile(
+            "from typing import List, Dict, Optional\ndef func() -> int:\n    return 0\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_021_from_datetime_import_date() {
-        let result = transpile("from datetime import date\ndef today_str() -> str:\n    return \"2024-01-01\"\n");
+        let result = transpile(
+            "from datetime import date\ndef today_str() -> str:\n    return \"2024-01-01\"\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_022_from_datetime_import_time() {
-        let result = transpile("from datetime import time\ndef noon_str() -> str:\n    return \"12:00\"\n");
+        let result =
+            transpile("from datetime import time\ndef noon_str() -> str:\n    return \"12:00\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_023_from_datetime_import_timedelta() {
-        let result = transpile("from datetime import timedelta\ndef one_day() -> int:\n    return 86400\n");
+        let result =
+            transpile("from datetime import timedelta\ndef one_day() -> int:\n    return 86400\n");
         assert!(!result.is_empty());
     }
 
@@ -190,61 +204,74 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_026_from_os_path_import_join() {
-        let result = transpile("from os.path import join\ndef build_path() -> str:\n    return \"a/b\"\n");
+        let result =
+            transpile("from os.path import join\ndef build_path() -> str:\n    return \"a/b\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_027_from_os_path_import_exists() {
-        let result = transpile("from os.path import exists\ndef check() -> bool:\n    return False\n");
+        let result =
+            transpile("from os.path import exists\ndef check() -> bool:\n    return False\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_028_from_os_path_import_dirname() {
-        let result = transpile("from os.path import dirname\ndef parent() -> str:\n    return \"/home\"\n");
+        let result =
+            transpile("from os.path import dirname\ndef parent() -> str:\n    return \"/home\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_029_from_os_path_import_multiple() {
-        let result = transpile("from os.path import join, exists, dirname\ndef noop() -> None:\n    pass\n");
+        let result =
+            transpile("from os.path import join, exists, dirname\ndef noop() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_030_wildcard_from_typing() {
-        let result = transpile("from typing import *\ndef typed_fn(x: int) -> int:\n    return x\n");
+        let result =
+            transpile("from typing import *\ndef typed_fn(x: int) -> int:\n    return x\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_031_combined_imports_function() {
-        let result = transpile("import math\nimport os\ndef compute(x: float) -> float:\n    return x * 2.0\n");
+        let result = transpile(
+            "import math\nimport os\ndef compute(x: float) -> float:\n    return x * 2.0\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_032_from_math_import_sqrt() {
-        let result = transpile("from math import sqrt\ndef root(x: float) -> float:\n    return sqrt(x)\n");
+        let result =
+            transpile("from math import sqrt\ndef root(x: float) -> float:\n    return sqrt(x)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_033_from_math_import_floor_ceil() {
-        let result = transpile("from math import floor, ceil\ndef round_down(x: float) -> int:\n    return floor(x)\n");
+        let result = transpile(
+            "from math import floor, ceil\ndef round_down(x: float) -> int:\n    return floor(x)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_034_from_local_module_import() {
-        let result = transpile("from my_module import helper\ndef run() -> int:\n    return helper()\n");
+        let result =
+            transpile("from my_module import helper\ndef run() -> int:\n    return helper()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_035_from_local_module_import_multiple() {
-        let result = transpile("from my_utils import parse, validate\ndef process() -> bool:\n    return True\n");
+        let result = transpile(
+            "from my_utils import parse, validate\ndef process() -> bool:\n    return True\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -280,19 +307,22 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_041_from_functools_import_reduce() {
-        let result = transpile("from functools import reduce\ndef total(lst: list) -> int:\n    return 0\n");
+        let result =
+            transpile("from functools import reduce\ndef total(lst: list) -> int:\n    return 0\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_042_from_itertools_import_chain() {
-        let result = transpile("from itertools import chain\ndef merge() -> list:\n    return []\n");
+        let result =
+            transpile("from itertools import chain\ndef merge() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_043_from_collections_import_deque() {
-        let result = transpile("from collections import deque\ndef make_queue() -> list:\n    return []\n");
+        let result =
+            transpile("from collections import deque\ndef make_queue() -> list:\n    return []\n");
         assert!(!result.is_empty());
     }
 
@@ -304,19 +334,23 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_045_three_imports() {
-        let result = transpile("import os\nimport sys\nimport json\ndef noop() -> None:\n    pass\n");
+        let result =
+            transpile("import os\nimport sys\nimport json\ndef noop() -> None:\n    pass\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_046_mixed_import_and_from() {
-        let result = transpile("import math\nfrom typing import List\ndef nums() -> List[int]:\n    return [1]\n");
+        let result = transpile(
+            "import math\nfrom typing import List\ndef nums() -> List[int]:\n    return [1]\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_047_from_typing_import_any() {
-        let result = transpile("from typing import Any\ndef accept(x: Any) -> str:\n    return str(x)\n");
+        let result =
+            transpile("from typing import Any\ndef accept(x: Any) -> str:\n    return str(x)\n");
         assert!(!result.is_empty());
     }
 
@@ -328,13 +362,17 @@ mod tests {
 
     #[test]
     fn test_w17ic_import_049_from_collections_import_ordereddict() {
-        let result = transpile("from collections import OrderedDict\ndef ordered() -> dict:\n    return {}\n");
+        let result = transpile(
+            "from collections import OrderedDict\ndef ordered() -> dict:\n    return {}\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_import_050_aliased_from_import() {
-        let result = transpile("from collections import defaultdict as dd\ndef make() -> dict:\n    return {}\n");
+        let result = transpile(
+            "from collections import defaultdict as dd\ndef make() -> dict:\n    return {}\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -350,14 +388,17 @@ mod tests {
 
     #[test]
     fn test_w17ic_class_052_init_single_int() {
-        let result = transpile("class Box:\n    def __init__(self, size: int):\n        self.size = size\n");
+        let result =
+            transpile("class Box:\n    def __init__(self, size: int):\n        self.size = size\n");
         assert!(!result.is_empty());
         assert!(result.contains("struct") || result.contains("fn"));
     }
 
     #[test]
     fn test_w17ic_class_053_init_single_str() {
-        let result = transpile("class Label:\n    def __init__(self, text: str):\n        self.text = text\n");
+        let result = transpile(
+            "class Label:\n    def __init__(self, text: str):\n        self.text = text\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -525,7 +566,9 @@ mod tests {
 
     #[test]
     fn test_w17ic_class_081_default_param_bool() {
-        let result = transpile("class Switch:\n    def __init__(self, on: bool = False):\n        self.on = on\n");
+        let result = transpile(
+            "class Switch:\n    def __init__(self, on: bool = False):\n        self.on = on\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -710,7 +753,9 @@ mod tests {
 
     #[test]
     fn test_w17ic_format_111_fstring_multi_expr() {
-        let result = transpile("def full_name(first: str, last: str) -> str:\n    return f\"{first} {last}\"\n");
+        let result = transpile(
+            "def full_name(first: str, last: str) -> str:\n    return f\"{first} {last}\"\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -734,25 +779,30 @@ mod tests {
 
     #[test]
     fn test_w17ic_format_115_fstring_nested_ternary() {
-        let result = transpile("def label(x: int) -> str:\n    return f\"{'yes' if x > 0 else 'no'}\"\n");
+        let result =
+            transpile("def label(x: int) -> str:\n    return f\"{'yes' if x > 0 else 'no'}\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_format_116_format_method_single() {
-        let result = transpile("def greet(name: str) -> str:\n    return \"Hello, {}\".format(name)\n");
+        let result =
+            transpile("def greet(name: str) -> str:\n    return \"Hello, {}\".format(name)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_format_117_format_method_two_args() {
-        let result = transpile("def pair(a: str, b: str) -> str:\n    return \"{} and {}\".format(a, b)\n");
+        let result =
+            transpile("def pair(a: str, b: str) -> str:\n    return \"{} and {}\".format(a, b)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_format_118_format_method_indexed() {
-        let result = transpile("def order(a: str, b: str) -> str:\n    return \"{0} then {1}\".format(a, b)\n");
+        let result = transpile(
+            "def order(a: str, b: str) -> str:\n    return \"{0} then {1}\".format(a, b)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -776,13 +826,15 @@ mod tests {
 
     #[test]
     fn test_w17ic_format_122_string_concat_three() {
-        let result = transpile("def join_three(a: str, b: str, c: str) -> str:\n    return a + b + c\n");
+        let result =
+            transpile("def join_three(a: str, b: str, c: str) -> str:\n    return a + b + c\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w17ic_format_123_string_concat_literal() {
-        let result = transpile("def hello_world() -> str:\n    return \"hello\" + \" \" + \"world\"\n");
+        let result =
+            transpile("def hello_world() -> str:\n    return \"hello\" + \" \" + \"world\"\n");
         assert!(!result.is_empty());
     }
 
@@ -854,7 +906,9 @@ mod tests {
 
     #[test]
     fn test_w17ic_format_135_fstring_assign_to_var() {
-        let result = transpile("def make_msg(x: int) -> str:\n    s: str = f\"value is {x}\"\n    return s\n");
+        let result = transpile(
+            "def make_msg(x: int) -> str:\n    s: str = f\"value is {x}\"\n    return s\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -932,7 +986,8 @@ mod tests {
 
     #[test]
     fn test_w17ic_format_148_fstring_with_newline_escape() {
-        let result = transpile("def multi_line(a: str, b: str) -> str:\n    return f\"{a}\\n{b}\"\n");
+        let result =
+            transpile("def multi_line(a: str, b: str) -> str:\n    return f\"{a}\\n{b}\"\n");
         assert!(!result.is_empty());
     }
 
@@ -978,7 +1033,8 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_155_raise_type_error() {
-        let result = transpile("def check_type(x: int) -> None:\n    raise TypeError(\"wrong type\")\n");
+        let result =
+            transpile("def check_type(x: int) -> None:\n    raise TypeError(\"wrong type\")\n");
         assert!(!result.is_empty());
     }
 
@@ -1002,7 +1058,9 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_159_try_except_basic() {
-        let result = transpile("def safe(x: int) -> int:\n    try:\n        return x\n    except:\n        return 0\n");
+        let result = transpile(
+            "def safe(x: int) -> int:\n    try:\n        return x\n    except:\n        return 0\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1063,7 +1121,9 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_169_assert_with_message() {
-        let result = transpile("def check(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n");
+        let result = transpile(
+            "def check(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1081,7 +1141,8 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_172_raise_exception_base() {
-        let result = transpile("def fail_generic() -> None:\n    raise Exception(\"generic failure\")\n");
+        let result =
+            transpile("def fail_generic() -> None:\n    raise Exception(\"generic failure\")\n");
         assert!(!result.is_empty());
     }
 
@@ -1159,7 +1220,8 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_185_raise_attribute_error() {
-        let result = transpile("def no_attr() -> None:\n    raise AttributeError(\"no such attr\")\n");
+        let result =
+            transpile("def no_attr() -> None:\n    raise AttributeError(\"no such attr\")\n");
         assert!(!result.is_empty());
     }
 
@@ -1171,7 +1233,8 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_187_raise_file_not_found() {
-        let result = transpile("def load_file() -> None:\n    raise FileNotFoundError(\"missing\")\n");
+        let result =
+            transpile("def load_file() -> None:\n    raise FileNotFoundError(\"missing\")\n");
         assert!(!result.is_empty());
     }
 
@@ -1195,7 +1258,8 @@ mod tests {
 
     #[test]
     fn test_w17ic_error_191_assert_boolean() {
-        let result = transpile("def check_flag(flag: bool) -> bool:\n    assert flag\n    return flag\n");
+        let result =
+            transpile("def check_flag(flag: bool) -> bool:\n    assert flag\n    return flag\n");
         assert!(!result.is_empty());
     }
 

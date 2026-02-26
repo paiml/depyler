@@ -18,10 +18,7 @@ fn test_pipeline_invalid_python_syntax() {
 
     for invalid_python in invalid_cases {
         let result = pipeline.transpile(invalid_python);
-        assert!(
-            result.is_err(),
-            "Should fail for invalid Python: {invalid_python}"
-        );
+        assert!(result.is_err(), "Should fail for invalid Python: {invalid_python}");
     }
 
     // These might succeed or fail depending on parsing - just check they don't panic
@@ -187,10 +184,7 @@ fn test_error_types_creation() {
         key: "test_key".to_string(),
         value: "test_value".to_string(),
     };
-    assert!(matches!(
-        invalid_value_error,
-        AnnotationError::InvalidValue { .. }
-    ));
+    assert!(matches!(invalid_value_error, AnnotationError::InvalidValue { .. }));
 
     let syntax_error = AnnotationError::InvalidSyntax("test syntax".to_string());
     assert!(matches!(syntax_error, AnnotationError::InvalidSyntax(_)));
@@ -199,24 +193,14 @@ fn test_error_types_creation() {
 #[test]
 fn test_quality_error_types() {
     // Test quality error creation
-    let gate_failed = QualityError::GateFailed {
-        gate_name: "Test Gate".to_string(),
-    };
+    let gate_failed = QualityError::GateFailed { gate_name: "Test Gate".to_string() };
     assert!(matches!(gate_failed, QualityError::GateFailed { .. }));
 
-    let metric_failed = QualityError::MetricCalculationFailed {
-        metric: "Test Metric".to_string(),
-    };
-    assert!(matches!(
-        metric_failed,
-        QualityError::MetricCalculationFailed { .. }
-    ));
+    let metric_failed = QualityError::MetricCalculationFailed { metric: "Test Metric".to_string() };
+    assert!(matches!(metric_failed, QualityError::MetricCalculationFailed { .. }));
 
     let coverage_unavailable = QualityError::CoverageUnavailable;
-    assert!(matches!(
-        coverage_unavailable,
-        QualityError::CoverageUnavailable
-    ));
+    assert!(matches!(coverage_unavailable, QualityError::CoverageUnavailable));
 }
 
 #[test]
@@ -305,10 +289,7 @@ fn test_annotation_parser_unicode() {
     assert!(result.is_ok());
 
     let annotations = result.unwrap();
-    assert_eq!(
-        annotations.type_strategy,
-        depyler_annotations::TypeStrategy::Conservative
-    );
+    assert_eq!(annotations.type_strategy, depyler_annotations::TypeStrategy::Conservative);
 }
 
 #[test]

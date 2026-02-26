@@ -119,10 +119,8 @@ impl<'a> ExprConverter<'a> {
         constructor: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         let result = match module {
             "threading" => match constructor {
@@ -341,9 +339,7 @@ impl<'a> ExprConverter<'a> {
                 "dumps" | "dump" => {
                     if self.type_mapper.nasa_mode {
                         // NASA mode: simple string format
-                        arg_exprs
-                            .first()
-                            .map(|arg| parse_quote! { format!("{:?}", #arg) })
+                        arg_exprs.first().map(|arg| parse_quote! { format!("{:?}", #arg) })
                     } else {
                         arg_exprs
                             .first()
@@ -356,9 +352,7 @@ impl<'a> ExprConverter<'a> {
                 "getcwd" => {
                     Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() })
                 }
-                "getenv" => arg_exprs
-                    .first()
-                    .map(|arg| parse_quote! { std::env::var(#arg).ok() }),
+                "getenv" => arg_exprs.first().map(|arg| parse_quote! { std::env::var(#arg).ok() }),
                 "listdir" => {
                     if let Some(arg) = arg_exprs.first() {
                         Some(
@@ -621,9 +615,8 @@ impl<'a> ExprConverter<'a> {
             let first_char = var_name.chars().next().unwrap_or('a');
             let is_type_name = first_char.is_uppercase();
             // DEPYLER-CONVERGE-MULTI: Allow digits in constant names (e.g. FP8_E4M3)
-            let is_constant = attr
-                .chars()
-                .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
+            let is_constant =
+                attr.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit());
 
             if is_type_name && is_constant {
                 let type_ident = make_ident(var_name);
@@ -662,15 +655,17 @@ impl<'a> ExprConverter<'a> {
     /// In Rust, calling a value from a HashMap requires:
     /// 1. Index access with reference: `handlers[&name]`
     /// 2. Parentheses to call the result: `(handlers[&name])(args)`
-    pub(super) fn convert_dynamic_call(&self, callee: &HirExpr, args: &[HirExpr]) -> Result<syn::Expr> {
+    pub(super) fn convert_dynamic_call(
+        &self,
+        callee: &HirExpr,
+        args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         // Convert the callee expression (e.g., handlers[name])
         let callee_expr = self.convert(callee)?;
 
         // Convert arguments
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         // Generate: (callee)(args)
         // Wrap callee in parentheses to ensure correct parsing
@@ -680,5 +675,4 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! { (#callee_expr)(#(#arg_exprs),*) })
         }
     }
-
 }

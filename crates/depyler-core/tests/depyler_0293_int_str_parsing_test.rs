@@ -13,15 +13,11 @@ def parse_number(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1125: Check only the parse_number function, not entire file
     // (PyOps trait implementations have legitimate 'as i32' casts)
-    let fn_start = rust_code
-        .find("fn parse_number")
-        .expect("Should have parse_number function");
+    let fn_start = rust_code.find("fn parse_number").expect("Should have parse_number function");
     let fn_section = &rust_code[fn_start..fn_start + 200.min(rust_code.len() - fn_start)];
 
     // Should use .parse::<i32>() with turbofish
@@ -45,19 +41,14 @@ def safe_parse_int(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .parse::<i32>() with error handling
     assert!(
         rust_code.contains(".parse::<i32>()"),
         "Should use .parse::<i32>() for int(str) in try block"
     );
-    assert!(
-        rust_code.contains("unwrap_or"),
-        "Should use unwrap_or for error handling"
-    );
+    assert!(rust_code.contains("unwrap_or"), "Should use unwrap_or for error handling");
 }
 
 #[test]
@@ -73,9 +64,7 @@ def parse_and_divide(s1: str, s2: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .parse::<i32>() for both string variables
     let parse_count = rust_code.matches(".parse::<i32>()").count();
@@ -97,9 +86,7 @@ def safe_parse_int(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file and compile
     std::fs::write("/tmp/test_depyler_0293.rs", &rust_code).expect("Failed to write test file");
@@ -127,9 +114,7 @@ def safe_parse_int(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let _rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let _rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write simple test code WITHOUT auto-generated quickcheck tests
     let test_code = r#"
@@ -181,9 +166,8 @@ mod tests {
     );
 
     // Run tests
-    let test_output = Command::new("/tmp/test_depyler_0293_behavior_bin")
-        .output()
-        .expect("Failed to run test");
+    let test_output =
+        Command::new("/tmp/test_depyler_0293_behavior_bin").output().expect("Failed to run test");
 
     assert!(
         test_output.status.success(),
@@ -200,15 +184,11 @@ def double_int(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1125: Check only the double_int function, not entire file
     // (Other parts of generated code may legitimately use .parse)
-    let fn_start = rust_code
-        .find("fn double_int")
-        .expect("Should have double_int function");
+    let fn_start = rust_code.find("fn double_int").expect("Should have double_int function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -228,9 +208,7 @@ def truncate_float(x: float) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // For float→int, should use 'as i32' cast
     assert!(
@@ -247,9 +225,7 @@ def bool_to_int(b: bool) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // For bool→int, should use 'as i32' cast
     assert!(
@@ -267,19 +243,11 @@ def parse_number(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should preserve docstring and use correct parsing
-    assert!(
-        rust_code.contains(".parse::<i32>()"),
-        "Should use .parse::<i32>() for int(str)"
-    );
-    assert!(
-        rust_code.contains("Parse a string"),
-        "Should preserve docstring"
-    );
+    assert!(rust_code.contains(".parse::<i32>()"), "Should use .parse::<i32>() for int(str)");
+    assert!(rust_code.contains("Parse a string"), "Should preserve docstring");
 }
 
 #[test]
@@ -290,9 +258,7 @@ def calculate(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .parse::<i32>() even in complex expression
     assert!(
@@ -312,9 +278,7 @@ def parse_and_call(s: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .parse::<i32>() as function argument
     assert!(

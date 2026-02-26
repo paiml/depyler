@@ -28,11 +28,7 @@ def run_command(cmd, capture=False):
         rust
     );
 
-    assert!(
-        rust.contains("capture: bool"),
-        "capture should be inferred as bool, got:\n{}",
-        rust
-    );
+    assert!(rust.contains("capture: bool"), "capture should be inferred as bool, got:\n{}", rust);
 
     assert!(
         !rust.contains("serde_json::Value"),
@@ -59,9 +55,5 @@ def get_rest(items):
     // Type inference should infer Vec<T> from indexing/slicing
     let has_vec_type = rust.contains("items: &Vec<") || rust.contains("items: Vec<");
 
-    assert!(
-        has_vec_type,
-        "items should be inferred as Vec<T>, got:\n{}",
-        rust
-    );
+    assert!(has_vec_type, "items should be inferred as Vec<T>, got:\n{}", rust);
 }

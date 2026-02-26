@@ -290,10 +290,7 @@ class Config:
         ("active", Type::Bool),
         ("optional", Type::None),
         ("items", Type::List(Box::new(Type::Unknown))),
-        (
-            "mapping",
-            Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
-        ),
+        ("mapping", Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))),
         ("unique", Type::Set(Box::new(Type::Unknown))),
     ];
 
@@ -335,10 +332,6 @@ class Config:
     // The field may exist with Unknown type, or may not exist at all
     // Both are acceptable behaviors for complex expressions
     if let Some(field) = class.fields.iter().find(|f| f.name == "computed") {
-        assert_eq!(
-            field.field_type,
-            Type::Unknown,
-            "Complex expression should be Unknown type"
-        );
+        assert_eq!(field.field_type, Type::Unknown, "Complex expression should be Unknown type");
     }
 }

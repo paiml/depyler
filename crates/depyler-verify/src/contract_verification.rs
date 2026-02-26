@@ -34,11 +34,7 @@ pub struct PreconditionRule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Predicate {
     /// Variable comparison: var op value
-    Compare {
-        var: String,
-        op: CompareOp,
-        value: Value,
-    },
+    Compare { var: String, op: CompareOp, value: Value },
     /// Logical AND of predicates
     And(Box<Predicate>, Box<Predicate>),
     /// Logical OR of predicates
@@ -48,17 +44,9 @@ pub enum Predicate {
     /// Implies: p1 => p2
     Implies(Box<Predicate>, Box<Predicate>),
     /// For all quantifier
-    ForAll {
-        var: String,
-        domain: String,
-        pred: Box<Predicate>,
-    },
+    ForAll { var: String, domain: String, pred: Box<Predicate> },
     /// Exists quantifier
-    Exists {
-        var: String,
-        domain: String,
-        pred: Box<Predicate>,
-    },
+    Exists { var: String, domain: String, pred: Box<Predicate> },
     /// Custom predicate function
     Custom { name: String, args: Vec<String> },
     /// Array/list bounds check
@@ -121,19 +109,9 @@ pub struct PostconditionVerifier {
 /// Side effects that need verification
 #[derive(Debug, Clone)]
 pub enum SideEffect {
-    StateChange {
-        var: String,
-        old_value: Value,
-        new_value: Value,
-    },
-    ArrayModification {
-        array: String,
-        index: String,
-    },
-    ExternalCall {
-        func: String,
-        args: Vec<String>,
-    },
+    StateChange { var: String, old_value: Value, new_value: Value },
+    ArrayModification { array: String, index: String },
+    ExternalCall { func: String, args: Vec<String> },
 }
 
 /// Invariant checking framework
@@ -264,11 +242,7 @@ impl PreconditionChecker {
                 Predicate::NotNull(var.clone())
             } else if let Some(op) = parse_compare_op(op_str) {
                 if let Some(value) = parse_value(&value_str) {
-                    Predicate::Compare {
-                        var: var.clone(),
-                        op,
-                        value,
-                    }
+                    Predicate::Compare { var: var.clone(), op, value }
                 } else {
                     return None;
                 }
@@ -383,11 +357,7 @@ impl PreconditionChecker {
                 // Would check if variable can be proven non-null
                 PredicateResult::Unknown
             }
-            Predicate::Compare {
-                var: _,
-                op: _,
-                value: _,
-            } => {
+            Predicate::Compare { var: _, op: _, value: _ } => {
                 // Would use SMT solver to verify comparison
                 PredicateResult::Unknown
             }
@@ -406,16 +376,10 @@ impl PreconditionChecker {
                 format!("Add null check at function start: if {} is None: raise ValueError('{}cannot be None')", var, var)
             }
             Predicate::Compare { var, op, value } => {
-                format!(
-                    "Add validation: if not ({} {:?} {:?}): raise ValueError",
-                    var, op, value
-                )
+                format!("Add validation: if not ({} {:?} {:?}): raise ValueError", var, op, value)
             }
             Predicate::InBounds { array, index } => {
-                format!(
-                    "Add bounds check: if {} >= len({}): raise IndexError",
-                    index, array
-                )
+                format!("Add bounds check: if {} >= len({}): raise IndexError", index, array)
             }
             _ => "Add appropriate validation for this condition".to_string(),
         }
@@ -526,11 +490,7 @@ impl PostconditionVerifier {
         if parts.len() >= 3 && parts[0] == "result" {
             if let Some(op) = parse_compare_op(parts[1]) {
                 if let Some(value) = parse_value(&parts[2..].join(" ")) {
-                    return Some(Predicate::Compare {
-                        var: "result".to_string(),
-                        op,
-                        value,
-                    });
+                    return Some(Predicate::Compare { var: "result".to_string(), op, value });
                 }
             }
         }
@@ -677,10 +637,7 @@ impl ContractInheritance {
 
     /// Add inheritance relationship
     pub fn add_inheritance(&mut self, derived: String, base: String) {
-        self.inheritance_chains
-            .entry(derived)
-            .or_default()
-            .push(base);
+        self.inheritance_chains.entry(derived).or_default().push(base);
     }
 
     /// Get inherited contract for a function
@@ -718,14 +675,10 @@ impl ContractInheritance {
         }
 
         // Strengthen postconditions (must guarantee more)
-        refined
-            .postconditions
-            .extend(refinement.strengthened_postconditions.clone());
+        refined.postconditions.extend(refinement.strengthened_postconditions.clone());
 
         // Add additional invariants
-        refined
-            .invariants
-            .extend(refinement.additional_invariants.clone());
+        refined.invariants.extend(refinement.additional_invariants.clone());
 
         refined
     }
@@ -897,11 +850,8 @@ mod tests {
     fn test_predicate_to_assertion() {
         let checker = PreconditionChecker::new();
 
-        let pred = Predicate::Compare {
-            var: "x".to_string(),
-            op: CompareOp::Gt,
-            value: Value::Int(0),
-        };
+        let pred =
+            Predicate::Compare { var: "x".to_string(), op: CompareOp::Gt, value: Value::Int(0) };
 
         let assertion = checker.predicate_to_assertion(&pred);
         assert_eq!(assertion, "x > 0");
@@ -1021,25 +971,16 @@ mod tests {
         let checker = PreconditionChecker::new();
 
         // Test all comparison operators
-        let pred_lt = Predicate::Compare {
-            var: "x".to_string(),
-            op: CompareOp::Lt,
-            value: Value::Int(10),
-        };
+        let pred_lt =
+            Predicate::Compare { var: "x".to_string(), op: CompareOp::Lt, value: Value::Int(10) };
         assert_eq!(checker.predicate_to_assertion(&pred_lt), "x < 10");
 
-        let pred_ge = Predicate::Compare {
-            var: "x".to_string(),
-            op: CompareOp::Ge,
-            value: Value::Int(0),
-        };
+        let pred_ge =
+            Predicate::Compare { var: "x".to_string(), op: CompareOp::Ge, value: Value::Int(0) };
         assert_eq!(checker.predicate_to_assertion(&pred_ge), "x >= 0");
 
-        let pred_le = Predicate::Compare {
-            var: "y".to_string(),
-            op: CompareOp::Le,
-            value: Value::Int(100),
-        };
+        let pred_le =
+            Predicate::Compare { var: "y".to_string(), op: CompareOp::Le, value: Value::Int(100) };
         assert_eq!(checker.predicate_to_assertion(&pred_le), "y <= 100");
 
         let pred_eq = Predicate::Compare {
@@ -1049,11 +990,8 @@ mod tests {
         };
         assert_eq!(checker.predicate_to_assertion(&pred_eq), "name == \"test\"");
 
-        let pred_ne = Predicate::Compare {
-            var: "val".to_string(),
-            op: CompareOp::Ne,
-            value: Value::Null,
-        };
+        let pred_ne =
+            Predicate::Compare { var: "val".to_string(), op: CompareOp::Ne, value: Value::Null };
         assert_eq!(checker.predicate_to_assertion(&pred_ne), "val != None");
     }
 
@@ -1162,10 +1100,8 @@ mod tests {
     fn test_predicate_custom() {
         let checker = PreconditionChecker::new();
 
-        let custom = Predicate::Custom {
-            name: "is_sorted".to_string(),
-            args: vec!["items".to_string()],
-        };
+        let custom =
+            Predicate::Custom { name: "is_sorted".to_string(), args: vec!["items".to_string()] };
         let assertion = checker.predicate_to_assertion(&custom);
         // Custom falls through to default "true" case in current implementation
         assert_eq!(assertion, "true");
@@ -1175,10 +1111,7 @@ mod tests {
     fn test_predicate_in_bounds() {
         let checker = PreconditionChecker::new();
 
-        let in_bounds = Predicate::InBounds {
-            array: "arr".to_string(),
-            index: "i".to_string(),
-        };
+        let in_bounds = Predicate::InBounds { array: "arr".to_string(), index: "i".to_string() };
         let assertion = checker.predicate_to_assertion(&in_bounds);
         assert!(assertion.contains("arr") && assertion.contains("i"));
     }
@@ -1187,10 +1120,8 @@ mod tests {
     fn test_predicate_has_type() {
         let checker = PreconditionChecker::new();
 
-        let has_type = Predicate::HasType {
-            var: "x".to_string(),
-            expected_type: "int".to_string(),
-        };
+        let has_type =
+            Predicate::HasType { var: "x".to_string(), expected_type: "int".to_string() };
         let assertion = checker.predicate_to_assertion(&has_type);
         // HasType falls through to default "true" case in current implementation
         assert_eq!(assertion, "true");
@@ -1214,10 +1145,7 @@ mod tests {
     fn test_value_formatting() {
         assert_eq!(value_to_rust(&Value::Int(42)), "42");
         assert!(value_to_rust(&Value::Float(3.15)).contains("3.15"));
-        assert_eq!(
-            value_to_rust(&Value::String("hello".to_string())),
-            "\"hello\""
-        );
+        assert_eq!(value_to_rust(&Value::String("hello".to_string())), "\"hello\"");
         assert_eq!(value_to_rust(&Value::Bool(true)), "true");
         assert_eq!(value_to_rust(&Value::Bool(false)), "false");
         assert_eq!(value_to_rust(&Value::Var("x".to_string())), "x");
@@ -1341,10 +1269,7 @@ mod tests {
             description: "x must be positive".to_string(),
         });
         assert_eq!(checker.invariants.len(), 1);
-        assert!(matches!(
-            checker.invariants[0].scope,
-            InvariantScope::Function(_)
-        ));
+        assert!(matches!(checker.invariants[0].scope, InvariantScope::Function(_)));
     }
 
     #[test]
@@ -1552,10 +1477,7 @@ mod tests {
     fn test_precondition_suggest_fix_in_bounds() {
         let checker = PreconditionChecker::new();
 
-        let pred = Predicate::InBounds {
-            array: "items".to_string(),
-            index: "idx".to_string(),
-        };
+        let pred = Predicate::InBounds { array: "items".to_string(), index: "idx".to_string() };
 
         let suggestion = checker.suggest_fix(&pred);
         assert!(suggestion.contains("bounds check"));
@@ -1593,10 +1515,7 @@ mod tests {
     fn test_precondition_suggest_fix_default() {
         let checker = PreconditionChecker::new();
 
-        let pred = Predicate::Custom {
-            name: "is_valid".to_string(),
-            args: vec!["x".to_string()],
-        };
+        let pred = Predicate::Custom { name: "is_valid".to_string(), args: vec!["x".to_string()] };
 
         let suggestion = checker.suggest_fix(&pred);
         assert!(suggestion.contains("appropriate validation"));
@@ -1665,28 +1584,21 @@ mod tests {
         let debug = format!("{:?}", effect);
         assert!(debug.contains("StateChange"));
 
-        let array_mod = SideEffect::ArrayModification {
-            array: "arr".to_string(),
-            index: "0".to_string(),
-        };
+        let array_mod =
+            SideEffect::ArrayModification { array: "arr".to_string(), index: "0".to_string() };
         let debug2 = format!("{:?}", array_mod);
         assert!(debug2.contains("ArrayModification"));
 
-        let ext_call = SideEffect::ExternalCall {
-            func: "print".to_string(),
-            args: vec!["hello".to_string()],
-        };
+        let ext_call =
+            SideEffect::ExternalCall { func: "print".to_string(), args: vec!["hello".to_string()] };
         let debug3 = format!("{:?}", ext_call);
         assert!(debug3.contains("ExternalCall"));
     }
 
     #[test]
     fn test_predicate_serialization() {
-        let pred = Predicate::Compare {
-            var: "x".to_string(),
-            op: CompareOp::Gt,
-            value: Value::Int(0),
-        };
+        let pred =
+            Predicate::Compare { var: "x".to_string(), op: CompareOp::Gt, value: Value::Int(0) };
 
         let json = serde_json::to_string(&pred).unwrap();
         assert!(json.contains("Compare"));
@@ -1875,11 +1787,8 @@ mod tests {
     #[test]
     fn test_s11_validate_preconditions_list_param_triggers_type_check() {
         let checker = PreconditionChecker::new();
-        let func = make_hir_function(
-            "process",
-            vec![("items", Type::List(Box::new(Type::Int)))],
-            vec![],
-        );
+        let func =
+            make_hir_function("process", vec![("items", Type::List(Box::new(Type::Int)))], vec![]);
         let result = checker.validate_preconditions(&func);
         // has_null_check returns false, so List param triggers violation
         assert!(!result.success);
@@ -1974,10 +1883,7 @@ mod tests {
     fn test_s11_verify_predicate_custom_returns_unknown() {
         let checker = PreconditionChecker::new();
         let func = make_hir_function("foo", vec![], vec![]);
-        let pred = Predicate::Custom {
-            name: "is_valid".to_string(),
-            args: vec!["x".to_string()],
-        };
+        let pred = Predicate::Custom { name: "is_valid".to_string(), args: vec!["x".to_string()] };
         let result = checker.verify_predicate(&pred, &func);
         assert!(matches!(result, PredicateResult::Unknown));
     }
@@ -1985,11 +1891,7 @@ mod tests {
     #[test]
     fn test_s11_capture_pre_state() {
         let mut verifier = PostconditionVerifier::new();
-        let func = make_hir_function(
-            "foo",
-            vec![("x", Type::Int), ("name", Type::String)],
-            vec![],
-        );
+        let func = make_hir_function("foo", vec![("x", Type::Int), ("name", Type::String)], vec![]);
         verifier.capture_pre_state(&func);
         assert_eq!(verifier.pre_state.len(), 2);
         assert!(verifier.pre_state.contains_key("x"));
@@ -2258,11 +2160,7 @@ mod tests {
         let mut inheritance = ContractInheritance::new();
         inheritance.register_base_contract(
             "base".to_string(),
-            Contract {
-                preconditions: vec![],
-                postconditions: vec![],
-                invariants: vec![],
-            },
+            Contract { preconditions: vec![], postconditions: vec![], invariants: vec![] },
         );
         let result = inheritance.verify_lsp("nonexistent", "base");
         assert!(result.is_err());

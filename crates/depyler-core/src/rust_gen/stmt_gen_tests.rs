@@ -7,9 +7,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -21,10 +19,7 @@ fn transpile_ok(code: &str) -> bool {
 fn transpile_func(body: &str) -> String {
     let code = format!(
         "def test_func():\n{}",
-        body.lines()
-            .map(|l| format!("    {}", l))
-            .collect::<Vec<_>>()
-            .join("\n")
+        body.lines().map(|l| format!("    {}", l)).collect::<Vec<_>>().join("\n")
     );
     transpile(&code)
 }
@@ -99,10 +94,7 @@ def foo() -> int:
     return 42"#,
     );
     // The TYPE_CHECKING block should NOT appear in the output
-    assert!(
-        !code.contains("TYPE_CHECKING"),
-        "TYPE_CHECKING should be elided from output"
-    );
+    assert!(!code.contains("TYPE_CHECKING"), "TYPE_CHECKING should be elided from output");
     // But the function should still be present
     assert!(code.contains("fn foo") || code.contains("42"));
 }
@@ -396,9 +388,7 @@ fn test_with_simple() {
 
 #[test]
 fn test_with_multiple() {
-    assert!(transpile_ok(
-        "def foo():\n    with open('a') as f1, open('b') as f2:\n        pass"
-    ));
+    assert!(transpile_ok("def foo():\n    with open('a') as f1, open('b') as f2:\n        pass"));
 }
 
 // ============================================================================
@@ -452,16 +442,12 @@ fn test_raise_simple() {
 
 #[test]
 fn test_raise_from() {
-    assert!(transpile_ok(
-        "def foo():\n    raise ValueError('new') from e"
-    ));
+    assert!(transpile_ok("def foo():\n    raise ValueError('new') from e"));
 }
 
 #[test]
 fn test_raise_reraise() {
-    assert!(transpile_ok(
-        "def foo():\n    try:\n        x = 1\n    except:\n        raise"
-    ));
+    assert!(transpile_ok("def foo():\n    try:\n        x = 1\n    except:\n        raise"));
 }
 
 // ============================================================================
@@ -507,9 +493,7 @@ fn test_del_variable() {
 
 #[test]
 fn test_del_subscript() {
-    assert!(transpile_ok(
-        "def foo():\n    lst = [1, 2, 3]\n    del lst[0]"
-    ));
+    assert!(transpile_ok("def foo():\n    lst = [1, 2, 3]\n    del lst[0]"));
 }
 
 #[test]
@@ -637,44 +621,32 @@ fn test_annotated_var_only() {
 
 #[test]
 fn test_if_is_none() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if x is None:\n        return 0"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if x is None:\n        return 0"));
 }
 
 #[test]
 fn test_if_is_not_none() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if x is not None:\n        return x"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if x is not None:\n        return x"));
 }
 
 #[test]
 fn test_if_isinstance() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if isinstance(x, int):\n        return x * 2"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if isinstance(x, int):\n        return x * 2"));
 }
 
 #[test]
 fn test_if_truthiness_string() {
-    assert!(transpile_ok(
-        "def foo(s: str):\n    if s:\n        return len(s)"
-    ));
+    assert!(transpile_ok("def foo(s: str):\n    if s:\n        return len(s)"));
 }
 
 #[test]
 fn test_if_truthiness_list() {
-    assert!(transpile_ok(
-        "def foo(lst: list):\n    if lst:\n        return lst[0]"
-    ));
+    assert!(transpile_ok("def foo(lst: list):\n    if lst:\n        return lst[0]"));
 }
 
 #[test]
 fn test_if_truthiness_dict() {
-    assert!(transpile_ok(
-        "def foo(d: dict):\n    if d:\n        return len(d)"
-    ));
+    assert!(transpile_ok("def foo(d: dict):\n    if d:\n        return len(d)"));
 }
 
 #[test]
@@ -684,16 +656,12 @@ fn test_if_multiple_elif() {
 
 #[test]
 fn test_if_early_return() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if x < 0:\n        return -1\n    return x"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if x < 0:\n        return -1\n    return x"));
 }
 
 #[test]
 fn test_if_with_walrus() {
-    assert!(transpile_ok(
-        "def foo(items):\n    if (n := len(items)) > 0:\n        return n"
-    ));
+    assert!(transpile_ok("def foo(items):\n    if (n := len(items)) > 0:\n        return n"));
 }
 
 // ============================================================================
@@ -702,16 +670,12 @@ fn test_if_with_walrus() {
 
 #[test]
 fn test_for_reversed() {
-    assert!(transpile_ok(
-        "def foo(items):\n    for item in reversed(items):\n        pass"
-    ));
+    assert!(transpile_ok("def foo(items):\n    for item in reversed(items):\n        pass"));
 }
 
 #[test]
 fn test_for_sorted() {
-    assert!(transpile_ok(
-        "def foo(items):\n    for item in sorted(items):\n        pass"
-    ));
+    assert!(transpile_ok("def foo(items):\n    for item in sorted(items):\n        pass"));
 }
 
 #[test]
@@ -749,16 +713,12 @@ fn test_for_with_assignment() {
 
 #[test]
 fn test_for_set_iteration() {
-    assert!(transpile_ok(
-        "def foo(s: set):\n    for item in s:\n        pass"
-    ));
+    assert!(transpile_ok("def foo(s: set):\n    for item in s:\n        pass"));
 }
 
 #[test]
 fn test_for_bytes_iteration() {
-    assert!(transpile_ok(
-        "def foo():\n    for b in b'hello':\n        pass"
-    ));
+    assert!(transpile_ok("def foo():\n    for b in b'hello':\n        pass"));
 }
 
 // ============================================================================
@@ -779,23 +739,17 @@ fn test_while_or_condition() {
 
 #[test]
 fn test_while_not_condition() {
-    assert!(transpile_ok(
-        "def foo(done):\n    while not done:\n        done = True"
-    ));
+    assert!(transpile_ok("def foo(done):\n    while not done:\n        done = True"));
 }
 
 #[test]
 fn test_while_truthiness() {
-    assert!(transpile_ok(
-        "def foo(items: list):\n    while items:\n        items.pop()"
-    ));
+    assert!(transpile_ok("def foo(items: list):\n    while items:\n        items.pop()"));
 }
 
 #[test]
 fn test_while_with_walrus() {
-    assert!(transpile_ok(
-        "def foo():\n    x = 10\n    while (x := x - 1) > 0:\n        pass"
-    ));
+    assert!(transpile_ok("def foo():\n    x = 10\n    while (x := x - 1) > 0:\n        pass"));
 }
 
 // ============================================================================
@@ -869,16 +823,12 @@ fn test_assign_augmented_rshift() {
 
 #[test]
 fn test_assign_nested_subscript() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': [1, 2, 3]}\n    d['a'][0] = 10"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': [1, 2, 3]}\n    d['a'][0] = 10"));
 }
 
 #[test]
 fn test_assign_slice() {
-    assert!(transpile_ok(
-        "def foo():\n    lst = [1, 2, 3, 4, 5]\n    lst[1:3] = [10, 20]"
-    ));
+    assert!(transpile_ok("def foo():\n    lst = [1, 2, 3, 4, 5]\n    lst[1:3] = [10, 20]"));
 }
 
 // ============================================================================
@@ -904,9 +854,7 @@ fn test_try_in_loop() {
 
 #[test]
 fn test_try_finally_only() {
-    assert!(transpile_ok(
-        "def foo():\n    try:\n        x = 1\n    finally:\n        y = 2"
-    ));
+    assert!(transpile_ok("def foo():\n    try:\n        x = 1\n    finally:\n        y = 2"));
 }
 
 #[test]
@@ -951,23 +899,17 @@ fn test_return_set() {
 
 #[test]
 fn test_return_comprehension() {
-    assert!(transpile_ok(
-        "def foo():\n    return [i * 2 for i in range(10)]"
-    ));
+    assert!(transpile_ok("def foo():\n    return [i * 2 for i in range(10)]"));
 }
 
 #[test]
 fn test_return_lambda_result() {
-    assert!(transpile_ok(
-        "def foo():\n    f = lambda x: x * 2\n    return f(21)"
-    ));
+    assert!(transpile_ok("def foo():\n    f = lambda x: x * 2\n    return f(21)"));
 }
 
 #[test]
 fn test_return_method_chain() {
-    assert!(transpile_ok(
-        "def foo():\n    return 'hello world'.upper().split()"
-    ));
+    assert!(transpile_ok("def foo():\n    return 'hello world'.upper().split()"));
 }
 
 // ============================================================================
@@ -981,30 +923,22 @@ fn test_extended_raise_runtime_error() {
 
 #[test]
 fn test_extended_raise_type_error() {
-    assert!(transpile_ok(
-        "def foo():\n    raise TypeError('wrong type')"
-    ));
+    assert!(transpile_ok("def foo():\n    raise TypeError('wrong type')"));
 }
 
 #[test]
 fn test_extended_raise_key_error() {
-    assert!(transpile_ok(
-        "def foo():\n    raise KeyError('missing key')"
-    ));
+    assert!(transpile_ok("def foo():\n    raise KeyError('missing key')"));
 }
 
 #[test]
 fn test_extended_raise_index_error() {
-    assert!(transpile_ok(
-        "def foo():\n    raise IndexError('out of bounds')"
-    ));
+    assert!(transpile_ok("def foo():\n    raise IndexError('out of bounds')"));
 }
 
 #[test]
 fn test_raise_assertion_error() {
-    assert!(transpile_ok(
-        "def foo():\n    raise AssertionError('assertion failed')"
-    ));
+    assert!(transpile_ok("def foo():\n    raise AssertionError('assertion failed')"));
 }
 
 #[test]
@@ -1042,9 +976,7 @@ fn test_assert_not_none() {
 
 #[test]
 fn test_del_dict_key() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1, 'b': 2}\n    del d['a']"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1, 'b': 2}\n    del d['a']"));
 }
 
 #[test]
@@ -1054,16 +986,12 @@ fn test_del_attribute() {
 
 #[test]
 fn test_del_slice() {
-    assert!(transpile_ok(
-        "def foo():\n    lst = [1, 2, 3, 4, 5]\n    del lst[1:3]"
-    ));
+    assert!(transpile_ok("def foo():\n    lst = [1, 2, 3, 4, 5]\n    del lst[1:3]"));
 }
 
 #[test]
 fn test_del_multiple() {
-    assert!(transpile_ok(
-        "def foo():\n    a = 1\n    b = 2\n    del a, b"
-    ));
+    assert!(transpile_ok("def foo():\n    a = 1\n    b = 2\n    del a, b"));
 }
 
 // ============================================================================
@@ -1109,16 +1037,12 @@ fn test_match_or_pattern() {
 
 #[test]
 fn test_nested_function() {
-    assert!(transpile_ok(
-        "def outer():\n    def inner():\n        return 1\n    return inner()"
-    ));
+    assert!(transpile_ok("def outer():\n    def inner():\n        return 1\n    return inner()"));
 }
 
 #[test]
 fn test_decorated_nested_function() {
-    assert!(transpile_ok(
-        "def outer():\n    @staticmethod\n    def inner():\n        return 1"
-    ));
+    assert!(transpile_ok("def outer():\n    @staticmethod\n    def inner():\n        return 1"));
 }
 
 #[test]
@@ -1134,9 +1058,7 @@ fn test_recursive_function() {
 
 #[test]
 fn test_yield_statement() {
-    assert!(transpile_ok(
-        "def gen():\n    yield 1\n    yield 2\n    yield 3"
-    ));
+    assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n    yield 3"));
 }
 
 #[test]
@@ -1146,9 +1068,7 @@ fn test_yield_from_statement() {
 
 #[test]
 fn test_yield_in_loop() {
-    assert!(transpile_ok(
-        "def gen(n):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpile_ok("def gen(n):\n    for i in range(n):\n        yield i"));
 }
 
 #[test]
@@ -1169,23 +1089,17 @@ fn test_async_def() {
 
 #[test]
 fn test_await_statement() {
-    assert!(transpile_ok(
-        "async def foo():\n    result = await bar()\n    return result"
-    ));
+    assert!(transpile_ok("async def foo():\n    result = await bar()\n    return result"));
 }
 
 #[test]
 fn test_async_for() {
-    assert!(transpile_ok(
-        "async def foo():\n    async for item in aiter:\n        pass"
-    ));
+    assert!(transpile_ok("async def foo():\n    async for item in aiter:\n        pass"));
 }
 
 #[test]
 fn test_async_with() {
-    assert!(transpile_ok(
-        "async def foo():\n    async with aopen('file') as f:\n        pass"
-    ));
+    assert!(transpile_ok("async def foo():\n    async with aopen('file') as f:\n        pass"));
 }
 
 // ============================================================================
@@ -1242,9 +1156,7 @@ fn test_import_nested_module() {
 
 #[test]
 fn test_import_in_function() {
-    assert!(transpile_ok(
-        "def foo():\n    import os\n    return os.getcwd()"
-    ));
+    assert!(transpile_ok("def foo():\n    import os\n    return os.getcwd()"));
 }
 
 // ============================================================================
@@ -1263,16 +1175,12 @@ fn test_annotated_dict() {
 
 #[test]
 fn test_annotated_optional() {
-    assert!(transpile_ok(
-        "from typing import Optional\n\ndef foo():\n    x: Optional[int] = None"
-    ));
+    assert!(transpile_ok("from typing import Optional\n\ndef foo():\n    x: Optional[int] = None"));
 }
 
 #[test]
 fn test_annotated_union() {
-    assert!(transpile_ok(
-        "from typing import Union\n\ndef foo():\n    x: Union[int, str] = 42"
-    ));
+    assert!(transpile_ok("from typing import Union\n\ndef foo():\n    x: Union[int, str] = 42"));
 }
 
 #[test]
@@ -1298,9 +1206,7 @@ fn test_empty_if_body() {
 
 #[test]
 fn test_empty_for_body() {
-    assert!(transpile_ok(
-        "def foo():\n    for i in range(10):\n        pass"
-    ));
+    assert!(transpile_ok("def foo():\n    for i in range(10):\n        pass"));
 }
 
 #[test]
@@ -1310,9 +1216,7 @@ fn test_empty_while_body() {
 
 #[test]
 fn test_empty_try_body() {
-    assert!(transpile_ok(
-        "def foo():\n    try:\n        pass\n    except:\n        pass"
-    ));
+    assert!(transpile_ok("def foo():\n    try:\n        pass\n    except:\n        pass"));
 }
 
 #[test]
@@ -1336,16 +1240,12 @@ fn test_mixed_statement_types() {
 
 #[test]
 fn test_for_string_iteration() {
-    assert!(transpile_ok(
-        "def foo():\n    s = 'hello'\n    for c in s:\n        print(c)"
-    ));
+    assert!(transpile_ok("def foo():\n    s = 'hello'\n    for c in s:\n        print(c)"));
 }
 
 #[test]
 fn test_for_text_variable_iteration() {
-    assert!(transpile_ok(
-        "def foo():\n    text = 'hello'\n    for c in text:\n        print(c)"
-    ));
+    assert!(transpile_ok("def foo():\n    text = 'hello'\n    for c in text:\n        print(c)"));
 }
 
 #[test]
@@ -1380,9 +1280,7 @@ fn test_for_dict_items_print() {
 
 #[test]
 fn test_for_dict_keys_only() {
-    assert!(transpile_ok(
-        "def foo():\n    d = {'a': 1}\n    for k in d:\n        print(k)"
-    ));
+    assert!(transpile_ok("def foo():\n    d = {'a': 1}\n    for k in d:\n        print(k)"));
 }
 
 #[test]
@@ -1399,9 +1297,7 @@ fn test_for_zip_print() {
 
 #[test]
 fn test_for_range_step_print() {
-    assert!(transpile_ok(
-        "def foo():\n    for i in range(0, 10, 2):\n        print(i)"
-    ));
+    assert!(transpile_ok("def foo():\n    for i in range(0, 10, 2):\n        print(i)"));
 }
 
 #[test]
@@ -1420,17 +1316,13 @@ fn test_for_sorted_print() {
 
 #[test]
 fn test_for_set_iteration_print() {
-    assert!(transpile_ok(
-        "def foo():\n    s = {1, 2, 3}\n    for x in s:\n        print(x)"
-    ));
+    assert!(transpile_ok("def foo():\n    s = {1, 2, 3}\n    for x in s:\n        print(x)"));
 }
 
 #[test]
 fn test_for_unused_variable() {
     // Unused loop variable should get underscore prefix
-    assert!(transpile_ok(
-        "def foo():\n    for _ in range(5):\n        print('hello')"
-    ));
+    assert!(transpile_ok("def foo():\n    for _ in range(5):\n        print('hello')"));
 }
 
 #[test]
@@ -1511,9 +1403,7 @@ fn test_raise_valueerror() {
 
 #[test]
 fn test_raise_with_message() {
-    assert!(transpile_ok(
-        "def foo():\n    raise ValueError('error message')"
-    ));
+    assert!(transpile_ok("def foo():\n    raise ValueError('error message')"));
 }
 
 #[test]
@@ -1523,9 +1413,7 @@ fn test_raise_from_exception() {
 
 #[test]
 fn test_extended_raise_bare() {
-    assert!(transpile_ok(
-        "def foo():\n    try:\n        x = 1\n    except:\n        raise"
-    ));
+    assert!(transpile_ok("def foo():\n    try:\n        x = 1\n    except:\n        raise"));
 }
 
 // ============================================================================
@@ -1534,9 +1422,7 @@ fn test_extended_raise_bare() {
 
 #[test]
 fn test_extended_with_open_file() {
-    assert!(transpile_ok(
-        "def foo():\n    with open('file.txt') as f:\n        x = f.read()"
-    ));
+    assert!(transpile_ok("def foo():\n    with open('file.txt') as f:\n        x = f.read()"));
 }
 
 #[test]
@@ -1608,9 +1494,7 @@ fn test_del_variable_simple() {
 
 #[test]
 fn test_assert_with_message_positive() {
-    assert!(transpile_ok(
-        "def foo(x):\n    assert x > 0, 'x must be positive'"
-    ));
+    assert!(transpile_ok("def foo(x):\n    assert x > 0, 'x must be positive'"));
 }
 
 #[test]
@@ -1641,9 +1525,7 @@ fn test_multiple_assign() {
 
 #[test]
 fn test_walrus_operator() {
-    assert!(transpile_ok(
-        "def foo():\n    if (n := len([1, 2, 3])) > 2:\n        print(n)"
-    ));
+    assert!(transpile_ok("def foo():\n    if (n := len([1, 2, 3])) > 2:\n        print(n)"));
 }
 
 #[test]
@@ -1672,51 +1554,37 @@ fn test_attribute_assign() {
 
 #[test]
 fn test_list_comp_with_if() {
-    assert!(transpile_ok(
-        "def foo():\n    x = [i for i in range(10) if i % 2 == 0]"
-    ));
+    assert!(transpile_ok("def foo():\n    x = [i for i in range(10) if i % 2 == 0]"));
 }
 
 #[test]
 fn test_dict_comp() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {i: i**2 for i in range(5)}"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {i: i**2 for i in range(5)}"));
 }
 
 #[test]
 fn test_set_comp() {
-    assert!(transpile_ok(
-        "def foo():\n    x = {i for i in range(10) if i % 2 == 0}"
-    ));
+    assert!(transpile_ok("def foo():\n    x = {i for i in range(10) if i % 2 == 0}"));
 }
 
 #[test]
 fn test_generator_expr_in_sum() {
-    assert!(transpile_ok(
-        "def foo():\n    x = sum(i**2 for i in range(10))"
-    ));
+    assert!(transpile_ok("def foo():\n    x = sum(i**2 for i in range(10))"));
 }
 
 #[test]
 fn test_nested_comprehension() {
-    assert!(transpile_ok(
-        "def foo():\n    matrix = [[i*j for j in range(3)] for i in range(3)]"
-    ));
+    assert!(transpile_ok("def foo():\n    matrix = [[i*j for j in range(3)] for i in range(3)]"));
 }
 
 #[test]
 fn test_lambda_in_statement() {
-    assert!(transpile_ok(
-        "def foo():\n    double = lambda x: x * 2\n    result = double(5)"
-    ));
+    assert!(transpile_ok("def foo():\n    double = lambda x: x * 2\n    result = double(5)"));
 }
 
 #[test]
 fn test_ternary_in_assign() {
-    assert!(transpile_ok(
-        "def foo(x):\n    result = 'positive' if x > 0 else 'negative'"
-    ));
+    assert!(transpile_ok("def foo(x):\n    result = 'positive' if x > 0 else 'negative'"));
 }
 
 // ============================================================================
@@ -1730,9 +1598,7 @@ fn test_int_to_float_coercion() {
 
 #[test]
 fn test_str_to_string_coercion() {
-    assert!(transpile_ok(
-        "def foo():\n    x: str = 'hello'\n    y = x.upper()"
-    ));
+    assert!(transpile_ok("def foo():\n    x: str = 'hello'\n    y = x.upper()"));
 }
 
 // ============================================================================
@@ -1773,9 +1639,7 @@ fn test_return_in_if() {
 
 #[test]
 fn test_return_in_try() {
-    assert!(transpile_ok(
-        "def foo():\n    try:\n        return 1\n    except:\n        return 0"
-    ));
+    assert!(transpile_ok("def foo():\n    try:\n        return 1\n    except:\n        return 0"));
 }
 
 #[test]
@@ -1838,9 +1702,7 @@ fn test_single_expression_body() {
 
 #[test]
 fn test_chained_comparison() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if 0 < x < 10:\n        return True\n    return False"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if 0 < x < 10:\n        return True\n    return False"));
 }
 
 #[test]
@@ -1850,16 +1712,12 @@ fn test_boolean_short_circuit() {
 
 #[test]
 fn test_none_check_pattern() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if x is None:\n        return 0\n    return x"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if x is None:\n        return 0\n    return x"));
 }
 
 #[test]
 fn test_not_none_check() {
-    assert!(transpile_ok(
-        "def foo(x):\n    if x is not None:\n        return x\n    return 0"
-    ));
+    assert!(transpile_ok("def foo(x):\n    if x is not None:\n        return x\n    return 0"));
 }
 
 #[test]

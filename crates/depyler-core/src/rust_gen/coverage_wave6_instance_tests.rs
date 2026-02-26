@@ -34,7 +34,8 @@ mod tests {
 
     #[test]
     fn test_w6_string_var_named_name() {
-        let result = transpile("def f(d: dict) -> str:\n    name = \"alice\"\n    return d[name]\n");
+        let result =
+            transpile("def f(d: dict) -> str:\n    name = \"alice\"\n    return d[name]\n");
         assert!(!result.is_empty());
     }
 
@@ -58,13 +59,15 @@ mod tests {
 
     #[test]
     fn test_w6_string_var_suffix_key() {
-        let result = transpile("def f(d: dict) -> str:\n    cache_key = \"k1\"\n    return d[cache_key]\n");
+        let result =
+            transpile("def f(d: dict) -> str:\n    cache_key = \"k1\"\n    return d[cache_key]\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_string_var_suffix_name() {
-        let result = transpile("def f(d: dict) -> str:\n    user_name = \"bob\"\n    return d[user_name]\n");
+        let result =
+            transpile("def f(d: dict) -> str:\n    user_name = \"bob\"\n    return d[user_name]\n");
         assert!(!result.is_empty());
     }
 
@@ -165,13 +168,16 @@ mod tests {
 
     #[test]
     fn test_w6_numeric_index_suffix_idx() {
-        let result = transpile("def f(lst: list) -> int:\n    start_idx = 0\n    return lst[start_idx]\n");
+        let result =
+            transpile("def f(lst: list) -> int:\n    start_idx = 0\n    return lst[start_idx]\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_numeric_index_suffix_index() {
-        let result = transpile("def f(lst: list) -> int:\n    start_index = 0\n    return lst[start_index]\n");
+        let result = transpile(
+            "def f(lst: list) -> int:\n    start_index = 0\n    return lst[start_index]\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -281,7 +287,8 @@ mod tests {
 
     #[test]
     fn test_w6_set_expr_symmetric_difference() {
-        let result = transpile("def f(a: set, b: set) -> set:\n    return a.symmetric_difference(b)\n");
+        let result =
+            transpile("def f(a: set, b: set) -> set:\n    return a.symmetric_difference(b)\n");
         assert!(!result.is_empty());
     }
 
@@ -315,19 +322,24 @@ mod tests {
 
     #[test]
     fn test_w6_path_expr_var_named_path() {
-        let result = transpile("from pathlib import Path\ndef f(path: str) -> str:\n    return path\n");
+        let result =
+            transpile("from pathlib import Path\ndef f(path: str) -> str:\n    return path\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_path_expr_suffix_path() {
-        let result = transpile("from pathlib import Path\ndef f(file_path: str) -> str:\n    return file_path\n");
+        let result = transpile(
+            "from pathlib import Path\ndef f(file_path: str) -> str:\n    return file_path\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_path_expr_dir_suffix() {
-        let result = transpile("from pathlib import Path\ndef f(base_dir: str) -> str:\n    return base_dir\n");
+        let result = transpile(
+            "from pathlib import Path\ndef f(base_dir: str) -> str:\n    return base_dir\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -424,7 +436,9 @@ mod tests {
 
     #[test]
     fn test_w6_string_base_var_delimiter() {
-        let result = transpile("def f(delimiter: str, parts: list) -> str:\n    return delimiter.join(parts)\n");
+        let result = transpile(
+            "def f(delimiter: str, parts: list) -> str:\n    return delimiter.join(parts)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -535,7 +549,8 @@ mod tests {
 
     #[test]
     fn test_w6_list_append() {
-        let result = transpile("def f() -> list:\n    lst = []\n    lst.append(1)\n    return lst\n");
+        let result =
+            transpile("def f() -> list:\n    lst = []\n    lst.append(1)\n    return lst\n");
         assert!(!result.is_empty());
     }
 
@@ -547,13 +562,15 @@ mod tests {
 
     #[test]
     fn test_w6_list_insert() {
-        let result = transpile("def f() -> list:\n    lst = [1, 3]\n    lst.insert(1, 2)\n    return lst\n");
+        let result =
+            transpile("def f() -> list:\n    lst = [1, 3]\n    lst.insert(1, 2)\n    return lst\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_list_remove() {
-        let result = transpile("def f() -> list:\n    lst = [1, 2, 3]\n    lst.remove(2)\n    return lst\n");
+        let result =
+            transpile("def f() -> list:\n    lst = [1, 2, 3]\n    lst.remove(2)\n    return lst\n");
         assert!(!result.is_empty());
     }
 
@@ -617,19 +634,24 @@ mod tests {
 
     #[test]
     fn test_w6_lambda_multi_params() {
-        let result = transpile("def f() -> int:\n    fn = lambda x, y: x + y\n    return fn(3, 4)\n");
+        let result =
+            transpile("def f() -> int:\n    fn = lambda x, y: x + y\n    return fn(3, 4)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_lambda_with_capture() {
-        let result = transpile("def f(offset: int) -> int:\n    fn = lambda x: x + offset\n    return fn(5)\n");
+        let result = transpile(
+            "def f(offset: int) -> int:\n    fn = lambda x: x + offset\n    return fn(5)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_lambda_with_string_capture() {
-        let result = transpile("def f(prefix: str) -> str:\n    fn = lambda x: prefix + x\n    return fn(\"world\")\n");
+        let result = transpile(
+            "def f(prefix: str) -> str:\n    fn = lambda x: prefix + x\n    return fn(\"world\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -641,25 +663,31 @@ mod tests {
 
     #[test]
     fn test_w6_lambda_in_sort_key() {
-        let result = transpile("def f(lst: list) -> list:\n    lst.sort(key=lambda x: x[0])\n    return lst\n");
+        let result = transpile(
+            "def f(lst: list) -> list:\n    lst.sort(key=lambda x: x[0])\n    return lst\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_lambda_in_map() {
-        let result = transpile("def f(lst: list) -> list:\n    return list(map(lambda x: x * 2, lst))\n");
+        let result =
+            transpile("def f(lst: list) -> list:\n    return list(map(lambda x: x * 2, lst))\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_lambda_in_filter() {
-        let result = transpile("def f(lst: list) -> list:\n    return list(filter(lambda x: x > 0, lst))\n");
+        let result =
+            transpile("def f(lst: list) -> list:\n    return list(filter(lambda x: x > 0, lst))\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_lambda_nested_body() {
-        let result = transpile("def f() -> int:\n    fn = lambda x: x if x > 0 else -x\n    return fn(-5)\n");
+        let result = transpile(
+            "def f() -> int:\n    fn = lambda x: x if x > 0 else -x\n    return fn(-5)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -676,7 +704,8 @@ mod tests {
 
     #[test]
     fn test_w6_fstring_multiple_vars() {
-        let result = transpile("def f(first: str, last: str) -> str:\n    return f\"{first} {last}\"\n");
+        let result =
+            transpile("def f(first: str, last: str) -> str:\n    return f\"{first} {last}\"\n");
         assert!(!result.is_empty());
         assert!(result.contains("format!"));
     }
@@ -737,7 +766,8 @@ mod tests {
 
     #[test]
     fn test_w6_ternary_string() {
-        let result = transpile("def f(flag: bool) -> str:\n    return \"yes\" if flag else \"no\"\n");
+        let result =
+            transpile("def f(flag: bool) -> str:\n    return \"yes\" if flag else \"no\"\n");
         assert!(!result.is_empty());
     }
 
@@ -771,26 +801,32 @@ mod tests {
 
     #[test]
     fn test_w6_truthiness_string() {
-        let result = transpile("def f(s: str) -> bool:\n    if s:\n        return True\n    return False\n");
+        let result =
+            transpile("def f(s: str) -> bool:\n    if s:\n        return True\n    return False\n");
         assert!(!result.is_empty());
         assert!(result.contains("is_empty") || result.contains("!"));
     }
 
     #[test]
     fn test_w6_truthiness_list() {
-        let result = transpile("def f(lst: list) -> bool:\n    if lst:\n        return True\n    return False\n");
+        let result = transpile(
+            "def f(lst: list) -> bool:\n    if lst:\n        return True\n    return False\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_truthiness_dict() {
-        let result = transpile("def f(d: dict) -> bool:\n    if d:\n        return True\n    return False\n");
+        let result = transpile(
+            "def f(d: dict) -> bool:\n    if d:\n        return True\n    return False\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_truthiness_set() {
-        let result = transpile("def f(s: set) -> bool:\n    if s:\n        return True\n    return False\n");
+        let result =
+            transpile("def f(s: set) -> bool:\n    if s:\n        return True\n    return False\n");
         assert!(!result.is_empty());
     }
 
@@ -802,19 +838,24 @@ mod tests {
 
     #[test]
     fn test_w6_truthiness_int() {
-        let result = transpile("def f(n: int) -> bool:\n    if n:\n        return True\n    return False\n");
+        let result =
+            transpile("def f(n: int) -> bool:\n    if n:\n        return True\n    return False\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_truthiness_float() {
-        let result = transpile("def f(x: float) -> bool:\n    if x:\n        return True\n    return False\n");
+        let result = transpile(
+            "def f(x: float) -> bool:\n    if x:\n        return True\n    return False\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_truthiness_bool() {
-        let result = transpile("def f(b: bool) -> bool:\n    if b:\n        return True\n    return False\n");
+        let result = transpile(
+            "def f(b: bool) -> bool:\n    if b:\n        return True\n    return False\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -848,7 +889,8 @@ mod tests {
 
     #[test]
     fn test_w6_sorted_key_lambda() {
-        let result = transpile("def f(lst: list) -> list:\n    return sorted(lst, key=lambda x: x[0])\n");
+        let result =
+            transpile("def f(lst: list) -> list:\n    return sorted(lst, key=lambda x: x[0])\n");
         assert!(!result.is_empty());
     }
 
@@ -924,7 +966,8 @@ mod tests {
 
     #[test]
     fn test_w6_genexpr_with_condition() {
-        let result = transpile("def f(lst: list) -> int:\n    return sum(x for x in lst if x > 0)\n");
+        let result =
+            transpile("def f(lst: list) -> int:\n    return sum(x for x in lst if x > 0)\n");
         assert!(!result.is_empty());
     }
 
@@ -940,7 +983,9 @@ mod tests {
 
     #[test]
     fn test_w6_await_expression() {
-        let _ok = transpile_ok("async def f() -> int:\n    result = await get_data()\n    return result\n");
+        let _ok = transpile_ok(
+            "async def f() -> int:\n    result = await get_data()\n    return result\n",
+        );
     }
 
     // ========================================================================
@@ -949,14 +994,17 @@ mod tests {
 
     #[test]
     fn test_w6_route_list_append_inferred() {
-        let result = transpile("def f() -> list:\n    data = []\n    data.append(42)\n    return data\n");
+        let result =
+            transpile("def f() -> list:\n    data = []\n    data.append(42)\n    return data\n");
         assert!(!result.is_empty());
         assert!(result.contains("push"));
     }
 
     #[test]
     fn test_w6_route_list_extend_inferred() {
-        let result = transpile("def f() -> list:\n    data = []\n    data.extend([1, 2])\n    return data\n");
+        let result = transpile(
+            "def f() -> list:\n    data = []\n    data.extend([1, 2])\n    return data\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -968,13 +1016,16 @@ mod tests {
 
     #[test]
     fn test_w6_route_list_sort_inferred() {
-        let result = transpile("def f() -> list:\n    data = [3, 1, 2]\n    data.sort()\n    return data\n");
+        let result =
+            transpile("def f() -> list:\n    data = [3, 1, 2]\n    data.sort()\n    return data\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_route_list_reverse_inferred() {
-        let result = transpile("def f() -> list:\n    data = [1, 2, 3]\n    data.reverse()\n    return data\n");
+        let result = transpile(
+            "def f() -> list:\n    data = [1, 2, 3]\n    data.reverse()\n    return data\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -984,13 +1035,15 @@ mod tests {
 
     #[test]
     fn test_w6_route_dict_keys_inferred() {
-        let result = transpile("def f() -> list:\n    data = {\"a\": 1}\n    return list(data.keys())\n");
+        let result =
+            transpile("def f() -> list:\n    data = {\"a\": 1}\n    return list(data.keys())\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_route_dict_values_inferred() {
-        let result = transpile("def f() -> list:\n    data = {\"a\": 1}\n    return list(data.values())\n");
+        let result =
+            transpile("def f() -> list:\n    data = {\"a\": 1}\n    return list(data.values())\n");
         assert!(!result.is_empty());
     }
 
@@ -1002,7 +1055,8 @@ mod tests {
 
     #[test]
     fn test_w6_route_dict_get_inferred() {
-        let result = transpile("def f() -> int:\n    data = {\"a\": 1}\n    return data.get(\"a\", 0)\n");
+        let result =
+            transpile("def f() -> int:\n    data = {\"a\": 1}\n    return data.get(\"a\", 0)\n");
         assert!(!result.is_empty());
     }
 
@@ -1020,7 +1074,9 @@ mod tests {
 
     #[test]
     fn test_w6_route_dict_popitem_inferred() {
-        let _ok = transpile_ok("def f() -> dict:\n    data = {\"a\": 1}\n    data.popitem()\n    return data\n");
+        let _ok = transpile_ok(
+            "def f() -> dict:\n    data = {\"a\": 1}\n    data.popitem()\n    return data\n",
+        );
     }
 
     // ========================================================================
@@ -1177,19 +1233,23 @@ mod tests {
 
     #[test]
     fn test_w6_route_set_discard_inferred() {
-        let result = transpile("def f() -> set:\n    s = {1, 2, 3}\n    s.discard(2)\n    return s\n");
+        let result =
+            transpile("def f() -> set:\n    s = {1, 2, 3}\n    s.discard(2)\n    return s\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_route_set_intersection_update() {
-        let result = transpile("def f(a: set, b: set) -> set:\n    a.intersection_update(b)\n    return a\n");
+        let result = transpile(
+            "def f(a: set, b: set) -> set:\n    a.intersection_update(b)\n    return a\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_route_set_difference_update() {
-        let result = transpile("def f(a: set, b: set) -> set:\n    a.difference_update(b)\n    return a\n");
+        let result =
+            transpile("def f(a: set, b: set) -> set:\n    a.difference_update(b)\n    return a\n");
         assert!(!result.is_empty());
     }
 
@@ -1199,13 +1259,15 @@ mod tests {
 
     #[test]
     fn test_w6_type_infer_append_list() {
-        let result = transpile("def f():\n    data = []\n    data.append(\"hello\")\n    return data\n");
+        let result =
+            transpile("def f():\n    data = []\n    data.append(\"hello\")\n    return data\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_type_infer_insert_list() {
-        let result = transpile("def f():\n    data = []\n    data.insert(0, 42)\n    return data\n");
+        let result =
+            transpile("def f():\n    data = []\n    data.insert(0, 42)\n    return data\n");
         assert!(!result.is_empty());
     }
 
@@ -1310,12 +1372,15 @@ mod tests {
 
     #[test]
     fn test_w6_file_close() {
-        let _ok = transpile_ok("def f(path: str) -> None:\n    f = open(path, \"r\")\n    f.close()\n");
+        let _ok =
+            transpile_ok("def f(path: str) -> None:\n    f = open(path, \"r\")\n    f.close()\n");
     }
 
     #[test]
     fn test_w6_file_with_statement() {
-        let result = transpile("def f(path: str) -> str:\n    with open(path, \"r\") as f:\n        return f.read()\n");
+        let result = transpile(
+            "def f(path: str) -> str:\n    with open(path, \"r\") as f:\n        return f.read()\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1484,7 +1549,9 @@ mod tests {
     fn test_w6_dict_literal_string_keys() {
         let result = transpile("def f() -> dict:\n    return {\"a\": 1, \"b\": 2}\n");
         assert!(!result.is_empty());
-        assert!(result.contains("HashMap") || result.contains("hash_map") || result.contains("insert"));
+        assert!(
+            result.contains("HashMap") || result.contains("hash_map") || result.contains("insert")
+        );
     }
 
     #[test]
@@ -1495,13 +1562,15 @@ mod tests {
 
     #[test]
     fn test_w6_dict_literal_string_values() {
-        let result = transpile("def f() -> dict:\n    return {\"name\": \"alice\", \"role\": \"admin\"}\n");
+        let result =
+            transpile("def f() -> dict:\n    return {\"name\": \"alice\", \"role\": \"admin\"}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_dict_literal_bool_values() {
-        let result = transpile("def f() -> dict:\n    return {\"debug\": True, \"verbose\": False}\n");
+        let result =
+            transpile("def f() -> dict:\n    return {\"debug\": True, \"verbose\": False}\n");
         assert!(!result.is_empty());
     }
 
@@ -1525,7 +1594,9 @@ mod tests {
 
     #[test]
     fn test_w6_dict_literal_many_entries() {
-        let result = transpile("def f() -> dict:\n    return {\"a\": 1, \"b\": 2, \"c\": 3, \"d\": 4, \"e\": 5}\n");
+        let result = transpile(
+            "def f() -> dict:\n    return {\"a\": 1, \"b\": 2, \"c\": 3, \"d\": 4, \"e\": 5}\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1541,19 +1612,22 @@ mod tests {
 
     #[test]
     fn test_w6_dict_comprehension_with_condition() {
-        let result = transpile("def f(lst: list) -> dict:\n    return {x: x * 2 for x in lst if x > 0}\n");
+        let result =
+            transpile("def f(lst: list) -> dict:\n    return {x: x * 2 for x in lst if x > 0}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_dict_comprehension_string_keys() {
-        let result = transpile("def f(words: list) -> dict:\n    return {w: len(w) for w in words}\n");
+        let result =
+            transpile("def f(words: list) -> dict:\n    return {w: len(w) for w in words}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_dict_comprehension_enumerate() {
-        let result = transpile("def f(lst: list) -> dict:\n    return {i: v for i, v in enumerate(lst)}\n");
+        let result =
+            transpile("def f(lst: list) -> dict:\n    return {i: v for i, v in enumerate(lst)}\n");
         assert!(!result.is_empty());
     }
 
@@ -1581,7 +1655,8 @@ mod tests {
 
     #[test]
     fn test_w6_dict_mixed_str_float() {
-        let result = transpile("def f() -> dict:\n    return {\"name\": \"test\", \"score\": 95.5}\n");
+        let result =
+            transpile("def f() -> dict:\n    return {\"name\": \"test\", \"score\": 95.5}\n");
         assert!(!result.is_empty());
     }
 
@@ -1597,7 +1672,8 @@ mod tests {
 
     #[test]
     fn test_w6_dict_nested_double() {
-        let result = transpile("def f() -> dict:\n    return {\"level1\": {\"level2\": {\"value\": 42}}}\n");
+        let result =
+            transpile("def f() -> dict:\n    return {\"level1\": {\"level2\": {\"value\": 42}}}\n");
         assert!(!result.is_empty());
     }
 
@@ -1609,7 +1685,8 @@ mod tests {
 
     #[test]
     fn test_w6_dict_nested_list_of_dicts() {
-        let result = transpile("def f() -> dict:\n    return {\"records\": [{\"id\": 1}, {\"id\": 2}]}\n");
+        let result =
+            transpile("def f() -> dict:\n    return {\"records\": [{\"id\": 1}, {\"id\": 2}]}\n");
         assert!(!result.is_empty());
     }
 
@@ -1624,7 +1701,9 @@ mod tests {
 
     #[test]
     fn test_w6_dict_from_keys_none() {
-        let _ok = transpile_ok("def f() -> dict:\n    keys = [\"a\", \"b\"]\n    return dict.fromkeys(keys)\n");
+        let _ok = transpile_ok(
+            "def f() -> dict:\n    keys = [\"a\", \"b\"]\n    return dict.fromkeys(keys)\n",
+        );
     }
 
     // ========================================================================
@@ -1651,7 +1730,8 @@ mod tests {
 
     #[test]
     fn test_w6_dict_var_name_map() {
-        let result = transpile("def f() -> int:\n    name_map = {\"a\": 1}\n    return name_map[\"a\"]\n");
+        let result =
+            transpile("def f() -> int:\n    name_map = {\"a\": 1}\n    return name_map[\"a\"]\n");
         assert!(!result.is_empty());
     }
 
@@ -1679,13 +1759,15 @@ mod tests {
 
     #[test]
     fn test_w6_lambda_body_binary() {
-        let result = transpile("def f() -> int:\n    fn = lambda a, b: a * b + 1\n    return fn(3, 4)\n");
+        let result =
+            transpile("def f() -> int:\n    fn = lambda a, b: a * b + 1\n    return fn(3, 4)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w6_lambda_body_method_call() {
-        let result = transpile("def f() -> str:\n    fn = lambda s: s.upper()\n    return fn(\"hi\")\n");
+        let result =
+            transpile("def f() -> str:\n    fn = lambda s: s.upper()\n    return fn(\"hi\")\n");
         assert!(!result.is_empty());
     }
 
@@ -1697,7 +1779,8 @@ mod tests {
 
     #[test]
     fn test_w6_lambda_body_index() {
-        let result = transpile("def f() -> int:\n    fn = lambda lst: lst[0]\n    return fn([1, 2, 3])\n");
+        let result =
+            transpile("def f() -> int:\n    fn = lambda lst: lst[0]\n    return fn([1, 2, 3])\n");
         assert!(!result.is_empty());
     }
 
@@ -1726,17 +1809,23 @@ mod tests {
 
     #[test]
     fn test_w6_lambda_substitute_in_set() {
-        let _ok = transpile_ok("def f():\n    base = 0\n    fn = lambda x: {x, base}\n    return fn(1)\n");
+        let _ok = transpile_ok(
+            "def f():\n    base = 0\n    fn = lambda x: {x, base}\n    return fn(1)\n",
+        );
     }
 
     #[test]
     fn test_w6_lambda_substitute_in_dict() {
-        let _ok = transpile_ok("def f():\n    key = \"name\"\n    fn = lambda v: {key: v}\n    return fn(\"alice\")\n");
+        let _ok = transpile_ok(
+            "def f():\n    key = \"name\"\n    fn = lambda v: {key: v}\n    return fn(\"alice\")\n",
+        );
     }
 
     #[test]
     fn test_w6_lambda_nested_lambda_shadow() {
-        let result = transpile("def f() -> int:\n    fn = lambda x: (lambda x: x + 1)(x)\n    return fn(5)\n");
+        let result = transpile(
+            "def f() -> int:\n    fn = lambda x: (lambda x: x + 1)(x)\n    return fn(5)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1756,7 +1845,9 @@ mod tests {
 
     #[test]
     fn test_w6_sys_stdin_read() {
-        let _ok = transpile_ok("import sys\ndef f() -> str:\n    data = sys.stdin.read()\n    return data\n");
+        let _ok = transpile_ok(
+            "import sys\ndef f() -> str:\n    data = sys.stdin.read()\n    return data\n",
+        );
     }
 
     #[test]
@@ -1827,7 +1918,8 @@ mod tests {
 
     #[test]
     fn test_w6_dict_tuple_value() {
-        let result = transpile("def f() -> dict:\n    return {\"pos\": (1, 2), \"size\": (10, 20)}\n");
+        let result =
+            transpile("def f() -> dict:\n    return {\"pos\": (1, 2), \"size\": (10, 20)}\n");
         assert!(!result.is_empty());
     }
 
@@ -1860,17 +1952,23 @@ mod tests {
 
     #[test]
     fn test_w6_numpy_zeros() {
-        let _ok = transpile_ok("import numpy as np\ndef f(n: int):\n    arr = np.zeros(n)\n    return arr\n");
+        let _ok = transpile_ok(
+            "import numpy as np\ndef f(n: int):\n    arr = np.zeros(n)\n    return arr\n",
+        );
     }
 
     #[test]
     fn test_w6_numpy_ones() {
-        let _ok = transpile_ok("import numpy as np\ndef f(n: int):\n    arr = np.ones(n)\n    return arr\n");
+        let _ok = transpile_ok(
+            "import numpy as np\ndef f(n: int):\n    arr = np.ones(n)\n    return arr\n",
+        );
     }
 
     #[test]
     fn test_w6_numpy_array() {
-        let _ok = transpile_ok("import numpy as np\ndef f():\n    arr = np.array([1, 2, 3])\n    return arr\n");
+        let _ok = transpile_ok(
+            "import numpy as np\ndef f():\n    arr = np.array([1, 2, 3])\n    return arr\n",
+        );
     }
 
     // ========================================================================
@@ -1879,7 +1977,9 @@ mod tests {
 
     #[test]
     fn test_w6_string_base_var_separator() {
-        let result = transpile("def f(separator: str, parts: list) -> str:\n    return separator.join(parts)\n");
+        let result = transpile(
+            "def f(separator: str, parts: list) -> str:\n    return separator.join(parts)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1897,7 +1997,8 @@ mod tests {
 
     #[test]
     fn test_w6_string_base_suffix_string() {
-        let result = transpile("def f(input_string: str) -> str:\n    return input_string.lower()\n");
+        let result =
+            transpile("def f(input_string: str) -> str:\n    return input_string.lower()\n");
         assert!(!result.is_empty());
     }
 
@@ -1969,7 +2070,9 @@ mod tests {
 
     #[test]
     fn test_w6_dict_typed_annotation() {
-        let result = transpile("from typing import Dict\ndef f() -> Dict[str, int]:\n    return {\"a\": 1}\n");
+        let result = transpile(
+            "from typing import Dict\ndef f() -> Dict[str, int]:\n    return {\"a\": 1}\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1981,7 +2084,9 @@ mod tests {
 
     #[test]
     fn test_w6_lambda_as_sorted_key_complex() {
-        let result = transpile("def f(pairs: list) -> list:\n    return sorted(pairs, key=lambda p: p[1])\n");
+        let result = transpile(
+            "def f(pairs: list) -> list:\n    return sorted(pairs, key=lambda p: p[1])\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1993,7 +2098,8 @@ mod tests {
 
     #[test]
     fn test_w6_fstring_concat_multiple() {
-        let result = transpile("def f(a: str, b: int, c: float) -> str:\n    return f\"{a}: {b} ({c})\"\n");
+        let result =
+            transpile("def f(a: str, b: int, c: float) -> str:\n    return f\"{a}: {b} ({c})\"\n");
         assert!(!result.is_empty());
         assert!(result.contains("format!"));
     }
@@ -2036,7 +2142,9 @@ mod tests {
 
     #[test]
     fn test_w6_dict_nested_with_mixed() {
-        let result = transpile("def f() -> dict:\n    return {\"meta\": {\"name\": \"test\", \"count\": 5}}\n");
+        let result = transpile(
+            "def f() -> dict:\n    return {\"meta\": {\"name\": \"test\", \"count\": 5}}\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -2059,7 +2167,8 @@ mod tests {
 
     #[test]
     fn test_w6_dict_clone_then_method() {
-        let result = transpile("def f(d: dict) -> list:\n    d2 = d.copy()\n    return list(d2.keys())\n");
+        let result =
+            transpile("def f(d: dict) -> list:\n    d2 = d.copy()\n    return list(d2.keys())\n");
         assert!(!result.is_empty());
     }
 
@@ -2077,7 +2186,9 @@ mod tests {
 
     #[test]
     fn test_w6_fstring_with_list_method_split() {
-        let result = transpile("def f(s: str) -> str:\n    parts = s.split(\",\")\n    return f\"Parts: {parts}\"\n");
+        let result = transpile(
+            "def f(s: str) -> str:\n    parts = s.split(\",\")\n    return f\"Parts: {parts}\"\n",
+        );
         assert!(!result.is_empty());
     }
 

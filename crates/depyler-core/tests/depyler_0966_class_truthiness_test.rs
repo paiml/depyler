@@ -24,11 +24,7 @@ class MinHeap:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -75,11 +71,7 @@ class Queue:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -108,11 +100,7 @@ class Cache:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -140,11 +128,7 @@ class Container:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -172,11 +156,7 @@ class MinHeap:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -191,9 +171,8 @@ class MinHeap:
     // `if self.heap.clone().is_empty()` or `if self.heap.is_empty()`
     // NOT: `if !self.heap.clone()`
     let lines: Vec<&str> = rust_code.lines().collect();
-    let has_correct_pattern = lines
-        .iter()
-        .any(|line| line.contains("self.heap") && line.contains("is_empty()"));
+    let has_correct_pattern =
+        lines.iter().any(|line| line.contains("self.heap") && line.contains("is_empty()"));
 
     assert!(
         has_correct_pattern,

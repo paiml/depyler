@@ -28,10 +28,8 @@ pub fn convert_math_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = dispatch_trig(method, &arg_exprs)
         .or_else(|| dispatch_power_log(method, &arg_exprs))
@@ -369,11 +367,7 @@ fn convert_perm(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
         bail!("math.perm() requires 1 or 2 arguments");
     }
     let n = &arg_exprs[0];
-    let k = if arg_exprs.len() == 2 {
-        arg_exprs[1].clone()
-    } else {
-        arg_exprs[0].clone()
-    };
+    let k = if arg_exprs.len() == 2 { arg_exprs[1].clone() } else { arg_exprs[0].clone() };
     Ok(parse_quote! {
         {
             let n = #n as i64;
@@ -538,10 +532,8 @@ mod tests {
     #[test]
     fn test_convert_math_atan2() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(1.0)),
-            HirExpr::Literal(Literal::Float(1.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(1.0)), HirExpr::Literal(Literal::Float(1.0))];
         let result = convert_math_method("atan2", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -594,10 +586,8 @@ mod tests {
     #[test]
     fn test_convert_math_log_with_base() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(100.0)),
-            HirExpr::Literal(Literal::Float(10.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(100.0)), HirExpr::Literal(Literal::Float(10.0))];
         let result = convert_math_method("log", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -608,10 +598,8 @@ mod tests {
     #[test]
     fn test_convert_math_pow() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(2.0)),
-            HirExpr::Literal(Literal::Float(3.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(2.0)), HirExpr::Literal(Literal::Float(3.0))];
         let result = convert_math_method("pow", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -724,10 +712,7 @@ mod tests {
     #[test]
     fn test_convert_math_gcd() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(12)),
-            HirExpr::Literal(Literal::Int(8)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(12)), HirExpr::Literal(Literal::Int(8))];
         let result = convert_math_method("gcd", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -735,10 +720,7 @@ mod tests {
     #[test]
     fn test_convert_math_lcm() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(4)),
-            HirExpr::Literal(Literal::Int(6)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(4)), HirExpr::Literal(Literal::Int(6))];
         let result = convert_math_method("lcm", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -762,10 +744,7 @@ mod tests {
     #[test]
     fn test_convert_math_comb() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(5)),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(5)), HirExpr::Literal(Literal::Int(2))];
         let result = convert_math_method("comb", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -773,10 +752,7 @@ mod tests {
     #[test]
     fn test_convert_math_perm() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(5)),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(5)), HirExpr::Literal(Literal::Int(2))];
         let result = convert_math_method("perm", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -786,10 +762,8 @@ mod tests {
     #[test]
     fn test_convert_math_hypot() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(3.0)),
-            HirExpr::Literal(Literal::Float(4.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(3.0)), HirExpr::Literal(Literal::Float(4.0))];
         let result = convert_math_method("hypot", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -800,10 +774,8 @@ mod tests {
     #[test]
     fn test_convert_math_fmod() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Float(7.0)),
-            HirExpr::Literal(Literal::Float(3.0)),
-        ];
+        let args =
+            vec![HirExpr::Literal(Literal::Float(7.0)), HirExpr::Literal(Literal::Float(3.0))];
         let result = convert_math_method("fmod", &args, &mut ctx);
         assert!(result.is_ok());
     }

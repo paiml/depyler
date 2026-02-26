@@ -8,10 +8,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -84,10 +82,7 @@ def greet(name: str, greeting: str = "Hello") -> str:
     return f"{greeting}, {name}!"
 "#,
     );
-    assert!(
-        code.contains("fn greet"),
-        "Should generate function with defaults: {code}"
-    );
+    assert!(code.contains("fn greet"), "Should generate function with defaults: {code}");
 }
 
 #[test]
@@ -126,10 +121,7 @@ def pair(a: int, b: int) -> tuple:
     return (a, b)
 "#,
     );
-    assert!(
-        code.contains("(") || code.contains("tuple"),
-        "Should generate tuple return: {code}"
-    );
+    assert!(code.contains("(") || code.contains("tuple"), "Should generate tuple return: {code}");
 }
 
 #[test]
@@ -162,14 +154,8 @@ class Point:
         self.y = y
 "#,
     );
-    assert!(
-        code.contains("struct Point"),
-        "Should generate struct: {code}"
-    );
-    assert!(
-        code.contains("x:") && code.contains("y:"),
-        "Should have fields: {code}"
-    );
+    assert!(code.contains("struct Point"), "Should generate struct: {code}");
+    assert!(code.contains("x:") && code.contains("y:"), "Should have fields: {code}");
 }
 
 #[test]
@@ -226,10 +212,7 @@ class Collection:
         return len(self.items)
 "#,
     );
-    assert!(
-        code.contains("len") || code.contains("items"),
-        "Should generate len method: {code}"
-    );
+    assert!(code.contains("len") || code.contains("items"), "Should generate len method: {code}");
 }
 
 #[test]
@@ -341,10 +324,7 @@ def create_calculator() -> Calculator:
     return Calculator()
 "#,
     );
-    assert!(
-        code.contains("struct Calculator"),
-        "Should have struct: {code}"
-    );
+    assert!(code.contains("struct Calculator"), "Should have struct: {code}");
     assert!(
         code.contains("fn create_calculator") || code.contains("create_calculator"),
         "Should have factory function: {code}"
@@ -362,10 +342,7 @@ class Config:
         self.debug = debug
 "#,
     );
-    assert!(
-        code.contains("struct Config"),
-        "Should generate struct: {code}"
-    );
+    assert!(code.contains("struct Config"), "Should generate struct: {code}");
     assert!(
         code.contains("host") && code.contains("port") && code.contains("debug"),
         "Should have all fields: {code}"

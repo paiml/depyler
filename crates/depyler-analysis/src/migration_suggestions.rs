@@ -1,6 +1,6 @@
+use colored::Colorize;
 /// Migration suggestions for Python-to-Rust idiom transitions
 use depyler_hir::hir::{HirExpr, HirFunction, HirProgram, HirStmt, Type};
-use colored::Colorize;
 
 /// Migration suggestion analyzer that identifies Python patterns and suggests Rust idioms
 pub struct MigrationAnalyzer {
@@ -94,10 +94,7 @@ pub struct SourceLocation {
 
 impl MigrationAnalyzer {
     pub fn new(config: MigrationConfig) -> Self {
-        Self {
-            suggestions: Vec::new(),
-            config,
-        }
+        Self { suggestions: Vec::new(), config }
     }
 
     /// Analyze a program and generate migration suggestions
@@ -193,10 +190,7 @@ for item in items:
                     "Result provides rich error information".to_string(),
                     "Errors can be propagated with the ? operator".to_string(),
                 ],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line: 0,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line: 0 }),
             });
         }
 
@@ -229,10 +223,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
                     "Rust's ownership system requires explicit mutability".to_string(),
                     "Choose based on whether callers need the original".to_string(),
                 ],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line: 0,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line: 0 }),
             });
         }
     }
@@ -245,11 +236,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
             HirStmt::While { condition, body } => {
                 self.analyze_while_loop(condition, body, func, line);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_if_statement(condition, then_body, else_body, func, line);
             }
             HirStmt::Assign { target, value, .. } => {
@@ -268,10 +255,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
         line: usize,
     ) {
         // Check for enumerate pattern
-        if let HirExpr::Call {
-            func: fname, args, ..
-        } = iter
-        {
+        if let HirExpr::Call { func: fname, args, .. } = iter {
             if fname == "enumerate" && !args.is_empty() {
                 self.add_suggestion(MigrationSuggestion {
                     category: SuggestionCategory::Iterator,
@@ -282,10 +266,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
                     python_example: "for i, item in enumerate(items):".to_string(),
                     rust_suggestion: "for (i, item) in items.iter().enumerate() {".to_string(),
                     notes: vec!["Iterator methods are more idiomatic in Rust".to_string()],
-                    location: Some(SourceLocation {
-                        function: func.name.clone(),
-                        line,
-                    }),
+                    location: Some(SourceLocation { function: func.name.clone(), line }),
                 });
             }
         }
@@ -314,10 +295,7 @@ for item in items:
     .collect();"#
                     .to_string(),
                 notes: vec!["filter_map avoids intermediate Option wrapping".to_string()],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line }),
             });
         }
     }
@@ -342,10 +320,7 @@ for item in items:
                     "'loop' is more idiomatic and clearer in intent".to_string(),
                     "The compiler can better optimize 'loop' constructs".to_string(),
                 ],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line }),
             });
         }
     }
@@ -386,10 +361,7 @@ match value {
                     "Enums provide compile-time guarantees".to_string(),
                     "Pattern matching ensures exhaustive handling".to_string(),
                 ],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line }),
             });
         }
 
@@ -419,10 +391,7 @@ match value {
 }"#
                 .to_string(),
                 notes: vec!["Pattern matching is more idiomatic and safer".to_string()],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line }),
             });
         }
     }
@@ -446,10 +415,7 @@ match value {
                     python_example: "[x * 2 for x in range(10)]".to_string(),
                     rust_suggestion: "(0..10).map(|x| x * 2).collect::<Vec<_>>()".to_string(),
                     notes: vec!["collect() can optimize capacity allocation".to_string()],
-                    location: Some(SourceLocation {
-                        function: func.name.clone(),
-                        line,
-                    }),
+                    location: Some(SourceLocation { function: func.name.clone(), line }),
                 });
             }
         }
@@ -478,10 +444,7 @@ for item in items {
                     "String concatenation creates new allocations".to_string(),
                     "Use String::with_capacity() if size is known".to_string(),
                 ],
-                location: Some(SourceLocation {
-                    function: func.name.clone(),
-                    line,
-                }),
+                location: Some(SourceLocation { function: func.name.clone(), line }),
             });
         }
     }
@@ -542,9 +505,7 @@ for item in items {
     }
 
     fn has_mutable_parameter_pattern(&self, func: &HirFunction) -> bool {
-        func.body
-            .iter()
-            .any(|stmt| self.is_mutating_method_on_param(stmt, func))
+        func.body.iter().any(|stmt| self.is_mutating_method_on_param(stmt, func))
     }
 
     fn is_mutating_method_on_param(&self, stmt: &HirStmt, func: &HirFunction) -> bool {
@@ -593,12 +554,7 @@ for item in items {
 
     fn is_string_concatenation(&self, expr: &HirExpr) -> bool {
         // Check for string + operations
-        if let HirExpr::Binary {
-            op: depyler_hir::hir::BinOp::Add,
-            left,
-            right,
-        } = expr
-        {
+        if let HirExpr::Binary { op: depyler_hir::hir::BinOp::Add, left, right } = expr {
             // Simplified check - would need type info for accuracy
             return matches!(left.as_ref(), HirExpr::Var(_))
                 || matches!(right.as_ref(), HirExpr::Var(_));
@@ -639,17 +595,11 @@ for item in items {
     }
 
     fn format_empty_suggestions(&self) -> String {
-        "✨ No migration suggestions found - code is already idiomatic!\n"
-            .green()
-            .to_string()
+        "✨ No migration suggestions found - code is already idiomatic!\n".green().to_string()
     }
 
     fn format_header(&self) -> String {
-        format!(
-            "\n{}\n{}\n\n",
-            "Migration Suggestions".bold().blue(),
-            "═".repeat(50)
-        )
+        format!("\n{}\n{}\n\n", "Migration Suggestions".bold().blue(), "═".repeat(50))
     }
 
     fn format_single_suggestion(&self, suggestion: &MigrationSuggestion, idx: usize) -> String {
@@ -686,11 +636,7 @@ for item in items {
     fn format_suggestion_metadata(&self, suggestion: &MigrationSuggestion) -> String {
         let mut output = format!("   {} {:?}\n", "Category:".dimmed(), suggestion.category);
 
-        output.push_str(&format!(
-            "   {} {}\n",
-            "Why:".dimmed(),
-            suggestion.description
-        ));
+        output.push_str(&format!("   {} {}\n", "Why:".dimmed(), suggestion.description));
 
         if let Some(loc) = &suggestion.location {
             output.push_str(&format!(
@@ -738,14 +684,10 @@ for item in items {
     }
 
     fn format_summary(&self, suggestions: &[MigrationSuggestion]) -> String {
-        let critical_count = suggestions
-            .iter()
-            .filter(|s| s.severity == Severity::Critical)
-            .count();
-        let important_count = suggestions
-            .iter()
-            .filter(|s| s.severity == Severity::Important)
-            .count();
+        let critical_count =
+            suggestions.iter().filter(|s| s.severity == Severity::Critical).count();
+        let important_count =
+            suggestions.iter().filter(|s| s.severity == Severity::Important).count();
 
         format!(
             "{} {} suggestions ({} critical, {} important)\n",
@@ -776,11 +718,7 @@ mod tests {
     }
 
     fn create_test_program(functions: Vec<HirFunction>) -> HirProgram {
-        HirProgram {
-            imports: vec![],
-            functions,
-            classes: vec![],
-        }
+        HirProgram { imports: vec![], functions, classes: vec![] }
     }
 
     #[test]
@@ -853,10 +791,7 @@ mod tests {
         let body = vec![HirStmt::If {
             condition: HirExpr::Call {
                 func: "isinstance".to_string(),
-                args: vec![
-                    HirExpr::Var("value".to_string()),
-                    HirExpr::Var("str".to_string()),
-                ],
+                args: vec![HirExpr::Var("value".to_string()), HirExpr::Var("str".to_string())],
                 kwargs: vec![],
             },
             then_body: vec![HirStmt::Expr(HirExpr::Call {
@@ -952,10 +887,7 @@ mod tests {
     fn test_mutable_parameter_pattern() {
         let func = HirFunction {
             name: "modify_list".to_string(),
-            params: smallvec![HirParam::new(
-                "lst".to_string(),
-                Type::List(Box::new(Type::Int))
-            )],
+            params: smallvec![HirParam::new("lst".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::Unknown,
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("lst".to_string())),
@@ -1067,9 +999,7 @@ mod tests {
         });
 
         // Sort by severity manually
-        analyzer
-            .suggestions
-            .sort_by(|a, b| b.severity.cmp(&a.severity));
+        analyzer.suggestions.sort_by(|a, b| b.severity.cmp(&a.severity));
 
         // Check that suggestions are sorted by severity (highest first)
         assert_eq!(analyzer.suggestions[0].severity, Severity::Critical);
@@ -1087,10 +1017,8 @@ mod tests {
 
     #[test]
     fn test_format_suggestions_with_items() {
-        let analyzer = MigrationAnalyzer::new(MigrationConfig {
-            verbosity: 2,
-            ..Default::default()
-        });
+        let analyzer =
+            MigrationAnalyzer::new(MigrationConfig { verbosity: 2, ..Default::default() });
 
         let suggestions = vec![MigrationSuggestion {
             category: SuggestionCategory::Iterator,
@@ -1100,10 +1028,7 @@ mod tests {
             python_example: "for x in list:".to_string(),
             rust_suggestion: "for x in list.iter() {".to_string(),
             notes: vec!["Note 1".to_string(), "Note 2".to_string()],
-            location: Some(SourceLocation {
-                function: "test_func".to_string(),
-                line: 10,
-            }),
+            location: Some(SourceLocation { function: "test_func".to_string(), line: 10 }),
         }];
 
         let output = analyzer.format_suggestions(&suggestions);
@@ -1122,10 +1047,7 @@ mod tests {
 
     #[test]
     fn test_source_location() {
-        let loc = SourceLocation {
-            function: "my_func".to_string(),
-            line: 42,
-        };
+        let loc = SourceLocation { function: "my_func".to_string(), line: 42 };
         assert_eq!(loc.function, "my_func");
         assert_eq!(loc.line, 42);
     }
@@ -1133,10 +1055,7 @@ mod tests {
     #[test]
     fn test_suggestion_category_equality() {
         assert_eq!(SuggestionCategory::Iterator, SuggestionCategory::Iterator);
-        assert_ne!(
-            SuggestionCategory::Iterator,
-            SuggestionCategory::ErrorHandling
-        );
+        assert_ne!(SuggestionCategory::Iterator, SuggestionCategory::ErrorHandling);
     }
 
     #[test]
@@ -1179,10 +1098,8 @@ mod tests {
 
         // Even with patterns that would normally trigger suggestions,
         // nothing should be suggested with all options disabled
-        let body = vec![HirStmt::While {
-            condition: HirExpr::Literal(Literal::Bool(true)),
-            body: vec![],
-        }];
+        let body =
+            vec![HirStmt::While { condition: HirExpr::Literal(Literal::Bool(true)), body: vec![] }];
 
         let func = create_test_function("test", body);
         analyzer.analyze_function(&func);
@@ -1204,10 +1121,7 @@ mod tests {
             HirStmt::If {
                 condition: HirExpr::Call {
                     func: "isinstance".to_string(),
-                    args: vec![
-                        HirExpr::Var("x".to_string()),
-                        HirExpr::Var("int".to_string()),
-                    ],
+                    args: vec![HirExpr::Var("x".to_string()), HirExpr::Var("int".to_string())],
                     kwargs: vec![],
                 },
                 then_body: vec![],
@@ -1272,10 +1186,7 @@ mod tests {
 
         analyzer.analyze_function(&func);
         assert!(!analyzer.suggestions.is_empty());
-        assert_eq!(
-            analyzer.suggestions[0].category,
-            SuggestionCategory::Iterator
-        );
+        assert_eq!(analyzer.suggestions[0].category, SuggestionCategory::Iterator);
     }
 
     // Note: none-as-error detection is not yet implemented.
@@ -1322,10 +1233,7 @@ mod tests {
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
 
         analyzer.analyze_function(&func);
-        assert!(analyzer
-            .suggestions
-            .iter()
-            .any(|s| s.title.contains("loop")));
+        assert!(analyzer.suggestions.iter().any(|s| s.title.contains("loop")));
     }
 
     // ========================================================
@@ -1438,10 +1346,7 @@ mod tests {
             python_example: "".to_string(),
             rust_suggestion: "".to_string(),
             notes: vec![],
-            location: Some(SourceLocation {
-                function: "my_func".to_string(),
-                line: 42,
-            }),
+            location: Some(SourceLocation { function: "my_func".to_string(), line: 42 }),
         };
         assert!(suggestion.location.is_some());
         assert_eq!(suggestion.location.as_ref().unwrap().line, 42);
@@ -1449,10 +1354,7 @@ mod tests {
 
     #[test]
     fn test_source_location_clone() {
-        let loc = SourceLocation {
-            function: "test".to_string(),
-            line: 10,
-        };
+        let loc = SourceLocation { function: "test".to_string(), line: 10 };
         let cloned = loc.clone();
         assert_eq!(loc.function, cloned.function);
         assert_eq!(loc.line, cloned.line);
@@ -1537,10 +1439,7 @@ mod tests {
         let analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         let expr = HirExpr::Call {
             func: "isinstance".to_string(),
-            args: vec![
-                HirExpr::Var("x".to_string()),
-                HirExpr::Var("int".to_string()),
-            ],
+            args: vec![HirExpr::Var("x".to_string()), HirExpr::Var("int".to_string())],
             kwargs: vec![],
         };
         assert!(analyzer.is_type_check(&expr));
@@ -1703,10 +1602,7 @@ mod tests {
             python_example: "".to_string(),
             rust_suggestion: "".to_string(),
             notes: vec![],
-            location: Some(SourceLocation {
-                function: "my_func".to_string(),
-                line: 100,
-            }),
+            location: Some(SourceLocation { function: "my_func".to_string(), line: 100 }),
         };
         let metadata = analyzer.format_suggestion_metadata(&suggestion);
         assert!(metadata.contains("Performance") || metadata.contains("Important"));
@@ -1803,10 +1699,7 @@ mod tests {
         let body = vec![HirStmt::If {
             condition: HirExpr::Call {
                 func: "isinstance".to_string(),
-                args: vec![
-                    HirExpr::Var("x".to_string()),
-                    HirExpr::Var("int".to_string()),
-                ],
+                args: vec![HirExpr::Var("x".to_string()), HirExpr::Var("int".to_string())],
                 kwargs: vec![],
             },
             then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
@@ -1841,18 +1734,9 @@ mod tests {
 
     #[test]
     fn test_config_verbosity_levels() {
-        let config0 = MigrationConfig {
-            verbosity: 0,
-            ..Default::default()
-        };
-        let config1 = MigrationConfig {
-            verbosity: 1,
-            ..Default::default()
-        };
-        let config2 = MigrationConfig {
-            verbosity: 2,
-            ..Default::default()
-        };
+        let config0 = MigrationConfig { verbosity: 0, ..Default::default() };
+        let config1 = MigrationConfig { verbosity: 1, ..Default::default() };
+        let config2 = MigrationConfig { verbosity: 2, ..Default::default() };
 
         assert_eq!(config0.verbosity, 0);
         assert_eq!(config1.verbosity, 1);
@@ -1920,10 +1804,7 @@ mod tests {
         let body = vec![HirStmt::If {
             condition: HirExpr::Call {
                 func: "isinstance".to_string(),
-                args: vec![
-                    HirExpr::Var("x".to_string()),
-                    HirExpr::Var("int".to_string()),
-                ],
+                args: vec![HirExpr::Var("x".to_string()), HirExpr::Var("int".to_string())],
                 kwargs: vec![],
             },
             then_body: vec![HirStmt::Expr(HirExpr::MethodCall {
@@ -1976,10 +1857,7 @@ mod tests {
 
     #[test]
     fn test_source_location_debug() {
-        let loc = SourceLocation {
-            function: "test_func".to_string(),
-            line: 42,
-        };
+        let loc = SourceLocation { function: "test_func".to_string(), line: 42 };
         let debug = format!("{:?}", loc);
         assert!(debug.contains("SourceLocation"));
     }
@@ -2032,10 +1910,7 @@ mod tests {
             python_example: "def f(lst): lst.append(1)".to_string(),
             rust_suggestion: "fn f(lst: &mut Vec<i32>)".to_string(),
             notes: vec!["Be careful with lifetimes".to_string()],
-            location: Some(SourceLocation {
-                function: "my_func".to_string(),
-                line: 10,
-            }),
+            location: Some(SourceLocation { function: "my_func".to_string(), line: 10 }),
         };
         let formatted = analyzer.format_single_suggestion(&suggestion, 1);
         assert!(!formatted.is_empty());

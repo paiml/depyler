@@ -83,6 +83,56 @@ mod builtin_conversions_tests;
 #[cfg(test)]
 mod comprehensive_integration_tests;
 #[cfg(test)]
+mod coverage_boost_deep_tests;
+#[cfg(test)]
+mod coverage_boost_expr_tests;
+#[cfg(test)]
+mod coverage_boost_instance_tests;
+#[cfg(test)]
+mod coverage_boost_stmt_tests;
+#[cfg(test)]
+mod coverage_boost_zero_cov_tests;
+#[cfg(test)]
+mod coverage_wave3_advanced_tests;
+#[cfg(test)]
+mod coverage_wave3_stdlib_tests;
+#[cfg(test)]
+mod coverage_wave3_types_tests;
+#[cfg(test)]
+mod coverage_wave4_analysis_tests;
+#[cfg(test)]
+mod coverage_wave4_direct_rules_tests;
+#[cfg(test)]
+mod coverage_wave4_expr_tests;
+#[cfg(test)]
+mod coverage_wave4_funcgen_tests;
+#[cfg(test)]
+mod coverage_wave4_instance_tests;
+#[cfg(test)]
+mod coverage_wave5_exprmethods_tests;
+#[cfg(test)]
+mod coverage_wave5_funcgen_tests;
+#[cfg(test)]
+mod coverage_wave5_stmtgen_tests;
+#[cfg(test)]
+mod coverage_wave6_instance_tests;
+#[cfg(test)]
+mod coverage_wave7_rustgen_tests;
+#[cfg(test)]
+mod coverage_wave7_slicing_tests;
+#[cfg(test)]
+mod coverage_wave7_stmtgen_complex_tests;
+#[cfg(test)]
+mod coverage_wave8_argparse_string_tests;
+#[cfg(test)]
+mod coverage_wave8_deep_codegen_tests;
+#[cfg(test)]
+mod coverage_wave9_direct_rules_tests;
+#[cfg(test)]
+mod coverage_wave9_fix_inference_tests;
+#[cfg(test)]
+mod coverage_wave9_stdlib_expr_tests;
+#[cfg(test)]
 mod deep_coverage_tests;
 #[cfg(test)]
 mod direct_rules_convert_transpile_tests;
@@ -104,88 +154,38 @@ mod targeted_func_tests;
 mod targeted_stmt_tests;
 #[cfg(test)]
 mod type_gen_tests;
-#[cfg(test)]
-mod coverage_boost_expr_tests;
-#[cfg(test)]
-mod coverage_boost_instance_tests;
-#[cfg(test)]
-mod coverage_boost_stmt_tests;
-#[cfg(test)]
-mod coverage_boost_zero_cov_tests;
-#[cfg(test)]
-mod coverage_boost_deep_tests;
-#[cfg(test)]
-mod coverage_wave3_advanced_tests;
-#[cfg(test)]
-mod coverage_wave3_stdlib_tests;
-#[cfg(test)]
-mod coverage_wave3_types_tests;
-#[cfg(test)]
-mod coverage_wave4_expr_tests;
-#[cfg(test)]
-mod coverage_wave4_instance_tests;
-#[cfg(test)]
-mod coverage_wave4_funcgen_tests;
-#[cfg(test)]
-mod coverage_wave4_direct_rules_tests;
-#[cfg(test)]
-mod coverage_wave4_analysis_tests;
-#[cfg(test)]
-mod coverage_wave5_stmtgen_tests;
-#[cfg(test)]
-mod coverage_wave5_exprmethods_tests;
-#[cfg(test)]
-mod coverage_wave5_funcgen_tests;
-#[cfg(test)]
-mod coverage_wave6_instance_tests;
-#[cfg(test)]
-mod coverage_wave7_slicing_tests;
-#[cfg(test)]
-mod coverage_wave7_stmtgen_complex_tests;
-#[cfg(test)]
-mod coverage_wave7_rustgen_tests;
-#[cfg(test)]
-mod coverage_wave8_deep_codegen_tests;
-#[cfg(test)]
-mod coverage_wave8_argparse_string_tests;
-#[cfg(test)]
-mod coverage_wave9_direct_rules_tests;
-#[cfg(test)]
-mod coverage_wave9_stdlib_expr_tests;
-#[cfg(test)]
-mod coverage_wave9_fix_inference_tests;
 // Waves 10-11: 1084 tests (now included in coverage with --test-threads=2)
 #[cfg(test)]
 mod coverage_wave10_assign_control_tests;
 #[cfg(test)]
 mod coverage_wave10_instance_deep_tests;
 #[cfg(test)]
-mod coverage_wave11_string_dict_tests;
+mod coverage_wave11_assign_control_tests;
 #[cfg(test)]
 mod coverage_wave11_expr_type_tests;
 #[cfg(test)]
-mod coverage_wave11_assign_control_tests;
+mod coverage_wave11_string_dict_tests;
 // Wave 12: 600 tests
 #[cfg(test)]
 mod coverage_wave12_binary_call_tests;
 #[cfg(test)]
-mod coverage_wave12_expr_methods_tests;
-#[cfg(test)]
 mod coverage_wave12_dispatch_type_tests;
+#[cfg(test)]
+mod coverage_wave12_expr_methods_tests;
 // Wave 13: 600 tests targeting func_gen, stmt_gen, call_dispatch, stdlib
+#[cfg(test)]
+mod coverage_wave13_call_stdlib_tests;
 #[cfg(test)]
 mod coverage_wave13_func_gen_tests;
 #[cfg(test)]
 mod coverage_wave13_stmt_gen_tests;
-#[cfg(test)]
-mod coverage_wave13_call_stdlib_tests;
 // Wave 14: 450 targeted coverage tests (included in coverage measurement)
-#[cfg(test)]
-mod coverage_wave14_slice_index_tests;
 #[cfg(test)]
 mod coverage_wave14_comp_lambda_tests;
 #[cfg(test)]
 mod coverage_wave14_methods_dispatch_tests;
+#[cfg(test)]
+mod coverage_wave14_slice_index_tests;
 // Wave 15: 200 class/async/error/function coverage tests
 #[cfg(test)]
 mod coverage_wave15_class_async_tests;
@@ -350,8 +350,6 @@ fn load_type_database() -> Option<std::sync::Arc<std::sync::Mutex<depyler_knowle
     None
 }
 
-
-
 /// Analyze which variables are reassigned (mutated) in a list of statements
 ///
 /// Populates ctx.mutable_vars with variables that are:
@@ -395,7 +393,6 @@ pub(crate) fn analyze_mutable_vars(
     }
 }
 
-
 /// Convert HIR functions to Rust token streams
 ///
 /// Processes all functions using the code generation context.
@@ -404,10 +401,7 @@ fn convert_functions_to_rust(
     functions: &[HirFunction],
     ctx: &mut CodeGenContext,
 ) -> Result<Vec<proc_macro2::TokenStream>> {
-    functions
-        .iter()
-        .map(|f| f.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()
+    functions.iter().map(|f| f.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()
 }
 
 /// DEPYLER-0188: Convert module-level lambda to a function
@@ -558,7 +552,7 @@ fn generate_rust_file_internal(
     initial_var_types: std::collections::HashMap<String, Type>,
 ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
     // DEPYLER-DECOMPOSE Phase 4: Use extracted modules for pipeline phases
-    
+
     // Phase 1: Analyze module (imports, async detection, class metadata)
     let analysis = context_init::analyze_module(module);
     let type_mapper = analysis.resolve_type_mapper(type_mapper);
@@ -595,14 +589,16 @@ fn generate_rust_file_internal(
             }
         };
         if let Some(t) = const_type {
-            ctx.module_constant_types
-                .insert(constant.name.clone(), t);
+            ctx.module_constant_types.insert(constant.name.clone(), t);
         }
     }
 
     // Phase 5: Convert classes and functions
-    let (classes, adt_child_to_parent) =
-        class_gen::convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
+    let (classes, adt_child_to_parent) = class_gen::convert_classes_to_rust(
+        &module.classes,
+        ctx.type_mapper,
+        &ctx.vararg_functions,
+    )?;
     ctx.adt_child_to_parent = adt_child_to_parent;
 
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
@@ -654,7 +650,6 @@ fn generate_rust_file_internal(
     formatted_code = format!("{}{}", allow_attrs, formatted_code);
 
     Ok((formatted_code, dependencies))
-
 }
 
 /// DEPYLER-1101: Generate Rust file with oracle-learned type overrides
@@ -685,10 +680,7 @@ pub fn generate_rust_file_with_overrides(
     }
 
     // Log the overrides for observability
-    eprintln!(
-        "DEPYLER-1133: Restoring {} type constraints from Oracle",
-        type_overrides.len()
-    );
+    eprintln!("DEPYLER-1133: Restoring {} type constraints from Oracle", type_overrides.len());
     for (var, ty) in &type_overrides {
         eprintln!("  {} → {:?}", var, ty);
     }
@@ -755,17 +747,16 @@ fn find_balanced_comma(s: &str) -> Option<usize> {
     None
 }
 
-
 #[cfg(test)]
 #[allow(clippy::field_reassign_with_default)]
 mod tests {
-    use super::*;
-    use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
     use super::class_gen::detect_adt_patterns;
     use super::constant_gen::{infer_constant_type, infer_unary_type, is_path_constant_expr};
     use super::context::RustCodeGen;
     use super::type_gen::convert_binop;
     use super::validator_analysis::{scan_expr_for_validators, scan_stmts_for_validators};
+    use super::*;
+    use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
     use crate::type_mapper::TypeMapper;
     use depyler_annotations::TranspilationAnnotations;
     use std::collections::HashSet;
@@ -968,9 +959,9 @@ mod tests {
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
                 "positive".to_string(),
             ))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
-                Literal::String("negative".to_string()),
-            )))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
+                "negative".to_string(),
+            ))))]),
         };
 
         let mut ctx = create_test_context();
@@ -1002,10 +993,8 @@ mod tests {
         assert!(code.contains("3"));
 
         // Test non-literal list still uses vec!
-        let var_list = HirExpr::List(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let var_list =
+            HirExpr::List(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
 
         let expr2 = var_list.to_rust_expr(&mut ctx).unwrap();
         let code2 = quote! { #expr2 }.to_string();
@@ -1154,10 +1143,7 @@ mod tests {
         ctx.current_function_can_fail = true; // Function returns Result, so raise becomes return Err
 
         let result = codegen_raise_stmt(&None, &mut ctx).unwrap();
-        assert_eq!(
-            result.to_string(),
-            "return Err (\"Exception raised\" . into ()) ;"
-        );
+        assert_eq!(result.to_string(), "return Err (\"Exception raised\" . into ()) ;");
     }
 
     // NOTE: With statement with target incomplete - requires full implementation (tracked in DEPYLER-0424)
@@ -1250,10 +1236,8 @@ mod tests {
         use crate::hir::{AssignTarget, Literal};
 
         let mut ctx = create_test_context();
-        let targets = vec![
-            AssignTarget::Symbol("a".to_string()),
-            AssignTarget::Symbol("b".to_string()),
-        ];
+        let targets =
+            vec![AssignTarget::Symbol("a".to_string()), AssignTarget::Symbol("b".to_string())];
         // DEPYLER-1064: Create HirExpr::Tuple for the value parameter
         let value = HirExpr::Tuple(vec![
             HirExpr::Literal(Literal::Int(1)),
@@ -1272,11 +1256,8 @@ mod tests {
 
         let mut ctx = create_test_context();
         let body = vec![HirStmt::Pass];
-        let handlers = vec![ExceptHandler {
-            exception_type: None,
-            name: None,
-            body: vec![HirStmt::Pass],
-        }];
+        let handlers =
+            vec![ExceptHandler { exception_type: None, name: None, body: vec![HirStmt::Pass] }];
 
         let result = codegen_try_stmt(&body, &handlers, &None, &mut ctx).unwrap();
         let result_str = result.to_string();
@@ -1336,11 +1317,7 @@ mod tests {
 
         // Should generate cast for variables to prevent bool arithmetic errors
         assert!(code.contains("x"), "Expected 'x', got: {}", code);
-        assert!(
-            code.contains("as i32"),
-            "Should contain 'as i32' cast, got: {}",
-            code
-        );
+        assert!(code.contains("as i32"), "Should contain 'as i32' cast, got: {}", code);
     }
 
     #[test]
@@ -1356,11 +1333,7 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(
-            code.contains("as f64"),
-            "Expected '(y) as f64', got: {}",
-            code
-        );
+        assert!(code.contains("as f64"), "Expected '(y) as f64', got: {}", code);
     }
 
     #[test]
@@ -1376,11 +1349,7 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(
-            code.contains("to_string"),
-            "Expected 'value.to_string()', got: {}",
-            code
-        );
+        assert!(code.contains("to_string"), "Expected 'value.to_string()', got: {}", code);
     }
 
     // NOTE: Boolean casting incomplete - requires type cast implementation (tracked in DEPYLER-0424)
@@ -1400,11 +1369,7 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(
-            code.contains("as bool"),
-            "Expected '(flag) as bool', got: {}",
-            code
-        );
+        assert!(code.contains("as bool"), "Expected '(flag) as bool', got: {}", code);
     }
 
     #[test]
@@ -1422,32 +1387,17 @@ mod tests {
             right: Box::new(HirExpr::Literal(Literal::Int(2))),
         };
 
-        let call_expr = HirExpr::Call {
-            func: "int".to_string(),
-            args: vec![division],
-            kwargs: vec![],
-        };
+        let call_expr =
+            HirExpr::Call { func: "int".to_string(), args: vec![division], kwargs: vec![] };
 
         let mut ctx = create_test_context();
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
         // Should generate cast for expressions to prevent bool arithmetic errors
-        assert!(
-            code.contains("low"),
-            "Expected 'low' variable, got: {}",
-            code
-        );
-        assert!(
-            code.contains("high"),
-            "Expected 'high' variable, got: {}",
-            code
-        );
-        assert!(
-            code.contains("as i32"),
-            "Should contain 'as i32' cast, got: {}",
-            code
-        );
+        assert!(code.contains("low"), "Expected 'low' variable, got: {}", code);
+        assert!(code.contains("high"), "Expected 'high' variable, got: {}", code);
+        assert!(code.contains("as i32"), "Should contain 'as i32' cast, got: {}", code);
     }
 
     #[test]
@@ -1732,41 +1682,25 @@ mod tests {
 
     #[test]
     fn test_is_path_constant_expr_call() {
-        let expr = HirExpr::Call {
-            func: "Path".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "Path".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_path_constant_expr(&expr));
     }
 
     #[test]
     fn test_is_path_constant_expr_purepath() {
-        let expr = HirExpr::Call {
-            func: "PurePath".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "PurePath".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_path_constant_expr(&expr));
     }
 
     #[test]
     fn test_is_path_constant_expr_pathbuf() {
-        let expr = HirExpr::Call {
-            func: "PathBuf".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "PathBuf".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_path_constant_expr(&expr));
     }
 
     #[test]
     fn test_is_path_constant_expr_non_path_call() {
-        let expr = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_path_constant_expr(&expr));
     }
 
@@ -1841,11 +1775,8 @@ mod tests {
     #[test]
     fn test_infer_unary_type_neg_float() {
         let mut ctx = create_test_context();
-        let result = infer_unary_type(
-            &UnaryOp::Neg,
-            &HirExpr::Literal(Literal::Float(3.15)),
-            &mut ctx,
-        );
+        let result =
+            infer_unary_type(&UnaryOp::Neg, &HirExpr::Literal(Literal::Float(3.15)), &mut ctx);
         assert!(result.to_string().contains("f64"));
     }
 
@@ -1890,11 +1821,7 @@ mod tests {
         let mut ctx = create_test_context();
         let result = infer_unary_type(&UnaryOp::Not, &HirExpr::Var("x".to_string()), &mut ctx);
         let result_str = result.to_string();
-        assert!(
-            result_str.contains("bool"),
-            "Expected bool type for NOT, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("bool"), "Expected bool type for NOT, got: {}", result_str);
     }
 
     #[test]
@@ -1933,10 +1860,7 @@ mod tests {
             object: Box::new(HirExpr::Var("parser".to_string())),
             method: "add_argument".to_string(),
             args: vec![HirExpr::Literal(Literal::String("--value".to_string()))],
-            kwargs: vec![(
-                "type".to_string(),
-                HirExpr::Var("validate_positive".to_string()),
-            )],
+            kwargs: vec![("type".to_string(), HirExpr::Var("validate_positive".to_string()))],
         };
         scan_expr_for_validators(&expr, &mut ctx);
         assert!(ctx.validator_functions.contains("validate_positive"));
@@ -2012,10 +1936,7 @@ mod tests {
                 object: Box::new(HirExpr::Var("parser".to_string())),
                 method: "add_argument".to_string(),
                 args: vec![],
-                kwargs: vec![(
-                    "type".to_string(),
-                    HirExpr::Var("else_validator".to_string()),
-                )],
+                kwargs: vec![("type".to_string(), HirExpr::Var("else_validator".to_string()))],
             })]),
         }];
         scan_stmts_for_validators(&stmts, &mut ctx);
@@ -2031,10 +1952,7 @@ mod tests {
                 object: Box::new(HirExpr::Var("parser".to_string())),
                 method: "add_argument".to_string(),
                 args: vec![],
-                kwargs: vec![(
-                    "type".to_string(),
-                    HirExpr::Var("while_validator".to_string()),
-                )],
+                kwargs: vec![("type".to_string(), HirExpr::Var("while_validator".to_string()))],
             })],
         }];
         scan_stmts_for_validators(&stmts, &mut ctx);
@@ -2051,10 +1969,7 @@ mod tests {
                 object: Box::new(HirExpr::Var("parser".to_string())),
                 method: "add_argument".to_string(),
                 args: vec![],
-                kwargs: vec![(
-                    "type".to_string(),
-                    HirExpr::Var("for_validator".to_string()),
-                )],
+                kwargs: vec![("type".to_string(), HirExpr::Var("for_validator".to_string()))],
             })],
         }];
         scan_stmts_for_validators(&stmts, &mut ctx);
@@ -2080,10 +1995,8 @@ mod tests {
     #[test]
     fn test_infer_constant_type_string() {
         let mut ctx = create_test_context();
-        let result = infer_constant_type(
-            &HirExpr::Literal(Literal::String("hello".to_string())),
-            &mut ctx,
-        );
+        let result =
+            infer_constant_type(&HirExpr::Literal(Literal::String("hello".to_string())), &mut ctx);
         assert!(result.to_string().contains("str"));
     }
 
@@ -2196,11 +2109,7 @@ mod tests {
         // First declare d
         let decl = HirStmt::Assign {
             target: crate::hir::AssignTarget::Symbol("d".to_string()),
-            value: HirExpr::Call {
-                func: "HashMap::new".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            },
+            value: HirExpr::Call { func: "HashMap::new".to_string(), args: vec![], kwargs: vec![] },
             type_annotation: None,
         };
         // Then do nested index assignment: d["a"]["b"] = 5
@@ -2237,11 +2146,7 @@ mod tests {
         // First declare copied
         let decl = HirStmt::Assign {
             target: crate::hir::AssignTarget::Symbol("copied".to_string()),
-            value: HirExpr::Call {
-                func: "clone".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            },
+            value: HirExpr::Call { func: "clone".to_string(), args: vec![], kwargs: vec![] },
             type_annotation: None,
         };
         // Then do nested index assignment inside if body: copied["group1"]["e"] = 5
@@ -2338,14 +2243,8 @@ mod tests {
         assert!(children.contains(&"Some".to_string()));
         assert!(children.contains(&"Nothing".to_string()));
         // Check reverse mapping
-        assert_eq!(
-            result.child_to_parent.get("Some"),
-            Some(&"Option".to_string())
-        );
-        assert_eq!(
-            result.child_to_parent.get("Nothing"),
-            Some(&"Option".to_string())
-        );
+        assert_eq!(result.child_to_parent.get("Some"), Some(&"Option".to_string()));
+        assert_eq!(result.child_to_parent.get("Nothing"), Some(&"Option".to_string()));
     }
 
     // === Tests for generate_interned_string_tokens ===
@@ -2419,10 +2318,7 @@ mod tests {
                 object: Box::new(HirExpr::Var("parser".to_string())),
                 method: "add_argument".to_string(),
                 args: vec![],
-                kwargs: vec![(
-                    "type".to_string(),
-                    HirExpr::Var("const_validator".to_string()),
-                )],
+                kwargs: vec![("type".to_string(), HirExpr::Var("const_validator".to_string()))],
             },
             type_annotation: None,
         }];
@@ -2472,26 +2368,11 @@ mod tests {
         );
 
         // Verify implementations for primitive types
-        assert!(
-            code.contains("impl PyTruthy for bool"),
-            "Should implement PyTruthy for bool"
-        );
-        assert!(
-            code.contains("impl PyTruthy for i32"),
-            "Should implement PyTruthy for i32"
-        );
-        assert!(
-            code.contains("impl PyTruthy for i64"),
-            "Should implement PyTruthy for i64"
-        );
-        assert!(
-            code.contains("impl PyTruthy for f64"),
-            "Should implement PyTruthy for f64"
-        );
-        assert!(
-            code.contains("impl PyTruthy for String"),
-            "Should implement PyTruthy for String"
-        );
+        assert!(code.contains("impl PyTruthy for bool"), "Should implement PyTruthy for bool");
+        assert!(code.contains("impl PyTruthy for i32"), "Should implement PyTruthy for i32");
+        assert!(code.contains("impl PyTruthy for i64"), "Should implement PyTruthy for i64");
+        assert!(code.contains("impl PyTruthy for f64"), "Should implement PyTruthy for f64");
+        assert!(code.contains("impl PyTruthy for String"), "Should implement PyTruthy for String");
 
         // Verify implementation for DepylerValue
         assert!(
@@ -2647,26 +2528,11 @@ mod tests {
         );
 
         // Verify trait methods
-        assert!(
-            code.contains("fn py_add"),
-            "PyAdd trait should define py_add method"
-        );
-        assert!(
-            code.contains("fn py_sub"),
-            "PySub trait should define py_sub method"
-        );
-        assert!(
-            code.contains("fn py_mul"),
-            "PyMul trait should define py_mul method"
-        );
-        assert!(
-            code.contains("fn py_div"),
-            "PyDiv trait should define py_div method"
-        );
-        assert!(
-            code.contains("fn py_index"),
-            "PyIndex trait should define py_index method"
-        );
+        assert!(code.contains("fn py_add"), "PyAdd trait should define py_add method");
+        assert!(code.contains("fn py_sub"), "PySub trait should define py_sub method");
+        assert!(code.contains("fn py_mul"), "PyMul trait should define py_mul method");
+        assert!(code.contains("fn py_div"), "PyDiv trait should define py_div method");
+        assert!(code.contains("fn py_index"), "PyIndex trait should define py_index method");
     }
 
     #[test]
@@ -2861,10 +2727,7 @@ mod tests {
 
         // Verify the function is generated and code contains PyOps traits
         assert!(code.contains("fn test_add"), "Should have the function");
-        assert!(
-            code.contains("pub trait PyAdd"),
-            "Should include PyAdd trait"
-        );
+        assert!(code.contains("pub trait PyAdd"), "Should include PyAdd trait");
     }
 
     /// DEPYLER-1106: Verify PyOps codegen includes DepylerValue trait implementations
@@ -2922,9 +2785,7 @@ mod tests {
                 name: "test_cross_type".to_string(),
                 params: smallvec![],
                 ret_type: Type::Unknown, // Triggers DepylerValue
-                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(
-                    3.15,
-                ))))],
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.15))))],
                 properties: FunctionProperties::default(),
                 annotations: TranspilationAnnotations::default(),
                 docstring: None,
@@ -2985,14 +2846,8 @@ mod tests {
         let code = result.0;
 
         // Verify PyIndex trait and implementation are present
-        assert!(
-            code.contains("pub trait PyIndex"),
-            "Should include PyIndex trait definition"
-        );
-        assert!(
-            code.contains("fn py_index"),
-            "PyIndex trait should have py_index method"
-        );
+        assert!(code.contains("pub trait PyIndex"), "Should include PyIndex trait definition");
+        assert!(code.contains("fn py_index"), "PyIndex trait should have py_index method");
     }
 
     /// DEPYLER-1101: Verify rust_type_string_to_hir converts Rust type strings correctly
@@ -3042,10 +2897,7 @@ mod tests {
         }
 
         // Unknown types fallback
-        assert!(matches!(
-            rust_type_string_to_hir("CustomType"),
-            Type::Unknown
-        ));
+        assert!(matches!(rust_type_string_to_hir("CustomType"), Type::Unknown));
     }
 
     // ========================================================================
@@ -3058,10 +2910,8 @@ mod tests {
         use crate::type_mapper::TypeMapper;
         use rustpython_parser::{parse, Mode};
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -3140,9 +2990,7 @@ mod tests {
 
     #[test]
     fn test_s9_module_import_json() {
-        let code = transpile(
-            "import json\n\ndef parse(data: str) -> str:\n    return data\n",
-        );
+        let code = transpile("import json\n\ndef parse(data: str) -> str:\n    return data\n");
         assert!(code.contains("fn parse"));
     }
 
@@ -3213,30 +3061,21 @@ mod tests {
 
     #[test]
     fn test_s9_module_function_calls_len() {
-        let code = transpile(
-            "def length(items: list) -> int:\n    return len(items)\n",
-        );
+        let code = transpile("def length(items: list) -> int:\n    return len(items)\n");
         assert!(code.contains("fn length"));
         assert!(code.contains("len()"), "Should call len(): {code}");
     }
 
     #[test]
     fn test_s9_module_global_and_function() {
-        let code = transpile(
-            "THRESHOLD = 42\n\ndef check(x: int) -> bool:\n    return x > 0\n",
-        );
+        let code = transpile("THRESHOLD = 42\n\ndef check(x: int) -> bool:\n    return x > 0\n");
         assert!(code.contains("fn check"));
-        assert!(
-            code.contains("42") || code.contains("THRESHOLD"),
-            "Should have constant: {code}"
-        );
+        assert!(code.contains("42") || code.contains("THRESHOLD"), "Should have constant: {code}");
     }
 
     #[test]
     fn test_s9_module_function_with_string_ops() {
-        let code = transpile(
-            "def upper_case(s: str) -> str:\n    return s.upper()\n",
-        );
+        let code = transpile("def upper_case(s: str) -> str:\n    return s.upper()\n");
         assert!(code.contains("fn upper_case"));
         assert!(
             code.contains("to_uppercase") || code.contains("upper"),
@@ -3246,14 +3085,9 @@ mod tests {
 
     #[test]
     fn test_s9_module_function_with_print() {
-        let code = transpile(
-            "def say_hello():\n    print(\"hello\")\n",
-        );
+        let code = transpile("def say_hello():\n    print(\"hello\")\n");
         assert!(code.contains("fn say_hello"));
-        assert!(
-            code.contains("println!") || code.contains("print"),
-            "Should map print: {code}"
-        );
+        assert!(code.contains("println!") || code.contains("print"), "Should map print: {code}");
     }
 
     #[test]
@@ -3278,25 +3112,21 @@ mod tests {
 
     #[test]
     fn test_s9_module_function_with_set() {
-        let code = transpile(
-            "def unique_count(items: list) -> int:\n    s = set()\n    return len(s)\n",
-        );
+        let code =
+            transpile("def unique_count(items: list) -> int:\n    s = set()\n    return len(s)\n");
         assert!(code.contains("fn unique_count"));
     }
 
     #[test]
     fn test_s9_module_function_with_tuple_return() {
-        let code = transpile(
-            "def divmod_fn(a: int, b: int) -> tuple:\n    return (a // b, a % b)\n",
-        );
+        let code =
+            transpile("def divmod_fn(a: int, b: int) -> tuple:\n    return (a // b, a % b)\n");
         assert!(code.contains("fn divmod_fn"));
     }
 
     #[test]
     fn test_s9_module_function_with_assert() {
-        let code = transpile(
-            "def validated(x: int) -> int:\n    assert x >= 0\n    return x\n",
-        );
+        let code = transpile("def validated(x: int) -> int:\n    assert x >= 0\n    return x\n");
         assert!(code.contains("fn validated"));
         assert!(code.contains("assert"), "Should have assertion: {code}");
     }
@@ -3330,18 +3160,14 @@ mod tests {
 
     #[test]
     fn test_s9_module_function_ternary_expr() {
-        let code = transpile(
-            "def abs_val(x: int) -> int:\n    return x if x >= 0 else -x\n",
-        );
+        let code = transpile("def abs_val(x: int) -> int:\n    return x if x >= 0 else -x\n");
         assert!(code.contains("fn abs_val"));
         assert!(code.contains("if"), "Should contain conditional expr: {code}");
     }
 
     #[test]
     fn test_s9_module_function_string_concat() {
-        let code = transpile(
-            "def concat(a: str, b: str) -> str:\n    return a + b\n",
-        );
+        let code = transpile("def concat(a: str, b: str) -> str:\n    return a + b\n");
         assert!(code.contains("fn concat"));
     }
 
@@ -3357,9 +3183,7 @@ mod tests {
     #[test]
     fn test_s9_module_analyze_mutable_vars_basic() {
         // Test that analyze_mutable_vars detects reassignment
-        let code = transpile(
-            "def mutate() -> int:\n    x = 1\n    x = x + 1\n    return x\n",
-        );
+        let code = transpile("def mutate() -> int:\n    x = 1\n    x = x + 1\n    return x\n");
         assert!(code.contains("mut"), "Reassigned x should be mutable: {code}");
     }
 
@@ -3368,10 +3192,7 @@ mod tests {
         let code = transpile(
             "def build() -> list:\n    items = []\n    items.append(1)\n    return items\n",
         );
-        assert!(
-            code.contains("mut"),
-            "List with append should be mutable: {code}"
-        );
+        assert!(code.contains("mut"), "List with append should be mutable: {code}");
     }
 
     #[test]

@@ -7,11 +7,11 @@
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::ToRustExpr;
-use crate::trace_decision;
 use crate::rust_gen::expr_analysis;
 use crate::rust_gen::precedence;
 use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
+use crate::trace_decision;
 use anyhow::Result;
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
@@ -156,10 +156,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 left_is_string || right_is_string || left_is_char_iter || right_is_char_iter;
 
             let left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
-                matches!(
-                    inner_op,
-                    BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
-                )
+                matches!(inner_op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod)
             } else {
                 false
             };
@@ -174,8 +171,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .unwrap_or(false);
                 // DEPYLER-99MODE-S9: Also check if either operand is float-typed.
                 // For functions returning bool/int, float operands still need f64 cast.
-                let operand_is_float = self.expr_is_float_type(left)
-                    || self.expr_is_float_type(right);
+                let operand_is_float =
+                    self.expr_is_float_type(left) || self.expr_is_float_type(right);
                 if return_expects_float || operand_is_float {
                     parse_quote! { (#left_pyops as f64) }
                 } else {
@@ -188,8 +185,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-99MODE-S9: Skip py_sub for set types - use .difference() instead
             // Set subtraction must be handled separately since py_sub takes ownership
             // but set difference needs references for cloned collection semantics
-            let is_set_sub = matches!(op, BinOp::Sub)
-                && (self.is_set_expr(left) || self.is_set_expr(right));
+            let is_set_sub =
+                matches!(op, BinOp::Sub) && (self.is_set_expr(left) || self.is_set_expr(right));
 
             match op {
                 // DEPYLER-99MODE-S9: Skip py_add for string/char concat - fall through to regular path
@@ -218,10 +215,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-99MODE-S9: Convert `x == []` to `x.is_empty()` and `x != []` to `!x.is_empty()`
             // This avoids E0283 type annotation errors when comparing with empty vec![]
             if matches!(op, BinOp::Eq | BinOp::NotEq) {
-                let left_is_empty_list =
-                    matches!(left, HirExpr::List(elts) if elts.is_empty());
-                let right_is_empty_list =
-                    matches!(right, HirExpr::List(elts) if elts.is_empty());
+                let left_is_empty_list = matches!(left, HirExpr::List(elts) if elts.is_empty());
+                let right_is_empty_list = matches!(right, HirExpr::List(elts) if elts.is_empty());
 
                 if right_is_empty_list {
                     if matches!(op, BinOp::Eq) {
@@ -725,18 +720,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // overwrites the bool type in var_types, causing .is_empty() on bools.
                 let either_is_bool_var = {
                     let l = if let HirExpr::Var(name) = left {
-                        matches!(
-                            self.ctx.var_types.get(name.as_str()),
-                            Some(Type::Bool)
-                        )
+                        matches!(self.ctx.var_types.get(name.as_str()), Some(Type::Bool))
                     } else {
                         false
                     };
                     let r = if let HirExpr::Var(name) = right {
-                        matches!(
-                            self.ctx.var_types.get(name.as_str()),
-                            Some(Type::Bool)
-                        )
+                        matches!(self.ctx.var_types.get(name.as_str()), Some(Type::Bool))
                     } else {
                         false
                     };
@@ -881,13 +870,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-0576: Parenthesize right side when it's a unary negation
                 // Prevents "<-" tokenization issue: x < -20.0 becomes x<- 20.0 without parens
-                let right_expr_final = if matches!(
-                    right,
-                    HirExpr::Unary {
-                        op: UnaryOp::Neg,
-                        ..
-                    }
-                ) {
+                let right_expr_final = if matches!(right, HirExpr::Unary { op: UnaryOp::Neg, .. }) {
                     parse_quote! { (#right_coerced) }
                 } else {
                     right_coerced
@@ -1235,12 +1218,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right);
 
         let is_list_var = match (left, right) {
-            (HirExpr::Var(name), _) | (_, HirExpr::Var(name)) => self
-                .ctx
-                .var_types
-                .get(name)
-                .map(|t| matches!(t, Type::List(_)))
-                .unwrap_or(false),
+            (HirExpr::Var(name), _) | (_, HirExpr::Var(name)) => {
+                self.ctx.var_types.get(name).map(|t| matches!(t, Type::List(_))).unwrap_or(false)
+            }
             _ => false,
         };
 
@@ -1251,18 +1231,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-STRING-CONCAT: String variable detection for concatenation
         // Check if either operand is a String-typed variable
         let left_is_str_var = if let HirExpr::Var(name) = left {
-            self.ctx
-                .var_types
-                .get(name)
-                .is_some_and(|t| matches!(t, Type::String))
+            self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String))
         } else {
             false
         };
         let right_is_str_var = if let HirExpr::Var(name) = right {
-            self.ctx
-                .var_types
-                .get(name)
-                .is_some_and(|t| matches!(t, Type::String))
+            self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String))
         } else {
             false
         };
@@ -1314,13 +1288,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             false
         };
-        let is_char_string_concat =
-            (left_is_char_iter && (is_string_var || is_str_producing_expr(right)))
-                || (right_is_char_iter && (is_string_var || is_str_producing_expr(left)))
-                || (left_is_char_iter
-                    && matches!(right, HirExpr::Literal(Literal::String(_))))
-                || (right_is_char_iter
-                    && matches!(left, HirExpr::Literal(Literal::String(_))));
+        let is_char_string_concat = (left_is_char_iter
+            && (is_string_var || is_str_producing_expr(right)))
+            || (right_is_char_iter && (is_string_var || is_str_producing_expr(left)))
+            || (left_is_char_iter && matches!(right, HirExpr::Literal(Literal::String(_))))
+            || (right_is_char_iter && matches!(left, HirExpr::Literal(Literal::String(_))));
 
         // String detection - includes literals, variable types, str() calls, string indexing
         // NOTE: Do NOT use current_return_type here - just because a function returns String
@@ -1560,9 +1532,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // - Variable that could be Vec<String>
             let is_string_list = if let HirExpr::List(elems) = right {
                 // Check if first element is a string literal (heuristic for list type)
-                elems
-                    .first()
-                    .is_some_and(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
+                elems.first().is_some_and(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
             } else {
                 false
             };
@@ -1679,5 +1649,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
     }
-
 }

@@ -25,7 +25,12 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! { #ident })
     }
 
-    pub(super) fn convert_binary(&self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
+    pub(super) fn convert_binary(
+        &self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+    ) -> Result<syn::Expr> {
         let left_expr = self.convert(left)?;
         let right_expr = self.convert(right)?;
 
@@ -41,10 +46,9 @@ impl<'a> ExprConverter<'a> {
                     // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
                     // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
                     let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => elems
-                            .iter()
-                            .map(|e| self.convert(e))
-                            .collect::<Result<Vec<_>>>()?,
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
+                        }
                         _ => vec![right_expr.clone()],
                     };
                     Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
@@ -81,10 +85,9 @@ impl<'a> ExprConverter<'a> {
                     // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
                     // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
                     let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => elems
-                            .iter()
-                            .map(|e| self.convert(e))
-                            .collect::<Result<Vec<_>>>()?,
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
+                        }
                         _ => vec![right_expr.clone()],
                     };
                     Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
@@ -333,10 +336,7 @@ impl<'a> ExprConverter<'a> {
                     match expr {
                         HirExpr::Literal(Literal::Int(n)) => Some(*n),
                         // Handle -N which is represented as Unary(Neg, Literal(Int(N)))
-                        HirExpr::Unary {
-                            op: UnaryOp::Neg,
-                            operand,
-                        } => {
+                        HirExpr::Unary { op: UnaryOp::Neg, operand } => {
                             if let HirExpr::Literal(Literal::Int(n)) = operand.as_ref() {
                                 Some(-*n)
                             } else {
@@ -407,7 +407,11 @@ impl<'a> ExprConverter<'a> {
     /// DEPYLER-1096: Apply truthiness coercion to an expression for use in if/while conditions.
     /// Python allows any type in conditions (truthy/falsy), Rust requires bool.
     /// Returns: A boolean expression suitable for use as a condition.
-    pub(super) fn apply_truthiness_coercion(&self, expr: &HirExpr, rust_expr: syn::Expr) -> syn::Expr {
+    pub(super) fn apply_truthiness_coercion(
+        &self,
+        expr: &HirExpr,
+        rust_expr: syn::Expr,
+    ) -> syn::Expr {
         // Check for already-boolean expressions (comparisons, boolean ops, bool literals)
         let is_already_bool = matches!(
             expr,
@@ -432,13 +436,7 @@ impl<'a> ExprConverter<'a> {
         }
 
         // Check for Not unary - it already returns bool
-        if matches!(
-            expr,
-            HirExpr::Unary {
-                op: UnaryOp::Not,
-                ..
-            }
-        ) {
+        if matches!(expr, HirExpr::Unary { op: UnaryOp::Not, .. }) {
             return rust_expr;
         }
 
@@ -599,6 +597,4 @@ impl<'a> ExprConverter<'a> {
             UnaryOp::BitNot => Ok(parse_quote! { !#operand_expr }),
         }
     }
-
-
 }

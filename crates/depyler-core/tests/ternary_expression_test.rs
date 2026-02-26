@@ -31,11 +31,7 @@ def check_sign(x: int) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -69,11 +65,7 @@ def max_value(a: int, b: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -100,11 +92,7 @@ def classify(score: int) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -130,19 +118,11 @@ def process(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("abs"),
-        "Should have abs function call.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("abs"), "Should have abs function call.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("if") && rust_code.contains("else"),
@@ -160,11 +140,7 @@ def classify_number(x: int) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -176,11 +152,7 @@ def classify_number(x: int) -> str:
 
     // Should have nested if expressions
     let if_count = rust_code.matches("if").count();
-    assert!(
-        if_count >= 2,
-        "Should have multiple if expressions for nesting.\nGot:\n{}",
-        rust_code
-    );
+    assert!(if_count >= 2, "Should have multiple if expressions for nesting.\nGot:\n{}", rust_code);
 
     // Should have all three literals
     assert!(
@@ -201,11 +173,7 @@ def check_range(x: int) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -232,11 +200,7 @@ def compute(x: int, y: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -263,11 +227,7 @@ def get_value(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -296,21 +256,13 @@ def compare(a: int, b: int) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should have multiple if expressions
     let if_count = rust_code.matches("if").count();
-    assert!(
-        if_count >= 2,
-        "Should have at least 2 if expressions.\nGot:\n{}",
-        rust_code
-    );
+    assert!(if_count >= 2, "Should have at least 2 if expressions.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -323,11 +275,7 @@ def is_valid(x: int) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -360,11 +308,7 @@ def classify_numbers(numbers: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -398,11 +342,7 @@ def check_bounds(x: int) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -422,11 +362,7 @@ def classify_list(numbers: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -438,11 +374,7 @@ def classify_list(numbers: list) -> list:
 
     // Should have lambda/closure
     let has_closure = rust_code.contains("|x|") || rust_code.contains("| x |");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have if/else in lambda body
     assert!(
@@ -461,11 +393,7 @@ def format_string(s: str, upper: bool) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 

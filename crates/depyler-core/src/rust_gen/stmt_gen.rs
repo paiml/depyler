@@ -11,11 +11,10 @@ use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
     expr_infers_float, expr_produces_depyler_value, extract_kwarg_bool, extract_kwarg_string,
     extract_string_literal, get_depyler_extraction_for_type, get_inner_optional_type,
-    handler_ends_with_exit, has_chained_pyops, is_dict_augassign_pattern, is_dict_index_access,
-    is_call_to_result_returning_fn, is_dict_with_value_type, is_iterator_producing_expr,
-    is_native_depyler_tuple,
-    is_numpy_value_expr, is_pure_expression, looks_like_option_expr, needs_type_conversion,
-    to_pascal_case,
+    handler_ends_with_exit, has_chained_pyops, is_call_to_result_returning_fn,
+    is_dict_augassign_pattern, is_dict_index_access, is_dict_with_value_type,
+    is_iterator_producing_expr, is_native_depyler_tuple, is_numpy_value_expr, is_pure_expression,
+    looks_like_option_expr, needs_type_conversion, to_pascal_case,
 };
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::stmt_gen_complex::{is_subcommand_check, try_generate_subcommand_match}; // DEPYLER-COVERAGE-95: Split from stmt_gen
@@ -150,9 +149,7 @@ fn infer_collection_element_type_with_ctx(
 
     if all_same {
         // Check if we need to promote int to float
-        let has_float = elems
-            .iter()
-            .any(|e| matches!(get_elem_type(e), Some(Type::Float)));
+        let has_float = elems.iter().any(|e| matches!(get_elem_type(e), Some(Type::Float)));
         if has_float && matches!(first_type, Type::Int) {
             Type::Float
         } else {
@@ -303,10 +300,7 @@ pub(crate) fn codegen_assert_stmt(
 /// DEPYLER-99MODE-S9: Unwrap Result-returning function calls in assert_eq!/assert_ne!.
 /// If `expr` is a call to a function known to return Result, generate `func(args).unwrap()`
 /// instead of bare `func(args)` so assert_eq! can compare inner values.
-fn unwrap_result_in_assert(
-    expr: &HirExpr,
-    ctx: &mut CodeGenContext,
-) -> Result<syn::Expr> {
+fn unwrap_result_in_assert(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     let rust_expr = expr.to_rust_expr(ctx)?;
     if is_call_to_result_returning_fn(expr, ctx) {
         Ok(syn::parse_quote! { #rust_expr.unwrap() })
@@ -323,13 +317,7 @@ pub(crate) fn codegen_expr_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0363: Detect parser.add_argument(...) method calls
     // Pattern: parser.add_argument("files", nargs="+", type=Path, action="store_true", help="...")
-    if let HirExpr::MethodCall {
-        object,
-        method,
-        args,
-        kwargs,
-    } = expr
-    {
+    if let HirExpr::MethodCall { object, method, args, kwargs } = expr {
         // DEPYLER-0581: Handle chained method calls like subparsers.add_parser(...).set_defaults(...)
         // Pattern: subparsers.add_parser("step").set_defaults(func=cmd_step)
         // This creates HIR: MethodCall { object: MethodCall { object: Var("subparsers"), method: "add_parser" }, method: "set_defaults" }
@@ -343,11 +331,7 @@ pub(crate) fn codegen_expr_stmt(
             {
                 if inner_method == "add_parser" {
                     if let HirExpr::Var(subparsers_var) = inner_obj.as_ref() {
-                        if ctx
-                            .argparser_tracker
-                            .get_subparsers(subparsers_var)
-                            .is_some()
-                        {
+                        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() {
                             // Register the subcommand and skip code generation
                             if !inner_args.is_empty() {
                                 let command_name = extract_string_literal(&inner_args[0]);
@@ -511,8 +495,7 @@ pub(crate) fn codegen_expr_stmt(
                     };
 
                     // Use the command name itself as the key (since there's no parser variable)
-                    ctx.argparser_tracker
-                        .register_subcommand(command_name, subcommand_info);
+                    ctx.argparser_tracker.register_subcommand(command_name, subcommand_info);
                 }
                 // Skip code generation for this statement
                 return Ok(quote! {});
@@ -745,12 +728,7 @@ pub(crate) fn codegen_return_stmt(
         category = DecisionCategory::TypeMapping,
         name = "return_stmt",
         chosen = "return_expr",
-        alternatives = [
-            "return_unit",
-            "return_result",
-            "return_option",
-            "implicit_return"
-        ],
+        alternatives = ["return_unit", "return_result", "return_option", "implicit_return"],
         confidence = 0.92
     );
 
@@ -934,10 +912,8 @@ pub(crate) fn codegen_return_stmt(
             // Pattern: def func(s: str) -> str: return s
             // Rust: fn func(s: &str) -> String { s.to_string() }
             let is_str_param = ctx.fn_str_params.contains(var_name);
-            let is_string_return_type = matches!(
-                ctx.current_return_type.as_ref(),
-                Some(Type::String)
-            );
+            let is_string_return_type =
+                matches!(ctx.current_return_type.as_ref(), Some(Type::String));
             if is_str_param && is_string_return_type {
                 expr_tokens = parse_quote! { #expr_tokens.to_string() };
             }
@@ -1029,10 +1005,7 @@ pub(crate) fn codegen_return_stmt(
         // DEPYLER-0951: Extended to check method calls that return Option
         // Don't wrap in Some() if the expression is already Option<T>
         let is_already_optional = if let HirExpr::Var(var_name) = e {
-            ctx.var_types
-                .get(var_name)
-                .map(|ty| matches!(ty, Type::Optional(_)))
-                .unwrap_or(false)
+            ctx.var_types.get(var_name).map(|ty| matches!(ty, Type::Optional(_))).unwrap_or(false)
         } else if let HirExpr::MethodCall { method, args, .. } = e {
             // DEPYLER-0951: These methods return Option<T>, don't wrap in Some()
             // - dict.get(key) -> Option<&V>
@@ -1092,10 +1065,8 @@ pub(crate) fn codegen_return_stmt(
             if let HirExpr::Var(var_name) = e {
                 // Check if this variable is typed as Optional in var_types
                 // (function parameters with Optional type are tracked there)
-                let is_optional_typed = ctx
-                    .var_types
-                    .get(var_name)
-                    .is_some_and(|t| matches!(t, Type::Optional(_)));
+                let is_optional_typed =
+                    ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Optional(_)));
                 if is_optional_typed {
                     // For &Option<T> parameters, need (*var).unwrap() to get T
                     // Since optional params are passed by reference: &Option<T>
@@ -1128,12 +1099,7 @@ pub(crate) fn codegen_return_stmt(
             } else if is_optional_return && is_if_expr_with_none {
                 // DEPYLER-1079: If-expr with None arm in Result context
                 // Pattern: `return x if cond else None` -> `Ok(if cond { Some(x) } else { None })`
-                if let HirExpr::IfExpr {
-                    test,
-                    body,
-                    orelse: _,
-                } = e
-                {
+                if let HirExpr::IfExpr { test, body, orelse: _ } = e {
                     // DEPYLER-1071: Check if test is an Option variable (regex match result)
                     // Pattern: `return m.group(0) if m else None` where m is Option<Match>
                     // Should generate: `Ok(m.as_ref().map(|m_val| m_val.group(0)))`
@@ -1282,21 +1248,14 @@ pub(crate) fn codegen_return_stmt(
         } else if is_optional_return && is_if_expr_with_none {
             // DEPYLER-0498: If-expr with None arm - manually wrap true arm in Some()
             // Pattern: `return x if cond else None` -> `if cond { Some(x) } else { None }`
-            if let HirExpr::IfExpr {
-                test,
-                body,
-                orelse: _,
-            } = e
-            {
+            if let HirExpr::IfExpr { test, body, orelse: _ } = e {
                 // DEPYLER-1071: Check if test is an Option variable (regex match result)
                 // Pattern: `return m.group(0) if m else None` where m is Option<Match>
                 // Should generate: `m.as_ref().map(|m_val| m_val.group(0))`
                 if let HirExpr::Var(var_name) = test.as_ref() {
-                    let is_option = ctx
-                        .var_types
-                        .get(var_name)
-                        .is_some_and(|t| matches!(t, Type::Optional(_)))
-                        || is_option_var_name(var_name);
+                    let is_option =
+                        ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Optional(_)))
+                            || is_option_var_name(var_name);
 
                     if is_option && body_uses_option_var(body, var_name) {
                         let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
@@ -1436,10 +1395,8 @@ pub(crate) fn codegen_while_stmt(
     // Rust warns: "denote infinite loops with `loop { ... }`"
     if matches!(condition, HirExpr::Literal(Literal::Bool(true))) {
         ctx.enter_scope();
-        let body_stmts: Vec<_> = body
-            .iter()
-            .map(|s| s.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let body_stmts: Vec<_> =
+            body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
         ctx.is_final_statement = saved_is_final;
         return Ok(quote! {
@@ -1456,10 +1413,8 @@ pub(crate) fn codegen_while_stmt(
     cond = apply_truthiness_conversion(condition, cond, ctx);
 
     ctx.enter_scope();
-    let body_stmts: Vec<_> = body
-        .iter()
-        .map(|s| s.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let body_stmts: Vec<_> =
+        body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
     ctx.is_final_statement = saved_is_final;
     Ok(quote! {
@@ -1485,14 +1440,10 @@ pub(crate) fn codegen_raise_stmt(
         // Extract message and use directly in panic!/error
         let exc_expr = match exc {
             // Pattern 1: argparse.ArgumentTypeError(msg)
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } if matches!(object.as_ref(), HirExpr::Var(v) if v == "argparse")
-                && method == "ArgumentTypeError"
-                && !args.is_empty() =>
+            HirExpr::MethodCall { object, method, args, .. }
+                if matches!(object.as_ref(), HirExpr::Var(v) if v == "argparse")
+                    && method == "ArgumentTypeError"
+                    && !args.is_empty() =>
             {
                 // Extract the message argument and use it directly
                 args[0].to_rust_expr(ctx)?
@@ -1535,10 +1486,8 @@ pub(crate) fn codegen_raise_stmt(
         } else if ctx.current_function_can_fail {
             // Exception propagates to caller - use return Err
             // DEPYLER-0310: Check if we need to wrap with Box::new()
-            let needs_boxing = matches!(
-                ctx.current_error_type,
-                Some(crate::rust_gen::context::ErrorType::DynBox)
-            );
+            let needs_boxing =
+                matches!(ctx.current_error_type, Some(crate::rust_gen::context::ErrorType::DynBox));
 
             if needs_boxing {
                 // DEPYLER-0438: Wrap exception in error type constructor if it's a known exception
@@ -1633,10 +1582,8 @@ pub(crate) fn codegen_with_stmt(
     ctx.is_final_statement = false;
 
     // Convert body statements
-    let body_stmts: Vec<_> = body
-        .iter()
-        .map(|stmt| stmt.to_rust_tokens(ctx))
-        .collect::<Result<_>>()?;
+    let body_stmts: Vec<_> =
+        body.iter().map(|stmt| stmt.to_rust_tokens(ctx)).collect::<Result<_>>()?;
 
     // Restore is_final_statement flag
     ctx.is_final_statement = saved_is_final;
@@ -1740,17 +1687,13 @@ fn apply_negated_truthiness(
 
     // Extract the inner expression (strip the `!` from the already-converted cond_expr)
     // The cond_expr is already `!inner_expr` from to_rust_expr, so we need the inner part
-    let inner_expr = if let syn::Expr::Unary(syn::ExprUnary {
-        op: syn::UnOp::Not(_),
-        expr,
-        ..
-    }) = &cond_expr
-    {
-        expr.as_ref().clone()
-    } else {
-        // Fallback: use the whole expression
-        cond_expr.clone()
-    };
+    let inner_expr =
+        if let syn::Expr::Unary(syn::ExprUnary { op: syn::UnOp::Not(_), expr, .. }) = &cond_expr {
+            expr.as_ref().clone()
+        } else {
+            // Fallback: use the whole expression
+            cond_expr.clone()
+        };
 
     // Helper to get the type for type-based truthiness
     let get_type_for_operand = |op: &HirExpr| -> Option<Type> {
@@ -1832,11 +1775,7 @@ fn apply_truthiness_conversion(
     // DEPYLER-0966: Handle negated truthiness: `if not x:` where x is non-boolean
     // For `not collection`, we should generate `collection.is_empty()` (no double negation)
     // For `not optional`, we should generate `optional.is_none()`
-    if let HirExpr::Unary {
-        op: UnaryOp::Not,
-        operand,
-    } = condition
-    {
+    if let HirExpr::Unary { op: UnaryOp::Not, operand } = condition {
         // Get the type of the inner operand and generate inverted truthiness
         return apply_negated_truthiness(operand, cond_expr, ctx);
     }
@@ -2031,10 +1970,7 @@ fn apply_truthiness_conversion(
 
             // Check if this is accessing an args variable from ArgumentParser
             let is_args_var = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                parser_info
-                    .args_var
-                    .as_ref()
-                    .is_some_and(|args_var| args_var == obj_name)
+                parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
             });
 
             if is_args_var {
@@ -2048,10 +1984,7 @@ fn apply_truthiness_conversion(
                     }
 
                     // Argument is NOT an Option if it has action="store_true" or "store_false"
-                    if matches!(
-                        arg.action.as_deref(),
-                        Some("store_true") | Some("store_false")
-                    ) {
+                    if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
                         return false;
                     }
 
@@ -2072,11 +2005,10 @@ fn apply_truthiness_conversion(
                     .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
 
                 // DEPYLER-0722: Also check subcommands for optional fields
-                let is_optional_in_subcommand = ctx
-                    .argparser_tracker
-                    .subcommands
-                    .values()
-                    .any(|subcommand_info| subcommand_info.arguments.iter().any(&check_optional));
+                let is_optional_in_subcommand =
+                    ctx.argparser_tracker.subcommands.values().any(|subcommand_info| {
+                        subcommand_info.arguments.iter().any(&check_optional)
+                    });
 
                 let is_optional_field = is_optional_in_parser || is_optional_in_subcommand;
 
@@ -2189,13 +2121,8 @@ fn apply_truthiness_conversion(
     // Python: `if match.groups():` checks if groups is non-empty
     // Rust: `if !groups().is_empty()`
     if let HirExpr::MethodCall { method, .. } = condition {
-        let vec_returning_methods = [
-            "groups",
-            "split",
-            "split_whitespace",
-            "splitlines",
-            "findall",
-        ];
+        let vec_returning_methods =
+            ["groups", "split", "split_whitespace", "splitlines", "findall"];
         if vec_returning_methods.contains(&method.as_str()) {
             return parse_quote! { !#cond_expr.is_empty() };
         }
@@ -2248,18 +2175,10 @@ fn body_uses_option_var(body: &HirExpr, var_name: &str) -> bool {
 fn substitute_var_in_hir(expr: &HirExpr, old_name: &str, new_name: &str) -> HirExpr {
     match expr {
         HirExpr::Var(name) if name == old_name => HirExpr::Var(new_name.to_string()),
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            kwargs,
-        } => HirExpr::MethodCall {
+        HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
             object: Box::new(substitute_var_in_hir(object, old_name, new_name)),
             method: method.clone(),
-            args: args
-                .iter()
-                .map(|a| substitute_var_in_hir(a, old_name, new_name))
-                .collect(),
+            args: args.iter().map(|a| substitute_var_in_hir(a, old_name, new_name)).collect(),
             kwargs: kwargs
                 .iter()
                 .map(|(k, v)| (k.clone(), substitute_var_in_hir(v, old_name, new_name)))
@@ -2271,10 +2190,7 @@ fn substitute_var_in_hir(expr: &HirExpr, old_name: &str, new_name: &str) -> HirE
         },
         HirExpr::Call { func, args, kwargs } => HirExpr::Call {
             func: func.clone(),
-            args: args
-                .iter()
-                .map(|a| substitute_var_in_hir(a, old_name, new_name))
-                .collect(),
+            args: args.iter().map(|a| substitute_var_in_hir(a, old_name, new_name)).collect(),
             kwargs: kwargs
                 .iter()
                 .map(|(k, v)| (k.clone(), substitute_var_in_hir(v, old_name, new_name)))
@@ -2510,18 +2426,14 @@ pub(crate) fn codegen_if_stmt(
     ctx.is_final_statement = false;
 
     ctx.enter_scope();
-    let then_stmts: Vec<_> = then_body
-        .iter()
-        .map(|s| s.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let then_stmts: Vec<_> =
+        then_body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
     let result = if let Some(else_stmts) = else_body {
         ctx.enter_scope();
-        let else_tokens: Vec<_> = else_stmts
-            .iter()
-            .map(|s| s.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let else_tokens: Vec<_> =
+            else_stmts.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
         Ok(quote! {
             #(#walrus_lets)*
@@ -2580,10 +2492,7 @@ fn detect_none_check_variable(condition: &HirExpr) -> Option<String> {
             None
         }
         // Pattern: `not x` where x is Optional -> Unary { op: Not, operand: Var(x) }
-        HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand,
-        } => {
+        HirExpr::Unary { op: UnaryOp::Not, operand } => {
             if let HirExpr::Var(var_name) = operand.as_ref() {
                 // This could be a None check if var is Optional
                 // We'll verify it's Optional when we use it
@@ -2642,15 +2551,12 @@ fn codegen_option_if_let(
         };
 
     // Add mapping so variable references inside body use unwrapped name
-    ctx.option_unwrap_map
-        .insert(var_name.to_string(), unwrapped_name.clone());
+    ctx.option_unwrap_map.insert(var_name.to_string(), unwrapped_name.clone());
 
     // Process then body with the mapping active
     ctx.enter_scope();
-    let then_stmts: Vec<_> = then_body
-        .iter()
-        .map(|s| s.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let then_stmts: Vec<_> =
+        then_body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
     // Remove the mapping
@@ -2659,10 +2565,8 @@ fn codegen_option_if_let(
     // Generate if-let pattern
     let result = if let Some(else_stmts) = else_body {
         ctx.enter_scope();
-        let else_tokens: Vec<_> = else_stmts
-            .iter()
-            .map(|s| s.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let else_tokens: Vec<_> =
+            else_stmts.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
 
         quote! {
@@ -2697,11 +2601,9 @@ fn codegen_option_if_let(
 pub(crate) fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                type_annotation,
-                value,
-            } if name == var_name => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), type_annotation, value }
+                if name == var_name =>
+            {
                 // First try explicit type annotation
                 if type_annotation.is_some() {
                     return type_annotation.clone();
@@ -2715,11 +2617,7 @@ pub(crate) fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Ty
             }
             // DEPYLER-0931: Handle tuple unpacking (a, b, c) = (1, 2, 3)
             // Extract individual element types from the tuple
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                value,
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Tuple(targets), value, .. } => {
                 // Find var_name position in the targets
                 if let Some(pos) = find_var_position_in_tuple(var_name, targets) {
                     // Infer type from the RHS tuple
@@ -2745,12 +2643,7 @@ pub(crate) fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Ty
                 }
             }
             // DEPYLER-0931: Recursively search nested try/except blocks
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 // Search in try body
                 if let Some(ty) = find_variable_type(var_name, body) {
                     return Some(ty);
@@ -2769,11 +2662,7 @@ pub(crate) fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Ty
                 }
             }
             // DEPYLER-0931: Recursively search if/else blocks
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 if let Some(ty) = find_variable_type(var_name, then_body) {
                     return Some(ty);
                 }
@@ -2849,8 +2738,7 @@ fn is_loop_var_used(var_name: &str, body: &[HirStmt]) -> bool {
 /// Check if a loop variable is reassigned in the body (DEPYLER-0756)
 #[inline]
 fn is_loop_var_reassigned(var_name: &str, body: &[HirStmt]) -> bool {
-    body.iter()
-        .any(|stmt| is_var_reassigned_in_stmt(var_name, stmt))
+    body.iter().any(|stmt| is_var_reassigned_in_stmt(var_name, stmt))
 }
 
 /// Track range iteration loop variable type (DEPYLER-0803)
@@ -2875,13 +2763,11 @@ fn track_collection_loop_var(
 ) {
     if let AssignTarget::Symbol(name) = target {
         let elem_type = match iter {
-            HirExpr::Var(collection_name) => {
-                match ctx.var_types.get(collection_name) {
-                    Some(Type::List(elem)) => Some(elem.as_ref().clone()),
-                    Some(Type::Set(elem)) => Some(elem.as_ref().clone()),
-                    _ => None,
-                }
-            }
+            HirExpr::Var(collection_name) => match ctx.var_types.get(collection_name) {
+                Some(Type::List(elem)) => Some(elem.as_ref().clone()),
+                Some(Type::Set(elem)) => Some(elem.as_ref().clone()),
+                _ => None,
+            },
             // for x in dict[key] where dict value type is List(T) → x: T
             HirExpr::Index { base, .. } => {
                 if let HirExpr::Var(base_name) = base.as_ref() {
@@ -2941,11 +2827,8 @@ fn track_char_counter_iter(target: &AssignTarget, iter: &HirExpr, ctx: &mut Code
 /// Generate pattern for a single symbol target (DEPYLER-0272, DEPYLER-0756)
 #[inline]
 fn generate_symbol_pattern(name: &str, body: &[HirStmt]) -> syn::Pat {
-    let var_name = if is_loop_var_used(name, body) {
-        name.to_string()
-    } else {
-        format!("_{}", name)
-    };
+    let var_name =
+        if is_loop_var_used(name, body) { name.to_string() } else { format!("_{}", name) };
     let ident = safe_ident(&var_name);
     if is_loop_var_reassigned(name, body) {
         parse_quote! { mut #ident }
@@ -3096,9 +2979,9 @@ fn extract_iterator_element_type(iter: &HirExpr, ctx: &CodeGenContext) -> Option
                 None
             }
         }
-        HirExpr::Call { func, args, .. } if func == "enumerate" => args
-            .first()
-            .and_then(|arg| extract_enumerate_element_type(arg, ctx)),
+        HirExpr::Call { func, args, .. } if func == "enumerate" => {
+            args.first().and_then(|arg| extract_enumerate_element_type(arg, ctx))
+        }
         HirExpr::MethodCall { object, method, .. } if method == "glob" => {
             extract_glob_element_type(object.as_ref(), ctx)
         }
@@ -3200,8 +3083,7 @@ fn needs_char_to_string_conversion(
     }
 
     if let AssignTarget::Symbol(loop_var_name) = target {
-        body.iter()
-            .any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
+        body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
     } else {
         false
     }
@@ -3356,10 +3238,8 @@ pub(crate) fn codegen_for_stmt(
                 if let AssignTarget::Symbol(name) = target {
                     ctx.declare_var(name);
                 }
-                let body_stmts: Vec<_> = body
-                    .iter()
-                    .map(|s| s.to_rust_tokens(ctx))
-                    .collect::<Result<Vec<_>>>()?;
+                let body_stmts: Vec<_> =
+                    body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
                 ctx.exit_scope();
                 ctx.is_final_statement = saved_is_final;
 
@@ -3391,10 +3271,7 @@ pub(crate) fn codegen_for_stmt(
         // Try to apply CSV iteration mapping from stdlib_mappings
         // This transforms: for row in reader
         // Into: for result in reader.deserialize::<HashMap<String, String>>()
-        if let Some(pattern) = ctx
-            .stdlib_mappings
-            .get_iteration_pattern("csv", "DictReader")
-        {
+        if let Some(pattern) = ctx.stdlib_mappings.get_iteration_pattern("csv", "DictReader") {
             // Check if pattern yields Results
             if let crate::stdlib_mappings::RustPattern::IterationPattern {
                 yields_results, ..
@@ -3422,10 +3299,8 @@ pub(crate) fn codegen_for_stmt(
         if let HirExpr::Var(var_name) = iter {
             // DEPYLER-0419: First check type information from context
             // This is more reliable than name heuristics
-            let is_string_type = ctx
-                .var_types
-                .get(var_name)
-                .is_some_and(|t| matches!(t, Type::String));
+            let is_string_type =
+                ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String));
 
             // DEPYLER-0300/0302: Fall back to name-based heuristics if type not available
             // DEPYLER-99MODE-S9: Only use name heuristic when var_types has NO concrete type
@@ -3433,23 +3308,33 @@ pub(crate) fn codegen_for_stmt(
             let has_known_non_string_type = ctx.var_types.get(var_name).is_some_and(|t| {
                 matches!(
                     t,
-                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Int
-                        | Type::Float | Type::Bool | Type::Tuple(_)
+                    Type::List(_)
+                        | Type::Dict(_, _)
+                        | Type::Set(_)
+                        | Type::Int
+                        | Type::Float
+                        | Type::Bool
+                        | Type::Tuple(_)
                 )
             });
             let is_string_name = if has_known_non_string_type {
                 false
             } else {
                 let n = var_name.as_str();
-                (n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
-                || n == "char" || n == "character")
-                || (n.starts_with("str") && !n.starts_with("strings"))
-                || (n.starts_with("word") && !n.starts_with("words"))
-                || (n.starts_with("text") && !n.starts_with("texts"))
-                || (n.ends_with("_str") && !n.ends_with("_strs"))
-                || (n.ends_with("_string") && !n.ends_with("_strings"))
-                || (n.ends_with("_word") && !n.ends_with("_words"))
-                || (n.ends_with("_text") && !n.ends_with("_texts"))
+                (n == "s"
+                    || n == "string"
+                    || n == "text"
+                    || n == "word"
+                    || n == "line"
+                    || n == "char"
+                    || n == "character")
+                    || (n.starts_with("str") && !n.starts_with("strings"))
+                    || (n.starts_with("word") && !n.starts_with("words"))
+                    || (n.starts_with("text") && !n.starts_with("texts"))
+                    || (n.ends_with("_str") && !n.ends_with("_strs"))
+                    || (n.ends_with("_string") && !n.ends_with("_strings"))
+                    || (n.ends_with("_word") && !n.ends_with("_words"))
+                    || (n.ends_with("_text") && !n.ends_with("_texts"))
             };
 
             // DEPYLER-0606: Check if iterating over serde_json::Value
@@ -3482,10 +3367,8 @@ pub(crate) fn codegen_for_stmt(
                 // Python's `for key in dict` iterates over keys only
                 // HashMap's .iter() returns (&K, &V) tuples which don't work with .cloned()
                 // Use .keys().cloned() to get an iterator over cloned keys
-                let is_dict_type = ctx
-                    .var_types
-                    .get(var_name)
-                    .is_some_and(|t| matches!(t, Type::Dict(_, _)));
+                let is_dict_type =
+                    ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::Dict(_, _)));
 
                 if is_dict_type {
                     // DEPYLER-0710: For dicts, iterate over keys only (Python semantics)
@@ -3633,10 +3516,8 @@ pub(crate) fn codegen_for_stmt(
     // DEPYLER-REFACTOR: Use extracted helpers for element type extraction and var declaration
     let element_type = extract_iterator_element_type(iter, ctx);
     declare_loop_vars_with_types(target, element_type, ctx);
-    let body_stmts: Vec<_> = body
-        .iter()
-        .map(|s| s.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let body_stmts: Vec<_> =
+        body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
     ctx.is_final_statement = saved_is_final;
 
@@ -3645,27 +3526,11 @@ pub(crate) fn codegen_for_stmt(
     let needs_char_to_string = needs_char_to_string_conversion(target, iter, body, ctx);
 
     if needs_enumerate_cast {
-        Ok(generate_enumerate_cast_loop(
-            target,
-            &target_pattern,
-            &iter_expr,
-            body,
-            &body_stmts,
-        ))
+        Ok(generate_enumerate_cast_loop(target, &target_pattern, &iter_expr, body, &body_stmts))
     } else if needs_char_to_string {
-        Ok(generate_char_to_string_loop(
-            target,
-            &target_pattern,
-            &iter_expr,
-            &body_stmts,
-        ))
+        Ok(generate_char_to_string_loop(target, &target_pattern, &iter_expr, &body_stmts))
     } else if csv_yields_results {
-        Ok(generate_csv_result_loop(
-            target,
-            &target_pattern,
-            &iter_expr,
-            &body_stmts,
-        ))
+        Ok(generate_csv_result_loop(target, &target_pattern, &iter_expr, &body_stmts))
     } else {
         Ok(quote! {
             for #target_pattern in #iter_expr {
@@ -3738,9 +3603,7 @@ fn track_counter_string_var(target: &AssignTarget, value: &HirExpr, ctx: &mut Co
 fn is_counter_string_argument(arg: &HirExpr, ctx: &CodeGenContext) -> bool {
     match arg {
         HirExpr::Var(arg_name) => {
-            ctx.var_types
-                .get(arg_name)
-                .is_some_and(|t| matches!(t, Type::String))
+            ctx.var_types.get(arg_name).is_some_and(|t| matches!(t, Type::String))
                 || arg_name == "text"
                 || arg_name == "s"
                 || arg_name == "string"
@@ -3839,13 +3702,7 @@ fn handle_none_placeholder(
 /// Track os.environ types (DEPYLER-0479, DEPYLER-0907)
 #[inline]
 fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenContext) {
-    if let HirExpr::MethodCall {
-        object,
-        method,
-        args,
-        ..
-    } = value
-    {
+    if let HirExpr::MethodCall { object, method, args, .. } = value {
         // os.environ.get(key, default) - 2 args means String
         if method == "get" && args.len() == 2 && is_os_environ_attr(object.as_ref()) {
             ctx.var_types.insert(var_name.to_string(), Type::String);
@@ -3862,8 +3719,7 @@ fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenConte
         }
         // os.environ.get(key) - 1 arg means Option<String>
         if method == "get" && args.len() == 1 && is_os_environ_attr(object.as_ref()) {
-            ctx.var_types
-                .insert(var_name.to_string(), Type::Optional(Box::new(Type::String)));
+            ctx.var_types.insert(var_name.to_string(), Type::Optional(Box::new(Type::String)));
         }
     }
 }
@@ -3871,11 +3727,7 @@ fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenConte
 /// Check if expression is os.environ attribute access
 #[inline]
 fn is_os_environ_attr(expr: &HirExpr) -> bool {
-    if let HirExpr::Attribute {
-        value: attr_obj,
-        attr,
-    } = expr
-    {
+    if let HirExpr::Attribute { value: attr_obj, attr } = expr {
         if let HirExpr::Var(module) = attr_obj.as_ref() {
             return module == "os" && attr == "environ";
         }
@@ -3931,10 +3783,8 @@ fn track_json_loads_type(var_name: &str, object: &HirExpr, method: &str, ctx: &m
     if matches!(method, "loads" | "load") {
         if let HirExpr::Var(obj_var) = object {
             if obj_var == "json" {
-                ctx.var_types.insert(
-                    var_name.to_string(),
-                    Type::Custom("serde_json::Value".to_string()),
-                );
+                ctx.var_types
+                    .insert(var_name.to_string(), Type::Custom("serde_json::Value".to_string()));
             }
         }
     }
@@ -3947,10 +3797,8 @@ fn track_value_index_type(var_name: &str, base: &HirExpr, ctx: &mut CodeGenConte
         if let Some(base_type) = ctx.var_types.get(base_var) {
             let is_value_type = matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value");
             if is_value_type {
-                ctx.var_types.insert(
-                    var_name.to_string(),
-                    Type::Custom("serde_json::Value".to_string()),
-                );
+                ctx.var_types
+                    .insert(var_name.to_string(), Type::Custom("serde_json::Value".to_string()));
                 return;
             }
             if let Type::Dict(_, v) = base_type {
@@ -4029,8 +3877,7 @@ fn handle_argumentparser_constructor(
                     }
                 }
             }
-            ctx.argparser_tracker
-                .register_parser(var_name.to_string(), info);
+            ctx.argparser_tracker.register_parser(var_name.to_string(), info);
             return Some(quote! {});
         }
     }
@@ -4062,22 +3909,15 @@ fn handle_argument_group_method(
     object: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> Option<proc_macro2::TokenStream> {
-    if !matches!(
-        method,
-        "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults"
-    ) {
+    if !matches!(method, "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults") {
         return None;
     }
     if let HirExpr::Var(parent_var) = object {
         let is_parser_or_group = ctx.argparser_tracker.get_parser(parent_var).is_some()
-            || ctx
-                .argparser_tracker
-                .get_parser_for_group(parent_var)
-                .is_some();
+            || ctx.argparser_tracker.get_parser_for_group(parent_var).is_some();
         if is_parser_or_group {
             if let AssignTarget::Symbol(group_var) = target {
-                ctx.argparser_tracker
-                    .register_group(group_var.clone(), parent_var.clone());
+                ctx.argparser_tracker.register_group(group_var.clone(), parent_var.clone());
             }
             return Some(quote! {});
         }
@@ -4103,12 +3943,7 @@ fn handle_add_subparsers_call(
                 use crate::rust_gen::argparse_transform::SubparserInfo;
                 ctx.argparser_tracker.register_subparsers(
                     subparsers_var.clone(),
-                    SubparserInfo {
-                        parser_var: parser_var.clone(),
-                        dest_field,
-                        required,
-                        help,
-                    },
+                    SubparserInfo { parser_var: parser_var.clone(), dest_field, required, help },
                 );
             }
             return Some(quote! {});
@@ -4127,12 +3962,7 @@ fn handle_add_parser_call(
     ctx: &mut CodeGenContext,
 ) -> Option<proc_macro2::TokenStream> {
     if let HirExpr::Var(subparsers_var) = object {
-        if ctx
-            .argparser_tracker
-            .get_subparsers(subparsers_var)
-            .is_some()
-            && !args.is_empty()
-        {
+        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() && !args.is_empty() {
             let command_name = extract_string_literal(&args[0]);
             let help = extract_kwarg_string(kwargs, "help");
             if let AssignTarget::Symbol(subcommand_var) = target {
@@ -4205,8 +4035,7 @@ pub(crate) fn codegen_assign_stmt(
                     let var_ident = safe_ident(cse_var);
 
                     // DEPYLER-0456 #2: Track this CSE temp so is_subcommand_check() can find it
-                    ctx.cse_subcommand_temps
-                        .insert(cse_var.clone(), cmd_name.clone());
+                    ctx.cse_subcommand_temps.insert(cse_var.clone(), cmd_name.clone());
 
                     // DEPYLER-0456 Bug #3 FIX: Always use "command" as Rust field name
                     // DEPYLER-1063: args.command is Option<Commands>, wrap pattern in Some()
@@ -4233,14 +4062,7 @@ pub(crate) fn codegen_assign_stmt(
 
     // DEPYLER-REFACTOR: Use extracted helper for ArgumentParser patterns
     if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::MethodCall {
-            method,
-            object,
-            args,
-            kwargs,
-            ..
-        } = value
-        {
+        if let HirExpr::MethodCall { method, object, args, kwargs, .. } = value {
             if let Some(result) = handle_argparser_method_call(
                 target,
                 var_name,
@@ -4336,8 +4158,7 @@ pub(crate) fn codegen_assign_stmt(
                     let should_insert = match ctx.var_types.get(var_name) {
                         None | Some(Type::Unknown) => true,
                         Some(existing) => {
-                            std::mem::discriminant(existing)
-                                == std::mem::discriminant(annot_type)
+                            std::mem::discriminant(existing) == std::mem::discriminant(annot_type)
                         }
                     };
                     if should_insert {
@@ -4381,16 +4202,14 @@ pub(crate) fn codegen_assign_stmt(
         if !ctx.var_types.contains_key(var_name) && looks_like_option_expr(value) {
             // Track as Option<String> for now (generic placeholder)
             // The exact inner type doesn't matter for truthiness conversion
-            ctx.var_types
-                .insert(var_name.clone(), Type::Optional(Box::new(Type::String)));
+            ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::String)));
         }
 
         match value {
             HirExpr::Call { func, .. } => {
                 // Check if this is a user-defined class constructor
                 if ctx.class_names.contains(func) {
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::Custom(func.clone()));
+                    ctx.var_types.insert(var_name.clone(), Type::Custom(func.clone()));
                 }
                 // DEPYLER-0309: Track builtin collection constructors for proper method dispatch
                 // This enables correct HashSet.contains() vs HashMap.contains_key() selection
@@ -4401,8 +4220,7 @@ pub(crate) fn codegen_assign_stmt(
                     } else {
                         Type::Int // Default for untyped sets
                     };
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+                    ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(elem_type)));
                 }
                 // DEPYLER-REFACTOR: Use extracted helper for deque/Queue tracking
                 else if matches!(
@@ -4436,8 +4254,7 @@ pub(crate) fn codegen_assign_stmt(
                     // Only track if this looks like a regex call (needs more context to be sure)
                     // For now, track any call to search/match/find as Optional
                     // This is a heuristic - could be improved with module tracking
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
+                    ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
                 // DEPYLER-0785: Track float return types for CSE comparison coercion
                 // When f() returns float, result = f(x) should track result as Float
@@ -4496,8 +4313,7 @@ pub(crate) fn codegen_assign_stmt(
                 };
 
                 if should_update {
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+                    ctx.var_types.insert(var_name.clone(), Type::List(Box::new(elem_type)));
                 }
             }
             HirExpr::Dict(items) => {
@@ -4530,11 +4346,8 @@ pub(crate) fn codegen_assign_stmt(
                     };
                 // DEPYLER-1219: Insert with Optional wrapper if annotation was Optional[Dict[...]]
                 let dict_type = Type::Dict(Box::new(key_type), Box::new(val_type));
-                let final_type = if is_optional {
-                    Type::Optional(Box::new(dict_type))
-                } else {
-                    dict_type
-                };
+                let final_type =
+                    if is_optional { Type::Optional(Box::new(dict_type)) } else { dict_type };
                 ctx.var_types.insert(var_name.clone(), final_type);
             }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
@@ -4549,8 +4362,7 @@ pub(crate) fn codegen_assign_stmt(
                 } else {
                     Type::Unknown
                 };
-                ctx.var_types
-                    .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+                ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(elem_type)));
             }
             // DEPYLER-0600 #6: Track type from comprehension expressions
             // Enables correct {:?} vs {} selection in println! for dict/list/set comprehensions
@@ -4558,10 +4370,8 @@ pub(crate) fn codegen_assign_stmt(
                 // Use type inference from func_gen module for comprehension types
                 let key_type = crate::rust_gen::func_gen::infer_expr_type_simple(key);
                 let val_type = crate::rust_gen::func_gen::infer_expr_type_simple(value);
-                ctx.var_types.insert(
-                    var_name.clone(),
-                    Type::Dict(Box::new(key_type), Box::new(val_type)),
-                );
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Dict(Box::new(key_type), Box::new(val_type)));
             }
             HirExpr::ListComp { element, .. } => {
                 // DEPYLER-1206: Use return type if element inference gives Unknown
@@ -4576,13 +4386,11 @@ pub(crate) fn codegen_assign_stmt(
                 } else {
                     inferred_elem
                 };
-                ctx.var_types
-                    .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+                ctx.var_types.insert(var_name.clone(), Type::List(Box::new(elem_type)));
             }
             HirExpr::SetComp { element, .. } => {
                 let elem_type = crate::rust_gen::func_gen::infer_expr_type_simple(element);
-                ctx.var_types
-                    .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+                ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(elem_type)));
             }
             // DEPYLER-0709: Track tuple type from literal for correct field access (.0, .1)
             // Example: result = (1, 2) → result.0, not result.get(0)
@@ -4591,13 +4399,9 @@ pub(crate) fn codegen_assign_stmt(
                 let elem_types: Vec<Type> = if let Some(Type::Tuple(types)) = type_annotation {
                     types.clone()
                 } else {
-                    elements
-                        .iter()
-                        .map(crate::rust_gen::func_gen::infer_expr_type_simple)
-                        .collect()
+                    elements.iter().map(crate::rust_gen::func_gen::infer_expr_type_simple).collect()
                 };
-                ctx.var_types
-                    .insert(var_name.clone(), Type::Tuple(elem_types));
+                ctx.var_types.insert(var_name.clone(), Type::Tuple(elem_types));
             }
             HirExpr::Slice { base, .. } => {
                 // DEPYLER-0301: Track sliced lists as owned Vec types
@@ -4622,34 +4426,26 @@ pub(crate) fn codegen_assign_stmt(
                     } else {
                         Type::Int // Default to Int
                     };
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+                    ctx.var_types.insert(var_name.clone(), Type::List(Box::new(elem_type)));
                 }
             }
             // DEPYLER-0327 Fix #1: Track types for method call results
             // E.g., value_str = data.get(...) where data: Vec<String> → value_str: String
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 // Track .get() on Vec<String> returning String
                 if method == "get" {
                     if let HirExpr::Var(obj_var) = object.as_ref() {
                         if let Some(Type::List(elem_type)) = ctx.var_types.get(obj_var) {
                             // .get() returns Option<&T>, but after .cloned().unwrap_or_default()
                             // it becomes T, so track the element type
-                            ctx.var_types
-                                .insert(var_name.clone(), elem_type.as_ref().clone());
+                            ctx.var_types.insert(var_name.clone(), elem_type.as_ref().clone());
                         }
                         // GH-226: Track dict.get(key, default) with 2 args as value type, not Optional
                         // When dict.get has a default, the result is the value type, not Option
                         else if args.len() == 2 {
                             if let Some(Type::Dict(_, val_type)) = ctx.var_types.get(obj_var) {
                                 // dict.get(key, default) returns value type directly
-                                ctx.var_types
-                                    .insert(var_name.clone(), val_type.as_ref().clone());
+                                ctx.var_types.insert(var_name.clone(), val_type.as_ref().clone());
                             } else {
                                 // Dict type not tracked, default to String for str(val) compatibility
                                 ctx.var_types.insert(var_name.clone(), Type::String);
@@ -4660,8 +4456,7 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-0421: String methods that return Vec<String> (for truthiness)
                 // Track .split() and .split_whitespace() as List(String) for truthiness conversion
                 else if matches!(method.as_str(), "split" | "split_whitespace" | "splitlines") {
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::List(Box::new(Type::String)));
+                    ctx.var_types.insert(var_name.clone(), Type::List(Box::new(Type::String)));
                 }
                 // String methods that return String
                 else if matches!(
@@ -4682,8 +4477,7 @@ pub(crate) fn codegen_assign_stmt(
                 else if matches!(method.as_str(), "find" | "search" | "match") {
                     // Check if this is a regex method call (on compiled regex object)
                     // We don't have a specific regex type, so use Optional as a marker
-                    ctx.var_types
-                        .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
+                    ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
                 // DEPYLER-REFACTOR: Use extracted helper for json.loads tracking
                 else if matches!(method.as_str(), "loads" | "load") {
@@ -4920,8 +4714,7 @@ pub(crate) fn codegen_assign_stmt(
         if let Some(return_type_str) = ctx.last_external_call_return_type.take() {
             // Map the external type string to a Type
             // For now, use Type::Custom with the full qualified name
-            ctx.var_types
-                .insert(var_name.clone(), Type::Custom(return_type_str));
+            ctx.var_types.insert(var_name.clone(), Type::Custom(return_type_str));
         }
     }
 
@@ -5020,11 +4813,8 @@ pub(crate) fn codegen_assign_stmt(
             // Skip the rest of the type inference logic for class constructors
             // The value_expr is already correct from to_rust_expr
             // Just set up the type annotation and mutability
-            let _is_first = if let AssignTarget::Symbol(name) = target {
-                !ctx.is_declared(name)
-            } else {
-                true
-            };
+            let _is_first =
+                if let AssignTarget::Symbol(name) = target { !ctx.is_declared(name) } else { true };
             let is_mut = if let AssignTarget::Symbol(name) = target {
                 ctx.mutable_vars.contains(name)
             } else {
@@ -5034,8 +4824,7 @@ pub(crate) fn codegen_assign_stmt(
             // Track the variable type for later method calls
             if let AssignTarget::Symbol(name) = target {
                 if let HirExpr::Call { func, .. } = value {
-                    ctx.var_types
-                        .insert(name.clone(), Type::Custom(func.clone()));
+                    ctx.var_types.insert(name.clone(), Type::Custom(func.clone()));
                 }
             }
 
@@ -5093,10 +4882,7 @@ pub(crate) fn codegen_assign_stmt(
                 if let HirExpr::Call { func, args, .. } = value {
                     if func == "list" && args.len() == 1 {
                         // Check if argument is range() - produces integers
-                        if let HirExpr::Call {
-                            func: inner_func, ..
-                        } = &args[0]
-                        {
+                        if let HirExpr::Call { func: inner_func, .. } = &args[0] {
                             if inner_func == "range" {
                                 Some(Type::List(Box::new(Type::Int)))
                             } else {
@@ -5145,10 +4931,8 @@ pub(crate) fn codegen_assign_stmt(
         // This ensures is_none() and print() calls handle the variable correctly
         if needs_option_wrap {
             if let AssignTarget::Symbol(var_name) = target {
-                ctx.var_types.insert(
-                    var_name.clone(),
-                    Type::Optional(Box::new(actual_type.clone())),
-                );
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Optional(Box::new(actual_type.clone())));
             }
         }
 
@@ -5180,22 +4964,17 @@ pub(crate) fn codegen_assign_stmt(
         // Check both type_annotation (for first assignment) and var_types (for reassignments).
         let is_binary_with_primitive_target = if let HirExpr::Binary { op, .. } = value {
             use crate::hir::BinOp;
-            let is_arithmetic = matches!(
-                op,
-                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
-            );
+            let is_arithmetic =
+                matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod);
             if is_arithmetic {
                 // Check if TARGET has a known primitive type
                 // Priority: 1. type_annotation (current assignment), 2. var_types (prior declaration)
                 // Note: type_annotation is &Option<Type>, need to handle reference correctly
                 // CRITICAL: Must dereference t with *t since get() returns Option<&Type>
-                let from_annotation = type_annotation
-                    .as_ref()
-                    .is_some_and(|t| matches!(*t, Type::Int | Type::Float));
+                let from_annotation =
+                    type_annotation.as_ref().is_some_and(|t| matches!(*t, Type::Int | Type::Float));
                 let from_var_types = if let AssignTarget::Symbol(name) = target {
-                    ctx.var_types
-                        .get(name)
-                        .is_some_and(|t| matches!(*t, Type::Int | Type::Float))
+                    ctx.var_types.get(name).is_some_and(|t| matches!(*t, Type::Int | Type::Float))
                 } else {
                     false
                 };
@@ -5295,10 +5074,7 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(ty) = var_dict_type.or(return_dict_type) {
                         (Some(ty), false)
                     } else {
-                        (
-                            Some(quote! { : std::collections::HashMap<String, DepylerValue> }),
-                            false,
-                        )
+                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
                     }
                 }
                 // Dict literal with entries: infer from usage or default to DepylerValue values
@@ -5347,10 +5123,7 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(ty) = var_dict_type.or(return_dict_type) {
                         (Some(ty), false)
                     } else {
-                        (
-                            Some(quote! { : std::collections::HashMap<String, DepylerValue> }),
-                            false,
-                        )
+                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
                     }
                 }
                 // Dict comprehension: `x = {k: v for ...}` → infer from return type or default
@@ -5377,10 +5150,7 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(ty) = var_dict_type.or(return_dict_type) {
                         (Some(ty), false)
                     } else {
-                        (
-                            Some(quote! { : std::collections::HashMap<String, DepylerValue> }),
-                            false,
-                        )
+                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
                     }
                 }
                 // Empty list literal: `x = []` - DEPYLER-1206 Smart type inference
@@ -5562,18 +5332,14 @@ pub(crate) fn codegen_assign_stmt(
                         Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
                         _ => {
                             // Unknown or mixed types - fall back to DepylerValue
-                            (
-                                Some(quote! { : std::collections::HashSet<DepylerValue> }),
-                                false,
-                            )
+                            (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
                         }
                     }
                 }
                 // Set comprehension: `x = {v for ...}` → `HashSet<DepylerValue>`
-                HirExpr::SetComp { .. } => (
-                    Some(quote! { : std::collections::HashSet<DepylerValue> }),
-                    false,
-                ),
+                HirExpr::SetComp { .. } => {
+                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                }
                 // Generator expression assigned to variable: force Vec<DepylerValue>
                 HirExpr::GeneratorExp { .. } => (Some(quote! { : Vec<DepylerValue> }), false),
                 // DEPYLER-1167: set() call with list argument - infer element type from list
@@ -5622,10 +5388,7 @@ pub(crate) fn codegen_assign_stmt(
                 HirExpr::Call { func, args, .. } if func == "list" => {
                     if args.len() == 1 {
                         // Check if argument is range()
-                        if let HirExpr::Call {
-                            func: inner_func, ..
-                        } = &args[0]
-                        {
+                        if let HirExpr::Call { func: inner_func, .. } = &args[0] {
                             if inner_func == "range" {
                                 // range() produces integers
                                 (Some(quote! { : Vec<i32> }), false)
@@ -6076,11 +5839,7 @@ fn find_root_var_in_chain(expr: &HirExpr) -> Option<String> {
 /// DEPYLER-99MODE-S9: Build per-level type chain for nested subscript assignments.
 /// Returns Vec<bool> where `true` = list (numeric index), `false` = dict (key-based).
 /// E.g., Dict[int, List[int]] with depth 2 → [false, true]
-fn build_nested_type_chain(
-    ctx: &CodeGenContext,
-    root_var: &str,
-    depth: usize,
-) -> Vec<bool> {
+fn build_nested_type_chain(ctx: &CodeGenContext, root_var: &str, depth: usize) -> Vec<bool> {
     let mut chain = Vec::with_capacity(depth);
     let root_type = match ctx.var_types.get(root_var) {
         Some(t) => t.clone(),
@@ -6157,10 +5916,7 @@ pub(crate) fn codegen_assign_index(
                         HirExpr::Var(name) => {
                             if let Some(idx_type) = ctx.var_types.get(name) {
                                 // Concrete type known: use it
-                                matches!(
-                                    idx_type,
-                                    Type::Int | Type::Float | Type::Bool
-                                )
+                                matches!(idx_type, Type::Int | Type::Float | Type::Bool)
                             } else {
                                 let name_str = name.as_str();
                                 // Heuristic only when type unknown
@@ -6230,8 +5986,12 @@ pub(crate) fn codegen_assign_index(
                 // Walk `depth` levels into the type to find the type at the final level
                 for _ in 0..depth {
                     match current {
-                        Type::List(elem) => { current = *elem; }
-                        Type::Dict(_, val) => { current = *val; }
+                        Type::List(elem) => {
+                            current = *elem;
+                        }
+                        Type::Dict(_, val) => {
+                            current = *val;
+                        }
                         _ => break,
                     }
                 }
@@ -6241,35 +6001,38 @@ pub(crate) fn codegen_assign_index(
                 resolved
             } else {
                 // No type info — fall through to heuristic
-                matches!(index, HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)))
+                matches!(
+                    index,
+                    HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_))
+                )
             }
         } else {
-        // DEPYLER-0449: Check if index looks like a string key before assuming numeric
-        match index {
-            HirExpr::Var(name) => {
-                let name_str = name.as_str();
-                // String-like variable names → NOT numeric
-                if name_str == "key"
-                    || name_str == "k"
-                    || name_str == "name"
-                    || name_str == "id"
-                    || name_str == "word"
-                    || name_str == "text"
-                    || name_str == "char"
-                    || name_str == "character"
-                    || name_str == "c"
-                    || name_str.ends_with("_key")
-                    || name_str.ends_with("_name")
-                {
-                    false
-                } else {
-                    // Default: assume numeric for other variables
-                    true
+            // DEPYLER-0449: Check if index looks like a string key before assuming numeric
+            match index {
+                HirExpr::Var(name) => {
+                    let name_str = name.as_str();
+                    // String-like variable names → NOT numeric
+                    if name_str == "key"
+                        || name_str == "k"
+                        || name_str == "name"
+                        || name_str == "id"
+                        || name_str == "word"
+                        || name_str == "text"
+                        || name_str == "char"
+                        || name_str == "character"
+                        || name_str == "c"
+                        || name_str.ends_with("_key")
+                        || name_str.ends_with("_name")
+                    {
+                        false
+                    } else {
+                        // Default: assume numeric for other variables
+                        true
+                    }
                 }
+                HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                _ => false,
             }
-            HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
-            _ => false,
-        }
         } // close: else (no root_name)
     };
 
@@ -6475,8 +6238,12 @@ pub(crate) fn codegen_assign_index(
             let mut tmp = base;
             while let HirExpr::Index { base: inner, .. } = tmp {
                 match current {
-                    Type::List(elem) => { current = *elem; }
-                    Type::Dict(_, val) => { current = *val; }
+                    Type::List(elem) => {
+                        current = *elem;
+                    }
+                    Type::Dict(_, val) => {
+                        current = *val;
+                    }
                     _ => break,
                 }
                 tmp = inner;
@@ -6576,10 +6343,7 @@ pub(crate) fn codegen_assign_index(
 
         let mut chain = quote! { #base_expr };
         for (i, idx) in indices.iter().enumerate() {
-            let level_is_list = type_chain
-                .get(i)
-                .copied()
-                .unwrap_or(is_numeric_index);
+            let level_is_list = type_chain.get(i).copied().unwrap_or(is_numeric_index);
             if level_is_list {
                 chain = quote! { #chain[#idx as usize] };
             } else {
@@ -6589,8 +6353,7 @@ pub(crate) fn codegen_assign_index(
                 let is_str_lit = first_char == Some('"');
                 // DEPYLER-99MODE-S9: Check if variable is already a &str param
                 // to avoid double-borrow (&(&str) → &&str) which causes E0277
-                let is_already_ref = is_str_lit
-                    || ctx.fn_str_params.contains(idx_str.trim());
+                let is_already_ref = is_str_lit || ctx.fn_str_params.contains(idx_str.trim());
                 chain = if is_already_ref {
                     quote! { #chain.get_mut(#idx).expect("key not found in dict") }
                 } else {
@@ -6599,10 +6362,7 @@ pub(crate) fn codegen_assign_index(
             }
         }
 
-        let final_is_list = type_chain
-            .get(indices.len())
-            .copied()
-            .unwrap_or(is_numeric_index);
+        let final_is_list = type_chain.get(indices.len()).copied().unwrap_or(is_numeric_index);
         if final_is_list {
             Ok(quote! { #chain[(#final_index) as usize] = #final_value_expr; })
         } else if needs_as_object_mut {
@@ -7094,11 +6854,7 @@ pub(crate) fn infer_try_body_return_type(body: &[HirStmt], ctx: &CodeGenContext)
                     return Some(ty);
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 // Check inside if/else
                 if let Some(ty) = infer_try_body_return_type(then_body, ctx) {
                     return Some(ty);
@@ -7109,12 +6865,7 @@ pub(crate) fn infer_try_body_return_type(body: &[HirStmt], ctx: &CodeGenContext)
                     }
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 if let Some(ty) = infer_try_body_return_type(body, ctx) {
                     return Some(ty);
                 }
@@ -7283,19 +7034,10 @@ pub(crate) fn try_generate_json_stdin_match(
 
     // Check for: data = json.load(sys.stdin) OR data = json.load(file)
     let (var_name, is_json_load) = match &body[0] {
-        HirStmt::Assign {
-            target: AssignTarget::Symbol(name),
-            value,
-            ..
-        } => {
+        HirStmt::Assign { target: AssignTarget::Symbol(name), value, .. } => {
             // Check if value is json.load(sys.stdin) or json.load(file)
             let is_json = match value {
-                HirExpr::MethodCall {
-                    object,
-                    method,
-                    args,
-                    ..
-                } => {
+                HirExpr::MethodCall { object, method, args, .. } => {
                     if method == "load" {
                         if let HirExpr::Var(module) = &**object {
                             if module == "json" && args.len() == 1 {
@@ -7339,11 +7081,8 @@ pub(crate) fn try_generate_json_stdin_match(
         ctx.declare_var(exc_var);
     }
 
-    let handler_stmts: Vec<_> = handlers[0]
-        .body
-        .iter()
-        .map(|s| s.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let handler_stmts: Vec<_> =
+        handlers[0].body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
     // Generate the error pattern
@@ -7372,10 +7111,8 @@ pub(crate) fn try_generate_json_stdin_match(
 
     // Add finally block if present
     let result = if let Some(finally_body) = finalbody {
-        let finally_stmts: Vec<_> = finally_body
-            .iter()
-            .map(|s| s.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let finally_stmts: Vec<_> =
+            finally_body.iter().map(|s| s.to_rust_tokens(ctx)).collect::<Result<Vec<_>>>()?;
         quote! {
             #match_expr
             #(#finally_stmts)*
@@ -7503,11 +7240,7 @@ mod tests {
 
     #[test]
     fn test_expr_returns_usize_other_call() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_returns_usize(&expr));
     }
 
@@ -7617,31 +7350,19 @@ mod tests {
 
     #[test]
     fn test_is_iterator_producing_call_map() {
-        let expr = HirExpr::Call {
-            func: "map".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "map".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_producing_call_filter() {
-        let expr = HirExpr::Call {
-            func: "filter".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "filter".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_producing_call_reversed() {
-        let expr = HirExpr::Call {
-            func: "reversed".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "reversed".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
@@ -7721,11 +7442,7 @@ mod tests {
 
     #[test]
     fn test_is_file_creating_open_call() {
-        let expr = HirExpr::Call {
-            func: "open".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "open".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_file_creating_expr(&expr));
     }
 
@@ -7755,11 +7472,7 @@ mod tests {
 
     #[test]
     fn test_is_file_creating_other_call() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_file_creating_expr(&expr));
     }
 
@@ -7845,9 +7558,7 @@ mod tests {
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Int(42))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Bool(true))));
-        assert!(is_pure_expression(&HirExpr::Literal(Literal::String(
-            "test".to_string()
-        ))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::String("test".to_string()))));
     }
 
     #[test]
@@ -7867,11 +7578,7 @@ mod tests {
 
     #[test]
     fn test_is_pure_expr_call() {
-        let expr = HirExpr::Call {
-            func: "foo".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "foo".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_pure_expression(&expr));
     }
 
@@ -8352,10 +8059,8 @@ mod tests {
 
     #[test]
     fn test_find_var_position_in_tuple_not_found() {
-        let targets = vec![
-            AssignTarget::Symbol("a".to_string()),
-            AssignTarget::Symbol("b".to_string()),
-        ];
+        let targets =
+            vec![AssignTarget::Symbol("a".to_string()), AssignTarget::Symbol("b".to_string())];
         assert_eq!(find_var_position_in_tuple("x", &targets), None);
     }
 
@@ -8528,26 +8233,16 @@ mod tests {
     #[test]
     fn test_expr_infers_float_call_with_float_return() {
         let mut ctx = CodeGenContext::default();
-        ctx.function_return_types
-            .insert("compute".to_string(), Type::Float);
-        let expr = HirExpr::Call {
-            func: "compute".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        ctx.function_return_types.insert("compute".to_string(), Type::Float);
+        let expr = HirExpr::Call { func: "compute".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_infers_float(&expr, &ctx));
     }
 
     #[test]
     fn test_expr_infers_float_call_with_int_return() {
         let mut ctx = CodeGenContext::default();
-        ctx.function_return_types
-            .insert("compute".to_string(), Type::Int);
-        let expr = HirExpr::Call {
-            func: "compute".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        ctx.function_return_types.insert("compute".to_string(), Type::Int);
+        let expr = HirExpr::Call { func: "compute".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_infers_float(&expr, &ctx));
     }
 
@@ -8633,10 +8328,7 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.var_types.insert(
             "f".to_string(),
-            Type::Function {
-                params: vec![Type::Float],
-                ret: Box::new(Type::Float),
-            },
+            Type::Function { params: vec![Type::Float], ret: Box::new(Type::Float) },
         );
         let expr = HirExpr::Call {
             func: "f".to_string(),
@@ -8659,11 +8351,7 @@ mod tests {
                 ],
             },
         );
-        let expr = HirExpr::Call {
-            func: "g".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "g".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_infers_float(&expr, &ctx));
     }
 
@@ -9081,11 +8769,7 @@ mod tests {
 
     #[test]
     fn test_is_pure_expression_call_not_pure() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_pure_expression(&expr));
     }
 
@@ -9133,11 +8817,7 @@ mod tests {
 
     #[test]
     fn test_is_file_creating_expr_not_file() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_file_creating_expr(&expr));
     }
 
@@ -9420,22 +9100,15 @@ mod tests {
 
     #[test]
     fn test_extract_kwarg_string_found() {
-        let kwargs = vec![(
-            "name".to_string(),
-            HirExpr::Literal(Literal::String("test".to_string())),
-        )];
-        assert_eq!(
-            extract_kwarg_string(&kwargs, "name"),
-            Some("test".to_string())
-        );
+        let kwargs =
+            vec![("name".to_string(), HirExpr::Literal(Literal::String("test".to_string())))];
+        assert_eq!(extract_kwarg_string(&kwargs, "name"), Some("test".to_string()));
     }
 
     #[test]
     fn test_extract_kwarg_string_not_found() {
-        let kwargs = vec![(
-            "other".to_string(),
-            HirExpr::Literal(Literal::String("test".to_string())),
-        )];
+        let kwargs =
+            vec![("other".to_string(), HirExpr::Literal(Literal::String("test".to_string())))];
         assert_eq!(extract_kwarg_string(&kwargs, "name"), None);
     }
 
@@ -9585,55 +9258,35 @@ mod tests {
     fn test_is_numpy_value_expr_zeros() {
         let ctx = CodeGenContext::default();
         // Function matches bare function names only, not "np.zeros"
-        let expr = HirExpr::Call {
-            func: "zeros".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "zeros".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_value_expr_ones() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "ones".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "ones".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_value_expr_arange() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "arange".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "arange".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_value_expr_array() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "array".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "array".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_value_expr_not_numpy() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_numpy_value_expr(&expr, &ctx));
     }
 
@@ -9777,10 +9430,7 @@ mod tests {
             left: Box::new(HirExpr::Literal(Literal::Int(10))),
             right: Box::new(HirExpr::Literal(Literal::Int(3))),
         };
-        let expr = HirExpr::Unary {
-            op: crate::hir::UnaryOp::Neg,
-            operand: Box::new(inner),
-        };
+        let expr = HirExpr::Unary { op: crate::hir::UnaryOp::Neg, operand: Box::new(inner) };
         assert!(contains_floor_div(&expr));
     }
 
@@ -9791,11 +9441,7 @@ mod tests {
             left: Box::new(HirExpr::Literal(Literal::Int(10))),
             right: Box::new(HirExpr::Literal(Literal::Int(3))),
         };
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![inner],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![inner], kwargs: vec![] };
         assert!(contains_floor_div(&expr));
     }
 
@@ -9939,10 +9585,7 @@ mod tests {
             left: Box::new(HirExpr::Literal(Literal::Int(10))),
             right: Box::new(HirExpr::Literal(Literal::Int(3))),
         };
-        let expr = HirExpr::Unary {
-            op: crate::hir::UnaryOp::Neg,
-            operand: Box::new(inner),
-        };
+        let expr = HirExpr::Unary { op: crate::hir::UnaryOp::Neg, operand: Box::new(inner) };
         let result = extract_divisor_from_floor_div(&expr);
         assert!(result.is_ok());
     }
@@ -10295,10 +9938,7 @@ mod tests {
                 args: vec![],
                 kwargs: vec![],
             }),
-            HirStmt::Raise {
-                exception: Some(HirExpr::Var("e".to_string())),
-                cause: None,
-            },
+            HirStmt::Raise { exception: Some(HirExpr::Var("e".to_string())), cause: None },
         ];
         assert!(handler_contains_raise(&body));
     }
@@ -10323,10 +9963,7 @@ mod tests {
     #[test]
     fn test_handler_contains_raise_bare_raise() {
         use crate::hir::HirStmt;
-        let body = vec![HirStmt::Raise {
-            exception: None,
-            cause: None,
-        }];
+        let body = vec![HirStmt::Raise { exception: None, cause: None }];
         assert!(handler_contains_raise(&body));
     }
 
@@ -10358,10 +9995,7 @@ mod tests {
 
     #[test]
     fn test_is_dict_with_value_type_dict_int() {
-        assert!(!is_dict_with_value_type(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(!is_dict_with_value_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -10373,28 +10007,22 @@ mod tests {
 
     #[test]
     fn test_find_var_position_first() {
-        let targets = vec![
-            AssignTarget::Symbol("a".to_string()),
-            AssignTarget::Symbol("b".to_string()),
-        ];
+        let targets =
+            vec![AssignTarget::Symbol("a".to_string()), AssignTarget::Symbol("b".to_string())];
         assert_eq!(find_var_position_in_tuple("a", &targets), Some(0));
     }
 
     #[test]
     fn test_find_var_position_second() {
-        let targets = vec![
-            AssignTarget::Symbol("a".to_string()),
-            AssignTarget::Symbol("b".to_string()),
-        ];
+        let targets =
+            vec![AssignTarget::Symbol("a".to_string()), AssignTarget::Symbol("b".to_string())];
         assert_eq!(find_var_position_in_tuple("b", &targets), Some(1));
     }
 
     #[test]
     fn test_find_var_position_not_found() {
-        let targets = vec![
-            AssignTarget::Symbol("a".to_string()),
-            AssignTarget::Symbol("b".to_string()),
-        ];
+        let targets =
+            vec![AssignTarget::Symbol("a".to_string()), AssignTarget::Symbol("b".to_string())];
         assert_eq!(find_var_position_in_tuple("c", &targets), None);
     }
 
@@ -10563,11 +10191,7 @@ mod tests {
     #[test]
     fn test_handler_ends_with_exit_not_last() {
         let body = vec![
-            HirStmt::Expr(HirExpr::Call {
-                func: "exit".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            }),
+            HirStmt::Expr(HirExpr::Call { func: "exit".to_string(), args: vec![], kwargs: vec![] }),
             HirStmt::Expr(HirExpr::Call {
                 func: "print".to_string(),
                 args: vec![],
@@ -10607,10 +10231,7 @@ mod tests {
 
     #[test]
     fn test_handler_contains_raise_bare() {
-        let body = vec![HirStmt::Raise {
-            exception: None,
-            cause: None,
-        }];
+        let body = vec![HirStmt::Raise { exception: None, cause: None }];
         assert!(handler_contains_raise(&body));
     }
 
@@ -10660,11 +10281,7 @@ mod tests {
     fn test_is_nested_recursive_in_binary() {
         let body = vec![HirStmt::Expr(HirExpr::Binary {
             op: BinOp::Add,
-            left: Box::new(HirExpr::Call {
-                func: "fib".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            }),
+            left: Box::new(HirExpr::Call { func: "fib".to_string(), args: vec![], kwargs: vec![] }),
             right: Box::new(HirExpr::Literal(Literal::Int(1))),
         })];
         assert!(is_nested_function_recursive("fib", &body));
@@ -10706,10 +10323,7 @@ mod tests {
 
     #[test]
     fn test_extract_string_literal_int_and_var() {
-        assert_eq!(
-            extract_string_literal(&HirExpr::Literal(Literal::Int(42))),
-            ""
-        );
+        assert_eq!(extract_string_literal(&HirExpr::Literal(Literal::Int(42))), "");
         assert_eq!(extract_string_literal(&HirExpr::Var("x".to_string())), "");
     }
 
@@ -10717,22 +10331,15 @@ mod tests {
 
     #[test]
     fn test_extract_kwarg_string_success() {
-        let kwargs = vec![(
-            "key".to_string(),
-            HirExpr::Literal(Literal::String("value".to_string())),
-        )];
-        assert_eq!(
-            extract_kwarg_string(&kwargs, "key"),
-            Some("value".to_string())
-        );
+        let kwargs =
+            vec![("key".to_string(), HirExpr::Literal(Literal::String("value".to_string())))];
+        assert_eq!(extract_kwarg_string(&kwargs, "key"), Some("value".to_string()));
     }
 
     #[test]
     fn test_extract_kwarg_string_missing() {
-        let kwargs = vec![(
-            "other".to_string(),
-            HirExpr::Literal(Literal::String("value".to_string())),
-        )];
+        let kwargs =
+            vec![("other".to_string(), HirExpr::Literal(Literal::String("value".to_string())))];
         assert_eq!(extract_kwarg_string(&kwargs, "key"), None);
     }
 
@@ -11067,10 +10674,8 @@ mod tests {
     fn test_json_value_chain_non_value_dict() {
         // Dict with String value type -> should return false
         let mut ctx = CodeGenContext::default();
-        ctx.var_types.insert(
-            "data".to_string(),
-            Type::Dict(Box::new(Type::String), Box::new(Type::String)),
-        );
+        ctx.var_types
+            .insert("data".to_string(), Type::Dict(Box::new(Type::String), Box::new(Type::String)));
         let expr = HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("data".to_string())),
             method: "get".to_string(),
@@ -11099,10 +10704,7 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.var_types.insert(
             "data".to_string(),
-            Type::Dict(
-                Box::new(Type::String),
-                Box::new(Type::Custom("json::Value".to_string())),
-            ),
+            Type::Dict(Box::new(Type::String), Box::new(Type::Custom("json::Value".to_string()))),
         );
         let base = HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("data".to_string())),
@@ -11125,10 +10727,7 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.var_types.insert(
             "data".to_string(),
-            Type::Dict(
-                Box::new(Type::String),
-                Box::new(Type::Custom("Value".to_string())),
-            ),
+            Type::Dict(Box::new(Type::String), Box::new(Type::Custom("Value".to_string()))),
         );
         let base = HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("data".to_string())),
@@ -11180,10 +10779,7 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { !flag };
         let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
         // Bool type should keep negation as-is
-        assert_eq!(
-            quote::quote!(#result).to_string(),
-            quote::quote!(#cond_expr).to_string()
-        );
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
     }
 
     #[test]
@@ -11201,8 +10797,7 @@ mod tests {
     #[test]
     fn test_apply_negated_truthiness_list_type() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
         let operand = HirExpr::Var("items".to_string());
         let cond_expr: syn::Expr = syn::parse_quote! { !items };
         let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
@@ -11213,8 +10808,7 @@ mod tests {
     #[test]
     fn test_apply_negated_truthiness_optional_type() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
+        ctx.var_types.insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
         let operand = HirExpr::Var("opt".to_string());
         let cond_expr: syn::Expr = syn::parse_quote! { !opt };
         let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
@@ -11252,10 +10846,7 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { items.is_empty() };
         let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
         // Should return as-is
-        assert_eq!(
-            quote::quote!(#result).to_string(),
-            quote::quote!(#cond_expr).to_string()
-        );
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
     }
 
     #[test]
@@ -11266,10 +10857,7 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { opt.is_none() };
         let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
         // Should return as-is
-        assert_eq!(
-            quote::quote!(#result).to_string(),
-            quote::quote!(#cond_expr).to_string()
-        );
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
     }
 
     #[test]
@@ -11296,10 +10884,7 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { flag };
         let result = apply_truthiness_conversion(&condition, cond_expr.clone(), &ctx);
         // Bool should not be converted
-        assert_eq!(
-            quote::quote!(#result).to_string(),
-            quote::quote!(#cond_expr).to_string()
-        );
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
     }
 
     #[test]
@@ -11317,8 +10902,7 @@ mod tests {
     #[test]
     fn test_apply_truthiness_conversion_optional() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
+        ctx.var_types.insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
         let condition = HirExpr::Var("opt".to_string());
         let cond_expr: syn::Expr = syn::parse_quote! { opt };
         let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
@@ -11343,8 +10927,7 @@ mod tests {
     fn test_apply_truthiness_conversion_not_expr() {
         // Test `not x` where x is non-boolean
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
         let condition = HirExpr::Unary {
             op: UnaryOp::Not,
             operand: Box::new(HirExpr::Var("items".to_string())),
@@ -11608,10 +11191,8 @@ mod tests {
         use crate::type_mapper::TypeMapper;
         use rustpython_parser::{parse, Mode};
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -11768,7 +11349,8 @@ mod tests {
 
     #[test]
     fn test_transpile_pass_in_if() {
-        let code = "def foo(x: int):\n    if x > 0:\n        pass\n    else:\n        print('negative')";
+        let code =
+            "def foo(x: int):\n    if x > 0:\n        pass\n    else:\n        print('negative')";
         let rust = transpile(code);
         assert!(rust.contains("if") || rust.contains("else"));
     }
@@ -11816,7 +11398,8 @@ mod tests {
 
     #[test]
     fn test_transpile_with_multiple() {
-        let code = "def foo(p1: str, p2: str):\n    with open(p1) as f1, open(p2) as f2:\n        pass";
+        let code =
+            "def foo(p1: str, p2: str):\n    with open(p1) as f1, open(p2) as f2:\n        pass";
         let rust = transpile(code);
         assert!(rust.contains("open"));
     }
@@ -11993,7 +11576,8 @@ mod tests {
 
     #[test]
     fn test_transpile_walrus_in_while() {
-        let code = "def foo(items: list[int]):\n    while (n := len(items)) > 0:\n        items.pop()";
+        let code =
+            "def foo(items: list[int]):\n    while (n := len(items)) > 0:\n        items.pop()";
         let rust = transpile(code);
         assert!(rust.contains("while") || rust.contains("len"));
     }
@@ -13627,7 +13211,11 @@ def validate(x: int):
         raise ValueError("must be positive")
 "#;
         let rust = transpile(code);
-        assert!(rust.contains("panic!") || rust.contains("bail!") || rust.contains("anyhow"), "output: {}", rust);
+        assert!(
+            rust.contains("panic!") || rust.contains("bail!") || rust.contains("anyhow"),
+            "output: {}",
+            rust
+        );
     }
 
     #[test]
@@ -13637,7 +13225,11 @@ def fail():
     raise RuntimeError("something went wrong")
 "#;
         let rust = transpile(code);
-        assert!(rust.contains("panic!") || rust.contains("bail!") || rust.contains("anyhow"), "output: {}", rust);
+        assert!(
+            rust.contains("panic!") || rust.contains("bail!") || rust.contains("anyhow"),
+            "output: {}",
+            rust
+        );
     }
 
     // ========================================================================
@@ -14097,10 +13689,7 @@ def unique_lengths(words: list) -> set:
 
     #[test]
     fn test_infer_element_type_homogeneous_int() {
-        let elems = vec![
-            HirExpr::Literal(Literal::Int(1)),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let elems = vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))];
         assert_eq!(infer_collection_element_type(&elems), Type::Int);
     }
 
@@ -14124,10 +13713,7 @@ def unique_lengths(words: list) -> set:
 
     #[test]
     fn test_infer_element_type_int_float_promotion() {
-        let elems = vec![
-            HirExpr::Literal(Literal::Int(1)),
-            HirExpr::Literal(Literal::Float(2.5)),
-        ];
+        let elems = vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Float(2.5))];
         assert_eq!(infer_collection_element_type(&elems), Type::Float);
     }
 

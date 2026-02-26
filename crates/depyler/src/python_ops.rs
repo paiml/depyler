@@ -182,20 +182,12 @@ impl PythonStringOps for String {
 
     fn islower(&self) -> bool {
         let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased
-            && self
-                .chars()
-                .filter(|c| c.is_alphabetic())
-                .all(|c| c.is_lowercase())
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_lowercase())
     }
 
     fn isupper(&self) -> bool {
         let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased
-            && self
-                .chars()
-                .filter(|c| c.is_alphabetic())
-                .all(|c| c.is_uppercase())
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase())
     }
 
     fn capitalize(&self) -> String {
@@ -245,12 +237,7 @@ impl PythonStringOps for String {
         let total_padding = width - len;
         let left_padding = total_padding / 2;
         let right_padding = total_padding - left_padding;
-        format!(
-            "{}{}{}",
-            " ".repeat(left_padding),
-            self,
-            " ".repeat(right_padding)
-        )
+        format!("{}{}{}", " ".repeat(left_padding), self, " ".repeat(right_padding))
     }
 
     fn ljust(&self, width: usize) -> String {
@@ -289,11 +276,7 @@ impl PythonStringOps for String {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        iterable
-            .into_iter()
-            .map(|s| s.as_ref().to_string())
-            .collect::<Vec<_>>()
-            .join(self)
+        iterable.into_iter().map(|s| s.as_ref().to_string()).collect::<Vec<_>>().join(self)
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -372,20 +355,12 @@ impl PythonStringOps for str {
 
     fn islower(&self) -> bool {
         let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased
-            && self
-                .chars()
-                .filter(|c| c.is_alphabetic())
-                .all(|c| c.is_lowercase())
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_lowercase())
     }
 
     fn isupper(&self) -> bool {
         let has_cased = self.chars().any(|c| c.is_alphabetic());
-        has_cased
-            && self
-                .chars()
-                .filter(|c| c.is_alphabetic())
-                .all(|c| c.is_uppercase())
+        has_cased && self.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase())
     }
 
     fn capitalize(&self) -> String {
@@ -435,12 +410,7 @@ impl PythonStringOps for str {
         let total_padding = width - len;
         let left_padding = total_padding / 2;
         let right_padding = total_padding - left_padding;
-        format!(
-            "{}{}{}",
-            " ".repeat(left_padding),
-            self,
-            " ".repeat(right_padding)
-        )
+        format!("{}{}{}", " ".repeat(left_padding), self, " ".repeat(right_padding))
     }
 
     fn ljust(&self, width: usize) -> String {
@@ -478,11 +448,7 @@ impl PythonStringOps for str {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        iterable
-            .into_iter()
-            .map(|s| s.as_ref().to_string())
-            .collect::<Vec<_>>()
-            .join(self)
+        iterable.into_iter().map(|s| s.as_ref().to_string()).collect::<Vec<_>>().join(self)
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -1367,10 +1333,7 @@ mod tests {
 
     #[test]
     fn test_string_impl_replace_py() {
-        assert_eq!(
-            String::from("hello world").replace_py("world", "rust"),
-            "hello rust"
-        );
+        assert_eq!(String::from("hello world").replace_py("world", "rust"), "hello rust");
     }
 
     #[test]

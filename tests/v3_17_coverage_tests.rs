@@ -8,9 +8,7 @@ use depyler_core::DepylerPipeline;
 /// Helper function to transpile Python code to Rust
 fn transpile_python(python_code: &str) -> Result<String, String> {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(python_code)
-        .map_err(|e| format!("Transpilation error: {e}"))
+    pipeline.transpile(python_code).map_err(|e| format!("Transpilation error: {e}"))
 }
 
 // =============================================================================
@@ -27,18 +25,9 @@ def make_loud(text: str) -> str:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate .to_uppercase() method
-    assert!(
-        rust_code.contains("to_uppercase"),
-        "Expected to_uppercase() method: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn make_loud"),
-        "Expected function definition: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("String"),
-        "Expected String return type: {rust_code}"
-    );
+    assert!(rust_code.contains("to_uppercase"), "Expected to_uppercase() method: {rust_code}");
+    assert!(rust_code.contains("fn make_loud"), "Expected function definition: {rust_code}");
+    assert!(rust_code.contains("String"), "Expected String return type: {rust_code}");
 }
 
 #[test]
@@ -51,14 +40,8 @@ def make_quiet(text: str) -> str:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate .to_lowercase() method
-    assert!(
-        rust_code.contains("to_lowercase"),
-        "Expected to_lowercase() method: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn make_quiet"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("to_lowercase"), "Expected to_lowercase() method: {rust_code}");
+    assert!(rust_code.contains("fn make_quiet"), "Expected function definition: {rust_code}");
 }
 
 #[test]
@@ -71,14 +54,8 @@ def clean_text(text: str) -> str:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate .trim() method
-    assert!(
-        rust_code.contains("trim"),
-        "Expected trim() method: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn clean_text"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("trim"), "Expected trim() method: {rust_code}");
+    assert!(rust_code.contains("fn clean_text"), "Expected function definition: {rust_code}");
 }
 
 #[test]
@@ -91,14 +68,8 @@ def replace_spaces(text: str) -> str:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate .replace() method
-    assert!(
-        rust_code.contains("replace"),
-        "Expected replace() method: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn replace_spaces"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("replace"), "Expected replace() method: {rust_code}");
+    assert!(rust_code.contains("fn replace_spaces"), "Expected function definition: {rust_code}");
 }
 
 // =============================================================================
@@ -116,14 +87,8 @@ def divide_floats(a: float, b: float) -> float:
 
     // Should generate float division
     assert!(rust_code.contains("f64"), "Expected f64 type: {rust_code}");
-    assert!(
-        rust_code.contains("/"),
-        "Expected division operator: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn divide_floats"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("/"), "Expected division operator: {rust_code}");
+    assert!(rust_code.contains("fn divide_floats"), "Expected function definition: {rust_code}");
 }
 
 #[test]
@@ -137,10 +102,7 @@ def floor_divide(a: int, b: int) -> int:
 
     // Should generate floor division logic
     assert!(rust_code.contains("/"), "Expected division: {rust_code}");
-    assert!(
-        rust_code.contains("fn floor_divide"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("fn floor_divide"), "Expected function definition: {rust_code}");
 }
 
 // =============================================================================
@@ -157,14 +119,8 @@ def convert_number(n: int) -> float:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate type conversion
-    assert!(
-        rust_code.contains("as f64"),
-        "Expected f64 cast: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn convert_number"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("as f64"), "Expected f64 cast: {rust_code}");
+    assert!(rust_code.contains("fn convert_number"), "Expected function definition: {rust_code}");
 }
 
 #[test]
@@ -178,10 +134,7 @@ def truncate_number(n: float) -> int:
 
     // Should generate function with int return type
     // Note: Actual conversion may not use 'as' cast - transpiler may optimize
-    assert!(
-        rust_code.contains("fn truncate_number"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("fn truncate_number"), "Expected function definition: {rust_code}");
     assert!(
         rust_code.contains("i32") || rust_code.contains("i64"),
         "Expected integer type: {rust_code}"
@@ -220,14 +173,8 @@ def count_items(items: list[int]) -> int:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate .len() method
-    assert!(
-        rust_code.contains(".len()"),
-        "Expected len() method: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn count_items"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains(".len()"), "Expected len() method: {rust_code}");
+    assert!(rust_code.contains("fn count_items"), "Expected function definition: {rust_code}");
 }
 
 // =============================================================================
@@ -253,10 +200,7 @@ def classify(n: int) -> str:
         rust_code.contains("if") && (rust_code.contains("n>0") || rust_code.contains("_cse_temp")),
         "Expected if condition: {rust_code}"
     );
-    assert!(
-        rust_code.contains("else"),
-        "Expected else clause: {rust_code}"
-    );
+    assert!(rust_code.contains("else"), "Expected else clause: {rust_code}");
     assert!(
         rust_code.contains("positive")
             && rust_code.contains("negative")
@@ -286,10 +230,7 @@ def sum_range(n: int) -> int:
         rust_code.contains("for") || rust_code.contains(".."),
         "Expected for loop or range: {rust_code}"
     );
-    assert!(
-        rust_code.contains("fn sum_range"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("fn sum_range"), "Expected function definition: {rust_code}");
 }
 
 #[test]
@@ -304,14 +245,8 @@ def countdown(n: int) -> int:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate while loop
-    assert!(
-        rust_code.contains("while"),
-        "Expected while loop: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn countdown"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("while"), "Expected while loop: {rust_code}");
+    assert!(rust_code.contains("fn countdown"), "Expected function definition: {rust_code}");
 }
 
 // =============================================================================
@@ -360,10 +295,7 @@ def check_condition(a: bool, b: bool, c: bool) -> bool:
         rust_code.contains("&&") || rust_code.contains("||"),
         "Expected boolean operators: {rust_code}"
     );
-    assert!(
-        rust_code.contains("fn check_condition"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("fn check_condition"), "Expected function definition: {rust_code}");
 }
 
 #[test]
@@ -376,12 +308,6 @@ def negate(value: bool) -> bool:
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate ! operator
-    assert!(
-        rust_code.contains("!"),
-        "Expected not operator: {rust_code}"
-    );
-    assert!(
-        rust_code.contains("fn negate"),
-        "Expected function definition: {rust_code}"
-    );
+    assert!(rust_code.contains("!"), "Expected not operator: {rust_code}");
+    assert!(rust_code.contains("fn negate"), "Expected function definition: {rust_code}");
 }

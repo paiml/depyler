@@ -81,9 +81,7 @@ impl StringOptimizer {
             }
             StringContext::Parameter(name) => {
                 if self.immutable_params.contains(name) {
-                    OptimalStringType::BorrowedStr {
-                        lifetime: Some("'a".to_string()),
-                    }
+                    OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) }
                 } else if self.mixed_usage_strings.contains(name) {
                     OptimalStringType::CowStr
                 } else {
@@ -103,11 +101,7 @@ impl StringOptimizer {
             HirStmt::Return(Some(expr)) => {
                 self.analyze_expr(expr, true);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_if_stmt(condition, then_body, else_body);
             }
             HirStmt::While { condition, body } => {
@@ -244,11 +238,7 @@ impl StringOptimizer {
             })
             .collect::<String>();
 
-        let base_name = if name.is_empty() {
-            "EMPTY".to_string()
-        } else {
-            name
-        };
+        let base_name = if name.is_empty() { "EMPTY".to_string() } else { name };
 
         format!("STR_{}", base_name)
     }
@@ -259,7 +249,12 @@ impl StringOptimizer {
         }
     }
 
-    fn analyze_binary_expr(&mut self, op: &depyler_hir::hir::BinOp, left: &HirExpr, right: &HirExpr) {
+    fn analyze_binary_expr(
+        &mut self,
+        op: &depyler_hir::hir::BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+    ) {
         if matches!(op, depyler_hir::hir::BinOp::Add)
             && (self.is_string_expr(left) || self.is_string_expr(right))
         {
@@ -474,10 +469,7 @@ mod tests {
         optimizer.analyze_function(&func);
 
         let context = StringContext::Literal("hello".to_string());
-        assert_eq!(
-            optimizer.get_optimal_type(&context),
-            OptimalStringType::StaticStr
-        );
+        assert_eq!(optimizer.get_optimal_type(&context), OptimalStringType::StaticStr);
     }
 
     #[test]
@@ -499,10 +491,7 @@ mod tests {
         optimizer.analyze_function(&func);
 
         let context = StringContext::Literal("result".to_string());
-        assert_eq!(
-            optimizer.get_optimal_type(&context),
-            OptimalStringType::OwnedString
-        );
+        assert_eq!(optimizer.get_optimal_type(&context), OptimalStringType::OwnedString);
     }
 
     #[test]
@@ -528,9 +517,7 @@ mod tests {
         let context = StringContext::Parameter("s".to_string());
         assert_eq!(
             optimizer.get_optimal_type(&context),
-            OptimalStringType::BorrowedStr {
-                lifetime: Some("'a".to_string())
-            }
+            OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) }
         );
     }
 
@@ -574,9 +561,7 @@ mod tests {
         let context = StringContext::Parameter("s".to_string());
         assert_eq!(
             optimizer.get_optimal_type(&context),
-            OptimalStringType::BorrowedStr {
-                lifetime: Some("'a".to_string())
-            }
+            OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) }
         );
 
         // Verify it IS in mixed_usage though
@@ -604,10 +589,7 @@ mod tests {
         optimizer.analyze_function(&func);
 
         let context = StringContext::Parameter("s".to_string());
-        assert_eq!(
-            optimizer.get_optimal_type(&context),
-            OptimalStringType::OwnedString
-        );
+        assert_eq!(optimizer.get_optimal_type(&context), OptimalStringType::OwnedString);
     }
 
     #[test]
@@ -737,9 +719,7 @@ mod tests {
             ret_type: Type::None,
             body: vec![HirStmt::While {
                 condition: HirExpr::Literal(Literal::Bool(true)),
-                body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
-                    "loop".to_string(),
-                )))],
+                body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String("loop".to_string())))],
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -762,9 +742,7 @@ mod tests {
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::List(vec![]),
-                body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
-                    "body".to_string(),
-                )))],
+                body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String("body".to_string())))],
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -942,14 +920,8 @@ mod tests {
 
     #[test]
     fn test_string_context_display() {
-        assert_eq!(
-            format!("{}", StringContext::Literal("hello".to_string())),
-            "\"hello\""
-        );
-        assert_eq!(
-            format!("{}", StringContext::Parameter("s".to_string())),
-            "s"
-        );
+        assert_eq!(format!("{}", StringContext::Literal("hello".to_string())), "\"hello\"");
+        assert_eq!(format!("{}", StringContext::Parameter("s".to_string())), "s");
         assert_eq!(format!("{}", StringContext::Return), "<return>");
         assert_eq!(format!("{}", StringContext::Concatenation), "<concat>");
     }
@@ -1104,10 +1076,7 @@ mod tests {
         optimizer.mixed_usage_strings.insert("mixed".to_string());
 
         let context = StringContext::Literal("mixed".to_string());
-        assert_eq!(
-            optimizer.get_optimal_type(&context),
-            OptimalStringType::CowStr
-        );
+        assert_eq!(optimizer.get_optimal_type(&context), OptimalStringType::CowStr);
     }
 
     #[test]
@@ -1116,10 +1085,7 @@ mod tests {
         optimizer.mixed_usage_strings.insert("param".to_string());
 
         let context = StringContext::Parameter("param".to_string());
-        assert_eq!(
-            optimizer.get_optimal_type(&context),
-            OptimalStringType::CowStr
-        );
+        assert_eq!(optimizer.get_optimal_type(&context), OptimalStringType::CowStr);
     }
 
     // Tests for OptimalStringType traits
@@ -1128,9 +1094,7 @@ mod tests {
         let static_str = OptimalStringType::StaticStr;
         assert!(format!("{:?}", static_str).contains("StaticStr"));
 
-        let borrowed = OptimalStringType::BorrowedStr {
-            lifetime: Some("'a".to_string()),
-        };
+        let borrowed = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
         assert!(format!("{:?}", borrowed).contains("BorrowedStr"));
         assert!(format!("{:?}", borrowed).contains("'a"));
 
@@ -1143,9 +1107,7 @@ mod tests {
 
     #[test]
     fn test_optimal_string_type_clone() {
-        let original = OptimalStringType::BorrowedStr {
-            lifetime: Some("'b".to_string()),
-        };
+        let original = OptimalStringType::BorrowedStr { lifetime: Some("'b".to_string()) };
         let cloned = original.clone();
         assert_eq!(original, cloned);
     }
@@ -1153,23 +1115,14 @@ mod tests {
     #[test]
     fn test_optimal_string_type_partial_eq() {
         assert_eq!(OptimalStringType::StaticStr, OptimalStringType::StaticStr);
-        assert_eq!(
-            OptimalStringType::OwnedString,
-            OptimalStringType::OwnedString
-        );
+        assert_eq!(OptimalStringType::OwnedString, OptimalStringType::OwnedString);
         assert_eq!(OptimalStringType::CowStr, OptimalStringType::CowStr);
         assert_ne!(OptimalStringType::StaticStr, OptimalStringType::OwnedString);
         assert_ne!(OptimalStringType::CowStr, OptimalStringType::StaticStr);
 
-        let borrowed1 = OptimalStringType::BorrowedStr {
-            lifetime: Some("'a".to_string()),
-        };
-        let borrowed2 = OptimalStringType::BorrowedStr {
-            lifetime: Some("'a".to_string()),
-        };
-        let borrowed3 = OptimalStringType::BorrowedStr {
-            lifetime: Some("'b".to_string()),
-        };
+        let borrowed1 = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
+        let borrowed2 = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
+        let borrowed3 = OptimalStringType::BorrowedStr { lifetime: Some("'b".to_string()) };
         let borrowed_none = OptimalStringType::BorrowedStr { lifetime: None };
 
         assert_eq!(borrowed1, borrowed2);

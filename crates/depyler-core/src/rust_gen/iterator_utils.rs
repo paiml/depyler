@@ -472,51 +472,31 @@ mod tests {
 
     #[test]
     fn test_enumerate_call_is_iterator() {
-        let expr = HirExpr::Call {
-            func: "enumerate".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "enumerate".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_zip_call_is_iterator() {
-        let expr = HirExpr::Call {
-            func: "zip".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "zip".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_map_call_is_iterator() {
-        let expr = HirExpr::Call {
-            func: "map".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "map".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_filter_call_is_iterator() {
-        let expr = HirExpr::Call {
-            func: "filter".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "filter".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_reversed_call_is_iterator() {
-        let expr = HirExpr::Call {
-            func: "reversed".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "reversed".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
@@ -533,11 +513,7 @@ mod tests {
 
     #[test]
     fn test_non_iterator_call() {
-        let expr = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_iterator_producing_expr(&expr));
     }
 
@@ -559,31 +535,19 @@ mod tests {
 
     #[test]
     fn test_is_range_call_true() {
-        let expr = HirExpr::Call {
-            func: "range".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "range".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_range_call(&expr));
     }
 
     #[test]
     fn test_is_range_call_false() {
-        let expr = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_range_call(&expr));
     }
 
     #[test]
     fn test_is_enumerate_call_true() {
-        let expr = HirExpr::Call {
-            func: "enumerate".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "enumerate".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_enumerate_call(&expr));
     }
 
@@ -595,51 +559,31 @@ mod tests {
 
     #[test]
     fn test_is_zip_call_true() {
-        let expr = HirExpr::Call {
-            func: "zip".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "zip".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_zip_call(&expr));
     }
 
     #[test]
     fn test_is_zip_call_false() {
-        let expr = HirExpr::Call {
-            func: "enumerate".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "enumerate".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_zip_call(&expr));
     }
 
     #[test]
     fn test_is_map_call_true() {
-        let expr = HirExpr::Call {
-            func: "map".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "map".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_map_call(&expr));
     }
 
     #[test]
     fn test_is_filter_call_true() {
-        let expr = HirExpr::Call {
-            func: "filter".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "filter".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_filter_call(&expr));
     }
 
     #[test]
     fn test_is_reversed_call_true() {
-        let expr = HirExpr::Call {
-            func: "reversed".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "reversed".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_reversed_call(&expr));
     }
 
@@ -1130,10 +1074,7 @@ mod tests {
     fn test_range_two_args() {
         let expr = HirExpr::Call {
             func: "range".to_string(),
-            args: vec![
-                HirExpr::Literal(Literal::Int(5)),
-                HirExpr::Literal(Literal::Int(15)),
-            ],
+            args: vec![HirExpr::Literal(Literal::Int(5)), HirExpr::Literal(Literal::Int(15))],
             kwargs: vec![],
         };
         assert_eq!(get_range_length(&expr), Some(10));
@@ -1179,21 +1120,13 @@ mod tests {
 
     #[test]
     fn test_non_range_call() {
-        let expr = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert_eq!(get_range_length(&expr), None);
     }
 
     #[test]
     fn test_range_empty_args() {
-        let expr = HirExpr::Call {
-            func: "range".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "range".to_string(), args: vec![], kwargs: vec![] };
         assert_eq!(get_range_length(&expr), None);
     }
 }

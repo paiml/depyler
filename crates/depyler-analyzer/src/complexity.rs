@@ -13,11 +13,7 @@ pub fn calculate_cyclomatic(body: &[HirStmt]) -> u32 {
 
 fn cyclomatic_stmt(stmt: &HirStmt) -> u32 {
     match stmt {
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { then_body, else_body, .. } => {
             let mut complexity = 1; // +1 for the if condition
             complexity += cyclomatic_body(then_body);
             if let Some(else_stmts) = else_body {
@@ -42,11 +38,9 @@ fn cyclomatic_body(body: &[HirStmt]) -> u32 {
 
 fn cyclomatic_expr(expr: &HirExpr) -> u32 {
     match expr {
-        HirExpr::Binary {
-            op: BinOp::And | BinOp::Or,
-            left,
-            right,
-        } => 1 + cyclomatic_expr(left) + cyclomatic_expr(right),
+        HirExpr::Binary { op: BinOp::And | BinOp::Or, left, right } => {
+            1 + cyclomatic_expr(left) + cyclomatic_expr(right)
+        }
         _ => 0,
     }
 }
@@ -70,11 +64,7 @@ fn cognitive_body(body: &[HirStmt], nesting: u32) -> (u32, u32) {
 
 fn cognitive_stmt(stmt: &HirStmt, nesting: u32) -> (u32, u32) {
     match stmt {
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             let mut complexity = 1 + nesting; // Base complexity + nesting increment
             let mut max_nesting = nesting;
 
@@ -117,11 +107,9 @@ fn cognitive_stmt(stmt: &HirStmt, nesting: u32) -> (u32, u32) {
 
 fn cognitive_condition(expr: &HirExpr) -> u32 {
     match expr {
-        HirExpr::Binary {
-            op: BinOp::And | BinOp::Or,
-            left,
-            right,
-        } => 1 + cognitive_condition(left) + cognitive_condition(right),
+        HirExpr::Binary { op: BinOp::And | BinOp::Or, left, right } => {
+            1 + cognitive_condition(left) + cognitive_condition(right)
+        }
         HirExpr::Unary { operand, .. } => cognitive_condition(operand),
         HirExpr::Attribute { value, .. } => cognitive_condition(value),
         _ => 0,
@@ -138,11 +126,7 @@ pub fn count_statements(body: &[HirStmt]) -> usize {
     for stmt in body {
         count += 1;
         count += match stmt {
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 count_statements(then_body) + else_body.as_ref().map_or(0, |b| count_statements(b))
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => count_statements(body),
@@ -182,9 +166,7 @@ mod tests {
         let body = vec![HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                2,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
         }];
         assert_eq!(calculate_cyclomatic(&body), 2);
     }

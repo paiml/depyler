@@ -58,10 +58,7 @@ pub(super) fn wrap_map_insert_value(line: &str) -> String {
             } else if value == "true" || value == "false" {
                 format!("DepylerValue::Bool({})", value)
             } else if value.starts_with('"') || value.ends_with(".to_string()") {
-                format!(
-                    "DepylerValue::Str({}.to_string())",
-                    value.trim_end_matches(".to_string()")
-                )
+                format!("DepylerValue::Str({}.to_string())", value.trim_end_matches(".to_string()"))
             } else {
                 return line.to_string(); // unknown type, don't wrap
             };
@@ -112,9 +109,8 @@ pub(super) fn fix_depyler_value_vec_join(code: &str) -> String {
         if trimmed.contains("Vec<DepylerValue>") {
             // Extract variable name from patterns like:
             // `let mut varname: Vec<DepylerValue>` or `let varname: Vec<DepylerValue>`
-            if let Some(rest) = trimmed
-                .strip_prefix("let mut ")
-                .or_else(|| trimmed.strip_prefix("let "))
+            if let Some(rest) =
+                trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let "))
             {
                 if let Some(colon) = rest.find(':') {
                     let name = rest[..colon].trim();
@@ -133,10 +129,8 @@ pub(super) fn fix_depyler_value_vec_join(code: &str) -> String {
         // Replace var.join("...") with var.iter().map(|v| v.to_string()).collect::<Vec<_>>().join("...")
         let pattern = format!("{}.join(", var);
         if result.contains(&pattern) {
-            let replacement = format!(
-                "{}.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",
-                var
-            );
+            let replacement =
+                format!("{}.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", var);
             result = result.replace(&pattern, &replacement);
         }
     }
@@ -162,10 +156,7 @@ pub(super) fn collect_depyler_value_map_names(code: &str) -> Vec<String> {
             continue;
         }
         // Pattern: `let mut var: HashMap<String, DepylerValue>`
-        let rest = match trimmed
-            .strip_prefix("let mut ")
-            .or_else(|| trimmed.strip_prefix("let "))
-        {
+        let rest = match trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let ")) {
             Some(r) => r,
             None => continue,
         };
@@ -181,11 +172,7 @@ pub(super) fn collect_depyler_value_map_names(code: &str) -> Vec<String> {
 
 /// Try to wrap the value of a single insert call at `abs` position.
 /// Returns the new search position if a replacement was made, or `None`.
-fn try_wrap_single_insert(
-    result: &mut String,
-    abs: usize,
-    after_insert: usize,
-) -> Option<usize> {
+fn try_wrap_single_insert(result: &mut String, abs: usize, after_insert: usize) -> Option<usize> {
     let close = find_matching_close(&result[after_insert..])?;
     let args = result[after_insert..after_insert + close].to_string();
     let comma = find_top_level_comma(&args)?;
@@ -241,10 +228,7 @@ pub(super) fn find_matching_close(s: &str) -> Option<usize> {
 
 pub(super) fn is_field_access(s: &str) -> bool {
     let trimmed = s.trim().trim_end_matches(';');
-    trimmed.contains('.')
-        && trimmed
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+    trimmed.contains('.') && trimmed.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
 }
 
 pub(super) fn fix_depyler_value_str_clone(code: &str) -> String {
@@ -263,9 +247,7 @@ pub(super) fn fix_depyler_value_str_clone(code: &str) -> String {
             // If arg is a field access (config.field) and doesn't already have .clone()
             if arg.contains('.')
                 && !arg.ends_with(".clone()")
-                && arg
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+                && arg.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.')
             {
                 let old = format!("DepylerValue::Str({})", arg);
                 let new = format!("DepylerValue::Str({}.clone())", arg);
@@ -335,10 +317,7 @@ pub(super) fn fix_depyler_value_str_match_arm(code: &str) -> String {
         // Pattern: `.collect::<Vec<_>>()` followed by `_ => Vec::new().into_iter()`
         // This means the previous match arm is missing `.into_iter(),`
         // DEPYLER-99MODE-S9: Only apply inside DepylerValue match arms
-        if in_depyler_value_match
-            && trimmed == ".collect::<Vec<_>>()"
-            && i + 1 < lines.len()
-        {
+        if in_depyler_value_match && trimmed == ".collect::<Vec<_>>()" && i + 1 < lines.len() {
             let next = lines[i + 1].trim();
             if next.starts_with("_ =>") || next.starts_with("}") {
                 let indent = &lines[i][..lines[i].len() - trimmed.len()];
@@ -378,10 +357,7 @@ pub(super) fn extract_string_typed_vars(code: &str) -> Vec<String> {
         }
         // Match: let var: String = ...
         if trimmed.starts_with("let ") && trimmed.contains(": String") {
-            let rest = trimmed
-                .strip_prefix("let ")
-                .unwrap_or("")
-                .trim_start_matches("mut ");
+            let rest = trimmed.strip_prefix("let ").unwrap_or("").trim_start_matches("mut ");
             if let Some(name) = rest.split(':').next() {
                 let name = name.trim();
                 if !name.is_empty() {
@@ -399,10 +375,7 @@ pub(super) fn extract_depyler_value_map_vars(code: &str) -> Vec<String> {
         let trimmed = line.trim();
         // Match: let [mut] VARNAME: ... HashMap<String, DepylerValue>
         if trimmed.starts_with("let ") && trimmed.contains("HashMap<String, DepylerValue>") {
-            let rest = trimmed
-                .strip_prefix("let ")
-                .unwrap_or("")
-                .trim_start_matches("mut ");
+            let rest = trimmed.strip_prefix("let ").unwrap_or("").trim_start_matches("mut ");
             if let Some(name) = rest.split(':').next() {
                 let name = name.trim();
                 if !name.is_empty() && name != "map" {
@@ -451,10 +424,7 @@ pub(super) fn wrap_generic_insert_value(line: &str, var_name: &str) -> String {
             } else if value == "true" || value == "false" {
                 format!("DepylerValue::Bool({})", value)
             } else if value.starts_with('"') || value.ends_with(".to_string()") {
-                format!(
-                    "DepylerValue::Str({}.to_string())",
-                    value.trim_end_matches(".to_string()")
-                )
+                format!("DepylerValue::Str({}.to_string())", value.trim_end_matches(".to_string()"))
             } else {
                 return line.to_string();
             };
@@ -475,17 +445,12 @@ const DV_TERMINATORS: &[&str] = &[
 
 /// Strip `let [mut] ` prefix and return the remainder, or `None`.
 fn strip_let_prefix(trimmed: &str) -> Option<&str> {
-    trimmed
-        .strip_prefix("let mut ")
-        .or_else(|| trimmed.strip_prefix("let "))
+    trimmed.strip_prefix("let mut ").or_else(|| trimmed.strip_prefix("let "))
 }
 
 /// If the line is a `let` declaration with a concrete type annotation, insert the
 /// variable name into `typed_vars`.
-fn track_typed_var_declaration(
-    trimmed: &str,
-    typed_vars: &mut std::collections::HashSet<String>,
-) {
+fn track_typed_var_declaration(trimmed: &str, typed_vars: &mut std::collections::HashSet<String>) {
     let after_let = match strip_let_prefix(trimmed) {
         Some(rest) => rest,
         None => return,
@@ -506,14 +471,10 @@ fn track_typed_var_declaration(
 
 /// Return `true` (and write the fixed line to `result`) when the line is a
 /// single-line `let` binding whose RHS ends with a DV terminator.
-fn try_fix_single_line_let(
-    line: &str,
-    trimmed: &str,
-    result: &mut String,
-) -> bool {
-    let has_typed_ann = TYPED_TYPES.iter().any(|t| {
-        trimmed.contains(&format!(": {} ", t)) || trimmed.contains(&format!(": {} =", t))
-    });
+fn try_fix_single_line_let(line: &str, trimmed: &str, result: &mut String) -> bool {
+    let has_typed_ann = TYPED_TYPES
+        .iter()
+        .any(|t| trimmed.contains(&format!(": {} ", t)) || trimmed.contains(&format!(": {} =", t)));
     if !has_typed_ann || !trimmed.ends_with(';') {
         return false;
     }
@@ -632,8 +593,8 @@ pub(super) fn fix_depyler_value_to_typed_assignment(code: &str) -> String {
 
         let handled = handled
             || try_fix_multiline_dv_terminator(line, trimmed, i, &lines, &typed_vars, &mut result);
-        let handled = handled
-            || try_fix_clone_for_typed_var(line, trimmed, &typed_vars, &mut result);
+        let handled =
+            handled || try_fix_clone_for_typed_var(line, trimmed, &typed_vars, &mut result);
 
         if !handled {
             result.push_str(line);
@@ -871,10 +832,7 @@ pub(super) fn fix_pyindex_depyler_value_wrapper(code: &str) -> String {
             if end + 1 < bytes.len() && bytes[end + 1] == b')' {
                 // Replace: py_index(DepylerValue::Int(EXPR)) -> py_index((EXPR) as i64).unwrap_or_default()
                 // Vec<T>::py_index returns Option<T>, so we need to unwrap
-                result.push_str(&format!(
-                    "py_index(({}) as i64).unwrap_or_default()",
-                    inner_expr
-                ));
+                result.push_str(&format!("py_index(({}) as i64).unwrap_or_default()", inner_expr));
                 rest = &rest[end + 2..]; // skip past both `)`
             } else {
                 // Outer `)` not immediately after -- just copy and advance
@@ -944,10 +902,12 @@ pub(super) fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
         let trimmed = line.trim();
         // Match standalone DepylerValue::from(EXPR) lines ending with , or ;
         // Pattern: "DepylerValue::from(EXPR)," or "DepylerValue::from(EXPR);"
-        if trimmed.starts_with("DepylerValue::from(") && (trimmed.ends_with("),") || trimmed.ends_with(");")) {
+        if trimmed.starts_with("DepylerValue::from(")
+            && (trimmed.ends_with("),") || trimmed.ends_with(");"))
+        {
             let end_char = if trimmed.ends_with("),") { ',' } else { ';' };
             let inner = &trimmed[19..trimmed.len() - 2]; // Extract EXPR from DepylerValue::from(EXPR)
-            // Only unwrap if the inner expression is simple (no nested DepylerValue)
+                                                         // Only unwrap if the inner expression is simple (no nested DepylerValue)
             if !inner.contains("DepylerValue") && !inner.contains("vec!") {
                 let indent = &line[..line.len() - trimmed.len()];
                 result.push(format!("{}{}{}", indent, inner, end_char));
@@ -968,9 +928,7 @@ pub(super) fn fix_depyler_value_from_in_concrete_tuple(code: &str) -> String {
 /// - There's a matching call site with a concrete vector type
 /// Extract function name and `&Vec<DepylerValue>` param names from a fn signature line.
 fn extract_dv_vec_fn_params(trimmed: &str) -> Option<(String, Vec<String>)> {
-    let after_fn = trimmed
-        .strip_prefix("pub fn ")
-        .or_else(|| trimmed.strip_prefix("fn "))?;
+    let after_fn = trimmed.strip_prefix("pub fn ").or_else(|| trimmed.strip_prefix("fn "))?;
     let paren_pos = after_fn.find('(')?;
     let name = after_fn[..paren_pos].trim().to_string();
     let params_str = &after_fn[paren_pos + 1..];
@@ -993,9 +951,7 @@ fn extract_dv_vec_fn_params(trimmed: &str) -> Option<(String, Vec<String>)> {
 }
 
 /// Collect all functions that have `&Vec<DepylerValue>` parameters.
-fn collect_dv_vec_fn_params(
-    code: &str,
-) -> std::collections::HashMap<String, Vec<String>> {
+fn collect_dv_vec_fn_params(code: &str) -> std::collections::HashMap<String, Vec<String>> {
     let mut fn_params = std::collections::HashMap::new();
     for line in code.lines() {
         let trimmed = line.trim();
@@ -1011,13 +967,14 @@ fn collect_dv_vec_fn_params(
 }
 
 /// Collect concrete `Vec<T>` variable declarations (excluding DepylerValue).
-fn collect_concrete_vec_var_types(
-    code: &str,
-) -> std::collections::HashMap<String, String> {
+fn collect_concrete_vec_var_types(code: &str) -> std::collections::HashMap<String, String> {
     let mut var_types = std::collections::HashMap::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("let ") || !trimmed.contains("Vec<") || trimmed.contains("DepylerValue") {
+        if !trimmed.starts_with("let ")
+            || !trimmed.contains("Vec<")
+            || trimmed.contains("DepylerValue")
+        {
             continue;
         }
         if let Some(colon) = trimmed.find(':') {

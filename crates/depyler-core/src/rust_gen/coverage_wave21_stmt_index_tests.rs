@@ -22,10 +22,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -148,7 +146,9 @@ mod tests {
         let code = "def f(lst: list) -> list:\n    return lst[:]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("clone") || result.contains("to_vec") || result.contains("collect"));
+        assert!(
+            result.contains("clone") || result.contains("to_vec") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -190,7 +190,8 @@ mod tests {
 
     #[test]
     fn test_w21si_021_dict_int_key() {
-        let code = "def f() -> dict:\n    d = {}\n    d[1] = \"one\"\n    d[2] = \"two\"\n    return d\n";
+        let code =
+            "def f() -> dict:\n    d = {}\n    d[1] = \"one\"\n    d[2] = \"two\"\n    return d\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -204,7 +205,8 @@ mod tests {
 
     #[test]
     fn test_w21si_023_list_index_in_condition() {
-        let code = "def f(lst: list) -> int:\n    if lst[0] > 0:\n        return lst[0]\n    return 0\n";
+        let code =
+            "def f(lst: list) -> int:\n    if lst[0] > 0:\n        return lst[0]\n    return 0\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("if"));
@@ -310,7 +312,8 @@ mod tests {
 
     #[test]
     fn test_w21si_038_slice_assign() {
-        let code = "def f() -> list:\n    lst = [1, 2, 3, 4, 5]\n    first = lst[:2]\n    return first\n";
+        let code =
+            "def f() -> list:\n    lst = [1, 2, 3, 4, 5]\n    first = lst[:2]\n    return first\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -406,7 +409,8 @@ mod tests {
 
     #[test]
     fn test_w21si_051_nested_function_def() {
-        let code = "def outer() -> int:\n    def inner() -> int:\n        return 1\n    return inner()\n";
+        let code =
+            "def outer() -> int:\n    def inner() -> int:\n        return 1\n    return inner()\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
@@ -696,7 +700,8 @@ mod tests {
 
     #[test]
     fn test_w21si_091_string_constant() {
-        let code = "DEFAULT_NAME = \"world\"\ndef greet() -> str:\n    return \"hello \" + DEFAULT_NAME\n";
+        let code =
+            "DEFAULT_NAME = \"world\"\ndef greet() -> str:\n    return \"hello \" + DEFAULT_NAME\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -956,7 +961,8 @@ mod tests {
 
     #[test]
     fn test_w21si_127_func_default_none() {
-        let code = "def f(x: int = None) -> int:\n    if x is None:\n        return 0\n    return x\n";
+        let code =
+            "def f(x: int = None) -> int:\n    if x is None:\n        return 0\n    return x\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1166,7 +1172,8 @@ mod tests {
 
     #[test]
     fn test_w21si_156_func_multiple_statements() {
-        let code = "def f(x: int) -> int:\n    a = x * 2\n    b = a + 3\n    c = b - 1\n    return c\n";
+        let code =
+            "def f(x: int) -> int:\n    a = x * 2\n    b = a + 3\n    c = b - 1\n    return c\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1281,7 +1288,8 @@ mod tests {
 
     #[test]
     fn test_w21si_171_ternary_expression() {
-        let code = "def f(x: int) -> str:\n    return \"positive\" if x > 0 else \"non-positive\"\n";
+        let code =
+            "def f(x: int) -> str:\n    return \"positive\" if x > 0 else \"non-positive\"\n";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("if") || result.contains("else"));
@@ -1489,14 +1497,16 @@ mod tests {
 
     #[test]
     fn test_w21si_199_complex_bool_expression() {
-        let code = "def f(x: int, y: int, z: int) -> bool:\n    return (x > 0 and y > 0) or z == 0\n";
+        let code =
+            "def f(x: int, y: int, z: int) -> bool:\n    return (x > 0 and y > 0) or z == 0\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w21si_200_list_comp_nested_call() {
-        let code = "def f(words: list) -> list:\n    return [w.upper() for w in words if len(w) > 3]\n";
+        let code =
+            "def f(words: list) -> list:\n    return [w.upper() for w in words if len(w) > 3]\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

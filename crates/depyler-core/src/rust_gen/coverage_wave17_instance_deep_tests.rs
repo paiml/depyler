@@ -18,10 +18,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -763,7 +761,9 @@ def is_number(text) -> bool:
     return text.isdigit()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_digit") || result.contains("isdigit") || result.contains("chars"));
+        assert!(
+            result.contains("is_digit") || result.contains("isdigit") || result.contains("chars")
+        );
     }
 
     #[test]
@@ -773,7 +773,11 @@ def is_alpha(text) -> bool:
     return text.isalpha()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("isalpha") || result.contains("chars"));
+        assert!(
+            result.contains("is_alphabetic")
+                || result.contains("isalpha")
+                || result.contains("chars")
+        );
     }
 
     #[test]
@@ -1199,7 +1203,9 @@ def to_json(data: dict) -> str:
     return json.dumps(data)
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_string") || result.contains("serde_json") || !result.is_empty());
+        assert!(
+            result.contains("to_string") || result.contains("serde_json") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1221,7 +1227,9 @@ def save_json(data: dict, f):
     json.dump(data, f)
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_writer") || result.contains("serde_json") || !result.is_empty());
+        assert!(
+            result.contains("to_writer") || result.contains("serde_json") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1232,7 +1240,9 @@ def load_json(f):
     return json.load(f)
 "#;
         let result = transpile(code);
-        assert!(result.contains("from_reader") || result.contains("serde_json") || !result.is_empty());
+        assert!(
+            result.contains("from_reader") || result.contains("serde_json") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -2081,7 +2091,11 @@ def is_blank(text: str) -> bool:
     return text.isspace()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_whitespace") || result.contains("isspace") || result.contains("chars"));
+        assert!(
+            result.contains("is_whitespace")
+                || result.contains("isspace")
+                || result.contains("chars")
+        );
     }
 
     #[test]
@@ -2091,7 +2105,11 @@ def is_alphanum(text: str) -> bool:
     return text.isalnum()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphanumeric") || result.contains("isalnum") || result.contains("chars"));
+        assert!(
+            result.contains("is_alphanumeric")
+                || result.contains("isalnum")
+                || result.contains("chars")
+        );
     }
 
     #[test]
@@ -2121,6 +2139,8 @@ def casefold_text(text: str) -> str:
     return text.casefold()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_lowercase") || result.contains("casefold") || !result.is_empty());
+        assert!(
+            result.contains("to_lowercase") || result.contains("casefold") || !result.is_empty()
+        );
     }
 }

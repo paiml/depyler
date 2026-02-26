@@ -15,9 +15,7 @@ def add_entry(d: dict[str, int], key: str, value: int) -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should add mut keyword to d parameter
     // DEPYLER-0685: Accept both short and fully qualified HashMap paths
@@ -27,10 +25,7 @@ def add_entry(d: dict[str, int], key: str, value: int) -> dict[str, int]:
         "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
         rust_code
     );
-    assert!(
-        rust_code.contains(".insert("),
-        "Should contain .insert() call"
-    );
+    assert!(rust_code.contains(".insert("), "Should contain .insert() call");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -44,9 +39,7 @@ def clear_dict(d: dict[str, int]) -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should add mut keyword to d parameter
     // DEPYLER-0685: Accept both short and fully qualified HashMap paths
@@ -56,10 +49,7 @@ def clear_dict(d: dict[str, int]) -> dict[str, int]:
         "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
         rust_code
     );
-    assert!(
-        rust_code.contains(".clear()"),
-        "Should contain .clear() call"
-    );
+    assert!(rust_code.contains(".clear()"), "Should contain .clear() call");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -72,9 +62,7 @@ def pop_entry(d: dict[str, int], key: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT have &&key (double reference)
     assert!(
@@ -100,9 +88,7 @@ def has_key(d: dict[str, int], key: str) -> bool:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT have &&key (double reference)
     assert!(
@@ -138,9 +124,7 @@ def modify_dict(d: dict[str, int], k1: str, k2: str) -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should add mut keyword
     // DEPYLER-0685: Accept both short and fully qualified HashMap paths
@@ -169,16 +153,11 @@ def get_value(d: dict[str, int], key: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT add mut keyword (read-only access)
     // Should contain HashMap type in signature
-    assert!(
-        rust_code.contains("HashMap"),
-        "Should contain HashMap in signature"
-    );
+    assert!(rust_code.contains("HashMap"), "Should contain HashMap in signature");
 
     // Should NOT have mut d
     assert!(
@@ -200,9 +179,7 @@ def remove_if_exists(d: dict[str, int], key: str) -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should add mut keyword (mutation happens in if body)
     // DEPYLER-0685: Accept both short and fully qualified HashMap paths

@@ -487,12 +487,7 @@ def test_{}_gen():
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {} generator: {:?}",
-            type_name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {} generator: {:?}", type_name, result.err());
     }
 }
 
@@ -504,10 +499,7 @@ fn test_property_generator_yield_counts() {
     let pipeline = DepylerPipeline::new();
 
     for count in [1, 2, 3, 5, 10] {
-        let yields = (0..count)
-            .map(|i| format!("    yield {}", i))
-            .collect::<Vec<_>>()
-            .join("\n");
+        let yields = (0..count).map(|i| format!("    yield {}", i)).collect::<Vec<_>>().join("\n");
 
         let python_code = format!(
             r#"

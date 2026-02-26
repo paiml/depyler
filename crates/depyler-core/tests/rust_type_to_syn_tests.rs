@@ -62,17 +62,13 @@ fn test_str_no_lifetime() {
 
 #[test]
 fn test_str_with_lifetime() {
-    let ty = RustType::Str {
-        lifetime: Some("'a".to_string()),
-    };
+    let ty = RustType::Str { lifetime: Some("'a".to_string()) };
     assert_eq!(type_to_string(&ty), "& 'a str");
 }
 
 #[test]
 fn test_cow_with_lifetime() {
-    let ty = RustType::Cow {
-        lifetime: "'static".to_string(),
-    };
+    let ty = RustType::Cow { lifetime: "'static".to_string() };
     assert_eq!(type_to_string(&ty), "Cow < 'static , str >");
 }
 
@@ -144,11 +140,8 @@ fn test_result_ok_err() {
 
 #[test]
 fn test_reference_immutable_no_lifetime() {
-    let ty = RustType::Reference {
-        lifetime: None,
-        mutable: false,
-        inner: Box::new(RustType::String),
-    };
+    let ty =
+        RustType::Reference { lifetime: None, mutable: false, inner: Box::new(RustType::String) };
     assert_eq!(type_to_string(&ty), "& String");
 }
 
@@ -164,11 +157,8 @@ fn test_reference_immutable_with_lifetime() {
 
 #[test]
 fn test_reference_mutable_no_lifetime() {
-    let ty = RustType::Reference {
-        lifetime: None,
-        mutable: true,
-        inner: Box::new(RustType::String),
-    };
+    let ty =
+        RustType::Reference { lifetime: None, mutable: true, inner: Box::new(RustType::String) };
     assert_eq!(type_to_string(&ty), "& mut String");
 }
 
@@ -234,10 +224,7 @@ fn test_tuple_empty() {
 
 #[test]
 fn test_tuple_two_elements() {
-    let ty = RustType::Tuple(vec![
-        RustType::String,
-        RustType::Primitive(PrimitiveType::I32),
-    ]);
+    let ty = RustType::Tuple(vec![RustType::String, RustType::Primitive(PrimitiveType::I32)]);
     assert_eq!(type_to_string(&ty), "(String , i32)");
 }
 
@@ -304,10 +291,7 @@ fn test_type_param() {
 
 #[test]
 fn test_generic_box() {
-    let ty = RustType::Generic {
-        base: "Box".to_string(),
-        params: vec![RustType::String],
-    };
+    let ty = RustType::Generic { base: "Box".to_string(), params: vec![RustType::String] };
     assert_eq!(type_to_string(&ty), "Box < String >");
 }
 
@@ -351,10 +335,7 @@ fn test_generic_nested() {
 
 #[test]
 fn test_enum_simple() {
-    let ty = RustType::Enum {
-        name: "MyEnum".to_string(),
-        variants: vec![],
-    };
+    let ty = RustType::Enum { name: "MyEnum".to_string(), variants: vec![] };
     assert_eq!(type_to_string(&ty), "MyEnum");
 }
 
@@ -473,9 +454,7 @@ fn test_option_of_vec() {
 fn test_hashmap_string_vec_i32() {
     let ty = RustType::HashMap(
         Box::new(RustType::String),
-        Box::new(RustType::Vec(Box::new(RustType::Primitive(
-            PrimitiveType::I32,
-        )))),
+        Box::new(RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)))),
     );
     let result = type_to_string(&ty);
     assert!(result.contains("HashMap"));

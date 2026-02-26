@@ -24,12 +24,7 @@ impl RuchyFormatter {
     /// Creates a new formatter with default settings
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            indent_width: 4,
-            max_line_length: 100,
-            current_indent: 0,
-            output: String::new(),
-        }
+        Self { indent_width: 4, max_line_length: 100, current_indent: 0, output: String::new() }
     }
 
     /// Creates a formatter with custom configuration
@@ -76,13 +71,7 @@ impl RuchyFormatter {
                 self.format_expr(operand, false);
             }
 
-            RuchyExpr::Function {
-                name,
-                params,
-                body,
-                is_async,
-                return_type,
-            } => {
+            RuchyExpr::Function { name, params, body, is_async, return_type } => {
                 self.format_function(name, params, body, *is_async, return_type.as_ref());
             }
 
@@ -97,11 +86,7 @@ impl RuchyFormatter {
                 self.write(")");
             }
 
-            RuchyExpr::MethodCall {
-                receiver,
-                method,
-                args,
-            } => {
+            RuchyExpr::MethodCall { receiver, method, args } => {
                 self.format_expr(receiver, false);
                 self.write(&format!(".{method}("));
                 self.format_comma_separated(args, |f, arg| f.format_expr(arg, false));
@@ -112,11 +97,7 @@ impl RuchyFormatter {
                 self.format_pipeline(expr, stages);
             }
 
-            RuchyExpr::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => {
+            RuchyExpr::If { condition, then_branch, else_branch } => {
                 self.format_if(condition, then_branch, else_branch.as_deref());
             }
 
@@ -142,12 +123,7 @@ impl RuchyFormatter {
                 self.format_block(exprs);
             }
 
-            RuchyExpr::Let {
-                name,
-                value,
-                body,
-                is_mutable,
-            } => {
+            RuchyExpr::Let { name, value, body, is_mutable } => {
                 if *is_mutable {
                     self.write(&format!("let mut {name} = "));
                 } else {
@@ -200,11 +176,7 @@ impl RuchyFormatter {
                 self.format_dataframe(columns);
             }
 
-            RuchyExpr::Range {
-                start,
-                end,
-                inclusive,
-            } => {
+            RuchyExpr::Range { start, end, inclusive } => {
                 self.format_expr(start, false);
                 if *inclusive {
                     self.write("..=");
@@ -759,16 +731,8 @@ mod tests {
         let expr = RuchyExpr::Function {
             name: "add".to_string(),
             params: vec![
-                Param {
-                    name: "x".to_string(),
-                    typ: Some(RuchyType::I64),
-                    default: None,
-                },
-                Param {
-                    name: "y".to_string(),
-                    typ: Some(RuchyType::I64),
-                    default: None,
-                },
+                Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None },
+                Param { name: "y".to_string(), typ: Some(RuchyType::I64), default: None },
             ],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
@@ -796,11 +760,7 @@ mod tests {
             ])),
             stages: vec![
                 PipelineStage::Filter(Box::new(RuchyExpr::Lambda {
-                    params: vec![Param {
-                        name: "x".to_string(),
-                        typ: None,
-                        default: None,
-                    }],
+                    params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                     body: Box::new(RuchyExpr::Binary {
                         left: Box::new(RuchyExpr::Identifier("x".to_string())),
                         op: BinaryOp::Greater,
@@ -808,11 +768,7 @@ mod tests {
                     }),
                 })),
                 PipelineStage::Map(Box::new(RuchyExpr::Lambda {
-                    params: vec![Param {
-                        name: "x".to_string(),
-                        typ: None,
-                        default: None,
-                    }],
+                    params: vec![Param { name: "x".to_string(), typ: None, default: None }],
                     body: Box::new(RuchyExpr::Binary {
                         left: Box::new(RuchyExpr::Identifier("x".to_string())),
                         op: BinaryOp::Multiply,
@@ -957,11 +913,7 @@ mod tests {
         let formatter = RuchyFormatter::new();
 
         let lambda_expr = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: Some(RuchyType::I64),
-                default: None,
-            }],
+            params: vec![Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None }],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
                 op: BinaryOp::Multiply,
@@ -1032,9 +984,7 @@ mod tests {
         let break_expr = RuchyExpr::Break { label: None };
         assert_eq!(formatter.format(&break_expr), "break");
 
-        let break_with_label = RuchyExpr::Break {
-            label: Some("outer".to_string()),
-        };
+        let break_with_label = RuchyExpr::Break { label: Some("outer".to_string()) };
         assert_eq!(formatter.format(&break_with_label), "break 'outer");
 
         let continue_expr = RuchyExpr::Continue { label: None };
@@ -1048,9 +998,8 @@ mod tests {
         let return_nothing = RuchyExpr::Return { value: None };
         assert_eq!(formatter.format(&return_nothing), "return");
 
-        let return_value = RuchyExpr::Return {
-            value: Some(Box::new(RuchyExpr::Literal(Literal::Integer(42)))),
-        };
+        let return_value =
+            RuchyExpr::Return { value: Some(Box::new(RuchyExpr::Literal(Literal::Integer(42)))) };
         assert_eq!(formatter.format(&return_value), "return 42");
     }
 
@@ -1103,9 +1052,8 @@ mod tests {
     fn test_format_await() {
         let formatter = RuchyFormatter::new();
 
-        let await_expr = RuchyExpr::Await {
-            expr: Box::new(RuchyExpr::Identifier("future".to_string())),
-        };
+        let await_expr =
+            RuchyExpr::Await { expr: Box::new(RuchyExpr::Identifier("future".to_string())) };
         assert_eq!(formatter.format(&await_expr), "future.await");
     }
 
@@ -1113,9 +1061,8 @@ mod tests {
     fn test_format_try() {
         let formatter = RuchyFormatter::new();
 
-        let try_expr = RuchyExpr::Try {
-            expr: Box::new(RuchyExpr::Identifier("result".to_string())),
-        };
+        let try_expr =
+            RuchyExpr::Try { expr: Box::new(RuchyExpr::Identifier("result".to_string())) };
         assert_eq!(formatter.format(&try_expr), "result?");
     }
 
@@ -1302,16 +1249,8 @@ mod tests {
         let struct_expr = RuchyExpr::Struct {
             name: "Point".to_string(),
             fields: vec![
-                StructField {
-                    name: "x".to_string(),
-                    typ: RuchyType::I64,
-                    is_public: true,
-                },
-                StructField {
-                    name: "y".to_string(),
-                    typ: RuchyType::I64,
-                    is_public: false,
-                },
+                StructField { name: "x".to_string(), typ: RuchyType::I64, is_public: true },
+                StructField { name: "y".to_string(), typ: RuchyType::I64, is_public: false },
             ],
         };
         let formatted = formatter.format(&struct_expr);
@@ -1587,9 +1526,7 @@ mod tests {
                 Box::new(RuchyType::String),
             )),
         };
-        assert!(formatter
-            .format(&fn_expr)
-            .contains("-> Result<i64, String>"));
+        assert!(formatter.format(&fn_expr).contains("-> Result<i64, String>"));
     }
 
     #[test]
@@ -1779,16 +1716,8 @@ mod tests {
         let fn_expr = RuchyExpr::Function {
             name: "add".to_string(),
             params: vec![
-                Param {
-                    name: "x".to_string(),
-                    typ: Some(RuchyType::I64),
-                    default: None,
-                },
-                Param {
-                    name: "y".to_string(),
-                    typ: Some(RuchyType::I64),
-                    default: None,
-                },
+                Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None },
+                Param { name: "y".to_string(), typ: Some(RuchyType::I64), default: None },
             ],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
@@ -1813,9 +1742,7 @@ mod tests {
             params: vec![Param {
                 name: "name".to_string(),
                 typ: Some(RuchyType::String),
-                default: Some(Box::new(RuchyExpr::Literal(Literal::String(
-                    "World".to_string(),
-                )))),
+                default: Some(Box::new(RuchyExpr::Literal(Literal::String("World".to_string())))),
             }],
             body: Box::new(RuchyExpr::Block(vec![])),
             is_async: false,
@@ -1832,14 +1759,8 @@ mod tests {
         let formatter = RuchyFormatter::new();
 
         let lambda = RuchyExpr::Lambda {
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            }],
-            body: Box::new(RuchyExpr::Block(vec![RuchyExpr::Identifier(
-                "x".to_string(),
-            )])),
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
+            body: Box::new(RuchyExpr::Block(vec![RuchyExpr::Identifier("x".to_string())])),
         };
         let formatted = formatter.format(&lambda);
         assert!(formatted.contains("|x|"));
@@ -1850,9 +1771,7 @@ mod tests {
     fn test_format_continue_with_label() {
         let formatter = RuchyFormatter::new();
 
-        let cont = RuchyExpr::Continue {
-            label: Some("loop1".to_string()),
-        };
+        let cont = RuchyExpr::Continue { label: Some("loop1".to_string()) };
         assert_eq!(formatter.format(&cont), "continue 'loop1");
     }
 
@@ -1888,10 +1807,7 @@ mod tests {
     fn test_format_empty_struct() {
         let formatter = RuchyFormatter::new();
 
-        let empty_struct = RuchyExpr::Struct {
-            name: "Empty".to_string(),
-            fields: vec![],
-        };
+        let empty_struct = RuchyExpr::Struct { name: "Empty".to_string(), fields: vec![] };
         let formatted = formatter.format(&empty_struct);
         assert_eq!(formatted, "struct Empty {}");
     }

@@ -22,10 +22,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -86,7 +84,8 @@ mod tests {
 
     #[test]
     fn test_wave19_file_008_read_and_close() {
-        let code = "def read_all(f) -> str:\n    data: str = f.read()\n    f.close()\n    return data\n";
+        let code =
+            "def read_all(f) -> str:\n    data: str = f.read()\n    f.close()\n    return data\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -100,7 +99,8 @@ mod tests {
 
     #[test]
     fn test_wave19_file_010_readlines_iterate() {
-        let code = "def count_lines(f) -> int:\n    lines: list = f.readlines()\n    return len(lines)\n";
+        let code =
+            "def count_lines(f) -> int:\n    lines: list = f.readlines()\n    return len(lines)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -114,7 +114,8 @@ mod tests {
 
     #[test]
     fn test_wave19_file_012_read_size_8192() {
-        let code = "def read_block(f) -> bytes:\n    chunk: bytes = f.read(8192)\n    return chunk\n";
+        let code =
+            "def read_block(f) -> bytes:\n    chunk: bytes = f.read(8192)\n    return chunk\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -135,7 +136,8 @@ mod tests {
 
     #[test]
     fn test_wave19_file_015_readlines_filter() {
-        let code = "def nonempty_lines(f) -> list:\n    lines: list = f.readlines()\n    return lines\n";
+        let code =
+            "def nonempty_lines(f) -> list:\n    lines: list = f.readlines()\n    return lines\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -170,7 +172,8 @@ mod tests {
 
     #[test]
     fn test_wave19_file_020_readline_strip() {
-        let code = "def clean_line(f) -> str:\n    line: str = f.readline()\n    return line.strip()\n";
+        let code =
+            "def clean_line(f) -> str:\n    line: str = f.readline()\n    return line.strip()\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -233,13 +236,15 @@ mod tests {
 
     #[test]
     fn test_wave19_path_004_exists() {
-        let code = "import os\ndef check_exists(path: str) -> bool:\n    return os.path.exists(path)\n";
+        let code =
+            "import os\ndef check_exists(path: str) -> bool:\n    return os.path.exists(path)\n";
         let _result = transpile(code);
     }
 
     #[test]
     fn test_wave19_path_005_is_file() {
-        let code = "import os\ndef check_file(path: str) -> bool:\n    return os.path.isfile(path)\n";
+        let code =
+            "import os\ndef check_file(path: str) -> bool:\n    return os.path.isfile(path)\n";
         let _result = transpile(code);
     }
 
@@ -263,7 +268,8 @@ mod tests {
 
     #[test]
     fn test_wave19_path_009_parent() {
-        let code = "import os\ndef get_parent(path: str) -> str:\n    return os.path.dirname(path)\n";
+        let code =
+            "import os\ndef get_parent(path: str) -> str:\n    return os.path.dirname(path)\n";
         let _result = transpile(code);
     }
 
@@ -281,7 +287,8 @@ mod tests {
 
     #[test]
     fn test_wave19_path_012_name() {
-        let code = "import os\ndef get_name(path: str) -> str:\n    return os.path.basename(path)\n";
+        let code =
+            "import os\ndef get_name(path: str) -> str:\n    return os.path.basename(path)\n";
         let _result = transpile(code);
     }
 
@@ -305,7 +312,8 @@ mod tests {
 
     #[test]
     fn test_wave19_path_016_glob_pattern() {
-        let code = "import glob\ndef find_files(pattern: str) -> list:\n    return glob.glob(pattern)\n";
+        let code =
+            "import glob\ndef find_files(pattern: str) -> list:\n    return glob.glob(pattern)\n";
         let _result = transpile(code);
     }
 
@@ -623,7 +631,8 @@ mod tests {
 
     #[test]
     fn test_wave19_csv_013_writerow_with_strings() {
-        let code = "def write_strings(writer) -> None:\n    writer.writerow([\"a\", \"b\", \"c\"])\n";
+        let code =
+            "def write_strings(writer) -> None:\n    writer.writerow([\"a\", \"b\", \"c\"])\n";
         let _result = transpile(code);
     }
 
@@ -782,7 +791,8 @@ mod tests {
 
     #[test]
     fn test_wave19_deque_003_pop() {
-        let code = "from collections import deque\ndef pop_back(dq: deque) -> int:\n    return dq.pop()\n";
+        let code =
+            "from collections import deque\ndef pop_back(dq: deque) -> int:\n    return dq.pop()\n";
         let _result = transpile(code);
     }
 
@@ -806,7 +816,8 @@ mod tests {
 
     #[test]
     fn test_wave19_deque_007_clear() {
-        let code = "from collections import deque\ndef clear_dq(dq: deque) -> None:\n    dq.clear()\n";
+        let code =
+            "from collections import deque\ndef clear_dq(dq: deque) -> None:\n    dq.clear()\n";
         let _result = transpile(code);
     }
 
@@ -824,7 +835,8 @@ mod tests {
 
     #[test]
     fn test_wave19_deque_010_len() {
-        let code = "from collections import deque\ndef deque_len(dq: deque) -> int:\n    return len(dq)\n";
+        let code =
+            "from collections import deque\ndef deque_len(dq: deque) -> int:\n    return len(dq)\n";
         let _result = transpile(code);
     }
 
@@ -884,7 +896,8 @@ mod tests {
 
     #[test]
     fn test_wave19_deque_020_pop_default() {
-        let code = "from collections import deque\ndef safe_pop(dq: deque) -> int:\n    return dq.pop()\n";
+        let code =
+            "from collections import deque\ndef safe_pop(dq: deque) -> int:\n    return dq.pop()\n";
         let _result = transpile(code);
     }
 
@@ -1050,7 +1063,8 @@ mod tests {
 
     #[test]
     fn test_wave19_set_019_union_then_len() {
-        let code = "def union_size(a: set, b: set) -> int:\n    c: set = a.union(b)\n    return len(c)\n";
+        let code =
+            "def union_size(a: set, b: set) -> int:\n    c: set = a.union(b)\n    return len(c)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

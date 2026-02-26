@@ -88,10 +88,7 @@ pub(super) fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
             let base_name = base.split('[').next().unwrap_or(base);
 
             if class_names.contains(base_name) {
-                abc_to_children
-                    .entry(base_name.to_string())
-                    .or_default()
-                    .push(class.name.clone());
+                abc_to_children.entry(base_name.to_string()).or_default().push(class.name.clone());
             }
         }
     }
@@ -103,9 +100,7 @@ pub(super) fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
             .find(|c| c.name == *parent_name)
             .map(|c| {
                 !c.type_params.is_empty()
-                    && c.base_classes
-                        .iter()
-                        .any(|b| b.contains("ABC") || b.contains("Generic"))
+                    && c.base_classes.iter().any(|b| b.contains("ABC") || b.contains("Generic"))
             })
             .unwrap_or(false)
     });
@@ -118,10 +113,7 @@ pub(super) fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
         }
     }
 
-    AdtPatternInfo {
-        abc_to_children,
-        child_to_parent,
-    }
+    AdtPatternInfo { abc_to_children, child_to_parent }
 }
 
 /// Generate a Rust enum for an ADT pattern.
