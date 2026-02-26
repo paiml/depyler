@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -72,10 +70,7 @@ def f(items: list) -> int:
     return result
 "#,
     );
-    assert!(
-        code.contains("for") && code.contains("while"),
-        "Should handle mixed nesting: {code}"
-    );
+    assert!(code.contains("for") && code.contains("while"), "Should handle mixed nesting: {code}");
 }
 
 // ── Scope shadowing patterns ────────────────────────────────────
@@ -91,10 +86,7 @@ def f() -> int:
     return x
 "#,
     );
-    assert!(
-        code.contains("let") && code.contains("x"),
-        "Should handle variable shadowing: {code}"
-    );
+    assert!(code.contains("let") && code.contains("x"), "Should handle variable shadowing: {code}");
 }
 
 #[test]
@@ -147,10 +139,7 @@ def find(items: list, target: int) -> Optional[int]:
     return None
 "#,
     );
-    assert!(
-        code.contains("Option") || code.contains("None"),
-        "Should return None/Option: {code}"
-    );
+    assert!(code.contains("Option") || code.contains("None"), "Should return None/Option: {code}");
 }
 
 // ── Cargo.toml generation exercise (via module detection) ───────
@@ -233,10 +222,7 @@ def flatten(matrix: list) -> list:
     return result
 "#,
     );
-    assert!(
-        code.contains("Vec") || code.contains("push"),
-        "Should handle nested list: {code}"
-    );
+    assert!(code.contains("Vec") || code.contains("push"), "Should handle nested list: {code}");
 }
 
 #[test]
@@ -460,10 +446,7 @@ def f() -> bool:
     return a and not b
 "#,
     );
-    assert!(
-        code.contains("true") && code.contains("false"),
-        "Should handle bool literals: {code}"
-    );
+    assert!(code.contains("true") && code.contains("false"), "Should handle bool literals: {code}");
 }
 
 #[test]
@@ -475,10 +458,7 @@ def f() -> None:
     return None
 "#,
     );
-    assert!(
-        code.contains("None") || code.contains("()"),
-        "Should handle None: {code}"
-    );
+    assert!(code.contains("None") || code.contains("()"), "Should handle None: {code}");
 }
 
 #[test]
@@ -491,10 +471,7 @@ def f() -> int:
     return x + y
 "#,
     );
-    assert!(
-        code.contains("-42") || code.contains("42"),
-        "Should handle negative numbers: {code}"
-    );
+    assert!(code.contains("-42") || code.contains("42"), "Should handle negative numbers: {code}");
 }
 
 #[test]
@@ -505,10 +482,7 @@ def f() -> int:
     return 1000000000
 "#,
     );
-    assert!(
-        code.contains("1000000000"),
-        "Should handle large integer: {code}"
-    );
+    assert!(code.contains("1000000000"), "Should handle large integer: {code}");
 }
 
 #[test]
@@ -519,10 +493,7 @@ def f() -> float:
     return 3.14159
 "#,
     );
-    assert!(
-        code.contains("3.14159"),
-        "Should handle float literal: {code}"
-    );
+    assert!(code.contains("3.14159"), "Should handle float literal: {code}");
 }
 
 #[test]
@@ -533,10 +504,7 @@ def f() -> str:
     return "hello world"
 "#,
     );
-    assert!(
-        code.contains("hello world"),
-        "Should handle string literal: {code}"
-    );
+    assert!(code.contains("hello world"), "Should handle string literal: {code}");
 }
 
 // ── Complex import patterns ─────────────────────────────────────
@@ -601,10 +569,7 @@ def sort_by_abs(items: list) -> list:
     return sorted(items, key=lambda x: abs(x))
 "#,
     );
-    assert!(
-        code.contains("sort") || code.contains("abs"),
-        "Should handle lambda in sort: {code}"
-    );
+    assert!(code.contains("sort") || code.contains("abs"), "Should handle lambda in sort: {code}");
 }
 
 #[test]

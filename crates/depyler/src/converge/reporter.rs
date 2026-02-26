@@ -72,18 +72,12 @@ pub struct ConvergenceReporter {
 impl ConvergenceReporter {
     /// Create a new reporter
     pub fn new(verbose: bool) -> Self {
-        Self {
-            verbose,
-            display_mode: DisplayMode::Rich,
-        }
+        Self { verbose, display_mode: DisplayMode::Rich }
     }
 
     /// Create a reporter with specific display mode
     pub fn with_display_mode(display_mode: DisplayMode) -> Self {
-        Self {
-            verbose: !matches!(display_mode, DisplayMode::Silent),
-            display_mode,
-        }
+        Self { verbose: !matches!(display_mode, DisplayMode::Silent), display_mode }
     }
 
     /// Check if output should be shown
@@ -244,11 +238,7 @@ impl ConvergenceReporter {
                 println!("╠══════════════════════════════════════════════════════════════╣");
                 println!(
                     "║ Status:          {:43} ║",
-                    if reached_target {
-                        "TARGET REACHED"
-                    } else {
-                        "TARGET NOT REACHED"
-                    }
+                    if reached_target { "TARGET REACHED" } else { "TARGET NOT REACHED" }
                 );
                 println!(
                     "║ Final Rate:      {:5.1}% ({}/{})                              ║",
@@ -273,21 +263,13 @@ impl ConvergenceReporter {
                             i + 1,
                             fix.error_code,
                             fix.description,
-                            if fix.verified {
-                                "verified"
-                            } else {
-                                "unverified"
-                            }
+                            if fix.verified { "verified" } else { "unverified" }
                         );
                     }
                 }
             }
             DisplayMode::Minimal => {
-                let status = if reached_target {
-                    "CONVERGED"
-                } else {
-                    "NOT_CONVERGED"
-                };
+                let status = if reached_target { "CONVERGED" } else { "NOT_CONVERGED" };
                 println!(
                     "DONE | {} | {:.1}% ({}/{}) | {} iterations | {} fixes",
                     status,
@@ -342,11 +324,7 @@ impl ConvergenceReporter {
                 println!(
                     "║ Concrete Types:  {:6} ({:5.1}%)                              ║",
                     concrete,
-                    if total > 0 {
-                        (concrete as f64 / total as f64) * 100.0
-                    } else {
-                        0.0
-                    }
+                    if total > 0 { (concrete as f64 / total as f64) * 100.0 } else { 0.0 }
                 );
                 println!(
                     "║ DepylerValue:    {:6} ({:5.1}%)                              ║",
@@ -475,20 +453,15 @@ impl ConvergenceReporter {
                 continue;
             }
             for error in &result.errors {
-                let entry = code_counts
-                    .entry(error.code.clone())
-                    .or_insert((0, error.message.clone()));
+                let entry =
+                    code_counts.entry(error.code.clone()).or_insert((0, error.message.clone()));
                 entry.0 += 1;
             }
         }
 
         let mut frequencies: Vec<ErrorFrequency> = code_counts
             .into_iter()
-            .map(|(code, (count, sample_message))| ErrorFrequency {
-                code,
-                count,
-                sample_message,
-            })
+            .map(|(code, (count, sample_message))| ErrorFrequency { code, count, sample_message })
             .collect();
 
         // Sort by count descending
@@ -591,10 +564,7 @@ mod tests {
     #[test]
     fn test_truncate() {
         assert_eq!(truncate("short", 10), "short     ");
-        assert_eq!(
-            truncate("this is a very long string", 15),
-            "this is a ve..."
-        );
+        assert_eq!(truncate("this is a very long string", 15), "this is a ve...");
     }
 
     #[test]
@@ -1142,22 +1112,10 @@ mod tests {
 
     #[test]
     fn test_error_description_known_codes() {
-        assert_eq!(
-            ConvergenceReporter::error_description("E0308"),
-            "Type Mismatch"
-        );
-        assert_eq!(
-            ConvergenceReporter::error_description("E0425"),
-            "Undefined Value"
-        );
-        assert_eq!(
-            ConvergenceReporter::error_description("E0599"),
-            "Missing Method"
-        );
-        assert_eq!(
-            ConvergenceReporter::error_description("E0277"),
-            "Trait Bound"
-        );
+        assert_eq!(ConvergenceReporter::error_description("E0308"), "Type Mismatch");
+        assert_eq!(ConvergenceReporter::error_description("E0425"), "Undefined Value");
+        assert_eq!(ConvergenceReporter::error_description("E0599"), "Missing Method");
+        assert_eq!(ConvergenceReporter::error_description("E0277"), "Trait Bound");
     }
 
     #[test]

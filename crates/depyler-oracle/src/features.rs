@@ -46,60 +46,27 @@ impl ErrorFeatures {
 
             type_keywords: count_keywords(
                 &lower,
-                &[
-                    "expected",
-                    "found",
-                    "mismatched",
-                    "type",
-                    "cannot coerce",
-                    "incompatible",
-                ],
+                &["expected", "found", "mismatched", "type", "cannot coerce", "incompatible"],
             ),
 
             borrow_keywords: count_keywords(
                 &lower,
-                &[
-                    "borrow",
-                    "borrowed",
-                    "move",
-                    "moved",
-                    "ownership",
-                    "cannot move",
-                ],
+                &["borrow", "borrowed", "move", "moved", "ownership", "cannot move"],
             ),
 
             import_keywords: count_keywords(
                 &lower,
-                &[
-                    "not found",
-                    "unresolved",
-                    "cannot find",
-                    "undefined",
-                    "undeclared",
-                ],
+                &["not found", "unresolved", "cannot find", "undefined", "undeclared"],
             ),
 
             lifetime_keywords: count_keywords(
                 &lower,
-                &[
-                    "lifetime",
-                    "'a",
-                    "'static",
-                    "live long enough",
-                    "dangling",
-                    "borrowed value",
-                ],
+                &["lifetime", "'a", "'static", "live long enough", "dangling", "borrowed value"],
             ),
 
             trait_keywords: count_keywords(
                 &lower,
-                &[
-                    "trait",
-                    "impl",
-                    "not implemented",
-                    "bound",
-                    "doesn't implement",
-                ],
+                &["trait", "impl", "not implemented", "bound", "doesn't implement"],
             ),
 
             has_line_number: if message.contains(':') && message.chars().any(|c| c.is_ascii_digit())
@@ -109,19 +76,11 @@ impl ErrorFeatures {
                 0.0
             },
 
-            has_column: if message.matches(':').count() > 1 {
-                1.0
-            } else {
-                0.0
-            },
+            has_column: if message.matches(':').count() > 1 { 1.0 } else { 0.0 },
 
             has_code_snippets: (message.matches('`').count() as f32 / 10.0).min(1.0),
 
-            has_arrows: if message.contains("-->") || message.contains("^^^") {
-                1.0
-            } else {
-                0.0
-            },
+            has_arrows: if message.contains("-->") || message.contains("^^^") { 1.0 } else { 0.0 },
 
             has_error_code: if message.contains("E0") || message.contains("[E") {
                 1.0
@@ -168,12 +127,7 @@ impl ErrorFeatures {
     /// Panics if vector length doesn't match DIM.
     #[must_use]
     pub fn from_vec(v: &[f32]) -> Self {
-        assert_eq!(
-            v.len(),
-            Self::DIM,
-            "Feature vector must have {} elements",
-            Self::DIM
-        );
+        assert_eq!(v.len(), Self::DIM, "Feature vector must have {} elements", Self::DIM);
 
         Self {
             message_length: v[0],
@@ -241,10 +195,7 @@ pub const KEYWORD_CATEGORIES: [(&str, &[&str]); 9] = [
     ("async", &["async", "await", "future", "poll"]),
     ("closure", &["closure", "capture", "fn", "move"]),
     ("derive", &["derive", "debug", "clone", "default"]),
-    (
-        "result_option",
-        &["result", "option", "some", "none", "ok", "err", "unwrap"],
-    ),
+    ("result_option", &["result", "option", "some", "none", "ok", "err", "unwrap"]),
 ];
 
 /// GH-210: Enhanced error features with 73 dimensions
@@ -303,11 +254,8 @@ impl EnhancedErrorFeatures {
             keyword_counts[base_idx + 1] = (count as f32 / keywords.len() as f32).min(1.0);
 
             // Feature 3: first occurrence position (normalized by message length)
-            let first_pos = keywords
-                .iter()
-                .filter_map(|k| lower.find(k))
-                .min()
-                .unwrap_or(lower.len());
+            let first_pos =
+                keywords.iter().filter_map(|k| lower.find(k)).min().unwrap_or(lower.len());
             keyword_counts[base_idx + 2] = 1.0 - (first_pos as f32 / lower.len().max(1) as f32);
 
             // Feature 4: keyword density (occurrences per 100 chars)
@@ -316,11 +264,7 @@ impl EnhancedErrorFeatures {
                 (total_occurrences as f32 * 100.0 / lower.len().max(1) as f32).min(1.0);
         }
 
-        Self {
-            base,
-            error_code_onehot,
-            keyword_counts,
-        }
+        Self { base, error_code_onehot, keyword_counts }
     }
 
     /// Convert to feature vector for ML model
@@ -422,11 +366,7 @@ mod tests {
 
     #[test]
     fn test_batch_extraction() {
-        let messages = vec![
-            "error: expected i32",
-            "error: cannot move",
-            "error: not found",
-        ];
+        let messages = vec!["error: expected i32", "error: cannot move", "error: not found"];
 
         let matrix = FeatureExtractor::extract_batch(&messages);
 
@@ -498,10 +438,7 @@ mod tests {
         // type_coercion category (index 0-3) should have hits
         // "into" and "convert" are both present
         assert!(features.keyword_counts[0] > 0.0, "type_coercion presence");
-        assert!(
-            features.keyword_counts[1] > 0.0,
-            "type_coercion count ratio"
-        );
+        assert!(features.keyword_counts[1] > 0.0, "type_coercion count ratio");
     }
 
     #[test]

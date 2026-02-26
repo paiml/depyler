@@ -88,17 +88,13 @@ pub struct CorpusAnalyzer {
 impl CorpusAnalyzer {
     /// Create a new corpus analyzer
     pub fn new() -> Result<Self, OracleError> {
-        Ok(Self {
-            analyzer: TarantulaAnalyzer::new()?,
-            results: Vec::new(),
-        })
+        Ok(Self { analyzer: TarantulaAnalyzer::new()?, results: Vec::new() })
     }
 
     /// Add a transpilation result to the corpus
     pub fn add_result(&mut self, result: TranspilationResult) -> Result<(), OracleError> {
         if result.compiled {
-            self.analyzer
-                .record_success(&result.python_file, result.decisions.clone())?;
+            self.analyzer.record_success(&result.python_file, result.decisions.clone())?;
         } else if result.transpiled {
             self.analyzer.record_failure(
                 &result.python_file,
@@ -205,9 +201,7 @@ impl CorpusAnalyzer {
 
 impl std::fmt::Debug for CorpusAnalyzer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CorpusAnalyzer")
-            .field("results", &self.results.len())
-            .finish()
+        f.debug_struct("CorpusAnalyzer").field("results", &self.results.len()).finish()
     }
 }
 
@@ -267,19 +261,10 @@ impl CorpusAnalysisReport {
         md.push_str("| Metric | Value |\n");
         md.push_str("|--------|-------|\n");
         md.push_str(&format!("| Total Files | {} |\n", self.total_files));
-        md.push_str(&format!(
-            "| Transpile Success | {} |\n",
-            self.transpile_success
-        ));
+        md.push_str(&format!("| Transpile Success | {} |\n", self.transpile_success));
         md.push_str(&format!("| Compile Success | {} |\n", self.compile_success));
-        md.push_str(&format!(
-            "| Transpile Rate | {:.1}% |\n",
-            self.transpile_rate
-        ));
-        md.push_str(&format!(
-            "| **Single-Shot Rate** | **{:.1}%** |\n",
-            self.single_shot_rate
-        ));
+        md.push_str(&format!("| Transpile Rate | {:.1}% |\n", self.transpile_rate));
+        md.push_str(&format!("| **Single-Shot Rate** | **{:.1}%** |\n", self.single_shot_rate));
         md.push_str(&format!(
             "| Target (80%) | {} |\n",
             if self.reached_target() { "✅" } else { "❌" }
@@ -508,10 +493,7 @@ mod tests {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
         let result = TranspilationResult::success(
             "test.py",
-            vec![TranspilerDecisionRecord::new(
-                TranspilerDecision::TypeInference,
-                "i32",
-            )],
+            vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "i32")],
         );
         analyzer.add_result(result).unwrap();
         assert_eq!(analyzer.results.len(), 1);
@@ -526,10 +508,7 @@ mod tests {
             analyzer
                 .add_result(TranspilationResult::success(
                     format!("good_{}.py", i),
-                    vec![TranspilerDecisionRecord::new(
-                        TranspilerDecision::TypeInference,
-                        "good",
-                    )],
+                    vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "good")],
                 ))
                 .unwrap();
         }
@@ -559,9 +538,7 @@ mod tests {
     #[test]
     fn test_corpus_analysis_report_markdown() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
-        analyzer
-            .add_result(TranspilationResult::success("test.py", vec![]))
-            .unwrap();
+        analyzer.add_result(TranspilationResult::success("test.py", vec![])).unwrap();
         let report = analyzer.analyze();
         let md = report.to_markdown();
         assert!(md.contains("Corpus Analysis Report"));
@@ -575,12 +552,8 @@ mod tests {
             &["subprocess not found".to_string()],
         );
         assert!(!decisions.is_empty());
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
@@ -590,10 +563,7 @@ mod tests {
         // Add 80+ successes
         for i in 0..80 {
             analyzer
-                .add_result(TranspilationResult::success(
-                    format!("good_{}.py", i),
-                    vec![],
-                ))
+                .add_result(TranspilationResult::success(format!("good_{}.py", i), vec![]))
                 .unwrap();
         }
 
@@ -634,10 +604,7 @@ mod tests {
         ];
         let result = TranspilationResult::success("test.py", decisions.clone());
         assert_eq!(result.decisions.len(), 2);
-        assert_eq!(
-            result.decisions[0].decision_type,
-            TranspilerDecision::TypeInference
-        );
+        assert_eq!(result.decisions[0].decision_type, TranspilerDecision::TypeInference);
     }
 
     // ============================================================
@@ -672,9 +639,7 @@ mod tests {
     #[test]
     fn test_corpus_analyzer_clear() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
-        analyzer
-            .add_result(TranspilationResult::success("test.py", vec![]))
-            .unwrap();
+        analyzer.add_result(TranspilationResult::success("test.py", vec![])).unwrap();
         assert_eq!(analyzer.results.len(), 1);
 
         analyzer.clear().unwrap();
@@ -688,10 +653,7 @@ mod tests {
             analyzer
                 .add_result(TranspilationResult::compile_failure(
                     format!("fail_{}.py", i),
-                    vec![TranspilerDecisionRecord::new(
-                        TranspilerDecision::TypeInference,
-                        "bad",
-                    )],
+                    vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "bad")],
                     vec!["E0308".to_string()],
                     vec![],
                 ))
@@ -720,10 +682,7 @@ mod tests {
         analyzer
             .add_result(TranspilationResult::compile_failure(
                 "test.py",
-                vec![TranspilerDecisionRecord::new(
-                    TranspilerDecision::TypeInference,
-                    "bad",
-                )],
+                vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "bad")],
                 vec!["E0308".to_string()],
                 vec![],
             ))
@@ -796,10 +755,7 @@ mod tests {
         analyzer
             .add_result(TranspilationResult::compile_failure(
                 "test.py",
-                vec![TranspilerDecisionRecord::new(
-                    TranspilerDecision::ModuleMapping,
-                    "missing",
-                )],
+                vec![TranspilerDecisionRecord::new(TranspilerDecision::ModuleMapping, "missing")],
                 vec!["E0433".to_string()],
                 vec!["unresolved import".to_string()],
             ))
@@ -818,44 +774,32 @@ mod tests {
     #[test]
     fn test_simulate_decisions_e0308() {
         let decisions = simulate_decisions_from_errors(&["E0308".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
     }
 
     #[test]
     fn test_simulate_decisions_e0433() {
         let decisions = simulate_decisions_from_errors(&["E0433".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
     }
 
     #[test]
     fn test_simulate_decisions_e0599() {
         let decisions = simulate_decisions_from_errors(&["E0599".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::MethodTranslation));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::MethodTranslation));
     }
 
     #[test]
     fn test_simulate_decisions_e0277() {
         let decisions = simulate_decisions_from_errors(&["E0277".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
     }
 
     #[test]
     fn test_simulate_decisions_e0425() {
         let decisions = simulate_decisions_from_errors(&["E0425".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
     }
 
     #[test]
@@ -879,59 +823,45 @@ mod tests {
     #[test]
     fn test_simulate_decisions_e0106() {
         let decisions = simulate_decisions_from_errors(&["E0106".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::LifetimeInference));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::LifetimeInference));
     }
 
     #[test]
     fn test_simulate_decisions_unknown() {
         let decisions = simulate_decisions_from_errors(&["E9999".to_string()], &[]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
     }
 
     #[test]
     fn test_simulate_decisions_message_subprocess() {
         let decisions =
             simulate_decisions_from_errors(&[], &["subprocess module not found".to_string()]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_datetime() {
         let decisions =
             simulate_decisions_from_errors(&[], &["datetime import failed".to_string()]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_os() {
         let decisions = simulate_decisions_from_errors(&[], &["os.path not found".to_string()]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_time() {
         let decisions = simulate_decisions_from_errors(&[], &["time module issue".to_string()]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_command() {
         let decisions = simulate_decisions_from_errors(&[], &["Command not found".to_string()]);
-        assert!(decisions
-            .iter()
-            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     // ============================================================

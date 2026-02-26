@@ -4,9 +4,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -1835,11 +1833,7 @@ def dict_with_list() -> dict[str, list[int]]:
         fn_code
     );
     // Should use vec![] for the list
-    assert!(
-        fn_code.contains("vec!["),
-        "Should use vec![] for concrete list type: {}",
-        fn_code
-    );
+    assert!(fn_code.contains("vec!["), "Should use vec![] for concrete list type: {}", fn_code);
 }
 
 #[test]
@@ -1871,11 +1865,7 @@ def test() -> set:
     return a.symmetric_difference(b)
 "#,
     );
-    assert!(
-        code.contains("symmetric_difference"),
-        "Should use symmetric_difference: {}",
-        code
-    );
+    assert!(code.contains("symmetric_difference"), "Should use symmetric_difference: {}", code);
 }
 
 #[test]
@@ -1901,11 +1891,7 @@ def test() -> bool:
     return a.issuperset(b)
 "#,
     );
-    assert!(
-        code.contains("is_superset"),
-        "Should use is_superset: {}",
-        code
-    );
+    assert!(code.contains("is_superset"), "Should use is_superset: {}", code);
 }
 
 #[test]
@@ -1918,11 +1904,7 @@ def test() -> bool:
     return a.isdisjoint(b)
 "#,
     );
-    assert!(
-        code.contains("is_disjoint"),
-        "Should use is_disjoint: {}",
-        code
-    );
+    assert!(code.contains("is_disjoint"), "Should use is_disjoint: {}", code);
 }
 
 #[test]
@@ -1935,11 +1917,7 @@ def test():
     a.update(b)
 "#,
     );
-    assert!(
-        code.contains("insert"),
-        "Should generate insert loop for update: {}",
-        code
-    );
+    assert!(code.contains("insert"), "Should generate insert loop for update: {}", code);
 }
 
 #[test]
@@ -1969,11 +1947,7 @@ def test():
     a.difference_update(b)
 "#,
     );
-    assert!(
-        code.contains("difference"),
-        "Should use difference for difference_update: {}",
-        code
-    );
+    assert!(code.contains("difference"), "Should use difference for difference_update: {}", code);
 }
 
 // ===== String method coverage tests =====
@@ -2254,11 +2228,7 @@ def test() -> dict:
     return {i: v for i, v in enumerate(items)}
 "#,
     );
-    assert!(
-        code.contains("enumerate"),
-        "Should handle dict comp with enumerate: {}",
-        code
-    );
+    assert!(code.contains("enumerate"), "Should handle dict comp with enumerate: {}", code);
 }
 
 #[test]
@@ -2353,11 +2323,7 @@ def test() -> str:
     return f"{val:.2f}"
 "#,
     );
-    assert!(
-        code.contains("format"),
-        "Should use format for f-string with spec: {}",
-        code
-    );
+    assert!(code.contains("format"), "Should use format for f-string with spec: {}", code);
 }
 
 #[test]
@@ -2385,11 +2351,7 @@ def test() -> str:
     return f"sum is {x + y}"
 "#,
     );
-    assert!(
-        code.contains("format"),
-        "Should use format for f-string expression: {}",
-        code
-    );
+    assert!(code.contains("format"), "Should use format for f-string expression: {}", code);
 }
 
 // ===== If expression edge cases =====
@@ -2402,11 +2364,7 @@ def test(x: int) -> str:
     return "positive" if x > 0 else "non-positive"
 "#,
     );
-    assert!(
-        code.contains("if") && code.contains("else"),
-        "Should have conditional: {}",
-        code
-    );
+    assert!(code.contains("if") && code.contains("else"), "Should have conditional: {}", code);
 }
 
 #[test]
@@ -2439,11 +2397,7 @@ def test(n: int) -> bool:
     return False
 "#,
     );
-    assert!(
-        code.contains("!= 0") || code.contains("!"),
-        "Should convert int truthiness: {}",
-        code
-    );
+    assert!(code.contains("!= 0") || code.contains("!"), "Should convert int truthiness: {}", code);
 }
 
 #[test]
@@ -2479,11 +2433,7 @@ class Counter:
         self.count += 1
 "#,
     );
-    assert!(
-        code.contains("self.count"),
-        "Should access self.count: {}",
-        code
-    );
+    assert!(code.contains("self.count"), "Should access self.count: {}", code);
 }
 
 #[test]
@@ -2528,11 +2478,7 @@ def test() -> int:
     return d.pop("a")
 "#,
     );
-    assert!(
-        code.contains("remove") || code.contains("pop"),
-        "Should handle dict pop: {}",
-        code
-    );
+    assert!(code.contains("remove") || code.contains("pop"), "Should handle dict pop: {}", code);
 }
 
 #[test]
@@ -2575,11 +2521,7 @@ def test() -> int:
     return items.index("b")
 "#,
     );
-    assert!(
-        code.contains("position") || code.contains("index"),
-        "Should find index: {}",
-        code
-    );
+    assert!(code.contains("position") || code.contains("index"), "Should find index: {}", code);
 }
 
 // ===== Async/await tests =====
@@ -2652,11 +2594,7 @@ def test() -> int:
     return d.pop()
 "#,
     );
-    assert!(
-        code.contains("pop_back") || code.contains("pop"),
-        "Should handle deque pop: {}",
-        code
-    );
+    assert!(code.contains("pop_back") || code.contains("pop"), "Should handle deque pop: {}", code);
 }
 
 #[test]
@@ -2691,11 +2629,7 @@ def test() -> str:
     return str(p / "user")
 "#,
     );
-    assert!(
-        code.contains("join") || code.contains("Path"),
-        "Should handle path join: {}",
-        code
-    );
+    assert!(code.contains("join") || code.contains("Path"), "Should handle path join: {}", code);
 }
 
 #[test]
@@ -2708,11 +2642,7 @@ def test() -> bool:
     return p.exists()
 "#,
     );
-    assert!(
-        code.contains("exists"),
-        "Should handle path.exists(): {}",
-        code
-    );
+    assert!(code.contains("exists"), "Should handle path.exists(): {}", code);
 }
 
 // ===== Type annotation tests =====
@@ -2771,11 +2701,7 @@ def test() -> str:
     return "Name: {}, Age: {}".format(name, age)
 "#,
     );
-    assert!(
-        code.contains("format"),
-        "Should handle format with multiple args: {}",
-        code
-    );
+    assert!(code.contains("format"), "Should handle format with multiple args: {}", code);
 }
 
 // ===== Sort by key =====
@@ -2790,11 +2716,7 @@ def test() -> list:
     return words
 "#,
     );
-    assert!(
-        code.contains("sort"),
-        "Should handle sort with key: {}",
-        code
-    );
+    assert!(code.contains("sort"), "Should handle sort with key: {}", code);
 }
 
 #[test]
@@ -2806,11 +2728,7 @@ def test() -> list:
     return sorted(words, key=lambda w: w)
 "#,
     );
-    assert!(
-        code.contains("sort"),
-        "Should handle sorted with key: {}",
-        code
-    );
+    assert!(code.contains("sort"), "Should handle sorted with key: {}", code);
 }
 
 #[test]
@@ -2915,11 +2833,7 @@ def test():
         print(i, v)
 "#,
     );
-    assert!(
-        code.contains("enumerate"),
-        "Should handle enumerate with start: {}",
-        code
-    );
+    assert!(code.contains("enumerate"), "Should handle enumerate with start: {}", code);
 }
 
 #[test]
@@ -2946,11 +2860,7 @@ def test():
         print(x)
 "#,
     );
-    assert!(
-        code.contains("rev") || code.contains("reversed"),
-        "Should handle reversed: {}",
-        code
-    );
+    assert!(code.contains("rev") || code.contains("reversed"), "Should handle reversed: {}", code);
 }
 
 // ===== Multiple assignment patterns =====
@@ -2996,11 +2906,7 @@ def test() -> bool:
     return 2 in items
 "#,
     );
-    assert!(
-        code.contains("contains"),
-        "Should use contains for 'in': {}",
-        code
-    );
+    assert!(code.contains("contains"), "Should use contains for 'in': {}", code);
 }
 
 #[test]
@@ -3012,11 +2918,7 @@ def test() -> bool:
     return 5 not in items
 "#,
     );
-    assert!(
-        code.contains("contains"),
-        "Should use !contains for 'not in': {}",
-        code
-    );
+    assert!(code.contains("contains"), "Should use !contains for 'not in': {}", code);
 }
 
 #[test]
@@ -3028,11 +2930,7 @@ def test() -> bool:
     return "world" in s
 "#,
     );
-    assert!(
-        code.contains("contains"),
-        "Should use contains for string 'in': {}",
-        code
-    );
+    assert!(code.contains("contains"), "Should use contains for string 'in': {}", code);
 }
 
 #[test]
@@ -3142,11 +3040,7 @@ def test() -> int:
     return sum(d.values())
 "#,
     );
-    assert!(
-        code.contains("values") && code.contains("sum"),
-        "Should sum dict values: {}",
-        code
-    );
+    assert!(code.contains("values") && code.contains("sum"), "Should sum dict values: {}", code);
 }
 
 #[test]
@@ -3206,11 +3100,7 @@ def test() -> int:
     return max(1, 2, 3) + min(4, 5, 6)
 "#,
     );
-    assert!(
-        code.contains("max") && code.contains("min"),
-        "Should handle min/max: {}",
-        code
-    );
+    assert!(code.contains("max") && code.contains("min"), "Should handle min/max: {}", code);
 }
 
 // ===== String slicing tests =====
@@ -3261,9 +3151,7 @@ fn test_is_json_value_type_static() {
     assert!(ExpressionConverter::is_json_value_type(&Type::Custom(
         "serde_json::Value".to_string()
     )));
-    assert!(ExpressionConverter::is_json_value_type(&Type::Custom(
-        "Value".to_string()
-    )));
+    assert!(ExpressionConverter::is_json_value_type(&Type::Custom("Value".to_string())));
     assert!(!ExpressionConverter::is_json_value_type(&Type::Int));
     assert!(!ExpressionConverter::is_json_value_type(&Type::String));
 }
@@ -3950,11 +3838,7 @@ async def fetch(url: str) -> str:
     return url
 "#;
     let rust = transpile(code);
-    assert!(
-        rust.contains("async") || rust.contains("fn fetch"),
-        "output: {}",
-        rust
-    );
+    assert!(rust.contains("async") || rust.contains("fn fetch"), "output: {}", rust);
 }
 
 // --- Complex algorithms ---
@@ -4968,7 +4852,11 @@ def update_dict():
     return d
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("extend") || rust.contains("update") || rust.contains("insert"), "output: {}", rust);
+    assert!(
+        rust.contains("extend") || rust.contains("update") || rust.contains("insert"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5021,7 +4909,11 @@ def index_substring(s: str) -> int:
     return s.index('sub')
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("find") || rust.contains("position") || rust.contains("unwrap"), "output: {}", rust);
+    assert!(
+        rust.contains("find") || rust.contains("position") || rust.contains("unwrap"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5041,7 +4933,11 @@ def check_digit(s: str) -> bool:
     return s.isdigit()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("is_numeric") || rust.contains("chars") || rust.contains("all"), "output: {}", rust);
+    assert!(
+        rust.contains("is_numeric") || rust.contains("chars") || rust.contains("all"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5051,7 +4947,11 @@ def check_alpha(s: str) -> bool:
     return s.isalpha()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("is_alphabetic") || rust.contains("chars") || rust.contains("all"), "output: {}", rust);
+    assert!(
+        rust.contains("is_alphabetic") || rust.contains("chars") || rust.contains("all"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5061,7 +4961,11 @@ def strip_lines(lines: list) -> list:
     return [x.strip() for x in lines]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("trim") || rust.contains("map") || rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("trim") || rust.contains("map") || rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5071,7 +4975,11 @@ def process_text(s: str) -> list:
     return s.strip().lower().split(',')
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("trim") && rust.contains("to_lowercase") && rust.contains("split"), "output: {}", rust);
+    assert!(
+        rust.contains("trim") && rust.contains("to_lowercase") && rust.contains("split"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -5276,7 +5184,11 @@ def do_replace_n(text: str) -> str:
     return text.replace("a", "b", 2)
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("replacen") || rust.contains("replace"), "should contain replacen or replace: {}", rust);
+    assert!(
+        rust.contains("replacen") || rust.contains("replace"),
+        "should contain replacen or replace: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5286,7 +5198,11 @@ def left_justify(s: str) -> str:
     return s.ljust(20)
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("width") || rust.contains("format!") || rust.contains("repeat"), "output: {}", rust);
+    assert!(
+        rust.contains("width") || rust.contains("format!") || rust.contains("repeat"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5306,7 +5222,11 @@ def right_justify(s: str) -> str:
     return s.rjust(20)
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("width") || rust.contains("format!") || rust.contains("repeat"), "output: {}", rust);
+    assert!(
+        rust.contains("width") || rust.contains("format!") || rust.contains("repeat"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5326,7 +5246,11 @@ def center_str(s: str) -> str:
     return s.center(20)
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("width") || rust.contains("pad") || rust.contains("repeat"), "output: {}", rust);
+    assert!(
+        rust.contains("width") || rust.contains("pad") || rust.contains("repeat"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5346,7 +5270,11 @@ def zero_fill(s: str) -> str:
     return s.zfill(5)
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("width") || rust.contains("zfill") || rust.contains("repeat"), "output: {}", rust);
+    assert!(
+        rust.contains("width") || rust.contains("zfill") || rust.contains("repeat"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5356,7 +5284,11 @@ def zero_fill_neg() -> str:
     return "-42".zfill(6)
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("starts_with") || rust.contains("sign") || rust.contains("repeat"), "output: {}", rust);
+    assert!(
+        rust.contains("starts_with") || rust.contains("sign") || rust.contains("repeat"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5386,7 +5318,13 @@ def title_case(s: str) -> str:
     return s.title()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("split_whitespace") || rust.contains("to_uppercase") || rust.contains("chars"), "output: {}", rust);
+    assert!(
+        rust.contains("split_whitespace")
+            || rust.contains("to_uppercase")
+            || rust.contains("chars"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5406,7 +5344,13 @@ def swap_case(s: str) -> str:
     return s.swapcase()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("is_uppercase") || rust.contains("to_lowercase") || rust.contains("to_uppercase"), "output: {}", rust);
+    assert!(
+        rust.contains("is_uppercase")
+            || rust.contains("to_lowercase")
+            || rust.contains("to_uppercase"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5466,7 +5410,11 @@ def expand_tabs(s: str) -> str:
     return s.expandtabs()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("replace") && (rust.contains("\\t") || rust.contains("repeat")), "output: {}", rust);
+    assert!(
+        rust.contains("replace") && (rust.contains("\\t") || rust.contains("repeat")),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5623,7 +5571,11 @@ def update_dict():
     return d
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("insert") || rust.contains("extend") || rust.contains("update"), "output: {}", rust);
+    assert!(
+        rust.contains("insert") || rust.contains("extend") || rust.contains("update"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5668,7 +5620,11 @@ def pop_item():
     return d.popitem()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("keys") || rust.contains("remove") || rust.contains("next"), "output: {}", rust);
+    assert!(
+        rust.contains("keys") || rust.contains("remove") || rust.contains("next"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5865,7 +5821,11 @@ def intersect_update():
     return a
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("intersection") || rust.contains("clear") || rust.contains("extend"), "output: {}", rust);
+    assert!(
+        rust.contains("intersection") || rust.contains("clear") || rust.contains("extend"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5878,7 +5838,11 @@ def diff_update():
     return a
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("difference") || rust.contains("clear") || rust.contains("extend"), "output: {}", rust);
+    assert!(
+        rust.contains("difference") || rust.contains("clear") || rust.contains("extend"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -5965,7 +5929,11 @@ def count_method():
 "#;
     let rust = transpile(code);
     // The transpiler may route through string count (matches) or list count (filter)
-    assert!(rust.contains("filter") || rust.contains("matches") || rust.contains("count"), "output: {}", rust);
+    assert!(
+        rust.contains("filter") || rust.contains("matches") || rust.contains("count"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6046,7 +6014,11 @@ def even_squares(n: int) -> list:
     return [x * x for x in range(n) if x % 2 == 0]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("filter") && rust.contains("map") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("filter") && rust.contains("map") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6066,7 +6038,11 @@ def square_dict(n: int) -> dict:
     return {i: i * i for i in range(n)}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("map") && rust.contains("HashMap") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("map") && rust.contains("HashMap") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6076,7 +6052,11 @@ def even_square_dict(n: int) -> dict:
     return {i: i * i for i in range(n) if i % 2 == 0}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("filter") && rust.contains("map") && rust.contains("HashMap"), "output: {}", rust);
+    assert!(
+        rust.contains("filter") && rust.contains("map") && rust.contains("HashMap"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6086,7 +6066,11 @@ def unique_squares(n: int) -> set:
     return {x * x for x in range(n)}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("map") && rust.contains("HashSet") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("map") && rust.contains("HashSet") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6096,7 +6080,11 @@ def even_unique(n: int) -> set:
     return {x for x in range(n) if x % 2 == 0}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("filter") && rust.contains("HashSet") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("filter") && rust.contains("HashSet") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6116,7 +6104,11 @@ def char_list(s: str) -> list:
     return [c for c in s]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("chars") || rust.contains("map") || rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("chars") || rust.contains("map") || rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -6130,7 +6122,11 @@ def slice_basic(items: list) -> list:
     return items[1:3]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("to_vec") || rust.contains("start") || rust.contains("stop"), "output: {}", rust);
+    assert!(
+        rust.contains("to_vec") || rust.contains("start") || rust.contains("stop"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6150,7 +6146,11 @@ def slice_neg(items: list) -> list:
     return items[-2:]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("start_idx") || rust.contains("len") || rust.contains("isize"), "output: {}", rust);
+    assert!(
+        rust.contains("start_idx") || rust.contains("len") || rust.contains("isize"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6160,7 +6160,11 @@ def slice_stop(items: list) -> list:
     return items[:3]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("to_vec") || rust.contains("stop") || rust.contains("min"), "output: {}", rust);
+    assert!(
+        rust.contains("to_vec") || rust.contains("stop") || rust.contains("min"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6180,7 +6184,11 @@ def reverse_slice(items: list) -> list:
     return items[::-1]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("rev") || rust.contains("step") || rust.contains("clone"), "output: {}", rust);
+    assert!(
+        rust.contains("rev") || rust.contains("step") || rust.contains("clone"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6190,7 +6198,11 @@ def str_slice(s: str) -> str:
     return s[1:4]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("chars") || rust.contains("skip") || rust.contains("take"), "output: {}", rust);
+    assert!(
+        rust.contains("chars") || rust.contains("skip") || rust.contains("take"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6200,7 +6212,11 @@ def str_slice_neg(s: str) -> str:
     return s[-3:]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("chars") || rust.contains("skip") || rust.contains("start_idx"), "output: {}", rust);
+    assert!(
+        rust.contains("chars") || rust.contains("skip") || rust.contains("start_idx"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6210,7 +6226,11 @@ def str_slice_step(s: str) -> str:
     return s[::2]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("step_by") || rust.contains("chars") || rust.contains("step"), "output: {}", rust);
+    assert!(
+        rust.contains("step_by") || rust.contains("chars") || rust.contains("step"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6220,7 +6240,11 @@ def str_reverse(s: str) -> str:
     return s[::-1]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("rev") || rust.contains("chars") || rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("rev") || rust.contains("chars") || rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6265,7 +6289,11 @@ def last_elem(items: list) -> int:
     return items[-1]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("len") || rust.contains("saturating_sub") || rust.contains("get"), "output: {}", rust);
+    assert!(
+        rust.contains("len") || rust.contains("saturating_sub") || rust.contains("get"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6330,7 +6358,11 @@ def int_list() -> list:
     return [1, 2, 3]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("vec!") && rust.contains("1") && rust.contains("2") && rust.contains("3"), "output: {}", rust);
+    assert!(
+        rust.contains("vec!") && rust.contains("1") && rust.contains("2") && rust.contains("3"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6380,7 +6412,11 @@ def str_set() -> set:
     return {"apple", "banana", "cherry"}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("HashSet") && rust.contains("insert") && rust.contains("to_string"), "output: {}", rust);
+    assert!(
+        rust.contains("HashSet") && rust.contains("insert") && rust.contains("to_string"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6414,7 +6450,11 @@ def str_dict() -> dict:
     return {"name": "Alice", "city": "NYC"}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("HashMap") && rust.contains("insert") && rust.contains("to_string"), "output: {}", rust);
+    assert!(
+        rust.contains("HashMap") && rust.contains("insert") && rust.contains("to_string"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6513,7 +6553,14 @@ def get_platform() -> str:
     return sys.platform
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("darwin") || rust.contains("linux") || rust.contains("win32") || rust.contains("platform"), "output: {}", rust);
+    assert!(
+        rust.contains("darwin")
+            || rust.contains("linux")
+            || rust.contains("win32")
+            || rust.contains("platform"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6583,7 +6630,11 @@ def write_stdout():
     sys.stdout.write("hello")
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("write!") || rust.contains("stdout") || rust.contains("io::Write"), "output: {}", rust);
+    assert!(
+        rust.contains("write!") || rust.contains("stdout") || rust.contains("io::Write"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6605,7 +6656,11 @@ def write_stderr():
     sys.stderr.write("error")
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("write!") || rust.contains("stderr") || rust.contains("io::Write"), "output: {}", rust);
+    assert!(
+        rust.contains("write!") || rust.contains("stderr") || rust.contains("io::Write"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -6649,7 +6704,12 @@ def partition_str(s: str):
     return s.partition("=")
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("find") && (rust.contains("before") || rust.contains("after") || rust.contains("sep")), "output: {}", rust);
+    assert!(
+        rust.contains("find")
+            && (rust.contains("before") || rust.contains("after") || rust.contains("sep")),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6689,7 +6749,11 @@ def check_title(s: str) -> bool:
     return s.istitle()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("chars") || rust.contains("prev_is_cased") || rust.contains("is_uppercase"), "output: {}", rust);
+    assert!(
+        rust.contains("chars") || rust.contains("prev_is_cased") || rust.contains("is_uppercase"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6729,7 +6793,13 @@ def check_identifier(s: str) -> bool:
     return s.isidentifier()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("is_alphabetic") || rust.contains("is_alphanumeric") || rust.contains("chars"), "output: {}", rust);
+    assert!(
+        rust.contains("is_alphabetic")
+            || rust.contains("is_alphanumeric")
+            || rust.contains("chars"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6749,7 +6819,11 @@ def to_hex(s: str) -> str:
     return s.hex()
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("bytes") && (rust.contains("format!") || rust.contains("02x")), "output: {}", rust);
+    assert!(
+        rust.contains("bytes") && (rust.contains("format!") || rust.contains("02x")),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6827,7 +6901,11 @@ def start_step(items: list) -> list:
     return items[1::2]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("step_by") || rust.contains("step") || rust.contains("start"), "output: {}", rust);
+    assert!(
+        rust.contains("step_by") || rust.contains("step") || rust.contains("start"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6837,7 +6915,11 @@ def stop_step(items: list) -> list:
     return items[:5:2]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("step_by") || rust.contains("step") || rust.contains("stop"), "output: {}", rust);
+    assert!(
+        rust.contains("step_by") || rust.contains("step") || rust.contains("stop"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -6867,7 +6949,11 @@ def literal_idx() -> int:
     return [10, 20, 30][1]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("get(") || rust.contains("[1]") || rust.contains("20"), "output: {}", rust);
+    assert!(
+        rust.contains("get(") || rust.contains("[1]") || rust.contains("20"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -6990,7 +7076,11 @@ def word_lengths(words: list) -> dict:
     return {w: len(w) for w in words}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("map") && rust.contains("HashMap") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("map") && rust.contains("HashMap") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]
@@ -7000,7 +7090,11 @@ def odd_set() -> set:
     return {x for x in range(10) if x % 2 != 0}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("filter") && rust.contains("HashSet") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("filter") && rust.contains("HashSet") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -7166,7 +7260,11 @@ def list_dict() -> dict:
     return {"nums": [1, 2, 3]}
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("HashMap") && rust.contains("insert") && rust.contains("vec!"), "output: {}", rust);
+    assert!(
+        rust.contains("HashMap") && rust.contains("insert") && rust.contains("vec!"),
+        "output: {}",
+        rust
+    );
 }
 
 // ========================================================================
@@ -7322,7 +7420,11 @@ def strip_all(items: list) -> list:
     return [s.strip() for s in items]
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("trim") && rust.contains("map") && rust.contains("collect"), "output: {}", rust);
+    assert!(
+        rust.contains("trim") && rust.contains("map") && rust.contains("collect"),
+        "output: {}",
+        rust
+    );
 }
 
 #[test]

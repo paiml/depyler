@@ -23,15 +23,7 @@ def test():
 
     // Transpile
     let output = Command::new("cargo")
-        .args([
-            "run",
-            "--bin",
-            "depyler",
-            "--",
-            "transpile",
-            "--code",
-            python_source,
-        ])
+        .args(["run", "--bin", "depyler", "--", "transpile", "--code", python_source])
         .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/..")
         // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
         .env_remove("CARGO_LLVM_COV")
@@ -83,15 +75,7 @@ class ValidationError(Exception):
 "#;
 
     let output = Command::new("cargo")
-        .args([
-            "run",
-            "--bin",
-            "depyler",
-            "--",
-            "transpile",
-            "--code",
-            python_source,
-        ])
+        .args(["run", "--bin", "depyler", "--", "transpile", "--code", python_source])
         .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/..")
         // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
         .env_remove("CARGO_LLVM_COV")
@@ -129,15 +113,7 @@ class APIError(Exception):
 "#;
 
     let output = Command::new("cargo")
-        .args([
-            "run",
-            "--bin",
-            "depyler",
-            "--",
-            "transpile",
-            "--code",
-            python_source,
-        ])
+        .args(["run", "--bin", "depyler", "--", "transpile", "--code", python_source])
         .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/..")
         // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
         .env_remove("CARGO_LLVM_COV")

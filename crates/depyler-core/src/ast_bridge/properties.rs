@@ -37,15 +37,9 @@ impl FunctionAnalyzer {
                 // Whitelist of pure functions
                 !matches!(func.as_str(), "len" | "max" | "min" | "sum" | "abs")
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 then_body.iter().any(Self::has_side_effects)
-                    || else_body
-                        .as_ref()
-                        .is_some_and(|b| b.iter().any(Self::has_side_effects))
+                    || else_body.as_ref().is_some_and(|b| b.iter().any(Self::has_side_effects))
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 body.iter().any(Self::has_side_effects)
@@ -96,16 +90,10 @@ impl FunctionAnalyzer {
                 Self::expr_has_panic_risk(expr)
             }
             HirStmt::Return(Some(expr)) => Self::expr_has_panic_risk(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 Self::expr_has_panic_risk(condition)
                     || then_body.iter().any(Self::has_panic_risk)
-                    || else_body
-                        .as_ref()
-                        .is_some_and(|b| b.iter().any(Self::has_panic_risk))
+                    || else_body.as_ref().is_some_and(|b| b.iter().any(Self::has_panic_risk))
             }
             HirStmt::While { condition, body } => {
                 Self::expr_has_panic_risk(condition) || body.iter().any(Self::has_panic_risk)
@@ -121,10 +109,7 @@ impl FunctionAnalyzer {
     fn expr_has_panic_risk(expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Index { .. } => true, // Array bounds
-            HirExpr::Binary {
-                op: BinOp::Div | BinOp::FloorDiv | BinOp::Mod,
-                ..
-            } => true, // Division by zero
+            HirExpr::Binary { op: BinOp::Div | BinOp::FloorDiv | BinOp::Mod, .. } => true, // Division by zero
             HirExpr::Binary { left, right, .. } => {
                 Self::expr_has_panic_risk(left) || Self::expr_has_panic_risk(right)
             }
@@ -162,11 +147,7 @@ impl FunctionAnalyzer {
             }
             HirStmt::Expr(expr) | HirStmt::Assign { value: expr, .. } => Self::expr_can_fail(expr),
             HirStmt::Return(Some(expr)) => Self::expr_can_fail(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 let (cond_fail, cond_errors) = Self::expr_can_fail(condition);
                 let (then_fail, mut then_errors) = Self::check_can_fail(then_body);
                 let (else_fail, mut else_errors) = else_body
@@ -201,12 +182,7 @@ impl FunctionAnalyzer {
             // DEPYLER-0327 Fix #2: Analyze try/except blocks for error types
             // This ensures exception types used in try blocks are generated
             // even if they're caught internally (needed for type definitions)
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 // Collect error types from try body
                 let (body_fail, mut body_errors) = Self::check_can_fail(body);
 
@@ -250,19 +226,15 @@ impl FunctionAnalyzer {
                 // - caught_exceptions = ["ValueError"]
                 // - raised_in_handlers = ["ArgumentTypeError"]
                 // - has_uncaught = true (ArgumentTypeError not in caught list)
-                let has_uncaught_exceptions = raised_in_handlers
-                    .iter()
-                    .any(|raised| !caught_exceptions.contains(raised));
+                let has_uncaught_exceptions =
+                    raised_in_handlers.iter().any(|raised| !caught_exceptions.contains(raised));
 
                 // When the try body contains I/O operations (with open()), the function must
                 // return Result<> even if all exceptions are caught, because the Rust version
                 // uses the `?` operator which propagates errors (unlike Python sys.exit())
                 let body_has_io = all_errors.iter().any(|e| e.contains("io::Error"));
 
-                (
-                    has_uncaught_exceptions || body_fail || body_has_io,
-                    all_errors,
-                )
+                (has_uncaught_exceptions || body_fail || body_has_io, all_errors)
             }
             // DEPYLER-0432: With statements using open() are fallible (file I/O)
             HirStmt::With { context, body, .. } => {
@@ -290,10 +262,9 @@ impl FunctionAnalyzer {
     fn expr_can_fail(expr: &HirExpr) -> (bool, Vec<String>) {
         match expr {
             HirExpr::Index { .. } => (true, vec!["IndexError".to_string()]),
-            HirExpr::Binary {
-                op: BinOp::Div | BinOp::FloorDiv | BinOp::Mod,
-                ..
-            } => (true, vec!["ZeroDivisionError".to_string()]),
+            HirExpr::Binary { op: BinOp::Div | BinOp::FloorDiv | BinOp::Mod, .. } => {
+                (true, vec!["ZeroDivisionError".to_string()])
+            }
             HirExpr::Call { func, args, .. } => {
                 // DEPYLER-0217 FIX: Check if function can fail based on context
                 // int() only fails when parsing strings, not when casting typed values
@@ -389,11 +360,7 @@ impl FunctionAnalyzer {
     fn estimate_stack_depth(body: &[HirStmt], current: usize) -> usize {
         body.iter().fold(current, |max_depth, stmt| {
             let stmt_depth = match stmt {
-                HirStmt::If {
-                    then_body,
-                    else_body,
-                    ..
-                } => {
+                HirStmt::If { then_body, else_body, .. } => {
                     let then_depth = Self::estimate_stack_depth(then_body, current + 1);
                     let else_depth = else_body
                         .as_ref()
@@ -420,23 +387,15 @@ impl FunctionAnalyzer {
             HirStmt::Expr(expr)
             | HirStmt::Assign { value: expr, .. }
             | HirStmt::Return(Some(expr)) => Self::expr_has_yield(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => Self::check_if_for_yield(condition, then_body, else_body),
-            HirStmt::While { condition, body }
-            | HirStmt::For {
-                iter: condition,
-                body,
-                ..
-            } => Self::check_loop_for_yield(condition, body),
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => Self::check_try_for_yield(body, handlers, orelse, finalbody),
+            HirStmt::If { condition, then_body, else_body } => {
+                Self::check_if_for_yield(condition, then_body, else_body)
+            }
+            HirStmt::While { condition, body } | HirStmt::For { iter: condition, body, .. } => {
+                Self::check_loop_for_yield(condition, body)
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                Self::check_try_for_yield(body, handlers, orelse, finalbody)
+            }
             // DEPYLER-0561: Check for yield inside with statements (context managers)
             HirStmt::With { body, context, .. } => {
                 Self::expr_has_yield(context) || body.iter().any(Self::stmt_has_yield)
@@ -452,9 +411,7 @@ impl FunctionAnalyzer {
     ) -> bool {
         Self::expr_has_yield(condition)
             || then_body.iter().any(Self::stmt_has_yield)
-            || else_body
-                .as_ref()
-                .is_some_and(|b| b.iter().any(Self::stmt_has_yield))
+            || else_body.as_ref().is_some_and(|b| b.iter().any(Self::stmt_has_yield))
     }
 
     fn check_loop_for_yield(condition: &HirExpr, body: &[HirStmt]) -> bool {
@@ -468,25 +425,17 @@ impl FunctionAnalyzer {
         finalbody: &Option<Vec<HirStmt>>,
     ) -> bool {
         body.iter().any(Self::stmt_has_yield)
-            || handlers
-                .iter()
-                .any(|h| h.body.iter().any(Self::stmt_has_yield))
-            || orelse
-                .as_ref()
-                .is_some_and(|b| b.iter().any(Self::stmt_has_yield))
-            || finalbody
-                .as_ref()
-                .is_some_and(|b| b.iter().any(Self::stmt_has_yield))
+            || handlers.iter().any(|h| h.body.iter().any(Self::stmt_has_yield))
+            || orelse.as_ref().is_some_and(|b| b.iter().any(Self::stmt_has_yield))
+            || finalbody.as_ref().is_some_and(|b| b.iter().any(Self::stmt_has_yield))
     }
 
     fn expr_has_yield(expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Yield { .. } => true,
-            HirExpr::Binary { left, right, .. }
-            | HirExpr::Index {
-                base: left,
-                index: right,
-            } => Self::check_two_exprs_for_yield(left, right),
+            HirExpr::Binary { left, right, .. } | HirExpr::Index { base: left, index: right } => {
+                Self::check_two_exprs_for_yield(left, right)
+            }
             HirExpr::Unary { operand, .. }
             | HirExpr::Attribute { value: operand, .. }
             | HirExpr::Await { value: operand }
@@ -498,14 +447,10 @@ impl FunctionAnalyzer {
             | HirExpr::Set(args) => Self::check_exprs_for_yield(args),
             HirExpr::MethodCall { object, args, .. } => Self::check_method_for_yield(object, args),
             HirExpr::Dict(pairs) => Self::check_pairs_for_yield(pairs),
-            HirExpr::ListComp {
-                element,
-                generators,
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
+                Self::check_comp_for_yield(element, generators)
             }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            } => Self::check_comp_for_yield(element, generators),
             _ => false,
         }
     }
@@ -523,9 +468,7 @@ impl FunctionAnalyzer {
     }
 
     fn check_pairs_for_yield(pairs: &[(HirExpr, HirExpr)]) -> bool {
-        pairs
-            .iter()
-            .any(|(k, v)| Self::expr_has_yield(k) || Self::expr_has_yield(v))
+        pairs.iter().any(|(k, v)| Self::expr_has_yield(k) || Self::expr_has_yield(v))
     }
 
     fn check_comp_for_yield(

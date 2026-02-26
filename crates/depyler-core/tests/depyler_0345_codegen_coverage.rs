@@ -377,10 +377,7 @@ async def test_await() -> int:
     println!("Generated await expression:\n{}", rust_code);
 
     // Await should generate .await syntax
-    assert!(
-        rust_code.contains(".await"),
-        "await expression should generate .await"
-    );
+    assert!(rust_code.contains(".await"), "await expression should generate .await");
 }
 
 #[test]
@@ -571,10 +568,7 @@ def test_shift(x: int) -> int:
     println!("Generated left shift:\n{}", rust_code);
 
     // Left shift should generate <<
-    assert!(
-        rust_code.contains("<<"),
-        "left shift should generate << operator"
-    );
+    assert!(rust_code.contains("<<"), "left shift should generate << operator");
 }
 
 #[test]
@@ -589,10 +583,7 @@ def test_shift(x: int) -> int:
     println!("Generated right shift:\n{}", rust_code);
 
     // Right shift should generate >>
-    assert!(
-        rust_code.contains(">>"),
-        "right shift should generate >> operator"
-    );
+    assert!(rust_code.contains(">>"), "right shift should generate >> operator");
 }
 
 // ============================================================================

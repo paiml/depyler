@@ -57,16 +57,10 @@ pub enum RetryStrategy {
 #[derive(Error, Debug)]
 pub enum LambdaError {
     #[error("Serialization failed: {message}")]
-    Serialization {
-        message: String,
-        cause: Option<Box<dyn std::error::Error + Send + Sync>>,
-    },
+    Serialization { message: String, cause: Option<Box<dyn std::error::Error + Send + Sync>> },
 
     #[error("Handler error: {message}")]
-    Handler {
-        message: String,
-        context: Option<String>,
-    },
+    Handler { message: String, context: Option<String> },
 
     #[error("Runtime error: {0}")]
     Runtime(String),
@@ -78,10 +72,7 @@ pub enum LambdaError {
     MissingParameter { parameter: String },
 
     #[error("Invalid event format: {message}")]
-    InvalidEvent {
-        message: String,
-        event_type: Option<String>,
-    },
+    InvalidEvent { message: String, event_type: Option<String> },
 
     #[error("Authentication failed: {message}")]
     Authentication { message: String },
@@ -241,10 +232,7 @@ impl LambdaErrorHandler {
             },
         );
 
-        Self {
-            error_mappings,
-            error_strategy: ErrorHandlingStrategy::default(),
-        }
+        Self { error_mappings, error_strategy: ErrorHandlingStrategy::default() }
     }
 
     pub fn with_strategy(mut self, strategy: ErrorHandlingStrategy) -> Self {
@@ -258,11 +246,7 @@ impl LambdaErrorHandler {
         let error_enum = self.generate_error_enum();
         let helper_traits = self.generate_helper_traits();
 
-        Ok(ErrorConversionCode {
-            conversion_functions,
-            error_enum,
-            helper_traits,
-        })
+        Ok(ErrorConversionCode { conversion_functions, error_enum, helper_traits })
     }
 
     /// Generate Rust error enum definition
@@ -874,10 +858,7 @@ mod tests {
         assert_eq!(ErrorContext::Handler, ErrorContext::Handler);
         assert_eq!(ErrorContext::Serialization, ErrorContext::Serialization);
         assert_eq!(ErrorContext::EventProcessing, ErrorContext::EventProcessing);
-        assert_eq!(
-            ErrorContext::ResponseGeneration,
-            ErrorContext::ResponseGeneration
-        );
+        assert_eq!(ErrorContext::ResponseGeneration, ErrorContext::ResponseGeneration);
         assert_eq!(ErrorContext::Initialization, ErrorContext::Initialization);
     }
 
@@ -946,10 +927,7 @@ mod tests {
     #[test]
     fn test_error_handling_strategy_eq() {
         assert_eq!(ErrorHandlingStrategy::Panic, ErrorHandlingStrategy::Panic);
-        assert_ne!(
-            ErrorHandlingStrategy::Panic,
-            ErrorHandlingStrategy::ReturnError
-        );
+        assert_ne!(ErrorHandlingStrategy::Panic, ErrorHandlingStrategy::ReturnError);
     }
 
     #[test]
@@ -1009,10 +987,8 @@ mod tests {
 
     #[test]
     fn test_lambda_error_serialization() {
-        let err = LambdaError::Serialization {
-            message: "JSON parse failed".to_string(),
-            cause: None,
-        };
+        let err =
+            LambdaError::Serialization { message: "JSON parse failed".to_string(), cause: None };
         assert_eq!(err.status_code(), 500);
         assert!(!err.should_retry());
     }
@@ -1036,17 +1012,11 @@ mod tests {
 
     #[test]
     fn test_lambda_error_http() {
-        let err = LambdaError::Http {
-            status: 404,
-            message: "Not found".to_string(),
-        };
+        let err = LambdaError::Http { status: 404, message: "Not found".to_string() };
         assert_eq!(err.status_code(), 404);
         assert!(!err.should_retry());
 
-        let err_500 = LambdaError::Http {
-            status: 503,
-            message: "Service unavailable".to_string(),
-        };
+        let err_500 = LambdaError::Http { status: 503, message: "Service unavailable".to_string() };
         assert!(err_500.should_retry());
     }
 
@@ -1062,18 +1032,14 @@ mod tests {
 
     #[test]
     fn test_lambda_error_authentication() {
-        let err = LambdaError::Authentication {
-            message: "Invalid token".to_string(),
-        };
+        let err = LambdaError::Authentication { message: "Invalid token".to_string() };
         assert_eq!(err.status_code(), 401);
         assert!(!err.should_retry());
     }
 
     #[test]
     fn test_lambda_error_authorization() {
-        let err = LambdaError::Authorization {
-            message: "Access denied".to_string(),
-        };
+        let err = LambdaError::Authorization { message: "Access denied".to_string() };
         assert_eq!(err.status_code(), 403);
         assert!(!err.should_retry());
     }
@@ -1090,9 +1056,7 @@ mod tests {
 
     #[test]
     fn test_lambda_error_configuration() {
-        let err = LambdaError::Configuration {
-            message: "Missing env var".to_string(),
-        };
+        let err = LambdaError::Configuration { message: "Missing env var".to_string() };
         assert_eq!(err.status_code(), 500);
         assert!(!err.should_retry());
     }
@@ -1109,10 +1073,7 @@ mod tests {
 
     #[test]
     fn test_lambda_error_display_serialization() {
-        let err = LambdaError::Serialization {
-            message: "parse error".to_string(),
-            cause: None,
-        };
+        let err = LambdaError::Serialization { message: "parse error".to_string(), cause: None };
         let display = err.to_string();
         assert!(display.contains("Serialization failed"));
         assert!(display.contains("parse error"));
@@ -1120,10 +1081,7 @@ mod tests {
 
     #[test]
     fn test_lambda_error_display_handler() {
-        let err = LambdaError::Handler {
-            message: "invalid input".to_string(),
-            context: None,
-        };
+        let err = LambdaError::Handler { message: "invalid input".to_string(), context: None };
         let display = err.to_string();
         assert!(display.contains("Handler error"));
     }
@@ -1138,10 +1096,7 @@ mod tests {
 
     #[test]
     fn test_lambda_error_display_http() {
-        let err = LambdaError::Http {
-            status: 500,
-            message: "Internal error".to_string(),
-        };
+        let err = LambdaError::Http { status: 500, message: "Internal error".to_string() };
         let display = err.to_string();
         assert!(display.contains("HTTP error"));
         assert!(display.contains("500"));
@@ -1149,9 +1104,7 @@ mod tests {
 
     #[test]
     fn test_lambda_error_display_missing_parameter() {
-        let err = LambdaError::MissingParameter {
-            parameter: "user_id".to_string(),
-        };
+        let err = LambdaError::MissingParameter { parameter: "user_id".to_string() };
         let display = err.to_string();
         assert!(display.contains("Missing parameter"));
         assert!(display.contains("user_id"));
@@ -1169,28 +1122,21 @@ mod tests {
 
     #[test]
     fn test_lambda_error_display_authentication() {
-        let err = LambdaError::Authentication {
-            message: "expired token".to_string(),
-        };
+        let err = LambdaError::Authentication { message: "expired token".to_string() };
         let display = err.to_string();
         assert!(display.contains("Authentication failed"));
     }
 
     #[test]
     fn test_lambda_error_display_authorization() {
-        let err = LambdaError::Authorization {
-            message: "insufficient permissions".to_string(),
-        };
+        let err = LambdaError::Authorization { message: "insufficient permissions".to_string() };
         let display = err.to_string();
         assert!(display.contains("Authorization failed"));
     }
 
     #[test]
     fn test_lambda_error_display_timeout() {
-        let err = LambdaError::Timeout {
-            operation: "db_query".to_string(),
-            duration_ms: 30000,
-        };
+        let err = LambdaError::Timeout { operation: "db_query".to_string(), duration_ms: 30000 };
         let display = err.to_string();
         assert!(display.contains("Timeout"));
         assert!(display.contains("db_query"));
@@ -1199,19 +1145,15 @@ mod tests {
 
     #[test]
     fn test_lambda_error_display_resource_limit() {
-        let err = LambdaError::ResourceLimit {
-            resource: "CPU".to_string(),
-            limit: "100%".to_string(),
-        };
+        let err =
+            LambdaError::ResourceLimit { resource: "CPU".to_string(), limit: "100%".to_string() };
         let display = err.to_string();
         assert!(display.contains("Resource limit exceeded"));
     }
 
     #[test]
     fn test_lambda_error_display_configuration() {
-        let err = LambdaError::Configuration {
-            message: "invalid config".to_string(),
-        };
+        let err = LambdaError::Configuration { message: "invalid config".to_string() };
         let display = err.to_string();
         assert!(display.contains("Configuration error"));
     }
@@ -1439,9 +1381,7 @@ mod tests {
         let code = handler.generate_error_handling_code().unwrap();
 
         // Check From implementations
-        assert!(code
-            .conversion_functions
-            .contains("From<serde_json::Error>"));
+        assert!(code.conversion_functions.contains("From<serde_json::Error>"));
         assert!(code.conversion_functions.contains("From<&str>"));
         assert!(code.conversion_functions.contains("KeyError"));
         assert!(code.conversion_functions.contains("ValueError"));
@@ -1455,12 +1395,8 @@ mod tests {
         let code = handler.generate_error_handling_code().unwrap();
 
         // Check API Gateway conversions
-        assert!(code
-            .conversion_functions
-            .contains("ApiGatewayProxyResponse"));
-        assert!(code
-            .conversion_functions
-            .contains("ApiGatewayV2httpResponse"));
+        assert!(code.conversion_functions.contains("ApiGatewayProxyResponse"));
+        assert!(code.conversion_functions.contains("ApiGatewayV2httpResponse"));
     }
 
     #[test]
@@ -1520,12 +1456,8 @@ mod tests {
         let handler = LambdaErrorHandler::new();
         let code = handler.generate_error_handling_code().unwrap();
 
-        assert!(code
-            .conversion_functions
-            .contains("impl From<serde_json::Error>"));
-        assert!(code
-            .conversion_functions
-            .contains("extract_key_error_parameter"));
+        assert!(code.conversion_functions.contains("impl From<serde_json::Error>"));
+        assert!(code.conversion_functions.contains("extract_key_error_parameter"));
     }
 
     #[test]
@@ -1599,17 +1531,13 @@ mod tests {
 
     #[test]
     fn test_lambda_error_methods() {
-        let err = LambdaError::MissingParameter {
-            parameter: "test_param".to_string(),
-        };
+        let err = LambdaError::MissingParameter { parameter: "test_param".to_string() };
 
         assert_eq!(err.status_code(), 400);
         assert!(!err.should_retry());
 
-        let timeout_err = LambdaError::Timeout {
-            operation: "test_op".to_string(),
-            duration_ms: 5000,
-        };
+        let timeout_err =
+            LambdaError::Timeout { operation: "test_op".to_string(), duration_ms: 5000 };
 
         assert_eq!(timeout_err.status_code(), 504);
         assert!(timeout_err.should_retry());

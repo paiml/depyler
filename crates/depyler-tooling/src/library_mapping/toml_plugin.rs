@@ -192,19 +192,16 @@ impl TomlPlugin {
     fn convert_item(toml_item: &TomlItemMapping) -> ItemMapping {
         let pattern = match &toml_item.pattern {
             TomlPattern::Direct => TransformPattern::Direct,
-            TomlPattern::MethodCall => TransformPattern::MethodCall {
-                extra_args: toml_item.extra_args.clone(),
-            },
+            TomlPattern::MethodCall => {
+                TransformPattern::MethodCall { extra_args: toml_item.extra_args.clone() }
+            }
             TomlPattern::PropertyToMethod => TransformPattern::PropertyToMethod,
             TomlPattern::Constructor => TransformPattern::Constructor {
-                method: toml_item
-                    .method
-                    .clone()
-                    .unwrap_or_else(|| "new".to_string()),
+                method: toml_item.method.clone().unwrap_or_else(|| "new".to_string()),
             },
-            TomlPattern::ReorderArgs => TransformPattern::ReorderArgs {
-                indices: toml_item.indices.clone(),
-            },
+            TomlPattern::ReorderArgs => {
+                TransformPattern::ReorderArgs { indices: toml_item.indices.clone() }
+            }
             TomlPattern::TypedTemplate => TransformPattern::TypedTemplate {
                 pattern: toml_item.pattern_str.clone().unwrap_or_default(),
                 params: toml_item.params.clone(),
@@ -225,11 +222,7 @@ impl TomlPlugin {
             rust_type: tt.rust_type.clone(),
         });
 
-        ItemMapping {
-            rust_name: toml_item.rust_name.clone(),
-            pattern,
-            type_transform,
-        }
+        ItemMapping { rust_name: toml_item.rust_name.clone(), pattern, type_transform }
     }
 
     /// Parse ParamType from string
@@ -287,11 +280,8 @@ impl MappingPlugin for TomlPlugin {
                 // Validate TypedTemplate
                 if let TomlPattern::TypedTemplate = item.pattern {
                     let pattern_str = item.pattern_str.as_deref().unwrap_or("");
-                    let param_types: Vec<_> = item
-                        .param_types
-                        .iter()
-                        .map(|s| Self::parse_param_type(s))
-                        .collect();
+                    let param_types: Vec<_> =
+                        item.param_types.iter().map(|s| Self::parse_param_type(s)).collect();
                     TransformPattern::validate_typed_template(
                         pattern_str,
                         &item.params,
@@ -335,114 +325,57 @@ mod tests {
 
     #[test]
     fn test_parse_param_type_expr() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("expr"),
-            ParamType::Expr
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("Expr"),
-            ParamType::Expr
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("EXPR"),
-            ParamType::Expr
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("expr"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type("Expr"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type("EXPR"), ParamType::Expr));
     }
 
     #[test]
     fn test_parse_param_type_string() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("string"),
-            ParamType::String
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("String"),
-            ParamType::String
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("string"), ParamType::String));
+        assert!(matches!(TomlPlugin::parse_param_type("String"), ParamType::String));
     }
 
     #[test]
     fn test_parse_param_type_number() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("number"),
-            ParamType::Number
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("Number"),
-            ParamType::Number
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("number"), ParamType::Number));
+        assert!(matches!(TomlPlugin::parse_param_type("Number"), ParamType::Number));
     }
 
     #[test]
     fn test_parse_param_type_bytes() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("bytes"),
-            ParamType::Bytes
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("Bytes"),
-            ParamType::Bytes
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("bytes"), ParamType::Bytes));
+        assert!(matches!(TomlPlugin::parse_param_type("Bytes"), ParamType::Bytes));
     }
 
     #[test]
     fn test_parse_param_type_bool() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("bool"),
-            ParamType::Bool
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("Bool"),
-            ParamType::Bool
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("bool"), ParamType::Bool));
+        assert!(matches!(TomlPlugin::parse_param_type("Bool"), ParamType::Bool));
     }
 
     #[test]
     fn test_parse_param_type_path() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("path"),
-            ParamType::Path
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("Path"),
-            ParamType::Path
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("path"), ParamType::Path));
+        assert!(matches!(TomlPlugin::parse_param_type("Path"), ParamType::Path));
     }
 
     #[test]
     fn test_parse_param_type_list() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("list"),
-            ParamType::List
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("List"),
-            ParamType::List
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("list"), ParamType::List));
+        assert!(matches!(TomlPlugin::parse_param_type("List"), ParamType::List));
     }
 
     #[test]
     fn test_parse_param_type_dict() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("dict"),
-            ParamType::Dict
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("Dict"),
-            ParamType::Dict
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("dict"), ParamType::Dict));
+        assert!(matches!(TomlPlugin::parse_param_type("Dict"), ParamType::Dict));
     }
 
     #[test]
     fn test_parse_param_type_unknown_defaults_expr() {
-        assert!(matches!(
-            TomlPlugin::parse_param_type("unknown"),
-            ParamType::Expr
-        ));
-        assert!(matches!(
-            TomlPlugin::parse_param_type("custom"),
-            ParamType::Expr
-        ));
+        assert!(matches!(TomlPlugin::parse_param_type("unknown"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type("custom"), ParamType::Expr));
         assert!(matches!(TomlPlugin::parse_param_type(""), ParamType::Expr));
     }
 
@@ -451,38 +384,26 @@ mod tests {
     #[test]
     fn test_convert_confidence_verified() {
         let conf = TomlConfidence::Verified;
-        assert!(matches!(
-            TomlPlugin::convert_confidence(&conf),
-            MappingConfidence::Verified
-        ));
+        assert!(matches!(TomlPlugin::convert_confidence(&conf), MappingConfidence::Verified));
     }
 
     #[test]
     fn test_convert_confidence_community() {
         let conf = TomlConfidence::Community;
-        assert!(matches!(
-            TomlPlugin::convert_confidence(&conf),
-            MappingConfidence::Community
-        ));
+        assert!(matches!(TomlPlugin::convert_confidence(&conf), MappingConfidence::Community));
     }
 
     #[test]
     fn test_convert_confidence_experimental() {
         let conf = TomlConfidence::Experimental;
-        assert!(matches!(
-            TomlPlugin::convert_confidence(&conf),
-            MappingConfidence::Experimental
-        ));
+        assert!(matches!(TomlPlugin::convert_confidence(&conf), MappingConfidence::Experimental));
     }
 
     // ============ TomlParseError tests ============
 
     #[test]
     fn test_toml_parse_error_display_with_line() {
-        let err = TomlParseError {
-            message: "unexpected token".to_string(),
-            line: Some(42),
-        };
+        let err = TomlParseError { message: "unexpected token".to_string(), line: Some(42) };
         let display = format!("{}", err);
         assert!(display.contains("line 42"));
         assert!(display.contains("unexpected token"));
@@ -490,10 +411,7 @@ mod tests {
 
     #[test]
     fn test_toml_parse_error_display_without_line() {
-        let err = TomlParseError {
-            message: "invalid syntax".to_string(),
-            line: None,
-        };
+        let err = TomlParseError { message: "invalid syntax".to_string(), line: None };
         let display = format!("{}", err);
         assert!(!display.contains("line"));
         assert!(display.contains("invalid syntax"));
@@ -711,10 +629,7 @@ func = { rust_name = "func", pattern = "Direct" }
 "#;
 
         let plugin = TomlPlugin::parse(toml).unwrap();
-        assert!(matches!(
-            plugin.config.mappings[0].confidence,
-            TomlConfidence::Verified
-        ));
+        assert!(matches!(plugin.config.mappings[0].confidence, TomlConfidence::Verified));
         assert_eq!(plugin.config.mappings[0].provenance, "Official API mapping");
     }
 
@@ -827,9 +742,6 @@ func = { rust_name = "func", pattern = "Direct" }
 "#;
 
         let plugin = TomlPlugin::parse(toml).unwrap();
-        assert_eq!(
-            plugin.config.plugin.maintainer,
-            Some("team@example.com".to_string())
-        );
+        assert_eq!(plugin.config.plugin.maintainer, Some("team@example.com".to_string()));
     }
 }

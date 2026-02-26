@@ -25,15 +25,7 @@ fn compiles_with_rustc(code: &str) -> bool {
     std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args([
-            "--edition",
-            "2021",
-            &temp_file,
-            "--crate-type",
-            "lib",
-            "-o",
-            &out_file,
-        ])
+        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
         .output()
         .expect("Failed to run rustc");
 
@@ -50,15 +42,7 @@ fn compile_errors(code: &str) -> String {
     std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args([
-            "--edition",
-            "2021",
-            &temp_file,
-            "--crate-type",
-            "lib",
-            "-o",
-            &out_file,
-        ])
+        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
         .output()
         .expect("Failed to run rustc");
 
@@ -79,20 +63,12 @@ def check_prefix(text: str, pattern: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Should NOT have double-borrowing (&&) which would fail compilation
-    assert!(
-        !code.contains("starts_with(&&"),
-        "Should NOT double-borrow: {}",
-        code
-    );
+    assert!(!code.contains("starts_with(&&"), "Should NOT double-borrow: {}", code);
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
@@ -114,20 +90,12 @@ def check_suffix(text: str, suffix: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(
-        !code.contains("ends_with(&&"),
-        "Should NOT double-borrow: {}",
-        code
-    );
+    assert!(!code.contains("ends_with(&&"), "Should NOT double-borrow: {}", code);
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
@@ -149,20 +117,12 @@ def find_pos(text: str, needle: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(
-        !code.contains("find(&&"),
-        "Should NOT double-borrow: {}",
-        code
-    );
+    assert!(!code.contains("find(&&"), "Should NOT double-borrow: {}", code);
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
@@ -184,20 +144,12 @@ def replace_text(text: str, old: str, new: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(
-        !code.contains("replace(&&"),
-        "Should NOT double-borrow: {}",
-        code
-    );
+    assert!(!code.contains("replace(&&"), "Should NOT double-borrow: {}", code);
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
@@ -221,20 +173,12 @@ def split_text(text: str, delimiter: str) -> List[str]:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Should NOT have double-borrowing
-    assert!(
-        !code.contains("split(&&"),
-        "Should NOT double-borrow: {}",
-        code
-    );
+    assert!(!code.contains("split(&&"), "Should NOT double-borrow: {}", code);
 
     // CRITICAL: Generated code must compile without E0277
     if !compiles_with_rustc(&code) {
@@ -259,11 +203,7 @@ def split_comma(text: str) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
@@ -278,10 +218,7 @@ def split_comma(text: str) -> list:
     // CRITICAL: Generated code must compile
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -296,20 +233,13 @@ def check_dynamic_prefix(text: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // CRITICAL: Generated code must compile
     if !compiles_with_rustc(&code) {
         let errors = compile_errors(&code);
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }

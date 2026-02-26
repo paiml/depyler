@@ -68,32 +68,17 @@ pub enum ConstraintKind {
 impl TypeConstraint {
     /// Create equality constraint (T1 == T2)
     pub fn eq(lhs: Type, rhs: Type, reason: impl Into<String>) -> Self {
-        Self {
-            lhs,
-            rhs,
-            kind: ConstraintKind::Eq,
-            reason: reason.into(),
-        }
+        Self { lhs, rhs, kind: ConstraintKind::Eq, reason: reason.into() }
     }
 
     /// Create subtype constraint (T1 <: T2)
     pub fn subtype(lhs: Type, rhs: Type, reason: impl Into<String>) -> Self {
-        Self {
-            lhs,
-            rhs,
-            kind: ConstraintKind::Subtype,
-            reason: reason.into(),
-        }
+        Self { lhs, rhs, kind: ConstraintKind::Subtype, reason: reason.into() }
     }
 
     /// Create supertype constraint (T1 :> T2)
     pub fn supertype(lhs: Type, rhs: Type, reason: impl Into<String>) -> Self {
-        Self {
-            lhs,
-            rhs,
-            kind: ConstraintKind::Supertype,
-            reason: reason.into(),
-        }
+        Self { lhs, rhs, kind: ConstraintKind::Supertype, reason: reason.into() }
     }
 }
 
@@ -112,11 +97,7 @@ impl std::fmt::Display for ConstraintKind {
 
 impl std::fmt::Display for TypeConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?} {} {:?} ({})",
-            self.lhs, self.kind, self.rhs, self.reason
-        )
+        write!(f, "{:?} {} {:?} ({})", self.lhs, self.kind, self.rhs, self.reason)
     }
 }
 
@@ -153,10 +134,7 @@ mod tests {
         assert_eq!(format!("{}", ConstraintKind::Subtype), "<:");
         assert_eq!(format!("{}", ConstraintKind::Supertype), ":>");
         assert_eq!(format!("{}", ConstraintKind::Callable), "callable");
-        assert_eq!(
-            format!("{}", ConstraintKind::HasField("x".into())),
-            "has field x"
-        );
+        assert_eq!(format!("{}", ConstraintKind::HasField("x".into())), "has field x");
         assert_eq!(format!("{}", ConstraintKind::Arithmetic), "arithmetic");
     }
 
@@ -179,10 +157,7 @@ mod tests {
     fn test_constraint_kind_eq() {
         assert_eq!(ConstraintKind::Eq, ConstraintKind::Eq);
         assert_ne!(ConstraintKind::Eq, ConstraintKind::Subtype);
-        assert_eq!(
-            ConstraintKind::HasField("a".into()),
-            ConstraintKind::HasField("a".into())
-        );
+        assert_eq!(ConstraintKind::HasField("a".into()), ConstraintKind::HasField("a".into()));
     }
 
     // ============================================================================
@@ -237,10 +212,7 @@ mod tests {
 
     #[test]
     fn test_constraint_kind_has_field_different() {
-        assert_ne!(
-            ConstraintKind::HasField("a".into()),
-            ConstraintKind::HasField("b".into())
-        );
+        assert_ne!(ConstraintKind::HasField("a".into()), ConstraintKind::HasField("b".into()));
     }
 
     #[test]

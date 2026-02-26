@@ -23,10 +23,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -208,7 +206,9 @@ def center_stars(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("width") || result.contains("fillchar") || result.contains("repeat"));
+        assert!(
+            result.contains("width") || result.contains("fillchar") || result.contains("repeat")
+        );
     }
 
     #[test]
@@ -350,7 +350,11 @@ def swap_case(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase") || result.contains("to_uppercase"));
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("to_lowercase")
+                || result.contains("to_uppercase")
+        );
     }
 
     #[test]
@@ -514,7 +518,11 @@ def check_title(s: str) -> bool:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("is_uppercase") || result.contains("is_lowercase") || result.contains("prev_is_cased"));
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("is_lowercase")
+                || result.contains("prev_is_cased")
+        );
     }
 
     #[test]
@@ -639,7 +647,11 @@ def ensure_key(d: dict) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     #[test]
@@ -987,7 +999,9 @@ def filter_dict(d: dict) -> dict:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("collect") || result.contains("HashMap"));
+        assert!(
+            result.contains("filter") || result.contains("collect") || result.contains("HashMap")
+        );
     }
 
     #[test]
@@ -1663,7 +1677,9 @@ def sort_key_desc(lst: list):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("sort") || result.contains("Reverse") || result.contains("sort_by_key"));
+        assert!(
+            result.contains("sort") || result.contains("Reverse") || result.contains("sort_by_key")
+        );
     }
 
     #[test]
@@ -1887,7 +1903,11 @@ def keep_common(a: set, b: set):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("intersection") || result.contains("clear") || result.contains("extend"));
+        assert!(
+            result.contains("intersection")
+                || result.contains("clear")
+                || result.contains("extend")
+        );
     }
 
     #[test]
@@ -1898,7 +1918,9 @@ def remove_common(a: set, b: set):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("difference") || result.contains("clear") || result.contains("extend"));
+        assert!(
+            result.contains("difference") || result.contains("clear") || result.contains("extend")
+        );
     }
 
     #[test]
@@ -1920,7 +1942,11 @@ def deduplicate(lst: list) -> set:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("collect") || result.contains("HashSet") || result.contains("into_iter"));
+        assert!(
+            result.contains("collect")
+                || result.contains("HashSet")
+                || result.contains("into_iter")
+        );
     }
 
     #[test]
@@ -2074,7 +2100,9 @@ def even_set(n: int) -> set:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("collect") || result.contains("HashSet"));
+        assert!(
+            result.contains("filter") || result.contains("collect") || result.contains("HashSet")
+        );
     }
 
     #[test]

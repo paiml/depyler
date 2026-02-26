@@ -114,11 +114,9 @@ impl MemorySafetyAnalyzer {
                 self.analyze_assign(target, value, annotations)
             }
             HirStmt::Return(Some(expr)) => self.check_expr_moves(expr, "return statement"),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => self.analyze_if(condition, then_body, else_body, annotations),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if(condition, then_body, else_body, annotations)
+            }
             HirStmt::While { condition, body } => self.analyze_while(condition, body, annotations),
             HirStmt::For { target, iter, body } => {
                 self.analyze_for(target, iter, body, annotations)
@@ -270,8 +268,7 @@ impl MemorySafetyAnalyzer {
         right: &HirExpr,
         location: &str,
     ) -> Option<MemorySafetyViolation> {
-        self.check_expr_moves(left, location)
-            .or_else(|| self.check_expr_moves(right, location))
+        self.check_expr_moves(left, location).or_else(|| self.check_expr_moves(right, location))
     }
 
     fn check_call_moves(&self, args: &[HirExpr], location: &str) -> Option<MemorySafetyViolation> {
@@ -294,8 +291,7 @@ impl MemorySafetyAnalyzer {
                 location: format!("{location} - array indexing"),
             })
         } else {
-            self.check_expr_moves(base, location)
-                .or_else(|| self.check_expr_moves(index, location))
+            self.check_expr_moves(base, location).or_else(|| self.check_expr_moves(index, location))
         }
     }
 
@@ -328,11 +324,7 @@ impl MemorySafetyAnalyzer {
     fn register_variable(&mut self, name: &str, _ty: &Type, is_mutable: bool) {
         self.lifetimes.insert(
             name.to_string(),
-            Lifetime {
-                created_at: self.scope_depth,
-                scope_depth: self.scope_depth,
-                is_mutable,
-            },
+            Lifetime { created_at: self.scope_depth, scope_depth: self.scope_depth, is_mutable },
         );
 
         // Remove from moved values if reassigned
@@ -341,10 +333,8 @@ impl MemorySafetyAnalyzer {
 
     fn cleanup_scope(&mut self) {
         // Remove variables that go out of scope
-        self.lifetimes
-            .retain(|_, lifetime| lifetime.scope_depth < self.scope_depth);
-        self.borrows
-            .retain(|_, borrow| borrow.scope_depth < self.scope_depth);
+        self.lifetimes.retain(|_, lifetime| lifetime.scope_depth < self.scope_depth);
+        self.borrows.retain(|_, borrow| borrow.scope_depth < self.scope_depth);
     }
 
     fn is_copy_type(&self, _name: &str) -> bool {
@@ -474,10 +464,7 @@ mod tests {
         let expr = HirExpr::Var("x".to_string());
         let violation = analyzer.check_expr_moves(&expr, "test");
 
-        assert!(matches!(
-            violation,
-            Some(MemorySafetyViolation::UseAfterMove { .. })
-        ));
+        assert!(matches!(violation, Some(MemorySafetyViolation::UseAfterMove { .. })));
     }
 
     #[test]
@@ -506,10 +493,7 @@ mod tests {
         };
 
         let violation = check_expr_null_safety(&expr);
-        assert!(matches!(
-            violation,
-            Some(MemorySafetyViolation::NullPointerDereference { .. })
-        ));
+        assert!(matches!(violation, Some(MemorySafetyViolation::NullPointerDereference { .. })));
     }
 
     #[test]
@@ -568,10 +552,7 @@ mod tests {
     #[test]
     fn test_check_call_moves() {
         let analyzer = MemorySafetyAnalyzer::new();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(1)),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))];
         let violation = analyzer.check_call_moves(&args, "test");
         assert!(violation.is_none());
     }
@@ -592,9 +573,7 @@ mod tests {
 
         let condition = HirExpr::Literal(Literal::Bool(true));
         let then_body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))];
-        let else_body = Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-            0,
-        ))))]);
+        let else_body = Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]);
 
         let violation = analyzer.analyze_if(&condition, &then_body, &else_body, &annotations);
         assert!(violation.is_none());
@@ -646,10 +625,8 @@ mod tests {
         let mut analyzer = MemorySafetyAnalyzer::new();
         let annotations = TranspilationAnnotations::default();
 
-        let expr = HirExpr::List(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let expr =
+            HirExpr::List(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
 
         analyzer.handle_expr_moves(&expr, &annotations);
         // Variables should be tracked
@@ -786,9 +763,7 @@ mod tests {
                 variable: "x".to_string(),
                 location: "test".to_string(),
             },
-            MemorySafetyViolation::NullPointerDereference {
-                location: "line 10".to_string(),
-            },
+            MemorySafetyViolation::NullPointerDereference { location: "line 10".to_string() },
         ];
 
         let test_cases = analyzer.violations_to_test_cases(&violations);
@@ -827,12 +802,8 @@ mod tests {
                 variable: "a".to_string(),
                 location: "test".to_string(),
             },
-            MemorySafetyViolation::NullPointerDereference {
-                location: "test".to_string(),
-            },
-            MemorySafetyViolation::BufferOverflow {
-                location: "test".to_string(),
-            },
+            MemorySafetyViolation::NullPointerDereference { location: "test".to_string() },
+            MemorySafetyViolation::BufferOverflow { location: "test".to_string() },
             MemorySafetyViolation::DataRace {
                 variable: "b".to_string(),
                 location: "test".to_string(),
@@ -1097,10 +1068,7 @@ mod tests {
 
         let violations = check_null_safety(&func);
         assert_eq!(violations.len(), 1);
-        assert!(matches!(
-            violations[0],
-            MemorySafetyViolation::NullPointerDereference { .. }
-        ));
+        assert!(matches!(violations[0], MemorySafetyViolation::NullPointerDereference { .. }));
     }
 
     #[test]
@@ -1116,15 +1084,8 @@ mod tests {
         let annotations = TranspilationAnnotations::default();
         analyzer.moved_values.insert("flag".to_string());
 
-        let violation = analyzer.analyze_if(
-            &HirExpr::Var("flag".to_string()),
-            &[],
-            &None,
-            &annotations,
-        );
-        assert!(matches!(
-            violation,
-            Some(MemorySafetyViolation::UseAfterMove { .. })
-        ));
+        let violation =
+            analyzer.analyze_if(&HirExpr::Var("flag".to_string()), &[], &None, &annotations);
+        assert!(matches!(violation, Some(MemorySafetyViolation::UseAfterMove { .. })));
     }
 }

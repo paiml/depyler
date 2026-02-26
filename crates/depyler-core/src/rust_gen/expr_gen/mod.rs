@@ -185,7 +185,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Ok(parse_quote! { #ident })
         }
     }
-
 }
 
 impl ToRustExpr for HirExpr {
@@ -227,12 +226,7 @@ impl ToRustExpr for HirExpr {
             HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
             HirExpr::Call { func, args, kwargs } => converter.convert_call(func, args, kwargs),
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } => {
+            HirExpr::MethodCall { object, method, args, kwargs } => {
                 // DEPYLER-0391: Handle subprocess.run() with keyword arguments
                 // subprocess.run(cmd, capture_output=True, cwd=cwd, check=check)
                 // Must handle kwargs here before they're lost
@@ -291,9 +285,8 @@ impl ToRustExpr for HirExpr {
                 // When we encounter a call like requests.get(url), look up the return type
                 // from the TypeDB to enable downstream type propagation.
                 if let HirExpr::Var(module_name) = &**object {
-                    if let Some(return_type) = converter
-                        .ctx
-                        .lookup_external_return_type(module_name, method)
+                    if let Some(return_type) =
+                        converter.ctx.lookup_external_return_type(module_name, method)
                     {
                         // Store the return type for assignment handling in stmt_gen
                         // This enables: resp = requests.get(url) → resp: Response
@@ -318,12 +311,9 @@ impl ToRustExpr for HirExpr {
                 converter.convert_method_call(object, method, args, kwargs)
             }
             HirExpr::Index { base, index } => converter.convert_index(base, index),
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => converter.convert_slice(base, start, stop, step),
+            HirExpr::Slice { base, start, stop, step } => {
+                converter.convert_slice(base, start, stop, step)
+            }
             HirExpr::List(elts) => converter.convert_list(elts),
             HirExpr::Dict(items) => converter.convert_dict(items),
             HirExpr::Tuple(elts) => converter.convert_tuple(elts),
@@ -331,34 +321,26 @@ impl ToRustExpr for HirExpr {
             HirExpr::FrozenSet(elts) => converter.convert_frozenset(elts),
             HirExpr::Attribute { value, attr } => converter.convert_attribute(value, attr),
             HirExpr::Borrow { expr, mutable } => converter.convert_borrow(expr, *mutable),
-            HirExpr::ListComp {
-                element,
-                generators,
-            } => converter.convert_list_comp(element, generators),
+            HirExpr::ListComp { element, generators } => {
+                converter.convert_list_comp(element, generators)
+            }
             HirExpr::Lambda { params, body } => converter.convert_lambda(params, body),
-            HirExpr::SetComp {
-                element,
-                generators,
-            } => converter.convert_set_comp(element, generators),
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => converter.convert_dict_comp(key, value, generators),
+            HirExpr::SetComp { element, generators } => {
+                converter.convert_set_comp(element, generators)
+            }
+            HirExpr::DictComp { key, value, generators } => {
+                converter.convert_dict_comp(key, value, generators)
+            }
             HirExpr::Await { value } => converter.convert_await(value),
             HirExpr::Yield { value } => converter.convert_yield(value),
             HirExpr::FString { parts } => converter.convert_fstring(parts),
             HirExpr::IfExpr { test, body, orelse } => converter.convert_ifexpr(test, body, orelse),
-            HirExpr::SortByKey {
-                iterable,
-                key_params,
-                key_body,
-                reverse_expr,
-            } => converter.convert_sort_by_key(iterable, key_params, key_body, reverse_expr),
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => converter.convert_generator_expression(element, generators),
+            HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr } => {
+                converter.convert_sort_by_key(iterable, key_params, key_body, reverse_expr)
+            }
+            HirExpr::GeneratorExp { element, generators } => {
+                converter.convert_generator_expression(element, generators)
+            }
             // DEPYLER-0188: Walrus operator (assignment expression)
             // Python: (x := expr) evaluates to expr and assigns to x
             // Rust: { let x = expr; x } or { let x = expr; x.clone() }

@@ -175,11 +175,7 @@ impl<'a> CompilationVerifier<'a> {
             cargo_first_count: cargo_first,
             rustc_count: total - cargo_first,
             total_duration,
-            single_shot_rate: if total > 0 {
-                (success as f64 / total as f64) * 100.0
-            } else {
-                0.0
-            },
+            single_shot_rate: if total > 0 { (success as f64 / total as f64) * 100.0 } else { 0.0 },
         }
     }
 }
@@ -209,9 +205,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_config(path: &Path) -> CorpusConfig {
-        CorpusConfig::default()
-            .with_corpus_path(path.to_path_buf())
-            .with_skip_clean(true)
+        CorpusConfig::default().with_corpus_path(path.to_path_buf()).with_skip_clean(true)
     }
 
     #[test]
@@ -223,20 +217,14 @@ mod tests {
         let config = create_test_config(dir.path());
         let verifier = CompilationVerifier::new(&config);
 
-        let result = verifier
-            .verify_with_rustc(&rs_file, &PathBuf::from("test.py"))
-            .unwrap();
+        let result = verifier.verify_with_rustc(&rs_file, &PathBuf::from("test.py")).unwrap();
 
         // Debug output for flaky coverage builds
         if !result.success {
             eprintln!("rustc stderr: {:?}", result.stderr);
             eprintln!("rustc exit code: {:?}", result.exit_code);
         }
-        assert!(
-            result.success,
-            "rustc should compile valid code: {:?}",
-            result.stderr
-        );
+        assert!(result.success, "rustc should compile valid code: {:?}", result.stderr);
         assert!(!result.cargo_first);
     }
 
@@ -249,9 +237,7 @@ mod tests {
         let config = create_test_config(dir.path());
         let verifier = CompilationVerifier::new(&config);
 
-        let result = verifier
-            .verify_with_rustc(&rs_file, &PathBuf::from("test.py"))
-            .unwrap();
+        let result = verifier.verify_with_rustc(&rs_file, &PathBuf::from("test.py")).unwrap();
 
         assert!(!result.success);
         assert!(result.stderr.is_some());

@@ -32,10 +32,7 @@ fn test_read_only_string_borrowed() {
     let strategy = result.param_strategies.get("text").unwrap();
 
     // Should borrow immutably
-    assert_eq!(
-        *strategy,
-        BorrowingStrategy::BorrowImmutable { lifetime: None }
-    );
+    assert_eq!(*strategy, BorrowingStrategy::BorrowImmutable { lifetime: None });
 }
 
 #[test]
@@ -53,10 +50,7 @@ fn test_list_append_takes_ownership() {
         ret_type: PythonType::None,
         body: vec![HirStmt::Expr(HirExpr::Call {
             func: "append".to_string(),
-            args: vec![
-                HirExpr::Var("items".to_string()),
-                HirExpr::Literal(Literal::Int(42)),
-            ],
+            args: vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(42))],
             kwargs: vec![],
         })],
         properties: FunctionProperties::default(),
@@ -121,10 +115,7 @@ fn test_string_concatenation_uses_cow() {
 
     // DEPYLER-0357: When string is used in concatenation (not directly returned),
     // we can borrow it immutably since the concatenation creates a new String
-    assert_eq!(
-        *strategy,
-        BorrowingStrategy::BorrowImmutable { lifetime: None }
-    );
+    assert_eq!(*strategy, BorrowingStrategy::BorrowImmutable { lifetime: None });
 }
 
 #[test]
@@ -155,10 +146,7 @@ fn test_copy_type_takes_value() {
 
     // Should have insight about Copy trait
     assert!(result.insights.iter().any(|insight| {
-        matches!(
-            insight,
-            depyler_core::borrowing_context::BorrowingInsight::SuggestCopyDerive(_)
-        )
+        matches!(insight, depyler_core::borrowing_context::BorrowingInsight::SuggestCopyDerive(_))
     }));
 }
 
@@ -189,10 +177,7 @@ fn test_unnecessary_move_detection() {
 
     // Should detect unnecessary move - append takes ownership but value doesn't escape
     assert!(result.insights.iter().any(|insight| {
-        matches!(
-            insight,
-            depyler_core::borrowing_context::BorrowingInsight::UnnecessaryMove(_)
-        )
+        matches!(insight, depyler_core::borrowing_context::BorrowingInsight::UnnecessaryMove(_))
     }));
 }
 
@@ -251,12 +236,6 @@ fn test_loop_usage_affects_borrowing() {
     let haystack_strategy = result.param_strategies.get("haystack").unwrap();
     let needle_strategy = result.param_strategies.get("needle").unwrap();
 
-    assert_eq!(
-        *haystack_strategy,
-        BorrowingStrategy::BorrowImmutable { lifetime: None }
-    );
-    assert_eq!(
-        *needle_strategy,
-        BorrowingStrategy::BorrowImmutable { lifetime: None }
-    );
+    assert_eq!(*haystack_strategy, BorrowingStrategy::BorrowImmutable { lifetime: None });
+    assert_eq!(*needle_strategy, BorrowingStrategy::BorrowImmutable { lifetime: None });
 }

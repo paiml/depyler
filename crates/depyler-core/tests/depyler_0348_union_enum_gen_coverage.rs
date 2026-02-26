@@ -91,10 +91,7 @@ fn test_depyler_0348_variant_name_list() {
 #[test]
 fn test_depyler_0348_variant_name_dict() {
     let mut generator = UnionEnumGenerator::new();
-    let types = vec![
-        Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        Type::Bool,
-    ];
+    let types = vec![Type::Dict(Box::new(Type::String), Box::new(Type::Int)), Type::Bool];
     let (_name, tokens) = generator.generate_union_enum(&types);
     let code = tokens.to_string();
 
@@ -121,10 +118,7 @@ fn test_depyler_0348_variant_name_typevar() {
     let code = tokens.to_string();
 
     // TypeVar maps to "TypeT" variant
-    assert!(
-        code.contains("TypeT"),
-        "Should generate TypeT variant for TypeVar"
-    );
+    assert!(code.contains("TypeT"), "Should generate TypeT variant for TypeVar");
 }
 
 // ============================================================================
@@ -171,13 +165,8 @@ fn test_depyler_0348_enum_naming_five_types() {
     assert_eq!(name1, "UnionType1");
 
     // Second union with 5 types (counter increments)
-    let types2 = vec![
-        Type::Int,
-        Type::String,
-        Type::Bool,
-        Type::Float,
-        Type::List(Box::new(Type::Int)),
-    ];
+    let types2 =
+        vec![Type::Int, Type::String, Type::Bool, Type::Float, Type::List(Box::new(Type::Int))];
     let (name2, _) = generator.generate_union_enum(&types2);
     assert_eq!(name2, "UnionType2");
 }
@@ -188,13 +177,8 @@ fn test_depyler_0348_enum_naming_counter_increments() {
 
     // Generate multiple DIFFERENT complex unions to test counter increments
     // (same types would hit cache and not increment counter)
-    let types1 = vec![
-        Type::Int,
-        Type::String,
-        Type::Bool,
-        Type::Float,
-        Type::List(Box::new(Type::Int)),
-    ];
+    let types1 =
+        vec![Type::Int, Type::String, Type::Bool, Type::Float, Type::List(Box::new(Type::Int))];
     let (name1, _) = generator.generate_union_enum(&types1);
     assert_eq!(name1, "UnionType1");
 
@@ -202,13 +186,8 @@ fn test_depyler_0348_enum_naming_counter_increments() {
     let (name2, _) = generator.generate_union_enum(&types2);
     assert_eq!(name2, "UnionType2");
 
-    let types3 = vec![
-        Type::Float,
-        Type::String,
-        Type::Bool,
-        Type::List(Box::new(Type::String)),
-        Type::None,
-    ];
+    let types3 =
+        vec![Type::Float, Type::String, Type::Bool, Type::List(Box::new(Type::String)), Type::None];
     let (name3, _) = generator.generate_union_enum(&types3);
     assert_eq!(name3, "UnionType3");
 }
@@ -225,10 +204,7 @@ fn test_depyler_0348_from_impls_generated() {
     let code = tokens.to_string();
 
     // Should generate From trait impls (don't check exact type representation)
-    assert!(
-        code.contains("impl From"),
-        "Should generate From trait impls"
-    );
+    assert!(code.contains("impl From"), "Should generate From trait impls");
     assert!(code.contains("fn from"), "Should have from method");
     assert!(!code.is_empty(), "Should generate code");
 }
@@ -244,11 +220,7 @@ fn test_depyler_0348_from_impls_skip_none() {
     assert!(code.contains("impl From"), "Should generate From trait");
     assert!(code.contains("fn from"), "Should have from method");
     // Count From impls - should be 1 (only for Int, not None)
-    assert_eq!(
-        code.matches("impl From").count(),
-        1,
-        "Should have exactly 1 From impl"
-    );
+    assert_eq!(code.matches("impl From").count(), 1, "Should have exactly 1 From impl");
 }
 
 #[test]
@@ -275,10 +247,7 @@ fn test_depyler_0348_is_methods_generated() {
     let code = tokens.to_string();
 
     // Should generate is_integer() and is_text() methods
-    assert!(
-        code.contains("is_integer"),
-        "Should generate is_integer method"
-    );
+    assert!(code.contains("is_integer"), "Should generate is_integer method");
     assert!(code.contains("is_text"), "Should generate is_text method");
     assert!(code.contains("pub fn"), "Should generate public methods");
 }
@@ -291,10 +260,7 @@ fn test_depyler_0348_as_methods_generated() {
     let code = tokens.to_string();
 
     // Should generate as_integer() and as_text() methods
-    assert!(
-        code.contains("as_integer"),
-        "Should generate as_integer method"
-    );
+    assert!(code.contains("as_integer"), "Should generate as_integer method");
     assert!(code.contains("as_text"), "Should generate as_text method");
     assert!(code.contains("Option"), "Should return Option<&T>");
 }
@@ -360,14 +326,8 @@ fn test_depyler_0348_caching_nested_types() {
     let (name2, tokens2) = generator.generate_union_enum(&types2);
 
     // Should cache reordered nested types
-    assert_eq!(
-        name1, name2,
-        "Should return same enum name for reordered types"
-    );
-    assert!(
-        tokens2.to_string().is_empty(),
-        "Second call should return empty tokens (cached)"
-    );
+    assert_eq!(name1, name2, "Should return same enum name for reordered types");
+    assert!(tokens2.to_string().is_empty(), "Second call should return empty tokens (cached)");
 }
 
 #[test]
@@ -441,10 +401,7 @@ fn test_depyler_0348_all_basic_types() {
     let code = tokens.to_string();
 
     // Should handle all basic types
-    assert!(
-        name.starts_with("UnionType"),
-        "Should use UnionType naming for 7 types"
-    );
+    assert!(name.starts_with("UnionType"), "Should use UnionType naming for 7 types");
     assert!(!code.is_empty(), "Should generate code");
 }
 
@@ -455,10 +412,7 @@ fn test_depyler_0348_single_type() {
     let (_name, tokens) = generator.generate_union_enum(&types);
 
     // Should handle single-type union (though semantically odd)
-    assert!(
-        !tokens.to_string().is_empty(),
-        "Should generate code for single type"
-    );
+    assert!(!tokens.to_string().is_empty(), "Should generate code for single type");
 }
 
 // ============================================================================

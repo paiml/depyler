@@ -12,17 +12,13 @@ impl<'a> ExprConverter<'a> {
     pub(super) fn convert_call(&self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
         // Handle classmethod cls(args) → Self::new(args)
         if func == "cls" && self.is_classmethod {
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| self.convert(arg))
-                .collect::<Result<Vec<_>>>()?;
+            let arg_exprs: Vec<syn::Expr> =
+                args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
             return Ok(parse_quote! { Self::new(#(#arg_exprs),*) });
         }
 
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         match func {
             "len" => self.convert_len_call(&arg_exprs),
@@ -191,10 +187,7 @@ impl<'a> ExprConverter<'a> {
             // This is the most common case in real code
             Ok(parse_quote! { vec![0u8; (#arg) as usize] })
         } else {
-            bail!(
-                "bytearray() takes at most 1 argument ({} given)",
-                args.len()
-            )
+            bail!("bytearray() takes at most 1 argument ({} given)", args.len())
         }
     }
 
@@ -283,7 +276,11 @@ impl<'a> ExprConverter<'a> {
     /// - sum(range(...)) → (range_expr).sum::<T>()
     /// - sum(d.values()) / sum(d.keys()) → d.values().cloned().sum::<T>()
     /// - sum(iterable) → iterable.iter().sum::<T>()
-    pub(super) fn convert_sum_call(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    pub(super) fn convert_sum_call(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 || arg_exprs.len() != 1 {
             bail!("sum() requires exactly one argument");
         }
@@ -304,11 +301,9 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { (#arg_expr).sum::<#target_type>() })
             }
             // Method call: sum(d.values()) → d.values().cloned().sum::<T>()
-            HirExpr::MethodCall {
-                method,
-                args: method_args,
-                ..
-            } if (method == "values" || method == "keys") && method_args.is_empty() => {
+            HirExpr::MethodCall { method, args: method_args, .. }
+                if (method == "values" || method == "keys") && method_args.is_empty() =>
+            {
                 Ok(parse_quote! { #arg_expr.cloned().sum::<#target_type>() })
             }
             // Default: sum(iterable) → iterable.iter().sum::<T>()
@@ -363,7 +358,11 @@ impl<'a> ExprConverter<'a> {
     ///
     /// For boolean iterables: iterable.iter().all(|&x| x)
     /// For other types: iterable.iter().all(|x| !x.is_empty()) etc.
-    pub(super) fn convert_all_call(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    pub(super) fn convert_all_call(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 || arg_exprs.len() != 1 {
             bail!("all() requires exactly one argument");
         }
@@ -390,7 +389,11 @@ impl<'a> ExprConverter<'a> {
     ///
     /// Python: any(iterable) → True if any element is truthy
     /// Rust: iterable.iter().any(|x| truthiness_check(x))
-    pub(super) fn convert_any_call(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    pub(super) fn convert_any_call(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if hir_args.len() != 1 || arg_exprs.len() != 1 {
             bail!("any() requires exactly one argument");
         }
@@ -526,11 +529,7 @@ impl<'a> ExprConverter<'a> {
                 })
             }
         } else {
-            bail!(
-                "frozenset() takes at most 1 argument ({} given)",
-                args.len()
-            )
+            bail!("frozenset() takes at most 1 argument ({} given)", args.len())
         }
     }
-
 }

@@ -9,17 +9,12 @@ fn prop_type_inference_soundness(literal_type: u8, value: i32) -> TestResult {
     let (python_type, python_value) = match literal_type % 4 {
         0 => ("int", value.to_string()),
         1 => ("str", format!("\"{}\"", value.abs())),
-        2 => (
-            "bool",
-            if value % 2 == 0 { "True" } else { "False" }.to_string(),
-        ),
+        2 => ("bool", if value % 2 == 0 { "True" } else { "False" }.to_string()),
         _ => ("float", format!("{}.0", value)),
     };
 
-    let python_source = format!(
-        "def test_func() -> {}:\n    x = {}\n    return x",
-        python_type, python_value
-    );
+    let python_source =
+        format!("def test_func() -> {}:\n    x = {}\n    return x", python_type, python_value);
 
     let pipeline = DepylerPipeline::new();
 
@@ -52,10 +47,7 @@ fn prop_generic_type_handling(container_type: u8) -> TestResult {
         _ => ("Tuple[int, str]", "(42, \"hello\")"),
     };
 
-    let python_source = format!(
-        "def test_func() -> {}:\n    return {}",
-        python_type, python_value
-    );
+    let python_source = format!("def test_func() -> {}:\n    return {}", python_type, python_value);
 
     let pipeline = DepylerPipeline::new();
 
@@ -93,10 +85,8 @@ fn prop_optional_type_handling(has_none: bool, base_type: u8) -> TestResult {
         .to_string()
     };
 
-    let python_source = format!(
-        "def test_func() -> Optional[{}]:\n    return {}",
-        base_type_str, return_value
-    );
+    let python_source =
+        format!("def test_func() -> Optional[{}]:\n    return {}", base_type_str, return_value);
 
     let pipeline = DepylerPipeline::new();
 
@@ -121,10 +111,7 @@ fn prop_function_call_type_consistency(arg_type: u8, arg_value: i32) -> TestResu
     let (python_type, python_arg) = match arg_type % 3 {
         0 => ("int", arg_value.to_string()),
         1 => ("str", format!("\"{}\"", arg_value.abs())),
-        _ => (
-            "bool",
-            if arg_value % 2 == 0 { "True" } else { "False" }.to_string(),
-        ),
+        _ => ("bool", if arg_value % 2 == 0 { "True" } else { "False" }.to_string()),
     };
 
     let python_source = format!(
@@ -175,10 +162,8 @@ fn prop_binary_operation_type_inference(op: u8, left_val: i32, right_val: i32) -
         return TestResult::discard();
     }
 
-    let python_source = format!(
-        "def test_func() -> int:\n    return {} {} {}",
-        left_val, operator, right_val
-    );
+    let python_source =
+        format!("def test_func() -> int:\n    return {} {} {}", left_val, operator, right_val);
 
     let pipeline = DepylerPipeline::new();
 
@@ -210,10 +195,7 @@ fn prop_method_call_type_preservation(method: u8) -> TestResult {
             "def test_func() -> {}:\n    s = \"hello\"\n    return s.{}()",
             expected_ret, method_name
         ),
-        "list" => format!(
-            "def test_func():\n    lst = [1, 2, 3]\n    lst.{}(4)",
-            method_name
-        ),
+        "list" => format!("def test_func():\n    lst = [1, 2, 3]\n    lst.{}(4)", method_name),
         _ => return TestResult::discard(),
     };
 

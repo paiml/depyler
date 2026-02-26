@@ -95,18 +95,12 @@ impl TypeMapper {
         cache.insert("bytes".to_string(), RuchyType::Vec(Box::new(RuchyType::U8)));
 
         // Python collection types
-        cache.insert(
-            "list".to_string(),
-            RuchyType::Vec(Box::new(RuchyType::Dynamic)),
-        );
+        cache.insert("list".to_string(), RuchyType::Vec(Box::new(RuchyType::Dynamic)));
         cache.insert(
             "dict".to_string(),
             RuchyType::HashMap(Box::new(RuchyType::Dynamic), Box::new(RuchyType::Dynamic)),
         );
-        cache.insert(
-            "set".to_string(),
-            RuchyType::HashSet(Box::new(RuchyType::Dynamic)),
-        );
+        cache.insert("set".to_string(), RuchyType::HashSet(Box::new(RuchyType::Dynamic)));
         cache.insert("tuple".to_string(), RuchyType::Tuple(vec![]));
 
         // Special types
@@ -126,11 +120,9 @@ impl TypeMapper {
     /// Maps a Python type annotation to Ruchy type
     pub fn map_type(&mut self, py_type: &PythonType) -> Result<RuchyType> {
         match py_type {
-            PythonType::Named(name) => self
-                .type_cache
-                .get(name)
-                .cloned()
-                .ok_or_else(|| anyhow!("Unknown type: {}", name)),
+            PythonType::Named(name) => {
+                self.type_cache.get(name).cloned().ok_or_else(|| anyhow!("Unknown type: {}", name))
+            }
 
             PythonType::List(inner) => {
                 let inner_type = self.map_type(inner)?;
@@ -149,10 +141,8 @@ impl TypeMapper {
             }
 
             PythonType::Tuple(types) => {
-                let ruchy_types = types
-                    .iter()
-                    .map(|t| self.map_type(t))
-                    .collect::<Result<Vec<_>>>()?;
+                let ruchy_types =
+                    types.iter().map(|t| self.map_type(t)).collect::<Result<Vec<_>>>()?;
                 Ok(RuchyType::Tuple(ruchy_types))
             }
 
@@ -167,16 +157,11 @@ impl TypeMapper {
             }
 
             PythonType::Callable(params, ret) => {
-                let param_types = params
-                    .iter()
-                    .map(|p| self.map_type(p))
-                    .collect::<Result<Vec<_>>>()?;
+                let param_types =
+                    params.iter().map(|p| self.map_type(p)).collect::<Result<Vec<_>>>()?;
                 let return_type = self.map_type(ret)?;
 
-                Ok(RuchyType::Function {
-                    params: param_types,
-                    returns: Box::new(return_type),
-                })
+                Ok(RuchyType::Function { params: param_types, returns: Box::new(return_type) })
             }
 
             PythonType::Generic(name, args) => self.map_generic_type(name, args),
@@ -191,9 +176,7 @@ impl TypeMapper {
     fn create_union_type(&mut self, types: &[PythonType]) -> Result<RuchyType> {
         // Special case: Optional[T] = Union[T, None]
         if types.len() == 2
-            && types
-                .iter()
-                .any(|t| matches!(t, PythonType::Named(n) if n == "None"))
+            && types.iter().any(|t| matches!(t, PythonType::Named(n) if n == "None"))
         {
             let other_type = types
                 .iter()
@@ -253,9 +236,8 @@ impl TypeMapper {
             }
 
             "Optional" => {
-                let inner = args
-                    .first()
-                    .ok_or_else(|| anyhow!("Optional requires type argument"))?;
+                let inner =
+                    args.first().ok_or_else(|| anyhow!("Optional requires type argument"))?;
                 let inner_type = self.map_type(inner)?;
                 Ok(RuchyType::Option(Box::new(inner_type)))
             }
@@ -296,10 +278,8 @@ impl TypeMapper {
 
             _ => {
                 // User-defined generic type
-                let type_args = args
-                    .iter()
-                    .map(|t| self.map_type(t))
-                    .collect::<Result<Vec<_>>>()?;
+                let type_args =
+                    args.iter().map(|t| self.map_type(t)).collect::<Result<Vec<_>>>()?;
                 Ok(RuchyType::Generic(name.to_string(), type_args))
             }
         }
@@ -389,10 +369,7 @@ pub enum RuchyType {
     Result(Box<RuchyType>, Box<RuchyType>),
 
     // Function types
-    Function {
-        params: Vec<RuchyType>,
-        returns: Box<RuchyType>,
-    },
+    Function { params: Vec<RuchyType>, returns: Box<RuchyType> },
 
     // Async types
     Future(Box<RuchyType>),
@@ -402,11 +379,7 @@ pub enum RuchyType {
     Iterator(Box<RuchyType>),
 
     // Reference types
-    Reference {
-        typ: Box<RuchyType>,
-        is_mutable: bool,
-        lifetime: Option<String>,
-    },
+    Reference { typ: Box<RuchyType>, is_mutable: bool, lifetime: Option<String> },
 
     // User-defined types
     Named(String),
@@ -419,10 +392,7 @@ pub enum RuchyType {
     Actor,
     Message,
     EnumVariant,
-    Lambda {
-        params: Vec<String>,
-        return_type: Box<RuchyType>,
-    },
+    Lambda { params: Vec<String>, return_type: Box<RuchyType> },
 
     // Dynamic type for gradual typing
     Dynamic,
@@ -467,9 +437,7 @@ struct TypeInferenceEngine {
 
 impl TypeInferenceEngine {
     fn new() -> Self {
-        Self {
-            constraints: Vec::new(),
-        }
+        Self { constraints: Vec::new() }
     }
 
     fn infer(&mut self, usage: &TypeUsage) -> Result<RuchyType> {
@@ -515,59 +483,31 @@ impl TypeInferenceEngine {
 
     fn solve_constraints(&self) -> Result<RuchyType> {
         // Simple heuristic-based solving
-        if self
-            .constraints
-            .iter()
-            .any(|c| matches!(c, TypeConstraint::StringLike))
-        {
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::StringLike)) {
             return Ok(RuchyType::String);
         }
 
-        if self
-            .constraints
-            .iter()
-            .any(|c| matches!(c, TypeConstraint::Numeric))
-        {
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::Numeric)) {
             // Check if float operations are present
-            if self
-                .constraints
-                .iter()
-                .any(|c| matches!(c, TypeConstraint::FloatingPoint))
-            {
+            if self.constraints.iter().any(|c| matches!(c, TypeConstraint::FloatingPoint)) {
                 return Ok(RuchyType::F64);
             }
             return Ok(RuchyType::I64);
         }
 
-        if self
-            .constraints
-            .iter()
-            .any(|c| matches!(c, TypeConstraint::Boolean))
-        {
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::Boolean)) {
             return Ok(RuchyType::Bool);
         }
 
-        if self
-            .constraints
-            .iter()
-            .any(|c| matches!(c, TypeConstraint::Iterable))
-        {
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::Iterable)) {
             return Ok(RuchyType::Vec(Box::new(RuchyType::Dynamic)));
         }
 
-        if self
-            .constraints
-            .iter()
-            .any(|c| matches!(c, TypeConstraint::DataFrameCompatible))
-        {
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::DataFrameCompatible)) {
             return Ok(RuchyType::DataFrame);
         }
 
-        if self
-            .constraints
-            .iter()
-            .any(|c| matches!(c, TypeConstraint::ActorCompatible))
-        {
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::ActorCompatible)) {
             return Ok(RuchyType::Actor);
         }
 
@@ -607,11 +547,7 @@ struct TypeMapperConfig {
 
 impl Default for TypeMapperConfig {
     fn default() -> Self {
-        Self {
-            use_i32_default: false,
-            prefer_str_slice: false,
-            use_hashmap: true,
-        }
+        Self { use_i32_default: false, prefer_str_slice: false, use_hashmap: true }
     }
 }
 
@@ -635,31 +571,20 @@ mod tests {
     fn test_primitive_type_mapping() {
         let mut mapper = TypeMapper::new();
 
-        assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("int".to_string()))
-                .unwrap(),
-            RuchyType::I64
-        );
+        assert_eq!(mapper.map_type(&PythonType::Named("int".to_string())).unwrap(), RuchyType::I64);
 
         assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("float".to_string()))
-                .unwrap(),
+            mapper.map_type(&PythonType::Named("float".to_string())).unwrap(),
             RuchyType::F64
         );
 
         assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("str".to_string()))
-                .unwrap(),
+            mapper.map_type(&PythonType::Named("str".to_string())).unwrap(),
             RuchyType::String
         );
 
         assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("bool".to_string()))
-                .unwrap(),
+            mapper.map_type(&PythonType::Named("bool".to_string())).unwrap(),
             RuchyType::Bool
         );
     }
@@ -669,10 +594,7 @@ mod tests {
         let mut mapper = TypeMapper::new();
 
         let list_type = PythonType::List(Box::new(PythonType::Named("int".to_string())));
-        assert_eq!(
-            mapper.map_type(&list_type).unwrap(),
-            RuchyType::Vec(Box::new(RuchyType::I64))
-        );
+        assert_eq!(mapper.map_type(&list_type).unwrap(), RuchyType::Vec(Box::new(RuchyType::I64)));
 
         let dict_type = PythonType::Dict(
             Box::new(PythonType::Named("str".to_string())),
@@ -720,23 +642,17 @@ mod tests {
         let mut mapper = TypeMapper::new();
 
         assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("DataFrame".to_string()))
-                .unwrap(),
+            mapper.map_type(&PythonType::Named("DataFrame".to_string())).unwrap(),
             RuchyType::DataFrame
         );
 
         assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("Range".to_string()))
-                .unwrap(),
+            mapper.map_type(&PythonType::Named("Range".to_string())).unwrap(),
             RuchyType::Range
         );
 
         assert_eq!(
-            mapper
-                .map_type(&PythonType::Named("Actor".to_string()))
-                .unwrap(),
+            mapper.map_type(&PythonType::Named("Actor".to_string())).unwrap(),
             RuchyType::Actor
         );
     }
@@ -769,27 +685,21 @@ mod tests {
     #[test]
     fn test_map_bytes_type() {
         let mut mapper = TypeMapper::new();
-        let result = mapper
-            .map_type(&PythonType::Named("bytes".to_string()))
-            .unwrap();
+        let result = mapper.map_type(&PythonType::Named("bytes".to_string())).unwrap();
         assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::U8)));
     }
 
     #[test]
     fn test_map_none_type() {
         let mut mapper = TypeMapper::new();
-        let result = mapper
-            .map_type(&PythonType::Named("None".to_string()))
-            .unwrap();
+        let result = mapper.map_type(&PythonType::Named("None".to_string())).unwrap();
         assert_eq!(result, RuchyType::Unit);
     }
 
     #[test]
     fn test_map_any_type() {
         let mut mapper = TypeMapper::new();
-        let result = mapper
-            .map_type(&PythonType::Named("Any".to_string()))
-            .unwrap();
+        let result = mapper.map_type(&PythonType::Named("Any".to_string())).unwrap();
         assert_eq!(result, RuchyType::Dynamic);
     }
 
@@ -809,10 +719,7 @@ mod tests {
             PythonType::Named("str".to_string()),
         ]);
         let result = mapper.map_type(&tuple_type).unwrap();
-        assert_eq!(
-            result,
-            RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String])
-        );
+        assert_eq!(result, RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String]));
     }
 
     #[test]
@@ -901,10 +808,8 @@ mod tests {
     #[test]
     fn test_map_generic_list() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "List".to_string(),
-            vec![PythonType::Named("str".to_string())],
-        );
+        let generic_type =
+            PythonType::Generic("List".to_string(), vec![PythonType::Named("str".to_string())]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::String)));
     }
@@ -914,10 +819,7 @@ mod tests {
         let mut mapper = TypeMapper::new();
         let generic_type = PythonType::Generic(
             "Dict".to_string(),
-            vec![
-                PythonType::Named("str".to_string()),
-                PythonType::Named("int".to_string()),
-            ],
+            vec![PythonType::Named("str".to_string()), PythonType::Named("int".to_string())],
         );
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(
@@ -929,10 +831,8 @@ mod tests {
     #[test]
     fn test_map_generic_set() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "Set".to_string(),
-            vec![PythonType::Named("int".to_string())],
-        );
+        let generic_type =
+            PythonType::Generic("Set".to_string(), vec![PythonType::Named("int".to_string())]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(result, RuchyType::HashSet(Box::new(RuchyType::I64)));
     }
@@ -940,10 +840,8 @@ mod tests {
     #[test]
     fn test_map_generic_optional() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "Optional".to_string(),
-            vec![PythonType::Named("int".to_string())],
-        );
+        let generic_type =
+            PythonType::Generic("Optional".to_string(), vec![PythonType::Named("int".to_string())]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(result, RuchyType::Option(Box::new(RuchyType::I64)));
     }
@@ -978,10 +876,8 @@ mod tests {
     #[test]
     fn test_map_generic_iterator() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "Iterator".to_string(),
-            vec![PythonType::Named("int".to_string())],
-        );
+        let generic_type =
+            PythonType::Generic("Iterator".to_string(), vec![PythonType::Named("int".to_string())]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(result, RuchyType::Iterator(Box::new(RuchyType::I64)));
     }
@@ -997,10 +893,8 @@ mod tests {
     #[test]
     fn test_map_generic_actor() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "Actor".to_string(),
-            vec![PythonType::Named("str".to_string())],
-        );
+        let generic_type =
+            PythonType::Generic("Actor".to_string(), vec![PythonType::Named("str".to_string())]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(result, RuchyType::Actor);
     }
@@ -1029,9 +923,7 @@ mod tests {
         let mut mapper = TypeMapper::new();
         mapper.register_type("CustomType".to_string(), RuchyType::I32);
 
-        let result = mapper
-            .map_type(&PythonType::Named("CustomType".to_string()))
-            .unwrap();
+        let result = mapper.map_type(&PythonType::Named("CustomType".to_string())).unwrap();
         assert_eq!(result, RuchyType::I32);
     }
 
@@ -1071,9 +963,8 @@ mod tests {
     #[test]
     fn test_range_type_partial() {
         let mapper = TypeMapper::new();
-        let result = mapper
-            .map_range_type(Some(PythonType::Named("int".to_string())), None)
-            .unwrap();
+        let result =
+            mapper.map_range_type(Some(PythonType::Named("int".to_string())), None).unwrap();
         assert_eq!(result, RuchyType::Range);
     }
 
@@ -1088,11 +979,8 @@ mod tests {
     #[test]
     fn test_infer_string_type() {
         let mut mapper = TypeMapper::new();
-        let usage = TypeUsage {
-            operations: vec![Operation::StringOp],
-            assignments: vec![],
-            calls: vec![],
-        };
+        let usage =
+            TypeUsage { operations: vec![Operation::StringOp], assignments: vec![], calls: vec![] };
         let result = mapper.infer_type(&usage).unwrap();
         assert_eq!(result, RuchyType::String);
     }
@@ -1112,11 +1000,8 @@ mod tests {
     #[test]
     fn test_infer_boolean_type() {
         let mut mapper = TypeMapper::new();
-        let usage = TypeUsage {
-            operations: vec![Operation::Logical],
-            assignments: vec![],
-            calls: vec![],
-        };
+        let usage =
+            TypeUsage { operations: vec![Operation::Logical], assignments: vec![], calls: vec![] };
         let result = mapper.infer_type(&usage).unwrap();
         assert_eq!(result, RuchyType::Bool);
     }
@@ -1160,11 +1045,7 @@ mod tests {
     #[test]
     fn test_infer_dynamic_type() {
         let mut mapper = TypeMapper::new();
-        let usage = TypeUsage {
-            operations: vec![],
-            assignments: vec![],
-            calls: vec![],
-        };
+        let usage = TypeUsage { operations: vec![], assignments: vec![], calls: vec![] };
         let result = mapper.infer_type(&usage).unwrap();
         assert_eq!(result, RuchyType::Dynamic);
     }
@@ -1185,11 +1066,8 @@ mod tests {
     #[test]
     fn test_infer_indexing_type() {
         let mut mapper = TypeMapper::new();
-        let usage = TypeUsage {
-            operations: vec![Operation::Indexing],
-            assignments: vec![],
-            calls: vec![],
-        };
+        let usage =
+            TypeUsage { operations: vec![Operation::Indexing], assignments: vec![], calls: vec![] };
         let result = mapper.infer_type(&usage).unwrap();
         assert_eq!(result, RuchyType::Dynamic);
     }
@@ -1319,9 +1197,7 @@ mod tests {
 
     #[test]
     fn test_assignment_clone() {
-        let assignment = Assignment {
-            value_type: Some(PythonType::Named("int".to_string())),
-        };
+        let assignment = Assignment { value_type: Some(PythonType::Named("int".to_string())) };
         let cloned = assignment.clone();
         assert_eq!(assignment.value_type, cloned.value_type);
     }
@@ -1329,10 +1205,7 @@ mod tests {
     // Test FunctionCall
     #[test]
     fn test_function_call_debug() {
-        let call = FunctionCall {
-            function: "print".to_string(),
-            arg_types: vec![],
-        };
+        let call = FunctionCall { function: "print".to_string(), arg_types: vec![] };
         let debug = format!("{:?}", call);
         assert!(debug.contains("print"));
     }
@@ -1377,10 +1250,8 @@ mod tests {
     #[test]
     fn test_map_generic_dict_single_arg() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "dict".to_string(),
-            vec![PythonType::Named("str".to_string())],
-        );
+        let generic_type =
+            PythonType::Generic("dict".to_string(), vec![PythonType::Named("str".to_string())]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(
             result,

@@ -69,20 +69,12 @@ fn main() -> anyhow::Result<()> {
     let mut stats = ExtractionStats::default();
 
     for (i, py_file) in py_files.iter().enumerate() {
-        let name = py_file
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
+        let name = py_file.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
         let rs_file = args.output_dir.join(format!("{}.rs", name));
 
         // Try to transpile
         let transpile_result = Command::new(&args.depyler)
-            .args([
-                "transpile",
-                &py_file.to_string_lossy(),
-                "-o",
-                &rs_file.to_string_lossy(),
-            ])
+            .args(["transpile", &py_file.to_string_lossy(), "-o", &rs_file.to_string_lossy()])
             .output();
 
         match transpile_result {
@@ -155,10 +147,7 @@ fn main() -> anyhow::Result<()> {
     println!("=== Extraction Complete ===");
     println!();
     println!("📊 Results:");
-    println!(
-        "   Files processed: {}",
-        stats.transpile_success + stats.transpile_fail
-    );
+    println!("   Files processed: {}", stats.transpile_success + stats.transpile_fail);
     println!("   Transpile success: {}", stats.transpile_success);
     println!("   Transpile fail: {}", stats.transpile_fail);
     println!("   Compile success: {}", stats.compile_success);
@@ -185,11 +174,7 @@ fn find_python_files(dir: &PathBuf, max: usize) -> anyhow::Result<Vec<PathBuf>> 
     let mut files = Vec::new();
 
     if dir.is_dir() {
-        for entry in walkdir::WalkDir::new(dir)
-            .max_depth(5)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in walkdir::WalkDir::new(dir).max_depth(5).into_iter().filter_map(|e| e.ok()) {
             if entry.path().extension().map(|e| e == "py").unwrap_or(false) {
                 files.push(entry.path().to_path_buf());
                 if files.len() >= max {

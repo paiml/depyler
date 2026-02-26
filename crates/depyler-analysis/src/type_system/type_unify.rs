@@ -90,11 +90,7 @@ pub enum Constraint {
     /// α = T (type assignment)
     Assign(TypeVar, ConcreteType),
     /// Call f(α₁, α₂, ...) → β
-    Call {
-        callee: String,
-        args: Vec<TypeVar>,
-        ret: TypeVar,
-    },
+    Call { callee: String, args: Vec<TypeVar>, ret: TypeVar },
 }
 
 // =============================================================================
@@ -160,10 +156,7 @@ impl CallGraph {
 
     /// Get callers of a function
     pub fn callers(&self, node: NodeId) -> &[NodeId] {
-        self.reverse_edges
-            .get(&node)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+        self.reverse_edges.get(&node).map(|v| v.as_slice()).unwrap_or(&[])
     }
 
     /// Topological sort (callees before callers)
@@ -179,11 +172,8 @@ impl CallGraph {
             }
         }
 
-        let mut queue: Vec<NodeId> = in_degree
-            .iter()
-            .filter(|(_, &deg)| deg == 0)
-            .map(|(&node, _)| node)
-            .collect();
+        let mut queue: Vec<NodeId> =
+            in_degree.iter().filter(|(_, &deg)| deg == 0).map(|(&node, _)| node).collect();
 
         let mut result = Vec::new();
 
@@ -218,11 +208,7 @@ pub struct UnionFind {
 
 impl UnionFind {
     pub fn new(size: usize) -> Self {
-        Self {
-            parent: (0..size).collect(),
-            rank: vec![0; size],
-            resolved: HashMap::new(),
-        }
+        Self { parent: (0..size).collect(), rank: vec![0; size], resolved: HashMap::new() }
     }
 
     /// Find root with path compression
@@ -242,10 +228,7 @@ impl UnionFind {
         }
 
         // Check for type conflicts
-        match (
-            self.resolved.get(&rx).cloned(),
-            self.resolved.get(&ry).cloned(),
-        ) {
+        match (self.resolved.get(&rx).cloned(), self.resolved.get(&ry).cloned()) {
             (Some(tx), Some(ty)) if tx != ty => {
                 // Try coercion
                 if let Some(common) = coerce_types(&tx, &ty) {
@@ -434,11 +417,7 @@ impl TypeUnifier {
             self.constraints.push(Constraint::Assign(ret_var, concrete));
         }
 
-        let sig = FunctionSig {
-            name: func.name.clone(),
-            param_vars,
-            ret_var,
-        };
+        let sig = FunctionSig { name: func.name.clone(), param_vars, ret_var };
 
         self.signatures.insert(func.name.clone(), sig);
         self.var_map.insert(func.name.clone(), local_vars);
@@ -480,11 +459,7 @@ impl TypeUnifier {
                     self.analyze_expr(value, current_fn, caller_id);
                 }
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_expr(condition, current_fn, caller_id);
                 for s in then_body {
                     self.analyze_stmt(s, current_fn, caller_id);
@@ -611,10 +586,7 @@ impl TypeUnifier {
         }
         // Create new variable
         let var = self.fresh_var();
-        self.var_map
-            .entry(func_name.to_string())
-            .or_default()
-            .insert(var_name.to_string(), var);
+        self.var_map.entry(func_name.to_string()).or_default().insert(var_name.to_string(), var);
         var
     }
 
@@ -1319,18 +1291,9 @@ mod tests {
 
     #[test]
     fn test_coercion_lattice() {
-        assert_eq!(
-            coerce_types(&ConcreteType::I32, &ConcreteType::F64),
-            Some(ConcreteType::F64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::I64, &ConcreteType::I64),
-            Some(ConcreteType::I64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::Bool, &ConcreteType::String),
-            None
-        );
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::I64), Some(ConcreteType::I64));
+        assert_eq!(coerce_types(&ConcreteType::Bool, &ConcreteType::String), None);
     }
 
     #[test]
@@ -1347,74 +1310,38 @@ mod tests {
 
     #[test]
     fn test_coerce_i32_i64() {
-        assert_eq!(
-            coerce_types(&ConcreteType::I32, &ConcreteType::I64),
-            Some(ConcreteType::I64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::I64, &ConcreteType::I32),
-            Some(ConcreteType::I64)
-        );
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::I64), Some(ConcreteType::I64));
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::I32), Some(ConcreteType::I64));
     }
 
     #[test]
     fn test_coerce_f32_f64() {
-        assert_eq!(
-            coerce_types(&ConcreteType::F32, &ConcreteType::F64),
-            Some(ConcreteType::F64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::F64, &ConcreteType::F32),
-            Some(ConcreteType::F64)
-        );
+        assert_eq!(coerce_types(&ConcreteType::F32, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F64, &ConcreteType::F32), Some(ConcreteType::F64));
     }
 
     #[test]
     fn test_coerce_i32_f32() {
-        assert_eq!(
-            coerce_types(&ConcreteType::I32, &ConcreteType::F32),
-            Some(ConcreteType::F32)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::F32, &ConcreteType::I32),
-            Some(ConcreteType::F32)
-        );
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::F32), Some(ConcreteType::F32));
+        assert_eq!(coerce_types(&ConcreteType::F32, &ConcreteType::I32), Some(ConcreteType::F32));
     }
 
     #[test]
     fn test_coerce_i32_f64() {
-        assert_eq!(
-            coerce_types(&ConcreteType::I32, &ConcreteType::F64),
-            Some(ConcreteType::F64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::F64, &ConcreteType::I32),
-            Some(ConcreteType::F64)
-        );
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F64, &ConcreteType::I32), Some(ConcreteType::F64));
     }
 
     #[test]
     fn test_coerce_i64_f32() {
-        assert_eq!(
-            coerce_types(&ConcreteType::I64, &ConcreteType::F32),
-            Some(ConcreteType::F64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::F32, &ConcreteType::I64),
-            Some(ConcreteType::F64)
-        );
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::F32), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F32, &ConcreteType::I64), Some(ConcreteType::F64));
     }
 
     #[test]
     fn test_coerce_i64_f64() {
-        assert_eq!(
-            coerce_types(&ConcreteType::I64, &ConcreteType::F64),
-            Some(ConcreteType::F64)
-        );
-        assert_eq!(
-            coerce_types(&ConcreteType::F64, &ConcreteType::I64),
-            Some(ConcreteType::F64)
-        );
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F64, &ConcreteType::I64), Some(ConcreteType::F64));
     }
 
     #[test]
@@ -1444,10 +1371,7 @@ mod tests {
     #[test]
     fn test_coerce_incompatible() {
         assert_eq!(coerce_types(&ConcreteType::Bool, &ConcreteType::I64), None);
-        assert_eq!(
-            coerce_types(&ConcreteType::String, &ConcreteType::F64),
-            None
-        );
+        assert_eq!(coerce_types(&ConcreteType::String, &ConcreteType::F64), None);
         assert_eq!(coerce_types(&ConcreteType::Unit, &ConcreteType::Bool), None);
     }
 }

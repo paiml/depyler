@@ -94,9 +94,7 @@ pub struct CorpusRegistry {
 impl CorpusRegistry {
     /// Create a new empty registry.
     pub fn new() -> Self {
-        Self {
-            corpora: HashMap::new(),
-        }
+        Self { corpora: HashMap::new() }
     }
 
     /// Create a registry with built-in known corpora.
@@ -242,9 +240,8 @@ impl CorpusRegistry {
 
 /// Parse a corpus entry from TOML value.
 fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusEntry> {
-    let table = value
-        .as_table()
-        .ok_or_else(|| anyhow::anyhow!("Expected table for corpus {name}"))?;
+    let table =
+        value.as_table().ok_or_else(|| anyhow::anyhow!("Expected table for corpus {name}"))?;
 
     let path = table
         .get("path")
@@ -263,17 +260,11 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
     }
 
     if let Some(include) = table.get("include").and_then(|v| v.as_array()) {
-        entry.include = include
-            .iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect();
+        entry.include = include.iter().filter_map(|v| v.as_str().map(String::from)).collect();
     }
 
     if let Some(exclude) = table.get("exclude").and_then(|v| v.as_array()) {
-        entry.exclude = exclude
-            .iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect();
+        entry.exclude = exclude.iter().filter_map(|v| v.as_str().map(String::from)).collect();
     }
 
     if let Some(count) = table.get("file_count").and_then(|v| v.as_integer()) {

@@ -5,10 +5,10 @@
 
 pub mod annotation_aware_type_mapper;
 pub mod borrowing;
-pub mod container_element_inference;
 pub mod borrowing_context;
 pub mod borrowing_shim;
 pub mod const_generic_inference;
+pub mod container_element_inference;
 pub mod depylint;
 pub mod error_reporting;
 pub mod escape_analysis;

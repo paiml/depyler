@@ -99,13 +99,7 @@ impl ArgParserInfo {
     /// # Complexity
     /// 1 (struct initialization)
     pub fn new(parser_var: String) -> Self {
-        Self {
-            parser_var,
-            description: None,
-            epilog: None,
-            arguments: Vec::new(),
-            args_var: None,
-        }
+        Self { parser_var, description: None, epilog: None, arguments: Vec::new(), args_var: None }
     }
 
     /// Add an argument from add_argument() call
@@ -299,10 +293,7 @@ impl ArgParserArgument {
         }
 
         // Use explicit type or default to String
-        self.arg_type
-            .as_ref()
-            .map(type_to_rust_string)
-            .unwrap_or_else(|| "String".to_string())
+        self.arg_type.as_ref().map(type_to_rust_string).unwrap_or_else(|| "String".to_string())
     }
 }
 
@@ -683,11 +674,7 @@ pub fn generate_args_struct(
             );
             // DEPYLER-0370: nargs="+" or nargs=N (specific number) are required
             let is_required_nargs = arg.nargs.as_deref() == Some("+")
-                || arg
-                    .nargs
-                    .as_deref()
-                    .map(|s| s.parse::<usize>().is_ok())
-                    .unwrap_or(false);
+                || arg.nargs.as_deref().map(|s| s.parse::<usize>().is_ok()).unwrap_or(false);
 
             let field_type: syn::Type = if !arg.is_positional
                 && arg.required != Some(true)
@@ -921,10 +908,8 @@ pub fn analyze_subcommand_field_access(
     // This prevents false positives where a function parameter happens to have the same field name
     // as an argparse argument (e.g., `get_year(d: date)` where `d.year` was matching subcommand `year` field)
     // We check if any parser has this variable as its args_var
-    let is_args_variable = tracker
-        .parsers
-        .values()
-        .any(|p| p.args_var.as_ref().is_some_and(|av| av == args_param));
+    let is_args_variable =
+        tracker.parsers.values().any(|p| p.args_var.as_ref().is_some_and(|av| av == args_param));
     if !is_args_variable {
         return None;
     }
@@ -967,67 +952,25 @@ pub fn analyze_subcommand_field_access(
                     }
                 }
                 // Recurse into value
-                walk_expr(
-                    value,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirExpr::Binary { left, right, .. } => {
-                walk_expr(
-                    left,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                walk_expr(
-                    right,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(left, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(right, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirExpr::Unary { operand, .. } => {
-                walk_expr(
-                    operand,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(operand, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirExpr::Call { args, .. } => {
                 // Note: func is a Symbol, not an HirExpr
                 for arg in args {
-                    walk_expr(
-                        arg,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(arg, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
             }
             HirExpr::MethodCall { object, args, .. } => {
-                walk_expr(
-                    object,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(object, args_param, field_to_variant, accessed_fields, detected_variant);
                 for arg in args {
-                    walk_expr(
-                        arg,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(arg, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
             }
             HirExpr::List(elements)
@@ -1046,13 +989,7 @@ pub fn analyze_subcommand_field_access(
             }
             HirExpr::Dict(items) => {
                 for (key, value) in items {
-                    walk_expr(
-                        key,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(key, args_param, field_to_variant, accessed_fields, detected_variant);
                     walk_expr(
                         value,
                         args_param,
@@ -1063,87 +1000,28 @@ pub fn analyze_subcommand_field_access(
                 }
             }
             HirExpr::Index { base, index } => {
-                walk_expr(
-                    base,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                walk_expr(
-                    index,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(base, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(index, args_param, field_to_variant, accessed_fields, detected_variant);
             }
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
-                walk_expr(
-                    base,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+            HirExpr::Slice { base, start, stop, step } => {
+                walk_expr(base, args_param, field_to_variant, accessed_fields, detected_variant);
                 if let Some(s) = start {
-                    walk_expr(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
                 if let Some(s) = stop {
-                    walk_expr(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
                 if let Some(s) = step {
-                    walk_expr(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
             }
             HirExpr::Borrow { expr, .. } => {
-                walk_expr(
-                    expr,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant);
             }
-            HirExpr::ListComp {
-                element,
-                generators,
-            }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
                 // DEPYLER-0504: Support multiple generators
-                walk_expr(
-                    element,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(element, args_param, field_to_variant, accessed_fields, detected_variant);
                 for gen in generators {
                     walk_expr(
                         &gen.iter,
@@ -1163,26 +1041,10 @@ pub fn analyze_subcommand_field_access(
                     }
                 }
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 // DEPYLER-0504: Support multiple generators
-                walk_expr(
-                    key,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                walk_expr(
-                    value,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(key, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
                 for gen in generators {
                     walk_expr(
                         &gen.iter,
@@ -1203,13 +1065,7 @@ pub fn analyze_subcommand_field_access(
                 }
             }
             HirExpr::Lambda { body, .. } => {
-                walk_expr(
-                    body,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(body, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirExpr::FString { parts } => {
                 // DEPYLER-0425: Walk f-string interpolated expressions
@@ -1226,31 +1082,11 @@ pub fn analyze_subcommand_field_access(
                 }
             }
             HirExpr::IfExpr { test, body, orelse } => {
-                walk_expr(
-                    test,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                walk_expr(
-                    body,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                walk_expr(
-                    orelse,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(test, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(body, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(orelse, args_param, field_to_variant, accessed_fields, detected_variant);
             }
-            HirExpr::SortByKey {
-                iterable, key_body, ..
-            } => {
+            HirExpr::SortByKey { iterable, key_body, .. } => {
                 walk_expr(
                     iterable,
                     args_param,
@@ -1266,17 +1102,8 @@ pub fn analyze_subcommand_field_access(
                     detected_variant,
                 );
             }
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
-                walk_expr(
-                    element,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+            HirExpr::GeneratorExp { element, generators } => {
+                walk_expr(element, args_param, field_to_variant, accessed_fields, detected_variant);
                 for gen in generators {
                     walk_expr(
                         &gen.iter,
@@ -1297,22 +1124,10 @@ pub fn analyze_subcommand_field_access(
                 }
             }
             HirExpr::Await { value } => {
-                walk_expr(
-                    value,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirExpr::Yield { value: Some(v) } => {
-                walk_expr(
-                    v,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(v, args_param, field_to_variant, accessed_fields, detected_variant);
             }
             HirExpr::Yield { value: None } => {}
             _ => {}
@@ -1328,32 +1143,16 @@ pub fn analyze_subcommand_field_access(
         detected_variant: &mut Option<String>,
     ) {
         match stmt {
-            HirStmt::Expr(expr) => walk_expr(
-                expr,
-                args_param,
-                field_to_variant,
-                accessed_fields,
-                detected_variant,
-            ),
-            HirStmt::Assign { value, .. } => walk_expr(
-                value,
-                args_param,
-                field_to_variant,
-                accessed_fields,
-                detected_variant,
-            ),
-            HirStmt::Return(Some(expr)) => walk_expr(
-                expr,
-                args_param,
-                field_to_variant,
-                accessed_fields,
-                detected_variant,
-            ),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::Expr(expr) => {
+                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant)
+            }
+            HirStmt::Assign { value, .. } => {
+                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant)
+            }
+            HirStmt::Return(Some(expr)) => {
+                walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant)
+            }
+            HirStmt::If { condition, then_body, else_body } => {
                 walk_expr(
                     condition,
                     args_param,
@@ -1362,13 +1161,7 @@ pub fn analyze_subcommand_field_access(
                     detected_variant,
                 );
                 for s in then_body {
-                    walk_stmt(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
                 if let Some(else_stmts) = else_body {
                     for s in else_stmts {
@@ -1391,58 +1184,23 @@ pub fn analyze_subcommand_field_access(
                     detected_variant,
                 );
                 for s in body {
-                    walk_stmt(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
             }
             HirStmt::For { body, .. } => {
                 for s in body {
-                    walk_stmt(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
             }
             HirStmt::With { context, body, .. } => {
-                walk_expr(
-                    context,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(context, args_param, field_to_variant, accessed_fields, detected_variant);
                 for s in body {
-                    walk_stmt(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 for s in body {
-                    walk_stmt(
-                        s,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_stmt(s, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
                 for handler in handlers {
                     for s in &handler.body {
@@ -1479,13 +1237,7 @@ pub fn analyze_subcommand_field_access(
                 }
             }
             HirStmt::Assert { test, msg } => {
-                walk_expr(
-                    test,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
+                walk_expr(test, args_param, field_to_variant, accessed_fields, detected_variant);
                 if let Some(msg_expr) = msg {
                     walk_expr(
                         msg_expr,
@@ -1498,13 +1250,7 @@ pub fn analyze_subcommand_field_access(
             }
             HirStmt::Raise { exception, cause } => {
                 if let Some(exc) = exception {
-                    walk_expr(
-                        exc,
-                        args_param,
-                        field_to_variant,
-                        accessed_fields,
-                        detected_variant,
-                    );
+                    walk_expr(exc, args_param, field_to_variant, accessed_fields, detected_variant);
                 }
                 if let Some(cause_expr) = cause {
                     walk_expr(
@@ -1521,13 +1267,7 @@ pub fn analyze_subcommand_field_access(
     }
 
     for stmt in &func.body {
-        walk_stmt(
-            stmt,
-            args_param,
-            &field_to_variant,
-            &mut accessed_fields,
-            &mut detected_variant,
-        );
+        walk_stmt(stmt, args_param, &field_to_variant, &mut accessed_fields, &mut detected_variant);
     }
 
     // If we found a variant and accessed fields, return them
@@ -1620,21 +1360,13 @@ pub fn preregister_subcommands_from_hir(
 
     // Helper to extract keyword argument string value
     fn extract_kwarg_string_from_hir(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
-        kwargs
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| extract_string_from_hir(v))
+        kwargs.iter().find(|(k, _)| k == key).map(|(_, v)| extract_string_from_hir(v))
     }
 
     // Recursive walker for expressions
     fn walk_expr(expr: &HirExpr, tracker: &mut ArgParserTracker) {
         match expr {
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } if method == "add_parser" => {
+            HirExpr::MethodCall { object, method, args, kwargs } if method == "add_parser" => {
                 // Check if this is a call on a subparsers variable
                 if let HirExpr::Var(subparsers_var) = object.as_ref() {
                     if tracker.get_subparsers(subparsers_var).is_some() {
@@ -1678,12 +1410,7 @@ pub fn preregister_subcommands_from_hir(
             }
             // DEPYLER-0822: Handle add_argument() calls to extract type info
             // Pattern: top_parser.add_argument("n", type=int, ...)
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } if method == "add_argument" => {
+            HirExpr::MethodCall { object, method, args, kwargs } if method == "add_argument" => {
                 // DEPYLER-0822: Handle add_argument() calls to extract type info
                 if let HirExpr::Var(parser_var) = object.as_ref() {
                     // Try to find the subcommand - either directly by key, or via var_to_cmd mapping
@@ -1795,12 +1522,7 @@ pub fn preregister_subcommands_from_hir(
                     walk_expr(val, tracker);
                 }
             }
-            HirExpr::MethodCall {
-                object,
-                args,
-                kwargs,
-                ..
-            } => {
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
                 walk_expr(object, tracker);
                 for arg in args {
                     walk_expr(arg, tracker);
@@ -1843,11 +1565,7 @@ pub fn preregister_subcommands_from_hir(
     fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
         match stmt {
             HirStmt::Expr(expr) => walk_expr(expr, tracker),
-            HirStmt::Assign {
-                target,
-                value,
-                type_annotation: _,
-            } => {
+            HirStmt::Assign { target, value, type_annotation: _ } => {
                 // Special handling for ArgumentParser() assignments
                 // Pattern: parser = argparse.ArgumentParser(...)
                 // Can be either Call (ArgumentParser()) or MethodCall (argparse.ArgumentParser())
@@ -1894,13 +1612,7 @@ pub fn preregister_subcommands_from_hir(
 
                 // Special handling for add_subparsers() assignments
                 // Pattern: subparsers = parser.add_subparsers(...)
-                if let HirExpr::MethodCall {
-                    object,
-                    method,
-                    args,
-                    kwargs,
-                } = value
-                {
+                if let HirExpr::MethodCall { object, method, args, kwargs } = value {
                     if method == "add_subparsers" {
                         if let HirExpr::Var(parser_var) = object.as_ref() {
                             if tracker.get_parser(parser_var).is_some() {
@@ -1966,11 +1678,7 @@ pub fn preregister_subcommands_from_hir(
                 walk_expr(value, tracker);
             }
             HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 walk_expr(condition, tracker);
                 for s in then_body {
                     walk_stmt(s, tracker);
@@ -1992,12 +1700,7 @@ pub fn preregister_subcommands_from_hir(
                     walk_stmt(s, tracker);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 for s in body {
                     walk_stmt(s, tracker);
                 }
@@ -2060,51 +1763,30 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_pathbuf() {
-        assert_eq!(
-            type_to_rust_string(&Type::Custom("PathBuf".to_string())),
-            "PathBuf"
-        );
+        assert_eq!(type_to_rust_string(&Type::Custom("PathBuf".to_string())), "PathBuf");
     }
 
     #[test]
     fn test_type_to_rust_string_any_variants() {
         // DEPYLER-1020: In NASA mode (default), object/Any maps to String
-        assert_eq!(
-            type_to_rust_string(&Type::Custom("object".to_string())),
-            "String"
-        );
-        assert_eq!(
-            type_to_rust_string(&Type::Custom("Any".to_string())),
-            "String"
-        );
-        assert_eq!(
-            type_to_rust_string(&Type::Custom("any".to_string())),
-            "String"
-        );
+        assert_eq!(type_to_rust_string(&Type::Custom("object".to_string())), "String");
+        assert_eq!(type_to_rust_string(&Type::Custom("Any".to_string())), "String");
+        assert_eq!(type_to_rust_string(&Type::Custom("any".to_string())), "String");
     }
 
     #[test]
     fn test_type_to_rust_string_custom() {
-        assert_eq!(
-            type_to_rust_string(&Type::Custom("MyType".to_string())),
-            "MyType"
-        );
+        assert_eq!(type_to_rust_string(&Type::Custom("MyType".to_string())), "MyType");
     }
 
     #[test]
     fn test_type_to_rust_string_list() {
-        assert_eq!(
-            type_to_rust_string(&Type::List(Box::new(Type::Int))),
-            "Vec<i32>"
-        );
+        assert_eq!(type_to_rust_string(&Type::List(Box::new(Type::Int))), "Vec<i32>");
     }
 
     #[test]
     fn test_type_to_rust_string_optional() {
-        assert_eq!(
-            type_to_rust_string(&Type::Optional(Box::new(Type::String))),
-            "Option<String>"
-        );
+        assert_eq!(type_to_rust_string(&Type::Optional(Box::new(Type::String))), "Option<String>");
     }
 
     #[test]
@@ -2277,9 +1959,7 @@ mod tests {
     fn test_arg_rust_type_with_default() {
         let mut arg = ArgParserArgument::new("--encoding".to_string());
         arg.is_positional = false;
-        arg.default = Some(HirExpr::Literal(crate::hir::Literal::String(
-            "utf-8".to_string(),
-        )));
+        arg.default = Some(HirExpr::Literal(crate::hir::Literal::String("utf-8".to_string())));
         assert_eq!(arg.rust_type(), "String");
     }
 
@@ -2332,20 +2012,14 @@ mod tests {
     #[test]
     fn test_tracker_register_parser() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         assert!(tracker.has_parsers());
     }
 
     #[test]
     fn test_tracker_get_parser() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         assert!(tracker.get_parser("parser").is_some());
         assert!(tracker.get_parser("other").is_none());
     }
@@ -2353,10 +2027,7 @@ mod tests {
     #[test]
     fn test_tracker_get_parser_mut() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         if let Some(info) = tracker.get_parser_mut("parser") {
             info.description = Some("Test parser".to_string());
         }
@@ -2369,10 +2040,7 @@ mod tests {
     #[test]
     fn test_tracker_clear() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         tracker.register_group("group".to_string(), "parser".to_string());
         tracker.struct_generated = true;
         tracker.clear();
@@ -2384,30 +2052,18 @@ mod tests {
     #[test]
     fn test_tracker_register_group() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         tracker.register_group("input_group".to_string(), "parser".to_string());
-        assert_eq!(
-            tracker.get_parser_for_group("input_group"),
-            Some("parser".to_string())
-        );
+        assert_eq!(tracker.get_parser_for_group("input_group"), Some("parser".to_string()));
     }
 
     #[test]
     fn test_tracker_nested_groups() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         tracker.register_group("output_group".to_string(), "parser".to_string());
         tracker.register_group("format_group".to_string(), "output_group".to_string());
-        assert_eq!(
-            tracker.get_parser_for_group("format_group"),
-            Some("parser".to_string())
-        );
+        assert_eq!(tracker.get_parser_for_group("format_group"), Some("parser".to_string()));
     }
 
     #[test]
@@ -2450,10 +2106,7 @@ mod tests {
     fn test_tracker_get_first_parser() {
         let mut tracker = ArgParserTracker::new();
         assert!(tracker.get_first_parser().is_none());
-        tracker.register_parser(
-            "parser".to_string(),
-            ArgParserInfo::new("parser".to_string()),
-        );
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
         assert!(tracker.get_first_parser().is_some());
     }
 
@@ -2866,11 +2519,7 @@ mod tests {
         use quote::quote;
 
         let body_stmts = vec![quote! { do_something(); }];
-        let fields = vec![
-            "source".to_string(),
-            "dest".to_string(),
-            "force".to_string(),
-        ];
+        let fields = vec!["source".to_string(), "dest".to_string(), "force".to_string()];
         let result = wrap_body_with_subcommand_pattern(body_stmts, "Copy", &fields, "options");
 
         let code = result[0].to_string();
@@ -2895,11 +2544,8 @@ mod tests {
     fn test_wrap_body_with_subcommand_pattern_multiple_stmts() {
         use quote::quote;
 
-        let body_stmts = vec![
-            quote! { let x = 1; },
-            quote! { let y = 2; },
-            quote! { println!("{}", x + y); },
-        ];
+        let body_stmts =
+            vec![quote! { let x = 1; }, quote! { let y = 2; }, quote! { println!("{}", x + y); }];
         let result =
             wrap_body_with_subcommand_pattern(body_stmts, "Add", &["a".to_string()], "args");
 
@@ -3070,10 +2716,7 @@ mod tests {
         info.epilog = Some("For more info visit example.com".to_string());
 
         assert_eq!(info.description.as_deref(), Some("My CLI tool"));
-        assert_eq!(
-            info.epilog.as_deref(),
-            Some("For more info visit example.com")
-        );
+        assert_eq!(info.epilog.as_deref(), Some("For more info visit example.com"));
     }
 
     #[test]
@@ -3125,10 +2768,8 @@ mod tests {
             arguments: vec![],
             subparsers_var: "subparsers".to_string(),
         };
-        info.arguments
-            .push(ArgParserArgument::new("url".to_string()));
-        info.arguments
-            .push(ArgParserArgument::new("--depth".to_string()));
+        info.arguments.push(ArgParserArgument::new("url".to_string()));
+        info.arguments.push(ArgParserArgument::new("--depth".to_string()));
 
         assert_eq!(info.arguments.len(), 2);
     }
@@ -3178,8 +2819,7 @@ mod tests {
     fn test_generate_args_struct_with_description() {
         let mut info = ArgParserInfo::new("parser".to_string());
         info.description = Some("A fantastic CLI tool".to_string());
-        info.arguments
-            .push(ArgParserArgument::new("file".to_string()));
+        info.arguments.push(ArgParserArgument::new("file".to_string()));
 
         let tracker = ArgParserTracker::new();
         let result = generate_args_struct(&info, &tracker);

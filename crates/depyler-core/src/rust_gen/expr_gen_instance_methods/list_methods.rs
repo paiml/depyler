@@ -180,11 +180,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // In Rust, push() takes ownership. Clone String/Vec/HashMap vars
                     // to match Python semantics (especially important inside loops).
                     let needs_clone = if let Some(HirExpr::Var(name)) = hir_args.first() {
-                        self.ctx.var_types.get(name).map(|ty| matches!(
-                            ty,
-                            Type::String | Type::List(_) | Type::Dict(_, _)
-                                | Type::Set(_) | Type::Custom(_)
-                        )).unwrap_or(false)
+                        self.ctx
+                            .var_types
+                            .get(name)
+                            .map(|ty| {
+                                matches!(
+                                    ty,
+                                    Type::String
+                                        | Type::List(_)
+                                        | Type::Dict(_, _)
+                                        | Type::Set(_)
+                                        | Type::Custom(_)
+                                )
+                            })
+                            .unwrap_or(false)
                     } else {
                         false
                     };
@@ -469,7 +478,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #object_expr.push(#arg.to_string()) })
                 } else {
                     // DEPYLER-99MODE-S9: Clone String variables to prevent E0382 in loops
-                    let is_string_var = hir_args.first().map(|a| matches!(a, HirExpr::Var(_))).unwrap_or(false);
+                    let is_string_var =
+                        hir_args.first().map(|a| matches!(a, HirExpr::Var(_))).unwrap_or(false);
                     if is_string_var {
                         Ok(parse_quote! { #object_expr.push(#arg.clone()) })
                     } else {

@@ -57,11 +57,8 @@ pub struct ReportSummary {
 impl ReportSummary {
     pub fn from_counts(passed: usize, failed: usize) -> Self {
         let total_files = passed + failed;
-        let pass_rate = if total_files > 0 {
-            (passed as f64 / total_files as f64) * 100.0
-        } else {
-            0.0
-        };
+        let pass_rate =
+            if total_files > 0 { (passed as f64 / total_files as f64) * 100.0 } else { 0.0 };
 
         let status = if pass_rate >= 80.0 {
             "GREEN"
@@ -72,13 +69,7 @@ impl ReportSummary {
         }
         .to_string();
 
-        Self {
-            total_files,
-            passed,
-            failed,
-            pass_rate,
-            status,
-        }
+        Self { total_files, passed, failed, pass_rate, status }
     }
 }
 
@@ -365,10 +356,7 @@ pub fn format_text(report: &AdvancedReport) -> String {
     lines.push(String::new());
 
     // Summary
-    lines.push(format!(
-        "Status: {} [{:.1}%]",
-        report.summary.status, report.summary.pass_rate
-    ));
+    lines.push(format!("Status: {} [{:.1}%]", report.summary.status, report.summary.pass_rate));
     lines.push(format!(
         "Files: {} total, {} passed, {} failed",
         report.summary.total_files, report.summary.passed, report.summary.failed
@@ -410,10 +398,7 @@ pub fn format_text(report: &AdvancedReport) -> String {
         lines.push("ERROR CLUSTERS".to_string());
         lines.push("──────────────".to_string());
         for cluster in clusters.iter().take(3) {
-            lines.push(format!(
-                "  • {} ({} files)",
-                cluster.label, cluster.file_count
-            ));
+            lines.push(format!("  • {} ({} files)", cluster.label, cluster.file_count));
         }
         lines.push(String::new());
     }
@@ -512,10 +497,7 @@ mod tests {
 
     #[test]
     fn test_build_advanced_report_all_pass() {
-        let results = vec![
-            make_result("a.py", true, None),
-            make_result("b.py", true, None),
-        ];
+        let results = vec![make_result("a.py", true, None), make_result("b.py", true, None)];
         let config = AdvancedReportConfig::default();
         let report = build_advanced_report(&results, &config);
 
@@ -557,10 +539,7 @@ mod tests {
         assert_eq!(core.failed, 2);
         assert!((core.pass_rate - 80.0).abs() < 0.01);
 
-        let external = stats
-            .iter()
-            .find(|s| s.name == "External Packages")
-            .unwrap();
+        let external = stats.iter().find(|s| s.name == "External Packages").unwrap();
         assert_eq!(external.passed, 4);
         assert_eq!(external.failed, 6);
     }
@@ -591,10 +570,8 @@ mod tests {
 
     #[test]
     fn test_format_text() {
-        let results = vec![
-            make_result("a.py", true, None),
-            make_result("b.py", false, Some("E0308")),
-        ];
+        let results =
+            vec![make_result("a.py", true, None), make_result("b.py", false, Some("E0308"))];
         let config = AdvancedReportConfig::default();
         let report = build_advanced_report(&results, &config);
         let text = format_text(&report);

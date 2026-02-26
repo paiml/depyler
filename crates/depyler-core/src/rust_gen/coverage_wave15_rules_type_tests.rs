@@ -19,10 +19,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -363,7 +361,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_rules_043_if_else_basic() {
-        let code = "def f(x: int) -> int:\n    if x > 0:\n        return x\n    else:\n        return -x";
+        let code =
+            "def f(x: int) -> int:\n    if x > 0:\n        return x\n    else:\n        return -x";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("if"), "if else: {}", result);
@@ -427,7 +426,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_rules_051_try_except() {
-        let code = "def f() -> int:\n    try:\n        return 1\n    except Exception:\n        return 0";
+        let code =
+            "def f() -> int:\n    try:\n        return 1\n    except Exception:\n        return 0";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -809,7 +809,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_type_020_list_typed() {
-        let code = "from typing import List\ndef f(items: List[int]) -> int:\n    return len(items)";
+        let code =
+            "from typing import List\ndef f(items: List[int]) -> int:\n    return len(items)";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("Vec"), "list typed: {}", result);
@@ -825,7 +826,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_type_022_tuple_typed() {
-        let code = "from typing import Tuple\ndef f() -> Tuple[int, str]:\n    return (1, \"hello\")";
+        let code =
+            "from typing import Tuple\ndef f() -> Tuple[int, str]:\n    return (1, \"hello\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -856,7 +858,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_type_026_nested_list() {
-        let code = "from typing import List\ndef f(items: List[List[int]]) -> int:\n    return len(items)";
+        let code =
+            "from typing import List\ndef f(items: List[List[int]]) -> int:\n    return len(items)";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("Vec"), "nested list: {}", result);
@@ -974,7 +977,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_type_042_complex_return_list_int() {
-        let code = "from typing import List\ndef f(n: int) -> List[int]:\n    return list(range(n))";
+        let code =
+            "from typing import List\ndef f(n: int) -> List[int]:\n    return list(range(n))";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1139,7 +1143,11 @@ mod tests {
         let code = "def f(s: str) -> str:\n    return s.upper()";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_uppercase") || result.contains("to_ascii_uppercase"), "upper: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("to_ascii_uppercase"),
+            "upper: {}",
+            result
+        );
     }
 
     #[test]
@@ -1241,7 +1249,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_expr_018_list_extend() {
-        let code = "def f() -> list:\n    items = [1, 2]\n    items.extend([3, 4])\n    return items";
+        let code =
+            "def f() -> list:\n    items = [1, 2]\n    items.extend([3, 4])\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("extend"), "extend: {}", result);
@@ -1265,7 +1274,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_expr_021_enumerate_basic() {
-        let code = "def f(items: list) -> None:\n    for i, x in enumerate(items):\n        print(i, x)";
+        let code =
+            "def f(items: list) -> None:\n    for i, x in enumerate(items):\n        print(i, x)";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("enumerate"), "enumerate: {}", result);
@@ -1273,7 +1283,8 @@ mod tests {
 
     #[test]
     fn test_w15rt_expr_022_zip_basic() {
-        let code = "def f(xs: list, ys: list) -> None:\n    for a, b in zip(xs, ys):\n        print(a, b)";
+        let code =
+            "def f(xs: list, ys: list) -> None:\n    for a, b in zip(xs, ys):\n        print(a, b)";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("zip"), "zip: {}", result);
@@ -1529,7 +1540,11 @@ mod tests {
         let code = "def f(name: str) -> str:\n    return \"hello {}\".format(name)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("format!") || result.contains("format"), "format method: {}", result);
+        assert!(
+            result.contains("format!") || result.contains("format"),
+            "format method: {}",
+            result
+        );
     }
 
     #[test]

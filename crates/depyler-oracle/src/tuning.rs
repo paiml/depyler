@@ -22,11 +22,7 @@ pub struct TuningConfig {
 
 impl Default for TuningConfig {
     fn default() -> Self {
-        Self {
-            min_similarity: 0.1,
-            ngram_range: (1, 3),
-            error_code_weight: 2.0,
-        }
+        Self { min_similarity: 0.1, ngram_range: (1, 3), error_code_weight: 2.0 }
     }
 }
 
@@ -76,12 +72,7 @@ pub fn evaluate_config(config: &TuningConfig, samples: &[TrainingSample]) -> Tun
         }
     }
 
-    TuningResult {
-        config: config.clone(),
-        accuracy: correct as f32 / n as f32,
-        correct,
-        total: n,
-    }
+    TuningResult { config: config.clone(), accuracy: correct as f32 / n as f32, correct, total: n }
 }
 
 /// Weight error codes by repeating them in the message.
@@ -91,9 +82,7 @@ fn weight_error_codes(message: &str, weight: f32) -> String {
         if let Some(code_end) = message[code_start..].find(']') {
             let code = &message[code_start..code_start + code_end + 1];
             let repeat_count = weight.round() as usize;
-            let repeated = std::iter::repeat_n(code, repeat_count)
-                .collect::<Vec<_>>()
-                .join(" ");
+            let repeated = std::iter::repeat_n(code, repeat_count).collect::<Vec<_>>().join(" ");
             return format!("{} {}", repeated, message);
         }
     }
@@ -150,26 +139,10 @@ pub fn quick_tune() -> TuningResult {
 
     // Test key configurations
     let configs = [
-        TuningConfig {
-            min_similarity: 0.1,
-            ngram_range: (1, 3),
-            error_code_weight: 2.0,
-        },
-        TuningConfig {
-            min_similarity: 0.15,
-            ngram_range: (1, 3),
-            error_code_weight: 3.0,
-        },
-        TuningConfig {
-            min_similarity: 0.1,
-            ngram_range: (1, 2),
-            error_code_weight: 3.0,
-        },
-        TuningConfig {
-            min_similarity: 0.05,
-            ngram_range: (1, 4),
-            error_code_weight: 2.0,
-        },
+        TuningConfig { min_similarity: 0.1, ngram_range: (1, 3), error_code_weight: 2.0 },
+        TuningConfig { min_similarity: 0.15, ngram_range: (1, 3), error_code_weight: 3.0 },
+        TuningConfig { min_similarity: 0.1, ngram_range: (1, 2), error_code_weight: 3.0 },
+        TuningConfig { min_similarity: 0.05, ngram_range: (1, 4), error_code_weight: 2.0 },
     ];
 
     configs
@@ -199,11 +172,8 @@ mod tests {
 
     #[test]
     fn test_tuning_config_clone() {
-        let config = TuningConfig {
-            min_similarity: 0.5,
-            ngram_range: (2, 4),
-            error_code_weight: 3.0,
-        };
+        let config =
+            TuningConfig { min_similarity: 0.5, ngram_range: (2, 4), error_code_weight: 3.0 };
         let cloned = config.clone();
         assert_eq!(cloned.min_similarity, 0.5);
         assert_eq!(cloned.ngram_range, (2, 4));
@@ -234,12 +204,8 @@ mod tests {
 
     #[test]
     fn test_tuning_result_debug() {
-        let result = TuningResult {
-            config: TuningConfig::default(),
-            accuracy: 0.8,
-            correct: 8,
-            total: 10,
-        };
+        let result =
+            TuningResult { config: TuningConfig::default(), accuracy: 0.8, correct: 8, total: 10 };
         let debug = format!("{:?}", result);
         assert!(debug.contains("TuningResult"));
         assert!(debug.contains("accuracy"));

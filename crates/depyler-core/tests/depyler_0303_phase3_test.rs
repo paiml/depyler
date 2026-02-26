@@ -17,9 +17,7 @@ def create_from_lists(keys: list[str], values: list[int]) -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .into_iter() for owned collections
     assert!(
@@ -28,21 +26,13 @@ def create_from_lists(keys: list[str], values: list[int]) -> dict[str, int]:
     );
 
     // Should NOT use .iter() which yields references
-    assert!(
-        !rust_code.contains("keys.iter().zip"),
-        "Should NOT use .iter() for owned collections"
-    );
+    assert!(!rust_code.contains("keys.iter().zip"), "Should NOT use .iter() for owned collections");
 
     // Verify it compiles by checking for owned type
     // The result should be HashMap<String, i32>, not HashMap<&String, &i32>
     // Check the function definition specifically, not the entire file (which includes DepylerValue runtime)
-    let fn_start = rust_code
-        .find("fn create_from_lists")
-        .expect("Function not found");
-    let fn_end = rust_code[fn_start..]
-        .find('}')
-        .map(|i| fn_start + i)
-        .unwrap_or(rust_code.len());
+    let fn_start = rust_code.find("fn create_from_lists").expect("Function not found");
+    let fn_end = rust_code[fn_start..].find('}').map(|i| fn_start + i).unwrap_or(rust_code.len());
     let fn_code = &rust_code[fn_start..fn_end];
     assert!(
         !fn_code.contains("&&"),
@@ -60,15 +50,10 @@ def pair_lists(a: list[str], b: list[int]) -> list[tuple[str, int]]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .into_iter() for both parameters
-    assert!(
-        rust_code.contains(".into_iter()"),
-        "Should use .into_iter() for owned parameters"
-    );
+    assert!(rust_code.contains(".into_iter()"), "Should use .into_iter() for owned parameters");
 
     println!("Generated Rust code:\n{}", rust_code);
 }
@@ -83,9 +68,7 @@ def merge_with_pipe(d1: dict[str, int], d2: dict[str, int]) -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should translate | operator to extend or clone+extend pattern
     // Note: Exact pattern depends on implementation, but should NOT use | operator
@@ -116,9 +99,7 @@ def average_values(d: dict[str, int]) -> float:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should NOT have redundant .collect().iter() pattern
     assert!(
@@ -143,9 +124,7 @@ def sum_list(nums: list[int]) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Should use .iter().sum directly, not .collect().iter().sum
     assert!(
@@ -175,15 +154,10 @@ def process_lists(keys: list[str], values: list[int]) -> float:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Fix #6: zip should use .into_iter()
-    assert!(
-        rust_code.contains(".into_iter()"),
-        "Should use .into_iter() for zip()"
-    );
+    assert!(rust_code.contains(".into_iter()"), "Should use .into_iter() for zip()");
 
     // Fix #8: sum should not have redundant .collect().iter()
     assert!(
@@ -203,9 +177,7 @@ def zip_literals() -> dict[str, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // List literals are also owned, should use .into_iter()
     assert!(

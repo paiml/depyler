@@ -14,11 +14,7 @@ pub enum RepairResult {
     /// Fix was successfully applied and verified
     Success(Fix),
     /// Fix found but confidence too low - needs human review
-    NeedsHumanReview {
-        fix: Fix,
-        confidence: f64,
-        reason: String,
-    },
+    NeedsHumanReview { fix: Fix, confidence: f64, reason: String },
     /// No applicable fix found
     NoFixFound,
 }
@@ -346,11 +342,7 @@ mod tests {
     use super::*;
 
     fn create_test_repro(error_code: &str, source: &str) -> ReproCase {
-        ReproCase::new(
-            source.to_string(),
-            error_code.to_string(),
-            "test_pattern".to_string(),
-        )
+        ReproCase::new(source.to_string(), error_code.to_string(), "test_pattern".to_string())
     }
 
     #[test]
@@ -458,11 +450,8 @@ mod tests {
         let debug_str = format!("{:?}", no_fix);
         assert!(debug_str.contains("NoFixFound"));
 
-        let needs_review = RepairResult::NeedsHumanReview {
-            fix,
-            confidence: 0.5,
-            reason: "low conf".to_string(),
-        };
+        let needs_review =
+            RepairResult::NeedsHumanReview { fix, confidence: 0.5, reason: "low conf".to_string() };
         let debug_str = format!("{:?}", needs_review);
         assert!(debug_str.contains("NeedsHumanReview"));
     }
@@ -796,10 +785,7 @@ mod tests {
         let repro = create_test_repro("E0382", "def f(x): y = x");
         let result = engine.attempt_repair(&repro).unwrap();
 
-        if let RepairResult::NeedsHumanReview {
-            reason, confidence, ..
-        } = result
-        {
+        if let RepairResult::NeedsHumanReview { reason, confidence, .. } = result {
             assert!(reason.contains("below threshold"));
             assert!(confidence < 0.95);
         } else {

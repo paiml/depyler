@@ -17,16 +17,12 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_walrus_in_if() {
-    assert!(transpiles(
-        "def f(data):\n    if (n := len(data)) > 0:\n        return n"
-    ));
+    assert!(transpiles("def f(data):\n    if (n := len(data)) > 0:\n        return n"));
 }
 
 #[test]
 fn test_walrus_in_while() {
-    assert!(transpiles(
-        "def f(items):\n    while (item := items.pop()):\n        print(item)"
-    ));
+    assert!(transpiles("def f(items):\n    while (item := items.pop()):\n        print(item)"));
 }
 
 #[test]
@@ -231,16 +227,12 @@ fn test_listcomp_with_if() {
 
 #[test]
 fn test_listcomp_nested() {
-    assert!(transpiles(
-        "x = [[i * j for j in range(3)] for i in range(3)]"
-    ));
+    assert!(transpiles("x = [[i * j for j in range(3)] for i in range(3)]"));
 }
 
 #[test]
 fn test_listcomp_multiple_for() {
-    assert!(transpiles(
-        "x = [(i, j) for i in range(3) for j in range(3)]"
-    ));
+    assert!(transpiles("x = [(i, j) for i in range(3) for j in range(3)]"));
 }
 
 #[test]
@@ -259,9 +251,7 @@ fn test_dictcomp_simple() {
 
 #[test]
 fn test_dictcomp_with_if() {
-    assert!(transpiles(
-        "x = {i: i * 2 for i in range(10) if i % 2 == 0}"
-    ));
+    assert!(transpiles("x = {i: i * 2 for i in range(10) if i % 2 == 0}"));
 }
 
 #[test]
@@ -289,30 +279,22 @@ fn test_setcomp_with_if() {
 
 #[test]
 fn test_genexp_sum() {
-    assert!(transpiles(
-        "def f():\n    return sum(i * 2 for i in range(10))"
-    ));
+    assert!(transpiles("def f():\n    return sum(i * 2 for i in range(10))"));
 }
 
 #[test]
 fn test_genexp_any() {
-    assert!(transpiles(
-        "def f(lst):\n    return any(x > 5 for x in lst)"
-    ));
+    assert!(transpiles("def f(lst):\n    return any(x > 5 for x in lst)"));
 }
 
 #[test]
 fn test_genexp_all() {
-    assert!(transpiles(
-        "def f(lst):\n    return all(x > 0 for x in lst)"
-    ));
+    assert!(transpiles("def f(lst):\n    return all(x > 0 for x in lst)"));
 }
 
 #[test]
 fn test_genexp_list() {
-    assert!(transpiles(
-        "def f():\n    return list(i * 2 for i in range(5))"
-    ));
+    assert!(transpiles("def f():\n    return list(i * 2 for i in range(5))"));
 }
 
 // =============================================================================
@@ -326,16 +308,12 @@ fn test_ternary_simple() {
 
 #[test]
 fn test_ternary_nested() {
-    assert!(transpiles(
-        "def f(x):\n    return 'a' if x > 0 else 'b' if x < 0 else 'c'"
-    ));
+    assert!(transpiles("def f(x):\n    return 'a' if x > 0 else 'b' if x < 0 else 'c'"));
 }
 
 #[test]
 fn test_ternary_with_call() {
-    assert!(transpiles(
-        "def f(lst):\n    return lst[0] if len(lst) > 0 else None"
-    ));
+    assert!(transpiles("def f(lst):\n    return lst[0] if len(lst) > 0 else None"));
 }
 
 // =============================================================================
@@ -359,23 +337,17 @@ fn test_lambda_no_param() {
 
 #[test]
 fn test_lambda_in_sorted() {
-    assert!(transpiles(
-        "def f(lst):\n    return sorted(lst, key=lambda x: x[1])"
-    ));
+    assert!(transpiles("def f(lst):\n    return sorted(lst, key=lambda x: x[1])"));
 }
 
 #[test]
 fn test_lambda_in_filter() {
-    assert!(transpiles(
-        "def f(lst):\n    return list(filter(lambda x: x > 0, lst))"
-    ));
+    assert!(transpiles("def f(lst):\n    return list(filter(lambda x: x > 0, lst))"));
 }
 
 #[test]
 fn test_lambda_in_map() {
-    assert!(transpiles(
-        "def f(lst):\n    return list(map(lambda x: x * 2, lst))"
-    ));
+    assert!(transpiles("def f(lst):\n    return list(map(lambda x: x * 2, lst))"));
 }
 
 // =============================================================================
@@ -394,9 +366,7 @@ fn test_fstring_expr() {
 
 #[test]
 fn test_fstring_multiple() {
-    assert!(transpiles(
-        "def f(a, b):\n    return f'{a} + {b} = {a + b}'"
-    ));
+    assert!(transpiles("def f(a, b):\n    return f'{a} + {b} = {a + b}'"));
 }
 
 #[test]
@@ -410,16 +380,12 @@ fn test_fstring_nested_braces() {
 
 #[test]
 fn test_await_simple() {
-    assert!(transpiles(
-        "async def f():\n    result = await some_async_func()\n    return result"
-    ));
+    assert!(transpiles("async def f():\n    result = await some_async_func()\n    return result"));
 }
 
 #[test]
 fn test_await_in_expr() {
-    assert!(transpiles(
-        "async def f():\n    return await fetch_data() + await fetch_more()"
-    ));
+    assert!(transpiles("async def f():\n    return await fetch_data() + await fetch_more()"));
 }
 
 // =============================================================================
@@ -433,9 +399,7 @@ fn test_yield_simple() {
 
 #[test]
 fn test_yield_from() {
-    assert!(transpiles(
-        "def gen():\n    for i in range(5):\n        yield i"
-    ));
+    assert!(transpiles("def gen():\n    for i in range(5):\n        yield i"));
 }
 
 #[test]
@@ -449,9 +413,7 @@ fn test_yield_with_return() {
 
 #[test]
 fn test_str_methods_chain() {
-    assert!(transpiles(
-        "def f(s):\n    return s.strip().lower().replace('a', 'b')"
-    ));
+    assert!(transpiles("def f(s):\n    return s.strip().lower().replace('a', 'b')"));
 }
 
 #[test]
@@ -775,16 +737,12 @@ fn test_kwargs_simple() {
 
 #[test]
 fn test_kwargs_multiple() {
-    assert!(transpiles(
-        "def f():\n    print('a', 'b', sep=', ', end='\\n')"
-    ));
+    assert!(transpiles("def f():\n    print('a', 'b', sep=', ', end='\\n')"));
 }
 
 #[test]
 fn test_kwargs_sorted_reverse() {
-    assert!(transpiles(
-        "def f(lst):\n    return sorted(lst, reverse=True)"
-    ));
+    assert!(transpiles("def f(lst):\n    return sorted(lst, reverse=True)"));
 }
 
 #[test]
@@ -798,17 +756,13 @@ fn test_kwargs_sorted_key() {
 
 #[test]
 fn test_borrow_expr() {
-    assert!(transpiles(
-        "def f(lst):\n    for item in lst:\n        print(item)"
-    ));
+    assert!(transpiles("def f(lst):\n    for item in lst:\n        print(item)"));
 }
 
 #[test]
 fn test_dynamic_call() {
     // Function stored in variable
-    assert!(transpiles(
-        "def f():\n    func = len\n    return func([1, 2, 3])"
-    ));
+    assert!(transpiles("def f():\n    func = len\n    return func([1, 2, 3])"));
 }
 
 #[test]

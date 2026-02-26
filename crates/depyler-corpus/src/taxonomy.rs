@@ -126,13 +126,7 @@ impl RustError {
 
         let category = ErrorCategory::from_error_code(&code);
 
-        Some(Self {
-            code,
-            message,
-            file: String::new(),
-            line: None,
-            category,
-        })
+        Some(Self { code, message, file: String::new(), line: None, category })
     }
 
     /// Parse multiple errors from compiler output.
@@ -192,12 +186,7 @@ impl ErrorTaxonomy {
         let total_files = results.len();
         let blockers = Self::analyze_blockers(&by_code, total_files);
 
-        Self {
-            errors,
-            by_category,
-            by_code,
-            blockers,
-        }
+        Self { errors, by_category, by_code, blockers }
     }
 
     fn analyze_blockers(by_code: &HashMap<String, usize>, total: usize) -> Vec<BlockerInfo> {
@@ -234,10 +223,7 @@ impl ErrorTaxonomy {
 
     /// Get blockers by priority level.
     pub fn blockers_by_priority(&self, priority: BlockerPriority) -> Vec<&BlockerInfo> {
-        self.blockers
-            .iter()
-            .filter(|b| b.priority == priority)
-            .collect()
+        self.blockers.iter().filter(|b| b.priority == priority).collect()
     }
 }
 
@@ -250,103 +236,40 @@ mod tests {
 
     #[test]
     fn test_error_category_from_code() {
-        assert_eq!(
-            ErrorCategory::from_error_code("E0308"),
-            ErrorCategory::TypeMismatch
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0412"),
-            ErrorCategory::UndefinedType
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0425"),
-            ErrorCategory::UndefinedValue
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E9999"),
-            ErrorCategory::Other
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0308"), ErrorCategory::TypeMismatch);
+        assert_eq!(ErrorCategory::from_error_code("E0412"), ErrorCategory::UndefinedType);
+        assert_eq!(ErrorCategory::from_error_code("E0425"), ErrorCategory::UndefinedValue);
+        assert_eq!(ErrorCategory::from_error_code("E9999"), ErrorCategory::Other);
     }
 
     #[test]
     fn test_error_category_from_code_all_variants() {
         // TypeAnnotation
-        assert_eq!(
-            ErrorCategory::from_error_code("E0282"),
-            ErrorCategory::TypeAnnotation
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0282"), ErrorCategory::TypeAnnotation);
         // TraitBound
-        assert_eq!(
-            ErrorCategory::from_error_code("E0277"),
-            ErrorCategory::TraitBound
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0277"), ErrorCategory::TraitBound);
         // BorrowCheck variants
-        assert_eq!(
-            ErrorCategory::from_error_code("E0502"),
-            ErrorCategory::BorrowCheck
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0503"),
-            ErrorCategory::BorrowCheck
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0505"),
-            ErrorCategory::BorrowCheck
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0502"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0503"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0505"), ErrorCategory::BorrowCheck);
         // Lifetime variants
-        assert_eq!(
-            ErrorCategory::from_error_code("E0106"),
-            ErrorCategory::Lifetime
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0621"),
-            ErrorCategory::Lifetime
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0106"), ErrorCategory::Lifetime);
+        assert_eq!(ErrorCategory::from_error_code("E0621"), ErrorCategory::Lifetime);
         // Syntax variants
-        assert_eq!(
-            ErrorCategory::from_error_code("E0061"),
-            ErrorCategory::Syntax
-        );
-        assert_eq!(
-            ErrorCategory::from_error_code("E0433"),
-            ErrorCategory::Syntax
-        );
+        assert_eq!(ErrorCategory::from_error_code("E0061"), ErrorCategory::Syntax);
+        assert_eq!(ErrorCategory::from_error_code("E0433"), ErrorCategory::Syntax);
     }
 
     #[test]
     fn test_error_category_description_all() {
-        assert_eq!(
-            ErrorCategory::TypeMismatch.description(),
-            "Type inference failure"
-        );
-        assert_eq!(
-            ErrorCategory::UndefinedType.description(),
-            "Generic parameter unresolved"
-        );
-        assert_eq!(
-            ErrorCategory::UndefinedValue.description(),
-            "Missing import/binding"
-        );
-        assert_eq!(
-            ErrorCategory::TypeAnnotation.description(),
-            "Insufficient type info"
-        );
-        assert_eq!(
-            ErrorCategory::TraitBound.description(),
-            "Missing trait implementation"
-        );
-        assert_eq!(
-            ErrorCategory::BorrowCheck.description(),
-            "Ownership violation"
-        );
-        assert_eq!(
-            ErrorCategory::Lifetime.description(),
-            "Missing lifetime annotation"
-        );
-        assert_eq!(
-            ErrorCategory::Syntax.description(),
-            "Malformed code generation"
-        );
+        assert_eq!(ErrorCategory::TypeMismatch.description(), "Type inference failure");
+        assert_eq!(ErrorCategory::UndefinedType.description(), "Generic parameter unresolved");
+        assert_eq!(ErrorCategory::UndefinedValue.description(), "Missing import/binding");
+        assert_eq!(ErrorCategory::TypeAnnotation.description(), "Insufficient type info");
+        assert_eq!(ErrorCategory::TraitBound.description(), "Missing trait implementation");
+        assert_eq!(ErrorCategory::BorrowCheck.description(), "Ownership violation");
+        assert_eq!(ErrorCategory::Lifetime.description(), "Missing lifetime annotation");
+        assert_eq!(ErrorCategory::Syntax.description(), "Malformed code generation");
         assert_eq!(ErrorCategory::Other.description(), "Uncategorized error");
     }
 
@@ -390,61 +313,34 @@ warning: unused variable"#;
     #[test]
     fn test_blocker_priority_from_frequency() {
         // P0: >20% or >=50 occurrences
-        assert_eq!(
-            BlockerPriority::from_frequency(50, 200),
-            BlockerPriority::P0Critical
-        );
-        assert_eq!(
-            BlockerPriority::from_frequency(50, 100),
-            BlockerPriority::P0Critical
-        );
+        assert_eq!(BlockerPriority::from_frequency(50, 200), BlockerPriority::P0Critical);
+        assert_eq!(BlockerPriority::from_frequency(50, 100), BlockerPriority::P0Critical);
 
         // P1: >10% or >=20 occurrences
-        assert_eq!(
-            BlockerPriority::from_frequency(20, 200),
-            BlockerPriority::P1High
-        );
+        assert_eq!(BlockerPriority::from_frequency(20, 200), BlockerPriority::P1High);
 
         // P2: >5% or >=10 occurrences
-        assert_eq!(
-            BlockerPriority::from_frequency(10, 200),
-            BlockerPriority::P2Medium
-        );
+        assert_eq!(BlockerPriority::from_frequency(10, 200), BlockerPriority::P2Medium);
 
         // P3: <5% and <10 occurrences
-        assert_eq!(
-            BlockerPriority::from_frequency(5, 200),
-            BlockerPriority::P3Low
-        );
+        assert_eq!(BlockerPriority::from_frequency(5, 200), BlockerPriority::P3Low);
     }
 
     #[test]
     fn test_blocker_priority_from_frequency_zero_total() {
         // Edge case: total == 0 should return P3Low
-        assert_eq!(
-            BlockerPriority::from_frequency(10, 0),
-            BlockerPriority::P3Low
-        );
+        assert_eq!(BlockerPriority::from_frequency(10, 0), BlockerPriority::P3Low);
     }
 
     #[test]
     fn test_blocker_priority_from_frequency_percentage_thresholds() {
         // Test boundary cases for percentage-based thresholds
         // P0: >20%
-        assert_eq!(
-            BlockerPriority::from_frequency(21, 100),
-            BlockerPriority::P0Critical
-        );
+        assert_eq!(BlockerPriority::from_frequency(21, 100), BlockerPriority::P0Critical);
         // P1: 10-20% (percentage > 10)
-        assert_eq!(
-            BlockerPriority::from_frequency(15, 100),
-            BlockerPriority::P1High
-        );
+        assert_eq!(BlockerPriority::from_frequency(15, 100), BlockerPriority::P1High);
         // P2: 5-10% (percentage > 5)
-        assert_eq!(
-            BlockerPriority::from_frequency(6, 100),
-            BlockerPriority::P2Medium
-        );
+        assert_eq!(BlockerPriority::from_frequency(6, 100), BlockerPriority::P2Medium);
     }
 
     #[test]
@@ -480,23 +376,15 @@ warning: unused variable"#;
     fn test_error_taxonomy_classify_with_errors() {
         let results = vec![
             make_result(Some("error[E0308]: mismatched types")),
-            make_result(Some(
-                "error[E0308]: mismatched types\nerror[E0412]: cannot find type",
-            )),
+            make_result(Some("error[E0308]: mismatched types\nerror[E0412]: cannot find type")),
             make_result(None), // Success case
         ];
 
         let taxonomy = ErrorTaxonomy::classify(&results);
 
         assert_eq!(taxonomy.errors.len(), 3);
-        assert_eq!(
-            taxonomy.by_category.get(&ErrorCategory::TypeMismatch),
-            Some(&2)
-        );
-        assert_eq!(
-            taxonomy.by_category.get(&ErrorCategory::UndefinedType),
-            Some(&1)
-        );
+        assert_eq!(taxonomy.by_category.get(&ErrorCategory::TypeMismatch), Some(&2));
+        assert_eq!(taxonomy.by_category.get(&ErrorCategory::UndefinedType), Some(&1));
         assert_eq!(taxonomy.by_code.get("E0308"), Some(&2));
         assert_eq!(taxonomy.by_code.get("E0412"), Some(&1));
     }

@@ -197,10 +197,7 @@ impl CorpusCITL {
                         .map_err(|e| OracleError::Model(e.to_string()))?;
 
                     // Track error categories
-                    self.error_categories
-                        .entry(error_code)
-                        .or_default()
-                        .push(category.clone());
+                    self.error_categories.entry(error_code).or_default().push(category.clone());
                 }
             }
         }
@@ -257,10 +254,7 @@ impl CorpusCITL {
                 .map_err(|e| OracleError::Model(e.to_string()))?;
 
             // Track error categories
-            self.error_categories
-                .entry(error_code)
-                .or_default()
-                .push(category.to_string());
+            self.error_categories.entry(error_code).or_default().push(category.to_string());
         }
 
         Ok(())
@@ -326,9 +320,7 @@ impl CorpusCITL {
     ///
     /// Returns error if file cannot be written.
     pub fn save_patterns(&self, path: &Path) -> Result<(), OracleError> {
-        self.pattern_store
-            .save_apr(path)
-            .map_err(|e| OracleError::Model(e.to_string()))
+        self.pattern_store.save_apr(path).map_err(|e| OracleError::Model(e.to_string()))
     }
 
     /// Load patterns from disk (APR format)
@@ -566,16 +558,13 @@ mod tests {
         let mut citl = CorpusCITL::new().unwrap();
 
         // Success
-        citl.ingest_pair("def f(): pass", Some("fn f() {}"), "simple")
-            .unwrap();
+        citl.ingest_pair("def f(): pass", Some("fn f() {}"), "simple").unwrap();
 
         // Failure
-        citl.ingest_pair("async def f(): await g()", None, "async_basic")
-            .unwrap();
+        citl.ingest_pair("async def f(): await g()", None, "async_basic").unwrap();
 
         // Success
-        citl.ingest_pair("x = 1 + 2", Some("let x = 1 + 2;"), "math")
-            .unwrap();
+        citl.ingest_pair("x = 1 + 2", Some("let x = 1 + 2;"), "math").unwrap();
 
         assert_eq!(citl.stats().total_pairs, 3);
         assert_eq!(citl.stats().success_pairs, 2);
@@ -599,14 +588,12 @@ mod tests {
 
         // Ingest some failures with stdin
         for _ in 0..5 {
-            citl.ingest_pair("import sys\ndata = sys.stdin.read()", None, "stdin_example")
-                .unwrap();
+            citl.ingest_pair("import sys\ndata = sys.stdin.read()", None, "stdin_example").unwrap();
         }
 
         // Ingest some successes without stdin
         for _ in 0..3 {
-            citl.ingest_pair("x = 1", Some("let x = 1;"), "simple")
-                .unwrap();
+            citl.ingest_pair("x = 1", Some("let x = 1;"), "simple").unwrap();
         }
 
         let top = citl.top_suspicious_decisions(10);
@@ -623,10 +610,8 @@ mod tests {
     fn test_error_categories_tracking() {
         let mut citl = CorpusCITL::new().unwrap();
 
-        citl.ingest_pair("stdin.read()", None, "log_parser")
-            .unwrap();
-        citl.ingest_pair("if (x := 1):", None, "walrus_operator")
-            .unwrap();
+        citl.ingest_pair("stdin.read()", None, "log_parser").unwrap();
+        citl.ingest_pair("if (x := 1):", None, "walrus_operator").unwrap();
 
         let categories = citl.error_categories();
         assert!(categories.contains_key("TRANSPILE_FAIL_LOG_PARSER"));

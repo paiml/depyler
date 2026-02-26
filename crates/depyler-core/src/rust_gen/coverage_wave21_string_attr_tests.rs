@@ -19,10 +19,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -57,7 +55,11 @@ mod tests {
     fn test_w21sa_004_title_method() {
         let code = "def f(s: str) -> str:\n    return s.title()\n";
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("to_uppercase"), "title: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("to_uppercase"),
+            "title: {}",
+            result
+        );
     }
 
     #[test]
@@ -78,21 +80,33 @@ mod tests {
     fn test_w21sa_007_ljust_with_fillchar() {
         let code = "def f(s: str) -> str:\n    return s.ljust(20, \"*\")\n";
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("format"), "ljust fillchar: {}", result);
+        assert!(
+            result.contains("width") || result.contains("format"),
+            "ljust fillchar: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_008_rjust_with_fillchar() {
         let code = "def f(s: str) -> str:\n    return s.rjust(20, \"#\")\n";
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("format"), "rjust fillchar: {}", result);
+        assert!(
+            result.contains("width") || result.contains("format"),
+            "rjust fillchar: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_009_partition_found() {
         let code = "def f(s: str):\n    return s.partition(\" \")\n";
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition found: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition found: {}",
+            result
+        );
     }
 
     #[test]
@@ -106,7 +120,13 @@ mod tests {
     fn test_w21sa_011_istitle_true_case() {
         let code = "def f(s: str) -> bool:\n    return s.istitle()\n";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("is_lowercase") || result.contains("istitle"), "istitle: {}", result);
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("is_lowercase")
+                || result.contains("istitle"),
+            "istitle: {}",
+            result
+        );
     }
 
     #[test]
@@ -134,7 +154,11 @@ mod tests {
     fn test_w21sa_015_isidentifier_true() {
         let code = "def f(s: str) -> bool:\n    return s.isidentifier()\n";
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("is_alphanumeric"), "isidentifier: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("is_alphanumeric"),
+            "isidentifier: {}",
+            result
+        );
     }
 
     #[test]
@@ -148,14 +172,22 @@ mod tests {
     fn test_w21sa_017_format_one_arg() {
         let code = "def f(name: str) -> str:\n    return \"Hello, {}!\".format(name)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format one arg: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format one arg: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_018_format_two_args() {
         let code = "def f(a: int, b: int) -> str:\n    return \"{} + {}\".format(a, b)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format two args: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format two args: {}",
+            result
+        );
     }
 
     #[test]
@@ -204,7 +236,11 @@ mod tests {
     fn test_w21sa_025_title_literal() {
         let code = "def f() -> str:\n    return \"hello world\".title()\n";
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("to_uppercase"), "title literal: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("to_uppercase"),
+            "title literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -246,7 +282,11 @@ mod tests {
     fn test_w21sa_031_isidentifier_underscore() {
         let code = "def f() -> bool:\n    return \"_private\".isidentifier()\n";
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("_"), "isidentifier underscore: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("_"),
+            "isidentifier underscore: {}",
+            result
+        );
     }
 
     #[test]
@@ -258,9 +298,14 @@ mod tests {
 
     #[test]
     fn test_w21sa_033_format_three_args() {
-        let code = "def f(a: int, b: int, c: int) -> str:\n    return \"{} + {} = {}\".format(a, b, c)\n";
+        let code =
+            "def f(a: int, b: int, c: int) -> str:\n    return \"{} + {} = {}\".format(a, b, c)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format three args: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format three args: {}",
+            result
+        );
     }
 
     #[test]
@@ -286,7 +331,8 @@ mod tests {
 
     #[test]
     fn test_w21sa_037_partition_assign() {
-        let code = "def f(s: str):\n    before, sep, after = s.partition(\",\")\n    return before\n";
+        let code =
+            "def f(s: str):\n    before, sep, after = s.partition(\",\")\n    return before\n";
         let result = transpile(code);
         assert!(!result.is_empty(), "partition assign: {}", result);
     }
@@ -323,7 +369,11 @@ mod tests {
     fn test_w21sa_042_format_string_arg() {
         let code = "def f(x: str) -> str:\n    return \"value: {}\".format(x)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format string arg: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format string arg: {}",
+            result
+        );
     }
 
     #[test]
@@ -379,7 +429,11 @@ mod tests {
     fn test_w21sa_050_format_mixed_types() {
         let code = "def f(name: str, age: int) -> str:\n    return \"Name: {}, Age: {}\".format(name, age)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format mixed: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format mixed: {}",
+            result
+        );
     }
 
     // ========================================================================
@@ -439,7 +493,11 @@ mod tests {
     fn test_w21sa_058_string_ascii_letters() {
         let code = "import string\ndef f() -> str:\n    return string.ascii_letters\n";
         let result = transpile(code);
-        assert!(result.contains("abcdef") || result.contains("ABCDEF"), "string.ascii_letters: {}", result);
+        assert!(
+            result.contains("abcdef") || result.contains("ABCDEF"),
+            "string.ascii_letters: {}",
+            result
+        );
     }
 
     #[test]
@@ -656,7 +714,11 @@ mod tests {
     fn test_w21sa_089_path_suffix_attr() {
         let code = "def f(path: str) -> str:\n    return path.suffix\n";
         let result = transpile(code);
-        assert!(result.contains("extension") || result.contains("suffix"), "path.suffix: {}", result);
+        assert!(
+            result.contains("extension") || result.contains("suffix"),
+            "path.suffix: {}",
+            result
+        );
     }
 
     #[test]
@@ -786,7 +848,11 @@ mod tests {
     fn test_w21sa_107_find_with_start() {
         let code = "def f(s: str) -> int:\n    return s.find(\"x\", 5)\n";
         let result = transpile(code);
-        assert!(result.contains("find") && (result.contains("5") || result.contains("usize")), "find with start: {}", result);
+        assert!(
+            result.contains("find") && (result.contains("5") || result.contains("usize")),
+            "find with start: {}",
+            result
+        );
     }
 
     #[test]
@@ -828,7 +894,11 @@ mod tests {
     fn test_w21sa_113_expandtabs_default() {
         let code = "def f(s: str) -> str:\n    return s.expandtabs()\n";
         let result = transpile(code);
-        assert!(result.contains("replace") && result.contains("8"), "expandtabs default: {}", result);
+        assert!(
+            result.contains("replace") && result.contains("8"),
+            "expandtabs default: {}",
+            result
+        );
     }
 
     #[test]
@@ -856,7 +926,11 @@ mod tests {
     fn test_w21sa_117_rsplit_no_args() {
         let code = "def f(s: str):\n    return s.rsplit()\n";
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("rev"), "rsplit no args: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("rev"),
+            "rsplit no args: {}",
+            result
+        );
     }
 
     #[test]
@@ -884,14 +958,22 @@ mod tests {
     fn test_w21sa_121_capitalize() {
         let code = "def f(s: str) -> str:\n    return s.capitalize()\n";
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_122_swapcase() {
         let code = "def f(s: str) -> str:\n    return s.swapcase()\n";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase"), "swapcase: {}", result);
+        assert!(
+            result.contains("is_uppercase") || result.contains("to_lowercase"),
+            "swapcase: {}",
+            result
+        );
     }
 
     #[test]
@@ -905,7 +987,11 @@ mod tests {
     fn test_w21sa_124_isprintable() {
         let code = "def f(s: str) -> bool:\n    return s.isprintable()\n";
         let result = transpile(code);
-        assert!(result.contains("is_control") || result.contains("printable"), "isprintable: {}", result);
+        assert!(
+            result.contains("is_control") || result.contains("printable"),
+            "isprintable: {}",
+            result
+        );
     }
 
     #[test]
@@ -982,21 +1068,33 @@ mod tests {
     fn test_w21sa_135_for_char_isprintable() {
         let code = "def f(s: str) -> int:\n    count = 0\n    for ch in s:\n        if ch.isprintable():\n            count = count + 1\n    return count\n";
         let result = transpile(code);
-        assert!(result.contains("is_control") || result.contains("printable"), "char isprintable: {}", result);
+        assert!(
+            result.contains("is_control") || result.contains("printable"),
+            "char isprintable: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_136_rsplit_with_maxsplit() {
         let code = "def f(s: str):\n    return s.rsplit(\",\", 2)\n";
         let result = transpile(code);
-        assert!(result.contains("rsplitn") || result.contains("rsplit"), "rsplit maxsplit: {}", result);
+        assert!(
+            result.contains("rsplitn") || result.contains("rsplit"),
+            "rsplit maxsplit: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_137_split_with_maxsplit() {
         let code = "def f(s: str):\n    return s.split(\",\", 2)\n";
         let result = transpile(code);
-        assert!(result.contains("splitn") || result.contains("split"), "split maxsplit: {}", result);
+        assert!(
+            result.contains("splitn") || result.contains("split"),
+            "split maxsplit: {}",
+            result
+        );
     }
 
     #[test]
@@ -1081,14 +1179,22 @@ mod tests {
     fn test_w21sa_149_capitalize_literal() {
         let code = "def f() -> str:\n    return \"hello\".capitalize()\n";
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize literal: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize literal: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_150_swapcase_literal() {
         let code = "def f() -> str:\n    return \"Hello\".swapcase()\n";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase"), "swapcase literal: {}", result);
+        assert!(
+            result.contains("is_uppercase") || result.contains("to_lowercase"),
+            "swapcase literal: {}",
+            result
+        );
     }
 
     // ========================================================================
@@ -1127,7 +1233,11 @@ mod tests {
     fn test_w21sa_155_fstring_with_method() {
         let code = "def f(s: str) -> str:\n    return f\"{s.upper()}\"\n";
         let result = transpile(code);
-        assert!(result.contains("format!") || result.contains("to_uppercase"), "fstring method: {}", result);
+        assert!(
+            result.contains("format!") || result.contains("to_uppercase"),
+            "fstring method: {}",
+            result
+        );
     }
 
     #[test]
@@ -1162,7 +1272,11 @@ mod tests {
     fn test_w21sa_160_repr_call() {
         let code = "def f(x: int) -> str:\n    return repr(x)\n";
         let result = transpile(code);
-        assert!(result.contains("format") || result.contains("Debug") || !result.is_empty(), "repr: {}", result);
+        assert!(
+            result.contains("format") || result.contains("Debug") || !result.is_empty(),
+            "repr: {}",
+            result
+        );
     }
 
     #[test]
@@ -1190,7 +1304,11 @@ mod tests {
     fn test_w21sa_164_format_method_single() {
         let code = "def f(x: int) -> str:\n    return \"value: {}\".format(x)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format single: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format single: {}",
+            result
+        );
     }
 
     #[test]
@@ -1225,7 +1343,11 @@ mod tests {
     fn test_w21sa_169_format_method_assign() {
         let code = "def f(x: int) -> str:\n    msg = \"value: {}\".format(x)\n    return msg\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format assign: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -1253,7 +1375,11 @@ mod tests {
     fn test_w21sa_173_str_of_float() {
         let code = "def f(x: float) -> str:\n    return str(x)\n";
         let result = transpile(code);
-        assert!(result.contains("to_string") || result.contains("format"), "str of float: {}", result);
+        assert!(
+            result.contains("to_string") || result.contains("format"),
+            "str of float: {}",
+            result
+        );
     }
 
     #[test]
@@ -1281,7 +1407,11 @@ mod tests {
     fn test_w21sa_177_format_with_str_arg() {
         let code = "def f(name: str) -> str:\n    return \"Hello {}!\".format(name)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format str arg: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format str arg: {}",
+            result
+        );
     }
 
     #[test]
@@ -1309,7 +1439,11 @@ mod tests {
     fn test_w21sa_181_format_four_args() {
         let code = "def f(a: int, b: int, c: int, d: int) -> str:\n    return \"{}-{}-{}-{}\".format(a, b, c, d)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format four: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format four: {}",
+            result
+        );
     }
 
     #[test]
@@ -1400,7 +1534,11 @@ mod tests {
     fn test_w21sa_194_fstring_with_lower() {
         let code = "def f(s: str) -> str:\n    return f\"{s.lower()}\"\n";
         let result = transpile(code);
-        assert!(result.contains("format!") || result.contains("to_lowercase"), "fstring lower: {}", result);
+        assert!(
+            result.contains("format!") || result.contains("to_lowercase"),
+            "fstring lower: {}",
+            result
+        );
     }
 
     #[test]
@@ -1435,13 +1573,21 @@ mod tests {
     fn test_w21sa_199_fstring_with_replace() {
         let code = "def f(s: str) -> str:\n    return f\"{s.replace('a', 'b')}\"\n";
         let result = transpile(code);
-        assert!(result.contains("format!") || result.contains("replace"), "fstring replace: {}", result);
+        assert!(
+            result.contains("format!") || result.contains("replace"),
+            "fstring replace: {}",
+            result
+        );
     }
 
     #[test]
     fn test_w21sa_200_format_five_args() {
         let code = "def f(a: int, b: int, c: int, d: int, e: int) -> str:\n    return \"{} {} {} {} {}\".format(a, b, c, d, e)\n";
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format"), "format five: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format"),
+            "format five: {}",
+            result
+        );
     }
 }

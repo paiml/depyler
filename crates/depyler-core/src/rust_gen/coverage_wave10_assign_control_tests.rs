@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -553,7 +551,8 @@ mod tests {
 
     #[test]
     fn test_w10ac_control_try_full_form() {
-        let code = "try:\n    pass\nexcept ValueError:\n    pass\nelse:\n    pass\nfinally:\n    pass";
+        let code =
+            "try:\n    pass\nexcept ValueError:\n    pass\nelse:\n    pass\nfinally:\n    pass";
         let result = transpile(code);
         assert!(result.contains("try") || result.len() > 0);
     }
@@ -1161,7 +1160,12 @@ mod tests {
     fn test_w10ac_class_multiple_inheritance() {
         let code = "class A:\n    pass\nclass B:\n    pass\nclass C(A, B):\n    pass";
         let result = transpile(code);
-        assert!(result.contains("A") || result.contains("B") || result.contains("C") || result.len() > 0);
+        assert!(
+            result.contains("A")
+                || result.contains("B")
+                || result.contains("C")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -1287,7 +1291,8 @@ mod tests {
 
     #[test]
     fn test_w10ac_except_custom_with_init() {
-        let code = "class MyError(Exception):\n    def __init__(self, msg):\n        self.msg = msg";
+        let code =
+            "class MyError(Exception):\n    def __init__(self, msg):\n        self.msg = msg";
         let result = transpile(code);
         assert!(result.contains("MyError") || result.len() > 0);
     }
@@ -1301,7 +1306,8 @@ mod tests {
 
     #[test]
     fn test_w10ac_except_nested_try() {
-        let code = "try:\n    try:\n        pass\n    except ValueError:\n        pass\nexcept:\n    pass";
+        let code =
+            "try:\n    try:\n        pass\n    except ValueError:\n        pass\nexcept:\n    pass";
         let result = transpile(code);
         assert!(result.contains("try") || result.len() > 0);
     }
@@ -1357,7 +1363,8 @@ mod tests {
 
     #[test]
     fn test_w10ac_except_multiple_with_as() {
-        let code = "try:\n    pass\nexcept ValueError as e1:\n    pass\nexcept TypeError as e2:\n    pass";
+        let code =
+            "try:\n    pass\nexcept ValueError as e1:\n    pass\nexcept TypeError as e2:\n    pass";
         let result = transpile(code);
         assert!(result.contains("e1") || result.contains("e2") || result.len() > 0);
     }

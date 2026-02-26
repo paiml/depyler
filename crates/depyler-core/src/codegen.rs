@@ -63,16 +63,10 @@ fn stmt_uses_hashmap(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => expr_uses_hashmap(value),
         HirStmt::Return(Some(expr)) => expr_uses_hashmap(expr),
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             expr_uses_hashmap(condition)
                 || function_body_uses_hashmap(then_body)
-                || else_body
-                    .as_ref()
-                    .is_some_and(|body| function_body_uses_hashmap(body))
+                || else_body.as_ref().is_some_and(|body| function_body_uses_hashmap(body))
         }
         HirStmt::While { condition, body } => {
             expr_uses_hashmap(condition) || function_body_uses_hashmap(body)
@@ -237,10 +231,7 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
         }
         Type::UnificationVar(id) => {
             // UnificationVar should never appear in final code generation
-            panic!(
-                "BUG: UnificationVar({}) encountered in codegen. Type inference incomplete.",
-                id
-            )
+            panic!("BUG: UnificationVar({}) encountered in codegen. Type inference incomplete.", id)
         }
     }
 }
@@ -462,10 +453,7 @@ fn handle_with_stmt(
     body: &[HirStmt],
 ) -> Result<proc_macro2::TokenStream> {
     let context_tokens = expr_to_rust_tokens(context)?;
-    let body_tokens: Vec<_> = body
-        .iter()
-        .map(stmt_to_rust_tokens)
-        .collect::<Result<_>>()?;
+    let body_tokens: Vec<_> = body.iter().map(stmt_to_rust_tokens).collect::<Result<_>>()?;
 
     if let Some(var_name) = target {
         let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
@@ -502,21 +490,16 @@ fn stmt_to_rust_tokens_with_scope(
                 Ok(quote! { return; })
             }
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => handle_if_stmt(condition, then_body, else_body, scope_tracker),
+        HirStmt::If { condition, then_body, else_body } => {
+            handle_if_stmt(condition, then_body, else_body, scope_tracker)
+        }
         HirStmt::While { condition, body } => handle_while_stmt(condition, body, scope_tracker),
         HirStmt::For { target, iter, body } => handle_for_stmt(target, iter, body, scope_tracker),
         HirStmt::Expr(expr) => {
             let expr_tokens = expr_to_rust_tokens(expr)?;
             Ok(quote! { #expr_tokens; })
         }
-        HirStmt::Raise {
-            exception,
-            cause: _,
-        } => {
+        HirStmt::Raise { exception, cause: _ } => {
             // Simple error handling for codegen - just generate a panic for now
             if let Some(exc) = exception {
                 let exc_tokens = expr_to_rust_tokens(exc)?;
@@ -543,18 +526,8 @@ fn stmt_to_rust_tokens_with_scope(
                 Ok(quote! { continue; })
             }
         }
-        HirStmt::With {
-            context,
-            target,
-            body,
-            ..
-        } => handle_with_stmt(context, target, body),
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse: _,
-            finalbody,
-        } => {
+        HirStmt::With { context, target, body, .. } => handle_with_stmt(context, target, body),
+        HirStmt::Try { body, handlers, orelse: _, finalbody } => {
             // Generate try body statements
             let try_stmts: Vec<_> = body
                 .iter()
@@ -712,20 +685,14 @@ fn call_expr_to_rust_tokens(func: &str, args: &[HirExpr]) -> Result<proc_macro2:
     }
 
     let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-    let arg_tokens: Vec<_> = args
-        .iter()
-        .map(expr_to_rust_tokens)
-        .collect::<Result<Vec<_>>>()?;
+    let arg_tokens: Vec<_> = args.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     Ok(quote! { #func_ident(#(#arg_tokens),*) })
 }
 
 /// Convert list literal to Rust vec! macro
 /// Complexity: 1 (within ≤10 target)
 fn list_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
-    let item_tokens: Vec<_> = items
-        .iter()
-        .map(expr_to_rust_tokens)
-        .collect::<Result<Vec<_>>>()?;
+    let item_tokens: Vec<_> = items.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     Ok(quote! { vec![#(#item_tokens),*] })
 }
 
@@ -751,10 +718,7 @@ fn dict_literal_to_rust_tokens(items: &[(HirExpr, HirExpr)]) -> Result<proc_macr
 /// Convert tuple literal to Rust tuple
 /// Complexity: 1 (within ≤10 target)
 fn tuple_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
-    let item_tokens: Vec<_> = items
-        .iter()
-        .map(expr_to_rust_tokens)
-        .collect::<Result<Vec<_>>>()?;
+    let item_tokens: Vec<_> = items.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     Ok(quote! { (#(#item_tokens),*) })
 }
 
@@ -778,10 +742,7 @@ fn method_call_to_rust_tokens(
 ) -> Result<proc_macro2::TokenStream> {
     let obj_tokens = expr_to_rust_tokens(object)?;
     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-    let arg_tokens: Vec<_> = args
-        .iter()
-        .map(expr_to_rust_tokens)
-        .collect::<Result<Vec<_>>>()?;
+    let arg_tokens: Vec<_> = args.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     Ok(quote! { #obj_tokens.#method_ident(#(#arg_tokens),*) })
 }
 
@@ -856,10 +817,8 @@ fn list_comp_to_rust_tokens(
 /// Complexity: 2 (if-else for params, within ≤10 target)
 fn lambda_to_rust_tokens(params: &[String], body: &HirExpr) -> Result<proc_macro2::TokenStream> {
     // Convert parameters to identifiers
-    let param_idents: Vec<proc_macro2::Ident> = params
-        .iter()
-        .map(|p| quote::format_ident!("{}", p))
-        .collect();
+    let param_idents: Vec<proc_macro2::Ident> =
+        params.iter().map(|p| quote::format_ident!("{}", p)).collect();
 
     // Convert body
     let body_tokens = expr_to_rust_tokens(body)?;
@@ -878,10 +837,7 @@ fn lambda_to_rust_tokens(params: &[String], body: &HirExpr) -> Result<proc_macro
 /// Convert set literal to Rust HashSet
 /// Complexity: 1 (within ≤10 target)
 fn set_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
-    let item_tokens: Vec<_> = items
-        .iter()
-        .map(expr_to_rust_tokens)
-        .collect::<Result<Vec<_>>>()?;
+    let item_tokens: Vec<_> = items.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     // DEPYLER-0623: Use fully qualified path for consistent HashSet resolution
     Ok(quote! {
         {
@@ -895,10 +851,7 @@ fn set_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStr
 /// Convert frozenset literal to Rust Arc<HashSet>
 /// Complexity: 1 (within ≤10 target)
 fn frozen_set_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
-    let item_tokens: Vec<_> = items
-        .iter()
-        .map(expr_to_rust_tokens)
-        .collect::<Result<Vec<_>>>()?;
+    let item_tokens: Vec<_> = items.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
     // DEPYLER-0623: Use fully qualified path for consistent HashSet resolution
     Ok(quote! {
         {
@@ -1008,22 +961,13 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             Ok(quote! { #value_tokens.#attr_ident })
         }
         HirExpr::Borrow { expr, mutable } => borrow_expr_to_rust_tokens(expr, *mutable),
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        } => method_call_to_rust_tokens(object, method, args),
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => slice_expr_to_rust_tokens(base, start, stop, step),
-        HirExpr::ListComp {
-            element,
-            generators,
-        } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
+            method_call_to_rust_tokens(object, method, args)
+        }
+        HirExpr::Slice { base, start, stop, step } => {
+            slice_expr_to_rust_tokens(base, start, stop, step)
+        }
+        HirExpr::ListComp { element, generators } => {
             // DEPYLER-0504: Legacy path - only support single generator for now
             if generators.len() != 1 {
                 bail!("Multiple generators not supported in legacy codegen path");
@@ -1041,10 +985,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         HirExpr::Lambda { params, body } => lambda_to_rust_tokens(params, body),
         HirExpr::Set(items) => set_literal_to_rust_tokens(items),
         HirExpr::FrozenSet(items) => frozen_set_to_rust_tokens(items),
-        HirExpr::SetComp {
-            element,
-            generators,
-        } => {
+        HirExpr::SetComp { element, generators } => {
             // DEPYLER-0504: Legacy path - only support single generator for now
             if generators.len() != 1 {
                 bail!("Multiple generators not supported in legacy codegen path");
@@ -1059,11 +1000,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             };
             set_comp_to_rust_tokens(element, &gen.target, &gen.iter, &condition)
         }
-        HirExpr::DictComp {
-            key,
-            value,
-            generators,
-        } => {
+        HirExpr::DictComp { key, value, generators } => {
             // DEPYLER-0504: Legacy path - only support single generator for now
             if generators.len() != 1 {
                 bail!("Multiple generators not supported in legacy codegen path");
@@ -1099,12 +1036,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             let orelse_tokens = expr_to_rust_tokens(orelse)?;
             Ok(quote! { if #test_tokens { #body_tokens } else { #orelse_tokens } })
         }
-        HirExpr::SortByKey {
-            iterable,
-            key_params,
-            key_body,
-            reverse_expr,
-        } => {
+        HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr } => {
             let iter_tokens = expr_to_rust_tokens(iterable)?;
             let body_tokens = expr_to_rust_tokens(key_body)?;
 
@@ -1155,10 +1087,8 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         // DEPYLER-0188: Dynamic call: handlers[name](args) → (handlers[name])(args)
         HirExpr::DynamicCall { callee, args, .. } => {
             let callee_tokens = expr_to_rust_tokens(callee)?;
-            let args_tokens: Vec<_> = args
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
+            let args_tokens: Vec<_> =
+                args.iter().map(expr_to_rust_tokens).collect::<Result<Vec<_>>>()?;
             Ok(quote! { (#callee_tokens)(#(#args_tokens),*) })
         }
     }
@@ -1221,10 +1151,7 @@ fn prettify_rust_code(code: String) -> String {
         .replace(" { ", " {\n    ")
         .replace(" } ", "\n}\n")
         .replace("} ;", "};")
-        .replace(
-            "use std :: collections :: HashMap ;",
-            "use std::collections::HashMap;",
-        )
+        .replace("use std :: collections :: HashMap ;", "use std::collections::HashMap;")
         // Fix method call spacing
         .replace(" . ", ".")
         // Fix operators with spaces BEFORE paren fixes
@@ -1356,10 +1283,7 @@ mod tests {
     fn test_type_conversion() {
         assert_eq!(type_to_rust_type(&Type::Int).to_string(), "i32");
         assert_eq!(type_to_rust_type(&Type::String).to_string(), "String");
-        assert_eq!(
-            type_to_rust_type(&Type::List(Box::new(Type::Int))).to_string(),
-            "Vec < i32 >"
-        );
+        assert_eq!(type_to_rust_type(&Type::List(Box::new(Type::Int))).to_string(), "Vec < i32 >");
         assert_eq!(
             type_to_rust_type(&Type::Optional(Box::new(Type::String))).to_string(),
             "Option < String >"
@@ -1389,9 +1313,9 @@ mod tests {
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
                 "positive".to_string(),
             ))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
-                Literal::String("negative".to_string()),
-            )))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
+                "negative".to_string(),
+            ))))]),
         };
 
         let tokens = stmt_to_rust_tokens(&if_stmt).unwrap();
@@ -1774,10 +1698,7 @@ mod tests {
     #[test]
     fn test_raise_without_exception() {
         let mut scope = ScopeTracker::new();
-        let stmt = HirStmt::Raise {
-            exception: None,
-            cause: None,
-        };
+        let stmt = HirStmt::Raise { exception: None, cause: None };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
         assert!(code.contains("panic"));
@@ -1788,9 +1709,7 @@ mod tests {
     #[test]
     fn test_break_with_label() {
         let mut scope = ScopeTracker::new();
-        let stmt = HirStmt::Break {
-            label: Some("outer".to_string()),
-        };
+        let stmt = HirStmt::Break { label: Some("outer".to_string()) };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
         assert!(code.contains("break"));
@@ -1811,9 +1730,7 @@ mod tests {
     #[test]
     fn test_continue_with_label() {
         let mut scope = ScopeTracker::new();
-        let stmt = HirStmt::Continue {
-            label: Some("outer".to_string()),
-        };
+        let stmt = HirStmt::Continue { label: Some("outer".to_string()) };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
         assert!(code.contains("continue"));
@@ -1861,15 +1778,9 @@ mod tests {
     fn test_with_statement_without_target() {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::With {
-            context: HirExpr::Call {
-                func: "lock".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            },
+            context: HirExpr::Call { func: "lock".to_string(), args: vec![], kwargs: vec![] },
             target: None,
-            body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
-                "critical".to_string(),
-            )))],
+            body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String("critical".to_string())))],
             is_async: false,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
@@ -2048,10 +1959,8 @@ mod tests {
 
     #[test]
     fn test_borrow_expr_generation() {
-        let borrow = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: true,
-        };
+        let borrow =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: true };
 
         let tokens = expr_to_rust_tokens(&borrow).unwrap();
         let code = tokens.to_string();
@@ -2097,10 +2006,8 @@ mod tests {
 
     #[test]
     fn test_unary_op_not() {
-        let not_expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let not_expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("x".to_string())) };
 
         let tokens = expr_to_rust_tokens(&not_expr).unwrap();
         let code = tokens.to_string();
@@ -2122,24 +2029,17 @@ mod tests {
     #[test]
     fn test_uses_hashmap_nested() {
         // Dict in List
-        let nested = Type::List(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        )));
+        let nested = Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(uses_hashmap(&nested));
 
         // Dict in Optional
-        let optional_dict = Type::Optional(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        )));
+        let optional_dict =
+            Type::Optional(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(uses_hashmap(&optional_dict));
 
         // Dict in Tuple
-        let tuple_dict = Type::Tuple(vec![
-            Type::Int,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        ]);
+        let tuple_dict =
+            Type::Tuple(vec![Type::Int, Type::Dict(Box::new(Type::String), Box::new(Type::Int))]);
         assert!(uses_hashmap(&tuple_dict));
 
         // Dict in Function type
@@ -2179,10 +2079,7 @@ mod tests {
 
     #[test]
     fn test_expr_uses_hashmap_in_unary() {
-        let unary = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Dict(vec![])),
-        };
+        let unary = HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Dict(vec![])) };
         assert!(expr_uses_hashmap(&unary));
     }
 
@@ -2215,11 +2112,8 @@ mod tests {
 
     #[test]
     fn test_stmt_uses_hashmap_in_if_condition() {
-        let if_stmt = HirStmt::If {
-            condition: HirExpr::Dict(vec![]),
-            then_body: vec![],
-            else_body: None,
-        };
+        let if_stmt =
+            HirStmt::If { condition: HirExpr::Dict(vec![]), then_body: vec![], else_body: None };
         assert!(stmt_uses_hashmap(&if_stmt));
     }
 
@@ -2245,10 +2139,7 @@ mod tests {
 
     #[test]
     fn test_stmt_uses_hashmap_in_while() {
-        let while_stmt = HirStmt::While {
-            condition: HirExpr::Dict(vec![]),
-            body: vec![],
-        };
+        let while_stmt = HirStmt::While { condition: HirExpr::Dict(vec![]), body: vec![] };
         assert!(stmt_uses_hashmap(&while_stmt));
 
         let while_body = HirStmt::While {
@@ -2308,11 +2199,7 @@ mod tests {
         assert!(!is_len_call(&other_call));
 
         // Wrong number of args
-        let wrong_args = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let wrong_args = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_len_call(&wrong_args));
     }
 
@@ -2450,12 +2337,8 @@ mod tests {
 
     #[test]
     fn test_comparison_operations() {
-        let ops = vec![
-            (BinOp::Gt, ">"),
-            (BinOp::GtEq, ">="),
-            (BinOp::LtEq, "<="),
-            (BinOp::NotEq, "!="),
-        ];
+        let ops =
+            vec![(BinOp::Gt, ">"), (BinOp::GtEq, ">="), (BinOp::LtEq, "<="), (BinOp::NotEq, "!=")];
 
         for (op, expected) in ops {
             let tokens = binop_to_rust_tokens(&op);
@@ -2465,11 +2348,7 @@ mod tests {
 
     #[test]
     fn test_bitwise_operations() {
-        let ops = vec![
-            (BinOp::BitAnd, "&"),
-            (BinOp::BitOr, "|"),
-            (BinOp::BitXor, "^"),
-        ];
+        let ops = vec![(BinOp::BitAnd, "&"), (BinOp::BitOr, "|"), (BinOp::BitXor, "^")];
 
         for (op, expected) in ops {
             let tokens = binop_to_rust_tokens(&op);
@@ -2533,10 +2412,8 @@ mod tests {
 
     #[test]
     fn test_function_type() {
-        let func_type = Type::Function {
-            params: vec![Type::Int, Type::String],
-            ret: Box::new(Type::Bool),
-        };
+        let func_type =
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) };
         let tokens = type_to_rust_type(&func_type);
         let code = tokens.to_string();
         assert!(code.contains("Fn") || code.contains("fn") || code.contains("impl"));
@@ -2568,10 +2445,8 @@ mod tests {
 
     #[test]
     fn test_array_type() {
-        let array = Type::Array {
-            element_type: Box::new(Type::Int),
-            size: ConstGeneric::Literal(10),
-        };
+        let array =
+            Type::Array { element_type: Box::new(Type::Int), size: ConstGeneric::Literal(10) };
         let tokens = type_to_rust_type(&array);
         let code = tokens.to_string();
         assert!(code.contains("[") || code.contains("i32"));
@@ -2682,9 +2557,7 @@ mod tests {
         assert_eq!(binop_to_rust_tokens(&BinOp::Div).to_string(), "/");
         assert_eq!(binop_to_rust_tokens(&BinOp::FloorDiv).to_string(), "/");
         assert_eq!(binop_to_rust_tokens(&BinOp::Mod).to_string(), "%");
-        assert!(binop_to_rust_tokens(&BinOp::Pow)
-            .to_string()
-            .contains("pow"));
+        assert!(binop_to_rust_tokens(&BinOp::Pow).to_string().contains("pow"));
         assert_eq!(binop_to_rust_tokens(&BinOp::Eq).to_string(), "==");
         assert_eq!(binop_to_rust_tokens(&BinOp::NotEq).to_string(), "!=");
         assert_eq!(binop_to_rust_tokens(&BinOp::Lt).to_string(), "<");
@@ -2698,12 +2571,8 @@ mod tests {
         assert_eq!(binop_to_rust_tokens(&BinOp::BitXor).to_string(), "^");
         assert_eq!(binop_to_rust_tokens(&BinOp::LShift).to_string(), "<<");
         assert_eq!(binop_to_rust_tokens(&BinOp::RShift).to_string(), ">>");
-        assert!(binop_to_rust_tokens(&BinOp::In)
-            .to_string()
-            .contains("contains"));
-        assert!(binop_to_rust_tokens(&BinOp::NotIn)
-            .to_string()
-            .contains("contains"));
+        assert!(binop_to_rust_tokens(&BinOp::In).to_string().contains("contains"));
+        assert!(binop_to_rust_tokens(&BinOp::NotIn).to_string().contains("contains"));
     }
 
     // Tests for unaryop_to_rust_tokens
@@ -2727,12 +2596,7 @@ mod tests {
 
     #[test]
     fn test_literal_to_rust_tokens_all_types() {
-        assert_eq!(
-            literal_to_rust_tokens(&Literal::Int(42))
-                .unwrap()
-                .to_string(),
-            "42i64"
-        );
+        assert_eq!(literal_to_rust_tokens(&Literal::Int(42)).unwrap().to_string(), "42i64");
         assert!(literal_to_rust_tokens(&Literal::Float(3.15))
             .unwrap()
             .to_string()
@@ -2741,22 +2605,9 @@ mod tests {
             .unwrap()
             .to_string()
             .contains("test"));
-        assert_eq!(
-            literal_to_rust_tokens(&Literal::Bool(true))
-                .unwrap()
-                .to_string(),
-            "true"
-        );
-        assert_eq!(
-            literal_to_rust_tokens(&Literal::Bool(false))
-                .unwrap()
-                .to_string(),
-            "false"
-        );
-        assert_eq!(
-            literal_to_rust_tokens(&Literal::None).unwrap().to_string(),
-            "None"
-        );
+        assert_eq!(literal_to_rust_tokens(&Literal::Bool(true)).unwrap().to_string(), "true");
+        assert_eq!(literal_to_rust_tokens(&Literal::Bool(false)).unwrap().to_string(), "false");
+        assert_eq!(literal_to_rust_tokens(&Literal::None).unwrap().to_string(), "None");
     }
 
     // Tests for type_to_rust_type edge cases
@@ -2787,19 +2638,14 @@ mod tests {
     // Tests for uses_hashmap edge cases
     #[test]
     fn test_uses_hashmap_in_optional() {
-        let ty = Type::Optional(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        )));
+        let ty = Type::Optional(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(uses_hashmap(&ty));
     }
 
     #[test]
     fn test_uses_hashmap_in_tuple() {
-        let ty = Type::Tuple(vec![
-            Type::Int,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        ]);
+        let ty =
+            Type::Tuple(vec![Type::Int, Type::Dict(Box::new(Type::String), Box::new(Type::Int))]);
         assert!(uses_hashmap(&ty));
     }
 

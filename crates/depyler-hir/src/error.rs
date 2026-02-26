@@ -31,11 +31,7 @@ pub enum ErrorKind {
     InvalidTypeAnnotation(String),
 
     #[error("Type mismatch")]
-    TypeMismatch {
-        expected: String,
-        found: String,
-        context: String,
-    },
+    TypeMismatch { expected: String, found: String, context: String },
 
     #[error("Code generation error")]
     CodeGenerationError(String),
@@ -59,12 +55,7 @@ pub struct TranspileError {
 impl TranspileError {
     /// Create a new error with the given kind
     pub fn new(kind: ErrorKind) -> Self {
-        Self {
-            kind,
-            location: None,
-            context: Vec::new(),
-            source: None,
-        }
+        Self { kind, location: None, context: Vec::new(), source: None }
     }
 
     /// Add location information to the error
@@ -132,18 +123,12 @@ impl TranspileError {
 
     /// Create transformation error
     pub fn transform_error(msg: impl Into<String>) -> Self {
-        Self::new(ErrorKind::CodeGenerationError(format!(
-            "Transformation failed: {}",
-            msg.into()
-        )))
+        Self::new(ErrorKind::CodeGenerationError(format!("Transformation failed: {}", msg.into())))
     }
 
     /// Create optimization error
     pub fn optimization_error(msg: impl Into<String>) -> Self {
-        Self::new(ErrorKind::InternalError(format!(
-            "Optimization failed: {}",
-            msg.into()
-        )))
+        Self::new(ErrorKind::InternalError(format!("Optimization failed: {}", msg.into())))
     }
 }
 
@@ -208,11 +193,7 @@ mod tests {
 
     #[test]
     fn test_source_location_new() {
-        let loc = SourceLocation {
-            file: "test.py".to_string(),
-            line: 10,
-            column: 5,
-        };
+        let loc = SourceLocation { file: "test.py".to_string(), line: 10, column: 5 };
         assert_eq!(loc.file, "test.py");
         assert_eq!(loc.line, 10);
         assert_eq!(loc.column, 5);
@@ -220,63 +201,35 @@ mod tests {
 
     #[test]
     fn test_source_location_display() {
-        let loc = SourceLocation {
-            file: "example.py".to_string(),
-            line: 42,
-            column: 8,
-        };
+        let loc = SourceLocation { file: "example.py".to_string(), line: 42, column: 8 };
         assert_eq!(format!("{}", loc), "example.py:42:8");
     }
 
     #[test]
     fn test_source_location_display_edge_cases() {
-        let loc = SourceLocation {
-            file: "".to_string(),
-            line: 0,
-            column: 0,
-        };
+        let loc = SourceLocation { file: "".to_string(), line: 0, column: 0 };
         assert_eq!(format!("{}", loc), ":0:0");
     }
 
     #[test]
     fn test_source_location_clone() {
-        let loc = SourceLocation {
-            file: "test.py".to_string(),
-            line: 1,
-            column: 1,
-        };
+        let loc = SourceLocation { file: "test.py".to_string(), line: 1, column: 1 };
         let cloned = loc.clone();
         assert_eq!(loc, cloned);
     }
 
     #[test]
     fn test_source_location_partial_eq() {
-        let loc1 = SourceLocation {
-            file: "a.py".to_string(),
-            line: 1,
-            column: 1,
-        };
-        let loc2 = SourceLocation {
-            file: "a.py".to_string(),
-            line: 1,
-            column: 1,
-        };
-        let loc3 = SourceLocation {
-            file: "b.py".to_string(),
-            line: 1,
-            column: 1,
-        };
+        let loc1 = SourceLocation { file: "a.py".to_string(), line: 1, column: 1 };
+        let loc2 = SourceLocation { file: "a.py".to_string(), line: 1, column: 1 };
+        let loc3 = SourceLocation { file: "b.py".to_string(), line: 1, column: 1 };
         assert_eq!(loc1, loc2);
         assert_ne!(loc1, loc3);
     }
 
     #[test]
     fn test_source_location_debug() {
-        let loc = SourceLocation {
-            file: "test.py".to_string(),
-            line: 5,
-            column: 10,
-        };
+        let loc = SourceLocation { file: "test.py".to_string(), line: 5, column: 10 };
         let debug = format!("{:?}", loc);
         assert!(debug.contains("SourceLocation"));
         assert!(debug.contains("test.py"));
@@ -362,11 +315,7 @@ mod tests {
 
     #[test]
     fn test_error_with_location() {
-        let loc = SourceLocation {
-            file: "test.py".to_string(),
-            line: 10,
-            column: 5,
-        };
+        let loc = SourceLocation { file: "test.py".to_string(), line: 10, column: 5 };
 
         let err = TranspileError::new(ErrorKind::ParseError).with_location(loc.clone());
 
@@ -394,11 +343,7 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let loc = SourceLocation {
-            file: "example.py".to_string(),
-            line: 25,
-            column: 10,
-        };
+        let loc = SourceLocation { file: "example.py".to_string(), line: 25, column: 10 };
 
         let err = TranspileError::new(ErrorKind::UnsupportedFeature("decorators".to_string()))
             .with_location(loc)
@@ -440,11 +385,7 @@ mod tests {
 
     #[test]
     fn test_error_builder_chain() {
-        let loc = SourceLocation {
-            file: "chain.py".to_string(),
-            line: 1,
-            column: 1,
-        };
+        let loc = SourceLocation { file: "chain.py".to_string(), line: 1, column: 1 };
         let source_err = std::io::Error::other("test");
 
         let err = TranspileError::new(ErrorKind::InternalError("test".to_string()))

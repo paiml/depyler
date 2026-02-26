@@ -101,11 +101,7 @@ fn extract_bool_var_from_let(trimmed: &str, vars: &mut Vec<String>) {
     let rest = rest.strip_prefix("mut ").unwrap_or(rest);
     if let Some(colon_pos) = rest.find(": bool") {
         let name = rest[..colon_pos].trim();
-        if !name.is_empty()
-            && name
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_')
-        {
+        if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
             vars.push(name.to_string());
         }
     }
@@ -125,10 +121,8 @@ fn extract_bool_var_from_for_loop(
     for param in vec_bool_params {
         let matches_param = iter_part.starts_with(&format!("{param}."))
             || iter_part.starts_with(&format!("{param} "));
-        let is_valid_ident = !loop_var.is_empty()
-            && loop_var
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_');
+        let is_valid_ident =
+            !loop_var.is_empty() && loop_var.chars().all(|c| c.is_alphanumeric() || c == '_');
         if matches_param && is_valid_ident {
             vars.push(loop_var.to_string());
         }
@@ -214,10 +208,8 @@ pub(super) fn fix_negation_on_non_bool(code: &str) -> String {
     // A variable like `v` may be `String` in a From impl and `bool` in a loop.
     // When ambiguous, do NOT rewrite - leaving `!v` for a bool is correct.
     let bool_vars = extract_bool_typed_vars(code);
-    let string_typed_vars: Vec<String> = string_typed_vars
-        .into_iter()
-        .filter(|v| !bool_vars.contains(v))
-        .collect();
+    let string_typed_vars: Vec<String> =
+        string_typed_vars.into_iter().filter(|v| !bool_vars.contains(v)).collect();
     if string_typed_vars.is_empty() {
         return code.to_string();
     }
@@ -246,9 +238,8 @@ fn replace_negation_with_is_empty(line: &str, sorted_vars: &[String]) -> String 
         let next_char = fixed[after_pos..].chars().next();
         // DEPYLER-99MODE-S9: Don't replace `!var.method()` - that's boolean negation
         // of the method result, NOT truthiness of the variable.
-        let is_word_boundary = next_char
-            .map(|c| !c.is_alphanumeric() && c != '_' && c != '.')
-            .unwrap_or(true);
+        let is_word_boundary =
+            next_char.map(|c| !c.is_alphanumeric() && c != '_' && c != '.').unwrap_or(true);
         if is_word_boundary {
             let empty_check = format!("{}.is_empty()", var);
             fixed = format!("{}{}{}", &fixed[..pos], empty_check, &fixed[after_pos..]);
@@ -333,23 +324,14 @@ fn try_replace_field_negation_at(line: &str, bang_pos: usize) -> Option<String> 
 
     // Replace `!ident.field` with `ident.field.is_empty()`
     let ident1 = &line[bang_pos + 1..dot_pos];
-    let replacement = format!(
-        "{}{}.{}.is_empty(){}",
-        &line[..bang_pos],
-        ident1,
-        field,
-        &line[field_end..]
-    );
+    let replacement =
+        format!("{}{}.{}.is_empty(){}", &line[..bang_pos], ident1, field, &line[field_end..]);
     Some(replacement)
 }
 
 /// Check if the byte before `bang_pos` is a valid prefix for negation.
 fn is_valid_negation_prefix(bytes: &[u8], bang_pos: usize) -> bool {
-    bang_pos == 0
-        || matches!(
-            bytes[bang_pos - 1],
-            b' ' | b'(' | b'=' | b'{' | b'|' | b'&' | b'\t'
-        )
+    bang_pos == 0 || matches!(bytes[bang_pos - 1], b' ' | b'(' | b'=' | b'{' | b'|' | b'&' | b'\t')
 }
 
 /// Parse an identifier starting at `start`, returning `(ident_str, dot_position)`.
@@ -414,15 +396,8 @@ pub(super) fn is_likely_bool_field(field: &str) -> bool {
         "exclude_",
     ];
     const BOOL_SUFFIXES: &[&str] = &["_enabled", "_flag", "_only"];
-    const BOOL_EXACT: &[&str] = &[
-        "verbose",
-        "debug",
-        "quiet",
-        "overwrite",
-        "resume",
-        "fp16",
-        "bf16",
-    ];
+    const BOOL_EXACT: &[&str] =
+        &["verbose", "debug", "quiet", "overwrite", "resume", "fp16", "bf16"];
 
     BOOL_PREFIXES.iter().any(|p| field.starts_with(p))
         || BOOL_SUFFIXES.iter().any(|s| field.ends_with(s))
@@ -447,10 +422,7 @@ pub(super) fn fix_not_trim_to_string(code: &str) -> String {
         if let Some(start) = before.rfind("(!") {
             let expr = &result[start + 2..end_pos];
             // Only fix if expr looks like a variable/field access
-            if expr
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
-            {
+            if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
                 let old = format!("(!{}{})", expr, ".trim().to_string()");
                 let new = format!("{}.trim().is_empty()", expr);
                 result = result.replacen(&old, &new, 1);
@@ -475,19 +447,11 @@ pub(super) fn fix_not_to_string(code: &str) -> String {
         let before = &result[..end_pos];
         if let Some(start) = before.rfind("(!") {
             let expr = &result[start + 2..end_pos];
-            if expr
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
-            {
+            if expr.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') {
                 let old = format!("(!{}.to_string())", expr);
                 if result[start..].starts_with(&old) {
                     let new = format!("{}.is_empty()", expr);
-                    result = format!(
-                        "{}{}{}",
-                        &result[..start],
-                        new,
-                        &result[start + old.len()..]
-                    );
+                    result = format!("{}{}{}", &result[..start], new, &result[start + old.len()..]);
                     search_from = start + new.len();
                     continue;
                 }

@@ -241,11 +241,7 @@ impl AccelerationPipeline {
                 if best.similarity >= self.config.min_gnn_similarity {
                     self.stats.gnn_fixes += 1;
                     // Get fix from the underlying error pattern if available
-                    let fix = best
-                        .pattern
-                        .error_pattern
-                        .as_ref()
-                        .map(|p| p.fix_diff.clone());
+                    let fix = best.pattern.error_pattern.as_ref().map(|p| p.fix_diff.clone());
                     return AnalysisResult {
                         error_message: error_message.to_string(),
                         error_code: error_code.map(String::from),

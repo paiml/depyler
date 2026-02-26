@@ -58,26 +58,20 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
 
     // Replace base64 operations with format! stubs
     // DEPYLER-1036: Handle both single-line and multi-line patterns
-    *formatted_code = formatted_code.replace(
-        "base64::engine::general_purpose::STANDARD.encode(",
-        "format!(\"{:?}\", ",
-    );
+    *formatted_code = formatted_code
+        .replace("base64::engine::general_purpose::STANDARD.encode(", "format!(\"{:?}\", ");
     *formatted_code = formatted_code.replace(
         "base64::engine::general_purpose::STANDARD\n        .encode(",
         "format!(\"{:?}\", ",
     );
-    *formatted_code = formatted_code.replace(
-        "base64::engine::general_purpose::STANDARD.decode(",
-        "format!(\"{:?}\", ",
-    );
+    *formatted_code = formatted_code
+        .replace("base64::engine::general_purpose::STANDARD.decode(", "format!(\"{:?}\", ");
     *formatted_code = formatted_code.replace(
         "base64::engine::general_purpose::STANDARD\n        .decode(",
         "format!(\"{:?}\", ",
     );
-    *formatted_code = formatted_code.replace(
-        "base64::engine::general_purpose::URL_SAFE.encode(",
-        "format!(\"{:?}\", ",
-    );
+    *formatted_code = formatted_code
+        .replace("base64::engine::general_purpose::URL_SAFE.encode(", "format!(\"{:?}\", ");
     *formatted_code = formatted_code.replace(
         "base64::engine::general_purpose::URL_SAFE\n        .encode(",
         "format!(\"{:?}\", ",
@@ -99,22 +93,14 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
     // DEPYLER-1036: Replace sha2 usages with std format stubs
     *formatted_code = formatted_code.replace("use sha2::Digest;\n", "");
     *formatted_code = formatted_code.replace("use sha2 :: Digest;\n", "");
-    *formatted_code = formatted_code.replace(
-        "sha2::Sha256::new()",
-        "std::collections::hash_map::DefaultHasher::new()",
-    );
-    *formatted_code = formatted_code.replace(
-        "sha2 :: Sha256 :: new()",
-        "std::collections::hash_map::DefaultHasher::new()",
-    );
-    *formatted_code = formatted_code.replace(
-        "Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>",
-        "format!(\"sha256_stub\")",
-    );
-    *formatted_code = formatted_code.replace(
-        "sha2::Sha512::new()",
-        "std::collections::hash_map::DefaultHasher::new()",
-    );
+    *formatted_code = formatted_code
+        .replace("sha2::Sha256::new()", "std::collections::hash_map::DefaultHasher::new()");
+    *formatted_code = formatted_code
+        .replace("sha2 :: Sha256 :: new()", "std::collections::hash_map::DefaultHasher::new()");
+    *formatted_code = formatted_code
+        .replace("Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>", "format!(\"sha256_stub\")");
+    *formatted_code = formatted_code
+        .replace("sha2::Sha512::new()", "std::collections::hash_map::DefaultHasher::new()");
 
     // DEPYLER-1036: Remove DynDigest and digest traits
     *formatted_code = formatted_code.replace("use digest::DynDigest;\n", "");
@@ -143,23 +129,15 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
     // DEPYLER-1036: Remove .unwrap() after format! (format! returns String, not Result)
     // Note: Be specific about which unwrap() to remove - don't use generic patterns
     // that would remove valid unwrap() calls (e.g., after .get_mut())
-    *formatted_code = formatted_code.replace(
-        "format!(\"{:?}\", encoded)\n        .unwrap()",
-        "format!(\"{:?}\", encoded)",
-    );
-    *formatted_code = formatted_code.replace(
-        "format!(\"{:?}\", data)\n        .unwrap()",
-        "format!(\"{:?}\", data)",
-    );
-    *formatted_code = formatted_code.replace(
-        "format!(\"{:?}\", b\"\")\n        .unwrap()",
-        "format!(\"{:?}\", b\"\")",
-    );
+    *formatted_code = formatted_code
+        .replace("format!(\"{:?}\", encoded)\n        .unwrap()", "format!(\"{:?}\", encoded)");
+    *formatted_code = formatted_code
+        .replace("format!(\"{:?}\", data)\n        .unwrap()", "format!(\"{:?}\", data)");
+    *formatted_code = formatted_code
+        .replace("format!(\"{:?}\", b\"\")\n        .unwrap()", "format!(\"{:?}\", b\"\")");
     // Remove .unwrap() only after specific format! patterns, not generically
-    *formatted_code = formatted_code.replace(
-        "format!(\"{:?}\", original)\n        .unwrap()",
-        "format!(\"{:?}\", original)",
-    );
+    *formatted_code = formatted_code
+        .replace("format!(\"{:?}\", original)\n        .unwrap()", "format!(\"{:?}\", original)");
 
     // DEPYLER-1036: Replace csv with std::io stubs
     *formatted_code =
@@ -200,14 +178,10 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
     // Add Default derive so Args::default() works as a stub for Args::parse()
     *formatted_code = formatted_code.replace("#[derive(clap::Parser)]\n", "#[derive(Default)]\n");
     *formatted_code = formatted_code.replace("#[derive(clap :: Parser)]\n", "#[derive(Default)]\n");
-    *formatted_code = formatted_code.replace(
-        "#[derive(clap::Parser, Debug)]\n",
-        "#[derive(Debug, Default)]\n",
-    );
-    *formatted_code = formatted_code.replace(
-        "#[derive(clap::Parser, Debug, Clone)]\n",
-        "#[derive(Debug, Clone, Default)]\n",
-    );
+    *formatted_code =
+        formatted_code.replace("#[derive(clap::Parser, Debug)]\n", "#[derive(Debug, Default)]\n");
+    *formatted_code = formatted_code
+        .replace("#[derive(clap::Parser, Debug, Clone)]\n", "#[derive(Debug, Clone, Default)]\n");
     // DEPYLER-1052: Also handle inline patterns (no newline after derive)
     *formatted_code = formatted_code.replace("#[derive(clap::Parser)] ", "#[derive(Default)] ");
     *formatted_code = formatted_code.replace("#[derive(clap :: Parser)] ", "#[derive(Default)] ");
@@ -223,10 +197,8 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
         formatted_code.replace("#[derive(clap :: Subcommand)] ", "#[derive(Default)] ");
     // Add a default unit variant to Commands enum
     // Pattern: "enum Commands {\n" -> "enum Commands {\n    #[default]\n    __DepylerNone,\n"
-    *formatted_code = formatted_code.replace(
-        "enum Commands {\n",
-        "enum Commands {\n    #[default]\n    __DepylerNone,\n",
-    );
+    *formatted_code = formatted_code
+        .replace("enum Commands {\n", "enum Commands {\n    #[default]\n    __DepylerNone,\n");
     // Add catch-all arm for the new variant in match statements
     // This is simpler than wrapping with Option
     *formatted_code = formatted_code.replace("#[command(author, version, about)]\n", "");
@@ -243,11 +215,8 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
             } else {
                 attr_end
             };
-            *formatted_code = format!(
-                "{}{}",
-                &formatted_code[..start],
-                &formatted_code[remove_end..]
-            );
+            *formatted_code =
+                format!("{}{}", &formatted_code[..start], &formatted_code[remove_end..]);
         } else {
             break;
         }
@@ -263,11 +232,8 @@ pub(super) fn apply_nasa_mode_fixes(formatted_code: &mut String) {
             } else {
                 attr_end
             };
-            *formatted_code = format!(
-                "{}{}",
-                &formatted_code[..start],
-                &formatted_code[remove_end..]
-            );
+            *formatted_code =
+                format!("{}{}", &formatted_code[..start], &formatted_code[remove_end..]);
         } else {
             break;
         }

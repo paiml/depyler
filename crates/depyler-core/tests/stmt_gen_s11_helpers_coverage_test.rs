@@ -18,10 +18,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -132,11 +130,7 @@ def sum_items(items: list) -> int:
 "#;
     let result = transpile(code);
     // item IS used, so it should NOT get _ prefix
-    assert!(
-        result.contains("item"),
-        "Should keep used loop var name. Got: {}",
-        result
-    );
+    assert!(result.contains("item"), "Should keep used loop var name. Got: {}", result);
 }
 
 #[test]
@@ -250,11 +244,7 @@ def get_mixed() -> list:
     return [1, 2.5, 3]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("vec!"),
-        "Should produce vec with promoted type. Got: {}",
-        result
-    );
+    assert!(result.contains("vec!"), "Should produce vec with promoted type. Got: {}", result);
 }
 
 // ============================================================================
@@ -270,11 +260,7 @@ def check(x: int) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("return"),
-        "Should handle early return in if. Got: {}",
-        result
-    );
+    assert!(result.contains("return"), "Should handle early return in if. Got: {}", result);
 }
 
 #[test]
@@ -287,11 +273,7 @@ def find_neg(items: list) -> int:
     return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("break"),
-        "Should handle early break in if. Got: {}",
-        result
-    );
+    assert!(result.contains("break"), "Should handle early break in if. Got: {}", result);
 }
 
 #[test]
@@ -306,11 +288,7 @@ def skip_neg(items: list) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("continue"),
-        "Should handle early continue in if. Got: {}",
-        result
-    );
+    assert!(result.contains("continue"), "Should handle early continue in if. Got: {}", result);
 }
 
 // ============================================================================
@@ -455,11 +433,7 @@ def matrix() -> list:
     return [[1, 2], [3, 4]]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("vec!"),
-        "Should handle nested lists. Got: {}",
-        result
-    );
+    assert!(result.contains("vec!"), "Should handle nested lists. Got: {}", result);
 }
 
 // ============================================================================
@@ -475,11 +449,7 @@ def check_flag(flag: bool) -> str:
     return "no"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("flag"),
-        "Should keep bool condition as-is. Got: {}",
-        result
-    );
+    assert!(result.contains("flag"), "Should keep bool condition as-is. Got: {}", result);
     // The function itself should not have is_empty or != 0 for a bool condition
     // Extract just the check_flag function body to avoid false positives from runtime code
     let func_start = result.find("fn check_flag").expect("function should exist");

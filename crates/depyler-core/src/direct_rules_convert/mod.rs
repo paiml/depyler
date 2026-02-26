@@ -28,7 +28,6 @@ use anyhow::{bail, Result};
 use quote::quote;
 use syn::{self, parse_quote};
 
-
 /// Convert HIR expressions to Rust expressions using strategy pattern
 #[allow(dead_code)]
 pub(crate) fn convert_expr(expr: &HirExpr, type_mapper: &TypeMapper) -> Result<syn::Expr> {
@@ -216,13 +215,7 @@ impl<'a> ExprConverter<'a> {
         param_types: std::collections::HashMap<String, Type>,
         class_field_types: std::collections::HashMap<String, Type>,
     ) -> Self {
-        Self {
-            type_mapper,
-            is_classmethod,
-            vararg_functions,
-            param_types,
-            class_field_types,
-        }
+        Self { type_mapper, is_classmethod, vararg_functions, param_types, class_field_types }
     }
 
     /// DEPYLER-0704: Check if expression returns a float type
@@ -250,10 +243,7 @@ impl<'a> ExprConverter<'a> {
             }
             HirExpr::MethodCall { method, .. } => {
                 // Common float-returning methods
-                matches!(
-                    method.as_str(),
-                    "mean" | "sum" | "std" | "norm" | "variance"
-                )
+                matches!(method.as_str(), "mean" | "sum" | "std" | "norm" | "variance")
             }
             _ => false,
         }
@@ -348,30 +338,21 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Call { func, args, .. } => self.convert_call(func, args),
             HirExpr::Index { base, index } => self.convert_index(base, index),
             // DEPYLER-0596: Add Slice support for string slicing with negative indices
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => self.convert_slice(base, start, stop, step),
+            HirExpr::Slice { base, start, stop, step } => {
+                self.convert_slice(base, start, stop, step)
+            }
             HirExpr::List(elts) => self.convert_list(elts),
             HirExpr::Dict(items) => self.convert_dict(items),
             HirExpr::Tuple(elts) => self.convert_tuple(elts),
             HirExpr::Set(elts) => self.convert_set(elts),
             HirExpr::FrozenSet(elts) => self.convert_frozenset(elts),
             HirExpr::Lambda { params, body } => self.convert_lambda(params, body),
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => self.convert_method_call(object, method, args),
+            HirExpr::MethodCall { object, method, args, .. } => {
+                self.convert_method_call(object, method, args)
+            }
             // DEPYLER-0188: Dynamic function call (e.g., handlers[name](args))
             HirExpr::DynamicCall { callee, args, .. } => self.convert_dynamic_call(callee, args),
-            HirExpr::ListComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators } => {
                 // DEPYLER-0504: Legacy path - only support single generator for now
                 if generators.len() != 1 {
                     bail!("Multiple generators not supported in direct rules path");
@@ -386,10 +367,7 @@ impl<'a> ExprConverter<'a> {
                 };
                 self.convert_list_comp(element, &gen.target, &gen.iter, &condition)
             }
-            HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::SetComp { element, generators } => {
                 // DEPYLER-0504: Legacy path - only support single generator for now
                 if generators.len() != 1 {
                     bail!("Multiple generators not supported in direct rules path");
@@ -404,11 +382,7 @@ impl<'a> ExprConverter<'a> {
                 };
                 self.convert_set_comp(element, &gen.target, &gen.iter, &condition)
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 // DEPYLER-0504: Legacy path - only support single generator for now
                 if generators.len() != 1 {
                     bail!("Multiple generators not supported in direct rules path");
@@ -438,10 +412,7 @@ impl<'a> ExprConverter<'a> {
             // DEPYLER-0764: GeneratorExp support for class methods
             // Python: (x for x in items) → Rust: items.iter().map(|x| x)
             // DEPYLER-1100: Propagate element type to loop variable for proper literal coercion
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::GeneratorExp { element, generators } => {
                 // Only support single generator for direct rules path
                 if generators.len() != 1 {
                     bail!("Multiple generators not supported in direct rules path");
@@ -482,12 +453,7 @@ impl<'a> ExprConverter<'a> {
                 }
             }
             // DEPYLER-0764: SortByKey support for sorted() with key parameter
-            HirExpr::SortByKey {
-                iterable,
-                key_params,
-                key_body,
-                reverse_expr,
-            } => {
+            HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr } => {
                 let iter_expr = self.convert(iterable)?;
                 let key_body_expr = self.convert(key_body)?;
 
@@ -527,10 +493,8 @@ impl<'a> ExprConverter<'a> {
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
     }
-
 }
 
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests;
-

@@ -55,12 +55,7 @@ fn make_function(name: &str, params: Vec<HirParam>, body: Vec<HirStmt>) -> HirFu
 }
 
 fn make_param(name: &str, ty: Type) -> HirParam {
-    HirParam {
-        name: name.to_string(),
-        ty,
-        default: None,
-        is_vararg: false,
-    }
+    HirParam { name: name.to_string(), ty, default: None, is_vararg: false }
 }
 
 // ============================================================================
@@ -140,10 +135,7 @@ def copy_dict_keys(d):
     // Dict modification during iteration is a common Python footgun
     // We expect either a warning or proper handling
     assert!(
-        warnings
-            .iter()
-            .any(|w| w.code == "DPL100" || w.code == "DPL101")
-            || warnings.is_empty(), // Some analyzers may not catch dict iteration
+        warnings.iter().any(|w| w.code == "DPL100" || w.code == "DPL101") || warnings.is_empty(), // Some analyzers may not catch dict iteration
         "Should handle dict iteration case"
     );
 }
@@ -267,9 +259,8 @@ def outer():
 
     // Closure capture is valid Python, should be handled properly
     // Either it compiles or we get a specific warning about closures
-    let has_closure_warning = warnings
-        .iter()
-        .any(|w| w.message.contains("closure") || w.message.contains("capture"));
+    let has_closure_warning =
+        warnings.iter().any(|w| w.message.contains("closure") || w.message.contains("capture"));
     let compiles_ok = warnings.is_empty();
 
     assert!(
@@ -458,10 +449,7 @@ def bad():
 "#,
     );
 
-    assert!(
-        warnings.iter().any(|w| w.code == "DPL101"),
-        "Should detect DPL101: list self-append"
-    );
+    assert!(warnings.iter().any(|w| w.code == "DPL101"), "Should detect DPL101: list self-append");
 }
 
 /// Test: Aliased mutable parameters
@@ -565,10 +553,7 @@ fn test_hostile_016_use_after_move_in_loop() {
 fn test_hostile_017_conditional_move() {
     let func = make_function(
         "bad",
-        vec![
-            make_param("data", Type::List(Box::new(Type::Int))),
-            make_param("flag", Type::Bool),
-        ],
+        vec![make_param("data", Type::List(Box::new(Type::Int))), make_param("flag", Type::Bool)],
         vec![
             HirStmt::If {
                 condition: make_var("flag"),
@@ -679,10 +664,7 @@ fn test_hostile_019_multiple_moves_same_var() {
 fn test_hostile_020_move_and_return_different_branches() {
     let func = make_function(
         "bad",
-        vec![
-            make_param("x", Type::List(Box::new(Type::Int))),
-            make_param("flag", Type::Bool),
-        ],
+        vec![make_param("x", Type::List(Box::new(Type::Int))), make_param("flag", Type::Bool)],
         vec![HirStmt::If {
             condition: make_var("flag"),
             then_body: vec![
@@ -775,10 +757,7 @@ fn test_poka_yoke_rejects_self_reference() {
 
     let result = check_poka_yoke(&func);
 
-    assert!(
-        result.is_err(),
-        "Should reject self-reference pattern with Poka-Yoke violation"
-    );
+    assert!(result.is_err(), "Should reject self-reference pattern with Poka-Yoke violation");
 
     if let Err(violation) = result {
         assert_eq!(violation.code, "DPL101");
@@ -816,8 +795,5 @@ fn test_ownership_fix_suggestions() {
         )
     });
 
-    assert!(
-        has_useful_fix || errors.is_empty(),
-        "Should suggest borrow or clone fix"
-    );
+    assert!(has_useful_fix || errors.is_empty(), "Should suggest borrow or clone fix");
 }

@@ -249,10 +249,7 @@ impl LambdaTestHarness {
 
     /// Add a custom test event
     pub fn add_test_event(&mut self, event_type: LambdaEventType, test_event: TestEvent) {
-        self.test_events
-            .entry(event_type)
-            .or_default()
-            .push(test_event);
+        self.test_events.entry(event_type).or_default().push(test_event);
     }
 
     /// Generate test suite for a Lambda function
@@ -1111,9 +1108,7 @@ mod tests {
     fn test_harness_creation() {
         let harness = LambdaTestHarness::new();
         assert!(!harness.test_events.is_empty());
-        assert!(harness
-            .test_events
-            .contains_key(&LambdaEventType::ApiGatewayProxyRequest));
+        assert!(harness.test_events.contains_key(&LambdaEventType::ApiGatewayProxyRequest));
         assert!(harness.test_events.contains_key(&LambdaEventType::S3Event));
         assert!(harness.test_events.contains_key(&LambdaEventType::SqsEvent));
     }
@@ -1140,10 +1135,8 @@ mod tests {
 
     #[test]
     fn test_harness_with_context() {
-        let ctx = TestContext {
-            function_name: "custom-func".to_string(),
-            ..TestContext::default()
-        };
+        let ctx =
+            TestContext { function_name: "custom-func".to_string(), ..TestContext::default() };
         let harness = LambdaTestHarness::new().with_context(ctx);
         assert_eq!(harness.test_context.function_name, "custom-func");
     }
@@ -1162,10 +1155,7 @@ mod tests {
 
         harness.add_test_event(LambdaEventType::ApiGatewayProxyRequest, custom_event);
 
-        let events = harness
-            .test_events
-            .get(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let events = harness.test_events.get(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
         assert!(events.iter().any(|e| e.name == "custom_test"));
     }
 
@@ -1286,9 +1276,7 @@ mod tests {
         let harness = LambdaTestHarness::new();
         let annotations = depyler_annotations::LambdaAnnotations::default();
 
-        let workflow = harness
-            .generate_github_actions_workflow(&annotations)
-            .unwrap();
+        let workflow = harness.generate_github_actions_workflow(&annotations).unwrap();
 
         assert!(workflow.contains("name: Lambda Function Tests"));
         assert!(workflow.contains("cargo lambda build"));
@@ -1303,9 +1291,7 @@ mod tests {
             ..Default::default()
         };
 
-        let workflow = harness
-            .generate_github_actions_workflow(&annotations)
-            .unwrap();
+        let workflow = harness.generate_github_actions_workflow(&annotations).unwrap();
 
         assert!(workflow.contains("--arm64"));
     }
@@ -1318,9 +1304,7 @@ mod tests {
             ..Default::default()
         };
 
-        let workflow = harness
-            .generate_github_actions_workflow(&annotations)
-            .unwrap();
+        let workflow = harness.generate_github_actions_workflow(&annotations).unwrap();
 
         assert!(workflow.contains("--x86-64"));
     }
@@ -1333,9 +1317,7 @@ mod tests {
             ..Default::default()
         };
 
-        let script = harness
-            .generate_cargo_lambda_test_script(&annotations)
-            .unwrap();
+        let script = harness.generate_cargo_lambda_test_script(&annotations).unwrap();
 
         assert!(script.contains("cargo lambda build"));
         assert!(script.contains("cargo lambda invoke"));
@@ -1347,9 +1329,7 @@ mod tests {
         let harness = LambdaTestHarness::new();
         let annotations = depyler_annotations::LambdaAnnotations::default();
 
-        let script = harness
-            .generate_cargo_lambda_test_script(&annotations)
-            .unwrap();
+        let script = harness.generate_cargo_lambda_test_script(&annotations).unwrap();
 
         assert!(script.contains("cargo lambda build"));
         assert!(script.contains("cargo test"));
@@ -1369,10 +1349,8 @@ mod tests {
     #[test]
     fn test_load_test_script() {
         let harness = LambdaTestHarness::new();
-        let annotations = depyler_annotations::LambdaAnnotations {
-            memory_size: 256,
-            ..Default::default()
-        };
+        let annotations =
+            depyler_annotations::LambdaAnnotations { memory_size: 256, ..Default::default() };
 
         let script = harness.generate_load_test_script(&annotations).unwrap();
 
@@ -1476,10 +1454,7 @@ mod tests {
     #[test]
     fn test_api_gateway_default_events() {
         let harness = LambdaTestHarness::new();
-        let events = harness
-            .test_events
-            .get(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let events = harness.test_events.get(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
 
         assert!(events.iter().any(|e| e.name == "basic_get_request"));
         assert!(events.iter().any(|e| e.name == "post_request_with_body"));

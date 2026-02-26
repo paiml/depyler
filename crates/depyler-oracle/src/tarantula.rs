@@ -139,11 +139,7 @@ impl TranspilerDecisionRecord {
     #[must_use]
     pub fn with_rust_snippet(mut self, snippet: impl Into<String>) -> Self {
         let s: String = snippet.into();
-        self.rust_snippet = Some(if s.len() > 100 {
-            format!("{}...", &s[..97])
-        } else {
-            s
-        });
+        self.rust_snippet = Some(if s.len() > 100 { format!("{}...", &s[..97]) } else { s });
         self
     }
 
@@ -218,10 +214,7 @@ impl TarantulaResult {
 
     #[must_use]
     pub fn score(&self, decision: TranspilerDecision) -> Option<f32> {
-        self.suspicious
-            .iter()
-            .find(|s| s.decision_type == decision)
-            .map(|s| s.suspiciousness)
+        self.suspicious.iter().find(|s| s.decision_type == decision).map(|s| s.suspiciousness)
     }
 }
 
@@ -242,11 +235,7 @@ impl TarantulaAnalyzer {
         };
         let citl = DecisionCITL::with_config(config)
             .map_err(|e| crate::OracleError::Model(e.to_string()))?;
-        Ok(Self {
-            citl,
-            session_id: 0,
-            error_associations: HashMap::new(),
-        })
+        Ok(Self { citl, session_id: 0, error_associations: HashMap::new() })
     }
 
     /// Record a successful transpilation session
@@ -337,17 +326,10 @@ impl TarantulaAnalyzer {
         }
 
         suspicious.sort_by(|a, b| {
-            b.suspiciousness
-                .partial_cmp(&a.suspiciousness)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.suspiciousness.partial_cmp(&a.suspiciousness).unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        TarantulaResult {
-            suspicious,
-            total_success,
-            total_failure,
-            stats,
-        }
+        TarantulaResult { suspicious, total_success, total_failure, stats }
     }
 
     /// Get session counts (success, failure)
@@ -359,9 +341,7 @@ impl TarantulaAnalyzer {
 
 impl std::fmt::Debug for TarantulaAnalyzer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TarantulaAnalyzer")
-            .field("sessions", &self.session_id)
-            .finish()
+        f.debug_struct("TarantulaAnalyzer").field("sessions", &self.session_id).finish()
     }
 }
 
@@ -372,10 +352,7 @@ mod tests {
     #[test]
     fn test_transpiler_decision_roundtrip() {
         for decision in TranspilerDecision::all() {
-            assert_eq!(
-                TranspilerDecision::parse(decision.as_str()),
-                Some(*decision)
-            );
+            assert_eq!(TranspilerDecision::parse(decision.as_str()), Some(*decision));
         }
     }
 
@@ -396,10 +373,8 @@ mod tests {
     #[test]
     fn test_analyzer_record_success() {
         let mut analyzer = TarantulaAnalyzer::new().unwrap();
-        let decisions = vec![TranspilerDecisionRecord::new(
-            TranspilerDecision::TypeInference,
-            "Inferred i32",
-        )];
+        let decisions =
+            vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "Inferred i32")];
         analyzer.record_success("test.py", decisions).unwrap();
         assert_eq!(analyzer.session_counts(), (1, 0));
     }
@@ -407,17 +382,10 @@ mod tests {
     #[test]
     fn test_analyzer_record_failure() {
         let mut analyzer = TarantulaAnalyzer::new().unwrap();
-        let decisions = vec![TranspilerDecisionRecord::new(
-            TranspilerDecision::TypeInference,
-            "wrong",
-        )];
+        let decisions =
+            vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "wrong")];
         analyzer
-            .record_failure(
-                "test.py",
-                decisions,
-                vec!["E0308".into()],
-                vec!["mismatch".into()],
-            )
+            .record_failure("test.py", decisions, vec!["E0308".into()], vec!["mismatch".into()])
             .unwrap();
         assert_eq!(analyzer.session_counts(), (0, 1));
     }
@@ -431,10 +399,7 @@ mod tests {
             analyzer
                 .record_success(
                     "good.py",
-                    vec![TranspilerDecisionRecord::new(
-                        TranspilerDecision::TypeInference,
-                        "good",
-                    )],
+                    vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "good")],
                 )
                 .unwrap();
         }
@@ -444,10 +409,7 @@ mod tests {
             analyzer
                 .record_failure(
                     "bad.py",
-                    vec![TranspilerDecisionRecord::new(
-                        TranspilerDecision::ModuleMapping,
-                        "bad",
-                    )],
+                    vec![TranspilerDecisionRecord::new(TranspilerDecision::ModuleMapping, "bad")],
                     vec!["E0433".into()],
                     vec![],
                 )
@@ -524,11 +486,7 @@ mod tests {
         // With no failures, the score should be 0.0 or not present
         let score = result.score(TranspilerDecision::TypeInference);
         if let Some(s) = score {
-            assert!(
-                s <= 0.01,
-                "Expected near-zero suspiciousness for all-pass, got {}",
-                s
-            );
+            assert!(s <= 0.01, "Expected near-zero suspiciousness for all-pass, got {}", s);
         }
         // None is also acceptable - decision not tracked as suspicious
     }
@@ -629,9 +587,7 @@ mod tests {
         assert_eq!(result.total_failure, 10);
         assert_eq!(result.total_success, 10);
 
-        let ownership_score = result
-            .score(TranspilerDecision::OwnershipInference)
-            .unwrap();
+        let ownership_score = result.score(TranspilerDecision::OwnershipInference).unwrap();
         let lifetime_score = result.score(TranspilerDecision::LifetimeInference).unwrap();
 
         // OwnershipInference (80% fail) should be MORE suspicious than
@@ -826,20 +782,14 @@ mod tests {
         let result = analyzer.analyze();
 
         // Find TypeInference in results and check error associations
-        let type_decision = result
-            .suspicious
-            .iter()
-            .find(|s| s.decision_type == TranspilerDecision::TypeInference);
+        let type_decision =
+            result.suspicious.iter().find(|s| s.decision_type == TranspilerDecision::TypeInference);
 
         assert!(type_decision.is_some());
         let type_decision = type_decision.unwrap();
         assert!(
-            type_decision
-                .associated_errors
-                .contains(&"E0308".to_string())
-                || type_decision
-                    .associated_errors
-                    .contains(&"E0433".to_string()),
+            type_decision.associated_errors.contains(&"E0308".to_string())
+                || type_decision.associated_errors.contains(&"E0433".to_string()),
             "TypeInference should have associated error codes"
         );
     }
@@ -867,10 +817,7 @@ mod tests {
         analyzer
             .record_success(
                 "success.py",
-                vec![TranspilerDecisionRecord::new(
-                    TranspilerDecision::ImportGeneration,
-                    "Import",
-                )],
+                vec![TranspilerDecisionRecord::new(TranspilerDecision::ImportGeneration, "Import")],
             )
             .unwrap();
 
@@ -904,10 +851,7 @@ mod tests {
         analyzer
             .record_failure(
                 "fail.py",
-                vec![TranspilerDecisionRecord::new(
-                    TranspilerDecision::NumericType,
-                    "Numeric",
-                )],
+                vec![TranspilerDecisionRecord::new(TranspilerDecision::NumericType, "Numeric")],
                 vec!["E0308".to_string()],
                 vec![],
             )
@@ -916,10 +860,7 @@ mod tests {
             analyzer
                 .record_success(
                     "success.py",
-                    vec![TranspilerDecisionRecord::new(
-                        TranspilerDecision::NumericType,
-                        "Numeric",
-                    )],
+                    vec![TranspilerDecisionRecord::new(TranspilerDecision::NumericType, "Numeric")],
                 )
                 .unwrap();
         }
@@ -978,10 +919,8 @@ mod tests {
 
         let result = analyzer.analyze();
 
-        let control_flow = result
-            .suspicious
-            .iter()
-            .find(|s| s.decision_type == TranspilerDecision::ControlFlow);
+        let control_flow =
+            result.suspicious.iter().find(|s| s.decision_type == TranspilerDecision::ControlFlow);
 
         assert!(control_flow.is_some());
         assert_eq!(
@@ -1020,14 +959,8 @@ mod tests {
 
     #[test]
     fn test_transpiler_decision_display() {
-        assert_eq!(
-            format!("{}", TranspilerDecision::TypeInference),
-            "type_inference"
-        );
-        assert_eq!(
-            format!("{}", TranspilerDecision::OwnershipInference),
-            "ownership_inference"
-        );
+        assert_eq!(format!("{}", TranspilerDecision::TypeInference), "type_inference");
+        assert_eq!(format!("{}", TranspilerDecision::OwnershipInference), "ownership_inference");
     }
 
     #[test]

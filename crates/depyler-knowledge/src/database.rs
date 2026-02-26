@@ -72,9 +72,7 @@ impl TypeDatabase {
         let columns: Vec<ArrayRef> = vec![
             Arc::new(StringArray::from(modules)),
             Arc::new(StringArray::from(symbols)),
-            Arc::new(StringArray::from(
-                kinds.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-            )),
+            Arc::new(StringArray::from(kinds.iter().map(|s| s.as_str()).collect::<Vec<_>>())),
             Arc::new(StringArray::from(signatures)),
             Arc::new(StringArray::from(return_types)),
         ];
@@ -106,17 +104,15 @@ impl TypeDatabase {
 
     /// Convert an Arrow RecordBatch to TypeFacts.
     fn batch_to_facts(&self, batch: &RecordBatch) -> Result<Vec<TypeFact>> {
-        let modules = batch
-            .column(0)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| KnowledgeError::DatabaseError("Invalid module column".to_string()))?;
+        let modules =
+            batch.column(0).as_any().downcast_ref::<StringArray>().ok_or_else(|| {
+                KnowledgeError::DatabaseError("Invalid module column".to_string())
+            })?;
 
-        let symbols = batch
-            .column(1)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| KnowledgeError::DatabaseError("Invalid symbol column".to_string()))?;
+        let symbols =
+            batch.column(1).as_any().downcast_ref::<StringArray>().ok_or_else(|| {
+                KnowledgeError::DatabaseError("Invalid symbol column".to_string())
+            })?;
 
         let kinds = batch
             .column(2)
@@ -124,17 +120,13 @@ impl TypeDatabase {
             .downcast_ref::<StringArray>()
             .ok_or_else(|| KnowledgeError::DatabaseError("Invalid kind column".to_string()))?;
 
-        let signatures = batch
-            .column(3)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| KnowledgeError::DatabaseError("Invalid signature column".to_string()))?;
+        let signatures =
+            batch.column(3).as_any().downcast_ref::<StringArray>().ok_or_else(|| {
+                KnowledgeError::DatabaseError("Invalid signature column".to_string())
+            })?;
 
-        let return_types = batch
-            .column(4)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| {
+        let return_types =
+            batch.column(4).as_any().downcast_ref::<StringArray>().ok_or_else(|| {
                 KnowledgeError::DatabaseError("Invalid return_type column".to_string())
             })?;
 
@@ -167,10 +159,7 @@ impl TypeDatabase {
     /// Query facts by module prefix.
     pub fn query_by_module(&self, prefix: &str) -> Result<Vec<TypeFact>> {
         let all = self.read_all()?;
-        Ok(all
-            .into_iter()
-            .filter(|f| f.module.starts_with(prefix))
-            .collect())
+        Ok(all.into_iter().filter(|f| f.module.starts_with(prefix)).collect())
     }
 
     /// Get the database file path.
@@ -204,13 +193,7 @@ mod tests {
         let facts = vec![
             TypeFact::function("requests", "get", "(url: str) -> Response", "Response"),
             TypeFact::class("requests.models", "Response"),
-            TypeFact::method(
-                "requests.models",
-                "Response",
-                "json",
-                "(self) -> dict",
-                "dict",
-            ),
+            TypeFact::method("requests.models", "Response", "json", "(self) -> dict", "dict"),
         ];
 
         db.write(&facts).unwrap();

@@ -133,11 +133,7 @@ impl FuzzingEngine {
 
         for i in 0..iterations {
             let strategy = &strategies[i % strategies.len()];
-            let size = if i < iterations / 2 {
-                100 + i * 10
-            } else {
-                1000 + i * 50
-            };
+            let size = if i < iterations / 2 { 100 + i * 10 } else { 1000 + i * 50 };
             let size = std::cmp::min(size, self.max_input_size);
 
             let input = self.generate_fuzz_input(strategy, size);
@@ -156,11 +152,7 @@ impl FuzzingEngine {
 
         let total_time = start_time.elapsed();
 
-        FuzzingCampaignResults {
-            total_tests: results.len(),
-            total_time,
-            results,
-        }
+        FuzzingCampaignResults { total_tests: results.len(), total_time, results }
     }
 
     // Private implementation methods
@@ -432,11 +424,8 @@ pub struct FuzzingCampaignResults {
 
 impl FuzzingCampaignResults {
     pub fn success_rate(&self) -> f64 {
-        let successes = self
-            .results
-            .iter()
-            .filter(|r| matches!(r.outcome, FuzzingOutcome::Success))
-            .count();
+        let successes =
+            self.results.iter().filter(|r| matches!(r.outcome, FuzzingOutcome::Success)).count();
         successes as f64 / self.total_tests as f64
     }
 
@@ -445,10 +434,7 @@ impl FuzzingCampaignResults {
     }
 
     pub fn timeout_count(&self) -> usize {
-        self.results
-            .iter()
-            .filter(|r| matches!(r.outcome, FuzzingOutcome::Timeout))
-            .count()
+        self.results.iter().filter(|r| matches!(r.outcome, FuzzingOutcome::Timeout)).count()
     }
 
     pub fn average_execution_time(&self) -> Duration {
@@ -456,11 +442,7 @@ impl FuzzingCampaignResults {
             return Duration::from_millis(0);
         }
 
-        let total_ms: u64 = self
-            .results
-            .iter()
-            .map(|r| r.execution_time.as_millis() as u64)
-            .sum();
+        let total_ms: u64 = self.results.iter().map(|r| r.execution_time.as_millis() as u64).sum();
 
         Duration::from_millis(total_ms / self.results.len() as u64)
     }
@@ -545,21 +527,9 @@ mod tests {
 
         let large_input = format!("def func():\n{}", "    x = 1\n".repeat(100));
         let test_cases = vec![
-            (
-                "def valid(): return 42",
-                FuzzingStrategy::StructuredPython,
-                "Valid Python",
-            ),
-            (
-                "def broken(\n    return",
-                FuzzingStrategy::MalformedSyntax,
-                "Malformed syntax",
-            ),
-            (
-                "def 函数(): return '测试'",
-                FuzzingStrategy::UnicodeExploit,
-                "Unicode function",
-            ),
+            ("def valid(): return 42", FuzzingStrategy::StructuredPython, "Valid Python"),
+            ("def broken(\n    return", FuzzingStrategy::MalformedSyntax, "Malformed syntax"),
+            ("def 函数(): return '测试'", FuzzingStrategy::UnicodeExploit, "Unicode function"),
             (&large_input, FuzzingStrategy::LargeInput, "Large input"),
             (
                 "def simple(): return 42  # Simple test",
@@ -613,25 +583,16 @@ mod tests {
         println!("  Success rate: {:.1}%", results.success_rate() * 100.0);
         println!("  Crashes: {}", results.crash_count());
         println!("  Timeouts: {}", results.timeout_count());
-        println!(
-            "  Average execution: {:?}",
-            results.average_execution_time()
-        );
+        println!("  Average execution: {:?}", results.average_execution_time());
 
         // Validate campaign results
         assert!(results.total_tests > 0, "Should have run tests");
-        assert!(
-            results.total_tests <= 50,
-            "Should not exceed requested test count"
-        );
+        assert!(results.total_tests <= 50, "Should not exceed requested test count");
         assert!(
             results.success_rate() >= 0.0 && results.success_rate() <= 1.0,
             "Success rate should be valid"
         );
-        assert!(
-            campaign_duration < Duration::from_secs(30),
-            "Campaign should complete quickly"
-        );
+        assert!(campaign_duration < Duration::from_secs(30), "Campaign should complete quickly");
 
         // Error distribution analysis
         let error_dist = results.error_distribution();
@@ -674,10 +635,7 @@ mod tests {
             (&many_statements, "Many statements"),
             (&deep_nesting, "Deep nesting"),
             ("def 🚀🎉💻⚡🔥🌟(): return '🦀'", "Emoji identifiers"),
-            (
-                "def test(): return '\\x00\\x01\\x02\\x03\\x04\\x05'",
-                "Control characters",
-            ),
+            ("def test(): return '\\x00\\x01\\x02\\x03\\x04\\x05'", "Control characters"),
         ];
 
         for (input, description) in extreme_inputs {
@@ -795,9 +753,6 @@ mod tests {
         println!("Cache test: first {:?}, second {:?}", time1, time2);
 
         // Second execution should be faster due to caching
-        assert!(
-            time2 <= time1 * 2,
-            "Caching should not significantly slow down execution"
-        );
+        assert!(time2 <= time1 * 2, "Caching should not significantly slow down execution");
     }
 }

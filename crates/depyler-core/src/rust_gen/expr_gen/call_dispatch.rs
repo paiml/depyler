@@ -62,9 +62,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     ))
                 } else {
                     let borrowed_path = Self::borrow_if_needed(&path_expr);
-                    Some(Ok(
-                        parse_quote! { std::path::PathBuf::from(#borrowed_path) },
-                    ))
+                    Some(Ok(parse_quote! { std::path::PathBuf::from(#borrowed_path) }))
                 }
             }
 
@@ -139,9 +137,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }))
                     }
                 } else {
-                    Some(Err(anyhow::anyhow!(
-                        "datetime() requires 3 or 6+ arguments"
-                    )))
+                    Some(Err(anyhow::anyhow!("datetime() requires 3 or 6+ arguments")))
                 }
             }
             "datetime" => Some(Err(anyhow::anyhow!(
@@ -244,9 +240,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(
-                            parse_quote! { (#hour as u32, #minute as u32, #second as u32) },
-                        ))
+                        Some(Ok(parse_quote! { (#hour as u32, #minute as u32, #second as u32) }))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).expect("invalid time")
@@ -275,9 +269,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(
-                            parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) },
-                        ))
+                        Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) }))
                     } else {
                         Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
                     }
@@ -407,9 +399,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(e) => e,
                     Err(e) => return Some(Err(e)),
                 };
-                Some(Ok(
-                    parse_quote! { num::rational::Ratio::new(#num_expr, #denom_expr) },
-                ))
+                Some(Ok(parse_quote! { num::rational::Ratio::new(#num_expr, #denom_expr) }))
             }
 
             "Fraction" => Some(Err(anyhow::anyhow!("Fraction() requires 1 or 2 arguments"))),
@@ -449,14 +439,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-99MODE-S9: Check if arg is a string variable
                 // Strings use .chars() not .iter() for iteration
                 let is_string_var = if let HirExpr::Var(var_name) = &args[0] {
-                    self.ctx
-                        .var_types
-                        .get(var_name)
-                        .is_some_and(|t| matches!(t, Type::String))
-                        || self
-                            .ctx
-                            .fn_str_params
-                            .contains(var_name)
+                    self.ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String))
+                        || self.ctx.fn_str_params.contains(var_name)
                 } else {
                     false
                 };
@@ -600,10 +584,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::MethodCall { object, method, .. } => {
                 // Methods that return PathBuf - only match when receiver is PathBuf
                 // DEPYLER-0930: `join` on String is different from `join` on PathBuf
-                let is_pathbuf_method = matches!(
-                    method.as_str(),
-                    "parent" | "with_name" | "with_suffix" | "with_stem"
-                );
+                let is_pathbuf_method =
+                    matches!(method.as_str(), "parent" | "with_name" | "with_suffix" | "with_stem");
                 if is_pathbuf_method {
                     return true;
                 }
@@ -723,10 +705,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         } else if args.len() == 1 {
             // Single argument print
-            let needs_debug = args
-                .first()
-                .map(|a| self.needs_debug_format(a))
-                .unwrap_or(false);
+            let needs_debug = args.first().map(|a| self.needs_debug_format(a)).unwrap_or(false);
 
             // DEPYLER-1365: Check if argument is a Result-returning call that needs unwrapping
             let is_result_call = matches!(&args[0], HirExpr::Call { func, .. }
@@ -757,13 +736,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1365: Also handle Result-returning calls by unwrapping
             let format_specs: Vec<&str> = args
                 .iter()
-                .map(|hir_arg| {
-                    if self.needs_debug_format(hir_arg) {
-                        "{:?}"
-                    } else {
-                        "{}"
-                    }
-                })
+                .map(|hir_arg| if self.needs_debug_format(hir_arg) { "{:?}" } else { "{}" })
                 .collect();
             let format_str = format_specs.join(" ");
 
@@ -824,10 +797,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0307: Handle sum(range(...)) → (range_expr).sum::<T>()
-        if let HirExpr::Call {
-            func: range_func, ..
-        } = &args[0]
-        {
+        if let HirExpr::Call { func: range_func, .. } = &args[0] {
             if range_func == "range" {
                 let range_expr = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
@@ -839,13 +809,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0303: Handle sum(d.values()) and sum(d.keys()) - optimized path
-        if let HirExpr::MethodCall {
-            object,
-            method,
-            args: method_args,
-            ..
-        } = &args[0]
-        {
+        if let HirExpr::MethodCall { object, method, args: method_args, .. } = &args[0] {
             if (method == "values" || method == "keys") && method_args.is_empty() {
                 let object_expr = match object.to_rust_expr(self.ctx) {
                     Ok(e) => e,
@@ -940,13 +904,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // These handle PartialOrd correctly and work with f64/DepylerValue
             // Parenthesize arguments to handle casts safely
             return if is_max {
-                Some(Ok(
-                    parse_quote! { depyler_max((#arg1).clone(), (#arg2).clone()) },
-                ))
+                Some(Ok(parse_quote! { depyler_max((#arg1).clone(), (#arg2).clone()) }))
             } else {
-                Some(Ok(
-                    parse_quote! { depyler_min((#arg1).clone(), (#arg2).clone()) },
-                ))
+                Some(Ok(parse_quote! { depyler_min((#arg1).clone(), (#arg2).clone()) }))
             };
         }
 
@@ -958,13 +918,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             return if is_max {
-                Some(Ok(
-                    parse_quote! { *#iter_expr.iter().max().expect("empty collection") },
-                ))
+                Some(Ok(parse_quote! { *#iter_expr.iter().max().expect("empty collection") }))
             } else {
-                Some(Ok(
-                    parse_quote! { *#iter_expr.iter().min().expect("empty collection") },
-                ))
+                Some(Ok(parse_quote! { *#iter_expr.iter().min().expect("empty collection") }))
             };
         }
 
@@ -1018,5 +974,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Some(Ok(parse_quote! { #iter_expr.iter().all(|&x| x) }))
         }
     }
-
 }

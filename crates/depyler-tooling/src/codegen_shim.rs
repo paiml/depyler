@@ -21,16 +21,10 @@ pub fn stmt_uses_hashmap(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => expr_uses_hashmap(value),
         HirStmt::Return(Some(expr)) => expr_uses_hashmap(expr),
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             expr_uses_hashmap(condition)
                 || body_uses_hashmap(then_body)
-                || else_body
-                    .as_ref()
-                    .is_some_and(|body| body_uses_hashmap(body))
+                || else_body.as_ref().is_some_and(|body| body_uses_hashmap(body))
         }
         HirStmt::While { condition, body } => {
             expr_uses_hashmap(condition) || body_uses_hashmap(body)
@@ -67,9 +61,7 @@ pub struct ScopeTracker {
 
 impl ScopeTracker {
     pub fn new() -> Self {
-        Self {
-            declared_vars: vec![HashSet::new()],
-        }
+        Self { declared_vars: vec![HashSet::new()] }
     }
 
     pub fn enter_scope(&mut self) {
@@ -91,9 +83,7 @@ impl ScopeTracker {
     }
 
     pub fn is_declared_in_current_scope(&self, name: &str) -> bool {
-        self.declared_vars
-            .last()
-            .is_some_and(|scope| scope.contains(name))
+        self.declared_vars.last().is_some_and(|scope| scope.contains(name))
     }
 
     pub fn depth(&self) -> usize {
@@ -139,10 +129,7 @@ pub fn expr_complexity(expr: &HirExpr) -> usize {
             1 + items.iter().map(expr_complexity).sum::<usize>()
         }
         HirExpr::Dict(pairs) => {
-            1 + pairs
-                .iter()
-                .map(|(k, v)| expr_complexity(k) + expr_complexity(v))
-                .sum::<usize>()
+            1 + pairs.iter().map(|(k, v)| expr_complexity(k) + expr_complexity(v)).sum::<usize>()
         }
         HirExpr::Binary { left, right, .. } => 1 + expr_complexity(left) + expr_complexity(right),
         HirExpr::Unary { operand, .. } => 1 + expr_complexity(operand),
@@ -156,11 +143,9 @@ pub fn expr_complexity(expr: &HirExpr) -> usize {
         HirExpr::IfExpr { test, body, orelse } => {
             2 + expr_complexity(test) + expr_complexity(body) + expr_complexity(orelse)
         }
-        HirExpr::ListComp {
-            element,
-            generators,
-            ..
-        } => 3 + expr_complexity(element) + generators.len(),
+        HirExpr::ListComp { element, generators, .. } => {
+            3 + expr_complexity(element) + generators.len()
+        }
         _ => 1,
     }
 }
@@ -229,10 +214,7 @@ mod tests {
 
     #[test]
     fn test_uses_hashmap_dict() {
-        assert!(uses_hashmap(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(uses_hashmap(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -245,19 +227,14 @@ mod tests {
 
     #[test]
     fn test_uses_hashmap_nested() {
-        let nested = Type::List(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        )));
+        let nested = Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(uses_hashmap(&nested));
     }
 
     #[test]
     fn test_uses_hashmap_optional() {
-        let opt_dict = Type::Optional(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        )));
+        let opt_dict =
+            Type::Optional(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(uses_hashmap(&opt_dict));
 
         let opt_int = Type::Optional(Box::new(Type::Int));
@@ -266,10 +243,8 @@ mod tests {
 
     #[test]
     fn test_uses_hashmap_tuple() {
-        let tuple_with_dict = Type::Tuple(vec![
-            Type::Int,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        ]);
+        let tuple_with_dict =
+            Type::Tuple(vec![Type::Int, Type::Dict(Box::new(Type::String), Box::new(Type::Int))]);
         assert!(uses_hashmap(&tuple_with_dict));
 
         let tuple_no_dict = Type::Tuple(vec![Type::Int, Type::String]);
@@ -379,19 +354,15 @@ mod tests {
 
     #[test]
     fn test_extract_var_name_attribute() {
-        let target = AssignTarget::Attribute {
-            value: Box::new(var_expr("obj")),
-            attr: "field".to_string(),
-        };
+        let target =
+            AssignTarget::Attribute { value: Box::new(var_expr("obj")), attr: "field".to_string() };
         assert_eq!(extract_var_name(&target), None);
     }
 
     #[test]
     fn test_extract_var_name_index() {
-        let target = AssignTarget::Index {
-            base: Box::new(var_expr("arr")),
-            index: Box::new(int_expr(0)),
-        };
+        let target =
+            AssignTarget::Index { base: Box::new(var_expr("arr")), index: Box::new(int_expr(0)) };
         assert_eq!(extract_var_name(&target), None);
     }
 
@@ -436,10 +407,7 @@ mod tests {
     #[test]
     fn test_is_constant_expr_unary() {
         use depyler_hir::hir::UnaryOp;
-        let const_unary = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(int_expr(42)),
-        };
+        let const_unary = HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(int_expr(42)) };
         assert!(is_constant_expr(&const_unary));
     }
 
@@ -509,15 +477,10 @@ mod tests {
     fn test_is_reference_type() {
         assert!(is_reference_type(&Type::String));
         assert!(is_reference_type(&Type::List(Box::new(Type::Int))));
-        assert!(is_reference_type(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(is_reference_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(is_reference_type(&Type::Set(Box::new(Type::Int))));
         assert!(is_reference_type(&Type::Custom("Vec<i32>".to_string())));
-        assert!(is_reference_type(&Type::Custom(
-            "HashMap<String, i32>".to_string()
-        )));
+        assert!(is_reference_type(&Type::Custom("HashMap<String, i32>".to_string())));
         assert!(!is_reference_type(&Type::Int));
         assert!(!is_reference_type(&Type::Float));
     }
@@ -558,10 +521,7 @@ mod tests {
 
     #[test]
     fn test_body_uses_hashmap() {
-        let body_with_dict = vec![
-            HirStmt::Expr(int_expr(1)),
-            HirStmt::Expr(HirExpr::Dict(vec![])),
-        ];
+        let body_with_dict = vec![HirStmt::Expr(int_expr(1)), HirStmt::Expr(HirExpr::Dict(vec![]))];
         assert!(body_uses_hashmap(&body_with_dict));
 
         let body_no_dict = vec![HirStmt::Expr(int_expr(1)), HirStmt::Expr(int_expr(2))];

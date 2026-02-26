@@ -19,10 +19,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -71,11 +69,7 @@ class Bag:
         self.items.append(item)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Bag"),
-        "Should transpile class with __contains__. Got: {}",
-        result
-    );
+    assert!(result.contains("Bag"), "Should transpile class with __contains__. Got: {}", result);
 }
 
 #[test]
@@ -98,11 +92,7 @@ class Range:
         return val
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Range"),
-        "Should transpile iterator class. Got: {}",
-        result
-    );
+    assert!(result.contains("Range"), "Should transpile iterator class. Got: {}", result);
 }
 
 #[test]
@@ -121,11 +111,7 @@ class Matrix:
         self.data[idx] = value
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Matrix"),
-        "Should transpile class with __getitem__. Got: {}",
-        result
-    );
+    assert!(result.contains("Matrix"), "Should transpile class with __getitem__. Got: {}", result);
 }
 
 // ============================================================================
@@ -245,11 +231,7 @@ def nested_parse(a: str, b: str) -> int:
         return 0
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn nested_parse"),
-        "Should transpile nested try. Got: {}",
-        result
-    );
+    assert!(result.contains("fn nested_parse"), "Should transpile nested try. Got: {}", result);
 }
 
 // ============================================================================
@@ -266,11 +248,7 @@ def run_cmd(cmd: str) -> str:
     return result.stdout
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn run_cmd"),
-        "Should transpile subprocess.run. Got: {}",
-        result
-    );
+    assert!(result.contains("fn run_cmd"), "Should transpile subprocess.run. Got: {}", result);
 }
 
 // ============================================================================
@@ -335,11 +313,7 @@ def combinations(n: int, k: int) -> int:
     return math.comb(n, k)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn combinations"),
-        "Should transpile math.comb. Got: {}",
-        result
-    );
+    assert!(result.contains("fn combinations"), "Should transpile math.comb. Got: {}", result);
 }
 
 #[test]
@@ -351,11 +325,7 @@ def permutations(n: int, k: int) -> int:
     return math.perm(n, k)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn permutations"),
-        "Should transpile math.perm. Got: {}",
-        result
-    );
+    assert!(result.contains("fn permutations"), "Should transpile math.perm. Got: {}", result);
 }
 
 #[test]
@@ -367,11 +337,7 @@ def check_finite(x: float) -> bool:
     return math.isfinite(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_finite"),
-        "Should transpile math.isfinite. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_finite"), "Should transpile math.isfinite. Got: {}", result);
 }
 
 #[test]
@@ -383,11 +349,7 @@ def check_inf(x: float) -> bool:
     return math.isinf(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_inf"),
-        "Should transpile math.isinf. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_inf"), "Should transpile math.isinf. Got: {}", result);
 }
 
 #[test]
@@ -399,11 +361,7 @@ def check_nan(x: float) -> bool:
     return math.isnan(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn check_nan"),
-        "Should transpile math.isnan. Got: {}",
-        result
-    );
+    assert!(result.contains("fn check_nan"), "Should transpile math.isnan. Got: {}", result);
 }
 
 #[test]
@@ -415,11 +373,7 @@ def copy_sign(x: float, y: float) -> float:
     return math.copysign(x, y)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn copy_sign"),
-        "Should transpile math.copysign. Got: {}",
-        result
-    );
+    assert!(result.contains("fn copy_sign"), "Should transpile math.copysign. Got: {}", result);
 }
 
 #[test]
@@ -431,11 +385,7 @@ def float_mod(x: float, y: float) -> float:
     return math.fmod(x, y)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn float_mod"),
-        "Should transpile math.fmod. Got: {}",
-        result
-    );
+    assert!(result.contains("fn float_mod"), "Should transpile math.fmod. Got: {}", result);
 }
 
 #[test]
@@ -447,11 +397,7 @@ def truncate(x: float) -> int:
     return math.trunc(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn truncate"),
-        "Should transpile math.trunc. Got: {}",
-        result
-    );
+    assert!(result.contains("fn truncate"), "Should transpile math.trunc. Got: {}", result);
 }
 
 #[test]
@@ -463,11 +409,7 @@ def split_float(x: float) -> tuple:
     return math.modf(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn split_float"),
-        "Should transpile math.modf. Got: {}",
-        result
-    );
+    assert!(result.contains("fn split_float"), "Should transpile math.modf. Got: {}", result);
 }
 
 #[test]
@@ -479,11 +421,7 @@ def scale(x: float, n: int) -> float:
     return math.ldexp(x, n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn scale"),
-        "Should transpile math.ldexp. Got: {}",
-        result
-    );
+    assert!(result.contains("fn scale"), "Should transpile math.ldexp. Got: {}", result);
 }
 
 #[test]
@@ -495,11 +433,7 @@ def decompose(x: float) -> tuple:
     return math.frexp(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn decompose"),
-        "Should transpile math.frexp. Got: {}",
-        result
-    );
+    assert!(result.contains("fn decompose"), "Should transpile math.frexp. Got: {}", result);
 }
 
 // ============================================================================
@@ -515,11 +449,7 @@ def arc_sine(x: float) -> float:
     return math.asin(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn arc_sine"),
-        "Should transpile math.asin. Got: {}",
-        result
-    );
+    assert!(result.contains("fn arc_sine"), "Should transpile math.asin. Got: {}", result);
 }
 
 #[test]
@@ -531,11 +461,7 @@ def arc_cosine(x: float) -> float:
     return math.acos(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn arc_cosine"),
-        "Should transpile math.acos. Got: {}",
-        result
-    );
+    assert!(result.contains("fn arc_cosine"), "Should transpile math.acos. Got: {}", result);
 }
 
 #[test]
@@ -547,11 +473,7 @@ def arc_tangent(x: float) -> float:
     return math.atan(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn arc_tangent"),
-        "Should transpile math.atan. Got: {}",
-        result
-    );
+    assert!(result.contains("fn arc_tangent"), "Should transpile math.atan. Got: {}", result);
 }
 
 #[test]
@@ -563,11 +485,7 @@ def angle(y: float, x: float) -> float:
     return math.atan2(y, x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn angle"),
-        "Should transpile math.atan2. Got: {}",
-        result
-    );
+    assert!(result.contains("fn angle"), "Should transpile math.atan2. Got: {}", result);
 }
 
 #[test]
@@ -579,11 +497,7 @@ def hyp_sine(x: float) -> float:
     return math.sinh(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn hyp_sine"),
-        "Should transpile math.sinh. Got: {}",
-        result
-    );
+    assert!(result.contains("fn hyp_sine"), "Should transpile math.sinh. Got: {}", result);
 }
 
 #[test]
@@ -595,11 +509,7 @@ def hyp_cosine(x: float) -> float:
     return math.cosh(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn hyp_cosine"),
-        "Should transpile math.cosh. Got: {}",
-        result
-    );
+    assert!(result.contains("fn hyp_cosine"), "Should transpile math.cosh. Got: {}", result);
 }
 
 #[test]
@@ -611,11 +521,7 @@ def hyp_tangent(x: float) -> float:
     return math.tanh(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn hyp_tangent"),
-        "Should transpile math.tanh. Got: {}",
-        result
-    );
+    assert!(result.contains("fn hyp_tangent"), "Should transpile math.tanh. Got: {}", result);
 }
 
 #[test]
@@ -627,11 +533,7 @@ def to_degrees(rad: float) -> float:
     return math.degrees(rad)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_degrees"),
-        "Should transpile math.degrees. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_degrees"), "Should transpile math.degrees. Got: {}", result);
 }
 
 #[test]
@@ -643,11 +545,7 @@ def to_radians(deg: float) -> float:
     return math.radians(deg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_radians"),
-        "Should transpile math.radians. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_radians"), "Should transpile math.radians. Got: {}", result);
 }
 
 // ============================================================================
@@ -663,11 +561,7 @@ def dice() -> int:
     return random.randint(1, 6)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn dice"),
-        "Should transpile random.randint. Got: {}",
-        result
-    );
+    assert!(result.contains("fn dice"), "Should transpile random.randint. Got: {}", result);
 }
 
 #[test]
@@ -679,11 +573,7 @@ def pick(items: list) -> int:
     return random.choice(items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pick"),
-        "Should transpile random.choice. Got: {}",
-        result
-    );
+    assert!(result.contains("fn pick"), "Should transpile random.choice. Got: {}", result);
 }
 
 #[test]
@@ -696,11 +586,7 @@ def shuffle(items: list) -> list:
     return items
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn shuffle"),
-        "Should transpile random.shuffle. Got: {}",
-        result
-    );
+    assert!(result.contains("fn shuffle"), "Should transpile random.shuffle. Got: {}", result);
 }
 
 #[test]
@@ -712,11 +598,7 @@ def coin_flip() -> bool:
     return random.random() < 0.5
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn coin_flip"),
-        "Should transpile random.random. Got: {}",
-        result
-    );
+    assert!(result.contains("fn coin_flip"), "Should transpile random.random. Got: {}", result);
 }
 
 #[test]
@@ -728,11 +610,7 @@ def rand_float(lo: float, hi: float) -> float:
     return random.uniform(lo, hi)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn rand_float"),
-        "Should transpile random.uniform. Got: {}",
-        result
-    );
+    assert!(result.contains("fn rand_float"), "Should transpile random.uniform. Got: {}", result);
 }
 
 #[test]
@@ -744,11 +622,7 @@ def pick_n(items: list, n: int) -> list:
     return random.sample(items, n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn pick_n"),
-        "Should transpile random.sample. Got: {}",
-        result
-    );
+    assert!(result.contains("fn pick_n"), "Should transpile random.sample. Got: {}", result);
 }
 
 // ============================================================================
@@ -764,11 +638,7 @@ def chain_lists(a: list, b: list) -> list:
     return list(itertools.chain(a, b))
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn chain_lists"),
-        "Should transpile itertools.chain. Got: {}",
-        result
-    );
+    assert!(result.contains("fn chain_lists"), "Should transpile itertools.chain. Got: {}", result);
 }
 
 #[test]
@@ -851,11 +721,7 @@ def merge_sort(items: list) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn merge_sort"),
-        "Should transpile merge sort. Got: {}",
-        result
-    );
+    assert!(result.contains("fn merge_sort"), "Should transpile merge sort. Got: {}", result);
 }
 
 #[test]
@@ -920,11 +786,7 @@ class LRUCache:
         self.order.append(key)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("LRUCache"),
-        "Should transpile LRU cache. Got: {}",
-        result
-    );
+    assert!(result.contains("LRUCache"), "Should transpile LRU cache. Got: {}", result);
 }
 
 #[test]
@@ -944,11 +806,7 @@ def bfs(graph: dict, start: str) -> list:
     return visited
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn bfs"),
-        "Should transpile BFS algorithm. Got: {}",
-        result
-    );
+    assert!(result.contains("fn bfs"), "Should transpile BFS algorithm. Got: {}", result);
 }
 
 // ============================================================================
@@ -967,11 +825,7 @@ def parse_value(s: str) -> Union[int, float]:
         return float(s)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn parse_value"),
-        "Should transpile Union return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn parse_value"), "Should transpile Union return. Got: {}", result);
 }
 
 #[test]
@@ -983,11 +837,7 @@ def apply(f: Callable, x: int) -> int:
     return f(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn apply"),
-        "Should transpile Callable param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn apply"), "Should transpile Callable param. Got: {}", result);
 }
 
 #[test]
@@ -999,11 +849,7 @@ def identity(x: Any) -> Any:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn identity"),
-        "Should transpile Any type. Got: {}",
-        result
-    );
+    assert!(result.contains("fn identity"), "Should transpile Any type. Got: {}", result);
 }
 
 // ============================================================================
@@ -1037,11 +883,7 @@ def get_platform() -> str:
     return sys.platform
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_platform"),
-        "Should transpile sys.platform. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_platform"), "Should transpile sys.platform. Got: {}", result);
 }
 
 #[test]
@@ -1083,11 +925,7 @@ def to_char(n: int) -> str:
     return chr(n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_char"),
-        "Should transpile chr(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_char"), "Should transpile chr(). Got: {}", result);
 }
 
 #[test]
@@ -1097,11 +935,7 @@ def to_code(c: str) -> int:
     return ord(c)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_code"),
-        "Should transpile ord(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_code"), "Should transpile ord(). Got: {}", result);
 }
 
 #[test]
@@ -1111,11 +945,7 @@ def to_hex(n: int) -> str:
     return hex(n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_hex"),
-        "Should transpile hex(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_hex"), "Should transpile hex(). Got: {}", result);
 }
 
 #[test]
@@ -1125,11 +955,7 @@ def to_bin(n: int) -> str:
     return bin(n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_bin"),
-        "Should transpile bin(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_bin"), "Should transpile bin(). Got: {}", result);
 }
 
 #[test]
@@ -1139,11 +965,7 @@ def to_oct(n: int) -> str:
     return oct(n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_oct"),
-        "Should transpile oct(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_oct"), "Should transpile oct(). Got: {}", result);
 }
 
 #[test]
@@ -1153,11 +975,7 @@ def reverse(items: list) -> list:
     return list(reversed(items))
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn reverse"),
-        "Should transpile reversed(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn reverse"), "Should transpile reversed(). Got: {}", result);
 }
 
 #[test]
@@ -1181,11 +999,7 @@ def has_name(obj) -> bool:
     return hasattr(obj, "name")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn has_name"),
-        "Should transpile hasattr(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn has_name"), "Should transpile hasattr(). Got: {}", result);
 }
 
 #[test]
@@ -1195,9 +1009,5 @@ def div_and_mod(a: int, b: int) -> tuple:
     return divmod(a, b)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn div_and_mod"),
-        "Should transpile divmod(). Got: {}",
-        result
-    );
+    assert!(result.contains("fn div_and_mod"), "Should transpile divmod(). Got: {}", result);
 }

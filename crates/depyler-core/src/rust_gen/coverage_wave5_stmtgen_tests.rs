@@ -28,14 +28,16 @@ mod tests {
 
     #[test]
     fn test_w5_assert_eq_with_message() {
-        let code = transpile("def check(x: int, y: int):\n    assert x == y, \"values must be equal\"");
+        let code =
+            transpile("def check(x: int, y: int):\n    assert x == y, \"values must be equal\"");
         assert!(!code.is_empty());
         assert!(code.contains("assert_eq!"));
     }
 
     #[test]
     fn test_w5_assert_ne_with_message() {
-        let code = transpile("def check(a: int, b: int):\n    assert a != b, \"values must differ\"");
+        let code =
+            transpile("def check(a: int, b: int):\n    assert a != b, \"values must differ\"");
         assert!(!code.is_empty());
         assert!(code.contains("assert_ne!"));
     }
@@ -93,7 +95,9 @@ mod tests {
 
     #[test]
     fn test_w5_while_condition_loop() {
-        let code = transpile("def count():\n    x: int = 10\n    while x > 0:\n        x = x - 1\n    return x");
+        let code = transpile(
+            "def count():\n    x: int = 10\n    while x > 0:\n        x = x - 1\n    return x",
+        );
         assert!(!code.is_empty());
         assert!(code.contains("while"));
     }
@@ -142,7 +146,9 @@ mod tests {
 
     #[test]
     fn test_w5_raise_runtime_error() {
-        let code = transpile("def fail() -> int:\n    raise RuntimeError(\"something went wrong\")\n    return 0");
+        let code = transpile(
+            "def fail() -> int:\n    raise RuntimeError(\"something went wrong\")\n    return 0",
+        );
         assert!(!code.is_empty());
     }
 
@@ -184,7 +190,8 @@ mod tests {
 
     #[test]
     fn test_w5_raise_stop_iteration() {
-        let code = transpile("def next_item() -> int:\n    raise StopIteration(\"done\")\n    return 0");
+        let code =
+            transpile("def next_item() -> int:\n    raise StopIteration(\"done\")\n    return 0");
         assert!(!code.is_empty());
     }
 
@@ -225,13 +232,15 @@ mod tests {
 
     #[test]
     fn test_w5_with_no_target() {
-        let code = transpile("def manage():\n    with open(\"test.txt\"):\n        print(\"inside\")");
+        let code =
+            transpile("def manage():\n    with open(\"test.txt\"):\n        print(\"inside\")");
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_with_custom_context_manager() {
-        let code = transpile("def use_lock():\n    with Lock() as lock:\n        print(\"locked\")");
+        let code =
+            transpile("def use_lock():\n    with Lock() as lock:\n        print(\"locked\")");
         assert!(!code.is_empty());
     }
 
@@ -254,14 +263,18 @@ mod tests {
 
     #[test]
     fn test_w5_for_enumerate() {
-        let code = transpile("def indexed(items: list):\n    for i, item in enumerate(items):\n        print(i)");
+        let code = transpile(
+            "def indexed(items: list):\n    for i, item in enumerate(items):\n        print(i)",
+        );
         assert!(!code.is_empty());
         assert!(code.contains("enumerate"));
     }
 
     #[test]
     fn test_w5_for_zip() {
-        let code = transpile("def pair_up(a: list, b: list):\n    for x, y in zip(a, b):\n        print(x)");
+        let code = transpile(
+            "def pair_up(a: list, b: list):\n    for x, y in zip(a, b):\n        print(x)",
+        );
         assert!(!code.is_empty());
     }
 
@@ -279,19 +292,23 @@ mod tests {
 
     #[test]
     fn test_w5_for_dict_items() {
-        let code = transpile("def show_dict(d: dict):\n    for key, value in d.items():\n        print(key)");
+        let code = transpile(
+            "def show_dict(d: dict):\n    for key, value in d.items():\n        print(key)",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_for_dict_keys() {
-        let code = transpile("def show_keys(d: dict):\n    for key in d.keys():\n        print(key)");
+        let code =
+            transpile("def show_keys(d: dict):\n    for key in d.keys():\n        print(key)");
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_for_dict_values() {
-        let code = transpile("def show_values(d: dict):\n    for val in d.values():\n        print(val)");
+        let code =
+            transpile("def show_values(d: dict):\n    for val in d.values():\n        print(val)");
         assert!(!code.is_empty());
     }
 
@@ -325,8 +342,11 @@ mod tests {
 
     #[test]
     fn test_w5_if_type_checking() {
-        let code = transpile("TYPE_CHECKING = False\ndef foo():\n    if TYPE_CHECKING:\n        pass");
-        assert!(transpile_ok("TYPE_CHECKING = False\ndef foo():\n    if TYPE_CHECKING:\n        pass"));
+        let code =
+            transpile("TYPE_CHECKING = False\ndef foo():\n    if TYPE_CHECKING:\n        pass");
+        assert!(transpile_ok(
+            "TYPE_CHECKING = False\ndef foo():\n    if TYPE_CHECKING:\n        pass"
+        ));
     }
 
     #[test]
@@ -367,7 +387,9 @@ mod tests {
 
     #[test]
     fn test_w5_if_dict_truthiness() {
-        let code = transpile("def check_dict(d: dict) -> bool:\n    if d:\n        return True\n    return False");
+        let code = transpile(
+            "def check_dict(d: dict) -> bool:\n    if d:\n        return True\n    return False",
+        );
         assert!(!code.is_empty());
     }
 
@@ -383,7 +405,9 @@ mod tests {
 
     #[test]
     fn test_w5_return_optional_none() {
-        let code = transpile("from typing import Optional\ndef maybe() -> Optional[str]:\n    return None");
+        let code = transpile(
+            "from typing import Optional\ndef maybe() -> Optional[str]:\n    return None",
+        );
         assert!(!code.is_empty());
         assert!(code.contains("None"));
     }
@@ -402,13 +426,17 @@ mod tests {
 
     #[test]
     fn test_w5_return_tuple() {
-        let code = transpile("from typing import Tuple\ndef pair() -> Tuple[int, str]:\n    return (1, \"hello\")");
+        let code = transpile(
+            "from typing import Tuple\ndef pair() -> Tuple[int, str]:\n    return (1, \"hello\")",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_early_return() {
-        let code = transpile("def guard(x: int) -> int:\n    if x < 0:\n        return -1\n    return x * 2");
+        let code = transpile(
+            "def guard(x: int) -> int:\n    if x < 0:\n        return -1\n    return x * 2",
+        );
         assert!(!code.is_empty());
         assert!(code.contains("return"));
     }
@@ -467,7 +495,9 @@ mod tests {
 
     #[test]
     fn test_w5_augmented_add_string() {
-        let code = transpile("def append_str():\n    s: str = \"hello\"\n    s += \" world\"\n    print(s)");
+        let code = transpile(
+            "def append_str():\n    s: str = \"hello\"\n    s += \" world\"\n    print(s)",
+        );
         assert!(!code.is_empty());
     }
 
@@ -558,7 +588,9 @@ mod tests {
 
     #[test]
     fn test_w5_assign_index() {
-        let code = transpile("def set_item():\n    items: list = [1, 2, 3]\n    items[0] = 99\n    print(items)");
+        let code = transpile(
+            "def set_item():\n    items: list = [1, 2, 3]\n    items[0] = 99\n    print(items)",
+        );
         assert!(!code.is_empty());
     }
 
@@ -615,13 +647,17 @@ mod tests {
 
     #[test]
     fn test_w5_truthiness_int() {
-        let code = transpile("def check(n: int) -> bool:\n    if n:\n        return True\n    return False");
+        let code = transpile(
+            "def check(n: int) -> bool:\n    if n:\n        return True\n    return False",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_truthiness_float() {
-        let code = transpile("def check(x: float) -> bool:\n    if x:\n        return True\n    return False");
+        let code = transpile(
+            "def check(x: float) -> bool:\n    if x:\n        return True\n    return False",
+        );
         assert!(!code.is_empty());
     }
 
@@ -639,7 +675,9 @@ mod tests {
 
     #[test]
     fn test_w5_truthiness_not_int() {
-        let code = transpile("def is_zero(n: int) -> bool:\n    if not n:\n        return True\n    return False");
+        let code = transpile(
+            "def is_zero(n: int) -> bool:\n    if not n:\n        return True\n    return False",
+        );
         assert!(!code.is_empty());
     }
 
@@ -661,13 +699,16 @@ mod tests {
 
     #[test]
     fn test_w5_module_constant_string() {
-        let code = transpile("APP_NAME: str = \"myapp\"\n\ndef get_name() -> str:\n    return APP_NAME");
+        let code =
+            transpile("APP_NAME: str = \"myapp\"\n\ndef get_name() -> str:\n    return APP_NAME");
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_module_constant_float() {
-        let code = transpile("THRESHOLD: float = 0.5\n\ndef above(x: float) -> bool:\n    return x > THRESHOLD");
+        let code = transpile(
+            "THRESHOLD: float = 0.5\n\ndef above(x: float) -> bool:\n    return x > THRESHOLD",
+        );
         assert!(!code.is_empty());
     }
 
@@ -679,7 +720,9 @@ mod tests {
 
     #[test]
     fn test_w5_multiple_constants() {
-        let code = transpile("WIDTH: int = 80\nHEIGHT: int = 24\n\ndef area() -> int:\n    return WIDTH * HEIGHT");
+        let code = transpile(
+            "WIDTH: int = 80\nHEIGHT: int = 24\n\ndef area() -> int:\n    return WIDTH * HEIGHT",
+        );
         assert!(!code.is_empty());
     }
 
@@ -790,7 +833,9 @@ mod tests {
 
     #[test]
     fn test_w5_import_math() {
-        let code = transpile("import math\n\ndef circle_area(r: float) -> float:\n    return math.pi * r * r");
+        let code = transpile(
+            "import math\n\ndef circle_area(r: float) -> float:\n    return math.pi * r * r",
+        );
         assert!(!code.is_empty());
     }
 
@@ -800,14 +845,17 @@ mod tests {
 
     #[test]
     fn test_w5_list_int_annotation() {
-        let code = transpile("from typing import List\ndef ints() -> List[int]:\n    return [1, 2, 3]");
+        let code =
+            transpile("from typing import List\ndef ints() -> List[int]:\n    return [1, 2, 3]");
         assert!(!code.is_empty());
         assert!(code.contains("Vec"));
     }
 
     #[test]
     fn test_w5_dict_str_int_annotation() {
-        let code = transpile("from typing import Dict\ndef mapping() -> Dict[str, int]:\n    return {\"a\": 1}");
+        let code = transpile(
+            "from typing import Dict\ndef mapping() -> Dict[str, int]:\n    return {\"a\": 1}",
+        );
         assert!(!code.is_empty());
         assert!(code.contains("HashMap"));
     }
@@ -821,13 +869,17 @@ mod tests {
 
     #[test]
     fn test_w5_tuple_annotation() {
-        let code = transpile("from typing import Tuple\ndef coords() -> Tuple[int, int]:\n    return (1, 2)");
+        let code = transpile(
+            "from typing import Tuple\ndef coords() -> Tuple[int, int]:\n    return (1, 2)",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_set_annotation() {
-        let code = transpile("from typing import Set\ndef unique() -> Set[str]:\n    return {\"a\", \"b\"}");
+        let code = transpile(
+            "from typing import Set\ndef unique() -> Set[str]:\n    return {\"a\", \"b\"}",
+        );
         assert!(!code.is_empty());
     }
 
@@ -927,8 +979,12 @@ mod tests {
 
     #[test]
     fn test_w5_global_variable() {
-        let code = transpile("counter: int = 0\n\ndef increment():\n    global counter\n    counter = counter + 1");
-        assert!(transpile_ok("counter: int = 0\n\ndef increment():\n    global counter\n    counter = counter + 1"));
+        let code = transpile(
+            "counter: int = 0\n\ndef increment():\n    global counter\n    counter = counter + 1",
+        );
+        assert!(transpile_ok(
+            "counter: int = 0\n\ndef increment():\n    global counter\n    counter = counter + 1"
+        ));
     }
 
     // =========================================================================
@@ -1006,13 +1062,16 @@ mod tests {
 
     #[test]
     fn test_w5_mutable_from_index_assign() {
-        let code = transpile("def set_element():\n    arr: list = [0, 0, 0]\n    arr[1] = 42\n    print(arr)");
+        let code = transpile(
+            "def set_element():\n    arr: list = [0, 0, 0]\n    arr[1] = 42\n    print(arr)",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_mutable_from_dict_assign() {
-        let code = transpile("def set_key():\n    d: dict = {}\n    d[\"key\"] = \"value\"\n    print(d)");
+        let code =
+            transpile("def set_key():\n    d: dict = {}\n    d[\"key\"] = \"value\"\n    print(d)");
         assert!(!code.is_empty());
     }
 
@@ -1044,13 +1103,16 @@ mod tests {
 
     #[test]
     fn test_w5_list_comprehension_with_filter() {
-        let code = transpile("def even_squares() -> list:\n    return [x * x for x in range(10) if x % 2 == 0]");
+        let code = transpile(
+            "def even_squares() -> list:\n    return [x * x for x in range(10) if x % 2 == 0]",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_dict_comprehension() {
-        let code = transpile("def square_map() -> dict:\n    return {str(x): x * x for x in range(5)}");
+        let code =
+            transpile("def square_map() -> dict:\n    return {str(x): x * x for x in range(5)}");
         assert!(!code.is_empty());
     }
 
@@ -1073,7 +1135,9 @@ mod tests {
 
     #[test]
     fn test_w5_fstring_multiple_vars() {
-        let code = transpile("def info(name: str, age: int) -> str:\n    return f\"{name} is {age} years old\"");
+        let code = transpile(
+            "def info(name: str, age: int) -> str:\n    return f\"{name} is {age} years old\"",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1083,13 +1147,16 @@ mod tests {
 
     #[test]
     fn test_w5_function_default_arg() {
-        let code = transpile("def greet(name: str = \"World\") -> str:\n    return \"Hello, \" + name");
+        let code =
+            transpile("def greet(name: str = \"World\") -> str:\n    return \"Hello, \" + name");
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_function_multiple_returns() {
-        let code = transpile("def abs_val(x: int) -> int:\n    if x >= 0:\n        return x\n    return -x");
+        let code = transpile(
+            "def abs_val(x: int) -> int:\n    if x >= 0:\n        return x\n    return -x",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1107,7 +1174,9 @@ mod tests {
 
     #[test]
     fn test_w5_function_many_params() {
-        let code = transpile("def multi(a: int, b: int, c: int, d: int) -> int:\n    return a + b + c + d");
+        let code = transpile(
+            "def multi(a: int, b: int, c: int, d: int) -> int:\n    return a + b + c + d",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1117,7 +1186,8 @@ mod tests {
 
     #[test]
     fn test_w5_async_function() {
-        let code = transpile("import asyncio\n\nasync def fetch_data() -> str:\n    return \"data\"");
+        let code =
+            transpile("import asyncio\n\nasync def fetch_data() -> str:\n    return \"data\"");
         assert!(!code.is_empty());
         assert!(code.contains("async"));
     }
@@ -1134,7 +1204,9 @@ mod tests {
 
     #[test]
     fn test_w5_enum_class() {
-        let code = transpile("from enum import Enum\n\nclass Color(Enum):\n    RED = 1\n    GREEN = 2\n    BLUE = 3");
+        let code = transpile(
+            "from enum import Enum\n\nclass Color(Enum):\n    RED = 1\n    GREEN = 2\n    BLUE = 3",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1156,7 +1228,9 @@ mod tests {
 
     #[test]
     fn test_w5_ternary_expression() {
-        let code = transpile("def classify(x: int) -> str:\n    return \"positive\" if x > 0 else \"non-positive\"");
+        let code = transpile(
+            "def classify(x: int) -> str:\n    return \"positive\" if x > 0 else \"non-positive\"",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1180,19 +1254,24 @@ mod tests {
 
     #[test]
     fn test_w5_string_replace() {
-        let code = transpile("def sanitize(text: str) -> str:\n    return text.replace(\"bad\", \"good\")");
+        let code = transpile(
+            "def sanitize(text: str) -> str:\n    return text.replace(\"bad\", \"good\")",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_string_startswith() {
-        let code = transpile("def check_prefix(text: str) -> bool:\n    return text.startswith(\"hello\")");
+        let code = transpile(
+            "def check_prefix(text: str) -> bool:\n    return text.startswith(\"hello\")",
+        );
         assert!(!code.is_empty());
     }
 
     #[test]
     fn test_w5_string_endswith() {
-        let code = transpile("def check_suffix(text: str) -> bool:\n    return text.endswith(\".py\")");
+        let code =
+            transpile("def check_suffix(text: str) -> bool:\n    return text.endswith(\".py\")");
         assert!(!code.is_empty());
     }
 
@@ -1306,7 +1385,9 @@ mod tests {
 
     #[test]
     fn test_w5_dict_get_with_default() {
-        let code = transpile("def safe_get(d: dict, key: str) -> str:\n    return d.get(key, \"default\")");
+        let code = transpile(
+            "def safe_get(d: dict, key: str) -> str:\n    return d.get(key, \"default\")",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1344,7 +1425,8 @@ mod tests {
 
     #[test]
     fn test_w5_return_empty_dict() {
-        let code = transpile("from typing import Dict\ndef empty_map() -> Dict[str, int]:\n    return {}");
+        let code =
+            transpile("from typing import Dict\ndef empty_map() -> Dict[str, int]:\n    return {}");
         assert!(!code.is_empty());
     }
 
@@ -1408,7 +1490,9 @@ mod tests {
 
     #[test]
     fn test_w5_chained_method_calls() {
-        let code = transpile("def process(text: str) -> str:\n    return text.strip().upper().replace(\"A\", \"B\")");
+        let code = transpile(
+            "def process(text: str) -> str:\n    return text.strip().upper().replace(\"A\", \"B\")",
+        );
         assert!(!code.is_empty());
     }
 
@@ -1462,7 +1546,8 @@ mod tests {
 
     #[test]
     fn test_w5_in_operator_list() {
-        let code = transpile("def contains(items: list, val: int) -> bool:\n    return val in items");
+        let code =
+            transpile("def contains(items: list, val: int) -> bool:\n    return val in items");
         assert!(!code.is_empty());
     }
 
@@ -1474,7 +1559,8 @@ mod tests {
 
     #[test]
     fn test_w5_not_in_operator() {
-        let code = transpile("def missing(items: list, val: int) -> bool:\n    return val not in items");
+        let code =
+            transpile("def missing(items: list, val: int) -> bool:\n    return val not in items");
         assert!(!code.is_empty());
     }
 
@@ -1528,14 +1614,22 @@ mod tests {
 
     #[test]
     fn test_w5_map_function() {
-        let code = transpile("def double_all(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))");
-        assert!(transpile_ok("def double_all(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))"));
+        let code = transpile(
+            "def double_all(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))",
+        );
+        assert!(transpile_ok(
+            "def double_all(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))"
+        ));
     }
 
     #[test]
     fn test_w5_filter_function() {
-        let code = transpile("def positives(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))");
-        assert!(transpile_ok("def positives(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))"));
+        let code = transpile(
+            "def positives(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))",
+        );
+        assert!(transpile_ok(
+            "def positives(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))"
+        ));
     }
 
     #[test]

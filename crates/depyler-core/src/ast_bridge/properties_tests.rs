@@ -8,25 +8,15 @@ use crate::hir::{
 // ============================================================================
 
 fn make_assign(name: &str, value: HirExpr) -> HirStmt {
-    HirStmt::Assign {
-        target: AssignTarget::Symbol(name.to_string()),
-        value,
-        type_annotation: None,
-    }
+    HirStmt::Assign { target: AssignTarget::Symbol(name.to_string()), value, type_annotation: None }
 }
 
 fn make_call(func: &str, args: Vec<HirExpr>) -> HirExpr {
-    HirExpr::Call {
-        func: func.to_string(),
-        args,
-        kwargs: vec![],
-    }
+    HirExpr::Call { func: func.to_string(), args, kwargs: vec![] }
 }
 
 fn make_yield(value: Option<HirExpr>) -> HirExpr {
-    HirExpr::Yield {
-        value: value.map(Box::new),
-    }
+    HirExpr::Yield { value: value.map(Box::new) }
 }
 
 // ============================================================================
@@ -171,10 +161,8 @@ fn test_always_terminates_no_loops() {
 
 #[test]
 fn test_while_loop_may_not_terminate() {
-    let body = vec![HirStmt::While {
-        condition: HirExpr::Literal(Literal::Bool(true)),
-        body: vec![],
-    }];
+    let body =
+        vec![HirStmt::While { condition: HirExpr::Literal(Literal::Bool(true)), body: vec![] }];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert!(!props.always_terminates);
@@ -384,10 +372,8 @@ fn test_not_panic_free_condition_with_index() {
 
 #[test]
 fn test_can_fail_with_raise() {
-    let body = vec![HirStmt::Raise {
-        exception: Some(make_call("ValueError", vec![])),
-        cause: None,
-    }];
+    let body =
+        vec![HirStmt::Raise { exception: Some(make_call("ValueError", vec![])), cause: None }];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert!(props.can_fail);
@@ -450,10 +436,7 @@ fn test_can_fail_int_string_parsing() {
 #[test]
 fn test_cannot_fail_int_variable_cast() {
     // int(x) where x is not a string literal - safe cast
-    let body = vec![HirStmt::Expr(make_call(
-        "int",
-        vec![HirExpr::Var("x".to_string())],
-    ))];
+    let body = vec![HirStmt::Expr(make_call("int", vec![HirExpr::Var("x".to_string())]))];
     let props = FunctionAnalyzer::analyze(&body);
 
     // Safe cast doesn't fail
@@ -478,10 +461,7 @@ fn test_can_fail_int_with_base() {
 #[test]
 fn test_can_fail_with_statement_open() {
     let body = vec![HirStmt::With {
-        context: make_call(
-            "open",
-            vec![HirExpr::Literal(Literal::String("file.txt".to_string()))],
-        ),
+        context: make_call("open", vec![HirExpr::Literal(Literal::String("file.txt".to_string()))]),
         target: Some("f".to_string()),
         body: vec![],
         is_async: false,
@@ -585,9 +565,7 @@ fn test_try_except_with_uncaught_exception() {
 
 #[test]
 fn test_is_generator_simple_yield() {
-    let body = vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-        Literal::Int(1),
-    ))))];
+    let body = vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(1)))))];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert!(props.is_generator);
@@ -606,9 +584,7 @@ fn test_is_generator_yield_in_for() {
     let body = vec![HirStmt::For {
         target: AssignTarget::Symbol("i".to_string()),
         iter: make_call("range", vec![HirExpr::Literal(Literal::Int(10))]),
-        body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Var(
-            "i".to_string(),
-        ))))],
+        body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Var("i".to_string()))))],
     }];
     let props = FunctionAnalyzer::analyze(&body);
 
@@ -723,9 +699,7 @@ fn test_is_generator_yield_in_assign() {
 
 #[test]
 fn test_is_generator_yield_in_return() {
-    let body = vec![HirStmt::Return(Some(make_yield(Some(HirExpr::Literal(
-        Literal::Int(1),
-    )))))];
+    let body = vec![HirStmt::Return(Some(make_yield(Some(HirExpr::Literal(Literal::Int(1))))))];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert!(props.is_generator);
@@ -799,10 +773,8 @@ fn test_stack_depth_for_loop() {
 
 #[test]
 fn test_stack_depth_while_loop() {
-    let body = vec![HirStmt::While {
-        condition: HirExpr::Literal(Literal::Bool(false)),
-        body: vec![],
-    }];
+    let body =
+        vec![HirStmt::While { condition: HirExpr::Literal(Literal::Bool(false)), body: vec![] }];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert_eq!(props.max_stack_depth, Some(1));
@@ -933,36 +905,21 @@ fn test_yield_in_borrow() {
 #[test]
 fn test_multiple_error_types_deduped() {
     let body = vec![
-        HirStmt::Raise {
-            exception: Some(make_call("ValueError", vec![])),
-            cause: None,
-        },
-        HirStmt::Raise {
-            exception: Some(make_call("ValueError", vec![])),
-            cause: None,
-        },
-        HirStmt::Raise {
-            exception: Some(make_call("TypeError", vec![])),
-            cause: None,
-        },
+        HirStmt::Raise { exception: Some(make_call("ValueError", vec![])), cause: None },
+        HirStmt::Raise { exception: Some(make_call("ValueError", vec![])), cause: None },
+        HirStmt::Raise { exception: Some(make_call("TypeError", vec![])), cause: None },
     ];
     let props = FunctionAnalyzer::analyze(&body);
 
     // Should be deduplicated
-    let value_error_count = props
-        .error_types
-        .iter()
-        .filter(|e| *e == "ValueError")
-        .count();
+    let value_error_count = props.error_types.iter().filter(|e| *e == "ValueError").count();
     assert_eq!(value_error_count, 1);
 }
 
 #[test]
 fn test_extract_exception_var() {
-    let body = vec![HirStmt::Raise {
-        exception: Some(HirExpr::Var("my_error".to_string())),
-        cause: None,
-    }];
+    let body =
+        vec![HirStmt::Raise { exception: Some(HirExpr::Var("my_error".to_string())), cause: None }];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert!(props.error_types.contains(&"my_error".to_string()));

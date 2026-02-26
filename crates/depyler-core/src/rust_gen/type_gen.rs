@@ -226,10 +226,7 @@ fn collection_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<Op
             parse_quote! { Result<#ok_ty, #err_ty> }
         }
         RustType::Tuple(types) => {
-            let tys: Vec<_> = types
-                .iter()
-                .map(rust_type_to_syn)
-                .collect::<Result<Vec<_>>>()?;
+            let tys: Vec<_> = types.iter().map(rust_type_to_syn).collect::<Result<Vec<_>>>()?;
             parse_quote! { (#(#tys),*) }
         }
         _ => return Ok(None),
@@ -271,11 +268,9 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
             let lt_ident = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
             parse_quote! { Cow<#lt_ident, str> }
         }
-        RustType::Reference {
-            lifetime,
-            mutable,
-            inner,
-        } => reference_type_to_syn(lifetime, *mutable, inner)?,
+        RustType::Reference { lifetime, mutable, inner } => {
+            reference_type_to_syn(lifetime, *mutable, inner)?
+        }
         RustType::Unit => parse_quote! { () },
         RustType::Custom(name) => {
             let ty: syn::Type = syn::parse_str(name)?;
@@ -288,10 +283,8 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
         }
         RustType::Generic { base, params } => {
             let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
-            let param_types: Vec<_> = params
-                .iter()
-                .map(rust_type_to_syn)
-                .collect::<Result<Vec<_>>>()?;
+            let param_types: Vec<_> =
+                params.iter().map(rust_type_to_syn).collect::<Result<Vec<_>>>()?;
             parse_quote! { #base_ident<#(#param_types),*> }
         }
         RustType::Enum { name, .. } => {
@@ -947,9 +940,7 @@ mod tests {
 
     #[test]
     fn test_rust_type_to_syn_str_with_lifetime() {
-        let ty = RustType::Str {
-            lifetime: Some("'a".to_string()),
-        };
+        let ty = RustType::Str { lifetime: Some("'a".to_string()) };
         let result = rust_type_to_syn(&ty).unwrap();
         let tokens = result.to_token_stream().to_string();
         assert!(tokens.contains("'a"));
@@ -958,9 +949,7 @@ mod tests {
 
     #[test]
     fn test_rust_type_to_syn_cow() {
-        let ty = RustType::Cow {
-            lifetime: "'a".to_string(),
-        };
+        let ty = RustType::Cow { lifetime: "'a".to_string() };
         let result = rust_type_to_syn(&ty).unwrap();
         let tokens = result.to_token_stream().to_string();
         assert!(tokens.contains("Cow"));
@@ -1058,10 +1047,7 @@ mod tests {
 
     #[test]
     fn test_rust_type_to_syn_enum() {
-        let ty = RustType::Enum {
-            name: "Status".to_string(),
-            variants: vec![],
-        };
+        let ty = RustType::Enum { name: "Status".to_string(), variants: vec![] };
         let result = rust_type_to_syn(&ty).unwrap();
         let tokens = result.to_token_stream().to_string();
         assert_eq!(tokens, "Status");
@@ -1131,10 +1117,7 @@ mod tests {
 
     #[test]
     fn test_rust_type_to_syn_tuple() {
-        let ty = RustType::Tuple(vec![
-            RustType::Primitive(PrimitiveType::I32),
-            RustType::String,
-        ]);
+        let ty = RustType::Tuple(vec![RustType::Primitive(PrimitiveType::I32), RustType::String]);
         let result = rust_type_to_syn(&ty).unwrap();
         let tokens = result.to_token_stream().to_string();
         assert!(tokens.contains("i32"));
@@ -1230,9 +1213,7 @@ mod tests {
     #[test]
     fn test_import_needs_cow() {
         let mut ctx = CodeGenContext::default();
-        let ty = RustType::Cow {
-            lifetime: "'a".to_string(),
-        };
+        let ty = RustType::Cow { lifetime: "'a".to_string() };
         update_import_needs(&mut ctx, &ty);
         assert!(ctx.needs_cow);
     }
@@ -1279,9 +1260,7 @@ mod tests {
     #[test]
     fn test_import_needs_option_recursive() {
         let mut ctx = CodeGenContext::default();
-        let ty = RustType::Option(Box::new(RustType::Cow {
-            lifetime: "'a".to_string(),
-        }));
+        let ty = RustType::Option(Box::new(RustType::Cow { lifetime: "'a".to_string() }));
         update_import_needs(&mut ctx, &ty);
         assert!(ctx.needs_cow);
     }
@@ -1306,9 +1285,7 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         let ty = RustType::Tuple(vec![
             RustType::HashSet(Box::new(RustType::String)),
-            RustType::Cow {
-                lifetime: "'a".to_string(),
-            },
+            RustType::Cow { lifetime: "'a".to_string() },
         ]);
         update_import_needs(&mut ctx, &ty);
         assert!(ctx.needs_hashset);
@@ -1318,9 +1295,7 @@ mod tests {
     #[test]
     fn test_import_needs_hashset_inner_recursive() {
         let mut ctx = CodeGenContext::default();
-        let ty = RustType::HashSet(Box::new(RustType::Cow {
-            lifetime: "'a".to_string(),
-        }));
+        let ty = RustType::HashSet(Box::new(RustType::Cow { lifetime: "'a".to_string() }));
         update_import_needs(&mut ctx, &ty);
         assert!(ctx.needs_hashset);
         assert!(ctx.needs_cow);
@@ -1373,12 +1348,10 @@ mod tests {
     fn test_deeply_nested_type() {
         let ty = RustType::HashMap(
             Box::new(RustType::String),
-            Box::new(RustType::Vec(Box::new(RustType::Option(Box::new(
-                RustType::Tuple(vec![
-                    RustType::Primitive(PrimitiveType::I32),
-                    RustType::String,
-                ]),
-            ))))),
+            Box::new(RustType::Vec(Box::new(RustType::Option(Box::new(RustType::Tuple(vec![
+                RustType::Primitive(PrimitiveType::I32),
+                RustType::String,
+            ])))))),
         );
         let result = rust_type_to_syn(&ty).unwrap();
         assert!(!result.to_token_stream().to_string().is_empty());

@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -515,7 +513,9 @@ def identity(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_string") || result.contains("chars") || result.contains("step"));
+        assert!(
+            result.contains("to_string") || result.contains("chars") || result.contains("step")
+        );
     }
 
     #[test]
@@ -629,7 +629,9 @@ def get_last(data: list) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("len") || result.contains("saturating_sub") || result.contains("get"));
+        assert!(
+            result.contains("len") || result.contains("saturating_sub") || result.contains("get")
+        );
     }
 
     #[test]
@@ -640,7 +642,9 @@ def get_penultimate(data: list) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("len") || result.contains("saturating_sub") || result.contains("get"));
+        assert!(
+            result.contains("len") || result.contains("saturating_sub") || result.contains("get")
+        );
     }
 
     #[test]
@@ -763,7 +767,9 @@ def last_ch(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("chars") || result.contains("nth") || result.contains("saturating_sub"));
+        assert!(
+            result.contains("chars") || result.contains("nth") || result.contains("saturating_sub")
+        );
     }
 
     #[test]
@@ -819,7 +825,9 @@ def third_from_end(data: list) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("len") || result.contains("saturating_sub") || result.contains("get"));
+        assert!(
+            result.contains("len") || result.contains("saturating_sub") || result.contains("get")
+        );
     }
 
     #[test]
@@ -1137,7 +1145,9 @@ def fourth_from_end(data: list) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("len") || result.contains("saturating_sub") || result.contains("get"));
+        assert!(
+            result.contains("len") || result.contains("saturating_sub") || result.contains("get")
+        );
     }
 
     #[test]
@@ -1148,7 +1158,11 @@ def ensure_key(d: dict) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     // ========================================================================
@@ -1185,7 +1199,9 @@ def positive_dict():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("collect") || result.contains("HashMap"));
+        assert!(
+            result.contains("filter") || result.contains("collect") || result.contains("HashMap")
+        );
     }
 
     #[test]
@@ -1196,7 +1212,11 @@ def lower_set(words: list):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("HashSet") || result.contains("collect") || result.contains("to_lowercase"));
+        assert!(
+            result.contains("HashSet")
+                || result.contains("collect")
+                || result.contains("to_lowercase")
+        );
     }
 
     #[test]
@@ -1240,7 +1260,9 @@ def squares(n: int) -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("map") || result.contains("collect") || result.contains("into_iter"));
+        assert!(
+            result.contains("map") || result.contains("collect") || result.contains("into_iter")
+        );
     }
 
     #[test]
@@ -1361,7 +1383,9 @@ def positive_items():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("HashMap") || result.contains("collect"));
+        assert!(
+            result.contains("filter") || result.contains("HashMap") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1372,7 +1396,9 @@ def even_set():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("HashSet") || result.contains("collect"));
+        assert!(
+            result.contains("filter") || result.contains("HashSet") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1383,7 +1409,9 @@ def labeled(nums: list) -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("map") || result.contains("to_string") || result.contains("collect"));
+        assert!(
+            result.contains("map") || result.contains("to_string") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1416,7 +1444,9 @@ def filtered_pairs():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("flat_map") || result.contains("filter") || result.contains("collect"));
+        assert!(
+            result.contains("flat_map") || result.contains("filter") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1438,7 +1468,11 @@ def indexed(items: list):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("collect") || result.contains("HashMap") || result.contains("enumerate"));
+        assert!(
+            result.contains("collect")
+                || result.contains("HashMap")
+                || result.contains("enumerate")
+        );
     }
 
     #[test]
@@ -1570,7 +1604,9 @@ def first_five() -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("collect") || result.contains("0..5") || result.contains("into_iter"));
+        assert!(
+            result.contains("collect") || result.contains("0..5") || result.contains("into_iter")
+        );
     }
 
     #[test]
@@ -1625,7 +1661,9 @@ def shout(words: list) -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_uppercase") || result.contains("map") || result.contains("collect"));
+        assert!(
+            result.contains("to_uppercase") || result.contains("map") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1636,7 +1674,9 @@ def whisper(words: list) -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_lowercase") || result.contains("map") || result.contains("collect"));
+        assert!(
+            result.contains("to_lowercase") || result.contains("map") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1680,7 +1720,9 @@ def big_set(n: int):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("HashSet") || result.contains("collect"));
+        assert!(
+            result.contains("filter") || result.contains("HashSet") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1702,7 +1744,9 @@ def even_products():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("flat_map") || result.contains("filter") || result.contains("collect"));
+        assert!(
+            result.contains("flat_map") || result.contains("filter") || result.contains("collect")
+        );
     }
 
     // ========================================================================
@@ -1778,7 +1822,12 @@ def platform() -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_string") || result.contains("darwin") || result.contains("linux") || result.contains("win32"));
+        assert!(
+            result.contains("to_string")
+                || result.contains("darwin")
+                || result.contains("linux")
+                || result.contains("win32")
+        );
     }
 
     #[test]
@@ -1790,7 +1839,9 @@ def get_args() -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("env::args") || result.contains("collect") || result.contains("Vec"));
+        assert!(
+            result.contains("env::args") || result.contains("collect") || result.contains("Vec")
+        );
     }
 
     #[test]
@@ -1838,7 +1889,11 @@ def get_env():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("env::vars") || result.contains("collect") || result.contains("HashMap"));
+        assert!(
+            result.contains("env::vars")
+                || result.contains("collect")
+                || result.contains("HashMap")
+        );
     }
 
     #[test]
@@ -1930,7 +1985,10 @@ def get_letters() -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("abcdefghijklmnopqrstuvwxyz") || result.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+        assert!(
+            result.contains("abcdefghijklmnopqrstuvwxyz")
+                || result.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        );
     }
 
     #[test]
@@ -1967,7 +2025,12 @@ def get_ws() -> str:
         let result = transpile(code);
         assert!(!result.is_empty());
         // Whitespace contains tab and newline chars
-        assert!(result.contains("\\t") || result.contains("\\n") || result.contains("whitespace") || result.len() > 10);
+        assert!(
+            result.contains("\\t")
+                || result.contains("\\n")
+                || result.contains("whitespace")
+                || result.len() > 10
+        );
     }
 
     #[test]
@@ -2157,7 +2220,9 @@ def get_parts(path):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("components") || result.contains("collect") || result.contains("parts"));
+        assert!(
+            result.contains("components") || result.contains("collect") || result.contains("parts")
+        );
     }
 
     #[test]

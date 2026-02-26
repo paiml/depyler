@@ -230,10 +230,8 @@ mod tests {
     fn test_dict_passthrough() {
         let expr: syn::Expr = parse_quote!(mapping);
         let original = expr_to_string(expr.clone());
-        let result = apply_type_conversion(
-            expr,
-            &Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        );
+        let result =
+            apply_type_conversion(expr, &Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         assert_eq!(expr_to_string(result), original);
     }
 
@@ -275,10 +273,7 @@ mod tests {
         let original = expr_to_string(expr.clone());
         let result = apply_type_conversion(
             expr,
-            &Type::Function {
-                params: vec![Type::Int],
-                ret: Box::new(Type::String),
-            },
+            &Type::Function { params: vec![Type::Int], ret: Box::new(Type::String) },
         );
         assert_eq!(expr_to_string(result), original);
     }
@@ -296,10 +291,7 @@ mod tests {
     fn test_string_conversion_complex_chain() {
         let expr: syn::Expr = parse_quote!(config.get("key").unwrap());
         let result = apply_type_conversion(expr, &Type::String);
-        assert_eq!(
-            expr_to_string(result),
-            "config.get(\"key\").unwrap().to_string()"
-        );
+        assert_eq!(expr_to_string(result), "config.get(\"key\").unwrap().to_string()");
     }
 
     #[test]

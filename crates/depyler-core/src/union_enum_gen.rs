@@ -280,10 +280,7 @@ mod tests {
     #[test]
     fn test_generate_enum_name_dict_type() {
         let mut generator = UnionEnumGenerator::new();
-        let types = vec![
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-            Type::None,
-        ];
+        let types = vec![Type::Dict(Box::new(Type::String), Box::new(Type::Int)), Type::None];
         let name = generator.generate_enum_name(&types);
         assert_eq!(name, "DictOrNoneUnion");
     }
@@ -331,10 +328,7 @@ mod tests {
     #[test]
     fn test_variant_name_list() {
         let generator = UnionEnumGenerator::new();
-        assert_eq!(
-            generator.type_to_variant_name(&Type::List(Box::new(Type::Int)), 0),
-            "List"
-        );
+        assert_eq!(generator.type_to_variant_name(&Type::List(Box::new(Type::Int)), 0), "List");
     }
 
     #[test]
@@ -356,19 +350,13 @@ mod tests {
     #[test]
     fn test_variant_name_typevar() {
         let generator = UnionEnumGenerator::new();
-        assert_eq!(
-            generator.type_to_variant_name(&Type::TypeVar("T".to_string()), 0),
-            "TypeT"
-        );
+        assert_eq!(generator.type_to_variant_name(&Type::TypeVar("T".to_string()), 0), "TypeT");
     }
 
     #[test]
     fn test_variant_name_unknown() {
         let generator = UnionEnumGenerator::new();
-        assert_eq!(
-            generator.type_to_variant_name(&Type::Unknown, 5),
-            "Variant5"
-        );
+        assert_eq!(generator.type_to_variant_name(&Type::Unknown, 5), "Variant5");
     }
 
     // ============ type_to_rust_type tests ============
@@ -377,20 +365,14 @@ mod tests {
     fn test_type_to_rust_type_int() {
         let generator = UnionEnumGenerator::new();
         let rust_type = generator.type_to_rust_type(&Type::Int);
-        assert!(matches!(
-            rust_type,
-            RustType::Primitive(crate::type_mapper::PrimitiveType::I32)
-        ));
+        assert!(matches!(rust_type, RustType::Primitive(crate::type_mapper::PrimitiveType::I32)));
     }
 
     #[test]
     fn test_type_to_rust_type_float() {
         let generator = UnionEnumGenerator::new();
         let rust_type = generator.type_to_rust_type(&Type::Float);
-        assert!(matches!(
-            rust_type,
-            RustType::Primitive(crate::type_mapper::PrimitiveType::F64)
-        ));
+        assert!(matches!(rust_type, RustType::Primitive(crate::type_mapper::PrimitiveType::F64)));
     }
 
     #[test]
@@ -404,10 +386,7 @@ mod tests {
     fn test_type_to_rust_type_bool() {
         let generator = UnionEnumGenerator::new();
         let rust_type = generator.type_to_rust_type(&Type::Bool);
-        assert!(matches!(
-            rust_type,
-            RustType::Primitive(crate::type_mapper::PrimitiveType::Bool)
-        ));
+        assert!(matches!(rust_type, RustType::Primitive(crate::type_mapper::PrimitiveType::Bool)));
     }
 
     // ============ generate_union_enum integration tests ============
@@ -438,12 +417,7 @@ mod tests {
     #[test]
     fn test_complex_union() {
         let mut generator = UnionEnumGenerator::new();
-        let types = vec![
-            Type::Int,
-            Type::String,
-            Type::List(Box::new(Type::Float)),
-            Type::Bool,
-        ];
+        let types = vec![Type::Int, Type::String, Type::List(Box::new(Type::Float)), Type::Bool];
 
         let (name, _) = generator.generate_union_enum(&types);
         assert_eq!(name, "UnionType1");

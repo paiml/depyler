@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -92,11 +90,7 @@ class Named:
         return self.name
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Named"),
-        "Should transpile class with __str__. Got: {}",
-        result
-    );
+    assert!(result.contains("Named"), "Should transpile class with __str__. Got: {}", result);
 }
 
 #[test]
@@ -110,11 +104,7 @@ class Item:
         return f"Item({self.value})"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Item"),
-        "Should transpile class with __repr__. Got: {}",
-        result
-    );
+    assert!(result.contains("Item"), "Should transpile class with __repr__. Got: {}", result);
 }
 
 #[test]
@@ -129,11 +119,7 @@ class Pair:
         return self.a == other.a and self.b == other.b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Pair"),
-        "Should transpile class with __eq__. Got: {}",
-        result
-    );
+    assert!(result.contains("Pair"), "Should transpile class with __eq__. Got: {}", result);
 }
 
 #[test]
@@ -147,11 +133,7 @@ class Container:
         return len(self.items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Container"),
-        "Should transpile class with __len__. Got: {}",
-        result
-    );
+    assert!(result.contains("Container"), "Should transpile class with __len__. Got: {}", result);
 }
 
 #[test]
@@ -182,11 +164,7 @@ class Config:
         return cls(s)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Config"),
-        "Should transpile classmethod. Got: {}",
-        result
-    );
+    assert!(result.contains("Config"), "Should transpile classmethod. Got: {}", result);
 }
 
 #[test]
@@ -201,11 +179,7 @@ class Circle:
         return 3.14159 * self.radius ** 2
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Circle"),
-        "Should transpile property. Got: {}",
-        result
-    );
+    assert!(result.contains("Circle"), "Should transpile property. Got: {}", result);
 }
 
 #[test]
@@ -241,11 +215,7 @@ class Config:
         self.name = name
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("Config"),
-        "Should transpile class vars. Got: {}",
-        result
-    );
+    assert!(result.contains("Config"), "Should transpile class vars. Got: {}", result);
 }
 
 // ============================================================================
@@ -261,11 +231,7 @@ def circle_area(r: float) -> float:
     return math.pi * r ** 2
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn circle_area"),
-        "Should handle math import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn circle_area"), "Should handle math import. Got: {}", result);
 }
 
 #[test]
@@ -277,11 +243,7 @@ def hypotenuse(a: float, b: float) -> float:
     return sqrt(a ** 2 + b ** 2)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn hypotenuse"),
-        "Should handle from import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn hypotenuse"), "Should handle from import. Got: {}", result);
 }
 
 #[test]
@@ -293,11 +255,7 @@ def get_home() -> str:
     return os.getenv("HOME", "/tmp")
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn get_home"),
-        "Should handle os import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn get_home"), "Should handle os import. Got: {}", result);
 }
 
 #[test]
@@ -309,11 +267,7 @@ def process(items: List[int]) -> Dict[str, int]:
     return {"count": len(items)}
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should handle typing import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should handle typing import. Got: {}", result);
 }
 
 #[test]
@@ -328,11 +282,7 @@ def word_count(words: list) -> dict:
     return counts
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn word_count"),
-        "Should handle collections import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn word_count"), "Should handle collections import. Got: {}", result);
 }
 
 #[test]
@@ -344,11 +294,7 @@ def serialize(data: dict) -> str:
     return json.dumps(data)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn serialize"),
-        "Should handle json import. Got: {}",
-        result
-    );
+    assert!(result.contains("fn serialize"), "Should handle json import. Got: {}", result);
 }
 
 // ============================================================================
@@ -492,11 +438,7 @@ def greet(name: str, greeting: str = "Hello") -> str:
     return f"{greeting}, {name}!"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn greet"),
-        "Should transpile default params. Got: {}",
-        result
-    );
+    assert!(result.contains("fn greet"), "Should transpile default params. Got: {}", result);
 }
 
 #[test]
@@ -506,11 +448,7 @@ def connect(host: str = "localhost", port: int = 8080, timeout: int = 30) -> str
     return f"{host}:{port}"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn connect"),
-        "Should transpile multiple defaults. Got: {}",
-        result
-    );
+    assert!(result.contains("fn connect"), "Should transpile multiple defaults. Got: {}", result);
 }
 
 // ============================================================================
@@ -560,11 +498,7 @@ def count_up(n: int):
         yield i
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_up"),
-        "Should transpile generator yield. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_up"), "Should transpile generator yield. Got: {}", result);
 }
 
 #[test]
@@ -795,11 +729,7 @@ def find(items: list, target: int) -> Optional[int]:
     return None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find"),
-        "Should transpile Optional param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find"), "Should transpile Optional param. Got: {}", result);
 }
 
 // ============================================================================
@@ -816,11 +746,7 @@ def sum_all(*args) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sum_all"),
-        "Should transpile *args. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sum_all"), "Should transpile *args. Got: {}", result);
 }
 
 #[test]
@@ -830,9 +756,5 @@ def config(**kwargs) -> dict:
     return kwargs
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn config"),
-        "Should transpile **kwargs. Got: {}",
-        result
-    );
+    assert!(result.contains("fn config"), "Should transpile **kwargs. Got: {}", result);
 }

@@ -110,20 +110,12 @@ def create_person() -> Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Verify struct has fields in correct order
-    assert!(
-        code.contains("pub struct Person"),
-        "Should generate Person struct: {}",
-        code
-    );
+    assert!(code.contains("pub struct Person"), "Should generate Person struct: {}", code);
 
     // Verify new() has parameters in correct order (name, age, email)
     // The signature should be: new(name: String, age: i32, email: String)
@@ -155,10 +147,7 @@ def create_person() -> Person:
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "basic") {
         let errors = compile_errors_cargo(&code, "basic");
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -180,28 +169,17 @@ def create_config() -> Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Verify struct exists
-    assert!(
-        code.contains("pub struct Config"),
-        "Should generate Config struct: {}",
-        code
-    );
+    assert!(code.contains("pub struct Config"), "Should generate Config struct: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "defaults") {
         let errors = compile_errors_cargo(&code, "defaults");
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -227,29 +205,18 @@ def use_point() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Verify Point::new() calls have arguments in correct order
     // Should generate: Point::new(1, 2, 3) not Point::new(3, 2, 1)
-    assert!(
-        code.contains("Point::new(1"),
-        "Should call Point::new with first arg 1: {}",
-        code
-    );
+    assert!(code.contains("Point::new(1"), "Should call Point::new with first arg 1: {}", code);
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "callsite") {
         let errors = compile_errors_cargo(&code, "callsite");
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -270,20 +237,12 @@ def create_rect() -> Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Verify struct exists
-    assert!(
-        code.contains("pub struct Rectangle"),
-        "Should generate Rectangle struct: {}",
-        code
-    );
+    assert!(code.contains("pub struct Rectangle"), "Should generate Rectangle struct: {}", code);
 
     // Even with keyword args, the call should work correctly
     // Generated: Rectangle::new(100, 50) - width=100 first, height=50 second
@@ -291,10 +250,7 @@ def create_rect() -> Rectangle:
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "kwargs") {
         let errors = compile_errors_cargo(&code, "kwargs");
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -316,21 +272,14 @@ def create_user() -> User:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "mixed") {
         let errors = compile_errors_cargo(&code, "mixed");
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }
 
@@ -353,28 +302,18 @@ def hire_employee() -> Employee:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
 
     // Verify struct field order matches Python definition
     // Fields should appear in order: department, employee_id, salary, is_manager
     let struct_pos = code.find("pub struct Employee");
-    assert!(
-        struct_pos.is_some(),
-        "Should generate Employee struct: {}",
-        code
-    );
+    assert!(struct_pos.is_some(), "Should generate Employee struct: {}", code);
 
     let struct_start = struct_pos.unwrap();
-    let struct_end = code[struct_start..]
-        .find('}')
-        .map(|p| struct_start + p + 1)
-        .unwrap_or(code.len());
+    let struct_end =
+        code[struct_start..].find('}').map(|p| struct_start + p + 1).unwrap_or(code.len());
     let struct_def = &code[struct_start..struct_end];
 
     let dept_pos = struct_def.find("department");
@@ -400,9 +339,6 @@ def hire_employee() -> Employee:
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "employee") {
         let errors = compile_errors_cargo(&code, "employee");
-        panic!(
-            "Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}",
-            errors, code
-        );
+        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
     }
 }

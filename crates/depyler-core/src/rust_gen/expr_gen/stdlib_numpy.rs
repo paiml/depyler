@@ -47,10 +47,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_trueno = true;
 
         // Convert arguments to syn::Expr
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Generate trueno code based on the numpy function
         let result = match method {
@@ -65,9 +63,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             Ok(quote::quote! { #expr })
                         })
                         .collect::<Result<Vec<_>>>()?;
-                    let call = numpy_gen::NumpyCall::Array {
-                        elements: element_exprs,
-                    };
+                    let call = numpy_gen::NumpyCall::Array { elements: element_exprs };
                     let tokens = numpy_gen::generate_trueno_code(&call);
                     return Ok(Some(syn::parse2(tokens)?));
                 }
@@ -276,10 +272,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments to syn::Expr
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result: syn::Expr = match method {
             "array" => {

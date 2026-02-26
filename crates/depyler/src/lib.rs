@@ -454,10 +454,8 @@ pub fn transpile_command(
             .unwrap_or("transpiled")
             .replace('-', "_"); // Cargo package names use underscores
 
-        let source_file_name = output_path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("main.rs");
+        let source_file_name =
+            output_path.file_name().and_then(|s| s.to_str()).unwrap_or("main.rs");
 
         // Convert dependencies to cargo_toml_gen::Dependency type
         let deps: Vec<Dependency> = dependencies;
@@ -465,10 +463,8 @@ pub fn transpile_command(
         let cargo_toml = generate_cargo_toml_auto(&package_name, source_file_name, &deps);
 
         // Write Cargo.toml in the same directory as the output file
-        let cargo_toml_path = output_path
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join("Cargo.toml");
+        let cargo_toml_path =
+            output_path.parent().unwrap_or(std::path::Path::new(".")).join("Cargo.toml");
         fs::write(&cargo_toml_path, cargo_toml)?;
 
         println!(
@@ -500,11 +496,7 @@ pub fn transpile_command(
 
 pub fn compile_command(input: PathBuf, output: Option<PathBuf>, profile: String) -> Result<()> {
     let output_ref = output.as_deref();
-    let profile_ref = if profile.is_empty() {
-        None
-    } else {
-        Some(profile.as_str())
-    };
+    let profile_ref = if profile.is_empty() { None } else { Some(profile.as_str()) };
     compile_cmd::compile_python_to_binary(&input, output_ref, profile_ref)?;
     Ok(())
 }
@@ -562,11 +554,7 @@ pub fn repair_command(
     use depyler_oracle::utol::repair_file_types;
 
     if verbose {
-        println!(
-            "{} Starting type repair for {}",
-            "🔧".green(),
-            input.display()
-        );
+        println!("{} Starting type repair for {}", "🔧".green(), input.display());
         println!("   Max iterations: {}", max_iterations);
     }
 
@@ -595,11 +583,7 @@ pub fn repair_command(
         let output_path = output.unwrap_or_else(|| input.with_extension("rs"));
         fs::write(&output_path, &rust_code)?;
 
-        println!(
-            "{} Wrote repaired Rust code to {}",
-            "📄".green(),
-            output_path.display()
-        );
+        println!("{} Wrote repaired Rust code to {}", "📄".green(), output_path.display());
 
         Ok(())
     } else {
@@ -693,11 +677,7 @@ mod tests {
     fn test_transpile_command_valid() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("test.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let result = transpile_command(py_file.clone(), None, false, false, false, false);
         assert!(result.is_ok());
@@ -720,14 +700,8 @@ mod tests {
 
     #[test]
     fn test_transpile_command_nonexistent() {
-        let result = transpile_command(
-            PathBuf::from("/nonexistent.py"),
-            None,
-            false,
-            false,
-            false,
-            false,
-        );
+        let result =
+            transpile_command(PathBuf::from("/nonexistent.py"), None, false, false, false, false);
         assert!(result.is_err());
     }
 
@@ -785,11 +759,7 @@ mod tests {
     fn test_analyze_command_text_format() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("analyze.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let result = analyze_command(py_file, "text".to_string());
         assert!(result.is_ok());
@@ -799,11 +769,7 @@ mod tests {
     fn test_analyze_command_json_format() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("analyze.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let result = analyze_command(py_file, "json".to_string());
         assert!(result.is_ok());
@@ -819,11 +785,7 @@ mod tests {
     fn test_check_command_valid() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("check.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let result = check_command(py_file);
         assert!(result.is_ok());
@@ -837,11 +799,7 @@ mod tests {
 
     #[test]
     fn test_compile_command_nonexistent() {
-        let result = compile_command(
-            PathBuf::from("/nonexistent.py"),
-            None,
-            "release".to_string(),
-        );
+        let result = compile_command(PathBuf::from("/nonexistent.py"), None, "release".to_string());
         assert!(result.is_err());
     }
 
@@ -891,11 +849,7 @@ mod tests {
     fn test_cache_commands_gc() {
         use clap::Parser;
         let cli = Cli::try_parse_from(["depyler", "cache", "gc"]).unwrap();
-        if let Commands::Cache(CacheCommands::Gc {
-            max_age_days,
-            dry_run,
-        }) = cli.command
-        {
+        if let Commands::Cache(CacheCommands::Gc { max_age_days, dry_run }) = cli.command {
             assert_eq!(max_age_days, 30);
             assert!(!dry_run);
         } else {
@@ -953,11 +907,7 @@ mod tests {
     fn test_transpile_command_with_cargo_toml() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("lib_test.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let output = temp.path().join("lib_test.rs");
         let result = transpile_command(py_file, Some(output.clone()), false, false, false, false);
@@ -982,11 +932,7 @@ mod tests {
     fn test_analyze_command_unknown_format() {
         let temp = TempDir::new().unwrap();
         let py_file = temp.path().join("analyze.py");
-        fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         // Unknown format falls through to debug print
         let result = analyze_command(py_file, "xml".to_string());

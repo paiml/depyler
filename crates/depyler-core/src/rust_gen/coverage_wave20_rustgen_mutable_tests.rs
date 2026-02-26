@@ -21,10 +21,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -84,7 +82,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_007_swap_variables() {
-        let code = "def func() -> int:\n    a = 1\n    b = 2\n    a = b\n    b = a\n    return a + b";
+        let code =
+            "def func() -> int:\n    a = 1\n    b = 2\n    a = b\n    b = a\n    return a + b";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -140,7 +139,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_015_reassignment_in_while_loop() {
-        let code = "def func() -> int:\n    x = 100\n    while x > 0:\n        x = x - 1\n    return x";
+        let code =
+            "def func() -> int:\n    x = 100\n    while x > 0:\n        x = x - 1\n    return x";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -249,7 +249,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_030_csv_writer_reassigned() {
-        let code = "def func() -> list:\n    writer = []\n    writer = [1, 2, 3]\n    return writer";
+        let code =
+            "def func() -> list:\n    writer = []\n    writer = [1, 2, 3]\n    return writer";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -316,14 +317,16 @@ mod tests {
 
     #[test]
     fn test_w20rm_039_attribute_assign_string() {
-        let code = "class Person:\n    name: str\n\ndef func(p: Person) -> None:\n    p.name = \"Alice\"";
+        let code =
+            "class Person:\n    name: str\n\ndef func(p: Person) -> None:\n    p.name = \"Alice\"";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w20rm_040_attribute_assign_bool() {
-        let code = "class Toggle:\n    active: bool\n\ndef func(t: Toggle) -> None:\n    t.active = True";
+        let code =
+            "class Toggle:\n    active: bool\n\ndef func(t: Toggle) -> None:\n    t.active = True";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -355,7 +358,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_044_index_assign_variable() {
-        let code = "def func(idx: int) -> list:\n    arr = [0, 0, 0]\n    arr[idx] = 42\n    return arr";
+        let code =
+            "def func(idx: int) -> list:\n    arr = [0, 0, 0]\n    arr[idx] = 42\n    return arr";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -489,7 +493,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_062_list_extend() {
-        let code = "def func() -> list:\n    items = [1]\n    items.extend([2, 3])\n    return items";
+        let code =
+            "def func() -> list:\n    items = [1]\n    items.extend([2, 3])\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -503,14 +508,16 @@ mod tests {
 
     #[test]
     fn test_w20rm_064_list_insert() {
-        let code = "def func() -> list:\n    items = [1, 3]\n    items.insert(1, 2)\n    return items";
+        let code =
+            "def func() -> list:\n    items = [1, 3]\n    items.insert(1, 2)\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w20rm_065_list_remove() {
-        let code = "def func() -> list:\n    items = [1, 2, 3]\n    items.remove(2)\n    return items";
+        let code =
+            "def func() -> list:\n    items = [1, 2, 3]\n    items.remove(2)\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -524,14 +531,16 @@ mod tests {
 
     #[test]
     fn test_w20rm_067_list_reverse() {
-        let code = "def func() -> list:\n    items = [1, 2, 3]\n    items.reverse()\n    return items";
+        let code =
+            "def func() -> list:\n    items = [1, 2, 3]\n    items.reverse()\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w20rm_068_list_clear() {
-        let code = "def func() -> list:\n    items = [1, 2, 3]\n    items.clear()\n    return items";
+        let code =
+            "def func() -> list:\n    items = [1, 2, 3]\n    items.clear()\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -717,7 +726,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_094_attribute_expr_mutation() {
-        let code = "class Obj:\n    items: list\n\ndef func(o: Obj) -> None:\n    o.items.append(1)";
+        let code =
+            "class Obj:\n    items: list\n\ndef func(o: Obj) -> None:\n    o.items.append(1)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -780,7 +790,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_103_method_call_recursive_expr() {
-        let code = "def func() -> list:\n    items = []\n    items.append(len(items))\n    return items";
+        let code =
+            "def func() -> list:\n    items = []\n    items.append(len(items))\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -794,7 +805,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_105_class_var_type_tracking() {
-        let code = "class MyClass:\n    val: int\n\ndef func() -> int:\n    obj = MyClass()\n    return 0";
+        let code =
+            "class MyClass:\n    val: int\n\ndef func() -> int:\n    obj = MyClass()\n    return 0";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1186,7 +1198,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_159_class_method_return_type() {
-        let code = "class Calculator:\n    def add(self, a: int, b: int) -> int:\n        return a + b";
+        let code =
+            "class Calculator:\n    def add(self, a: int, b: int) -> int:\n        return a + b";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1249,7 +1262,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_168_multiple_classes() {
-        let code = "class A:\n    x: int\n\nclass B:\n    y: int\n\ndef func() -> int:\n    return 0";
+        let code =
+            "class A:\n    x: int\n\nclass B:\n    y: int\n\ndef func() -> int:\n    return 0";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1263,7 +1277,8 @@ mod tests {
 
     #[test]
     fn test_w20rm_170_module_constant_type_tracking() {
-        let code = "DATA = {1: \"a\", 2: \"b\"}\n\ndef func(key: int) -> str:\n    return DATA[key]";
+        let code =
+            "DATA = {1: \"a\", 2: \"b\"}\n\ndef func(key: int) -> str:\n    return DATA[key]";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

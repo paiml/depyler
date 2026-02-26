@@ -104,12 +104,7 @@ impl TfidfFeatureExtractor {
             vectorizer = vectorizer.with_custom_stop_words(&RUST_ERROR_STOPWORDS);
         }
 
-        Self {
-            vectorizer,
-            is_fitted: false,
-            vocabulary: HashMap::new(),
-            config,
-        }
+        Self { vectorizer, is_fitted: false, vocabulary: HashMap::new(), config }
     }
 
     /// Set N-gram range.
@@ -172,17 +167,13 @@ impl TfidfFeatureExtractor {
     /// Returns error if fitting fails.
     pub fn fit<S: AsRef<str>>(&mut self, documents: &[S]) -> Result<(), OracleError> {
         if documents.is_empty() {
-            return Err(OracleError::Feature(
-                "Cannot fit on empty documents".to_string(),
-            ));
+            return Err(OracleError::Feature("Cannot fit on empty documents".to_string()));
         }
 
         // Preprocess documents
         let processed: Vec<String> = documents.iter().map(|d| preprocess(d.as_ref())).collect();
 
-        self.vectorizer
-            .fit(&processed)
-            .map_err(|e| OracleError::Feature(e.to_string()))?;
+        self.vectorizer.fit(&processed).map_err(|e| OracleError::Feature(e.to_string()))?;
 
         self.vocabulary = self.vectorizer.vocabulary().clone();
         self.is_fitted = true;
@@ -196,22 +187,16 @@ impl TfidfFeatureExtractor {
     /// Returns error if transformation fails.
     pub fn transform<S: AsRef<str>>(&self, documents: &[S]) -> Result<Matrix<f64>, OracleError> {
         if !self.is_fitted {
-            return Err(OracleError::Feature(
-                "Extractor not fitted. Call fit() first".to_string(),
-            ));
+            return Err(OracleError::Feature("Extractor not fitted. Call fit() first".to_string()));
         }
 
         if documents.is_empty() {
-            return Err(OracleError::Feature(
-                "Cannot transform empty documents".to_string(),
-            ));
+            return Err(OracleError::Feature("Cannot transform empty documents".to_string()));
         }
 
         let processed: Vec<String> = documents.iter().map(|d| preprocess(d.as_ref())).collect();
 
-        self.vectorizer
-            .transform(&processed)
-            .map_err(|e| OracleError::Feature(e.to_string()))
+        self.vectorizer.transform(&processed).map_err(|e| OracleError::Feature(e.to_string()))
     }
 
     /// Fit and transform in one step.
@@ -318,19 +303,13 @@ impl CombinedFeatureExtractor {
     /// Create a new combined extractor.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            tfidf: TfidfFeatureExtractor::new(),
-            include_handcrafted: true,
-        }
+        Self { tfidf: TfidfFeatureExtractor::new(), include_handcrafted: true }
     }
 
     /// Create with custom TF-IDF config.
     #[must_use]
     pub fn with_tfidf_config(config: TfidfConfig) -> Self {
-        Self {
-            tfidf: TfidfFeatureExtractor::with_config(config),
-            include_handcrafted: true,
-        }
+        Self { tfidf: TfidfFeatureExtractor::with_config(config), include_handcrafted: true }
     }
 
     /// Enable/disable hand-crafted features.

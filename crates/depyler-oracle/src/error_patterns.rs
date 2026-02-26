@@ -331,9 +331,7 @@ impl ErrorPatternLibrary {
                 fix_pattern = fix_pattern.with_decision(ctx.clone());
             }
 
-            store
-                .index_fix(fix_pattern)
-                .map_err(|e| OracleError::Model(e.to_string()))?;
+            store.index_fix(fix_pattern).map_err(|e| OracleError::Model(e.to_string()))?;
         }
 
         // Add to in-memory map
@@ -459,9 +457,7 @@ impl ErrorPatternLibrary {
     /// Save library to file
     pub fn save(&self, path: &Path) -> Result<(), OracleError> {
         if let Some(store) = &self.store {
-            store
-                .save_apr(path)
-                .map_err(|e| OracleError::Model(e.to_string()))?;
+            store.save_apr(path).map_err(|e| OracleError::Model(e.to_string()))?;
         }
         Ok(())
     }
@@ -503,10 +499,7 @@ mod tests {
         assert_eq!(pattern.error_code, "E0308");
         assert_eq!(pattern.error_pattern, "type mismatch");
         assert!(!pattern.id.is_empty());
-        assert_eq!(
-            pattern.decision_type,
-            Some(TranspilerDecision::TypeInference)
-        );
+        assert_eq!(pattern.decision_type, Some(TranspilerDecision::TypeInference));
     }
 
     #[test]
@@ -547,9 +540,7 @@ mod tests {
     #[test]
     fn test_error_pattern_library_suggest_fix() {
         let mut library = ErrorPatternLibrary::new().unwrap();
-        library
-            .add_pattern(ErrorPattern::new("E0308", "mismatch", "- i32\n+ i64"))
-            .unwrap();
+        library.add_pattern(ErrorPattern::new("E0308", "mismatch", "- i32\n+ i64")).unwrap();
 
         let _suggestions = library.suggest_fix("E0308", "type mismatch: expected i64", &[]);
         // May or may not match depending on exact matching

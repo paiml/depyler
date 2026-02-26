@@ -20,10 +20,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -31,10 +29,7 @@ fn transpile(python_code: &str) -> String {
 
 fn hir_succeeds(python_code: &str) -> bool {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .is_ok()
+    AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).is_ok()
 }
 
 // ============================================================================
@@ -254,7 +249,11 @@ def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn unique_lengths"), "Should handle set comprehension. Got: {}", result);
+    assert!(
+        result.contains("fn unique_lengths"),
+        "Should handle set comprehension. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -434,9 +433,7 @@ def search(items: list, target: int) -> bool:
 fn test_s11_bridge_empty_module() {
     let code = "";
     let ast = parse(code, Mode::Module, "<test>").expect("parse");
-    let result = AstBridge::new()
-        .with_source(code.to_string())
-        .python_to_hir(ast);
+    let result = AstBridge::new().with_source(code.to_string()).python_to_hir(ast);
     assert!(result.is_ok(), "Should handle empty module");
 }
 

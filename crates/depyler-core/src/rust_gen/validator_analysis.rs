@@ -55,11 +55,7 @@ pub(super) fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenCont
             HirStmt::Expr(expr) => {
                 scan_expr_for_validators(expr, ctx);
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 scan_stmts_for_validators(then_body, ctx);
                 if let Some(ref else_stmts) = else_body {
                     scan_stmts_for_validators(else_stmts, ctx);
@@ -71,12 +67,7 @@ pub(super) fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenCont
             HirStmt::For { body, .. } => {
                 scan_stmts_for_validators(body, ctx);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 scan_stmts_for_validators(body, ctx);
                 for handler in handlers {
                     scan_stmts_for_validators(&handler.body, ctx);

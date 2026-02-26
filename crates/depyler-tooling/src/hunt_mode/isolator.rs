@@ -147,9 +147,8 @@ def process(s: str) -> None:
     /// Poka-yoke: The repro MUST fail before any fix is attempted.
     pub fn synthesize_repro(&self, pattern: &FailurePattern) -> anyhow::Result<ReproCase> {
         // Try to find a matching template
-        let template = self
-            .find_template(&pattern.error_code)
-            .or_else(|| self.generate_from_example(pattern));
+        let template =
+            self.find_template(&pattern.error_code).or_else(|| self.generate_from_example(pattern));
 
         let source = match template {
             Some(t) => t,
@@ -171,10 +170,7 @@ def process(s: str) -> None:
 
     /// Find a template matching the error code
     fn find_template(&self, error_code: &str) -> Option<String> {
-        self.templates
-            .iter()
-            .find(|t| t.error_code == error_code)
-            .map(|t| t.template.clone())
+        self.templates.iter().find(|t| t.error_code == error_code).map(|t| t.template.clone())
     }
 
     /// Generate repro from pattern's trigger example
@@ -286,11 +282,8 @@ mod tests {
 
     #[test]
     fn test_repro_case_new() {
-        let repro = ReproCase::new(
-            "test source".to_string(),
-            "E0308".to_string(),
-            "pattern_1".to_string(),
-        );
+        let repro =
+            ReproCase::new("test source".to_string(), "E0308".to_string(), "pattern_1".to_string());
 
         assert!(!repro.verified_failing);
         assert!(repro.file_path.is_none());
@@ -345,11 +338,8 @@ mod tests {
 
     #[test]
     fn test_repro_case_clone() {
-        let repro = ReproCase::new(
-            "source code".to_string(),
-            "E0432".to_string(),
-            "p2".to_string(),
-        );
+        let repro =
+            ReproCase::new("source code".to_string(), "E0432".to_string(), "p2".to_string());
         let cloned = repro.clone();
         assert_eq!(cloned.source, "source code");
         assert_eq!(cloned.expected_error, "E0432");
@@ -359,11 +349,7 @@ mod tests {
 
     #[test]
     fn test_repro_case_fields() {
-        let repro = ReproCase::new(
-            "test".to_string(),
-            "E0277".to_string(),
-            "test_pat".to_string(),
-        );
+        let repro = ReproCase::new("test".to_string(), "E0277".to_string(), "test_pat".to_string());
         assert_eq!(repro.source, "test");
         assert_eq!(repro.expected_error, "E0277");
         assert_eq!(repro.pattern_id, "test_pat");

@@ -140,9 +140,7 @@ impl<'a> ExprConverter<'a> {
             // Check if index is a negative literal
             let is_negative_literal = match index {
                 HirExpr::Literal(Literal::Int(idx)) => *idx < 0,
-                HirExpr::Unary {
-                    op: UnaryOp::Neg, ..
-                } => true,
+                HirExpr::Unary { op: UnaryOp::Neg, .. } => true,
                 _ => false,
             };
 
@@ -188,13 +186,11 @@ impl<'a> ExprConverter<'a> {
     pub(super) fn is_list_type(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Var(name) => {
-                matches!(
-                    self.param_types.get(name),
-                    Some(Type::List(_)) | Some(Type::Set(_))
-                ) || matches!(
-                    self.class_field_types.get(name),
-                    Some(Type::List(_)) | Some(Type::Set(_))
-                )
+                matches!(self.param_types.get(name), Some(Type::List(_)) | Some(Type::Set(_)))
+                    || matches!(
+                        self.class_field_types.get(name),
+                        Some(Type::List(_)) | Some(Type::Set(_))
+                    )
             }
             HirExpr::Attribute { value, attr } => {
                 if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
@@ -379,6 +375,4 @@ impl<'a> ExprConverter<'a> {
             }
         }
     }
-
-
 }

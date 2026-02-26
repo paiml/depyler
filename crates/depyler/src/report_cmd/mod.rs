@@ -112,10 +112,7 @@ pub fn extract_error(stderr: &str) -> (String, String) {
     for line in stderr.lines() {
         if line.starts_with("Error: Failed to transpile") {
             for cause_line in stderr.lines() {
-                if cause_line
-                    .trim()
-                    .starts_with("Expression type not yet supported")
-                {
+                if cause_line.trim().starts_with("Expression type not yet supported") {
                     return ("TRANSPILE".to_string(), strip_ansi(cause_line.trim()));
                 }
                 if cause_line.trim().starts_with("Unsupported") {
@@ -217,11 +214,7 @@ pub fn fix_recommendation(code: &str) -> &'static str {
 pub fn ascii_bar(ratio: f64, width: usize) -> String {
     let filled = (ratio.clamp(0.0, 1.0) * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
-    format!(
-        "{}{}",
-        "█".repeat(filled).green(),
-        "░".repeat(empty).dimmed()
-    )
+    format!("{}{}", "█".repeat(filled).green(), "░".repeat(empty).dimmed())
 }
 
 /// Print terminal report
@@ -532,10 +525,7 @@ mod tests {
         let mut taxonomy = HashMap::new();
         taxonomy.insert(
             "E0425".to_string(),
-            ErrorTaxonomy {
-                count: 5,
-                samples: vec!["sample1: error".to_string()],
-            },
+            ErrorTaxonomy { count: 5, samples: vec!["sample1: error".to_string()] },
         );
         print_terminal_report(10, 2, 8, 20.0, &taxonomy, 0.8);
     }
@@ -564,10 +554,7 @@ mod tests {
         let mut taxonomy = HashMap::new();
         taxonomy.insert(
             "E0425".to_string(),
-            ErrorTaxonomy {
-                count: 2,
-                samples: vec!["sample: error".to_string()],
-            },
+            ErrorTaxonomy { count: 2, samples: vec!["sample: error".to_string()] },
         );
         let result = print_json_report(2, 1, 1, 50.0, &taxonomy, 0.8);
         assert!(result.is_ok());

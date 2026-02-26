@@ -33,9 +33,7 @@ mod if_statements {
 
     #[test]
     fn test_simple_if() {
-        assert!(transpile_ok(
-            "def f(x: int):\n    if x > 0:\n        print('positive')"
-        ));
+        assert!(transpile_ok("def f(x: int):\n    if x > 0:\n        print('positive')"));
     }
 
     #[test]
@@ -81,16 +79,12 @@ mod if_statements {
 
     #[test]
     fn test_if_with_is_none() {
-        assert!(transpile_ok(
-            "def f(x):\n    if x is None:\n        print('none')"
-        ));
+        assert!(transpile_ok("def f(x):\n    if x is None:\n        print('none')"));
     }
 
     #[test]
     fn test_if_with_is_not_none() {
-        assert!(transpile_ok(
-            "def f(x):\n    if x is not None:\n        print('not none')"
-        ));
+        assert!(transpile_ok("def f(x):\n    if x is not None:\n        print('not none')"));
     }
 
     #[test]
@@ -109,65 +103,47 @@ mod for_loops {
 
     #[test]
     fn test_for_in_list() {
-        assert!(transpile_ok(
-            "def f(lst: list):\n    for x in lst:\n        print(x)"
-        ));
+        assert!(transpile_ok("def f(lst: list):\n    for x in lst:\n        print(x)"));
     }
 
     #[test]
     fn test_for_in_range() {
-        assert!(transpile_ok(
-            "def f(n: int):\n    for i in range(n):\n        print(i)"
-        ));
+        assert!(transpile_ok("def f(n: int):\n    for i in range(n):\n        print(i)"));
     }
 
     #[test]
     fn test_for_in_range_start_stop() {
-        assert!(transpile_ok(
-            "def f():\n    for i in range(1, 10):\n        print(i)"
-        ));
+        assert!(transpile_ok("def f():\n    for i in range(1, 10):\n        print(i)"));
     }
 
     #[test]
     fn test_for_in_range_step() {
-        assert!(transpile_ok(
-            "def f():\n    for i in range(0, 10, 2):\n        print(i)"
-        ));
+        assert!(transpile_ok("def f():\n    for i in range(0, 10, 2):\n        print(i)"));
     }
 
     #[test]
     fn test_for_in_string() {
-        assert!(transpile_ok(
-            "def f(s: str):\n    for c in s:\n        print(c)"
-        ));
+        assert!(transpile_ok("def f(s: str):\n    for c in s:\n        print(c)"));
     }
 
     #[test]
     fn test_for_in_dict() {
-        assert!(transpile_ok(
-            "def f(d: dict):\n    for k in d:\n        print(k)"
-        ));
+        assert!(transpile_ok("def f(d: dict):\n    for k in d:\n        print(k)"));
     }
 
     #[test]
     fn test_for_in_dict_items() {
-        assert!(transpile_ok(
-            "def f(d: dict):\n    for k, v in d.items():\n        print(k, v)"
-        ));
+        assert!(transpile_ok("def f(d: dict):\n    for k, v in d.items():\n        print(k, v)"));
     }
 
     #[test]
     fn test_for_in_dict_keys() {
-        assert!(transpile_ok(
-            "def f(d: dict):\n    for k in d.keys():\n        print(k)"
-        ));
+        assert!(transpile_ok("def f(d: dict):\n    for k in d.keys():\n        print(k)"));
     }
 
     #[test]
     fn test_for_in_dict_values() {
-        assert!(transpile_ok(
-            "def f(d: dict):\n    for v in d.values():\n        print(v)"
-        ));
+        assert!(transpile_ok("def f(d: dict):\n    for v in d.values():\n        print(v)"));
     }
 
     #[test]
@@ -201,9 +177,7 @@ mod for_loops {
 
     #[test]
     fn test_for_tuple_unpack() {
-        assert!(transpile_ok(
-            "def f(pairs: list):\n    for a, b in pairs:\n        print(a, b)"
-        ));
+        assert!(transpile_ok("def f(pairs: list):\n    for a, b in pairs:\n        print(a, b)"));
     }
 
     #[test]
@@ -220,16 +194,12 @@ mod for_loops {
 
     #[test]
     fn test_for_in_reversed() {
-        assert!(transpile_ok(
-            "def f(lst: list):\n    for x in reversed(lst):\n        print(x)"
-        ));
+        assert!(transpile_ok("def f(lst: list):\n    for x in reversed(lst):\n        print(x)"));
     }
 
     #[test]
     fn test_for_in_sorted() {
-        assert!(transpile_ok(
-            "def f(lst: list):\n    for x in sorted(lst):\n        print(x)"
-        ));
+        assert!(transpile_ok("def f(lst: list):\n    for x in sorted(lst):\n        print(x)"));
     }
 }
 
@@ -242,9 +212,7 @@ mod while_loops {
 
     #[test]
     fn test_while_simple() {
-        assert!(transpile_ok(
-            "def f():\n    x = 0\n    while x < 10:\n        x += 1"
-        ));
+        assert!(transpile_ok("def f():\n    x = 0\n    while x < 10:\n        x += 1"));
     }
 
     #[test]
@@ -309,9 +277,7 @@ mod assignments {
 
     #[test]
     fn test_starred_middle() {
-        assert!(transpile_ok(
-            "def f(lst: list):\n    first, *middle, last = lst"
-        ));
+        assert!(transpile_ok("def f(lst: list):\n    first, *middle, last = lst"));
     }
 
     #[test]
@@ -538,16 +504,12 @@ mod raise_statements {
 
     #[test]
     fn test_raise_with_message() {
-        assert!(transpile_ok(
-            "def f():\n    raise ValueError('error message')"
-        ));
+        assert!(transpile_ok("def f():\n    raise ValueError('error message')"));
     }
 
     #[test]
     fn test_raise_bare() {
-        assert!(transpile_ok(
-            "def f():\n    try:\n        x = 1\n    except:\n        raise"
-        ));
+        assert!(transpile_ok("def f():\n    try:\n        x = 1\n    except:\n        raise"));
     }
 
     #[test]
@@ -575,9 +537,7 @@ mod assert_statements {
 
     #[test]
     fn test_assert_with_message() {
-        assert!(transpile_ok(
-            "def f(x: int):\n    assert x > 0, 'x must be positive'"
-        ));
+        assert!(transpile_ok("def f(x: int):\n    assert x > 0, 'x must be positive'"));
     }
 
     #[test]
@@ -604,9 +564,7 @@ mod with_statements {
 
     #[test]
     fn test_with_no_as() {
-        assert!(transpile_ok(
-            "def f(lock):\n    with lock:\n        print('locked')"
-        ));
+        assert!(transpile_ok("def f(lock):\n    with lock:\n        print('locked')"));
     }
 
     #[test]
@@ -649,9 +607,7 @@ mod control_flow {
 
     #[test]
     fn test_break_for() {
-        assert!(transpile_ok(
-            "def f():\n    for i in range(10):\n        break"
-        ));
+        assert!(transpile_ok("def f():\n    for i in range(10):\n        break"));
     }
 
     #[test]
@@ -661,9 +617,7 @@ mod control_flow {
 
     #[test]
     fn test_continue_for() {
-        assert!(transpile_ok(
-            "def f():\n    for i in range(10):\n        continue"
-        ));
+        assert!(transpile_ok("def f():\n    for i in range(10):\n        continue"));
     }
 
     #[test]
@@ -716,9 +670,7 @@ mod global_nonlocal {
 
     #[test]
     fn test_global_multiple() {
-        assert!(transpile_ok(
-            "a = 0\nb = 0\ndef f():\n    global a, b\n    a = 1\n    b = 2"
-        ));
+        assert!(transpile_ok("a = 0\nb = 0\ndef f():\n    global a, b\n    a = 1\n    b = 2"));
     }
 
     #[test]
@@ -741,9 +693,7 @@ mod classes {
 
     #[test]
     fn test_class_with_init() {
-        assert!(transpile_ok(
-            "class Foo:\n    def __init__(self):\n        self.x = 0"
-        ));
+        assert!(transpile_ok("class Foo:\n    def __init__(self):\n        self.x = 0"));
     }
 
     #[test]
@@ -772,9 +722,7 @@ mod classes {
 
     #[test]
     fn test_class_inheritance() {
-        assert!(transpile_ok(
-            "class Base:\n    pass\nclass Derived(Base):\n    pass"
-        ));
+        assert!(transpile_ok("class Base:\n    pass\nclass Derived(Base):\n    pass"));
     }
 
     #[test]
@@ -849,9 +797,7 @@ mod functions {
 
     #[test]
     fn test_function_multiple_defaults() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int = 0, c: str = 'default'):\n    pass"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int = 0, c: str = 'default'):\n    pass"));
     }
 
     #[test]
@@ -861,9 +807,7 @@ mod functions {
 
     #[test]
     fn test_function_varargs() {
-        assert!(transpile_ok(
-            "def f(*args):\n    for arg in args:\n        print(arg)"
-        ));
+        assert!(transpile_ok("def f(*args):\n    for arg in args:\n        print(arg)"));
     }
 
     #[test]
@@ -892,16 +836,12 @@ mod functions {
 
     #[test]
     fn test_docstring() {
-        assert!(transpile_ok(
-            "def f():\n    '''This is a docstring'''\n    pass"
-        ));
+        assert!(transpile_ok("def f():\n    '''This is a docstring'''\n    pass"));
     }
 
     #[test]
     fn test_decorator_simple() {
-        assert!(transpile_ok(
-            "def decorator(f):\n    return f\n@decorator\ndef f():\n    pass"
-        ));
+        assert!(transpile_ok("def decorator(f):\n    return f\n@decorator\ndef f():\n    pass"));
     }
 }
 
@@ -929,16 +869,12 @@ mod imports {
 
     #[test]
     fn test_from_import() {
-        assert!(transpile_ok(
-            "from os import path\ndef f():\n    return path.exists('.')"
-        ));
+        assert!(transpile_ok("from os import path\ndef f():\n    return path.exists('.')"));
     }
 
     #[test]
     fn test_from_import_multiple() {
-        assert!(transpile_ok(
-            "from os import path, getcwd\ndef f():\n    pass"
-        ));
+        assert!(transpile_ok("from os import path, getcwd\ndef f():\n    pass"));
     }
 
     #[test]
@@ -948,9 +884,7 @@ mod imports {
 
     #[test]
     fn test_from_import_star() {
-        assert!(transpile_ok(
-            "from typing import *\ndef f(x: Optional[int]):\n    pass"
-        ));
+        assert!(transpile_ok("from typing import *\ndef f(x: Optional[int]):\n    pass"));
     }
 }
 
@@ -1017,8 +951,6 @@ mod edge_cases {
 
     #[test]
     fn test_multiline_string_in_statement() {
-        assert!(transpile_ok(
-            "def f():\n    s = '''line1\nline2\nline3'''\n    return s"
-        ));
+        assert!(transpile_ok("def f():\n    s = '''line1\nline2\nline3'''\n    return s"));
     }
 }

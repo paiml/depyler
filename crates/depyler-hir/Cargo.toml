@@ -33,3 +33,6 @@ optional = true
 default = []
 # Decision tracing for CITL (Compiler-in-the-Loop) training
 decision-tracing = ["rmp-serde", "lazy_static"]
+
+[lints]
+workspace = true

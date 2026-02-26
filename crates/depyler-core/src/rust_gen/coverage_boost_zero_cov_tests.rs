@@ -16,9 +16,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -52,11 +50,7 @@ fn test_infer_string_from_split() {
 #[test]
 fn test_infer_string_from_print() {
     let code = transpile("def show(x):\n    print(x)");
-    assert!(
-        code.contains("println!") || code.contains("print"),
-        "infer from print: {}",
-        code
-    );
+    assert!(code.contains("println!") || code.contains("print"), "infer from print: {}", code);
 }
 
 // Parameter used with .get() -> inferred as Dict
@@ -69,8 +63,7 @@ fn test_infer_dict_from_get() {
 // Parameter used with .items() -> inferred as Dict
 #[test]
 fn test_infer_dict_from_items() {
-    let code =
-        transpile("def show_items(d):\n    for k, v in d.items():\n        print(k, v)");
+    let code = transpile("def show_items(d):\n    for k, v in d.items():\n        print(k, v)");
     assert!(!code.is_empty(), "infer dict from items: {}", code);
 }
 
@@ -85,11 +78,7 @@ fn test_infer_list_from_append() {
 #[test]
 fn test_infer_string_from_upper() {
     let code = transpile("def shout(text):\n    return text.upper()");
-    assert!(
-        code.contains("to_uppercase"),
-        "infer string from upper: {}",
-        code
-    );
+    assert!(code.contains("to_uppercase"), "infer string from upper: {}", code);
 }
 
 // Parameter as callable
@@ -123,11 +112,7 @@ fn test_async_method_basic() {
     let code = transpile(
         "class Worker:\n    async def process(self, data: str) -> str:\n        return data.upper()",
     );
-    assert!(
-        code.contains("async") || code.contains("fn process"),
-        "async method: {}",
-        code
-    );
+    assert!(code.contains("async") || code.contains("fn process"), "async method: {}", code);
 }
 
 // Async staticmethod
@@ -214,8 +199,7 @@ fn test_lambda_sorted_key() {
 // Nested lambda
 #[test]
 fn test_lambda_nested() {
-    let code =
-        transpile("def make():\n    f = lambda x: lambda y: x + y\n    return f");
+    let code = transpile("def make():\n    f = lambda x: lambda y: x + y\n    return f");
     assert!(!code.is_empty(), "nested lambda: {}", code);
 }
 
@@ -269,11 +253,7 @@ fn test_protocol_single_method() {
     let code = transpile(
         "from typing import Protocol\n\nclass Drawable(Protocol):\n    def draw(self) -> None:\n        ...",
     );
-    assert!(
-        code.contains("trait") || code.contains("fn draw"),
-        "protocol trait: {}",
-        code
-    );
+    assert!(code.contains("trait") || code.contains("fn draw"), "protocol trait: {}", code);
 }
 
 // Protocol with typed method
@@ -357,11 +337,7 @@ fn test_vec_slice_negative_start() {
 #[test]
 fn test_module_constructor_lock() {
     let code = transpile("import threading\ndef make():\n    lock = threading.Lock()");
-    assert!(
-        code.contains("Mutex") || !code.is_empty(),
-        "threading.Lock: {}",
-        code
-    );
+    assert!(code.contains("Mutex") || !code.is_empty(), "threading.Lock: {}", code);
 }
 
 // collections.deque
@@ -370,11 +346,7 @@ fn test_module_constructor_deque() {
     let code = transpile(
         "from collections import deque\ndef make() -> deque:\n    return deque([1, 2, 3])",
     );
-    assert!(
-        code.contains("VecDeque") || !code.is_empty(),
-        "deque: {}",
-        code
-    );
+    assert!(code.contains("VecDeque") || !code.is_empty(), "deque: {}", code);
 }
 
 // collections.Counter
@@ -392,11 +364,7 @@ fn test_module_constructor_defaultdict() {
     let code = transpile(
         "from collections import defaultdict\ndef make() -> dict:\n    return defaultdict(int)",
     );
-    assert!(
-        code.contains("HashMap") || !code.is_empty(),
-        "defaultdict: {}",
-        code
-    );
+    assert!(code.contains("HashMap") || !code.is_empty(), "defaultdict: {}", code);
 }
 
 // collections.OrderedDict
@@ -411,8 +379,7 @@ fn test_module_constructor_ordereddict() {
 // datetime.now
 #[test]
 fn test_module_constructor_datetime_now() {
-    let code =
-        transpile("from datetime import datetime\ndef now():\n    return datetime.now()");
+    let code = transpile("from datetime import datetime\ndef now():\n    return datetime.now()");
     assert!(!code.is_empty(), "datetime.now: {}", code);
 }
 
@@ -490,29 +457,22 @@ fn test_argparse_condition() {
 // Containment in string
 #[test]
 fn test_in_string() {
-    let code =
-        transpile("def has_char(s: str, c: str) -> bool:\n    return c in s");
+    let code = transpile("def has_char(s: str, c: str) -> bool:\n    return c in s");
     assert!(code.contains("contains"), "in string: {}", code);
 }
 
 // Containment in dict
 #[test]
 fn test_in_dict() {
-    let code =
-        transpile("def has_key(d: dict, key: str) -> bool:\n    return key in d");
+    let code = transpile("def has_key(d: dict, key: str) -> bool:\n    return key in d");
     assert!(code.contains("contains_key"), "in dict: {}", code);
 }
 
 // Not in list
 #[test]
 fn test_not_in_list() {
-    let code =
-        transpile("def missing(items: list, x: int) -> bool:\n    return x not in items");
-    assert!(
-        code.contains("!") || code.contains("contains"),
-        "not in list: {}",
-        code
-    );
+    let code = transpile("def missing(items: list, x: int) -> bool:\n    return x not in items");
+    assert!(code.contains("!") || code.contains("contains"), "not in list: {}", code);
 }
 
 // Hashlib method calls
@@ -544,8 +504,7 @@ fn test_path_string_conversion() {
 // Function with untyped params used as both int and string
 #[test]
 fn test_mixed_type_inference() {
-    let code = transpile(
-        "def process(value) -> str:\n    result = str(value)\n    return result.strip()",
-    );
+    let code =
+        transpile("def process(value) -> str:\n    result = str(value)\n    return result.strip()");
     assert!(!code.is_empty(), "mixed type inference: {}", code);
 }

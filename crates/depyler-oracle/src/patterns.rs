@@ -81,20 +81,15 @@ impl FixTemplate {
     #[must_use]
     pub fn matches(&self, error_message: &str) -> bool {
         let lower = error_message.to_lowercase();
-        self.trigger_keywords
-            .iter()
-            .any(|kw| lower.contains(&kw.to_lowercase()))
+        self.trigger_keywords.iter().any(|kw| lower.contains(&kw.to_lowercase()))
     }
 
     /// Calculate match score for an error message.
     #[must_use]
     pub fn match_score(&self, error_message: &str) -> f32 {
         let lower = error_message.to_lowercase();
-        let matched = self
-            .trigger_keywords
-            .iter()
-            .filter(|kw| lower.contains(&kw.to_lowercase()))
-            .count();
+        let matched =
+            self.trigger_keywords.iter().filter(|kw| lower.contains(&kw.to_lowercase())).count();
 
         if self.trigger_keywords.is_empty() {
             return 0.0;
@@ -186,9 +181,7 @@ impl FixTemplateRegistry {
     /// Create a new empty registry.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            templates: HashMap::new(),
-        }
+        Self { templates: HashMap::new() }
     }
 
     /// Create a registry with default Rust error templates.
@@ -208,10 +201,7 @@ impl FixTemplateRegistry {
 
     /// Register a template.
     pub fn register(&mut self, template: FixTemplate) {
-        self.templates
-            .entry(template.category)
-            .or_default()
-            .push(template);
+        self.templates.entry(template.category).or_default().push(template);
     }
 
     /// Get templates for a category.
@@ -279,9 +269,7 @@ fn register_type_mismatch_templates(registry: &mut FixTemplateRegistry) {
             "Integer Type Conversion",
             ErrorCategory::TypeMismatch,
         )
-        .with_keywords(&[
-            "expected", "found", "i32", "i64", "u32", "u64", "isize", "usize",
-        ])
+        .with_keywords(&["expected", "found", "i32", "i64", "u32", "u64", "isize", "usize"])
         .with_explanation(
             "Rust has strict type checking for integers. Different integer types \
                  cannot be implicitly converted. Use explicit conversion with `as` or `.into()`.",
@@ -424,13 +412,7 @@ fn register_borrow_checker_templates(registry: &mut FixTemplateRegistry) {
             "Mutable Borrow Conflict",
             ErrorCategory::BorrowChecker,
         )
-        .with_keywords(&[
-            "mutable",
-            "immutable",
-            "borrow",
-            "cannot borrow",
-            "already borrowed",
-        ])
+        .with_keywords(&["mutable", "immutable", "borrow", "cannot borrow", "already borrowed"])
         .with_explanation(
             "Rust prevents having mutable and immutable borrows at the same time. \
                  Restructure your code to separate the borrows or use interior mutability.",
@@ -455,12 +437,7 @@ fn register_lifetime_templates(registry: &mut FixTemplateRegistry) {
             "Value Does Not Live Long Enough",
             ErrorCategory::LifetimeError,
         )
-        .with_keywords(&[
-            "does not live long enough",
-            "lifetime",
-            "dropped",
-            "borrowed value",
-        ])
+        .with_keywords(&["does not live long enough", "lifetime", "dropped", "borrowed value"])
         .with_explanation(
             "The borrowed value is dropped before the borrow ends. \
                  You need to ensure the value lives as long as the reference.",
@@ -508,53 +485,45 @@ fn register_lifetime_templates(registry: &mut FixTemplateRegistry) {
 fn register_trait_bound_templates(registry: &mut FixTemplateRegistry) {
     // Trait not implemented
     registry.register(
-        FixTemplate::builder(
-            "trait-not-impl",
-            "Trait Not Implemented",
-            ErrorCategory::TraitBound,
-        )
-        .with_keywords(&["trait", "not implemented", "bound", "doesn't implement"])
-        .with_explanation(
-            "The type doesn't implement a required trait. \
+        FixTemplate::builder("trait-not-impl", "Trait Not Implemented", ErrorCategory::TraitBound)
+            .with_keywords(&["trait", "not implemented", "bound", "doesn't implement"])
+            .with_explanation(
+                "The type doesn't implement a required trait. \
                  Either implement the trait or use a different approach.",
-        )
-        .with_suggestions(&[
-            "Derive the trait if possible: #[derive(Clone, Debug, ...)]",
-            "Implement the trait manually",
-            "Use a wrapper type that implements the trait",
-            "Change the function to not require the trait",
-        ])
-        .with_priority(80)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Derive the trait if possible: #[derive(Clone, Debug, ...)]",
+                "Implement the trait manually",
+                "Use a wrapper type that implements the trait",
+                "Change the function to not require the trait",
+            ])
+            .with_priority(80)
+            .build(),
     );
 
     // Missing derive
     registry.register(
-        FixTemplate::builder(
-            "trait-derive",
-            "Missing Derive Attribute",
-            ErrorCategory::TraitBound,
-        )
-        .with_keywords(&["Clone", "Copy", "Debug", "Default", "derive", "cannot"])
-        .with_explanation(
-            "Common traits like Clone, Copy, Debug can be automatically derived. \
+        FixTemplate::builder("trait-derive", "Missing Derive Attribute", ErrorCategory::TraitBound)
+            .with_keywords(&["Clone", "Copy", "Debug", "Default", "derive", "cannot"])
+            .with_explanation(
+                "Common traits like Clone, Copy, Debug can be automatically derived. \
                  Add #[derive(...)] to your struct or enum.",
-        )
-        .with_transform(CodeTransform::new(
-            "Add derive attribute",
-            r"struct (\w+)",
-            "#[derive(Clone, Debug)]\nstruct $1",
-            "struct MyStruct { ... }",
-            "#[derive(Clone, Debug)]\nstruct MyStruct { ... }",
-        ))
-        .with_suggestions(&[
-            "Add #[derive(Clone)] for Clone trait",
-            "Add #[derive(Debug)] for Debug trait",
-            "Add #[derive(Default)] for Default trait",
-            "Combine derives: #[derive(Clone, Debug, Default)]",
-        ])
-        .with_priority(85)
-        .build(),
+            )
+            .with_transform(CodeTransform::new(
+                "Add derive attribute",
+                r"struct (\w+)",
+                "#[derive(Clone, Debug)]\nstruct $1",
+                "struct MyStruct { ... }",
+                "#[derive(Clone, Debug)]\nstruct MyStruct { ... }",
+            ))
+            .with_suggestions(&[
+                "Add #[derive(Clone)] for Clone trait",
+                "Add #[derive(Debug)] for Debug trait",
+                "Add #[derive(Default)] for Default trait",
+                "Combine derives: #[derive(Clone, Debug, Default)]",
+            ])
+            .with_priority(85)
+            .build(),
     );
 }
 
@@ -566,12 +535,7 @@ fn register_import_templates(registry: &mut FixTemplateRegistry) {
             "Item Not Found in Scope",
             ErrorCategory::MissingImport,
         )
-        .with_keywords(&[
-            "not found",
-            "cannot find",
-            "unresolved",
-            "use of undeclared",
-        ])
+        .with_keywords(&["not found", "cannot find", "unresolved", "use of undeclared"])
         .with_explanation(
             "The item is not in scope. You need to import it with `use` \
                  or use the fully qualified path.",
@@ -618,44 +582,36 @@ fn register_import_templates(registry: &mut FixTemplateRegistry) {
 fn register_syntax_templates(registry: &mut FixTemplateRegistry) {
     // Missing semicolon
     registry.register(
-        FixTemplate::builder(
-            "syntax-semicolon",
-            "Missing Semicolon",
-            ErrorCategory::SyntaxError,
-        )
-        .with_keywords(&["expected", ";", "semicolon", "statement"])
-        .with_explanation(
-            "Statements in Rust must end with a semicolon (;). \
+        FixTemplate::builder("syntax-semicolon", "Missing Semicolon", ErrorCategory::SyntaxError)
+            .with_keywords(&["expected", ";", "semicolon", "statement"])
+            .with_explanation(
+                "Statements in Rust must end with a semicolon (;). \
                  Expressions that are returned don't need semicolons.",
-        )
-        .with_suggestions(&[
-            "Add semicolon at end of statement",
-            "If this is a return expression, remove the semicolon",
-            "Check for unmatched brackets or braces above",
-        ])
-        .with_priority(90)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Add semicolon at end of statement",
+                "If this is a return expression, remove the semicolon",
+                "Check for unmatched brackets or braces above",
+            ])
+            .with_priority(90)
+            .build(),
     );
 
     // Unmatched brackets
     registry.register(
-        FixTemplate::builder(
-            "syntax-brackets",
-            "Unmatched Brackets",
-            ErrorCategory::SyntaxError,
-        )
-        .with_keywords(&["expected", "}", ")", "]", "unmatched", "unclosed"])
-        .with_explanation(
-            "Opening and closing brackets must be balanced. \
+        FixTemplate::builder("syntax-brackets", "Unmatched Brackets", ErrorCategory::SyntaxError)
+            .with_keywords(&["expected", "}", ")", "]", "unmatched", "unclosed"])
+            .with_explanation(
+                "Opening and closing brackets must be balanced. \
                  Check for missing or extra brackets.",
-        )
-        .with_suggestions(&[
-            "Count opening and closing brackets",
-            "Use editor bracket matching feature",
-            "Check recent changes for missing brackets",
-        ])
-        .with_priority(85)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Count opening and closing brackets",
+                "Use editor bracket matching feature",
+                "Check recent changes for missing brackets",
+            ])
+            .with_priority(85)
+            .build(),
     );
 }
 
@@ -737,23 +693,19 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
 
     // Pattern 4: is_some on Vec (should be Option)
     registry.register(
-        FixTemplate::builder(
-            "e0599-is-some-vec",
-            "is_some on Vec",
-            ErrorCategory::TypeMismatch,
-        )
-        .with_keywords(&["no method named", "is_some", "Vec"])
-        .with_explanation(
-            "is_some() is an Option method, not a Vec method. \
+        FixTemplate::builder("e0599-is-some-vec", "is_some on Vec", ErrorCategory::TypeMismatch)
+            .with_keywords(&["no method named", "is_some", "Vec"])
+            .with_explanation(
+                "is_some() is an Option method, not a Vec method. \
              The transpiler incorrectly inferred Vec instead of Option.",
-        )
-        .with_suggestions(&[
-            "Change Vec<T> to Option<T> if checking for presence",
-            "Use !vec.is_empty() to check if Vec has elements",
-            "Wrap the Vec in Option if it's optional: Option<Vec<T>>",
-        ])
-        .with_priority(90)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Change Vec<T> to Option<T> if checking for presence",
+                "Use !vec.is_empty() to check if Vec has elements",
+                "Wrap the Vec in Option if it's optional: Option<Vec<T>>",
+            ])
+            .with_priority(90)
+            .build(),
     );
 
     // Pattern 5: display on String (should be Path)
@@ -779,22 +731,18 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
 
     // Pattern 6: ok on ReadDir
     registry.register(
-        FixTemplate::builder(
-            "e0599-ok-readdir",
-            "ok() on ReadDir",
-            ErrorCategory::TypeMismatch,
-        )
-        .with_keywords(&["no method named", "ok", "ReadDir"])
-        .with_explanation(
-            "ReadDir doesn't have an ok() method. It's already a Result that was unwrapped. \
+        FixTemplate::builder("e0599-ok-readdir", "ok() on ReadDir", ErrorCategory::TypeMismatch)
+            .with_keywords(&["no method named", "ok", "ReadDir"])
+            .with_explanation(
+                "ReadDir doesn't have an ok() method. It's already a Result that was unwrapped. \
              The ok() call is redundant.",
-        )
-        .with_suggestions(&[
-            "Remove the .ok() call - the iterator is already available",
-            "If the fs::read_dir() result needs error handling, use ? or match",
-        ])
-        .with_priority(85)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Remove the .ok() call - the iterator is already available",
+                "If the fs::read_dir() result needs error handling, use ? or match",
+            ])
+            .with_priority(85)
+            .build(),
     );
 
     // Pattern 7: duration_since on datetime types
@@ -820,22 +768,18 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
 
     // Pattern 8: toordinal on date types
     registry.register(
-        FixTemplate::builder(
-            "e0599-toordinal",
-            "toordinal Missing",
-            ErrorCategory::TypeMismatch,
-        )
-        .with_keywords(&["no method named", "toordinal"])
-        .with_explanation(
-            "Python's date.toordinal() returns days since year 1. \
+        FixTemplate::builder("e0599-toordinal", "toordinal Missing", ErrorCategory::TypeMismatch)
+            .with_keywords(&["no method named", "toordinal"])
+            .with_explanation(
+                "Python's date.toordinal() returns days since year 1. \
              In Rust/chrono, use .num_days_from_ce() for similar functionality.",
-        )
-        .with_suggestions(&[
-            "Use .num_days_from_ce() for chrono NaiveDate",
-            "Calculate manually: (date - NaiveDate::from_ymd(1, 1, 1)).num_days()",
-        ])
-        .with_priority(80)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Use .num_days_from_ce() for chrono NaiveDate",
+                "Calculate manually: (date - NaiveDate::from_ymd(1, 1, 1)).num_days()",
+            ])
+            .with_priority(80)
+            .build(),
     );
 
     // Pattern 9: replace on date types
@@ -1243,23 +1187,19 @@ fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
 
     // Pattern 27: std::time vs chrono confusion
     registry.register(
-        FixTemplate::builder(
-            "e0308-time-types",
-            "Time Type Mismatch",
-            ErrorCategory::TypeMismatch,
-        )
-        .with_keywords(&["std::time", "chrono", "Duration", "Instant"])
-        .with_explanation(
-            "Rust has two time libraries: std::time and chrono. They're not interchangeable. \
+        FixTemplate::builder("e0308-time-types", "Time Type Mismatch", ErrorCategory::TypeMismatch)
+            .with_keywords(&["std::time", "chrono", "Duration", "Instant"])
+            .with_explanation(
+                "Rust has two time libraries: std::time and chrono. They're not interchangeable. \
              Python datetime maps better to chrono types.",
-        )
-        .with_suggestions(&[
-            "Use chrono for date/time: NaiveDate, NaiveTime, DateTime",
-            "Use std::time for durations: Duration, Instant",
-            "Convert: chrono::Duration::to_std() / from_std()",
-        ])
-        .with_priority(85)
-        .build(),
+            )
+            .with_suggestions(&[
+                "Use chrono for date/time: NaiveDate, NaiveTime, DateTime",
+                "Use std::time for durations: Duration, Instant",
+                "Convert: chrono::Duration::to_std() / from_std()",
+            ])
+            .with_priority(85)
+            .build(),
     );
 
     // Pattern 28: Optional argument handling

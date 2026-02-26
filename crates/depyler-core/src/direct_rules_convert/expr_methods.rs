@@ -21,10 +21,8 @@ impl<'a> ExprConverter<'a> {
         if let HirExpr::Var(var_name) = object {
             if var_name == "cls" && self.is_classmethod {
                 let method_ident = make_ident(method);
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
+                let arg_exprs: Vec<syn::Expr> =
+                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
                 return Ok(parse_quote! { Self::#method_ident(#(#arg_exprs),*) });
             }
         }
@@ -116,10 +114,8 @@ impl<'a> ExprConverter<'a> {
         // DEPYLER-0932: Handle dict.fromkeys(keys, default) class method
         if let HirExpr::Var(var_name) = object {
             if var_name == "dict" && method == "fromkeys" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
+                let arg_exprs: Vec<syn::Expr> =
+                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
                 if arg_exprs.len() >= 2 {
                     let keys_expr = &arg_exprs[0];
@@ -139,10 +135,8 @@ impl<'a> ExprConverter<'a> {
         // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method
         if let HirExpr::Var(var_name) = object {
             if var_name == "int" && method == "from_bytes" {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
+                let arg_exprs: Vec<syn::Expr> =
+                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
                 if arg_exprs.len() >= 2 {
                     let bytes_expr = &arg_exprs[0];
@@ -178,18 +172,11 @@ impl<'a> ExprConverter<'a> {
 
         // Check if this is a static method call on a class
         if let HirExpr::Var(class_name) = object {
-            if class_name
-                .chars()
-                .next()
-                .map(|c| c.is_uppercase())
-                .unwrap_or(false)
-            {
+            if class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                 let class_ident = make_ident(class_name);
                 let method_ident = make_ident(method);
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| self.convert(arg))
-                    .collect::<Result<Vec<_>>>()?;
+                let arg_exprs: Vec<syn::Expr> =
+                    args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
                 return Ok(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) });
             }
         }
@@ -229,10 +216,8 @@ impl<'a> ExprConverter<'a> {
         } else {
             self.convert(object)?
         };
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
 
         self.convert_instance_method(object, method, args, object_expr, arg_exprs)
     }
@@ -240,15 +225,9 @@ impl<'a> ExprConverter<'a> {
     // ---- Module-level method handlers ----
 
     /// DEPYLER-1097: Handle sys module method calls and attribute access
-    fn try_convert_sys_method(
-        &self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+    fn try_convert_sys_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
             "exit" => {
                 let code = arg_exprs
@@ -257,18 +236,12 @@ impl<'a> ExprConverter<'a> {
                     .unwrap_or_else(|| quote::quote!(0));
                 Ok(Some(parse_quote! { std::process::exit(#code as i32) }))
             }
-            "argv" => {
-                Ok(Some(parse_quote! { std::env::args().collect::<Vec<String>>() }))
-            }
+            "argv" => Ok(Some(parse_quote! { std::env::args().collect::<Vec<String>>() })),
             "version" | "version_info" => {
                 Ok(Some(parse_quote! { env!("CARGO_PKG_VERSION").to_string() }))
             }
-            "platform" => {
-                Ok(Some(parse_quote! { std::env::consts::OS.to_string() }))
-            }
-            "path" => {
-                Ok(Some(parse_quote! { Vec::<String>::new() }))
-            }
+            "platform" => Ok(Some(parse_quote! { std::env::consts::OS.to_string() })),
+            "path" => Ok(Some(parse_quote! { Vec::<String>::new() })),
             "stdin" => Ok(Some(parse_quote! { std::io::stdin() })),
             "stdout" => Ok(Some(parse_quote! { std::io::stdout() })),
             "stderr" => Ok(Some(parse_quote! { std::io::stderr() })),
@@ -281,11 +254,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1200: Handle re (regex) module method calls
-    fn try_convert_re_method(
-        &self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
+    fn try_convert_re_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
         let extract_str_literal = |hir: &HirExpr| -> Option<String> {
             if let HirExpr::Literal(Literal::String(s)) = hir {
                 Some(s.clone())
@@ -297,14 +266,22 @@ impl<'a> ExprConverter<'a> {
         let nasa_mode = self.type_mapper.nasa_mode;
 
         match method {
-            "search" if args.len() >= 2 => {
-                self.convert_re_two_arg(args, &extract_str_literal, nasa_mode,
-                    "search", "search", "find")
-            }
-            "match" if args.len() >= 2 => {
-                self.convert_re_two_arg(args, &extract_str_literal, nasa_mode,
-                    "match_start", "match_start", "find")
-            }
+            "search" if args.len() >= 2 => self.convert_re_two_arg(
+                args,
+                &extract_str_literal,
+                nasa_mode,
+                "search",
+                "search",
+                "find",
+            ),
+            "match" if args.len() >= 2 => self.convert_re_two_arg(
+                args,
+                &extract_str_literal,
+                nasa_mode,
+                "match_start",
+                "match_start",
+                "find",
+            ),
             "fullmatch" if args.len() >= 2 => {
                 self.convert_re_fullmatch(args, &extract_str_literal, nasa_mode)
             }
@@ -314,9 +291,7 @@ impl<'a> ExprConverter<'a> {
             "finditer" if args.len() >= 2 => {
                 self.convert_re_finditer(args, &extract_str_literal, nasa_mode)
             }
-            "sub" if args.len() >= 3 => {
-                self.convert_re_sub(args, &extract_str_literal, nasa_mode)
-            }
+            "sub" if args.len() >= 3 => self.convert_re_sub(args, &extract_str_literal, nasa_mode),
             "subn" if args.len() >= 3 => {
                 self.convert_re_subn(args, &extract_str_literal, nasa_mode)
             }
@@ -659,10 +634,8 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
             "rgb_to_hsv" if arg_exprs.len() == 3 => {
                 let r = &arg_exprs[0];
@@ -772,10 +745,8 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         let nasa_mode = self.type_mapper.nasa_mode;
         match method {
             "b64encode" if arg_exprs.len() == 1 => {
@@ -876,26 +847,14 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
-            "md5" => {
-                Ok(Some(self.make_hashlib_expr("md5", "Md5", "md5", &arg_exprs)))
-            }
-            "sha1" => {
-                Ok(Some(self.make_hashlib_expr("sha1", "Sha1", "sha1", &arg_exprs)))
-            }
-            "sha256" => {
-                Ok(Some(self.make_hashlib_expr("sha2", "Sha256", "sha2", &arg_exprs)))
-            }
-            "sha512" => {
-                Ok(Some(self.make_hashlib_expr("sha2", "Sha512", "sha2", &arg_exprs)))
-            }
-            "sha384" => {
-                Ok(Some(self.make_hashlib_expr("sha2", "Sha384", "sha2", &arg_exprs)))
-            }
+            "md5" => Ok(Some(self.make_hashlib_expr("md5", "Md5", "md5", &arg_exprs))),
+            "sha1" => Ok(Some(self.make_hashlib_expr("sha1", "Sha1", "sha1", &arg_exprs))),
+            "sha256" => Ok(Some(self.make_hashlib_expr("sha2", "Sha256", "sha2", &arg_exprs))),
+            "sha512" => Ok(Some(self.make_hashlib_expr("sha2", "Sha512", "sha2", &arg_exprs))),
+            "sha384" => Ok(Some(self.make_hashlib_expr("sha2", "Sha384", "sha2", &arg_exprs))),
             "blake2b" | "blake2s" => {
                 // For blake2, use sha256 as fallback
                 Ok(Some(self.make_hashlib_expr("sha2", "Sha256", "sha2", &arg_exprs)))
@@ -962,15 +921,9 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1002/1022: Handle json module method calls
-    fn try_convert_json_method(
-        &self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+    fn try_convert_json_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
             "dumps" if !arg_exprs.is_empty() => {
                 let obj = &arg_exprs[0];
@@ -997,15 +950,9 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1002: Handle math module method calls
-    fn try_convert_math_method(
-        &self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+    fn try_convert_math_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
             "sqrt" if !arg_exprs.is_empty() => {
                 let x = &arg_exprs[0];
@@ -1062,10 +1009,8 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
             "randint" if arg_exprs.len() >= 2 => {
                 let a = &arg_exprs[0];
@@ -1077,14 +1022,12 @@ impl<'a> ExprConverter<'a> {
                     }
                 }))
             }
-            "random" if arg_exprs.is_empty() => {
-                Ok(Some(parse_quote! {
-                    {
-                        use rand::Rng;
-                        rand::thread_rng().gen::<f64>()
-                    }
-                }))
-            }
+            "random" if arg_exprs.is_empty() => Ok(Some(parse_quote! {
+                {
+                    use rand::Rng;
+                    rand::thread_rng().gen::<f64>()
+                }
+            })),
             "choice" if !arg_exprs.is_empty() => {
                 let seq = &arg_exprs[0];
                 Ok(Some(parse_quote! {
@@ -1108,24 +1051,16 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-1049: Handle time module method calls
-    fn try_convert_time_method(
-        &self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| self.convert(arg))
-            .collect::<Result<Vec<_>>>()?;
+    fn try_convert_time_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| self.convert(arg)).collect::<Result<Vec<_>>>()?;
         match method {
-            "time" if arg_exprs.is_empty() => {
-                Ok(Some(parse_quote! {
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .expect("time error")
-                        .as_secs_f64()
-                }))
-            }
+            "time" if arg_exprs.is_empty() => Ok(Some(parse_quote! {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("time error")
+                    .as_secs_f64()
+            })),
             "sleep" if arg_exprs.len() == 1 => {
                 let secs = &arg_exprs[0];
                 Ok(Some(parse_quote! {
@@ -1218,21 +1153,19 @@ impl<'a> ExprConverter<'a> {
                             HirExpr::Literal(Literal::Bool(_)) => {
                                 parse_quote! { DepylerValue::Bool(#arg) }
                             }
-                            HirExpr::Var(name) => {
-                                match self.param_types.get(name) {
-                                    Some(Type::Int) => {
-                                        parse_quote! { DepylerValue::Int(#arg as i64) }
-                                    }
-                                    Some(Type::Float) => {
-                                        parse_quote! { DepylerValue::Float(#arg as f64) }
-                                    }
-                                    Some(Type::String) => {
-                                        parse_quote! { DepylerValue::Str(#arg.to_string()) }
-                                    }
-                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                            HirExpr::Var(name) => match self.param_types.get(name) {
+                                Some(Type::Int) => {
+                                    parse_quote! { DepylerValue::Int(#arg as i64) }
                                 }
-                            }
+                                Some(Type::Float) => {
+                                    parse_quote! { DepylerValue::Float(#arg as f64) }
+                                }
+                                Some(Type::String) => {
+                                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                                }
+                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                            },
                             _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
                         }
                     } else {
@@ -1564,12 +1497,8 @@ impl<'a> ExprConverter<'a> {
             }
 
             // DEPYLER-0613: Semaphore/Mutex method mappings
-            "acquire" => {
-                Ok(parse_quote! { #object_expr.lock().is_ok() })
-            }
-            "release" => {
-                Ok(parse_quote! { () })
-            }
+            "acquire" => Ok(parse_quote! { #object_expr.lock().is_ok() }),
+            "release" => Ok(parse_quote! { () }),
 
             // DEPYLER-0613: List/Dict copy method
             "copy" => {
@@ -1618,14 +1547,9 @@ impl<'a> ExprConverter<'a> {
                 }
                 let is_valid_ident = method
                     .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-                    && method
-                        .chars()
-                        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+                    && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
                 if !is_valid_ident {
-                    bail!(
-                        "Invalid method name '{}' - not a valid Rust identifier",
-                        method
-                    );
+                    bail!("Invalid method name '{}' - not a valid Rust identifier", method);
                 }
 
                 let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {

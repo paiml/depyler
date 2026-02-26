@@ -11,10 +11,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -680,10 +678,7 @@ class Point:
         return (self.x ** 2 + self.y ** 2) ** 0.5
 "#,
     );
-    assert!(
-        code.contains("Point") || code.contains("fn"),
-        "code: {code}"
-    );
+    assert!(code.contains("Point") || code.contains("fn"), "code: {code}");
 }
 
 #[test]
@@ -702,10 +697,7 @@ class Counter:
         self.count = 0
 "#,
     );
-    assert!(
-        code.contains("Counter") || code.contains("fn"),
-        "code: {code}"
-    );
+    assert!(code.contains("Counter") || code.contains("fn"), "code: {code}");
 }
 
 // ── Complex Patterns ────────────────────────────────────────────────────

@@ -86,3 +86,6 @@ quickcheck.workspace = true
 tempfile.workspace = true
 regex.workspace = true
 once_cell = "1.19"
+
+[lints]
+workspace = true

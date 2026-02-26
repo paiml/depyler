@@ -20,10 +20,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -511,7 +509,8 @@ mod tests {
 
     #[test]
     fn test_w20cd_066_iter_list() {
-        let code = "def f(items: list) -> list:\n    result = []\n    it = iter(items)\n    return result";
+        let code =
+            "def f(items: list) -> list:\n    result = []\n    it = iter(items)\n    return result";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1073,7 +1072,8 @@ mod tests {
 
     #[test]
     fn test_w20cd_142_file_read_with_size() {
-        let code = "def read_chunk(f, n: int) -> bytes:\n    data: bytes = f.read(n)\n    return data";
+        let code =
+            "def read_chunk(f, n: int) -> bytes:\n    data: bytes = f.read(n)\n    return data";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1087,7 +1087,8 @@ mod tests {
 
     #[test]
     fn test_w20cd_144_file_readlines_instance() {
-        let code = "def get_all_lines(f) -> list:\n    lines: list = f.readlines()\n    return lines";
+        let code =
+            "def get_all_lines(f) -> list:\n    lines: list = f.readlines()\n    return lines";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1129,7 +1130,8 @@ mod tests {
 
     #[test]
     fn test_w20cd_150_file_write_multiple() {
-        let code = "def write_lines(f, lines: list):\n    for line in lines:\n        f.write(line)";
+        let code =
+            "def write_lines(f, lines: list):\n    for line in lines:\n        f.write(line)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

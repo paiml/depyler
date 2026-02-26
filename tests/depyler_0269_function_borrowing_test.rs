@@ -277,22 +277,14 @@ def main() -> None:
         println!("\nTesting type: {}", type_name);
         let pipeline = DepylerPipeline::new();
         let result = pipeline.transpile(python);
-        assert!(
-            result.is_ok(),
-            "Transpilation failed for {}: {:?}",
-            type_name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Transpilation failed for {}: {:?}", type_name, result.err());
 
         let rust_code = result.unwrap();
         assert_compiles(
             &rust_code,
             &format!(
                 "property_{}",
-                type_name
-                    .replace('[', "_")
-                    .replace([']', ','], "")
-                    .replace(' ', "_")
+                type_name.replace('[', "_").replace([']', ','], "").replace(' ', "_")
             ),
         );
     }

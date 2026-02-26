@@ -8,10 +8,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -35,7 +33,8 @@ fn test_s10_chained_comparison_eq() {
 
 #[test]
 fn test_s10_complex_boolean_and() {
-    let code = transpile("def check(a: bool, b: bool, c: bool) -> bool:\n    return a and b and c\n");
+    let code =
+        transpile("def check(a: bool, b: bool, c: bool) -> bool:\n    return a and b and c\n");
     assert!(code.contains("&&"), "Should have && operator: {code}");
 }
 
@@ -59,10 +58,7 @@ fn test_s10_boolean_mixed() {
 fn test_s10_string_multiply() {
     let code = transpile("def repeat(s: str, n: int) -> str:\n    return s * n\n");
     assert!(code.contains("fn repeat"), "Should handle str * n: {code}");
-    assert!(
-        code.contains("repeat(") || code.contains("*"),
-        "Should have repeat: {code}"
-    );
+    assert!(code.contains("repeat(") || code.contains("*"), "Should have repeat: {code}");
 }
 
 // ============ List operations ============
@@ -75,12 +71,10 @@ fn test_s10_list_multiply() {
 
 #[test]
 fn test_s10_list_in_operator() {
-    let code = transpile("def contains(items: list, target: int) -> bool:\n    return target in items\n");
+    let code =
+        transpile("def contains(items: list, target: int) -> bool:\n    return target in items\n");
     assert!(code.contains("fn contains"), "Should handle 'in': {code}");
-    assert!(
-        code.contains("contains(") || code.contains("any"),
-        "Should check containment: {code}"
-    );
+    assert!(code.contains("contains(") || code.contains("any"), "Should check containment: {code}");
 }
 
 #[test]
@@ -113,33 +107,26 @@ fn test_s10_list_negative_index() {
 
 #[test]
 fn test_s10_dict_get_default() {
-    let code = transpile(
-        "def safe_get(d: dict, key: str) -> int:\n    return d.get(key, 0)\n",
-    );
+    let code = transpile("def safe_get(d: dict, key: str) -> int:\n    return d.get(key, 0)\n");
     assert!(code.contains("fn safe_get"), "Should handle dict.get: {code}");
 }
 
 #[test]
 fn test_s10_dict_setdefault() {
-    let code = transpile(
-        "def init_key(d: dict, key: str) -> int:\n    return d.setdefault(key, 0)\n",
-    );
+    let code =
+        transpile("def init_key(d: dict, key: str) -> int:\n    return d.setdefault(key, 0)\n");
     assert!(code.contains("fn init_key"), "Should handle setdefault: {code}");
 }
 
 #[test]
 fn test_s10_dict_update() {
-    let code = transpile(
-        "def merge(a: dict, b: dict) -> None:\n    a.update(b)\n",
-    );
+    let code = transpile("def merge(a: dict, b: dict) -> None:\n    a.update(b)\n");
     assert!(code.contains("fn merge"), "Should handle dict update: {code}");
 }
 
 #[test]
 fn test_s10_dict_pop() {
-    let code = transpile(
-        "def remove_key(d: dict, key: str) -> int:\n    return d.pop(key)\n",
-    );
+    let code = transpile("def remove_key(d: dict, key: str) -> int:\n    return d.pop(key)\n");
     assert!(code.contains("fn remove_key"), "Should handle dict pop: {code}");
 }
 
@@ -147,25 +134,19 @@ fn test_s10_dict_pop() {
 
 #[test]
 fn test_s10_set_union() {
-    let code = transpile(
-        "def combine(a: set, b: set) -> set:\n    return a.union(b)\n",
-    );
+    let code = transpile("def combine(a: set, b: set) -> set:\n    return a.union(b)\n");
     assert!(code.contains("fn combine"), "Should handle set union: {code}");
 }
 
 #[test]
 fn test_s10_set_intersection() {
-    let code = transpile(
-        "def common(a: set, b: set) -> set:\n    return a.intersection(b)\n",
-    );
+    let code = transpile("def common(a: set, b: set) -> set:\n    return a.intersection(b)\n");
     assert!(code.contains("fn common"), "Should handle set intersection: {code}");
 }
 
 #[test]
 fn test_s10_set_difference() {
-    let code = transpile(
-        "def unique_to_a(a: set, b: set) -> set:\n    return a.difference(b)\n",
-    );
+    let code = transpile("def unique_to_a(a: set, b: set) -> set:\n    return a.difference(b)\n");
     assert!(code.contains("fn unique_to_a"), "Should handle set difference: {code}");
 }
 
@@ -235,13 +216,15 @@ fn test_s10_str_removesuffix() {
 
 #[test]
 fn test_s10_builtin_any() {
-    let code = transpile("def has_positive(items: list) -> bool:\n    return any(x > 0 for x in items)\n");
+    let code =
+        transpile("def has_positive(items: list) -> bool:\n    return any(x > 0 for x in items)\n");
     assert!(code.contains("fn has_positive"), "Should handle any(): {code}");
 }
 
 #[test]
 fn test_s10_builtin_all() {
-    let code = transpile("def all_positive(items: list) -> bool:\n    return all(x > 0 for x in items)\n");
+    let code =
+        transpile("def all_positive(items: list) -> bool:\n    return all(x > 0 for x in items)\n");
     assert!(code.contains("fn all_positive"), "Should handle all(): {code}");
 }
 
@@ -263,9 +246,8 @@ fn test_s10_builtin_zip() {
 
 #[test]
 fn test_s10_builtin_reversed() {
-    let code = transpile(
-        "def reverse_list(items: list) -> list:\n    return list(reversed(items))\n",
-    );
+    let code =
+        transpile("def reverse_list(items: list) -> list:\n    return list(reversed(items))\n");
     assert!(code.contains("fn reverse_list"), "Should handle reversed: {code}");
 }
 
@@ -277,9 +259,8 @@ fn test_s10_builtin_abs() {
 
 #[test]
 fn test_s10_builtin_min_max() {
-    let code = transpile(
-        "def clamp(x: int, lo: int, hi: int) -> int:\n    return max(lo, min(x, hi))\n",
-    );
+    let code =
+        transpile("def clamp(x: int, lo: int, hi: int) -> int:\n    return max(lo, min(x, hi))\n");
     assert!(code.contains("fn clamp"), "Should handle min/max: {code}");
 }
 
@@ -374,9 +355,7 @@ fn test_s10_list_count() {
 
 #[test]
 fn test_s10_list_extend() {
-    let code = transpile(
-        "def combine_lists(a: list, b: list) -> None:\n    a.extend(b)\n",
-    );
+    let code = transpile("def combine_lists(a: list, b: list) -> None:\n    a.extend(b)\n");
     assert!(code.contains("fn combine_lists"), "Should handle extend: {code}");
 }
 
@@ -456,14 +435,9 @@ fn test_s10_unary_bitnot() {
 
 #[test]
 fn test_s10_global_in_function() {
-    let code = transpile(
-        "PI = 3.14159\ndef circle(r: float) -> float:\n    return PI * r * r\n",
-    );
+    let code = transpile("PI = 3.14159\ndef circle(r: float) -> float:\n    return PI * r * r\n");
     assert!(code.contains("fn circle"), "Should handle global ref: {code}");
-    assert!(
-        code.contains("PI") || code.contains("pi"),
-        "Should reference constant: {code}"
-    );
+    assert!(code.contains("PI") || code.contains("pi"), "Should reference constant: {code}");
 }
 
 // ============ Empty collections ============
@@ -498,8 +472,6 @@ fn test_s10_nested_subscript() {
 
 #[test]
 fn test_s10_dict_subscript() {
-    let code = transpile(
-        "def get_value(d: dict, key: str) -> int:\n    return d[key]\n",
-    );
+    let code = transpile("def get_value(d: dict, key: str) -> int:\n    return d[key]\n");
     assert!(code.contains("fn get_value"), "Should handle dict subscript: {code}");
 }

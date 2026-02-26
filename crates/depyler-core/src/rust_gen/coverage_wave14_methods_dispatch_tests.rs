@@ -24,10 +24,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -320,7 +318,11 @@ def expand_default(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("replace") || result.contains("repeat") || result.contains("expandtabs"));
+        assert!(
+            result.contains("replace")
+                || result.contains("repeat")
+                || result.contains("expandtabs")
+        );
     }
 
     #[test]
@@ -920,7 +922,9 @@ def read_first_line(path: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("read_line") || result.contains("BufReader") || result.contains("line"));
+        assert!(
+            result.contains("read_line") || result.contains("BufReader") || result.contains("line")
+        );
     }
 
     #[test]
@@ -933,7 +937,9 @@ def read_all_lines(path: str) -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("BufReader") || result.contains("lines") || result.contains("collect"));
+        assert!(
+            result.contains("BufReader") || result.contains("lines") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1062,7 +1068,11 @@ def to_iso(dt) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_string") || result.contains("format") || result.contains("isoformat"));
+        assert!(
+            result.contains("to_string")
+                || result.contains("format")
+                || result.contains("isoformat")
+        );
     }
 
     #[test]
@@ -1131,7 +1141,9 @@ def get_timestamp(dt) -> float:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("timestamp") || result.contains("f64") || result.contains("duration"));
+        assert!(
+            result.contains("timestamp") || result.contains("f64") || result.contains("duration")
+        );
     }
 
     #[test]
@@ -1221,7 +1233,9 @@ def write_row(writer, row: dict):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("serialize") || result.contains("writerow") || result.contains("write"));
+        assert!(
+            result.contains("serialize") || result.contains("writerow") || result.contains("write")
+        );
     }
 
     #[test]
@@ -1696,7 +1710,9 @@ def read_input() -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("stdin") || result.contains("read_line") || result.contains("BufRead"));
+        assert!(
+            result.contains("stdin") || result.contains("read_line") || result.contains("BufRead")
+        );
     }
 
     #[test]

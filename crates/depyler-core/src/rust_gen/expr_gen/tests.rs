@@ -336,10 +336,8 @@ pub(crate) fn test_expr_uses_any_var_list() {
     let mut vars = HashSet::new();
     vars.insert("item".to_string());
 
-    let expr = HirExpr::List(vec![
-        HirExpr::Literal(Literal::Int(1)),
-        HirExpr::Var("item".to_string()),
-    ]);
+    let expr =
+        HirExpr::List(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Var("item".to_string())]);
     assert!(walrus_helpers::expr_uses_any_var(&expr, &vars));
 }
 
@@ -486,10 +484,8 @@ pub(crate) fn test_expr_uses_any_var_unary() {
     let mut vars = HashSet::new();
     vars.insert("flag".to_string());
 
-    let expr = HirExpr::Unary {
-        op: UnaryOp::Not,
-        operand: Box::new(HirExpr::Var("flag".to_string())),
-    };
+    let expr =
+        HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("flag".to_string())) };
     assert!(walrus_helpers::expr_uses_any_var(&expr, &vars));
 }
 
@@ -879,8 +875,7 @@ pub(crate) fn test_literal_to_rust_expr_float() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Float(3.15), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Float(3.15), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert!(code.contains("3.15"));
 }
@@ -890,8 +885,7 @@ pub(crate) fn test_literal_to_rust_expr_float_zero() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     // Should have decimal point
     assert!(code.contains("0.0") || code.contains("."));
@@ -902,8 +896,7 @@ pub(crate) fn test_literal_to_rust_expr_bool_true() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Bool(true), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Bool(true), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert_eq!(code, "true");
 }
@@ -913,8 +906,7 @@ pub(crate) fn test_literal_to_rust_expr_bool_false() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Bool(false), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Bool(false), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert_eq!(code, "false");
 }
@@ -935,8 +927,7 @@ pub(crate) fn test_literal_to_rust_expr_bytes() {
     let needs_cow = false;
     let ctx = CodeGenContext::default();
     let bytes = vec![72, 101, 108, 108, 111]; // "Hello"
-    let result =
-        literal_to_rust_expr(&Literal::Bytes(bytes), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Bytes(bytes), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert!(code.contains("b\""));
 }
@@ -1036,8 +1027,7 @@ pub(crate) fn test_literal_to_rust_expr_large_int() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Int(i64::MAX), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Int(i64::MAX), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert!(code.contains(&i64::MAX.to_string()));
 }
@@ -1047,8 +1037,7 @@ pub(crate) fn test_literal_to_rust_expr_float_scientific() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Float(1.5e10), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Float(1.5e10), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     // Should handle scientific notation
     assert!(code.contains("e") || code.contains("E") || code.contains("15000000000"));
@@ -1059,12 +1048,8 @@ pub(crate) fn test_literal_to_rust_expr_empty_string() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result = literal_to_rust_expr(
-        &Literal::String("".to_string()),
-        &string_optimizer,
-        &needs_cow,
-        &ctx,
-    );
+    let result =
+        literal_to_rust_expr(&Literal::String("".to_string()), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert!(code.contains("\"\""));
 }
@@ -1074,8 +1059,7 @@ pub(crate) fn test_literal_to_rust_expr_empty_bytes() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     assert!(code.contains("b\"\""));
 }
@@ -1092,11 +1076,7 @@ pub(crate) fn test_DEPYLER_1204_int_literal_unsuffixed() {
     let result = literal_to_rust_expr(&Literal::Int(42), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     // Should be unsuffixed to allow Rust type inference
-    assert_eq!(
-        code, "42",
-        "Integer literal should be unsuffixed, got: {}",
-        code
-    );
+    assert_eq!(code, "42", "Integer literal should be unsuffixed, got: {}", code);
 }
 
 #[test]
@@ -1104,15 +1084,10 @@ pub(crate) fn test_DEPYLER_1204_float_literal_unsuffixed() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Float(1.234), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Float(1.234), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     // Should be unsuffixed (decimal point ensures float parsing)
-    assert!(
-        code.contains("1.234"),
-        "Float literal should contain 1.234, got: {}",
-        code
-    );
+    assert!(code.contains("1.234"), "Float literal should contain 1.234, got: {}", code);
 }
 
 #[test]
@@ -1135,15 +1110,10 @@ pub(crate) fn test_DEPYLER_1204_float_zero_has_decimal() {
     let string_optimizer = StringOptimizer::new();
     let needs_cow = false;
     let ctx = CodeGenContext::default();
-    let result =
-        literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
+    let result = literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
     let code = result.to_token_stream().to_string();
     // Should have decimal point to ensure float parsing
-    assert!(
-        code.contains("."),
-        "Float zero should have decimal point, got: {}",
-        code
-    );
+    assert!(code.contains("."), "Float zero should have decimal point, got: {}", code);
 }
 
 // DEPYLER-1053: Tests for lambda parameter type inference in filter/map
@@ -1152,8 +1122,7 @@ pub(crate) fn test_DEPYLER_1053_infer_element_type_from_list_var() {
     // Test that infer_iterable_element_type correctly extracts Float from List(Float)
     let mut ctx = CodeGenContext::default();
     // Register a variable as List(Float)
-    ctx.var_types
-        .insert("data".to_string(), Type::List(Box::new(Type::Float)));
+    ctx.var_types.insert("data".to_string(), Type::List(Box::new(Type::Float)));
 
     let converter = ExpressionConverter::new(&mut ctx);
     let iterable = HirExpr::Var("data".to_string());
@@ -1185,10 +1154,8 @@ pub(crate) fn test_DEPYLER_1053_infer_element_type_from_int_list() {
     let mut ctx = CodeGenContext::default();
 
     let converter = ExpressionConverter::new(&mut ctx);
-    let iterable = HirExpr::List(vec![
-        HirExpr::Literal(Literal::Int(1)),
-        HirExpr::Literal(Literal::Int(2)),
-    ]);
+    let iterable =
+        HirExpr::List(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))]);
     let elem_type = converter.infer_iterable_element_type(&iterable);
 
     assert!(elem_type.is_some());
@@ -1267,10 +1234,8 @@ fn test_is_int_expr_binary_div_not_int() {
 fn test_is_int_expr_unary_neg() {
     let mut ctx = CodeGenContext::default();
     let converter = ExpressionConverter::new(&mut ctx);
-    let expr = HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand: Box::new(HirExpr::Literal(Literal::Int(5))),
-    };
+    let expr =
+        HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Literal(Literal::Int(5))) };
     assert!(converter.is_int_expr(&expr));
 }
 
@@ -1287,8 +1252,7 @@ fn test_is_int_var_typed_int() {
 #[test]
 fn test_is_int_var_custom_i32() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("idx".to_string(), Type::Custom("i32".to_string()));
+    ctx.var_types.insert("idx".to_string(), Type::Custom("i32".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.is_int_var(&HirExpr::Var("idx".to_string())));
 }
@@ -1296,8 +1260,7 @@ fn test_is_int_var_custom_i32() {
 #[test]
 fn test_is_int_var_custom_usize() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("len".to_string(), Type::Custom("usize".to_string()));
+    ctx.var_types.insert("len".to_string(), Type::Custom("usize".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.is_int_var(&HirExpr::Var("len".to_string())));
 }
@@ -1330,8 +1293,7 @@ fn test_is_float_var_typed_float() {
 #[test]
 fn test_is_float_var_custom_f64() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("val".to_string(), Type::Custom("f64".to_string()));
+    ctx.var_types.insert("val".to_string(), Type::Custom("f64".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.is_float_var(&HirExpr::Var("val".to_string())));
 }
@@ -1362,8 +1324,7 @@ fn test_is_float_var_not_var() {
 #[test]
 fn test_needs_debug_format_list_type() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("items".to_string(), Type::List(Box::new(Type::Int)));
+    ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.needs_debug_format(&HirExpr::Var("items".to_string())));
 }
@@ -1371,10 +1332,8 @@ fn test_needs_debug_format_list_type() {
 #[test]
 fn test_needs_debug_format_dict_type() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types.insert(
-        "data".to_string(),
-        Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-    );
+    ctx.var_types
+        .insert("data".to_string(), Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.needs_debug_format(&HirExpr::Var("data".to_string())));
 }
@@ -1382,8 +1341,7 @@ fn test_needs_debug_format_dict_type() {
 #[test]
 fn test_needs_debug_format_set_type() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("s".to_string(), Type::Set(Box::new(Type::Int)));
+    ctx.var_types.insert("s".to_string(), Type::Set(Box::new(Type::Int)));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.needs_debug_format(&HirExpr::Var("s".to_string())));
 }
@@ -1391,8 +1349,7 @@ fn test_needs_debug_format_set_type() {
 #[test]
 fn test_needs_debug_format_optional_type() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("maybe".to_string(), Type::Optional(Box::new(Type::String)));
+    ctx.var_types.insert("maybe".to_string(), Type::Optional(Box::new(Type::String)));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.needs_debug_format(&HirExpr::Var("maybe".to_string())));
 }
@@ -1435,11 +1392,7 @@ fn test_needs_debug_format_dict_literal() {
 fn test_needs_debug_format_call_false() {
     let mut ctx = CodeGenContext::default();
     let converter = ExpressionConverter::new(&mut ctx);
-    let expr = HirExpr::Call {
-        func: "foo".to_string(),
-        args: vec![],
-        kwargs: vec![],
-    };
+    let expr = HirExpr::Call { func: "foo".to_string(), args: vec![], kwargs: vec![] };
     assert!(!converter.needs_debug_format(&expr));
 }
 
@@ -1448,8 +1401,7 @@ fn test_needs_debug_format_call_false() {
 #[test]
 fn test_is_pathbuf_expr_typed_var() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("p".to_string(), Type::Custom("PathBuf".to_string()));
+    ctx.var_types.insert("p".to_string(), Type::Custom("PathBuf".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.is_pathbuf_expr(&HirExpr::Var("p".to_string())));
 }
@@ -1457,8 +1409,7 @@ fn test_is_pathbuf_expr_typed_var() {
 #[test]
 fn test_is_pathbuf_expr_path_type() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("p".to_string(), Type::Custom("Path".to_string()));
+    ctx.var_types.insert("p".to_string(), Type::Custom("Path".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     assert!(converter.is_pathbuf_expr(&HirExpr::Var("p".to_string())));
 }
@@ -1487,8 +1438,7 @@ fn test_is_pathbuf_expr_parent_method() {
 #[test]
 fn test_is_pathbuf_expr_join_on_pathbuf() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("base".to_string(), Type::Custom("PathBuf".to_string()));
+    ctx.var_types.insert("base".to_string(), Type::Custom("PathBuf".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     let expr = HirExpr::MethodCall {
         object: Box::new(HirExpr::Var("base".to_string())),
@@ -1516,8 +1466,7 @@ fn test_is_pathbuf_expr_join_on_string() {
 #[test]
 fn test_is_pathbuf_expr_parent_attribute() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("p".to_string(), Type::Custom("PathBuf".to_string()));
+    ctx.var_types.insert("p".to_string(), Type::Custom("PathBuf".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     let expr = HirExpr::Attribute {
         value: Box::new(HirExpr::Var("p".to_string())),
@@ -1534,11 +1483,7 @@ fn test_infer_numeric_type_token_int_return() {
     ctx.current_return_type = Some(Type::Int);
     let converter = ExpressionConverter::new(&mut ctx);
     let token = converter.infer_numeric_type_token();
-    assert!(
-        token.to_string().contains("i32"),
-        "Should be i32: {}",
-        token
-    );
+    assert!(token.to_string().contains("i32"), "Should be i32: {}", token);
 }
 
 #[test]
@@ -1547,11 +1492,7 @@ fn test_infer_numeric_type_token_float_return() {
     ctx.current_return_type = Some(Type::Float);
     let converter = ExpressionConverter::new(&mut ctx);
     let token = converter.infer_numeric_type_token();
-    assert!(
-        token.to_string().contains("f64"),
-        "Should be f64: {}",
-        token
-    );
+    assert!(token.to_string().contains("f64"), "Should be f64: {}", token);
 }
 
 #[test]
@@ -1559,11 +1500,7 @@ fn test_infer_numeric_type_token_default() {
     let mut ctx = CodeGenContext::default();
     let converter = ExpressionConverter::new(&mut ctx);
     let token = converter.infer_numeric_type_token();
-    assert!(
-        token.to_string().contains("i32"),
-        "Default should be i32: {}",
-        token
-    );
+    assert!(token.to_string().contains("i32"), "Default should be i32: {}", token);
 }
 
 #[test]
@@ -1587,8 +1524,7 @@ fn test_deref_if_borrowed_param_ref_param() {
     ctx.ref_params.insert("data".to_string());
     let converter = ExpressionConverter::new(&mut ctx);
     let rust_expr: syn::Expr = parse_quote! { data };
-    let result =
-        converter.deref_if_borrowed_param(&HirExpr::Var("data".to_string()), rust_expr);
+    let result = converter.deref_if_borrowed_param(&HirExpr::Var("data".to_string()), rust_expr);
     let code = quote::quote!(#result).to_string();
     assert!(code.contains("*"), "Should deref borrowed param: {}", code);
 }
@@ -1598,14 +1534,9 @@ fn test_deref_if_borrowed_param_not_ref() {
     let mut ctx = CodeGenContext::default();
     let converter = ExpressionConverter::new(&mut ctx);
     let rust_expr: syn::Expr = parse_quote! { data };
-    let result =
-        converter.deref_if_borrowed_param(&HirExpr::Var("data".to_string()), rust_expr);
+    let result = converter.deref_if_borrowed_param(&HirExpr::Var("data".to_string()), rust_expr);
     let code = quote::quote!(#result).to_string();
-    assert!(
-        !code.contains("*"),
-        "Should not deref non-borrowed: {}",
-        code
-    );
+    assert!(!code.contains("*"), "Should not deref non-borrowed: {}", code);
 }
 
 #[test]
@@ -1613,8 +1544,7 @@ fn test_deref_if_borrowed_param_non_var() {
     let mut ctx = CodeGenContext::default();
     let converter = ExpressionConverter::new(&mut ctx);
     let rust_expr: syn::Expr = parse_quote! { 42 };
-    let result =
-        converter.deref_if_borrowed_param(&HirExpr::Literal(Literal::Int(42)), rust_expr);
+    let result = converter.deref_if_borrowed_param(&HirExpr::Literal(Literal::Int(42)), rust_expr);
     let code = quote::quote!(#result).to_string();
     assert!(code.contains("42"), "Should pass through literal: {}", code);
 }
@@ -1624,8 +1554,7 @@ fn test_deref_if_borrowed_param_non_var() {
 #[test]
 fn test_infer_element_type_from_set_var() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("nums".to_string(), Type::Set(Box::new(Type::Int)));
+    ctx.var_types.insert("nums".to_string(), Type::Set(Box::new(Type::Int)));
     let converter = ExpressionConverter::new(&mut ctx);
     let iterable = HirExpr::Var("nums".to_string());
     let elem_type = converter.infer_iterable_element_type(&iterable);
@@ -1656,8 +1585,7 @@ fn test_infer_element_type_from_empty_list() {
 #[test]
 fn test_infer_element_type_custom_vec_f64() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("data".to_string(), Type::Custom("Vec<f64>".to_string()));
+    ctx.var_types.insert("data".to_string(), Type::Custom("Vec<f64>".to_string()));
     let converter = ExpressionConverter::new(&mut ctx);
     let iterable = HirExpr::Var("data".to_string());
     let elem_type = converter.infer_iterable_element_type(&iterable);
@@ -1675,10 +1603,8 @@ fn transpile(python_code: &str) -> String {
     use rustpython_parser::{parse, Mode};
 
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -1853,11 +1779,7 @@ def say(msg: str) -> None:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn say"), "output: {}", rust);
-    assert!(
-        rust.contains("println") || rust.contains("print"),
-        "output: {}",
-        rust
-    );
+    assert!(rust.contains("println") || rust.contains("print"), "output: {}", rust);
 }
 
 #[test]
@@ -2068,11 +1990,7 @@ class Counter:
         return self.count
 "#;
     let rust = transpile(code);
-    assert!(
-        rust.contains("Counter") || rust.contains("struct"),
-        "output: {}",
-        rust
-    );
+    assert!(rust.contains("Counter") || rust.contains("struct"), "output: {}", rust);
 }
 
 #[test]
@@ -2192,11 +2110,7 @@ def check_size(n: int) -> bool:
     return n <= MAX_SIZE
 "#;
     let rust = transpile(code);
-    assert!(
-        rust.contains("MAX_SIZE") || rust.contains("100"),
-        "output: {}",
-        rust
-    );
+    assert!(rust.contains("MAX_SIZE") || rust.contains("100"), "output: {}", rust);
 }
 
 #[test]
@@ -2387,11 +2301,7 @@ class Stack:
         return len(self.items) == 0
 "#;
     let rust = transpile(code);
-    assert!(
-        rust.contains("Stack") || rust.contains("struct"),
-        "output: {}",
-        rust
-    );
+    assert!(rust.contains("Stack") || rust.contains("struct"), "output: {}", rust);
 }
 
 #[test]
@@ -2979,7 +2889,11 @@ def has_key(d: dict, key: str) -> bool:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn has_key"), "output: {}", rust);
-    assert!(rust.contains("contains_key") || rust.contains("contains"), "Should contain contains: {}", rust);
+    assert!(
+        rust.contains("contains_key") || rust.contains("contains"),
+        "Should contain contains: {}",
+        rust
+    );
 }
 
 #[test]
@@ -3023,7 +2937,11 @@ def check_not_none(x: int) -> bool:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn check_not_none"), "output: {}", rust);
-    assert!(rust.contains("is_some") || rust.contains("Some") || rust.contains("None"), "Should check not None: {}", rust);
+    assert!(
+        rust.contains("is_some") || rust.contains("Some") || rust.contains("None"),
+        "Should check not None: {}",
+        rust
+    );
 }
 
 #[test]
@@ -3135,7 +3053,11 @@ def scale(n: int) -> int:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn scale"), "output: {}", rust);
-    assert!(rust.contains("*=") || rust.contains("py_mul"), "Should contain *= or py_mul: {}", rust);
+    assert!(
+        rust.contains("*=") || rust.contains("py_mul"),
+        "Should contain *= or py_mul: {}",
+        rust
+    );
 }
 
 #[test]
@@ -3930,7 +3852,11 @@ def circle_area(r: float) -> float:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn circle_area"), "output: {}", rust);
-    assert!(rust.contains("PI") || rust.contains("pi") || rust.contains("std::f64::consts"), "Should contain PI: {}", rust);
+    assert!(
+        rust.contains("PI") || rust.contains("pi") || rust.contains("std::f64::consts"),
+        "Should contain PI: {}",
+        rust
+    );
 }
 
 #[test]
@@ -4240,7 +4166,11 @@ def join_path(base: str, name: str) -> str:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn join_path"), "output: {}", rust);
-    assert!(rust.contains("PathBuf") || rust.contains("join") || rust.contains("path"), "Should contain path join: {}", rust);
+    assert!(
+        rust.contains("PathBuf") || rust.contains("join") || rust.contains("path"),
+        "Should contain path join: {}",
+        rust
+    );
 }
 
 #[test]
@@ -4356,7 +4286,11 @@ def run_cmd(cmd: list):
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn run_cmd"), "output: {}", rust);
-    assert!(rust.contains("Command") || rust.contains("command") || rust.contains("process"), "Should contain Command: {}", rust);
+    assert!(
+        rust.contains("Command") || rust.contains("command") || rust.contains("process"),
+        "Should contain Command: {}",
+        rust
+    );
 }
 
 #[test]
@@ -4562,7 +4496,11 @@ def make_set(items: list) -> set:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn make_set"), "output: {}", rust);
-    assert!(rust.contains("HashSet") || rust.contains("collect") || rust.contains("set"), "Should create set: {}", rust);
+    assert!(
+        rust.contains("HashSet") || rust.contains("collect") || rust.contains("set"),
+        "Should create set: {}",
+        rust
+    );
 }
 
 #[test]
@@ -4762,7 +4700,11 @@ def filter_positive(items: list) -> list:
 "#;
     let rust = transpile(code);
     assert!(rust.contains("fn filter_positive"), "output: {}", rust);
-    assert!(rust.contains("filter") || rust.contains("iter") || rust.contains("into_iter"), "Should use iterator: {}", rust);
+    assert!(
+        rust.contains("filter") || rust.contains("iter") || rust.contains("into_iter"),
+        "Should use iterator: {}",
+        rust
+    );
 }
 
 #[test]
@@ -5011,7 +4953,11 @@ def check_size(n: int) -> bool:
     return n <= MAX_SIZE
 "#;
     let rust = transpile(code);
-    assert!(rust.contains("MAX_SIZE") || rust.contains("1000"), "Should contain constant: {}", rust);
+    assert!(
+        rust.contains("MAX_SIZE") || rust.contains("1000"),
+        "Should contain constant: {}",
+        rust
+    );
 }
 
 #[test]

@@ -18,10 +18,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -275,7 +273,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_035_list_sort_reverse() {
-        let code = "def f():\n    items = [3, 1, 2]\n    items.sort(reverse=True)\n    return items";
+        let code =
+            "def f():\n    items = [3, 1, 2]\n    items.sort(reverse=True)\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -412,7 +411,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_054_dict_items() {
-        let code = "def f():\n    d = {'a': 1, 'b': 2}\n    for k, v in d.items():\n        print(k)";
+        let code =
+            "def f():\n    d = {'a': 1, 'b': 2}\n    for k, v in d.items():\n        print(k)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -468,7 +468,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_062_dict_fromkeys() {
-        let code = "def f():\n    keys = ['a', 'b', 'c']\n    d = dict.fromkeys(keys, 0)\n    return d";
+        let code =
+            "def f():\n    keys = ['a', 'b', 'c']\n    d = dict.fromkeys(keys, 0)\n    return d";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -496,7 +497,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_066_dict_update_multiple() {
-        let code = "def f():\n    d = {}\n    d.update({'a': 1})\n    d.update({'b': 2})\n    return d";
+        let code =
+            "def f():\n    d = {}\n    d.update({'a': 1})\n    d.update({'b': 2})\n    return d";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -524,7 +526,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_070_dict_items_destructure() {
-        let code = "def f():\n    d = {'a': 1, 'b': 2}\n    pairs = list(d.items())\n    return pairs";
+        let code =
+            "def f():\n    d = {'a': 1, 'b': 2}\n    pairs = list(d.items())\n    return pairs";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -598,7 +601,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_080_set_difference() {
-        let code = "def f():\n    a = {1, 2, 3}\n    b = {2, 3}\n    c = a.difference(b)\n    return c";
+        let code =
+            "def f():\n    a = {1, 2, 3}\n    b = {2, 3}\n    c = a.difference(b)\n    return c";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -619,7 +623,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_083_set_issuperset() {
-        let code = "def f() -> bool:\n    a = {1, 2, 3}\n    b = {1, 2}\n    return a.issuperset(b)";
+        let code =
+            "def f() -> bool:\n    a = {1, 2, 3}\n    b = {1, 2}\n    return a.issuperset(b)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -640,7 +645,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_086_set_intersection_update() {
-        let code = "def f():\n    s = {1, 2, 3}\n    s.intersection_update({2, 3, 4})\n    return s";
+        let code =
+            "def f():\n    s = {1, 2, 3}\n    s.intersection_update({2, 3, 4})\n    return s";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -675,7 +681,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_091_set_add_in_loop() {
-        let code = "def f():\n    s = set()\n    for i in range(5):\n        s.add(i)\n    return s";
+        let code =
+            "def f():\n    s = set()\n    for i in range(5):\n        s.add(i)\n    return s";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -689,7 +696,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_093_set_intersection_empty() {
-        let code = "def f():\n    a = {1, 2}\n    b = {3, 4}\n    c = a.intersection(b)\n    return c";
+        let code =
+            "def f():\n    a = {1, 2}\n    b = {3, 4}\n    c = a.intersection(b)\n    return c";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -777,7 +785,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_105_file_tell() {
-        let code = "def f():\n    with open('test.txt') as fh:\n        pos = fh.tell()\n    return pos";
+        let code =
+            "def f():\n    with open('test.txt') as fh:\n        pos = fh.tell()\n    return pos";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -861,7 +870,8 @@ mod tests {
 
     #[test]
     fn test_w21ra_117_string_translate() {
-        let code = "def f(s: str) -> str:\n    t = str.maketrans('abc', 'xyz')\n    return s.translate(t)";
+        let code =
+            "def f(s: str) -> str:\n    t = str.maketrans('abc', 'xyz')\n    return s.translate(t)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

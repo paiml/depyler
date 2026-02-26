@@ -15,11 +15,8 @@ use std::collections::HashMap;
 /// to the function's parameter if the parameter type is still Unknown.
 pub fn propagate_call_site_types(hir: &mut HirModule) {
     // Phase 1: Build map of function names to their parameter counts and return types
-    let func_param_counts: HashMap<String, usize> = hir
-        .functions
-        .iter()
-        .map(|f| (f.name.clone(), f.params.len()))
-        .collect();
+    let func_param_counts: HashMap<String, usize> =
+        hir.functions.iter().map(|f| (f.name.clone(), f.params.len())).collect();
 
     let func_return_types: HashMap<String, Type> = hir
         .functions
@@ -90,11 +87,7 @@ pub fn collect_var_types_from_stmts(
 ) {
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(var_name),
-                value,
-                type_annotation,
-            } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(var_name), value, type_annotation } => {
                 // If there's a type annotation, use that
                 if let Some(ty) = type_annotation {
                     if !matches!(ty, Type::Unknown) {
@@ -107,11 +100,7 @@ pub fn collect_var_types_from_stmts(
                     var_types.insert((func_name.to_string(), var_name.clone()), ty);
                 }
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 collect_var_types_from_stmts(then_body, func_name, func_return_types, var_types);
                 if let Some(else_stmts) = else_body {
                     collect_var_types_from_stmts(
@@ -133,12 +122,7 @@ pub fn collect_var_types_from_stmts(
                 }
                 collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
                 for handler in handlers {
                     collect_var_types_from_stmts(
@@ -269,11 +253,7 @@ pub fn collect_call_site_types(
                     call_site_types,
                 );
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 collect_call_site_types_from_expr(
                     condition,
                     caller_func_name,
@@ -330,12 +310,7 @@ pub fn collect_call_site_types(
                     call_site_types,
                 );
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
+            HirStmt::Try { body, handlers, finalbody, .. } => {
                 collect_call_site_types(
                     body,
                     caller_func_name,
@@ -573,10 +548,7 @@ mod tests {
     #[test]
     fn test_extract_element_type_list_nested() {
         let nested = Type::List(Box::new(Type::List(Box::new(Type::Float))));
-        assert_eq!(
-            extract_element_type(&nested),
-            Type::List(Box::new(Type::Float))
-        );
+        assert_eq!(extract_element_type(&nested), Type::List(Box::new(Type::Float)));
     }
 
     #[test]
@@ -616,10 +588,7 @@ mod tests {
         let mut var_types = HashMap::new();
         let target = AssignTarget::Symbol("x".to_string());
         add_target_to_var_types(&target, &Type::Int, "func", &mut var_types);
-        assert_eq!(
-            var_types.get(&("func".to_string(), "x".to_string())),
-            Some(&Type::Int)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "x".to_string())), Some(&Type::Int));
     }
 
     #[test]
@@ -631,14 +600,8 @@ mod tests {
         ]);
         let tuple_type = Type::Tuple(vec![Type::Int, Type::String]);
         add_target_to_var_types(&target, &tuple_type, "func", &mut var_types);
-        assert_eq!(
-            var_types.get(&("func".to_string(), "a".to_string())),
-            Some(&Type::Int)
-        );
-        assert_eq!(
-            var_types.get(&("func".to_string(), "b".to_string())),
-            Some(&Type::String)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "a".to_string())), Some(&Type::Int));
+        assert_eq!(var_types.get(&("func".to_string(), "b".to_string())), Some(&Type::String));
     }
 
     #[test]
@@ -650,14 +613,8 @@ mod tests {
         ]);
         add_target_to_var_types(&target, &Type::Int, "func", &mut var_types);
         // When tuple target meets non-tuple type, all get Unknown
-        assert_eq!(
-            var_types.get(&("func".to_string(), "a".to_string())),
-            Some(&Type::Unknown)
-        );
-        assert_eq!(
-            var_types.get(&("func".to_string(), "b".to_string())),
-            Some(&Type::Unknown)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "a".to_string())), Some(&Type::Unknown));
+        assert_eq!(var_types.get(&("func".to_string(), "b".to_string())), Some(&Type::Unknown));
     }
 
     #[test]
@@ -670,23 +627,11 @@ mod tests {
                 AssignTarget::Symbol("c".to_string()),
             ]),
         ]);
-        let tuple_type = Type::Tuple(vec![
-            Type::Int,
-            Type::Tuple(vec![Type::String, Type::Float]),
-        ]);
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::Tuple(vec![Type::String, Type::Float])]);
         add_target_to_var_types(&target, &tuple_type, "func", &mut var_types);
-        assert_eq!(
-            var_types.get(&("func".to_string(), "a".to_string())),
-            Some(&Type::Int)
-        );
-        assert_eq!(
-            var_types.get(&("func".to_string(), "b".to_string())),
-            Some(&Type::String)
-        );
-        assert_eq!(
-            var_types.get(&("func".to_string(), "c".to_string())),
-            Some(&Type::Float)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "a".to_string())), Some(&Type::Int));
+        assert_eq!(var_types.get(&("func".to_string(), "b".to_string())), Some(&Type::String));
+        assert_eq!(var_types.get(&("func".to_string(), "c".to_string())), Some(&Type::Float));
     }
 
     // ============ infer_expr_type tests ============
@@ -727,19 +672,13 @@ mod tests {
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
         ]);
-        assert_eq!(
-            infer_expr_type(&expr),
-            Some(Type::List(Box::new(Type::Int)))
-        );
+        assert_eq!(infer_expr_type(&expr), Some(Type::List(Box::new(Type::Int))));
     }
 
     #[test]
     fn test_infer_expr_type_empty_list() {
         let expr = HirExpr::List(vec![]);
-        assert_eq!(
-            infer_expr_type(&expr),
-            Some(Type::List(Box::new(Type::Unknown)))
-        );
+        assert_eq!(infer_expr_type(&expr), Some(Type::List(Box::new(Type::Unknown))));
     }
 
     #[test]
@@ -762,39 +701,22 @@ mod tests {
         let mut func_return_types = HashMap::new();
         func_return_types.insert("get_count".to_string(), Type::Int);
 
-        let expr = HirExpr::Call {
-            func: "get_count".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
-        assert_eq!(
-            infer_expr_type_with_returns(&expr, &func_return_types),
-            Some(Type::Int)
-        );
+        let expr = HirExpr::Call { func: "get_count".to_string(), args: vec![], kwargs: vec![] };
+        assert_eq!(infer_expr_type_with_returns(&expr, &func_return_types), Some(Type::Int));
     }
 
     #[test]
     fn test_infer_expr_type_with_returns_unknown_call() {
         let func_return_types = HashMap::new();
-        let expr = HirExpr::Call {
-            func: "unknown_func".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
-        assert_eq!(
-            infer_expr_type_with_returns(&expr, &func_return_types),
-            None
-        );
+        let expr = HirExpr::Call { func: "unknown_func".to_string(), args: vec![], kwargs: vec![] };
+        assert_eq!(infer_expr_type_with_returns(&expr, &func_return_types), None);
     }
 
     #[test]
     fn test_infer_expr_type_with_returns_literal() {
         let func_return_types = HashMap::new();
         let expr = HirExpr::Literal(Literal::Int(42));
-        assert_eq!(
-            infer_expr_type_with_returns(&expr, &func_return_types),
-            Some(Type::Int)
-        );
+        assert_eq!(infer_expr_type_with_returns(&expr, &func_return_types), Some(Type::Int));
     }
 
     // ============ collect_call_site_types_from_expr tests ============
@@ -820,10 +742,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("process".to_string(), 0)),
-            Some(&Type::Int)
-        );
+        assert_eq!(call_site_types.get(&("process".to_string(), 0)), Some(&Type::Int));
     }
 
     #[test]
@@ -847,10 +766,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("compute".to_string(), 0)),
-            Some(&Type::Float)
-        );
+        assert_eq!(call_site_types.get(&("compute".to_string(), 0)), Some(&Type::Float));
     }
 
     #[test]
@@ -876,10 +792,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("process".to_string(), 0)),
-            Some(&Type::String)
-        );
+        assert_eq!(call_site_types.get(&("process".to_string(), 0)), Some(&Type::String));
     }
 
     #[test]
@@ -916,10 +829,8 @@ mod tests {
         func_param_counts.insert("process".to_string(), 1);
 
         let mut var_types = HashMap::new();
-        var_types.insert(
-            ("caller".to_string(), "x".to_string()),
-            Type::Optional(Box::new(Type::Int)),
-        );
+        var_types
+            .insert(("caller".to_string(), "x".to_string()), Type::Optional(Box::new(Type::Int)));
 
         let expr = HirExpr::Call {
             func: "process".to_string(),
@@ -948,10 +859,7 @@ mod tests {
 
         let expr = HirExpr::Call {
             func: "add".to_string(),
-            args: vec![
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Float(2.5)),
-            ],
+            args: vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Float(2.5))],
             kwargs: vec![],
         };
 
@@ -963,14 +871,8 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("add".to_string(), 0)),
-            Some(&Type::Int)
-        );
-        assert_eq!(
-            call_site_types.get(&("add".to_string(), 1)),
-            Some(&Type::Float)
-        );
+        assert_eq!(call_site_types.get(&("add".to_string(), 0)), Some(&Type::Int));
+        assert_eq!(call_site_types.get(&("add".to_string(), 1)), Some(&Type::Float));
     }
 
     #[test]
@@ -1023,10 +925,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("process".to_string(), 0)),
-            Some(&Type::Int)
-        );
+        assert_eq!(call_site_types.get(&("process".to_string(), 0)), Some(&Type::Int));
     }
 
     #[test]
@@ -1090,10 +989,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("get_value".to_string(), 0)),
-            Some(&Type::Int)
-        );
+        assert_eq!(call_site_types.get(&("get_value".to_string(), 0)), Some(&Type::Int));
     }
 
     #[test]
@@ -1117,10 +1013,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("compute".to_string(), 0)),
-            Some(&Type::String)
-        );
+        assert_eq!(call_site_types.get(&("compute".to_string(), 0)), Some(&Type::String));
     }
 
     #[test]
@@ -1152,10 +1045,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("process".to_string(), 0)),
-            Some(&Type::Int)
-        );
+        assert_eq!(call_site_types.get(&("process".to_string(), 0)), Some(&Type::Int));
     }
 
     #[test]
@@ -1182,10 +1072,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("update".to_string(), 0)),
-            Some(&Type::Float)
-        );
+        assert_eq!(call_site_types.get(&("update".to_string(), 0)), Some(&Type::Float));
     }
 
     #[test]
@@ -1213,10 +1100,7 @@ mod tests {
             &mut call_site_types,
         );
 
-        assert_eq!(
-            call_site_types.get(&("handle".to_string(), 0)),
-            Some(&Type::Bool)
-        );
+        assert_eq!(call_site_types.get(&("handle".to_string(), 0)), Some(&Type::Bool));
     }
 
     // ============ collect_var_types_from_stmts tests ============
@@ -1234,10 +1118,7 @@ mod tests {
 
         collect_var_types_from_stmts(&stmts, "func", &func_return_types, &mut var_types);
 
-        assert_eq!(
-            var_types.get(&("func".to_string(), "x".to_string())),
-            Some(&Type::Float)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "x".to_string())), Some(&Type::Float));
     }
 
     #[test]
@@ -1253,10 +1134,7 @@ mod tests {
 
         collect_var_types_from_stmts(&stmts, "func", &func_return_types, &mut var_types);
 
-        assert_eq!(
-            var_types.get(&("func".to_string(), "x".to_string())),
-            Some(&Type::Int)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "x".to_string())), Some(&Type::Int));
     }
 
     #[test]
@@ -1267,20 +1145,13 @@ mod tests {
 
         let stmts = vec![HirStmt::Assign {
             target: AssignTarget::Symbol("count".to_string()),
-            value: HirExpr::Call {
-                func: "get_count".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            },
+            value: HirExpr::Call { func: "get_count".to_string(), args: vec![], kwargs: vec![] },
             type_annotation: None,
         }];
 
         collect_var_types_from_stmts(&stmts, "func", &func_return_types, &mut var_types);
 
-        assert_eq!(
-            var_types.get(&("func".to_string(), "count".to_string())),
-            Some(&Type::Int)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "count".to_string())), Some(&Type::Int));
     }
 
     #[test]
@@ -1296,10 +1167,7 @@ mod tests {
 
         collect_var_types_from_stmts(&stmts, "func", &func_return_types, &mut var_types);
 
-        assert_eq!(
-            var_types.get(&("func".to_string(), "item".to_string())),
-            Some(&Type::String)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "item".to_string())), Some(&Type::String));
     }
 
     #[test]
@@ -1323,13 +1191,7 @@ mod tests {
 
         collect_var_types_from_stmts(&stmts, "func", &func_return_types, &mut var_types);
 
-        assert_eq!(
-            var_types.get(&("func".to_string(), "x".to_string())),
-            Some(&Type::Int)
-        );
-        assert_eq!(
-            var_types.get(&("func".to_string(), "y".to_string())),
-            Some(&Type::Float)
-        );
+        assert_eq!(var_types.get(&("func".to_string(), "x".to_string())), Some(&Type::Int));
+        assert_eq!(var_types.get(&("func".to_string(), "y".to_string())), Some(&Type::Float));
     }
 }

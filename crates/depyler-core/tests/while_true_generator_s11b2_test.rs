@@ -14,10 +14,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -148,10 +146,7 @@ def counter(n: int):
         i += 1
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("counter") || result.contains("Counter"),
-        "Got: {}", result
-    );
+    assert!(result.contains("counter") || result.contains("Counter"), "Got: {}", result);
 }
 
 #[test]
@@ -165,10 +160,7 @@ def fibonacci():
         a, b = b, a + b
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fibonacci") || result.contains("Fibonacci"),
-        "Got: {}", result
-    );
+    assert!(result.contains("fibonacci") || result.contains("Fibonacci"), "Got: {}", result);
 }
 
 #[test]
@@ -179,10 +171,7 @@ def squares(n: int):
         yield i * i
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("squares") || result.contains("Squares"),
-        "Got: {}", result
-    );
+    assert!(result.contains("squares") || result.contains("Squares"), "Got: {}", result);
 }
 
 #[test]
@@ -194,10 +183,7 @@ def even_numbers(n: int):
             yield i
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("even_numbers") || result.contains("EvenNumbers"),
-        "Got: {}", result
-    );
+    assert!(result.contains("even_numbers") || result.contains("EvenNumbers"), "Got: {}", result);
 }
 
 #[test]
@@ -210,10 +196,7 @@ def limited(n: int):
         yield i
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("limited") || result.contains("Limited"),
-        "Got: {}", result
-    );
+    assert!(result.contains("limited") || result.contains("Limited"), "Got: {}", result);
 }
 
 // ===== Recursive nested functions =====

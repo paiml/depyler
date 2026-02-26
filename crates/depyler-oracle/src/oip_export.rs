@@ -116,10 +116,7 @@ pub struct SpanInfo {
 impl SpanInfo {
     #[must_use]
     pub fn new(line: u32, column: u32) -> Self {
-        Self {
-            line_start: line,
-            column_start: column,
-        }
+        Self { line_start: line, column_start: column }
     }
 }
 
@@ -133,10 +130,7 @@ pub struct SuggestionInfo {
 impl SuggestionInfo {
     #[must_use]
     pub fn new(replacement: impl Into<String>, applicability: impl Into<String>) -> Self {
-        Self {
-            replacement: replacement.into(),
-            applicability: applicability.into(),
-        }
+        Self { replacement: replacement.into(), applicability: applicability.into() }
     }
 
     #[must_use]
@@ -257,10 +251,7 @@ impl DepylerExport {
     /// Get error code class for GNN features
     #[must_use]
     pub fn error_code_class(&self) -> ErrorCodeClass {
-        self.error_code
-            .as_ref()
-            .map(|c| ErrorCodeClass::from_error_code(c))
-            .unwrap_or_default()
+        self.error_code.as_ref().map(|c| ErrorCodeClass::from_error_code(c)).unwrap_or_default()
     }
 
     /// Map to OIP category based on error code
@@ -365,19 +356,10 @@ impl ExportStats {
             confidence_sum += export.confidence;
         }
 
-        let avg_confidence = if exports.is_empty() {
-            0.0
-        } else {
-            confidence_sum / exports.len() as f32
-        };
+        let avg_confidence =
+            if exports.is_empty() { 0.0 } else { confidence_sum / exports.len() as f32 };
 
-        Self {
-            total_records: exports.len(),
-            by_error_code,
-            by_category,
-            by_class,
-            avg_confidence,
-        }
+        Self { total_records: exports.len(), by_error_code, by_category, by_class, avg_confidence }
     }
 
     /// Print statistics summary
@@ -409,11 +391,7 @@ pub struct ParquetExportConfig {
 
 impl Default for ParquetExportConfig {
     fn default() -> Self {
-        Self {
-            batch_size: 1024,
-            compression: true,
-            row_group_size: 10000,
-        }
+        Self { batch_size: 1024, compression: true, row_group_size: 10000 }
     }
 }
 
@@ -463,14 +441,10 @@ pub fn export_to_parquet<P: AsRef<Path>>(
     let oip_categories: Vec<Option<&str>> =
         exports.iter().map(|e| e.oip_category.as_deref()).collect();
     let confidences: Vec<f32> = exports.iter().map(|e| e.confidence).collect();
-    let span_lines: Vec<Option<u32>> = exports
-        .iter()
-        .map(|e| e.span.as_ref().map(|s| s.line_start))
-        .collect();
-    let span_columns: Vec<Option<u32>> = exports
-        .iter()
-        .map(|e| e.span.as_ref().map(|s| s.column_start))
-        .collect();
+    let span_lines: Vec<Option<u32>> =
+        exports.iter().map(|e| e.span.as_ref().map(|s| s.line_start)).collect();
+    let span_columns: Vec<Option<u32>> =
+        exports.iter().map(|e| e.span.as_ref().map(|s| s.column_start)).collect();
     let timestamps: Vec<i64> = exports.iter().map(|e| e.timestamp).collect();
     let versions: Vec<&str> = exports.iter().map(|e| e.depyler_version.as_str()).collect();
 
@@ -494,9 +468,7 @@ pub fn export_to_parquet<P: AsRef<Path>>(
     // Write to Parquet
     let file = std::fs::File::create(path)?;
     let props = if config.compression {
-        WriterProperties::builder()
-            .set_compression(Compression::SNAPPY)
-            .build()
+        WriterProperties::builder().set_compression(Compression::SNAPPY).build()
     } else {
         WriterProperties::builder().build()
     };
@@ -518,10 +490,7 @@ impl BatchExporter {
     /// Create new batch exporter
     #[must_use]
     pub fn new(batch_size: usize) -> Self {
-        Self {
-            exports: Vec::with_capacity(batch_size),
-            batch_size,
-        }
+        Self { exports: Vec::with_capacity(batch_size), batch_size }
     }
 
     /// Add export record
@@ -575,66 +544,33 @@ mod tests {
 
     #[test]
     fn test_error_code_class_from_type_errors() {
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0308"),
-            ErrorCodeClass::Type
-        );
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0412"),
-            ErrorCodeClass::Name
-        );
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0606"),
-            ErrorCodeClass::Type
-        );
+        assert_eq!(ErrorCodeClass::from_error_code("E0308"), ErrorCodeClass::Type);
+        assert_eq!(ErrorCodeClass::from_error_code("E0412"), ErrorCodeClass::Name);
+        assert_eq!(ErrorCodeClass::from_error_code("E0606"), ErrorCodeClass::Type);
     }
 
     #[test]
     fn test_error_code_class_from_borrow_errors() {
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0502"),
-            ErrorCodeClass::Borrow
-        );
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0382"),
-            ErrorCodeClass::Borrow
-        );
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0507"),
-            ErrorCodeClass::Borrow
-        );
+        assert_eq!(ErrorCodeClass::from_error_code("E0502"), ErrorCodeClass::Borrow);
+        assert_eq!(ErrorCodeClass::from_error_code("E0382"), ErrorCodeClass::Borrow);
+        assert_eq!(ErrorCodeClass::from_error_code("E0507"), ErrorCodeClass::Borrow);
     }
 
     #[test]
     fn test_error_code_class_from_name_errors() {
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0425"),
-            ErrorCodeClass::Name
-        );
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0433"),
-            ErrorCodeClass::Name
-        );
+        assert_eq!(ErrorCodeClass::from_error_code("E0425"), ErrorCodeClass::Name);
+        assert_eq!(ErrorCodeClass::from_error_code("E0433"), ErrorCodeClass::Name);
     }
 
     #[test]
     fn test_error_code_class_from_trait_errors() {
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E0277"),
-            ErrorCodeClass::Trait
-        );
+        assert_eq!(ErrorCodeClass::from_error_code("E0277"), ErrorCodeClass::Trait);
     }
 
     #[test]
     fn test_error_code_class_from_unknown() {
-        assert_eq!(
-            ErrorCodeClass::from_error_code("E9999"),
-            ErrorCodeClass::Other
-        );
-        assert_eq!(
-            ErrorCodeClass::from_error_code("UNKNOWN"),
-            ErrorCodeClass::Other
-        );
+        assert_eq!(ErrorCodeClass::from_error_code("E9999"), ErrorCodeClass::Other);
+        assert_eq!(ErrorCodeClass::from_error_code("UNKNOWN"), ErrorCodeClass::Other);
     }
 
     #[test]
@@ -649,19 +585,10 @@ mod tests {
     #[test]
     fn test_error_code_class_to_one_hot() {
         assert_eq!(ErrorCodeClass::Type.to_one_hot(), [1.0, 0.0, 0.0, 0.0, 0.0]);
-        assert_eq!(
-            ErrorCodeClass::Borrow.to_one_hot(),
-            [0.0, 1.0, 0.0, 0.0, 0.0]
-        );
+        assert_eq!(ErrorCodeClass::Borrow.to_one_hot(), [0.0, 1.0, 0.0, 0.0, 0.0]);
         assert_eq!(ErrorCodeClass::Name.to_one_hot(), [0.0, 0.0, 1.0, 0.0, 0.0]);
-        assert_eq!(
-            ErrorCodeClass::Trait.to_one_hot(),
-            [0.0, 0.0, 0.0, 1.0, 0.0]
-        );
-        assert_eq!(
-            ErrorCodeClass::Other.to_one_hot(),
-            [0.0, 0.0, 0.0, 0.0, 1.0]
-        );
+        assert_eq!(ErrorCodeClass::Trait.to_one_hot(), [0.0, 0.0, 0.0, 1.0, 0.0]);
+        assert_eq!(ErrorCodeClass::Other.to_one_hot(), [0.0, 0.0, 0.0, 0.0, 1.0]);
     }
 
     #[test]
@@ -722,10 +649,7 @@ mod tests {
         let suggestion = SuggestionInfo::machine_applicable(".parse::<i32>()");
         let export = DepylerExport::new("E0308", "msg", "file.py").with_suggestion(suggestion);
         assert!(export.suggestion.is_some());
-        assert_eq!(
-            export.suggestion.unwrap().applicability,
-            "MachineApplicable"
-        );
+        assert_eq!(export.suggestion.unwrap().applicability, "MachineApplicable");
     }
 
     #[test]

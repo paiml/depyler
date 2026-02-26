@@ -80,11 +80,7 @@ pub struct CurriculumScheduler {
 impl CurriculumScheduler {
     /// Create a new curriculum scheduler
     pub fn new() -> Self {
-        Self {
-            queue: BinaryHeap::new(),
-            graduated: Vec::new(),
-            total_added: 0,
-        }
+        Self { queue: BinaryHeap::new(), graduated: Vec::new(), total_added: 0 }
     }
 
     /// Add an example to the queue
@@ -172,10 +168,8 @@ mod tests {
 
     #[test]
     fn test_compilation_error_clone() {
-        let err = CompilationError {
-            code: "E0308".to_string(),
-            message: "mismatched types".to_string(),
-        };
+        let err =
+            CompilationError { code: "E0308".to_string(), message: "mismatched types".to_string() };
         let cloned = err.clone();
         assert_eq!(cloned.code, err.code);
         assert_eq!(cloned.message, err.message);
@@ -183,10 +177,8 @@ mod tests {
 
     #[test]
     fn test_compilation_error_debug() {
-        let err = CompilationError {
-            code: "E0599".to_string(),
-            message: "no method named".to_string(),
-        };
+        let err =
+            CompilationError { code: "E0599".to_string(), message: "no method named".to_string() };
         let debug = format!("{:?}", err);
         assert!(debug.contains("E0599"));
         assert!(debug.contains("no method named"));
@@ -396,12 +388,7 @@ mod tests {
         // Add in wrong order
         scheduler.add_example(make_example("hard.py", DifficultyLevel::Hard, None, vec![]));
         scheduler.add_example(make_example("easy.py", DifficultyLevel::Easy, None, vec![]));
-        scheduler.add_example(make_example(
-            "medium.py",
-            DifficultyLevel::Medium,
-            None,
-            vec![],
-        ));
+        scheduler.add_example(make_example("medium.py", DifficultyLevel::Medium, None, vec![]));
 
         // Should pop in priority order: Easy > Medium > Hard
         assert_eq!(scheduler.pop_next().unwrap().path, "easy.py");
@@ -496,12 +483,7 @@ mod tests {
         let mut scheduler = CurriculumScheduler::new();
 
         // Add various examples
-        scheduler.add_example(make_example(
-            "hard.py",
-            DifficultyLevel::Hard,
-            None,
-            vec!["dep"],
-        ));
+        scheduler.add_example(make_example("hard.py", DifficultyLevel::Hard, None, vec!["dep"]));
         scheduler.add_example(make_example(
             "easy_cluster.py",
             DifficultyLevel::Easy,

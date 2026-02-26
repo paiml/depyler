@@ -36,11 +36,7 @@ impl OracleEstimator {
     /// Create a new oracle estimator.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            predictor: NgramFixPredictor::new(),
-            samples: Vec::new(),
-            n_features: 0,
-        }
+        Self { predictor: NgramFixPredictor::new(), samples: Vec::new(), n_features: 0 }
     }
 
     /// Create with custom similarity threshold.
@@ -64,10 +60,7 @@ impl OracleEstimator {
     /// Predict category for a single error message.
     #[must_use]
     pub fn predict_category(&self, error_msg: &str) -> Option<ErrorCategory> {
-        self.predictor
-            .predict_fixes(error_msg, 1)
-            .first()
-            .map(|s| s.category)
+        self.predictor.predict_fixes(error_msg, 1).first().map(|s| s.category)
     }
 }
 
@@ -95,19 +88,16 @@ impl Estimator for OracleEstimator {
             if i < y.len() {
                 // Use fix if available, otherwise use a generic fix hint
                 let fix = sample.fix.as_deref().unwrap_or("Check error details");
-                self.predictor
-                    .learn_pattern(&sample.message, fix, sample.category);
+                self.predictor.learn_pattern(&sample.message, fix, sample.category);
             }
         }
 
         // Fit the vectorizer
-        self.predictor
-            .fit()
-            .map_err(|e| AprenderError::InvalidHyperparameter {
-                param: "predictor".to_string(),
-                value: format!("fit failed: {e}"),
-                constraint: "Must have training patterns".to_string(),
-            })?;
+        self.predictor.fit().map_err(|e| AprenderError::InvalidHyperparameter {
+            param: "predictor".to_string(),
+            value: format!("fit failed: {e}"),
+            constraint: "Must have training patterns".to_string(),
+        })?;
 
         Ok(())
     }
@@ -413,10 +403,7 @@ mod tests {
         // E0308 should be encoded
         let row = x.row(0);
         // Find index of E0308 in ERROR_CODES
-        let idx = feature_config::ERROR_CODES
-            .iter()
-            .position(|&c| c == "E0308")
-            .unwrap();
+        let idx = feature_config::ERROR_CODES.iter().position(|&c| c == "E0308").unwrap();
         assert_eq!(row[idx], 1.0);
     }
 
@@ -432,10 +419,7 @@ mod tests {
         let row = x.row(0);
         // "type" should appear 3 times
         let n_error_codes = feature_config::ERROR_CODES.len();
-        let type_idx = feature_config::KEYWORDS
-            .iter()
-            .position(|&k| k == "type")
-            .unwrap();
+        let type_idx = feature_config::KEYWORDS.iter().position(|&k| k == "type").unwrap();
         assert_eq!(row[n_error_codes + type_idx], 3.0);
     }
 
@@ -461,10 +445,7 @@ mod tests {
         let features = message_to_features(msg);
         let row = features.row(0);
 
-        let idx = feature_config::ERROR_CODES
-            .iter()
-            .position(|&c| c == "E0277")
-            .unwrap();
+        let idx = feature_config::ERROR_CODES.iter().position(|&c| c == "E0277").unwrap();
         assert_eq!(row[idx], 1.0);
     }
 
@@ -475,10 +456,7 @@ mod tests {
         let row = features.row(0);
 
         let n_error_codes = feature_config::ERROR_CODES.len();
-        let borrow_idx = feature_config::KEYWORDS
-            .iter()
-            .position(|&k| k == "borrow")
-            .unwrap();
+        let borrow_idx = feature_config::KEYWORDS.iter().position(|&k| k == "borrow").unwrap();
         assert!(row[n_error_codes + borrow_idx] >= 1.0);
     }
 
@@ -588,10 +566,7 @@ mod tests {
     fn test_samples_without_fix() {
         // TrainingSample without fix should use default hint
         let mut estimator = OracleEstimator::new();
-        let samples = vec![TrainingSample::new(
-            "error message",
-            ErrorCategory::TypeMismatch,
-        )];
+        let samples = vec![TrainingSample::new("error message", ErrorCategory::TypeMismatch)];
         estimator.add_samples(samples.clone());
 
         let (x, y) = samples_to_features(&samples);
@@ -607,14 +582,8 @@ mod tests {
         let row = features.row(0);
 
         // Both E0308 and E0277 should be encoded
-        let idx_308 = feature_config::ERROR_CODES
-            .iter()
-            .position(|&c| c == "E0308")
-            .unwrap();
-        let idx_277 = feature_config::ERROR_CODES
-            .iter()
-            .position(|&c| c == "E0277")
-            .unwrap();
+        let idx_308 = feature_config::ERROR_CODES.iter().position(|&c| c == "E0308").unwrap();
+        let idx_277 = feature_config::ERROR_CODES.iter().position(|&c| c == "E0277").unwrap();
 
         assert_eq!(row[idx_308], 1.0);
         assert_eq!(row[idx_277], 1.0);

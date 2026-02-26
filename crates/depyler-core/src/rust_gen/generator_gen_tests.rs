@@ -7,9 +7,7 @@ use crate::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -28,23 +26,17 @@ fn test_simple_yield() {
 
 #[test]
 fn test_multiple_yields() {
-    assert!(transpile_ok(
-        "def gen():\n    yield 1\n    yield 2\n    yield 3"
-    ));
+    assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n    yield 3"));
 }
 
 #[test]
 fn test_yield_in_loop() {
-    assert!(transpile_ok(
-        "def gen(n):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpile_ok("def gen(n):\n    for i in range(n):\n        yield i"));
 }
 
 #[test]
 fn test_yield_with_state() {
-    assert!(transpile_ok(
-        "def gen():\n    x = 1\n    yield x\n    x += 1\n    yield x"
-    ));
+    assert!(transpile_ok("def gen():\n    x = 1\n    yield x\n    x += 1\n    yield x"));
 }
 
 #[test]
@@ -59,9 +51,7 @@ fn test_yield_from_range() {
 
 #[test]
 fn test_yield_from_generator() {
-    assert!(transpile_ok(
-        "def gen1():\n    yield 1\n\ndef gen2():\n    yield from gen1()"
-    ));
+    assert!(transpile_ok("def gen1():\n    yield 1\n\ndef gen2():\n    yield from gen1()"));
 }
 
 // ============================================================================
@@ -126,9 +116,7 @@ fn test_generator_with_list_state() {
 
 #[test]
 fn test_generator_with_single_param() {
-    assert!(transpile_ok(
-        "def gen(n: int):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpile_ok("def gen(n: int):\n    for i in range(n):\n        yield i"));
 }
 
 #[test]
@@ -138,9 +126,7 @@ fn test_generator_with_multiple_params() {
 
 #[test]
 fn test_generator_with_default_param() {
-    assert!(transpile_ok(
-        "def gen(n: int = 10):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpile_ok("def gen(n: int = 10):\n    for i in range(n):\n        yield i"));
 }
 
 // ============================================================================
@@ -187,9 +173,7 @@ fn test_generator_expression_with_transform() {
 
 #[test]
 fn test_generator_expression_nested() {
-    assert!(transpile_ok(
-        "gen = ((x, y) for x in range(3) for y in range(3))"
-    ));
+    assert!(transpile_ok("gen = ((x, y) for x in range(3) for y in range(3))"));
 }
 
 // ============================================================================
@@ -198,9 +182,7 @@ fn test_generator_expression_nested() {
 
 #[test]
 fn test_generator_in_list() {
-    assert!(transpile_ok(
-        "def gen():\n    yield 1\n    yield 2\n\nresult = list(gen())"
-    ));
+    assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n\nresult = list(gen())"));
 }
 
 #[test]
@@ -212,9 +194,7 @@ fn test_generator_in_for() {
 
 #[test]
 fn test_generator_in_sum() {
-    assert!(transpile_ok(
-        "def gen():\n    yield 1\n    yield 2\n\ntotal = sum(gen())"
-    ));
+    assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n\ntotal = sum(gen())"));
 }
 
 // ============================================================================

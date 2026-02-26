@@ -547,11 +547,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("center() requires 1 or 2 arguments");
                 }
                 let width = &arg_exprs[0];
-                let fillchar = if arg_exprs.len() == 2 {
-                    &arg_exprs[1]
-                } else {
-                    &parse_quote!(" ")
-                };
+                let fillchar =
+                    if arg_exprs.len() == 2 { &arg_exprs[1] } else { &parse_quote!(" ") };
 
                 Ok(parse_quote! {
                     {
@@ -576,11 +573,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("ljust() requires 1 or 2 arguments");
                 }
                 let width = &arg_exprs[0];
-                let fillchar = if arg_exprs.len() == 2 {
-                    &arg_exprs[1]
-                } else {
-                    &parse_quote!(" ")
-                };
+                let fillchar =
+                    if arg_exprs.len() == 2 { &arg_exprs[1] } else { &parse_quote!(" ") };
 
                 Ok(parse_quote! {
                     {
@@ -602,11 +596,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("rjust() requires 1 or 2 arguments");
                 }
                 let width = &arg_exprs[0];
-                let fillchar = if arg_exprs.len() == 2 {
-                    &arg_exprs[1]
-                } else {
-                    &parse_quote!(" ")
-                };
+                let fillchar =
+                    if arg_exprs.len() == 2 { &arg_exprs[1] } else { &parse_quote!(" ") };
 
                 Ok(parse_quote! {
                     {
@@ -899,5 +890,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             _ => bail!("Unknown string method: {}", method),
         }
     }
-
 }

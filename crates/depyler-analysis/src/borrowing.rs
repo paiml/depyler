@@ -85,17 +85,11 @@ impl BorrowingContext {
             HirStmt::Assign { target, value, .. } => self.analyze_assign(target, value),
             HirStmt::Return(Some(expr)) => self.analyze_return(expr),
             HirStmt::Expr(expr) => self.analyze_expr(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => self.analyze_if(condition, then_body, else_body),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if(condition, then_body, else_body)
+            }
             HirStmt::While { condition, body } => self.analyze_while(condition, body),
-            HirStmt::For {
-                target: _,
-                iter,
-                body,
-            } => self.analyze_for(iter, body),
+            HirStmt::For { target: _, iter, body } => self.analyze_for(iter, body),
             _ => {}
         }
     }
@@ -332,11 +326,7 @@ impl BorrowingContext {
     }
 
     fn dict_type_to_rust(&self, k: &Type, v: &Type) -> String {
-        format!(
-            "HashMap<{}, {}>",
-            self.type_to_rust_string(k),
-            self.type_to_rust_string(v)
-        )
+        format!("HashMap<{}, {}>", self.type_to_rust_string(k), self.type_to_rust_string(v))
     }
 
     fn tuple_type_to_rust(&self, types: &[Type]) -> String {
@@ -357,8 +347,8 @@ impl BorrowingContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::{BinOp, FunctionProperties, HirParam, Literal};
     use depyler_annotations::TranspilationAnnotations;
+    use depyler_hir::hir::{BinOp, FunctionProperties, HirParam, Literal};
     use smallvec::smallvec;
 
     #[test]
@@ -380,10 +370,7 @@ mod tests {
         };
 
         ctx.analyze_function(&func);
-        assert_eq!(
-            ctx.get_pattern("x", &Type::String),
-            BorrowingPattern::Borrowed
-        );
+        assert_eq!(ctx.get_pattern("x", &Type::String), BorrowingPattern::Borrowed);
     }
 
     #[test]
@@ -392,17 +379,11 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![HirParam::new(
-                "x".to_string(),
-                Type::List(Box::new(Type::Int))
-            )],
+            params: smallvec![HirParam::new("x".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "append".to_string(),
-                args: vec![
-                    HirExpr::Var("x".to_string()),
-                    HirExpr::Literal(Literal::Int(42)),
-                ],
+                args: vec![HirExpr::Var("x".to_string()), HirExpr::Literal(Literal::Int(42))],
                 kwargs: vec![],
             })],
             properties: FunctionProperties::default(),
@@ -462,10 +443,7 @@ mod tests {
         // Test borrowed string
         let mut ctx_borrow = BorrowingContext::new();
         ctx_borrow.read_only_params.insert("s".to_string());
-        assert_eq!(
-            ctx_borrow.generate_param_signature("s", &Type::String),
-            "s: &String"
-        );
+        assert_eq!(ctx_borrow.generate_param_signature("s", &Type::String), "s: &String");
 
         // Test owned int
         assert_eq!(ctx.generate_param_signature("n", &Type::Int), "n: i32");
@@ -569,19 +547,12 @@ mod tests {
         // else: pass
         let else_body = vec![];
 
-        let stmt = HirStmt::If {
-            condition,
-            then_body,
-            else_body: Some(else_body),
-        };
+        let stmt = HirStmt::If { condition, then_body, else_body: Some(else_body) };
 
         ctx.analyze_stmt(&stmt);
 
         // x used in condition (read-only)
-        assert!(
-            ctx.read_only_params.contains("x"),
-            "Condition parameter should remain read-only"
-        );
+        assert!(ctx.read_only_params.contains("x"), "Condition parameter should remain read-only");
 
         // y mutated in then branch
         assert!(
@@ -626,10 +597,7 @@ mod tests {
             ctx.loop_used_params.contains("limit") || ctx.read_only_params.contains("limit"),
             "Loop condition param should be tracked"
         );
-        assert!(
-            ctx.mutated_params.contains("counter"),
-            "Loop-mutated param should be tracked"
-        );
+        assert!(ctx.mutated_params.contains("counter"), "Loop-mutated param should be tracked");
     }
 
     /// Unit Test: For loop analysis
@@ -669,10 +637,7 @@ mod tests {
             "For loop iterator param should be tracked"
         );
         // total mutated in loop body
-        assert!(
-            ctx.mutated_params.contains("total"),
-            "Loop-mutated param should be tracked"
-        );
+        assert!(ctx.mutated_params.contains("total"), "Loop-mutated param should be tracked");
     }
 
     /// Unit Test: Primitive type copyability detection
@@ -689,14 +654,8 @@ mod tests {
         assert!(ctx.is_copyable(&Type::None), "None should be copyable");
 
         // Non-primitive types should NOT be copyable
-        assert!(
-            !ctx.is_copyable(&Type::String),
-            "String should NOT be copyable"
-        );
-        assert!(
-            !ctx.is_copyable(&Type::List(Box::new(Type::Int))),
-            "List should NOT be copyable"
-        );
+        assert!(!ctx.is_copyable(&Type::String), "String should NOT be copyable");
+        assert!(!ctx.is_copyable(&Type::List(Box::new(Type::Int))), "List should NOT be copyable");
         assert!(
             !ctx.is_copyable(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
             "Dict should NOT be copyable"
@@ -726,14 +685,8 @@ mod tests {
         ctx.analyze_expr(&expr);
 
         // Both params should remain read-only (just being read, not mutated)
-        assert!(
-            ctx.read_only_params.contains("x"),
-            "Binary operand x should be tracked"
-        );
-        assert!(
-            ctx.read_only_params.contains("y"),
-            "Binary operand y should be tracked"
-        );
+        assert!(ctx.read_only_params.contains("x"), "Binary operand x should be tracked");
+        assert!(ctx.read_only_params.contains("y"), "Binary operand y should be tracked");
     }
 
     /// Unit Test: Unary expression analysis
@@ -752,10 +705,7 @@ mod tests {
 
         ctx.analyze_expr(&expr);
 
-        assert!(
-            ctx.read_only_params.contains("value"),
-            "Unary operand should be tracked"
-        );
+        assert!(ctx.read_only_params.contains("value"), "Unary operand should be tracked");
     }
 
     /// Unit Test: Function call argument analysis
@@ -776,14 +726,8 @@ mod tests {
 
         ctx.analyze_expr(&expr);
 
-        assert!(
-            ctx.read_only_params.contains("a"),
-            "Call argument a should be tracked"
-        );
-        assert!(
-            ctx.read_only_params.contains("b"),
-            "Call argument b should be tracked"
-        );
+        assert!(ctx.read_only_params.contains("a"), "Call argument a should be tracked");
+        assert!(ctx.read_only_params.contains("b"), "Call argument b should be tracked");
     }
 
     /// Unit Test: List collection analysis
@@ -803,14 +747,8 @@ mod tests {
 
         ctx.analyze_expr(&expr);
 
-        assert!(
-            ctx.read_only_params.contains("item1"),
-            "List element item1 should be tracked"
-        );
-        assert!(
-            ctx.read_only_params.contains("item2"),
-            "List element item2 should be tracked"
-        );
+        assert!(ctx.read_only_params.contains("item1"), "List element item1 should be tracked");
+        assert!(ctx.read_only_params.contains("item2"), "List element item2 should be tracked");
     }
 
     /// Unit Test: Dict analysis with key-value pairs
@@ -830,14 +768,8 @@ mod tests {
 
         ctx.analyze_expr(&expr);
 
-        assert!(
-            ctx.read_only_params.contains("key1"),
-            "Dict key should be tracked"
-        );
-        assert!(
-            ctx.read_only_params.contains("val1"),
-            "Dict value should be tracked"
-        );
+        assert!(ctx.read_only_params.contains("key1"), "Dict key should be tracked");
+        assert!(ctx.read_only_params.contains("val1"), "Dict value should be tracked");
     }
 
     /// Unit Test: Index expression analysis
@@ -857,14 +789,8 @@ mod tests {
 
         ctx.analyze_expr(&expr);
 
-        assert!(
-            ctx.read_only_params.contains("arr"),
-            "Index base should be tracked"
-        );
-        assert!(
-            ctx.read_only_params.contains("idx"),
-            "Index subscript should be tracked"
-        );
+        assert!(ctx.read_only_params.contains("arr"), "Index base should be tracked");
+        assert!(ctx.read_only_params.contains("idx"), "Index subscript should be tracked");
     }
 
     /// Unit Test: Escaping parameters in tuple return
@@ -875,21 +801,13 @@ mod tests {
         let mut ctx = BorrowingContext::new();
 
         // Tuple expression with parameters: (x, y)
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
 
         ctx.check_escaping_expr(&expr);
 
-        assert!(
-            ctx.escaping_params.contains("x"),
-            "Tuple element x should be marked as escaping"
-        );
-        assert!(
-            ctx.escaping_params.contains("y"),
-            "Tuple element y should be marked as escaping"
-        );
+        assert!(ctx.escaping_params.contains("x"), "Tuple element x should be marked as escaping");
+        assert!(ctx.escaping_params.contains("y"), "Tuple element y should be marked as escaping");
     }
 
     /// Unit Test: Loop parameter tracking
@@ -926,10 +844,7 @@ mod tests {
     fn test_primitive_type_conversions() {
         let ctx = BorrowingContext::new();
 
-        assert_eq!(
-            ctx.primitive_type_to_rust(&Type::Unknown),
-            "serde_json::Value"
-        );
+        assert_eq!(ctx.primitive_type_to_rust(&Type::Unknown), "serde_json::Value");
         assert_eq!(ctx.primitive_type_to_rust(&Type::Int), "i32");
         assert_eq!(ctx.primitive_type_to_rust(&Type::Float), "f64");
         assert_eq!(ctx.primitive_type_to_rust(&Type::String), "String");
@@ -976,10 +891,7 @@ mod tests {
         let set_type = Type::Set(Box::new(Type::String));
         let result = ctx.type_to_rust_string(&set_type);
 
-        assert_eq!(
-            result, "HashSet<String>",
-            "Set[str] should map to HashSet<String>"
-        );
+        assert_eq!(result, "HashSet<String>", "Set[str] should map to HashSet<String>");
     }
 
     /// Unit Test: Array type conversion
@@ -995,10 +907,7 @@ mod tests {
         };
         let result = ctx.type_to_rust_string(&array_type);
 
-        assert_eq!(
-            result, "Array<f64>",
-            "Array of float should map to Array<f64>"
-        );
+        assert_eq!(result, "Array<f64>", "Array of float should map to Array<f64>");
     }
 
     /// Unit Test: Tuple type conversion
@@ -1036,10 +945,7 @@ mod tests {
         let optional_type = Type::Optional(Box::new(Type::Int));
         let result = ctx.type_to_rust_string(&optional_type);
 
-        assert_eq!(
-            result, "Option<i32>",
-            "Optional[int] should map to Option<i32>"
-        );
+        assert_eq!(result, "Option<i32>", "Optional[int] should map to Option<i32>");
     }
 
     /// Unit Test: Complex type conversions (Custom, TypeVar, Generic, Function, Union)
@@ -1051,36 +957,18 @@ mod tests {
 
         // Custom type
         let custom = Type::Custom("MyClass".to_string());
-        assert_eq!(
-            ctx.type_to_rust_string(&custom),
-            "MyClass",
-            "Custom type should preserve name"
-        );
+        assert_eq!(ctx.type_to_rust_string(&custom), "MyClass", "Custom type should preserve name");
 
         // TypeVar
         let typevar = Type::TypeVar("T".to_string());
-        assert_eq!(
-            ctx.type_to_rust_string(&typevar),
-            "T",
-            "TypeVar should preserve name"
-        );
+        assert_eq!(ctx.type_to_rust_string(&typevar), "T", "TypeVar should preserve name");
 
         // Generic type
-        let generic = Type::Generic {
-            base: "Vec".to_string(),
-            params: vec![Type::Int],
-        };
-        assert_eq!(
-            ctx.type_to_rust_string(&generic),
-            "Vec",
-            "Generic type should use base name"
-        );
+        let generic = Type::Generic { base: "Vec".to_string(), params: vec![Type::Int] };
+        assert_eq!(ctx.type_to_rust_string(&generic), "Vec", "Generic type should use base name");
 
         // Function type
-        let function = Type::Function {
-            params: vec![Type::Int],
-            ret: Box::new(Type::String),
-        };
+        let function = Type::Function { params: vec![Type::Int], ret: Box::new(Type::String) };
         assert_eq!(
             ctx.type_to_rust_string(&function),
             "/* function */",
@@ -1089,11 +977,7 @@ mod tests {
 
         // Union type
         let union = Type::Union(vec![Type::Int, Type::String]);
-        assert_eq!(
-            ctx.type_to_rust_string(&union),
-            "Union",
-            "Union type should return 'Union'"
-        );
+        assert_eq!(ctx.type_to_rust_string(&union), "Union", "Union type should return 'Union'");
     }
 
     // DEPYLER-COVERAGE-95: Additional tests for untested components
@@ -1138,10 +1022,7 @@ mod tests {
     fn test_borrowing_pattern_partial_eq() {
         assert_eq!(BorrowingPattern::Owned, BorrowingPattern::Owned);
         assert_eq!(BorrowingPattern::Borrowed, BorrowingPattern::Borrowed);
-        assert_eq!(
-            BorrowingPattern::MutableBorrow,
-            BorrowingPattern::MutableBorrow
-        );
+        assert_eq!(BorrowingPattern::MutableBorrow, BorrowingPattern::MutableBorrow);
 
         assert_ne!(BorrowingPattern::Owned, BorrowingPattern::Borrowed);
         assert_ne!(BorrowingPattern::Borrowed, BorrowingPattern::MutableBorrow);
@@ -1274,14 +1155,9 @@ mod tests {
         assert_eq!(ctx.type_to_rust_string(&nested_list), "Vec<Vec<i32>>");
 
         // Dict with list value: HashMap<String, Vec<i32>>
-        let dict_with_list = Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::List(Box::new(Type::Int))),
-        );
-        assert_eq!(
-            ctx.type_to_rust_string(&dict_with_list),
-            "HashMap<String, Vec<i32>>"
-        );
+        let dict_with_list =
+            Type::Dict(Box::new(Type::String), Box::new(Type::List(Box::new(Type::Int))));
+        assert_eq!(ctx.type_to_rust_string(&dict_with_list), "HashMap<String, Vec<i32>>");
     }
 
     #[test]
@@ -1290,10 +1166,7 @@ mod tests {
 
         // Option<Vec<String>>
         let optional_list = Type::Optional(Box::new(Type::List(Box::new(Type::String))));
-        assert_eq!(
-            ctx.type_to_rust_string(&optional_list),
-            "Option<Vec<String>>"
-        );
+        assert_eq!(ctx.type_to_rust_string(&optional_list), "Option<Vec<String>>");
     }
 
     #[test]
@@ -1360,10 +1233,8 @@ mod tests {
         let mut ctx = BorrowingContext::new();
 
         // Tuple containing parameters that escape
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Var("a".to_string()),
-            HirExpr::Var("b".to_string()),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())]);
 
         ctx.check_escaping_expr(&expr);
 
@@ -1377,10 +1248,8 @@ mod tests {
         ctx.read_only_params.insert("x".to_string());
         ctx.read_only_params.insert("y".to_string());
 
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
 
         ctx.analyze_expr(&expr);
 
@@ -1422,10 +1291,7 @@ mod tests {
 
         let expr = HirExpr::Call {
             func: "func".to_string(),
-            args: vec![
-                HirExpr::Var("arg1".to_string()),
-                HirExpr::Var("arg2".to_string()),
-            ],
+            args: vec![HirExpr::Var("arg1".to_string()), HirExpr::Var("arg2".to_string())],
             kwargs: vec![],
         };
 
@@ -1441,10 +1307,8 @@ mod tests {
         ctx.read_only_params.insert("key".to_string());
         ctx.read_only_params.insert("val".to_string());
 
-        let expr = HirExpr::Dict(vec![(
-            HirExpr::Var("key".to_string()),
-            HirExpr::Var("val".to_string()),
-        )]);
+        let expr =
+            HirExpr::Dict(vec![(HirExpr::Var("key".to_string()), HirExpr::Var("val".to_string()))]);
 
         ctx.find_params_in_expr(&expr);
 

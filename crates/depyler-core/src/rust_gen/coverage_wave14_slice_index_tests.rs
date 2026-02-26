@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -394,7 +392,9 @@ def str_step_one(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_string") || result.contains("chars") || result.contains("step"));
+        assert!(
+            result.contains("to_string") || result.contains("chars") || result.contains("step")
+        );
     }
 
     #[test]
@@ -471,7 +471,12 @@ def full_neg(data: list) -> list:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("rev") || result.contains("step") || result.contains("isize") || result.contains("collect"));
+        assert!(
+            result.contains("rev")
+                || result.contains("step")
+                || result.contains("isize")
+                || result.contains("collect")
+        );
     }
 
     // ========================================================================
@@ -541,7 +546,9 @@ def last_item(data: list) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("len") || result.contains("saturating_sub") || result.contains("get"));
+        assert!(
+            result.contains("len") || result.contains("saturating_sub") || result.contains("get")
+        );
     }
 
     #[test]
@@ -563,7 +570,9 @@ def last_char(s: str) -> str:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("chars") || result.contains("nth") || result.contains("saturating_sub"));
+        assert!(
+            result.contains("chars") || result.contains("nth") || result.contains("saturating_sub")
+        );
     }
 
     #[test]
@@ -641,7 +650,9 @@ def second_to_last(data: list) -> int:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("len") || result.contains("saturating_sub") || result.contains("get"));
+        assert!(
+            result.contains("len") || result.contains("saturating_sub") || result.contains("get")
+        );
     }
 
     #[test]
@@ -828,7 +839,11 @@ def set_default_int(d: dict):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     #[test]
@@ -840,7 +855,9 @@ def set_default_list(d: dict):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("vec!"));
+        assert!(
+            result.contains("entry") || result.contains("or_insert") || result.contains("vec!")
+        );
     }
 
     #[test]
@@ -906,7 +923,9 @@ def get_items(d: dict):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("iter()") || result.contains("collect") || result.contains("items"));
+        assert!(
+            result.contains("iter()") || result.contains("collect") || result.contains("items")
+        );
     }
 
     #[test]
@@ -917,7 +936,12 @@ def square_map():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("collect") || result.contains("HashMap") || result.contains("map") || result.contains("insert"));
+        assert!(
+            result.contains("collect")
+                || result.contains("HashMap")
+                || result.contains("map")
+                || result.contains("insert")
+        );
     }
 
     #[test]
@@ -1008,7 +1032,9 @@ def print_values(d: dict):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("values()") || result.contains("for") || result.contains("println"));
+        assert!(
+            result.contains("values()") || result.contains("for") || result.contains("println")
+        );
     }
 
     #[test]
@@ -1031,7 +1057,12 @@ def even_squares():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("filter") || result.contains("collect") || result.contains("HashMap") || result.contains("map"));
+        assert!(
+            result.contains("filter")
+                || result.contains("collect")
+                || result.contains("HashMap")
+                || result.contains("map")
+        );
     }
 
     #[test]
@@ -1042,7 +1073,9 @@ def multi_dict():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("HashMap") || result.contains("insert") || result.contains("\"a\""));
+        assert!(
+            result.contains("HashMap") || result.contains("insert") || result.contains("\"a\"")
+        );
     }
 
     #[test]
@@ -1076,7 +1109,9 @@ def default_name(d: dict):
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("name"));
+        assert!(
+            result.contains("entry") || result.contains("or_insert") || result.contains("name")
+        );
     }
 
     #[test]
@@ -1261,7 +1296,12 @@ def check_exists(d: dict, key: str) -> bool:
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("get") || result.contains("is_some") || result.contains("is_none") || result.contains("None"));
+        assert!(
+            result.contains("get")
+                || result.contains("is_some")
+                || result.contains("is_none")
+                || result.contains("None")
+        );
     }
 
     #[test]
@@ -1320,7 +1360,9 @@ def make_str_set():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("HashSet") || result.contains("insert") || result.contains("to_string"));
+        assert!(
+            result.contains("HashSet") || result.contains("insert") || result.contains("to_string")
+        );
     }
 
     #[test]
@@ -1342,7 +1384,9 @@ def mixed_tuple():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("to_string") || result.contains("hello") || result.contains("3.14"));
+        assert!(
+            result.contains("to_string") || result.contains("hello") || result.contains("3.14")
+        );
     }
 
     #[test]
@@ -1556,7 +1600,12 @@ def mixed_nums():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("vec!") || result.contains("json") || result.contains("format") || result.contains("2.5"));
+        assert!(
+            result.contains("vec!")
+                || result.contains("json")
+                || result.contains("format")
+                || result.contains("2.5")
+        );
     }
 
     #[test]
@@ -1599,7 +1648,9 @@ def comp_set():
 "#;
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("collect") || result.contains("HashSet") || result.contains("insert"));
+        assert!(
+            result.contains("collect") || result.contains("HashSet") || result.contains("insert")
+        );
     }
 
     #[test]

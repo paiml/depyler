@@ -35,10 +35,7 @@ pub enum RustPattern {
     },
 
     /// Property access becomes method call: obj.property → obj.method()
-    PropertyToMethod {
-        method: &'static str,
-        propagate_error: bool,
-    },
+    PropertyToMethod { method: &'static str, propagate_error: bool },
 
     /// Custom iteration pattern
     IterationPattern {
@@ -120,24 +117,13 @@ impl StdlibMappings {
     fn register_csv_mappings(mappings: &mut HashMap<(String, String, String), RustPattern>) {
         // csv.DictReader.fieldnames → reader.headers()?
         mappings.insert(
-            (
-                "csv".to_string(),
-                "DictReader".to_string(),
-                "fieldnames".to_string(),
-            ),
-            RustPattern::PropertyToMethod {
-                method: "headers",
-                propagate_error: true,
-            },
+            ("csv".to_string(), "DictReader".to_string(), "fieldnames".to_string()),
+            RustPattern::PropertyToMethod { method: "headers", propagate_error: true },
         );
 
         // csv.DictReader iteration → deserialize::<HashMap<String, String>>()
         mappings.insert(
-            (
-                "csv".to_string(),
-                "DictReader".to_string(),
-                "__iter__".to_string(),
-            ),
+            ("csv".to_string(), "DictReader".to_string(), "__iter__".to_string()),
             RustPattern::IterationPattern {
                 iter_method: "deserialize",
                 element_type: Some("HashMap<String, String>"),
@@ -147,15 +133,8 @@ impl StdlibMappings {
 
         // csv.Reader.fieldnames (also support basic Reader)
         mappings.insert(
-            (
-                "csv".to_string(),
-                "Reader".to_string(),
-                "fieldnames".to_string(),
-            ),
-            RustPattern::PropertyToMethod {
-                method: "headers",
-                propagate_error: true,
-            },
+            ("csv".to_string(), "Reader".to_string(), "fieldnames".to_string()),
+            RustPattern::PropertyToMethod { method: "headers", propagate_error: true },
         );
     }
 
@@ -163,33 +142,20 @@ impl StdlibMappings {
     fn register_file_mappings(mappings: &mut HashMap<(String, String, String), RustPattern>) {
         // File iteration: for line in file
         mappings.insert(
-            (
-                "builtins".to_string(),
-                "file".to_string(),
-                "__iter__".to_string(),
-            ),
-            RustPattern::CustomTemplate {
-                template: "BufReader::new({var}).lines()",
-            },
+            ("builtins".to_string(), "file".to_string(), "__iter__".to_string()),
+            RustPattern::CustomTemplate { template: "BufReader::new({var}).lines()" },
         );
 
         // TextIOWrapper iteration (from open())
         mappings.insert(
-            (
-                "io".to_string(),
-                "TextIOWrapper".to_string(),
-                "__iter__".to_string(),
-            ),
-            RustPattern::CustomTemplate {
-                template: "BufReader::new({var}).lines()",
-            },
+            ("io".to_string(), "TextIOWrapper".to_string(), "__iter__".to_string()),
+            RustPattern::CustomTemplate { template: "BufReader::new({var}).lines()" },
         );
     }
 
     /// Look up mapping for a Python API call
     pub fn lookup(&self, module: &str, class: &str, attribute: &str) -> Option<&RustPattern> {
-        self.mappings
-            .get(&(module.to_string(), class.to_string(), attribute.to_string()))
+        self.mappings.get(&(module.to_string(), class.to_string(), attribute.to_string()))
     }
 
     /// Check if a class has iteration mapping
@@ -280,11 +246,7 @@ impl RustPattern {
     /// * `original_args` - Original arguments from Python call
     pub fn generate_rust_code(&self, base_expr: &str, original_args: &[String]) -> String {
         match self {
-            RustPattern::MethodCall {
-                method,
-                extra_args,
-                propagate_error,
-            } => {
+            RustPattern::MethodCall { method, extra_args, propagate_error } => {
                 let mut all_args = original_args.to_vec();
                 all_args.extend(extra_args.iter().map(|s| s.to_string()));
                 let args_str = all_args.join(", ");
@@ -301,10 +263,7 @@ impl RustPattern {
                 }
             }
 
-            RustPattern::PropertyToMethod {
-                method,
-                propagate_error,
-            } => {
+            RustPattern::PropertyToMethod { method, propagate_error } => {
                 let call = format!("{}.{}()", base_expr, method);
                 if *propagate_error {
                     format!("{}?", call)
@@ -313,11 +272,7 @@ impl RustPattern {
                 }
             }
 
-            RustPattern::IterationPattern {
-                iter_method,
-                element_type,
-                yields_results: _,
-            } => {
+            RustPattern::IterationPattern { iter_method, element_type, yields_results: _ } => {
                 if let Some(elem_type) = element_type {
                     format!("{}.{}::<{}>()", base_expr, iter_method, elem_type)
                 } else {
@@ -331,13 +286,7 @@ impl RustPattern {
 
     /// Check if this pattern yields Result types in iteration
     pub fn yields_results(&self) -> bool {
-        matches!(
-            self,
-            RustPattern::IterationPattern {
-                yields_results: true,
-                ..
-            }
-        )
+        matches!(self, RustPattern::IterationPattern { yields_results: true, .. })
     }
 }
 
@@ -482,10 +431,7 @@ mod tests {
 
         // Test code generation
         let get_pattern = mappings.lookup("requests", "Session", "get").unwrap();
-        assert_eq!(
-            get_pattern.generate_rust_code("session", &[]),
-            "session.get()?"
-        );
+        assert_eq!(get_pattern.generate_rust_code("session", &[]), "session.get()?");
     }
 
     struct TestNumpyPlugin;
@@ -574,10 +520,7 @@ mod tests {
             module: "csv",
             class: "Reader",
             python_attr: "test",
-            rust_pattern: RustPattern::PropertyToMethod {
-                method: "test",
-                propagate_error: false,
-            },
+            rust_pattern: RustPattern::PropertyToMethod { method: "test", propagate_error: false },
         };
         let cloned = mapping.clone();
         assert_eq!(cloned.module, "csv");
@@ -590,10 +533,7 @@ mod tests {
             module: "csv",
             class: "Reader",
             python_attr: "test",
-            rust_pattern: RustPattern::PropertyToMethod {
-                method: "test",
-                propagate_error: false,
-            },
+            rust_pattern: RustPattern::PropertyToMethod { method: "test", propagate_error: false },
         };
         let debug = format!("{:?}", mapping);
         assert!(debug.contains("csv"));
@@ -602,20 +542,15 @@ mod tests {
 
     #[test]
     fn test_rust_pattern_debug() {
-        let pattern = RustPattern::MethodCall {
-            method: "test",
-            extra_args: vec![],
-            propagate_error: false,
-        };
+        let pattern =
+            RustPattern::MethodCall { method: "test", extra_args: vec![], propagate_error: false };
         let debug = format!("{:?}", pattern);
         assert!(debug.contains("MethodCall"));
     }
 
     #[test]
     fn test_rust_pattern_clone() {
-        let pattern = RustPattern::CustomTemplate {
-            template: "test({var})",
-        };
+        let pattern = RustPattern::CustomTemplate { template: "test({var})" };
         let cloned = pattern.clone();
         if let RustPattern::CustomTemplate { template } = cloned {
             assert_eq!(template, "test({var})");
@@ -626,11 +561,8 @@ mod tests {
 
     #[test]
     fn test_method_call_with_args() {
-        let pattern = RustPattern::MethodCall {
-            method: "fetch",
-            extra_args: vec![],
-            propagate_error: false,
-        };
+        let pattern =
+            RustPattern::MethodCall { method: "fetch", extra_args: vec![], propagate_error: false };
         let code = pattern.generate_rust_code("client", &["url".to_string()]);
         assert_eq!(code, "client.fetch(url)");
     }
@@ -648,42 +580,30 @@ mod tests {
 
     #[test]
     fn test_method_call_no_propagate_error() {
-        let pattern = RustPattern::MethodCall {
-            method: "get",
-            extra_args: vec![],
-            propagate_error: false,
-        };
+        let pattern =
+            RustPattern::MethodCall { method: "get", extra_args: vec![], propagate_error: false };
         let code = pattern.generate_rust_code("obj", &[]);
         assert_eq!(code, "obj.get()");
     }
 
     #[test]
     fn test_method_call_propagate_error() {
-        let pattern = RustPattern::MethodCall {
-            method: "get",
-            extra_args: vec![],
-            propagate_error: true,
-        };
+        let pattern =
+            RustPattern::MethodCall { method: "get", extra_args: vec![], propagate_error: true };
         let code = pattern.generate_rust_code("obj", &[]);
         assert_eq!(code, "obj.get()?");
     }
 
     #[test]
     fn test_property_to_method_no_error() {
-        let pattern = RustPattern::PropertyToMethod {
-            method: "len",
-            propagate_error: false,
-        };
+        let pattern = RustPattern::PropertyToMethod { method: "len", propagate_error: false };
         let code = pattern.generate_rust_code("list", &[]);
         assert_eq!(code, "list.len()");
     }
 
     #[test]
     fn test_property_to_method_with_error() {
-        let pattern = RustPattern::PropertyToMethod {
-            method: "headers",
-            propagate_error: true,
-        };
+        let pattern = RustPattern::PropertyToMethod { method: "headers", propagate_error: true };
         let code = pattern.generate_rust_code("reader", &[]);
         assert_eq!(code, "reader.headers()?");
     }
@@ -712,18 +632,14 @@ mod tests {
 
     #[test]
     fn test_custom_template_with_var() {
-        let pattern = RustPattern::CustomTemplate {
-            template: "Box::new({var})",
-        };
+        let pattern = RustPattern::CustomTemplate { template: "Box::new({var})" };
         let code = pattern.generate_rust_code("value", &[]);
         assert_eq!(code, "Box::new(value)");
     }
 
     #[test]
     fn test_custom_template_multiple_vars() {
-        let pattern = RustPattern::CustomTemplate {
-            template: "process({var}).map(|x| x + {var})",
-        };
+        let pattern = RustPattern::CustomTemplate { template: "process({var}).map(|x| x + {var})" };
         let code = pattern.generate_rust_code("n", &[]);
         assert_eq!(code, "process(n).map(|x| x + n)");
     }
@@ -750,28 +666,20 @@ mod tests {
 
     #[test]
     fn test_yields_results_method_call() {
-        let pattern = RustPattern::MethodCall {
-            method: "test",
-            extra_args: vec![],
-            propagate_error: true,
-        };
+        let pattern =
+            RustPattern::MethodCall { method: "test", extra_args: vec![], propagate_error: true };
         assert!(!pattern.yields_results());
     }
 
     #[test]
     fn test_yields_results_property_to_method() {
-        let pattern = RustPattern::PropertyToMethod {
-            method: "test",
-            propagate_error: true,
-        };
+        let pattern = RustPattern::PropertyToMethod { method: "test", propagate_error: true };
         assert!(!pattern.yields_results());
     }
 
     #[test]
     fn test_yields_results_custom_template() {
-        let pattern = RustPattern::CustomTemplate {
-            template: "{var}.iter()",
-        };
+        let pattern = RustPattern::CustomTemplate { template: "{var}.iter()" };
         assert!(!pattern.yields_results());
     }
 
@@ -833,9 +741,7 @@ mod tests {
     #[test]
     fn test_get_iteration_pattern_nonexistent() {
         let mappings = StdlibMappings::new();
-        assert!(mappings
-            .get_iteration_pattern("unknown", "Unknown")
-            .is_none());
+        assert!(mappings.get_iteration_pattern("unknown", "Unknown").is_none());
     }
 
     #[test]

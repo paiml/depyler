@@ -160,10 +160,7 @@ def test() -> int:
     assert!(rust_code.contains("inner("), "Missing inner call");
     assert!(rust_code.contains("10"), "Missing x=10 argument");
     assert!(rust_code.contains("20"), "Missing y=20 argument");
-    assert!(
-        rust_code.contains("2.0") || rust_code.contains("2f64"),
-        "Missing scale argument"
-    );
+    assert!(rust_code.contains("2.0") || rust_code.contains("2f64"), "Missing scale argument");
 }
 
 #[test]
@@ -214,14 +211,8 @@ def test() -> dict:
 
     // Should call configure with complex expressions as arguments
     assert!(rust_code.contains("configure("), "Missing configure call");
-    assert!(
-        rust_code.contains("100") && rust_code.contains("200"),
-        "Missing width expression"
-    );
-    assert!(
-        rust_code.contains("get_height("),
-        "Missing height expression"
-    );
+    assert!(rust_code.contains("100") && rust_code.contains("200"), "Missing width expression");
+    assert!(rust_code.contains("get_height("), "Missing height expression");
     assert!(rust_code.contains("true"), "Missing enabled expression");
 }
 
@@ -244,10 +235,7 @@ def test() -> str:
     // Should have .to_string() calls for string literals
     assert!(rust_code.contains("\"Alice\""), "Missing Alice string");
     assert!(rust_code.contains("\"Hello\""), "Missing Hello string");
-    assert!(
-        rust_code.contains(".to_string()"),
-        "Missing string conversion"
-    );
+    assert!(rust_code.contains(".to_string()"), "Missing string conversion");
 }
 
 #[test]

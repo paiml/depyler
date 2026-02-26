@@ -3,8 +3,8 @@
 //! This module generates property-based tests using quickcheck
 //! for pure functions with appropriate properties.
 
-use depyler_hir::hir::{BinOp, HirExpr, HirFunction, HirStmt, Type};
 use anyhow::Result;
+use depyler_hir::hir::{BinOp, HirExpr, HirFunction, HirStmt, Type};
 use quote::quote;
 use syn;
 
@@ -139,10 +139,8 @@ impl TestGenerator {
         func: &HirFunction,
     ) -> Result<Option<proc_macro2::TokenStream>> {
         let func_name = syn::Ident::new(&func.name, proc_macro2::Span::call_site());
-        let test_name = syn::Ident::new(
-            &format!("quickcheck_{}", func.name),
-            proc_macro2::Span::call_site(),
-        );
+        let test_name =
+            syn::Ident::new(&format!("quickcheck_{}", func.name), proc_macro2::Span::call_site());
 
         // Determine properties to test based on function analysis
         let properties = self.analyze_function_properties(func);
@@ -152,11 +150,8 @@ impl TestGenerator {
         }
 
         // Generate parameter types and names for quickcheck
-        let param_types: Vec<_> = func
-            .params
-            .iter()
-            .map(|param| self.type_to_quickcheck_type(&param.ty))
-            .collect();
+        let param_types: Vec<_> =
+            func.params.iter().map(|param| self.type_to_quickcheck_type(&param.ty)).collect();
 
         let param_names: Vec<_> = func
             .params
@@ -279,10 +274,8 @@ impl TestGenerator {
                 }
 
                 // Check if it's a commutative operation
-                matches!(
-                    op,
-                    BinOp::Add | BinOp::Mul | BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
-                ) && self.is_simple_param_reference(left, &func.params[0].name)
+                matches!(op, BinOp::Add | BinOp::Mul | BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor)
+                    && self.is_simple_param_reference(left, &func.params[0].name)
                     && self.is_simple_param_reference(right, &func.params[1].name)
             } else {
                 false
@@ -689,8 +682,8 @@ enum TestProperty {
 #[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::FunctionProperties;
     use depyler_annotations::TranspilationAnnotations;
+    use depyler_hir::hir::FunctionProperties;
     use smallvec::smallvec;
 
     fn make_pure_properties() -> FunctionProperties {
@@ -760,10 +753,7 @@ mod tests {
             docstring: None,
         };
         let result = gen.generate_test_items_for_function(&func).unwrap();
-        assert!(
-            result.is_empty(),
-            "Impure functions should not generate tests"
-        );
+        assert!(result.is_empty(), "Impure functions should not generate tests");
     }
 
     #[test]

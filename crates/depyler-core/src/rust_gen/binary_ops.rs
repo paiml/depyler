@@ -92,10 +92,7 @@ pub fn is_bool_literal(expr: &HirExpr) -> bool {
 
 /// Check if binary operation is a comparison
 pub fn is_comparison_op(op: BinOp) -> bool {
-    matches!(
-        op,
-        BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq
-    )
+    matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq)
 }
 
 /// Check if binary operation is an ordering comparison (excludes eq/ne)
@@ -124,10 +121,7 @@ pub fn is_logical_op(op: BinOp) -> bool {
 
 /// Check if binary operation is bitwise
 pub fn is_bitwise_op(op: BinOp) -> bool {
-    matches!(
-        op,
-        BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift
-    )
+    matches!(op, BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift)
 }
 
 /// Convert Python binary operator to Rust binary operator
@@ -488,9 +482,7 @@ mod tests {
     #[test]
     fn test_is_int_literal_false() {
         assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.15))));
-        assert!(!is_int_literal(&HirExpr::Literal(Literal::String(
-            "hi".to_string()
-        ))));
+        assert!(!is_int_literal(&HirExpr::Literal(Literal::String("hi".to_string()))));
         assert!(!is_int_literal(&HirExpr::Var("x".to_string())));
     }
 
@@ -504,20 +496,14 @@ mod tests {
     #[test]
     fn test_is_float_literal_false() {
         assert!(!is_float_literal(&HirExpr::Literal(Literal::Int(42))));
-        assert!(!is_float_literal(&HirExpr::Literal(Literal::String(
-            "3.14".to_string()
-        ))));
+        assert!(!is_float_literal(&HirExpr::Literal(Literal::String("3.14".to_string()))));
         assert!(!is_float_literal(&HirExpr::Var("x".to_string())));
     }
 
     #[test]
     fn test_is_string_literal_true() {
-        assert!(is_string_literal(&HirExpr::Literal(Literal::String(
-            "hello".to_string()
-        ))));
-        assert!(is_string_literal(&HirExpr::Literal(Literal::String(
-            "".to_string()
-        ))));
+        assert!(is_string_literal(&HirExpr::Literal(Literal::String("hello".to_string()))));
+        assert!(is_string_literal(&HirExpr::Literal(Literal::String("".to_string()))));
     }
 
     #[test]
@@ -536,9 +522,7 @@ mod tests {
     #[test]
     fn test_is_bool_literal_false() {
         assert!(!is_bool_literal(&HirExpr::Literal(Literal::Int(1))));
-        assert!(!is_bool_literal(&HirExpr::Literal(Literal::String(
-            "true".to_string()
-        ))));
+        assert!(!is_bool_literal(&HirExpr::Literal(Literal::String("true".to_string()))));
         assert!(!is_bool_literal(&HirExpr::Var("flag".to_string())));
     }
 

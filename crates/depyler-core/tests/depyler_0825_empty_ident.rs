@@ -48,11 +48,7 @@ def sum_list(items: list[int]) -> int:
 "#;
 
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "reduce() should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "reduce() should transpile: {:?}", result.err());
 }
 
 /// Test that lru_cache (empty mapping) doesn't panic

@@ -271,10 +271,7 @@ mod tests {
     // ========================================================================
 
     fn create_test_config(temp_dir: &TempDir) -> CacheConfig {
-        CacheConfig {
-            cache_dir: temp_dir.path().join("cache"),
-            ..Default::default()
-        }
+        CacheConfig { cache_dir: temp_dir.path().join("cache"), ..Default::default() }
     }
 
     fn create_python_file(dir: &Path, name: &str, content: &str) -> PathBuf {
@@ -418,9 +415,7 @@ mod tests {
 
         assert_eq!(files.len(), 3);
         assert!(files.iter().all(|f| f.extension().unwrap() == "py"));
-        assert!(!files
-            .iter()
-            .any(|f| f.to_string_lossy().contains("__pycache__")));
+        assert!(!files.iter().any(|f| f.to_string_lossy().contains("__pycache__")));
     }
 
     #[test]
@@ -525,10 +520,7 @@ mod tests {
     #[test]
     fn test_cache_warmer_integration() {
         let temp = TempDir::new().unwrap();
-        let config = CacheConfig {
-            cache_dir: temp.path().join("cache"),
-            ..Default::default()
-        };
+        let config = CacheConfig { cache_dir: temp.path().join("cache"), ..Default::default() };
 
         // Create a mix of files
         create_python_file(

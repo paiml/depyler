@@ -74,10 +74,7 @@ impl LifetimeAnalyzer {
     /// Analyze a function for lifetime violations
     pub fn analyze_function(&mut self, func: &HirFunction) -> Vec<LifetimeViolation> {
         self.violations.clear();
-        self.active_borrows.push(BorrowSet {
-            borrowed: HashMap::new(),
-            scope_depth: 0,
-        });
+        self.active_borrows.push(BorrowSet { borrowed: HashMap::new(), scope_depth: 0 });
 
         // Analyze parameters
         for param in &func.params {
@@ -101,11 +98,9 @@ impl LifetimeAnalyzer {
                 self.analyze_assign_stmt(target, value, scope_depth)
             }
             HirStmt::Return(Some(expr)) => self.analyze_return_stmt(expr, scope_depth),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => self.analyze_if_stmt(condition, then_body, else_body, scope_depth),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if_stmt(condition, then_body, else_body, scope_depth)
+            }
             HirStmt::While { condition, body } => {
                 self.analyze_while_stmt(condition, body, scope_depth)
             }
@@ -210,12 +205,9 @@ impl LifetimeAnalyzer {
             }
             HirExpr::Call { func, args, .. } => self.analyze_call_expr(func, args, scope_depth),
             HirExpr::Index { base, index } => self.analyze_index_expr(base, index, scope_depth),
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => self.analyze_method_call_expr(object, method, args, scope_depth),
+            HirExpr::MethodCall { object, method, args, .. } => {
+                self.analyze_method_call_expr(object, method, args, scope_depth)
+            }
             HirExpr::Attribute { value, .. } => self.analyze_expr(value, scope_depth),
             _ => {}
         }
@@ -238,11 +230,7 @@ impl LifetimeAnalyzer {
 
     fn check_borrow_expr(&mut self, expr: &HirExpr, mutable: bool, scope_depth: usize) {
         if let HirExpr::Var(name) = expr {
-            let borrow_kind = if mutable {
-                BorrowKind::Mutable
-            } else {
-                BorrowKind::Shared
-            };
+            let borrow_kind = if mutable { BorrowKind::Mutable } else { BorrowKind::Shared };
 
             if !self.can_borrow(name, &borrow_kind) {
                 self.violations.push(LifetimeViolation {
@@ -296,11 +284,7 @@ impl LifetimeAnalyzer {
         self.analyze_expr(index, scope_depth);
 
         if let HirExpr::Var(name) = base {
-            if self
-                .active_borrows
-                .iter()
-                .any(|bs| bs.borrowed.contains_key(name))
-            {
+            if self.active_borrows.iter().any(|bs| bs.borrowed.contains_key(name)) {
                 self.violations.push(LifetimeViolation {
                     kind: ViolationKind::ConflictingBorrows,
                     variable: name.clone(),
@@ -356,10 +340,7 @@ impl LifetimeAnalyzer {
     }
 
     fn enter_scope(&mut self, depth: usize) {
-        self.active_borrows.push(BorrowSet {
-            borrowed: HashMap::new(),
-            scope_depth: depth,
-        });
+        self.active_borrows.push(BorrowSet { borrowed: HashMap::new(), scope_depth: depth });
     }
 
     fn exit_scope(&mut self) {
@@ -370,10 +351,7 @@ impl LifetimeAnalyzer {
         self.lifetime_constraints.insert(
             name.to_string(),
             LifetimeConstraint {
-                lifetime: Lifetime {
-                    name: format!("'{}", name),
-                    scope_depth,
-                },
+                lifetime: Lifetime { name: format!("'{}", name), scope_depth },
                 must_outlive: Vec::new(),
                 valid_scopes: vec![scope_depth],
             },
@@ -467,10 +445,7 @@ impl LifetimeAnalyzer {
     fn modifies_collection(&self, stmt: &HirStmt, collection_name: &str) -> bool {
         if let HirStmt::Expr(HirExpr::Call { func, args, .. }) = stmt {
             // Check for methods that modify collections
-            if matches!(
-                func.as_str(),
-                "append" | "insert" | "remove" | "pop" | "clear"
-            ) {
+            if matches!(func.as_str(), "append" | "insert" | "remove" | "pop" | "clear") {
                 if let Some(HirExpr::Var(name)) = args.first() {
                     return name == collection_name;
                 }
@@ -593,14 +568,8 @@ mod tests {
     #[test]
     fn test_violation_kind_equality() {
         assert_eq!(ViolationKind::UseAfterMove, ViolationKind::UseAfterMove);
-        assert_ne!(
-            ViolationKind::UseAfterMove,
-            ViolationKind::DanglingReference
-        );
-        assert_eq!(
-            ViolationKind::ConflictingBorrows,
-            ViolationKind::ConflictingBorrows
-        );
+        assert_ne!(ViolationKind::UseAfterMove, ViolationKind::DanglingReference);
+        assert_eq!(ViolationKind::ConflictingBorrows, ViolationKind::ConflictingBorrows);
     }
 
     #[test]
@@ -612,18 +581,9 @@ mod tests {
 
     #[test]
     fn test_lifetime_equality() {
-        let l1 = Lifetime {
-            name: "'a".to_string(),
-            scope_depth: 1,
-        };
-        let l2 = Lifetime {
-            name: "'a".to_string(),
-            scope_depth: 1,
-        };
-        let l3 = Lifetime {
-            name: "'b".to_string(),
-            scope_depth: 1,
-        };
+        let l1 = Lifetime { name: "'a".to_string(), scope_depth: 1 };
+        let l2 = Lifetime { name: "'a".to_string(), scope_depth: 1 };
+        let l3 = Lifetime { name: "'b".to_string(), scope_depth: 1 };
         assert_eq!(l1, l2);
         assert_ne!(l1, l3);
     }
@@ -684,9 +644,7 @@ mod tests {
             body: vec![HirStmt::If {
                 condition: HirExpr::Var("x".to_string()),
                 then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                    0,
-                ))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -703,10 +661,7 @@ mod tests {
             name: "test_while".to_string(),
             params: vec![HirParam::new("x".to_string(), Type::Bool)].into(),
             ret_type: Type::None,
-            body: vec![HirStmt::While {
-                condition: HirExpr::Var("x".to_string()),
-                body: vec![],
-            }],
+            body: vec![HirStmt::While { condition: HirExpr::Var("x".to_string()), body: vec![] }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
             docstring: None,
@@ -773,11 +728,7 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_index".to_string(),
-            params: vec![HirParam::new(
-                "arr".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))].into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Index {
                 base: Box::new(HirExpr::Var("arr".to_string())),
@@ -796,11 +747,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_method".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("items".to_string())),
@@ -821,11 +769,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_mutating".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("items".to_string())),
@@ -891,10 +836,7 @@ mod tests {
 
     #[test]
     fn test_lifetime_clone() {
-        let l1 = Lifetime {
-            name: "'a".to_string(),
-            scope_depth: 2,
-        };
+        let l1 = Lifetime { name: "'a".to_string(), scope_depth: 2 };
         let l2 = l1.clone();
         assert_eq!(l1, l2);
         assert_eq!(l1.name, l2.name);
@@ -903,10 +845,7 @@ mod tests {
 
     #[test]
     fn test_lifetime_debug() {
-        let l = Lifetime {
-            name: "'x".to_string(),
-            scope_depth: 1,
-        };
+        let l = Lifetime { name: "'x".to_string(), scope_depth: 1 };
         let debug = format!("{:?}", l);
         assert!(debug.contains("Lifetime"));
         assert!(debug.contains("'x"));
@@ -915,10 +854,7 @@ mod tests {
     #[test]
     fn test_lifetime_constraint_clone() {
         let c = LifetimeConstraint {
-            lifetime: Lifetime {
-                name: "'a".to_string(),
-                scope_depth: 0,
-            },
+            lifetime: Lifetime { name: "'a".to_string(), scope_depth: 0 },
             must_outlive: vec!["b".to_string()],
             valid_scopes: vec![0, 1],
         };
@@ -930,10 +866,7 @@ mod tests {
     #[test]
     fn test_lifetime_constraint_debug() {
         let c = LifetimeConstraint {
-            lifetime: Lifetime {
-                name: "'a".to_string(),
-                scope_depth: 0,
-            },
+            lifetime: Lifetime { name: "'a".to_string(), scope_depth: 0 },
             must_outlive: vec![],
             valid_scopes: vec![],
         };
@@ -943,10 +876,7 @@ mod tests {
 
     #[test]
     fn test_borrow_set_clone() {
-        let mut bs = BorrowSet {
-            borrowed: HashMap::new(),
-            scope_depth: 1,
-        };
+        let mut bs = BorrowSet { borrowed: HashMap::new(), scope_depth: 1 };
         bs.borrowed.insert("x".to_string(), BorrowKind::Shared);
         let cloned = bs.clone();
         assert_eq!(bs.scope_depth, cloned.scope_depth);
@@ -955,10 +885,7 @@ mod tests {
 
     #[test]
     fn test_borrow_set_debug() {
-        let bs = BorrowSet {
-            borrowed: HashMap::new(),
-            scope_depth: 0,
-        };
+        let bs = BorrowSet { borrowed: HashMap::new(), scope_depth: 0 };
         let debug = format!("{:?}", bs);
         assert!(debug.contains("BorrowSet"));
     }
@@ -1036,11 +963,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_call".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "process".to_string(),
@@ -1061,11 +985,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_len".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
@@ -1107,18 +1028,12 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_push".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "push".to_string(),
-                args: vec![
-                    HirExpr::Var("items".to_string()),
-                    HirExpr::Literal(Literal::Int(1)),
-                ],
+                args: vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(1))],
                 kwargs: vec![],
             })],
             properties: FunctionProperties::default(),
@@ -1170,11 +1085,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_for_index".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::For {
                 target: AssignTarget::Index {
@@ -1198,11 +1110,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "test_assign_index".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Index {
@@ -1430,13 +1339,9 @@ mod tests {
                 then_body: vec![HirStmt::If {
                     condition: HirExpr::Var("x".to_string()),
                     then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                        2,
-                    ))))]),
+                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
                 }],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                    3,
-                ))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(3))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -1522,9 +1427,7 @@ mod tests {
         };
         let violations = analyzer.analyze_function(&func);
         assert!(!violations.is_empty());
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::ConflictingBorrows));
+        assert!(violations.iter().any(|v| v.kind == ViolationKind::ConflictingBorrows));
     }
 
     #[test]
@@ -1560,9 +1463,7 @@ mod tests {
         };
         let violations = analyzer.analyze_function(&func);
         assert!(!violations.is_empty());
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::ConflictingBorrows));
+        assert!(violations.iter().any(|v| v.kind == ViolationKind::ConflictingBorrows));
     }
 
     #[test]
@@ -1594,10 +1495,9 @@ mod tests {
             docstring: None,
         };
         let violations = analyzer.analyze_function(&func);
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::ConflictingBorrows
-                && v.location == "variable access"));
+        assert!(violations.iter().any(
+            |v| v.kind == ViolationKind::ConflictingBorrows && v.location == "variable access"
+        ));
     }
 
     #[test]
@@ -1605,11 +1505,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "escape_loop".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::Int,
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("item".to_string()),
@@ -1627,11 +1524,9 @@ mod tests {
             docstring: None,
         };
         let violations = analyzer.analyze_function(&func);
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::EscapingReference
-                && v.variable == "item"
-                && v.location == "return statement"));
+        assert!(violations.iter().any(|v| v.kind == ViolationKind::EscapingReference
+            && v.variable == "item"
+            && v.location == "return statement"));
     }
 
     #[test]
@@ -1668,8 +1563,7 @@ mod tests {
         let violations = analyzer.analyze_function(&func);
         assert!(violations
             .iter()
-            .any(|v| v.kind == ViolationKind::LifetimeTooshort
-                && v.location == "loop body"));
+            .any(|v| v.kind == ViolationKind::LifetimeTooshort && v.location == "loop body"));
     }
 
     #[test]
@@ -1677,11 +1571,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "escape_scope".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("item".to_string()),
@@ -1704,11 +1595,9 @@ mod tests {
             docstring: None,
         };
         let violations = analyzer.analyze_function(&func);
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::EscapingReference
-                && v.variable == "item"
-                && v.location == "function scope"));
+        assert!(violations.iter().any(|v| v.kind == ViolationKind::EscapingReference
+            && v.variable == "item"
+            && v.location == "function scope"));
     }
 
     #[test]
@@ -1716,11 +1605,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "index_borrow".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::Int,
             body: vec![
                 // Borrow items
@@ -1754,11 +1640,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "method_borrow".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![
                 // Borrow items
@@ -1798,11 +1681,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "mutating_call".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![
                 // Borrow items
@@ -1833,10 +1713,8 @@ mod tests {
             docstring: None,
         };
         let violations = analyzer.analyze_function(&func);
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::ConflictingBorrows
-                && v.location.contains("method call: push")));
+        assert!(violations.iter().any(|v| v.kind == ViolationKind::ConflictingBorrows
+            && v.location.contains("method call: push")));
     }
 
     #[test]
@@ -1844,11 +1722,7 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "use_after_move".to_string(),
-            params: vec![HirParam::new(
-                "data".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("data".to_string(), Type::List(Box::new(Type::Int)))].into(),
             ret_type: Type::None,
             body: vec![
                 // Pass data to function → marks as escaping (moved)
@@ -1915,10 +1789,7 @@ mod tests {
     #[test]
     fn test_can_borrow_unborrowed_always_ok() {
         let analyzer = LifetimeAnalyzer {
-            active_borrows: vec![BorrowSet {
-                borrowed: HashMap::new(),
-                scope_depth: 0,
-            }],
+            active_borrows: vec![BorrowSet { borrowed: HashMap::new(), scope_depth: 0 }],
             ..Default::default()
         };
         assert!(analyzer.can_borrow("x", &BorrowKind::Shared));
@@ -1930,11 +1801,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "compound".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![
                 // Borrow items
@@ -1979,11 +1847,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "iter_invalidate_clear".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("item".to_string()),
@@ -1999,9 +1864,7 @@ mod tests {
             docstring: None,
         };
         let violations = analyzer.analyze_function(&func);
-        assert!(violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::DanglingReference));
+        assert!(violations.iter().any(|v| v.kind == ViolationKind::DanglingReference));
     }
 
     #[test]
@@ -2009,11 +1872,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "iter_no_invalidate".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("item".to_string()),
@@ -2030,9 +1890,7 @@ mod tests {
         };
         let violations = analyzer.analyze_function(&func);
         // len() doesn't invalidate the iterator
-        assert!(!violations
-            .iter()
-            .any(|v| v.kind == ViolationKind::DanglingReference));
+        assert!(!violations.iter().any(|v| v.kind == ViolationKind::DanglingReference));
     }
 
     #[test]
@@ -2040,11 +1898,8 @@ mod tests {
         let mut analyzer = LifetimeAnalyzer::new();
         let func = HirFunction {
             name: "non_mutating".to_string(),
-            params: vec![HirParam::new(
-                "items".to_string(),
-                Type::List(Box::new(Type::Int)),
-            )]
-            .into(),
+            params: vec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))]
+                .into(),
             ret_type: Type::None,
             body: vec![
                 // Borrow items
@@ -2070,9 +1925,7 @@ mod tests {
         };
         let violations = analyzer.analyze_function(&func);
         // "get" is not a mutating method, so no conflict from method_call
-        assert!(!violations
-            .iter()
-            .any(|v| v.location.contains("method call: get")));
+        assert!(!violations.iter().any(|v| v.location.contains("method call: get")));
     }
 
     #[test]

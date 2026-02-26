@@ -206,11 +206,7 @@ mod tests {
         let expr: syn::Expr = parse_quote! { &some_ref };
         let result = borrow_if_needed_typed(&expr, Some(&Type::String));
         let tokens = result.to_token_stream().to_string();
-        assert!(
-            !tokens.contains("& &"),
-            "Should not double-borrow: {}",
-            tokens
-        );
+        assert!(!tokens.contains("& &"), "Should not double-borrow: {}", tokens);
     }
 
     #[test]

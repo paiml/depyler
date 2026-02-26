@@ -31,9 +31,8 @@ impl TypedValue {
             Type::List(inner) => {
                 let size = g.size();
                 let len = (size % 10) + 1; // Keep lists reasonably small
-                let items: Vec<serde_json::Value> = (0..len)
-                    .map(|_| Self::arbitrary_for_type(inner, g).value)
-                    .collect();
+                let items: Vec<serde_json::Value> =
+                    (0..len).map(|_| Self::arbitrary_for_type(inner, g).value).collect();
                 serde_json::json!(items)
             }
             Type::Dict(key_ty, val_ty) => {
@@ -67,19 +66,14 @@ impl TypedValue {
                 }
             }
             Type::Tuple(types) => {
-                let items: Vec<serde_json::Value> = types
-                    .iter()
-                    .map(|t| Self::arbitrary_for_type(t, g).value)
-                    .collect();
+                let items: Vec<serde_json::Value> =
+                    types.iter().map(|t| Self::arbitrary_for_type(t, g).value).collect();
                 serde_json::json!(items)
             }
             _ => serde_json::Value::Null,
         };
 
-        TypedValue {
-            ty: ty.clone(),
-            value,
-        }
+        TypedValue { ty: ty.clone(), value }
     }
 }
 
@@ -169,10 +163,7 @@ mod tests {
         let ty = Type::Int;
         let value = serde_json::json!(42);
 
-        let typed_value = TypedValue {
-            ty: ty.clone(),
-            value: value.clone(),
-        };
+        let typed_value = TypedValue { ty: ty.clone(), value: value.clone() };
 
         assert_eq!(typed_value.ty, ty);
         assert_eq!(typed_value.value, value);
@@ -195,10 +186,7 @@ mod tests {
         assert_eq!(typed_value.ty, Type::Float);
         // Debug print for investigating test failure
         if !typed_value.value.is_number() {
-            eprintln!(
-                "Generated non-number for Float type: {:?}",
-                typed_value.value
-            );
+            eprintln!("Generated non-number for Float type: {:?}", typed_value.value);
         }
         assert!(typed_value.value.is_number());
     }

@@ -28,10 +28,7 @@ def showcase_collections():
         println!("Generated showcase code:\n{}", rust_code);
 
         // Verify key features
-        assert!(
-            rust_code.contains("vec !") || rust_code.contains("vec!"),
-            "Should use vec! macro"
-        );
+        assert!(rust_code.contains("vec !") || rust_code.contains("vec!"), "Should use vec! macro");
         // Dict with mixed value types (str + int) uses serde_json::json!
         // Dict with homogeneous types uses HashMap
         assert!(

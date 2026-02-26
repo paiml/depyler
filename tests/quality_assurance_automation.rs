@@ -100,10 +100,7 @@ impl AutomatedTestGenerator {
         count: usize,
     ) -> Vec<GeneratedTest> {
         let mut tests = Vec::new();
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         for i in 0..count {
             let test = self.generate_single_test(&category, i, timestamp);
@@ -111,8 +108,7 @@ impl AutomatedTestGenerator {
         }
 
         // Store generated tests
-        self.generated_tests
-            .insert(format!("{:?}", category), tests.clone());
+        self.generated_tests.insert(format!("{:?}", category), tests.clone());
         tests
     }
 
@@ -153,10 +149,7 @@ impl AutomatedTestGenerator {
         TestSuite {
             total_tests: total_generated,
             tests_by_category: all_tests,
-            generation_timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            generation_timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
         }
     }
 
@@ -198,11 +191,8 @@ impl AutomatedTestGenerator {
             }
         }
 
-        let success_rate = if tests.is_empty() {
-            0.0
-        } else {
-            successful as f64 / tests.len() as f64
-        };
+        let success_rate =
+            if tests.is_empty() { 0.0 } else { successful as f64 / tests.len() as f64 };
 
         TestValidationResult {
             total_tests: tests.len(),
@@ -526,16 +516,10 @@ impl QualityMetricsDashboard {
     /// ```
     pub fn get_active_alerts(&self) -> Vec<&QualityAlert> {
         // Return alerts from the last hour (3600 seconds)
-        let cutoff_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            .saturating_sub(3600);
+        let cutoff_time =
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().saturating_sub(3600);
 
-        self.alerts
-            .iter()
-            .filter(|alert| alert.timestamp >= cutoff_time)
-            .collect()
+        self.alerts.iter().filter(|alert| alert.timestamp >= cutoff_time).collect()
     }
 
     /// Generates quality report
@@ -577,10 +561,7 @@ impl QualityMetricsDashboard {
                 timestamp,
                 alert_type: AlertType::CoverageDropped,
                 severity: AlertSeverity::High,
-                message: format!(
-                    "Test coverage dropped to {:.1}%",
-                    snapshot.test_coverage * 100.0
-                ),
+                message: format!("Test coverage dropped to {:.1}%", snapshot.test_coverage * 100.0),
                 metric_value: snapshot.test_coverage,
                 threshold: self.thresholds.min_test_coverage,
             });
@@ -607,10 +588,7 @@ impl QualityMetricsDashboard {
                 timestamp,
                 alert_type: AlertType::ErrorRateIncreased,
                 severity: AlertSeverity::Critical,
-                message: format!(
-                    "Error rate increased to {:.1}%",
-                    snapshot.error_rate * 100.0
-                ),
+                message: format!("Error rate increased to {:.1}%", snapshot.error_rate * 100.0),
                 metric_value: snapshot.error_rate,
                 threshold: self.thresholds.max_error_rate,
             });
@@ -710,16 +688,8 @@ impl fmt::Display for QualityReport {
         if let Some(snapshot) = &self.latest_snapshot {
             writeln!(f, "\nLatest Metrics:")?;
             writeln!(f, "  Test Coverage: {:.1}%", snapshot.test_coverage * 100.0)?;
-            writeln!(
-                f,
-                "  Mutation Score: {:.1}%",
-                snapshot.mutation_score * 100.0
-            )?;
-            writeln!(
-                f,
-                "  Performance: {:.1}%",
-                snapshot.performance_score * 100.0
-            )?;
+            writeln!(f, "  Mutation Score: {:.1}%", snapshot.mutation_score * 100.0)?;
+            writeln!(f, "  Performance: {:.1}%", snapshot.performance_score * 100.0)?;
             writeln!(f, "  Error Rate: {:.1}%", snapshot.error_rate * 100.0)?;
             writeln!(f, "  Overall Score: {:.1}%", snapshot.overall_score * 100.0)?;
         }
@@ -795,11 +765,8 @@ mod tests {
         assert!(suite.tests_by_category.len() >= 3); // Multiple categories
 
         // Validate generated tests
-        let all_tests: Vec<_> = suite
-            .tests_by_category
-            .values()
-            .flat_map(|tests| tests.iter().cloned())
-            .collect();
+        let all_tests: Vec<_> =
+            suite.tests_by_category.values().flat_map(|tests| tests.iter().cloned()).collect();
 
         let validation = generator.validate_generated_tests(&all_tests);
         println!(
@@ -822,10 +789,7 @@ mod tests {
         let mut dashboard = QualityMetricsDashboard::new();
 
         // Use realistic timestamps (current time)
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         // Test recording snapshots
         let snapshot1 = QualitySnapshot {
@@ -895,10 +859,7 @@ mod tests {
         let report = dashboard.generate_quality_report();
         println!("Quality report status: {:?}", report.status);
 
-        assert!(matches!(
-            report.status,
-            QualityStatus::Good | QualityStatus::Excellent
-        ));
+        assert!(matches!(report.status, QualityStatus::Good | QualityStatus::Excellent));
         assert!(report.latest_snapshot.is_some());
         assert!(!report.recommendations.is_empty());
 
@@ -948,24 +909,15 @@ mod tests {
         }
 
         // Calculate quality metrics
-        let coverage = if total_tests > 0 {
-            successful_tests as f64 / total_tests as f64
-        } else {
-            0.0
-        };
+        let coverage =
+            if total_tests > 0 { successful_tests as f64 / total_tests as f64 } else { 0.0 };
 
-        let error_rate = if total_tests > 0 {
-            error_count as f64 / total_tests as f64
-        } else {
-            0.0
-        };
+        let error_rate =
+            if total_tests > 0 { error_count as f64 / total_tests as f64 } else { 0.0 };
 
         // Create quality snapshot
         let snapshot = QualitySnapshot {
-            timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
             test_coverage: coverage,
             mutation_score: 0.75,    // Simulated
             performance_score: 0.85, // Simulated
@@ -1013,22 +965,15 @@ mod tests {
         let time_periods = [1000, 2000, 3000, 4000, 5000];
 
         for (i, timestamp) in time_periods.iter().enumerate() {
-            println!(
-                "\n--- QA Pipeline Run {} (timestamp: {}) ---",
-                i + 1,
-                timestamp
-            );
+            println!("\n--- QA Pipeline Run {} (timestamp: {}) ---", i + 1, timestamp);
 
             // Generate tests for this period
             let test_count = 8 + (i * 2); // Increasing test generation
             let suite = generator.generate_comprehensive_suite(test_count);
 
             // Validate all tests
-            let all_tests: Vec<_> = suite
-                .tests_by_category
-                .values()
-                .flat_map(|tests| tests.iter().cloned())
-                .collect();
+            let all_tests: Vec<_> =
+                suite.tests_by_category.values().flat_map(|tests| tests.iter().cloned()).collect();
 
             let validation = generator.validate_generated_tests(&all_tests);
 
@@ -1084,10 +1029,7 @@ mod tests {
         assert!(trend.overall_trend > 0.0); // Should show improvement
 
         // Final quality should be good
-        assert!(matches!(
-            final_report.status,
-            QualityStatus::Good | QualityStatus::Excellent
-        ));
+        assert!(matches!(final_report.status, QualityStatus::Good | QualityStatus::Excellent));
 
         // Should have fewer alerts in later periods (quality improved)
         let recent_alerts = dashboard.get_active_alerts();

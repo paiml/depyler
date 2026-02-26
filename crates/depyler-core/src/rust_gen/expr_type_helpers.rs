@@ -30,10 +30,7 @@ pub fn is_int_expr(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
         // (Add, Sub, Mul produce Int if both operands are Int)
         // Division in Python returns Float, so we don't include Div
         HirExpr::Binary { left, right, op } => {
-            if matches!(
-                op,
-                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv
-            ) {
+            if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv) {
                 is_int_expr(left, var_types) && is_int_expr(right, var_types)
             } else {
                 false
@@ -142,10 +139,7 @@ pub fn is_string_var_name(name: &str) -> bool {
 pub fn is_int_type(ty: &Type) -> bool {
     match ty {
         Type::Int => true,
-        Type::Custom(s) => matches!(
-            s.as_str(),
-            "i32" | "i64" | "isize" | "usize" | "u32" | "u64"
-        ),
+        Type::Custom(s) => matches!(s.as_str(), "i32" | "i64" | "isize" | "usize" | "u32" | "u64"),
         _ => false,
     }
 }
@@ -175,10 +169,7 @@ pub fn is_string_type(ty: &Type) -> bool {
 
 /// Check if binary operator is a comparison operator.
 pub fn is_comparison_op(op: &BinOp) -> bool {
-    matches!(
-        op,
-        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-    )
+    matches!(op, BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq)
 }
 
 /// Check if binary operator is an ordering comparison (not equality).
@@ -193,10 +184,7 @@ pub fn is_logical_op(op: &BinOp) -> bool {
 
 /// Check if binary operator is a bitwise operator.
 pub fn is_bitwise_op(op: &BinOp) -> bool {
-    matches!(
-        op,
-        BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift
-    )
+    matches!(op, BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift)
 }
 
 /// Check if binary operator is an arithmetic operator.
@@ -215,10 +203,7 @@ pub fn is_arithmetic_op(op: &BinOp) -> bool {
 
 /// Check if binary operator produces an integer result (when both operands are int).
 pub fn op_preserves_int(op: &BinOp) -> bool {
-    matches!(
-        op,
-        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv
-    )
+    matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv)
 }
 
 /// Check if the expression is a literal of the specified type.

@@ -137,12 +137,8 @@ pub fn is_dict_var_name(name: &str) -> bool {
 /// Check if a type name is a known collection type.
 #[inline]
 pub fn is_collection_type_name(type_name: &str) -> bool {
-    COLLECTION_TYPE_NAMES
-        .iter()
-        .any(|n| type_name.starts_with(n))
-        || COLLECTION_TYPE_FRAGMENTS
-            .iter()
-            .any(|f| type_name.contains(f))
+    COLLECTION_TYPE_NAMES.iter().any(|n| type_name.starts_with(n))
+        || COLLECTION_TYPE_FRAGMENTS.iter().any(|f| type_name.contains(f))
 }
 
 /// Check if a generic base name is a collection type.

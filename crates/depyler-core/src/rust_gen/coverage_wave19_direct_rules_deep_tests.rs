@@ -22,10 +22,8 @@ mod tests {
     #[allow(unused_variables)]
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -419,7 +417,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_055_base64_b16encode() {
-        let code = "import base64\ndef hex_encode(data: bytes) -> str:\n    return base64.b16encode(data)";
+        let code =
+            "import base64\ndef hex_encode(data: bytes) -> str:\n    return base64.b16encode(data)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -440,7 +439,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_058_base64_b64decode_literal() {
-        let code = "import base64\ndef decode_it() -> bytes:\n    return base64.b64decode(b\"aGVsbG8=\")";
+        let code =
+            "import base64\ndef decode_it() -> bytes:\n    return base64.b64decode(b\"aGVsbG8=\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -545,7 +545,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_073_base64_b16decode_literal() {
-        let code = "import base64\ndef unhex_it() -> bytes:\n    return base64.b16decode(b\"414243\")";
+        let code =
+            "import base64\ndef unhex_it() -> bytes:\n    return base64.b16decode(b\"414243\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -605,7 +606,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_081_re_sub_literal() {
-        let code = "import re\ndef clean(text: str) -> str:\n    return re.sub(\"\\\\d+\", \"X\", text)";
+        let code =
+            "import re\ndef clean(text: str) -> str:\n    return re.sub(\"\\\\d+\", \"X\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -626,7 +628,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_084_re_findall_literal() {
-        let code = "import re\ndef find_nums(text: str) -> list:\n    return re.findall(\"\\\\d+\", text)";
+        let code =
+            "import re\ndef find_nums(text: str) -> list:\n    return re.findall(\"\\\\d+\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -668,7 +671,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_090_re_split_literal() {
-        let code = "import re\ndef split_it(text: str) -> list:\n    return re.split(\"\\\\s+\", text)";
+        let code =
+            "import re\ndef split_it(text: str) -> list:\n    return re.split(\"\\\\s+\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -682,7 +686,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_092_re_compile_literal() {
-        let code = "import re\ndef compile_it() -> str:\n    pat = re.compile(\"\\\\d+\")\n    return pat";
+        let code =
+            "import re\ndef compile_it() -> str:\n    pat = re.compile(\"\\\\d+\")\n    return pat";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -745,7 +750,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_101_re_finditer_literal() {
-        let code = "import re\ndef find_all(text: str) -> list:\n    return re.finditer(\"\\\\w+\", text)";
+        let code =
+            "import re\ndef find_all(text: str) -> list:\n    return re.finditer(\"\\\\w+\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -759,21 +765,24 @@ mod tests {
 
     #[test]
     fn test_w19dr_103_re_sub_empty_repl() {
-        let code = "import re\ndef strip_digits(s: str) -> str:\n    return re.sub(\"\\\\d\", \"\", s)";
+        let code =
+            "import re\ndef strip_digits(s: str) -> str:\n    return re.sub(\"\\\\d\", \"\", s)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w19dr_104_re_findall_word_boundary() {
-        let code = "import re\ndef words(s: str) -> list:\n    return re.findall(\"\\\\b\\\\w+\\\\b\", s)";
+        let code =
+            "import re\ndef words(s: str) -> list:\n    return re.findall(\"\\\\b\\\\w+\\\\b\", s)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w19dr_105_re_search_return_direct() {
-        let code = "import re\ndef search_direct(p: str, t: str) -> str:\n    return re.search(p, t)";
+        let code =
+            "import re\ndef search_direct(p: str, t: str) -> str:\n    return re.search(p, t)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -787,7 +796,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_107_re_split_return_direct() {
-        let code = "import re\ndef split_direct(p: str, t: str) -> list:\n    return re.split(p, t)";
+        let code =
+            "import re\ndef split_direct(p: str, t: str) -> list:\n    return re.split(p, t)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -808,7 +818,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_110_re_escape_assigned_var() {
-        let code = "import re\ndef esc(s: str) -> str:\n    result = re.escape(s)\n    return result";
+        let code =
+            "import re\ndef esc(s: str) -> str:\n    result = re.escape(s)\n    return result";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1040,14 +1051,16 @@ mod tests {
 
     #[test]
     fn test_w19dr_142_time_time_assigned() {
-        let code = "import time\ndef measure() -> float:\n    start = time.time()\n    return start";
+        let code =
+            "import time\ndef measure() -> float:\n    start = time.time()\n    return start";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w19dr_143_time_monotonic_assigned() {
-        let code = "import time\ndef measure() -> float:\n    start = time.monotonic()\n    return start";
+        let code =
+            "import time\ndef measure() -> float:\n    start = time.monotonic()\n    return start";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1082,7 +1095,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_148_time_perf_counter_assigned() {
-        let code = "import time\ndef measure() -> float:\n    t = time.perf_counter()\n    return t";
+        let code =
+            "import time\ndef measure() -> float:\n    t = time.perf_counter()\n    return t";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1096,7 +1110,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_150_time_gmtime_assigned() {
-        let code = "import time\ndef show(ts: float) -> str:\n    t = time.gmtime(ts)\n    return t";
+        let code =
+            "import time\ndef show(ts: float) -> str:\n    t = time.gmtime(ts)\n    return t";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1121,7 +1136,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_153_os_path_join_two() {
-        let code = "import os\ndef join_path(a: str, b: str) -> str:\n    return os.path.join(a, b)";
+        let code =
+            "import os\ndef join_path(a: str, b: str) -> str:\n    return os.path.join(a, b)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1170,7 +1186,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_160_os_getenv_assigned() {
-        let code = "import os\ndef get_key() -> str:\n    val = os.getenv(\"HOME\")\n    return val";
+        let code =
+            "import os\ndef get_key() -> str:\n    val = os.getenv(\"HOME\")\n    return val";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1205,7 +1222,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_165_os_path_dirname_assigned() {
-        let code = "import os\ndef parent(p: str) -> str:\n    d = os.path.dirname(p)\n    return d";
+        let code =
+            "import os\ndef parent(p: str) -> str:\n    d = os.path.dirname(p)\n    return d";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1293,7 +1311,8 @@ mod tests {
 
     #[test]
     fn test_w19dr_177_sys_exit_in_condition() {
-        let code = "import sys\ndef maybe_exit(flag: bool) -> None:\n    if flag:\n        sys.exit(1)";
+        let code =
+            "import sys\ndef maybe_exit(flag: bool) -> None:\n    if flag:\n        sys.exit(1)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

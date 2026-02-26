@@ -33,3 +33,6 @@ decision-tracing = ["depyler-hir/decision-tracing"]
 
 [dev-dependencies]
 proptest.workspace = true
+
+[lints]
+workspace = true

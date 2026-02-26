@@ -11,10 +11,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -617,10 +615,7 @@ def f() -> int:
 "#,
     );
     assert!(code.contains("fn f"), "code: {code}");
-    assert!(
-        code.contains("let mut"),
-        "should detect mutable var: {code}"
-    );
+    assert!(code.contains("let mut"), "should detect mutable var: {code}");
 }
 
 #[test]

@@ -101,14 +101,8 @@ impl ErrorGraph {
         for result in results {
             if !result.base.success {
                 if let Some(code) = &result.base.error_code {
-                    error_files
-                        .entry(code.clone())
-                        .or_default()
-                        .push(result.base.name.clone());
-                    error_domains
-                        .entry(code.clone())
-                        .or_default()
-                        .push(result.semantic_domain);
+                    error_files.entry(code.clone()).or_default().push(result.base.name.clone());
+                    error_domains.entry(code.clone()).or_default().push(result.semantic_domain);
                 }
             }
         }
@@ -141,10 +135,7 @@ impl ErrorGraph {
         for result in results {
             if !result.base.success {
                 if let Some(code) = &result.base.error_code {
-                    file_errors
-                        .entry(result.base.name.clone())
-                        .or_default()
-                        .push(code.clone());
+                    file_errors.entry(result.base.name.clone()).or_default().push(code.clone());
                 }
             }
         }
@@ -154,11 +145,8 @@ impl ErrorGraph {
             let unique: Vec<_> = errors.iter().collect::<HashSet<_>>().into_iter().collect();
             for (i, &e1) in unique.iter().enumerate() {
                 for &e2 in unique.iter().skip(i + 1) {
-                    let key = if e1 < e2 {
-                        (e1.clone(), e2.clone())
-                    } else {
-                        (e2.clone(), e1.clone())
-                    };
+                    let key =
+                        if e1 < e2 { (e1.clone(), e2.clone()) } else { (e2.clone(), e1.clone()) };
                     *cooccur.entry(key).or_insert(0) += 1;
                 }
             }
@@ -226,11 +214,7 @@ impl ErrorGraph {
         // Normalize and assign
         let total: f64 = scores.iter().sum();
         for (i, node) in self.nodes.iter_mut().enumerate() {
-            node.centrality = if total > 0.0 {
-                scores[i] / total
-            } else {
-                1.0 / n as f64
-            };
+            node.centrality = if total > 0.0 { scores[i] / total } else { 1.0 / n as f64 };
         }
     }
 
@@ -266,10 +250,8 @@ impl ErrorGraph {
             }
 
             // Build community
-            let error_codes: Vec<String> = component
-                .iter()
-                .map(|&i| self.nodes[i].error_code.clone())
-                .collect();
+            let error_codes: Vec<String> =
+                component.iter().map(|&i| self.nodes[i].error_code.clone()).collect();
 
             let centrality_sum: f64 = component.iter().map(|&i| self.nodes[i].centrality).sum();
 
@@ -288,9 +270,7 @@ impl ErrorGraph {
 
         // Sort by centrality descending
         communities.sort_by(|a, b| {
-            b.centrality_sum
-                .partial_cmp(&a.centrality_sum)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.centrality_sum.partial_cmp(&a.centrality_sum).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         communities
@@ -300,9 +280,7 @@ impl ErrorGraph {
     pub fn top_central(&self, n: usize) -> Vec<&ErrorNode> {
         let mut sorted: Vec<_> = self.nodes.iter().collect();
         sorted.sort_by(|a, b| {
-            b.centrality
-                .partial_cmp(&a.centrality)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.centrality.partial_cmp(&a.centrality).unwrap_or(std::cmp::Ordering::Equal)
         });
         sorted.into_iter().take(n).collect()
     }
@@ -340,12 +318,7 @@ fn generate_community_name(
     // Find the most central error in the component
     let top_error = component
         .iter()
-        .max_by(|&&a, &&b| {
-            nodes[a]
-                .centrality
-                .partial_cmp(&nodes[b].centrality)
-                .unwrap()
-        })
+        .max_by(|&&a, &&b| nodes[a].centrality.partial_cmp(&nodes[b].centrality).unwrap())
         .map(|&i| &nodes[i].error_code)
         .unwrap_or(&error_codes[0]);
 
@@ -388,11 +361,8 @@ impl GraphAnalysis {
         let graph = ErrorGraph::from_results(results);
         let communities = graph.find_communities();
 
-        let top_central: Vec<String> = graph
-            .top_central(5)
-            .iter()
-            .map(|n| n.error_code.clone())
-            .collect();
+        let top_central: Vec<String> =
+            graph.top_central(5).iter().map(|n| n.error_code.clone()).collect();
 
         let n = graph.node_count();
         let density = if n > 1 {
@@ -402,12 +372,7 @@ impl GraphAnalysis {
             0.0
         };
 
-        Self {
-            graph,
-            communities,
-            top_central,
-            density,
-        }
+        Self { graph, communities, top_central, density }
     }
 
     /// Get community count
@@ -462,10 +427,7 @@ mod tests {
 
     #[test]
     fn test_error_graph_from_all_pass() {
-        let results = vec![
-            make_result("a.py", true, None),
-            make_result("b.py", true, None),
-        ];
+        let results = vec![make_result("a.py", true, None), make_result("b.py", true, None)];
         let graph = ErrorGraph::from_results(&results);
         assert!(graph.nodes.is_empty());
     }
@@ -503,11 +465,7 @@ mod tests {
         ];
         let graph = ErrorGraph::from_results(&results);
 
-        let e0308_node = graph
-            .nodes
-            .iter()
-            .find(|n| n.error_code == "E0308")
-            .unwrap();
+        let e0308_node = graph.nodes.iter().find(|n| n.error_code == "E0308").unwrap();
         assert_eq!(e0308_node.file_count(), 3);
     }
 
@@ -552,11 +510,8 @@ mod tests {
 
     #[test]
     fn test_find_dominant_domain() {
-        let domains = vec![
-            SemanticDomain::External,
-            SemanticDomain::External,
-            SemanticDomain::CoreLanguage,
-        ];
+        let domains =
+            vec![SemanticDomain::External, SemanticDomain::External, SemanticDomain::CoreLanguage];
         assert_eq!(find_dominant_domain(&domains), SemanticDomain::External);
     }
 
@@ -647,11 +602,7 @@ mod tests {
 
     #[test]
     fn test_error_edge_fields() {
-        let edge = ErrorEdge {
-            from: 0,
-            to: 1,
-            weight: 2.5,
-        };
+        let edge = ErrorEdge { from: 0, to: 1, weight: 2.5 };
         assert_eq!(edge.from, 0);
         assert_eq!(edge.to, 1);
         assert!((edge.weight - 2.5).abs() < 1e-6);

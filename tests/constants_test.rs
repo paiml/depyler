@@ -163,10 +163,7 @@ C = 3
     let rust_code = result.unwrap();
 
     // Basic check that code contains expected patterns
-    assert!(
-        !rust_code.is_empty(),
-        "Generated Rust code must not be empty"
-    );
+    assert!(!rust_code.is_empty(), "Generated Rust code must not be empty");
 
     // Check for basic Rust syntax patterns
     assert!(

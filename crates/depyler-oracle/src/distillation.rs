@@ -203,11 +203,7 @@ impl KnowledgeDistiller {
         let error_pattern = self.canonicalize_error_pattern(&example.error_message);
 
         // Generate pattern ID
-        let pattern_id = format!(
-            "distill_{}_{}",
-            example.error_code,
-            hash_str(&error_pattern)
-        );
+        let pattern_id = format!("distill_{}_{}", example.error_code, hash_str(&error_pattern));
 
         // Extract fix template
         let fix_template = self.extract_fix_template(&example.diff);
@@ -286,19 +282,12 @@ impl KnowledgeDistiller {
         }
 
         // Sort by confidence and collect IDs to remove
-        let mut sorted: Vec<_> = self
-            .patterns
-            .iter()
-            .map(|(id, p)| (id.clone(), p.confidence))
-            .collect();
+        let mut sorted: Vec<_> =
+            self.patterns.iter().map(|(id, p)| (id.clone(), p.confidence)).collect();
         sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
         let to_remove = self.patterns.len() - self.config.max_patterns;
-        let ids_to_remove: Vec<_> = sorted
-            .into_iter()
-            .take(to_remove)
-            .map(|(id, _)| id)
-            .collect();
+        let ids_to_remove: Vec<_> = sorted.into_iter().take(to_remove).map(|(id, _)| id).collect();
 
         for pattern_id in ids_to_remove {
             self.patterns.remove(&pattern_id);
@@ -310,15 +299,9 @@ impl KnowledgeDistiller {
 
     /// Record a pattern application result
     pub fn record_application(&mut self, pattern_id: &str, success: bool) {
-        *self
-            .application_counts
-            .entry(pattern_id.to_string())
-            .or_default() += 1;
+        *self.application_counts.entry(pattern_id.to_string()).or_default() += 1;
         if success {
-            *self
-                .success_counts
-                .entry(pattern_id.to_string())
-                .or_default() += 1;
+            *self.success_counts.entry(pattern_id.to_string()).or_default() += 1;
         }
 
         // Update pattern confidence based on success rate
@@ -359,11 +342,7 @@ impl KnowledgeDistiller {
                 continue;
             }
 
-            let applications = self
-                .application_counts
-                .get(pattern_id)
-                .copied()
-                .unwrap_or(0);
+            let applications = self.application_counts.get(pattern_id).copied().unwrap_or(0);
             let successes = self.success_counts.get(pattern_id).copied().unwrap_or(0);
 
             let mut error_pattern = ErrorPattern::new(
@@ -782,39 +761,21 @@ mod tests {
 
     #[test]
     fn test_infer_decision_from_error() {
-        assert_eq!(
-            infer_decision_from_error("E0308"),
-            Some(TranspilerDecision::TypeInference)
-        );
+        assert_eq!(infer_decision_from_error("E0308"), Some(TranspilerDecision::TypeInference));
         assert_eq!(
             infer_decision_from_error("E0382"),
             Some(TranspilerDecision::OwnershipInference)
         );
-        assert_eq!(
-            infer_decision_from_error("E0106"),
-            Some(TranspilerDecision::LifetimeInference)
-        );
-        assert_eq!(
-            infer_decision_from_error("E0433"),
-            Some(TranspilerDecision::ImportGeneration)
-        );
+        assert_eq!(infer_decision_from_error("E0106"), Some(TranspilerDecision::LifetimeInference));
+        assert_eq!(infer_decision_from_error("E0433"), Some(TranspilerDecision::ImportGeneration));
         assert_eq!(infer_decision_from_error("E9999"), None);
     }
 
     #[test]
     fn test_infer_category_from_error() {
-        assert_eq!(
-            infer_category_from_error("E0308"),
-            ErrorCategory::TypeMismatch
-        );
-        assert_eq!(
-            infer_category_from_error("E0277"),
-            ErrorCategory::TraitBound
-        );
-        assert_eq!(
-            infer_category_from_error("E0382"),
-            ErrorCategory::BorrowChecker
-        );
+        assert_eq!(infer_category_from_error("E0308"), ErrorCategory::TypeMismatch);
+        assert_eq!(infer_category_from_error("E0277"), ErrorCategory::TraitBound);
+        assert_eq!(infer_category_from_error("E0382"), ErrorCategory::BorrowChecker);
         assert_eq!(infer_category_from_error("E9999"), ErrorCategory::Other);
     }
 

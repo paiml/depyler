@@ -198,10 +198,7 @@ mod benchmark_results {
         assert_eq!(results.iterations, cloned.iterations);
         assert_eq!(results.total_time_ms, cloned.total_time_ms);
         assert!((results.avg_time_ms - cloned.avg_time_ms).abs() < f64::EPSILON);
-        assert_eq!(
-            results.throughput_ops_per_sec,
-            cloned.throughput_ops_per_sec
-        );
+        assert_eq!(results.throughput_ops_per_sec, cloned.throughput_ops_per_sec);
     }
 
     #[test]
@@ -259,10 +256,7 @@ mod ruchy_config {
     #[cfg(feature = "interpreter")]
     #[test]
     fn test_config_with_mcp_enabled() {
-        let config = RuchyConfig {
-            enable_mcp: true,
-            ..Default::default()
-        };
+        let config = RuchyConfig { enable_mcp: true, ..Default::default() };
         assert!(config.enable_mcp);
     }
 
@@ -291,17 +285,11 @@ mod integration_scenarios {
 
         // Use context
         interpreter.set_context("state".to_string(), "initialized".to_string());
-        assert_eq!(
-            interpreter.get_context("state"),
-            Some(&"initialized".to_string())
-        );
+        assert_eq!(interpreter.get_context("state"), Some(&"initialized".to_string()));
 
         // Modify context
         interpreter.set_context("state".to_string(), "running".to_string());
-        assert_eq!(
-            interpreter.get_context("state"),
-            Some(&"running".to_string())
-        );
+        assert_eq!(interpreter.get_context("state"), Some(&"running".to_string()));
 
         // Add more context
         interpreter.set_context("counter".to_string(), "42".to_string());
@@ -328,14 +316,8 @@ mod integration_scenarios {
     fn test_interpreter_with_various_configs() {
         let configs = vec![
             RuchyConfig::default(),
-            RuchyConfig {
-                use_pipelines: true,
-                ..Default::default()
-            },
-            RuchyConfig {
-                use_actors: true,
-                ..Default::default()
-            },
+            RuchyConfig { use_pipelines: true, ..Default::default() },
+            RuchyConfig { use_actors: true, ..Default::default() },
         ];
 
         for config in configs {

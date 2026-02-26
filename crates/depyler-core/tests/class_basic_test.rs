@@ -20,11 +20,7 @@ class Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -43,18 +39,10 @@ class Point:
     );
 
     // Should generate impl block
-    assert!(
-        rust_code.contains("impl Point"),
-        "Should generate impl block.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("impl Point"), "Should generate impl block.\nGot:\n{}", rust_code);
 
     // Should have constructor (new method)
-    assert!(
-        rust_code.contains("fn new"),
-        "Should have new() constructor.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn new"), "Should have new() constructor.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -68,11 +56,7 @@ class Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -99,11 +83,7 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -113,11 +93,7 @@ class Counter:
         rust_code
     );
 
-    assert!(
-        rust_code.contains("value"),
-        "Should have value field.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("value"), "Should have value field.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -129,11 +105,7 @@ class Empty:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -156,11 +128,7 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -191,11 +159,7 @@ class Student:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -230,11 +194,7 @@ def create_point() -> Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -260,11 +220,7 @@ def get_x(p: Point) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -292,11 +248,7 @@ def test() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -318,25 +270,13 @@ class User:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct User"),
-        "Should generate struct User.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct User"), "Should generate struct User.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("username"),
-        "Should have username field.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("username"), "Should have username field.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -353,11 +293,7 @@ def increment(c: Counter) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -378,11 +314,7 @@ class Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -405,11 +337,7 @@ class Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -419,11 +347,7 @@ class Rectangle:
         rust_code
     );
 
-    assert!(
-        rust_code.contains("area"),
-        "Should have computed area field.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("area"), "Should have computed area field.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -440,11 +364,7 @@ def distance_from_origin(p: Point) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 

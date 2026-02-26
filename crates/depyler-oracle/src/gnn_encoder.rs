@@ -477,11 +477,8 @@ impl DepylerGnnEncoder {
         }
 
         // Create fresh index
-        self.hnsw_index = Some(HNSWIndex::new(
-            self.config.hnsw_m,
-            self.config.hnsw_ef_construction,
-            0.0,
-        ));
+        self.hnsw_index =
+            Some(HNSWIndex::new(self.config.hnsw_m, self.config.hnsw_ef_construction, 0.0));
         self.hnsw_id_map.clear();
 
         // Re-add all patterns in a consistent order
@@ -555,12 +552,7 @@ impl DepylerGnnEncoder {
         let aprender_code = self.depyler_to_aprender_code(error_code);
         let span = SourceSpan::single_line("source.rs", 1, 1, 80);
 
-        CompilerDiagnostic::new(
-            aprender_code,
-            DiagnosticSeverity::Error,
-            error_message,
-            span,
-        )
+        CompilerDiagnostic::new(aprender_code, DiagnosticSeverity::Error, error_message, span)
     }
 
     /// Convert depyler error code to aprender error code
@@ -820,10 +812,7 @@ mod tests {
             success_rate: 1.0,
         };
 
-        assert_eq!(
-            infer_decision_from_match(&pattern),
-            Some(TranspilerDecision::TypeInference)
-        );
+        assert_eq!(infer_decision_from_match(&pattern), Some(TranspilerDecision::TypeInference));
     }
 
     #[test]
@@ -843,11 +832,7 @@ mod tests {
         );
 
         let sim = encoder.cosine_similarity(&e1, &e2);
-        assert!(
-            sim > 0.0,
-            "Similar errors should have positive similarity, got {}",
-            sim
-        );
+        assert!(sim > 0.0, "Similar errors should have positive similarity, got {}", sim);
     }
 
     #[test]
@@ -881,10 +866,7 @@ mod tests {
         assert_eq!(encoder.combined_dim(), 512);
 
         // Without AST embeddings
-        let config = GnnEncoderConfig {
-            use_ast_embeddings: false,
-            ..Default::default()
-        };
+        let config = GnnEncoderConfig { use_ast_embeddings: false, ..Default::default() };
         let encoder_no_ast = DepylerGnnEncoder::new(config);
         assert_eq!(encoder_no_ast.combined_dim(), 256);
     }
@@ -916,18 +898,11 @@ fn add(a: i32, b: i32) -> i32 {
 
     #[test]
     fn test_encode_combined_without_ast() {
-        let config = GnnEncoderConfig {
-            use_ast_embeddings: false,
-            ..Default::default()
-        };
+        let config = GnnEncoderConfig { use_ast_embeddings: false, ..Default::default() };
         let encoder = DepylerGnnEncoder::new(config);
 
-        let combined = encoder.encode_combined(
-            "E0308",
-            "mismatched types",
-            "def foo(): pass",
-            "fn foo() {}",
-        );
+        let combined =
+            encoder.encode_combined("E0308", "mismatched types", "def foo(): pass", "fn foo() {}");
 
         // Should only have GNN dimension
         assert_eq!(combined.len(), 256);
@@ -952,10 +927,7 @@ fn add(a: i32, b: i32) -> i32 {
         let encoder = DepylerGnnEncoder::with_defaults();
         assert!(encoder.ast_embedder.is_some());
 
-        let config = GnnEncoderConfig {
-            use_ast_embeddings: false,
-            ..Default::default()
-        };
+        let config = GnnEncoderConfig { use_ast_embeddings: false, ..Default::default() };
         let encoder = DepylerGnnEncoder::new(config);
         assert!(encoder.ast_embedder.is_none());
     }
@@ -982,10 +954,7 @@ fn add(a: i32, b: i32) -> i32 {
 
     #[test]
     fn test_phase3_hnsw_disabled() {
-        let config = GnnEncoderConfig {
-            use_hnsw: false,
-            ..Default::default()
-        };
+        let config = GnnEncoderConfig { use_hnsw: false, ..Default::default() };
         let encoder = DepylerGnnEncoder::new(config);
         assert!(encoder.hnsw_index.is_none());
         assert!(!encoder.is_hnsw_active());
@@ -1225,10 +1194,8 @@ fn add(a: i32, b: i32) -> i32 {
             use_hnsw: false, // Disable HNSW for deterministic comparison
             ..Default::default()
         });
-        let mut individual_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
-            use_hnsw: false,
-            ..Default::default()
-        });
+        let mut individual_encoder =
+            DepylerGnnEncoder::new(GnnEncoderConfig { use_hnsw: false, ..Default::default() });
 
         let p1 = ErrorPattern::new("E0308", "type error", "+fix1");
         let p2 = ErrorPattern::new("E0382", "borrow error", "+fix2");
@@ -1242,10 +1209,7 @@ fn add(a: i32, b: i32) -> i32 {
         individual_encoder.index_pattern(&p2, "source2");
 
         // Both should have same pattern count
-        assert_eq!(
-            batch_encoder.pattern_count(),
-            individual_encoder.pattern_count()
-        );
+        assert_eq!(batch_encoder.pattern_count(), individual_encoder.pattern_count());
         assert_eq!(
             batch_encoder.stats().patterns_indexed,
             individual_encoder.stats().patterns_indexed

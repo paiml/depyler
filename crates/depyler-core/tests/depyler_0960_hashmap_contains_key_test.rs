@@ -16,11 +16,7 @@ def check_key(data: dict, key: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should use contains_key() for dict, not contains()
@@ -41,19 +37,11 @@ def has_setting(config: dict, name: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should use contains_key() for dict
-    assert!(
-        code.contains("contains_key"),
-        "Dict __contains__ should use contains_key: {}",
-        code
-    );
+    assert!(code.contains("contains_key"), "Dict __contains__ should use contains_key: {}", code);
 }
 
 /// Test that dict variable patterns trigger contains_key()
@@ -74,11 +62,7 @@ def check_config(config: dict, k: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // All dict-like names should use contains_key
@@ -102,24 +86,12 @@ def has_substring(text: str, sub: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // String should use .contains() method (not contains_key)
-    assert!(
-        code.contains(".contains("),
-        "String 'in' operator should use .contains(): {}",
-        code
-    );
-    assert!(
-        !code.contains("contains_key"),
-        "String should NOT use contains_key: {}",
-        code
-    );
+    assert!(code.contains(".contains("), "String 'in' operator should use .contains(): {}", code);
+    assert!(!code.contains("contains_key"), "String should NOT use contains_key: {}", code);
 }
 
 /// Test explicit contains() call on dict
@@ -157,16 +129,8 @@ def has_nested_key(env: dict, section: str, key: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("contains_key"),
-        "Nested dict 'in' should use contains_key: {}",
-        code
-    );
+    assert!(code.contains("contains_key"), "Nested dict 'in' should use contains_key: {}", code);
 }

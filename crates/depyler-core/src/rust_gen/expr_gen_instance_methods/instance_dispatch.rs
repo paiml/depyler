@@ -221,10 +221,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // DEPYLER-0620: Also detect datetime methods being called regardless of variable name
             // If the method is datetime-specific (strftime, isoformat), assume datetime object
-            matches!(
-                method,
-                "strftime" | "isoformat" | "timestamp" | "weekday" | "isoweekday"
-            )
+            matches!(method, "strftime" | "isoformat" | "timestamp" | "weekday" | "isoweekday")
         };
 
         if is_datetime_object {
@@ -947,5 +944,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
     }
-
 }

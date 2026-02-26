@@ -14,9 +14,7 @@ def concatenate(a: str, b: str) -> str:
 
     // WHEN: We transpile the code
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // THEN: Generated code should NOT contain Cow<'static, str> for parameters
     // The bug: current code generates `a: Cow<'static, str>, b: &str`
@@ -48,9 +46,7 @@ def concatenate(a: str, b: str) -> str:
 
     // WHEN: We transpile with test generation (disabled for now due to DEPYLER-0281 workaround)
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // THEN: Generated code should compile
     let temp_dir = std::env::temp_dir();

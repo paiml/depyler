@@ -36,9 +36,7 @@ pub struct ArtifactCleaner {
 impl ArtifactCleaner {
     /// Create a new artifact cleaner for the given corpus path.
     pub fn new(corpus_path: &Path) -> Self {
-        Self {
-            corpus_path: corpus_path.to_path_buf(),
-        }
+        Self { corpus_path: corpus_path.to_path_buf() }
     }
 
     /// Execute the full 5S cleaning protocol.
@@ -117,10 +115,7 @@ impl ArtifactCleaner {
     /// Find all target directories in the corpus.
     pub fn find_target_dirs(&self) -> Result<Vec<PathBuf>> {
         let mut dirs = Vec::new();
-        for entry in WalkDir::new(&self.corpus_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_dir() && entry.file_name() == "target" {
                 dirs.push(entry.path().to_path_buf());
             }
@@ -148,10 +143,7 @@ impl ArtifactCleaner {
 
     fn find_files_by_extension(&self, ext: &str) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
-        for entry in WalkDir::new(&self.corpus_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
                 if let Some(file_ext) = entry.path().extension() {
                     if file_ext == ext {
@@ -165,10 +157,7 @@ impl ArtifactCleaner {
 
     fn find_files_by_name(&self, name: &str) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
-        for entry in WalkDir::new(&self.corpus_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(&self.corpus_path).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_file() && entry.file_name().to_str() == Some(name) {
                 files.push(entry.path().to_path_buf());
             }

@@ -69,17 +69,10 @@ if __name__ == '__main__':
     // Check that binary was created
     let binary_name = if cfg!(windows) { "hello.exe" } else { "hello" };
     let binary_path = python_file.parent().unwrap().join(binary_name);
-    assert!(
-        binary_path.exists(),
-        "Binary should be created at {}",
-        binary_path.display()
-    );
+    assert!(binary_path.exists(), "Binary should be created at {}", binary_path.display());
 
     // Run the binary and check output
-    Command::new(&binary_path)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Hello, World!"));
+    Command::new(&binary_path).assert().success().stdout(predicate::str::contains("Hello, World!"));
 }
 
 #[test]
@@ -138,20 +131,11 @@ if __name__ == '__main__':
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args([
-            "compile",
-            python_file.to_str().unwrap(),
-            "-o",
-            output_path.to_str().unwrap(),
-        ])
+        .args(["compile", python_file.to_str().unwrap(), "-o", output_path.to_str().unwrap()])
         .assert()
         .success();
 
-    let binary_path = if cfg!(windows) {
-        output_path.with_extension("exe")
-    } else {
-        output_path
-    };
+    let binary_path = if cfg!(windows) { output_path.with_extension("exe") } else { output_path };
 
     assert!(binary_path.exists(), "Binary should exist at custom path");
 }
@@ -179,22 +163,14 @@ if __name__ == '__main__':
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args([
-            "compile",
-            python_file.to_str().unwrap(),
-            "--profile",
-            "release",
-        ])
+        .args(["compile", python_file.to_str().unwrap(), "--profile", "release"])
         .assert()
         .success();
 
     let binary_name = if cfg!(windows) { "fib.exe" } else { "fib" };
     let binary_path = python_file.parent().unwrap().join(binary_name);
 
-    Command::new(&binary_path)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("fib(10) = 55"));
+    Command::new(&binary_path).assert().success().stdout(predicate::str::contains("fib(10) = 55"));
 }
 
 #[test]

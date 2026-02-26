@@ -67,9 +67,7 @@ mod signatures {
 
     #[test]
     fn test_default_param_str() {
-        assert!(transpile_ok(
-            "def f(s: str = 'default') -> str:\n    return s"
-        ));
+        assert!(transpile_ok("def f(s: str = 'default') -> str:\n    return s"));
     }
 
     #[test]
@@ -79,16 +77,12 @@ mod signatures {
 
     #[test]
     fn test_default_param_bool() {
-        assert!(transpile_ok(
-            "def f(flag: bool = True) -> bool:\n    return flag"
-        ));
+        assert!(transpile_ok("def f(flag: bool = True) -> bool:\n    return flag"));
     }
 
     #[test]
     fn test_default_param_float() {
-        assert!(transpile_ok(
-            "def f(x: float = 3.14) -> float:\n    return x"
-        ));
+        assert!(transpile_ok("def f(x: float = 3.14) -> float:\n    return x"));
     }
 
     #[test]
@@ -168,23 +162,17 @@ mod param_types {
 
     #[test]
     fn test_param_list_int() {
-        assert!(transpile_ok(
-            "def f(x: list[int]) -> list[int]:\n    return x"
-        ));
+        assert!(transpile_ok("def f(x: list[int]) -> list[int]:\n    return x"));
     }
 
     #[test]
     fn test_param_list_str() {
-        assert!(transpile_ok(
-            "def f(x: list[str]) -> list[str]:\n    return x"
-        ));
+        assert!(transpile_ok("def f(x: list[str]) -> list[str]:\n    return x"));
     }
 
     #[test]
     fn test_param_dict_str_int() {
-        assert!(transpile_ok(
-            "def f(x: dict[str, int]) -> dict[str, int]:\n    return x"
-        ));
+        assert!(transpile_ok("def f(x: dict[str, int]) -> dict[str, int]:\n    return x"));
     }
 
     #[test]
@@ -206,9 +194,7 @@ mod param_types {
 
     #[test]
     fn test_param_any() {
-        assert!(transpile_ok(
-            "from typing import Any\ndef f(x: Any) -> Any:\n    return x"
-        ));
+        assert!(transpile_ok("from typing import Any\ndef f(x: Any) -> Any:\n    return x"));
     }
 }
 
@@ -261,9 +247,7 @@ mod return_types {
 
     #[test]
     fn test_return_tuple_typed() {
-        assert!(transpile_ok(
-            "def f() -> tuple[int, str]:\n    return (1, 'a')"
-        ));
+        assert!(transpile_ok("def f() -> tuple[int, str]:\n    return (1, 'a')"));
     }
 
     #[test]
@@ -278,16 +262,12 @@ mod return_types {
 
     #[test]
     fn test_return_dict_typed() {
-        assert!(transpile_ok(
-            "def f() -> dict[str, int]:\n    return {'a': 1}"
-        ));
+        assert!(transpile_ok("def f() -> dict[str, int]:\n    return {'a': 1}"));
     }
 
     #[test]
     fn test_return_self_reference() {
-        assert!(transpile_ok(
-            "class Foo:\n    def clone(self) -> 'Foo':\n        return Foo()"
-        ));
+        assert!(transpile_ok("class Foo:\n    def clone(self) -> 'Foo':\n        return Foo()"));
     }
 }
 
@@ -300,16 +280,12 @@ mod varargs_kwargs {
 
     #[test]
     fn test_varargs_only() {
-        assert!(transpile_ok(
-            "def f(*args):\n    for arg in args:\n        print(arg)"
-        ));
+        assert!(transpile_ok("def f(*args):\n    for arg in args:\n        print(arg)"));
     }
 
     #[test]
     fn test_varargs_typed() {
-        assert!(transpile_ok(
-            "def f(*args: int) -> int:\n    return sum(args)"
-        ));
+        assert!(transpile_ok("def f(*args: int) -> int:\n    return sum(args)"));
     }
 
     #[test]
@@ -333,30 +309,22 @@ mod varargs_kwargs {
 
     #[test]
     fn test_regular_and_varargs() {
-        assert!(transpile_ok(
-            "def f(first: int, *rest):\n    return first + sum(rest)"
-        ));
+        assert!(transpile_ok("def f(first: int, *rest):\n    return first + sum(rest)"));
     }
 
     #[test]
     fn test_regular_and_kwargs() {
-        assert!(transpile_ok(
-            "def f(first: int, **kwargs):\n    return first"
-        ));
+        assert!(transpile_ok("def f(first: int, **kwargs):\n    return first"));
     }
 
     #[test]
     fn test_all_param_types() {
-        assert!(transpile_ok(
-            "def f(a: int, b: int = 0, *args, **kwargs):\n    pass"
-        ));
+        assert!(transpile_ok("def f(a: int, b: int = 0, *args, **kwargs):\n    pass"));
     }
 
     #[test]
     fn test_keyword_only_params() {
-        assert!(transpile_ok(
-            "def f(*, x: int, y: int) -> int:\n    return x + y"
-        ));
+        assert!(transpile_ok("def f(*, x: int, y: int) -> int:\n    return x + y"));
     }
 
     #[test]
@@ -368,9 +336,7 @@ mod varargs_kwargs {
 
     #[test]
     fn test_positional_only_params() {
-        assert!(transpile_ok(
-            "def f(x: int, y: int, /) -> int:\n    return x + y"
-        ));
+        assert!(transpile_ok("def f(x: int, y: int, /) -> int:\n    return x + y"));
     }
 }
 
@@ -469,9 +435,7 @@ mod nested_functions {
 
     #[test]
     fn test_nested_lambda() {
-        assert!(transpile_ok(
-            "def make_multiplier(n: int):\n    return lambda x: x * n"
-        ));
+        assert!(transpile_ok("def make_multiplier(n: int):\n    return lambda x: x * n"));
     }
 }
 
@@ -517,9 +481,7 @@ mod generators {
 
     #[test]
     fn test_simple_generator() {
-        assert!(transpile_ok(
-            "def gen():\n    yield 1\n    yield 2\n    yield 3"
-        ));
+        assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n    yield 3"));
     }
 
     #[test]
@@ -538,9 +500,7 @@ mod generators {
 
     #[test]
     fn test_generator_expression_in_func() {
-        assert!(transpile_ok(
-            "def squares(n: int):\n    return (x * x for x in range(n))"
-        ));
+        assert!(transpile_ok("def squares(n: int):\n    return (x * x for x in range(n))"));
     }
 
     #[test]
@@ -584,9 +544,7 @@ mod special_methods {
 
     #[test]
     fn test_init() {
-        assert!(transpile_ok(
-            "class Foo:\n    def __init__(self):\n        self.x = 0"
-        ));
+        assert!(transpile_ok("class Foo:\n    def __init__(self):\n        self.x = 0"));
     }
 
     #[test]
@@ -596,16 +554,12 @@ mod special_methods {
 
     #[test]
     fn test_str() {
-        assert!(transpile_ok(
-            "class Foo:\n    def __str__(self) -> str:\n        return 'Foo'"
-        ));
+        assert!(transpile_ok("class Foo:\n    def __str__(self) -> str:\n        return 'Foo'"));
     }
 
     #[test]
     fn test_repr() {
-        assert!(transpile_ok(
-            "class Foo:\n    def __repr__(self) -> str:\n        return 'Foo()'"
-        ));
+        assert!(transpile_ok("class Foo:\n    def __repr__(self) -> str:\n        return 'Foo()'"));
     }
 
     #[test]
@@ -722,9 +676,7 @@ mod edge_cases {
     #[test]
     fn test_lambda_in_default() {
         // Lambda as default value
-        assert!(transpile_ok(
-            "def f(func = lambda x: x):\n    return func(5)"
-        ));
+        assert!(transpile_ok("def f(func = lambda x: x):\n    return func(5)"));
     }
 
     #[test]

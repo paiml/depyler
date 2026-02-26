@@ -423,9 +423,7 @@ impl<'a> CodeGenContext<'a> {
     /// # Complexity
     /// 2 (iterator + any)
     pub fn is_declared(&self, var_name: &str) -> bool {
-        self.declared_vars
-            .iter()
-            .any(|scope| scope.contains(var_name))
+        self.declared_vars.iter().any(|scope| scope.contains(var_name))
     }
 
     /// Declare a variable in the current scope
@@ -464,9 +462,7 @@ impl<'a> CodeGenContext<'a> {
     /// # Complexity
     /// 2 (last + unwrap_or)
     pub fn current_exception_scope(&self) -> &ExceptionScope {
-        self.exception_scopes
-            .last()
-            .unwrap_or(&ExceptionScope::Unhandled)
+        self.exception_scopes.last().unwrap_or(&ExceptionScope::Unhandled)
     }
 
     /// Check if currently inside a try block
@@ -474,10 +470,7 @@ impl<'a> CodeGenContext<'a> {
     /// # Complexity
     /// 2 (current_exception_scope + matches)
     pub fn is_in_try_block(&self) -> bool {
-        matches!(
-            self.current_exception_scope(),
-            ExceptionScope::TryCaught { .. }
-        )
+        matches!(self.current_exception_scope(), ExceptionScope::TryCaught { .. })
     }
 
     /// Check if a specific exception type is handled by current try block
@@ -502,8 +495,7 @@ impl<'a> CodeGenContext<'a> {
     /// # Complexity
     /// 1 (simple push)
     pub fn enter_try_scope(&mut self, handled_types: Vec<String>) {
-        self.exception_scopes
-            .push(ExceptionScope::TryCaught { handled_types });
+        self.exception_scopes.push(ExceptionScope::TryCaught { handled_types });
     }
 
     /// Enter an exception handler scope
@@ -588,9 +580,7 @@ impl<'a> CodeGenContext<'a> {
     #[cfg(feature = "sovereign-types")]
     pub fn lookup_external_return_type(&self, module: &str, symbol: &str) -> Option<String> {
         self.type_query.as_ref().and_then(|tq| {
-            tq.lock()
-                .ok()
-                .and_then(|mut query| query.find_return_type(module, symbol).ok())
+            tq.lock().ok().and_then(|mut query| query.find_return_type(module, symbol).ok())
         })
     }
 
@@ -611,9 +601,7 @@ impl<'a> CodeGenContext<'a> {
     #[cfg(feature = "sovereign-types")]
     pub fn has_external_symbol(&self, module: &str, symbol: &str) -> bool {
         self.type_query.as_ref().is_some_and(|tq| {
-            tq.lock()
-                .ok()
-                .is_some_and(|mut query| query.has_symbol(module, symbol))
+            tq.lock().ok().is_some_and(|mut query| query.has_symbol(module, symbol))
         })
     }
 

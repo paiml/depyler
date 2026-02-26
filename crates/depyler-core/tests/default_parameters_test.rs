@@ -44,12 +44,7 @@ fn test_function_with_int_default() {
     let func = HirFunction {
         name: "increment".to_string(),
         params: smallvec![
-            HirParam {
-                name: "x".to_string(),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
+            HirParam { name: "x".to_string(), ty: Type::Int, default: None, is_vararg: false },
             HirParam {
                 name: "step".to_string(),
                 ty: Type::Int,
@@ -166,18 +161,10 @@ fn test_function_with_dict_none_default() {
     let func = HirFunction {
         name: "fibonacci_memo".to_string(),
         params: smallvec![
-            HirParam {
-                name: "n".to_string(),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
+            HirParam { name: "n".to_string(), ty: Type::Int, default: None, is_vararg: false },
             HirParam {
                 name: "memo".to_string(),
-                ty: Type::Optional(Box::new(Type::Dict(
-                    Box::new(Type::Int),
-                    Box::new(Type::Int)
-                ))),
+                ty: Type::Optional(Box::new(Type::Dict(Box::new(Type::Int), Box::new(Type::Int)))),
                 default: Some(HirExpr::Literal(Literal::None)),
                 is_vararg: false,
             },
@@ -192,10 +179,7 @@ fn test_function_with_dict_none_default() {
     // This is the fibonacci_memo.py pattern: def fib(n, memo: Dict[int, int] = None)
     assert_eq!(func.params[1].name, "memo");
     assert!(matches!(func.params[1].ty, Type::Optional(_)));
-    assert!(matches!(
-        func.params[1].default,
-        Some(HirExpr::Literal(Literal::None))
-    ));
+    assert!(matches!(func.params[1].default, Some(HirExpr::Literal(Literal::None))));
 }
 
 /// Test 7: Multiple defaults in sequence
@@ -239,18 +223,8 @@ fn test_function_with_no_defaults() {
     let func = HirFunction {
         name: "add".to_string(),
         params: smallvec![
-            HirParam {
-                name: "a".to_string(),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
-            HirParam {
-                name: "b".to_string(),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
+            HirParam { name: "a".to_string(), ty: Type::Int, default: None, is_vararg: false },
+            HirParam { name: "b".to_string(), ty: Type::Int, default: None, is_vararg: false },
         ],
         ret_type: Type::Int,
         body: vec![],
@@ -268,12 +242,7 @@ fn test_function_with_mixed_defaults() {
     let func = HirFunction {
         name: "fetch".to_string(),
         params: smallvec![
-            HirParam {
-                name: "url".to_string(),
-                ty: Type::String,
-                default: None,
-                is_vararg: false,
-            },
+            HirParam { name: "url".to_string(), ty: Type::String, default: None, is_vararg: false },
             HirParam {
                 name: "timeout".to_string(),
                 ty: Type::Int,
@@ -339,11 +308,8 @@ fn test_hir_param_constructor() {
     assert_eq!(param.ty, Type::Int);
     assert_eq!(param.default, None);
 
-    let param_with_default = HirParam::with_default(
-        "y".to_string(),
-        Type::Int,
-        HirExpr::Literal(Literal::Int(10)),
-    );
+    let param_with_default =
+        HirParam::with_default("y".to_string(), Type::Int, HirExpr::Literal(Literal::Int(10)));
     assert_eq!(param_with_default.name, "y");
     assert!(param_with_default.default.is_some());
 }

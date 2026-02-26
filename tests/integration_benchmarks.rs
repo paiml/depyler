@@ -40,11 +40,7 @@ mod integration_benchmarks {
             // Adjusted from 50ms → 75ms to account for system load variability (±50% buffer)
             // Test failed at 50.6ms (1.2% over), indicating limit was too tight for non-dedicated CI
             ("Minimal", "def f(): return 1", Duration::from_millis(75)),
-            (
-                "Simple",
-                "def add(a: int, b: int) -> int: return a + b",
-                Duration::from_millis(100),
-            ),
+            ("Simple", "def add(a: int, b: int) -> int: return a + b", Duration::from_millis(100)),
             (
                 "Medium",
                 r#"
@@ -107,11 +103,7 @@ def fibonacci_memo(n: int, memo: dict = None) -> int:
                 "{} (Verified): {:?} {}",
                 scenario_name,
                 verified_duration,
-                if verified_result.is_ok() {
-                    "✓"
-                } else {
-                    "✗"
-                }
+                if verified_result.is_ok() { "✓" } else { "✗" }
             );
 
             // Verified pipeline may take longer but should still be reasonable
@@ -184,10 +176,7 @@ def sample_function(x: int, y: int) -> int:
 
         let configurations = vec![
             ("Default", DepylerPipeline::new()),
-            (
-                "With Verification",
-                DepylerPipeline::new().with_verification(),
-            ),
+            ("With Verification", DepylerPipeline::new().with_verification()),
         ];
 
         for (config_name, pipeline) in configurations {
@@ -270,18 +259,9 @@ def sample_function(x: int, y: int) -> int:
 
         let error_test_cases = vec![
             ("Invalid Syntax", "def broken_function(\n    return 42"),
-            (
-                "Unterminated String",
-                "def bad_string() -> str: return \"unterminated",
-            ),
-            (
-                "Bad Indentation",
-                "def poorly_indented():\nreturn 42\n    x = 5",
-            ),
-            (
-                "Unknown Construct",
-                "async def unsupported(): await something()",
-            ),
+            ("Unterminated String", "def bad_string() -> str: return \"unterminated"),
+            ("Bad Indentation", "def poorly_indented():\nreturn 42\n    x = 5"),
+            ("Unknown Construct", "async def unsupported(): await something()"),
         ];
 
         for (error_type, bad_code) in error_test_cases {
@@ -293,11 +273,7 @@ def sample_function(x: int, y: int) -> int:
                 "{}: {:?} ({})",
                 error_type,
                 duration,
-                if result.is_err() {
-                    "✓ Correctly Failed"
-                } else {
-                    "? Unexpectedly Passed"
-                }
+                if result.is_err() { "✓ Correctly Failed" } else { "? Unexpectedly Passed" }
             );
 
             // Error handling should be fast

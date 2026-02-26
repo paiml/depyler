@@ -651,9 +651,8 @@ def all_params(a: int, b: str = "default", *args: float, **kwargs: bool) -> None
 /// Test class with many methods
 #[test]
 fn test_class_many_methods() {
-    let methods: Vec<String> = (0..20)
-        .map(|i| format!("    def method{}(self) -> int: return {}", i, i))
-        .collect();
+    let methods: Vec<String> =
+        (0..20).map(|i| format!("    def method{}(self) -> int: return {}", i, i)).collect();
     let python_code = format!("class ManyMethods:\n{}", methods.join("\n"));
     let ast = Suite::parse(&python_code, "<test>").unwrap();
     let bridge = AstBridge::new();

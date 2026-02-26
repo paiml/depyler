@@ -65,15 +65,7 @@ def test_func():
     std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output()
         .unwrap();
 
@@ -130,15 +122,7 @@ def test_func():
     std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output()
         .unwrap();
 
@@ -200,15 +184,7 @@ def test_func():
     std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output()
         .unwrap();
 
@@ -291,15 +267,7 @@ def test_func():
     std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output()
         .unwrap();
 
@@ -363,15 +331,7 @@ def test_func():
     std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output()
         .unwrap();
 
@@ -429,15 +389,7 @@ def process_args():
     std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output()
         .unwrap();
 
@@ -519,15 +471,7 @@ def test_func():
         std::fs::write(&temp_file, &rust_code).unwrap();
 
         let output = std::process::Command::new("rustc")
-            .args([
-                "--crate-type",
-                "lib",
-                "--edition",
-                "2021",
-                &temp_file,
-                "-o",
-                &temp_rlib,
-            ])
+            .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
             .output()
             .unwrap();
 

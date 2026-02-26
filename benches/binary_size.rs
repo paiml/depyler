@@ -22,9 +22,7 @@ struct BinaryBuilder {
 
 impl BinaryBuilder {
     fn new(target: &str) -> Self {
-        Self {
-            target: target.to_string(),
-        }
+        Self { target: target.to_string() }
     }
 
     fn build(&self, profile: &str) -> Result<u64, String> {
@@ -56,14 +54,12 @@ impl BinaryBuilder {
     fn execute_build_with_flags(&self, profile: &str, flags: &[&str]) -> Result<(), String> {
         let mut cmd = Command::new("cargo");
         cmd.args(&["build", "--profile", profile, "--bin", &self.target]);
-        
+
         for flag in flags {
             cmd.arg(flag);
         }
 
-        let output = cmd
-            .output()
-            .map_err(|e| format!("Failed to build {}: {}", self.target, e))?;
+        let output = cmd.output().map_err(|e| format!("Failed to build {}: {}", self.target, e))?;
 
         if !output.status.success() {
             return Err(format!(
@@ -174,10 +170,7 @@ impl Default for BenchmarkConfig {
 }
 
 /// Run a benchmark iteration and collect metrics
-fn run_benchmark_iteration<F>(
-    iterations: u64,
-    mut operation: F,
-) -> (Duration, Vec<u64>)
+fn run_benchmark_iteration<F>(iterations: u64, mut operation: F) -> (Duration, Vec<u64>)
 where
     F: FnMut() -> Result<u64, String>,
 {
@@ -186,12 +179,12 @@ where
 
     for _ in 0..iterations {
         let start = std::time::Instant::now();
-        
+
         match operation() {
             Ok(size) => sizes.push(size),
             Err(e) => eprintln!("Benchmark iteration failed: {}", e),
         }
-        
+
         total_duration += start.elapsed();
     }
 
@@ -207,24 +200,19 @@ fn bench_binary_size_profiles(c: &mut Criterion) {
     let builder = BinaryBuilder::new("depyler");
 
     for (profile, description) in config.profiles {
-        group.bench_function(
-            BenchmarkId::new("build_and_measure", profile),
-            |b| {
-                b.iter_custom(|iters| {
-                    let (duration, sizes) = run_benchmark_iteration(iters, || {
-                        builder.build(profile)
-                    });
+        group.bench_function(BenchmarkId::new("build_and_measure", profile), |b| {
+            b.iter_custom(|iters| {
+                let (duration, sizes) = run_benchmark_iteration(iters, || builder.build(profile));
 
-                    if !sizes.is_empty() {
-                        let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                        eprintln!("Average {} size: {} bytes", description, avg_size);
-                        validate_size_limits(profile, avg_size);
-                    }
+                if !sizes.is_empty() {
+                    let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
+                    eprintln!("Average {} size: {} bytes", description, avg_size);
+                    validate_size_limits(profile, avg_size);
+                }
 
-                    duration
-                });
-            },
-        );
+                duration
+            });
+        });
     }
 
     group.finish();
@@ -239,29 +227,25 @@ fn bench_feature_size_impact(c: &mut Criterion) {
     let builder = BinaryBuilder::new("depyler");
 
     for (feature_name, feature_flags) in config.feature_sets {
-        group.bench_function(
-            BenchmarkId::new("feature_build", feature_name),
-            |b| {
-                b.iter_custom(|iters| {
-                    let flags: Vec<&str> = if feature_flags.is_empty() {
-                        vec![]
-                    } else {
-                        feature_flags.split_whitespace().collect()
-                    };
+        group.bench_function(BenchmarkId::new("feature_build", feature_name), |b| {
+            b.iter_custom(|iters| {
+                let flags: Vec<&str> = if feature_flags.is_empty() {
+                    vec![]
+                } else {
+                    feature_flags.split_whitespace().collect()
+                };
 
-                    let (duration, sizes) = run_benchmark_iteration(iters, || {
-                        builder.build_with_flags("release", &flags)
-                    });
+                let (duration, sizes) =
+                    run_benchmark_iteration(iters, || builder.build_with_flags("release", &flags));
 
-                    if !sizes.is_empty() {
-                        let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                        eprintln!("Average '{}' features size: {} bytes", feature_name, avg_size);
-                    }
+                if !sizes.is_empty() {
+                    let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
+                    eprintln!("Average '{}' features size: {} bytes", feature_name, avg_size);
+                }
 
-                    duration
-                });
-            },
-        );
+                duration
+            });
+        });
     }
 
     group.finish();
@@ -275,37 +259,34 @@ fn bench_compilation_speed_vs_size(c: &mut Criterion) {
     let config = BenchmarkConfig::default();
 
     for (opt_level, description) in config.optimization_levels {
-        group.bench_function(
-            BenchmarkId::new("opt_level", opt_level),
-            |b| {
-                b.iter_custom(|iters| {
-                    let (duration, sizes) = run_benchmark_iteration(iters, || {
-                        // Clean previous builds
-                        let _ = Command::new("cargo").arg("clean").output();
+        group.bench_function(BenchmarkId::new("opt_level", opt_level), |b| {
+            b.iter_custom(|iters| {
+                let (duration, sizes) = run_benchmark_iteration(iters, || {
+                    // Clean previous builds
+                    let _ = Command::new("cargo").arg("clean").output();
 
-                        // Build with specific optimization level
-                        let output = Command::new("cargo")
-                            .env("RUSTFLAGS", format!("-C opt-level={}", opt_level))
-                            .args(&["build", "--release", "--bin", "depyler"])
-                            .output()
-                            .expect("Failed to build");
+                    // Build with specific optimization level
+                    let output = Command::new("cargo")
+                        .env("RUSTFLAGS", format!("-C opt-level={}", opt_level))
+                        .args(&["build", "--release", "--bin", "depyler"])
+                        .output()
+                        .expect("Failed to build");
 
-                        if output.status.success() {
-                            BinaryBuilder::new("depyler").measure_size("release")
-                        } else {
-                            Err("Build failed".to_string())
-                        }
-                    });
-
-                    if !sizes.is_empty() {
-                        let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                        eprintln!("Opt-level {} ({}): avg {} bytes", opt_level, description, avg_size);
+                    if output.status.success() {
+                        BinaryBuilder::new("depyler").measure_size("release")
+                    } else {
+                        Err("Build failed".to_string())
                     }
-
-                    duration
                 });
-            },
-        );
+
+                if !sizes.is_empty() {
+                    let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
+                    eprintln!("Opt-level {} ({}): avg {} bytes", opt_level, description, avg_size);
+                }
+
+                duration
+            });
+        });
     }
 
     group.finish();
@@ -324,17 +305,14 @@ fn bench_strip_and_compression_impact(c: &mut Criterion) {
     ];
 
     for (variant_name, strip, compress) in variants {
-        group.bench_function(
-            BenchmarkId::new("variant", variant_name),
-            |b| {
-                b.iter_custom(|iters| {
-                    let (duration, _) = run_benchmark_iteration(iters, || {
-                        benchmark_strip_compress_variant(strip, compress)
-                    });
-                    duration
+        group.bench_function(BenchmarkId::new("variant", variant_name), |b| {
+            b.iter_custom(|iters| {
+                let (duration, _) = run_benchmark_iteration(iters, || {
+                    benchmark_strip_compress_variant(strip, compress)
                 });
-            },
-        );
+                duration
+            });
+        });
     }
 
     group.finish();
@@ -354,29 +332,23 @@ fn bench_dependency_size_impact(c: &mut Criterion) {
     let builder = BinaryBuilder::new("depyler");
 
     for (config_name, flags) in dependency_configs {
-        group.bench_function(
-            BenchmarkId::new("deps", config_name),
-            |b| {
-                b.iter_custom(|iters| {
-                    let flag_vec: Vec<&str> = if flags.is_empty() {
-                        vec![]
-                    } else {
-                        flags.split_whitespace().collect()
-                    };
+        group.bench_function(BenchmarkId::new("deps", config_name), |b| {
+            b.iter_custom(|iters| {
+                let flag_vec: Vec<&str> =
+                    if flags.is_empty() { vec![] } else { flags.split_whitespace().collect() };
 
-                    let (duration, sizes) = run_benchmark_iteration(iters, || {
-                        builder.build_with_flags("release", &flag_vec)
-                    });
-
-                    if !sizes.is_empty() {
-                        let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                        eprintln!("Dependency config '{}': avg {} bytes", config_name, avg_size);
-                    }
-
-                    duration
+                let (duration, sizes) = run_benchmark_iteration(iters, || {
+                    builder.build_with_flags("release", &flag_vec)
                 });
-            },
-        );
+
+                if !sizes.is_empty() {
+                    let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
+                    eprintln!("Dependency config '{}': avg {} bytes", config_name, avg_size);
+                }
+
+                duration
+            });
+        });
     }
 
     group.finish();
@@ -414,21 +386,17 @@ fn benchmark_strip_compress_variant(strip: bool, compress: bool) -> Result<u64, 
     }
 
     let output = cmd.output().map_err(|e| format!("Failed to build: {}", e))?;
-    
+
     if !output.status.success() {
         return Err("Build failed".to_string());
     }
 
     let binary_path = "target/release/depyler";
-    let original_size = fs::metadata(binary_path)
-        .map_err(|e| format!("Failed to get metadata: {}", e))?
-        .len();
+    let original_size =
+        fs::metadata(binary_path).map_err(|e| format!("Failed to get metadata: {}", e))?.len();
 
-    let final_size = if compress {
-        SizeMeasurer::compress_binary(binary_path)?
-    } else {
-        original_size
-    };
+    let final_size =
+        if compress { SizeMeasurer::compress_binary(binary_path)? } else { original_size };
 
     eprintln!("Strip: {}, Compress: {} -> {} bytes", strip, compress, final_size);
     Ok(final_size)

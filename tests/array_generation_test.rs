@@ -3,9 +3,7 @@ use depyler_core::DepylerPipeline;
 /// Helper function to transpile Python code snippets to Rust
 fn transpile_snippet(python_code: &str) -> Result<String, String> {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(python_code)
-        .map_err(|e| format!("Transpilation error: {e}"))
+    pipeline.transpile(python_code).map_err(|e| format!("Transpilation error: {e}"))
 }
 
 #[test]
@@ -41,7 +39,9 @@ def test_multiplication():
     // DEPYLER-1109: List multiplication maps to vec![elem; count]
     // Python [x] * n → Rust vec![x; (n) as usize]
     assert!(
-        rust_code.contains("vec![0;") || rust_code.contains("[0; 10]") || rust_code.contains("py_mul"),
+        rust_code.contains("vec![0;")
+            || rust_code.contains("[0; 10]")
+            || rust_code.contains("py_mul"),
         "Should generate vec![0; N] or py_mul for [0]*10: {}",
         rust_code
     );

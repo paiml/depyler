@@ -35,7 +35,8 @@ mod tests {
 
     #[test]
     fn test_w5_param_inference_float_annotation() {
-        let result = transpile("def scale(x: float, factor: float) -> float:\n    return x * factor\n");
+        let result =
+            transpile("def scale(x: float, factor: float) -> float:\n    return x * factor\n");
         assert!(!result.is_empty());
     }
 
@@ -153,7 +154,8 @@ mod tests {
 
     #[test]
     fn test_w5_return_type_infer_from_variable() {
-        let result = transpile("def compute(x: int) -> int:\n    result = x * 2\n    return result\n");
+        let result =
+            transpile("def compute(x: int) -> int:\n    result = x * 2\n    return result\n");
         assert!(!result.is_empty());
     }
 
@@ -187,7 +189,9 @@ mod tests {
 
     #[test]
     fn test_w5_tuple_unpack_in_for_loop() {
-        let result = transpile("def process(pairs: list):\n    for key, value in pairs:\n        print(key)\n");
+        let result = transpile(
+            "def process(pairs: list):\n    for key, value in pairs:\n        print(key)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -201,7 +205,8 @@ mod tests {
 
     #[test]
     fn test_w5_tuple_unpack_with_type_inference() {
-        let result = transpile("def swap(x: int, y: int) -> tuple:\n    a, b = y, x\n    return (a, b)\n");
+        let result =
+            transpile("def swap(x: int, y: int) -> tuple:\n    a, b = y, x\n    return (a, b)\n");
         assert!(!result.is_empty());
     }
 
@@ -314,7 +319,9 @@ mod tests {
 
     #[test]
     fn test_w5_class_variable_int() {
-        let result = transpile("class Config:\n    MAX_SIZE = 100\n    def __init__(self):\n        self.size = 0\n");
+        let result = transpile(
+            "class Config:\n    MAX_SIZE = 100\n    def __init__(self):\n        self.size = 0\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -326,7 +333,9 @@ mod tests {
 
     #[test]
     fn test_w5_class_variable_list() {
-        let result = transpile("class Registry:\n    ITEMS = []\n    def __init__(self):\n        self.count = 0\n");
+        let result = transpile(
+            "class Registry:\n    ITEMS = []\n    def __init__(self):\n        self.count = 0\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -422,19 +431,23 @@ mod tests {
 
     #[test]
     fn test_w5_var_type_infer_from_assignment() {
-        let result = transpile("def process(x: int) -> int:\n    result = x * 2\n    return result\n");
+        let result =
+            transpile("def process(x: int) -> int:\n    result = x * 2\n    return result\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_var_type_infer_from_subscript() {
-        let result = transpile("def first(items: list) -> int:\n    item = items[0]\n    return item\n");
+        let result =
+            transpile("def first(items: list) -> int:\n    item = items[0]\n    return item\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_var_type_none_then_string() {
-        let result = transpile("def process():\n    result = None\n    result = 'hello'\n    return result\n");
+        let result = transpile(
+            "def process():\n    result = None\n    result = 'hello'\n    return result\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -514,7 +527,8 @@ mod tests {
 
     #[test]
     fn test_w5_cmd_handler_multiple_fields() {
-        let result = transpile("def cmd_build(args):\n    print(args.target)\n    print(args.verbose)\n");
+        let result =
+            transpile("def cmd_build(args):\n    print(args.target)\n    print(args.verbose)\n");
         assert!(!result.is_empty());
     }
 
@@ -560,7 +574,9 @@ mod tests {
 
     #[test]
     fn test_w5_function_always_returns() {
-        let result = transpile("def always(x: int) -> str:\n    if x > 0:\n        return 'yes'\n    return 'no'\n");
+        let result = transpile(
+            "def always(x: int) -> str:\n    if x > 0:\n        return 'yes'\n    return 'no'\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -582,8 +598,12 @@ mod tests {
 
     #[test]
     fn test_w5_async_function_with_await() {
-        let result = transpile("async def fetch_data(url: str):\n    result = await get(url)\n    return result\n");
-        assert!(transpile_ok("async def fetch_data(url: str):\n    result = await get(url)\n    return result\n"));
+        let result = transpile(
+            "async def fetch_data(url: str):\n    result = await get(url)\n    return result\n",
+        );
+        assert!(transpile_ok(
+            "async def fetch_data(url: str):\n    result = await get(url)\n    return result\n"
+        ));
     }
 
     // =========================================================================
@@ -811,7 +831,8 @@ mod tests {
 
     #[test]
     fn test_w5_floor_div_with_variables() {
-        let result = transpile("def index(total: int, parts: int) -> int:\n    return total // parts\n");
+        let result =
+            transpile("def index(total: int, parts: int) -> int:\n    return total // parts\n");
         assert!(!result.is_empty());
     }
 
@@ -867,25 +888,32 @@ mod tests {
 
     #[test]
     fn test_w5_set_union() {
-        let result = transpile("def combine() -> set:\n    a = {1, 2, 3}\n    b = {3, 4, 5}\n    return a | b\n");
+        let result = transpile(
+            "def combine() -> set:\n    a = {1, 2, 3}\n    b = {3, 4, 5}\n    return a | b\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_set_intersection() {
-        let result = transpile("def common() -> set:\n    a = {1, 2, 3}\n    b = {2, 3, 4}\n    return a & b\n");
+        let result = transpile(
+            "def common() -> set:\n    a = {1, 2, 3}\n    b = {2, 3, 4}\n    return a & b\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_set_difference() {
-        let result = transpile("def diff() -> set:\n    a = {1, 2, 3}\n    b = {2, 3}\n    return a - b\n");
+        let result =
+            transpile("def diff() -> set:\n    a = {1, 2, 3}\n    b = {2, 3}\n    return a - b\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_set_symmetric_diff() {
-        let result = transpile("def sym_diff() -> set:\n    a = {1, 2, 3}\n    b = {2, 3, 4}\n    return a ^ b\n");
+        let result = transpile(
+            "def sym_diff() -> set:\n    a = {1, 2, 3}\n    b = {2, 3, 4}\n    return a ^ b\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -895,8 +923,11 @@ mod tests {
 
     #[test]
     fn test_w5_dict_merge_basic() {
-        let result = transpile("def merge_dicts():\n    a = {'x': 1}\n    b = {'y': 2}\n    return a | b\n");
-        assert!(transpile_ok("def merge_dicts():\n    a = {'x': 1}\n    b = {'y': 2}\n    return a | b\n"));
+        let result =
+            transpile("def merge_dicts():\n    a = {'x': 1}\n    b = {'y': 2}\n    return a | b\n");
+        assert!(transpile_ok(
+            "def merge_dicts():\n    a = {'x': 1}\n    b = {'y': 2}\n    return a | b\n"
+        ));
     }
 
     #[test]
@@ -947,7 +978,8 @@ mod tests {
 
     #[test]
     fn test_w5_in_set() {
-        let result = transpile("def in_set(x: int) -> bool:\n    s = {1, 2, 3}\n    return x in s\n");
+        let result =
+            transpile("def in_set(x: int) -> bool:\n    s = {1, 2, 3}\n    return x in s\n");
         assert!(!result.is_empty());
     }
 
@@ -981,7 +1013,8 @@ mod tests {
 
     #[test]
     fn test_w5_string_concat_vars() {
-        let result = transpile("def greet(first: str, last: str) -> str:\n    return first + ' ' + last\n");
+        let result =
+            transpile("def greet(first: str, last: str) -> str:\n    return first + ' ' + last\n");
         assert!(!result.is_empty());
     }
 
@@ -1051,8 +1084,11 @@ mod tests {
 
     #[test]
     fn test_w5_compare_int_float_coercion() {
-        let result = transpile("def check(x: int, threshold: float) -> bool:\n    return x < threshold\n");
-        assert!(transpile_ok("def check(x: int, threshold: float) -> bool:\n    return x < threshold\n"));
+        let result =
+            transpile("def check(x: int, threshold: float) -> bool:\n    return x < threshold\n");
+        assert!(transpile_ok(
+            "def check(x: int, threshold: float) -> bool:\n    return x < threshold\n"
+        ));
     }
 
     #[test]
@@ -1103,7 +1139,9 @@ mod tests {
 
     #[test]
     fn test_w5_logical_and_mixed_types() {
-        let result = transpile("def check(items: list) -> bool:\n    return len(items) > 0 and items[0] == 'test'\n");
+        let result = transpile(
+            "def check(items: list) -> bool:\n    return len(items) > 0 and items[0] == 'test'\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1241,7 +1279,9 @@ mod tests {
 
     #[test]
     fn test_w5_function_with_assert_message() {
-        let result = transpile("def positive(x: int) -> int:\n    assert x > 0, 'x must be positive'\n    return x\n");
+        let result = transpile(
+            "def positive(x: int) -> int:\n    assert x > 0, 'x must be positive'\n    return x\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1341,7 +1381,8 @@ mod tests {
 
     #[test]
     fn test_w5_lambda_multiple_params() {
-        let result = transpile("def use_lambda():\n    add = lambda x, y: x + y\n    return add(3, 4)\n");
+        let result =
+            transpile("def use_lambda():\n    add = lambda x, y: x + y\n    return add(3, 4)\n");
         assert!(!result.is_empty());
     }
 
@@ -1407,7 +1448,8 @@ mod tests {
 
     #[test]
     fn test_w5_list_comp_simple() {
-        let result = transpile("def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n");
+        let result =
+            transpile("def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n");
         assert!(!result.is_empty());
     }
 
@@ -1425,7 +1467,9 @@ mod tests {
 
     #[test]
     fn test_w5_set_comp() {
-        let result = transpile("def unique_lengths(words: list) -> set:\n    return {len(w) for w in words}\n");
+        let result = transpile(
+            "def unique_lengths(words: list) -> set:\n    return {len(w) for w in words}\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1481,13 +1525,15 @@ mod tests {
 
     #[test]
     fn test_w5_arithmetic_chain_add_mul() {
-        let result = transpile("def compute(a: int, b: int, c: int) -> int:\n    return a + b + c\n");
+        let result =
+            transpile("def compute(a: int, b: int, c: int) -> int:\n    return a + b + c\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_arithmetic_sub_chain() {
-        let result = transpile("def compute(a: int, b: int, c: int) -> int:\n    return a - b - c\n");
+        let result =
+            transpile("def compute(a: int, b: int, c: int) -> int:\n    return a - b - c\n");
         assert!(!result.is_empty());
     }
 
@@ -1595,7 +1641,9 @@ mod tests {
 
     #[test]
     fn test_w5_function_multiple_assignment() {
-        let result = transpile("def init_vars() -> int:\n    x = 0\n    y = 0\n    z = x + y\n    return z\n");
+        let result = transpile(
+            "def init_vars() -> int:\n    x = 0\n    y = 0\n    z = x + y\n    return z\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1613,13 +1661,17 @@ mod tests {
 
     #[test]
     fn test_w5_function_only_docstring() {
-        let result = transpile("def documented():\n    \"\"\"This function has only a docstring.\"\"\"\n    pass\n");
+        let result = transpile(
+            "def documented():\n    \"\"\"This function has only a docstring.\"\"\"\n    pass\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_complex_default_values() {
-        let result = transpile("def process(x: int = 0, y: float = 1.0, name: str = 'test') -> int:\n    return x\n");
+        let result = transpile(
+            "def process(x: int = 0, y: float = 1.0, name: str = 'test') -> int:\n    return x\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1763,7 +1815,9 @@ mod tests {
 
     #[test]
     fn test_w5_dict_get_with_default() {
-        let result = transpile("def safe_get(d: dict, key: str) -> str:\n    return d.get(key, 'default')\n");
+        let result = transpile(
+            "def safe_get(d: dict, key: str) -> str:\n    return d.get(key, 'default')\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1775,13 +1829,17 @@ mod tests {
 
     #[test]
     fn test_w5_string_startswith() {
-        let result = transpile("def is_prefix(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n");
+        let result = transpile(
+            "def is_prefix(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_string_endswith() {
-        let result = transpile("def is_suffix(s: str, suffix: str) -> bool:\n    return s.endswith(suffix)\n");
+        let result = transpile(
+            "def is_suffix(s: str, suffix: str) -> bool:\n    return s.endswith(suffix)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1871,37 +1929,49 @@ mod tests {
 
     #[test]
     fn test_w5_reversed_builtin() {
-        let result = transpile("def reverse_list(items: list) -> list:\n    return list(reversed(items))\n");
+        let result =
+            transpile("def reverse_list(items: list) -> list:\n    return list(reversed(items))\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_zip_builtin() {
-        let result = transpile("def pair_up(a: list, b: list) -> list:\n    return list(zip(a, b))\n");
+        let result =
+            transpile("def pair_up(a: list, b: list) -> list:\n    return list(zip(a, b))\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_any_builtin() {
-        let result = transpile("def has_positive(nums: list) -> bool:\n    return any(n > 0 for n in nums)\n");
-        assert!(transpile_ok("def has_positive(nums: list) -> bool:\n    return any(n > 0 for n in nums)\n"));
+        let result = transpile(
+            "def has_positive(nums: list) -> bool:\n    return any(n > 0 for n in nums)\n",
+        );
+        assert!(transpile_ok(
+            "def has_positive(nums: list) -> bool:\n    return any(n > 0 for n in nums)\n"
+        ));
     }
 
     #[test]
     fn test_w5_all_builtin() {
-        let result = transpile_ok("def all_positive(nums: list) -> bool:\n    return all(n > 0 for n in nums)\n");
+        let result = transpile_ok(
+            "def all_positive(nums: list) -> bool:\n    return all(n > 0 for n in nums)\n",
+        );
         assert!(result);
     }
 
     #[test]
     fn test_w5_map_builtin() {
-        let result = transpile("def double_all(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))\n");
+        let result = transpile(
+            "def double_all(nums: list) -> list:\n    return list(map(lambda x: x * 2, nums))\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w5_filter_builtin() {
-        let result = transpile("def positives(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))\n");
+        let result = transpile(
+            "def positives(nums: list) -> list:\n    return list(filter(lambda x: x > 0, nums))\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1911,7 +1981,8 @@ mod tests {
 
     #[test]
     fn test_w5_ternary_expression() {
-        let result = transpile("def ternary(x: int) -> str:\n    return 'even' if x % 2 == 0 else 'odd'\n");
+        let result =
+            transpile("def ternary(x: int) -> str:\n    return 'even' if x % 2 == 0 else 'odd'\n");
         assert!(!result.is_empty());
     }
 
@@ -1935,7 +2006,9 @@ mod tests {
 
     #[test]
     fn test_w5_function_with_global_list() {
-        let result = transpile("PRIMES = [2, 3, 5, 7, 11]\n\ndef is_prime(n: int) -> bool:\n    return n in PRIMES\n");
+        let result = transpile(
+            "PRIMES = [2, 3, 5, 7, 11]\n\ndef is_prime(n: int) -> bool:\n    return n in PRIMES\n",
+        );
         assert!(!result.is_empty());
     }
 

@@ -103,11 +103,7 @@ pub enum TransformPattern {
     ReorderArgs { indices: Vec<usize> },
 
     /// Type-safe template with validation [32, 33]
-    TypedTemplate {
-        pattern: String,
-        params: Vec<String>,
-        param_types: Vec<ParamType>,
-    },
+    TypedTemplate { pattern: String, params: Vec<String>, param_types: Vec<ParamType> },
 
     /// Legacy template (deprecated)
     #[deprecated(note = "Use TypedTemplate for type-safe templates")]
@@ -206,14 +202,12 @@ impl MappingRegistry {
 
     /// Register an extension mapping (medium priority)
     pub fn register_extension(&mut self, mapping: LibraryMapping) {
-        self.extensions
-            .insert(mapping.python_module.clone(), mapping);
+        self.extensions.insert(mapping.python_module.clone(), mapping);
     }
 
     /// Register a user override (highest priority)
     pub fn register_override(&mut self, mapping: LibraryMapping) {
-        self.overrides
-            .insert(mapping.python_module.clone(), mapping);
+        self.overrides.insert(mapping.python_module.clone(), mapping);
     }
 
     /// Get count of all registered modules
@@ -302,9 +296,7 @@ impl MappingRegistry {
                     "compile".to_string(),
                     ItemMapping {
                         rust_name: "Regex::new".to_string(),
-                        pattern: TransformPattern::Constructor {
-                            method: "new".to_string(),
-                        },
+                        pattern: TransformPattern::Constructor { method: "new".to_string() },
                         type_transform: None,
                     },
                 ),

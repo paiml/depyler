@@ -50,9 +50,7 @@ def operation_with_cleanup(value: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // CRITICAL: ValueError should be generated even though it's caught internally
     assert!(
@@ -72,10 +70,7 @@ def operation_with_cleanup(value: int) -> int:
     );
 
     // Should use Err(ValueError::new(...))
-    assert!(
-        rust_code.contains("ValueError::new("),
-        "Should use ValueError::new constructor"
-    );
+    assert!(rust_code.contains("ValueError::new("), "Should use ValueError::new constructor");
 }
 
 #[test]
@@ -95,9 +90,7 @@ def process_data(value: int, divisor: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Both ValueError and ZeroDivisionError should be generated
     assert!(
@@ -139,9 +132,7 @@ def operation_with_finally(value: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // ValueError should still be generated with finally block present
     assert!(
@@ -166,9 +157,7 @@ def nested_operations(data: list[str], index: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Both ValueError (inner) and IndexError (outer) should be generated
     assert!(
@@ -202,9 +191,7 @@ def func_b(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // ValueError should be generated only once (deduplicated)
     assert_eq!(
@@ -246,9 +233,7 @@ def operation_with_cleanup(value: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Write to temp file and verify it compiles
     let test_code = format!(
@@ -294,9 +279,7 @@ def safe_operation(value: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // With bare except, ValueError should still be generated
     // (from analyzing the try body)
@@ -320,9 +303,7 @@ def operation_with_logging(value: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // ValueError should be generated
     assert!(
@@ -342,9 +323,7 @@ def get_first_element(data: list[int]) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // IndexError should be generated from handler signature
     assert!(
@@ -372,19 +351,11 @@ def parse_and_validate(data: list[str], index: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // Both IndexError and ValueError should be generated
-    assert!(
-        rust_code.contains("struct IndexError"),
-        "Should generate IndexError"
-    );
-    assert!(
-        rust_code.contains("struct ValueError"),
-        "Should generate ValueError"
-    );
+    assert!(rust_code.contains("struct IndexError"), "Should generate IndexError");
+    assert!(rust_code.contains("struct ValueError"), "Should generate ValueError");
 
     // String type inference: value_str should use .parse::<i32>()
     // (from Vec<String>.get() type tracking)
@@ -413,9 +384,7 @@ def use_check(x: int) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // ValueError should be generated once
     assert_eq!(

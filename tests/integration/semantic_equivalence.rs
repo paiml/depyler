@@ -61,10 +61,7 @@ mod property_tests {
                     "def {}({}) -> int:\n{}",
                     name,
                     param_list,
-                    body.lines()
-                        .map(|line| format!("    {}", line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
+                    body.lines().map(|line| format!("    {}", line)).collect::<Vec<_>>().join("\n")
                 )
             })
     }
@@ -244,18 +241,9 @@ mod integration_tests {
     #[test]
     fn test_simple_arithmetic_functions() {
         let test_cases = vec![
-            (
-                "def add(a: int, b: int) -> int:\n    return a + b",
-                "addition",
-            ),
-            (
-                "def sub(a: int, b: int) -> int:\n    return a - b",
-                "subtraction",
-            ),
-            (
-                "def mul(a: int, b: int) -> int:\n    return a * b",
-                "multiplication",
-            ),
+            ("def add(a: int, b: int) -> int:\n    return a + b", "addition"),
+            ("def sub(a: int, b: int) -> int:\n    return a - b", "subtraction"),
+            ("def mul(a: int, b: int) -> int:\n    return a * b", "multiplication"),
         ];
 
         let pipeline = DepylerPipeline::new();
@@ -277,11 +265,7 @@ mod integration_tests {
                 description
             );
 
-            assert!(
-                rust_code.contains("i32"),
-                "Missing type annotations for {}",
-                description
-            );
+            assert!(rust_code.contains("i32"), "Missing type annotations for {}", description);
         }
     }
 
@@ -298,11 +282,7 @@ mod integration_tests {
         for (python_type, expected_rust) in type_cases {
             // This would test the actual type mapping logic
             // For now, we verify the mapping exists
-            assert!(
-                !expected_rust.is_empty(),
-                "No Rust mapping for Python type {}",
-                python_type
-            );
+            assert!(!expected_rust.is_empty(), "No Rust mapping for Python type {}", python_type);
         }
     }
 }

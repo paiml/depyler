@@ -41,19 +41,13 @@ impl DepylerTranspiler {
     /// Create a new DepylerTranspiler with default configuration
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            grammar: DepylerPythonGrammar,
-        }
+        Self { pipeline: DepylerPipeline::new(), grammar: DepylerPythonGrammar }
     }
 
     /// Create a new DepylerTranspiler with verification enabled
     #[must_use]
     pub fn with_verification() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new().with_verification(),
-            grammar: DepylerPythonGrammar,
-        }
+        Self { pipeline: DepylerPipeline::new().with_verification(), grammar: DepylerPythonGrammar }
     }
 }
 
@@ -67,9 +61,7 @@ impl Transpiler for DepylerTranspiler {
     }
 
     fn transpile(&self, source: &str) -> VerificarResult<String> {
-        self.pipeline
-            .transpile(source)
-            .map_err(|e| verificar::Error::Transpile(e.to_string()))
+        self.pipeline.transpile(source).map_err(|e| verificar::Error::Transpile(e.to_string()))
     }
 
     fn grammar(&self) -> &dyn Grammar {
@@ -130,11 +122,7 @@ mod tests {
         let version = transpiler.version();
         assert!(!version.is_empty());
         // Version should be semver format
-        assert!(
-            version.contains('.'),
-            "Version should be semver: {}",
-            version
-        );
+        assert!(version.contains('.'), "Version should be semver: {}", version);
     }
 
     #[test]
@@ -380,22 +368,14 @@ def fibonacci(n: int) -> int:
 
     #[test]
     fn test_verification_stats_pass_rate() {
-        let stats = VerificationStats {
-            total: 10,
-            passed: 8,
-            ..Default::default()
-        };
+        let stats = VerificationStats { total: 10, passed: 8, ..Default::default() };
 
         assert_eq!(stats.pass_rate(), 80.0);
     }
 
     #[test]
     fn test_verification_stats_transpile_rate() {
-        let stats = VerificationStats {
-            total: 10,
-            transpile_errors: 2,
-            ..Default::default()
-        };
+        let stats = VerificationStats { total: 10, transpile_errors: 2, ..Default::default() };
 
         assert_eq!(stats.transpile_rate(), 80.0);
     }

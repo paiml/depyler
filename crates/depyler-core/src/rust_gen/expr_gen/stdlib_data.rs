@@ -31,19 +31,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "isleap" => {
                 // calendar.isleap(year) → check if year is a leap year
                 // Leap year: divisible by 4, except century years unless divisible by 400
-                let year = arg_exprs
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 0 });
+                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 0 });
                 parse_quote! {
                     (#year % 4 == 0 && (#year % 100 != 0 || #year % 400 == 0))
                 }
@@ -52,18 +47,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "weekday" => {
                 // calendar.weekday(year, month, day) → day of week (0=Monday, 6=Sunday)
                 // Uses chrono crate for accurate calculation
-                let year = arg_exprs
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs
-                    .get(1)
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 1 });
-                let day = arg_exprs
-                    .get(2)
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
+                let day = arg_exprs.get(2).cloned().unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
                         .map(|d| d.weekday().num_days_from_monday() as i32)
@@ -73,14 +59,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             "monthrange" => {
                 // calendar.monthrange(year, month) → (first_weekday, days_in_month)
-                let year = arg_exprs
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs
-                    .get(1)
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     {
                         let y = #year as i32;
@@ -103,14 +83,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             "leapdays" => {
                 // calendar.leapdays(y1, y2) → number of leap years in range [y1, y2)
-                let y1 = arg_exprs
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 0 });
-                let y2 = arg_exprs
-                    .get(1)
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 0 });
+                let y1 = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 0 });
+                let y2 = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 0 });
                 parse_quote! {
                     {
                         let start = #y1 as i32;
@@ -123,14 +97,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "month" | "prmonth" => {
                 // calendar.month(year, month) → string calendar for month
                 // Simplified - returns formatted string
-                let year = arg_exprs
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs
-                    .get(1)
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     format!("Calendar for {}-{:02}", #year, #month)
                 }
@@ -139,14 +107,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "monthcalendar" => {
                 // calendar.monthcalendar(year, month) → list of weeks (list of days)
                 // Each week is a list of 7 ints (0 = day not in month)
-                let year = arg_exprs
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs
-                    .get(1)
-                    .cloned()
-                    .unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     {
                         let _ = (#year, #month); // Use variables
@@ -181,10 +143,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Hex conversions
@@ -420,10 +380,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Mark that we need URL encoding support
         self.ctx.needs_url_encoding = true;
@@ -566,10 +524,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // fnmatch needs regex crate for pattern matching
         self.ctx.needs_regex = true;
@@ -676,10 +632,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Shell-like split (respects quotes and escapes)
@@ -790,10 +744,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             _ => {
-                bail!(
-                    "shlex.{} not implemented yet (available: split, quote, join)",
-                    method
-                );
+                bail!("shlex.{} not implemented yet (available: split, quote, join)", method);
             }
         };
 
@@ -815,10 +766,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             // Wrap text into list of lines
@@ -993,5 +942,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         Ok(Some(result))
     }
-
 }

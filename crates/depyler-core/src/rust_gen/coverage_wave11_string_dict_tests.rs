@@ -11,10 +11,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -87,7 +85,9 @@ def f():
     fn test_w11sd_str_istitle() {
         let code = "def f(s: str) -> bool:\n    return s.istitle()";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("prev_is_cased") || result.len() > 0);
+        assert!(
+            result.contains("is_uppercase") || result.contains("prev_is_cased") || result.len() > 0
+        );
     }
 
     #[test]
@@ -117,7 +117,11 @@ def f():
     fn test_w11sd_str_isidentifier() {
         let code = "def f(s: str) -> bool:\n    return s.isidentifier()";
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("is_alphanumeric") || result.contains("isidentifier"));
+        assert!(
+            result.contains("is_alphabetic")
+                || result.contains("is_alphanumeric")
+                || result.contains("isidentifier")
+        );
     }
 
     #[test]
@@ -234,7 +238,9 @@ def check(title: str) -> bool:
     return title.istitle()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("prev_is_cased") || result.len() > 0);
+        assert!(
+            result.contains("is_uppercase") || result.contains("prev_is_cased") || result.len() > 0
+        );
     }
 
     // ==================== Section 3: String expandtabs/center/ljust/rjust/zfill (20 tests) ====================
@@ -257,7 +263,12 @@ def check(title: str) -> bool:
     fn test_w11sd_str_center_width_only() {
         let code = "def f(s: str) -> str:\n    return s.center(20)";
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("pad") || result.contains("center") || result.len() > 0);
+        assert!(
+            result.contains("width")
+                || result.contains("pad")
+                || result.contains("center")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -266,14 +277,24 @@ def check(title: str) -> bool:
     return s.center(20, "*")
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("pad") || result.contains("center") || result.len() > 0);
+        assert!(
+            result.contains("width")
+                || result.contains("pad")
+                || result.contains("center")
+                || result.len() > 0
+        );
     }
 
     #[test]
     fn test_w11sd_str_ljust_width_only() {
         let code = "def f(s: str) -> str:\n    return s.ljust(20)";
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("ljust") || result.contains("format") || result.len() > 0);
+        assert!(
+            result.contains("width")
+                || result.contains("ljust")
+                || result.contains("format")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -289,7 +310,12 @@ def check(title: str) -> bool:
     fn test_w11sd_str_rjust_width_only() {
         let code = "def f(s: str) -> str:\n    return s.rjust(20)";
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("rjust") || result.contains("format") || result.len() > 0);
+        assert!(
+            result.contains("width")
+                || result.contains("rjust")
+                || result.contains("format")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -305,7 +331,12 @@ def check(title: str) -> bool:
     fn test_w11sd_str_zfill_basic() {
         let code = "def f(s: str) -> str:\n    return s.zfill(10)";
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("zfill") || result.contains("starts_with") || result.len() > 0);
+        assert!(
+            result.contains("width")
+                || result.contains("zfill")
+                || result.contains("starts_with")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -445,7 +476,11 @@ def f() -> str:
     fn test_w11sd_str_swapcase() {
         let code = "def f(s: str) -> str:\n    return s.swapcase()";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase") || result.contains("to_uppercase"));
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("to_lowercase")
+                || result.contains("to_uppercase")
+        );
     }
 
     #[test]
@@ -470,7 +505,9 @@ def f() -> str:
     return s.swapcase()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase") || result.len() > 0);
+        assert!(
+            result.contains("is_uppercase") || result.contains("to_lowercase") || result.len() > 0
+        );
     }
 
     #[test]
@@ -1005,7 +1042,11 @@ def clean(s: str) -> str:
     return s.strip().lower().replace(" ", "_")
 "#;
         let result = transpile(code);
-        assert!(result.contains("trim") || result.contains("to_lowercase") || result.contains("replace"));
+        assert!(
+            result.contains("trim")
+                || result.contains("to_lowercase")
+                || result.contains("replace")
+        );
     }
 
     #[test]
@@ -1338,7 +1379,9 @@ def f():
     return d.items()
 "#;
         let result = transpile(code);
-        assert!(result.contains("iter()") || result.contains("items") || result.contains("collect"));
+        assert!(
+            result.contains("iter()") || result.contains("items") || result.contains("collect")
+        );
     }
 
     #[test]
@@ -1497,7 +1540,11 @@ def f():
     return d.setdefault("b", 0)
 "#;
         let result = transpile(code);
-        assert!(result.contains("entry") || result.contains("or_insert") || result.contains("setdefault"));
+        assert!(
+            result.contains("entry")
+                || result.contains("or_insert")
+                || result.contains("setdefault")
+        );
     }
 
     #[test]
@@ -1530,7 +1577,12 @@ def f():
     return d.popitem()
 "#;
         let result = transpile(code);
-        assert!(result.contains("keys") || result.contains("remove") || result.contains("popitem") || result.len() > 0);
+        assert!(
+            result.contains("keys")
+                || result.contains("remove")
+                || result.contains("popitem")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -1552,7 +1604,9 @@ def f():
     return d.pop("c", -1)
 "#;
         let result = transpile(code);
-        assert!(result.contains("remove") || result.contains("unwrap_or") || result.contains("pop"));
+        assert!(
+            result.contains("remove") || result.contains("unwrap_or") || result.contains("pop")
+        );
     }
 
     #[test]
@@ -1742,7 +1796,12 @@ def f(words: list) -> dict:
     return {w: len(w) for w in words}
 "#;
         let result = transpile(code);
-        assert!(result.contains("HashMap") || result.contains("collect") || result.contains("len") || result.len() > 0);
+        assert!(
+            result.contains("HashMap")
+                || result.contains("collect")
+                || result.contains("len")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -1830,7 +1889,12 @@ def f():
     return result
 "#;
         let result = transpile(code);
-        assert!(result.contains("iter") || result.contains("collect") || result.contains("HashMap") || result.len() > 0);
+        assert!(
+            result.contains("iter")
+                || result.contains("collect")
+                || result.contains("HashMap")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -1840,7 +1904,12 @@ def f() -> dict:
     return {x: x * x for x in range(10) if x > 3}
 "#;
         let result = transpile(code);
-        assert!(result.contains("HashMap") || result.contains("collect") || result.contains("filter") || result.len() > 0);
+        assert!(
+            result.contains("HashMap")
+                || result.contains("collect")
+                || result.contains("filter")
+                || result.len() > 0
+        );
     }
 
     #[test]
@@ -2018,7 +2087,12 @@ def f():
     return d
 "#;
         let result = transpile(code);
-        assert!(result.contains("insert") || result.contains("update") || result.contains("iter") || result.len() > 0);
+        assert!(
+            result.contains("insert")
+                || result.contains("update")
+                || result.contains("iter")
+                || result.len() > 0
+        );
     }
 
     #[test]

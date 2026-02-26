@@ -35,20 +35,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // For mixed types or json context, use serde_json::json! instead of HashMap
         // DEPYLER-1023: In NASA mode, still detect mixed types but convert to String instead of json
         let has_mixed_types = self.dict_has_mixed_types(items)?;
-        let in_json_context = if nasa_mode {
-            false
-        } else {
-            self.ctx.in_json_context
-        };
+        let in_json_context = if nasa_mode { false } else { self.ctx.in_json_context };
 
         // DEPYLER-0560: Check if return type requires serde_json::Value
         // If function returns Dict[str, Any] → HashMap<String, serde_json::Value>
         // DEPYLER-1015: Skip in NASA mode
-        let return_needs_json = if nasa_mode {
-            false
-        } else {
-            self.return_type_needs_json_dict()
-        };
+        let return_needs_json = if nasa_mode { false } else { self.return_type_needs_json_dict() };
 
         // DEPYLER-1045: Check if target type annotation requires DepylerValue
         // When `values: dict = {...}`, the type annotation maps to DepylerValue values
@@ -93,9 +85,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1060: Check if dict has non-string keys
         // Point 14: {1: "a"} requires DepylerValue keys, not String keys
-        let has_non_string_keys = items
-            .iter()
-            .any(|(key, _)| !matches!(key, HirExpr::Literal(Literal::String(_))));
+        let has_non_string_keys =
+            items.iter().any(|(key, _)| !matches!(key, HirExpr::Literal(Literal::String(_))));
 
         // DEPYLER-1023: In NASA mode with mixed types, use DepylerValue enum
         // This ensures proper type fidelity for heterogeneous Python dicts
@@ -228,11 +219,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                     // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
                     // DEPYLER-1143: Also check argparse field types for proper wrapping
-                    HirExpr::Attribute {
-                        value: attr_value,
-                        attr,
-                        ..
-                    } => {
+                    HirExpr::Attribute { value: attr_value, attr, .. } => {
                         // First try class_field_types
                         let found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
                         let mut inferred_type_str: Option<String> = None;
@@ -506,9 +493,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0740: Detect if any dict value is None
         // If so, wrap non-None values in Some() to create HashMap<K, Option<V>>
         // DEPYLER-0741: Also check context flag - set when list of dicts has ANY dict with None
-        let has_none_value = items
-            .iter()
-            .any(|(_, v)| matches!(v, HirExpr::Literal(Literal::None)));
+        let has_none_value =
+            items.iter().any(|(_, v)| matches!(v, HirExpr::Literal(Literal::None)));
 
         // Use Option wrapping if this dict has None OR if we're in a list context
         // where another dict has None (for type consistency)
@@ -688,25 +674,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .current_assign_type
                 .as_ref()
                 .or(self.ctx.current_return_type.as_ref())
-                .and_then(|t| {
-                    if let Type::Dict(k, _) = t {
-                        Some(k.as_ref())
-                    } else {
-                        None
-                    }
-                });
+                .and_then(|t| if let Type::Dict(k, _) = t { Some(k.as_ref()) } else { None });
             let val_type = self
                 .ctx
                 .current_assign_type
                 .as_ref()
                 .or(self.ctx.current_return_type.as_ref())
-                .and_then(|t| {
-                    if let Type::Dict(_, v) = t {
-                        Some(v.as_ref())
-                    } else {
-                        None
-                    }
-                });
+                .and_then(|t| if let Type::Dict(_, v) = t { Some(v.as_ref()) } else { None });
 
             if let (Some(k), Some(v)) = (key_type, val_type) {
                 let key_tokens = type_to_rust_type(k, self.ctx.type_mapper);
@@ -923,15 +897,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         .count();
 
         // DEPYLER-0601: Count how many distinct list element types we have
-        let distinct_list_types = [
-            has_list_of_int,
-            has_list_of_string,
-            has_list_of_bool,
-            has_list_of_float,
-        ]
-        .iter()
-        .filter(|&&b| b)
-        .count();
+        let distinct_list_types =
+            [has_list_of_int, has_list_of_string, has_list_of_bool, has_list_of_float]
+                .iter()
+                .filter(|&&b| b)
+                .count();
 
         // Use DepylerValue/json! if we have 2+ distinct literal types OR 2+ distinct list types
         // This handles both {"a": 1, "b": "str"} and {"items": [1,2], "tags": ["a"]}
@@ -960,5 +930,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             _ => false,
         }
     }
-
 }

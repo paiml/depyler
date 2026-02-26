@@ -1,0 +1,11 @@
+# Clippy configuration
+# See: https://rust-lang.github.io/rust-clippy/master/index.html#configuration
+
+# Enforce maximum cognitive complexity per function
+cognitive-complexity-threshold = 25
+
+# Banned methods (Cloudflare-class defect prevention)
+disallowed-methods = [
+    { path = "std::option::Option::unwrap", reason = "Use .expect() or ? operator" },
+    { path = "std::result::Result::unwrap", reason = "Use .expect() or ? operator" },
+]

@@ -18,17 +18,10 @@ pub enum RuchyExpr {
     Identifier(String),
 
     /// Binary operation
-    Binary {
-        left: Box<RuchyExpr>,
-        op: BinaryOp,
-        right: Box<RuchyExpr>,
-    },
+    Binary { left: Box<RuchyExpr>, op: BinaryOp, right: Box<RuchyExpr> },
 
     /// Unary operation
-    Unary {
-        op: UnaryOp,
-        operand: Box<RuchyExpr>,
-    },
+    Unary { op: UnaryOp, operand: Box<RuchyExpr> },
 
     /// Function definition
     Function {
@@ -40,29 +33,16 @@ pub enum RuchyExpr {
     },
 
     /// Lambda expression
-    Lambda {
-        params: Vec<Param>,
-        body: Box<RuchyExpr>,
-    },
+    Lambda { params: Vec<Param>, body: Box<RuchyExpr> },
 
     /// Function call
-    Call {
-        func: Box<RuchyExpr>,
-        args: Vec<RuchyExpr>,
-    },
+    Call { func: Box<RuchyExpr>, args: Vec<RuchyExpr> },
 
     /// Method call
-    MethodCall {
-        receiver: Box<RuchyExpr>,
-        method: String,
-        args: Vec<RuchyExpr>,
-    },
+    MethodCall { receiver: Box<RuchyExpr>, method: String, args: Vec<RuchyExpr> },
 
     /// Pipeline operator
-    Pipeline {
-        expr: Box<RuchyExpr>,
-        stages: Vec<PipelineStage>,
-    },
+    Pipeline { expr: Box<RuchyExpr>, stages: Vec<PipelineStage> },
 
     /// If expression
     If {
@@ -72,34 +52,19 @@ pub enum RuchyExpr {
     },
 
     /// Match expression
-    Match {
-        expr: Box<RuchyExpr>,
-        arms: Vec<MatchArm>,
-    },
+    Match { expr: Box<RuchyExpr>, arms: Vec<MatchArm> },
 
     /// For loop
-    For {
-        var: String,
-        iter: Box<RuchyExpr>,
-        body: Box<RuchyExpr>,
-    },
+    For { var: String, iter: Box<RuchyExpr>, body: Box<RuchyExpr> },
 
     /// While loop
-    While {
-        condition: Box<RuchyExpr>,
-        body: Box<RuchyExpr>,
-    },
+    While { condition: Box<RuchyExpr>, body: Box<RuchyExpr> },
 
     /// Block of statements
     Block(Vec<RuchyExpr>),
 
     /// Let binding
-    Let {
-        name: String,
-        value: Box<RuchyExpr>,
-        body: Box<RuchyExpr>,
-        is_mutable: bool,
-    },
+    Let { name: String, value: Box<RuchyExpr>, body: Box<RuchyExpr>, is_mutable: bool },
 
     /// List literal
     List(Vec<RuchyExpr>),
@@ -108,22 +73,13 @@ pub enum RuchyExpr {
     StringInterpolation { parts: Vec<StringPart> },
 
     /// Struct definition
-    Struct {
-        name: String,
-        fields: Vec<StructField>,
-    },
+    Struct { name: String, fields: Vec<StructField> },
 
     /// Struct literal
-    StructLiteral {
-        name: String,
-        fields: Vec<(String, RuchyExpr)>,
-    },
+    StructLiteral { name: String, fields: Vec<(String, RuchyExpr)> },
 
     /// Field access
-    FieldAccess {
-        object: Box<RuchyExpr>,
-        field: String,
-    },
+    FieldAccess { object: Box<RuchyExpr>, field: String },
 
     /// Await expression
     Await { expr: Box<RuchyExpr> },
@@ -135,11 +91,7 @@ pub enum RuchyExpr {
     DataFrame { columns: Vec<DataFrameColumn> },
 
     /// Range expression
-    Range {
-        start: Box<RuchyExpr>,
-        end: Box<RuchyExpr>,
-        inclusive: bool,
-    },
+    Range { start: Box<RuchyExpr>, end: Box<RuchyExpr>, inclusive: bool },
 
     /// Break statement
     Break { label: Option<String> },
@@ -227,10 +179,7 @@ pub enum Pattern {
     Literal(Literal),
     Identifier(String),
     Tuple(Vec<Pattern>),
-    Struct {
-        name: String,
-        fields: Vec<(String, Pattern)>,
-    },
+    Struct { name: String, fields: Vec<(String, Pattern)> },
     List(Vec<Pattern>),
 }
 
@@ -317,9 +266,7 @@ impl RuchyAstBuilder {
     /// Creates a new AST builder
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            type_cache: HashMap::new(),
-        }
+        Self { type_cache: HashMap::new() }
     }
 
     /// Creates a builder with custom configuration
@@ -342,18 +289,14 @@ impl RuchyAstBuilder {
 
         // Convert functions
         for func in &module.functions {
-            statements.push(HirStatement::Expression(Box::new(
-                self.convert_function_to_expr(func)?,
-            )));
+            statements
+                .push(HirStatement::Expression(Box::new(self.convert_function_to_expr(func)?)));
         }
 
         // Create the root expression as a block
         let root = HirExpr::Block(statements);
 
-        Ok(Hir {
-            root,
-            metadata: HirMetadata::default(),
-        })
+        Ok(Hir { root, metadata: HirMetadata::default() })
     }
 
     /// Convert HirFunction to simplified HirExpr
@@ -393,11 +336,7 @@ impl RuchyAstBuilder {
                     .collect::<Result<Vec<_>>>()?,
             }),
 
-            HirExpr::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => Ok(RuchyExpr::If {
+            HirExpr::If { condition, then_branch, else_branch } => Ok(RuchyExpr::If {
                 condition: Box::new(self.convert_hir_expr(condition)?),
                 then_branch: Box::new(self.convert_hir_expr(then_branch)?),
                 else_branch: else_branch
@@ -422,22 +361,15 @@ impl RuchyAstBuilder {
                 Ok(RuchyExpr::List(ruchy_elements))
             }
 
-            HirExpr::Function {
-                name,
-                params,
-                body,
-                is_async,
-                return_type,
-            } => Ok(RuchyExpr::Function {
-                name: name.clone(),
-                params: self.convert_params(params)?,
-                body: Box::new(self.convert_hir_expr(body)?),
-                is_async: *is_async,
-                return_type: return_type
-                    .as_ref()
-                    .map(|t| self.convert_type(t))
-                    .transpose()?,
-            }),
+            HirExpr::Function { name, params, body, is_async, return_type } => {
+                Ok(RuchyExpr::Function {
+                    name: name.clone(),
+                    params: self.convert_params(params)?,
+                    body: Box::new(self.convert_hir_expr(body)?),
+                    is_async: *is_async,
+                    return_type: return_type.as_ref().map(|t| self.convert_type(t)).transpose()?,
+                })
+            }
 
             HirExpr::Lambda { params, body } => Ok(RuchyExpr::Lambda {
                 params: self.convert_params(params)?,
@@ -462,13 +394,9 @@ impl RuchyAstBuilder {
                     .transpose()?,
             }),
 
-            HirExpr::Break(label) => Ok(RuchyExpr::Break {
-                label: label.clone(),
-            }),
+            HirExpr::Break(label) => Ok(RuchyExpr::Break { label: label.clone() }),
 
-            HirExpr::Continue(label) => Ok(RuchyExpr::Continue {
-                label: label.clone(),
-            }),
+            HirExpr::Continue(label) => Ok(RuchyExpr::Continue { label: label.clone() }),
 
             _ => Err(anyhow!("Unsupported HIR expression type: {:?}", expr)),
         }
@@ -477,11 +405,7 @@ impl RuchyAstBuilder {
     /// Converts HIR statement to Ruchy expression
     fn convert_statement(&self, stmt: &HirStatement) -> Result<RuchyExpr> {
         match stmt {
-            HirStatement::Let {
-                name,
-                value,
-                is_mutable,
-            } => {
+            HirStatement::Let { name, value, is_mutable } => {
                 Ok(RuchyExpr::Let {
                     name: name.clone(),
                     value: Box::new(self.convert_hir_expr(value)?),
@@ -654,11 +578,7 @@ mod tests {
 
     #[test]
     fn test_param_creation() {
-        let param = Param {
-            name: "x".to_string(),
-            typ: Some(RuchyType::I64),
-            default: None,
-        };
+        let param = Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None };
         assert_eq!(param.name, "x");
         assert!(param.typ.is_some());
         assert!(param.default.is_none());
@@ -791,9 +711,8 @@ mod tests {
     #[test]
     fn test_ruchy_expr_return() {
         let expr1 = RuchyExpr::Return { value: None };
-        let expr2 = RuchyExpr::Return {
-            value: Some(Box::new(RuchyExpr::Literal(Literal::Integer(42)))),
-        };
+        let expr2 =
+            RuchyExpr::Return { value: Some(Box::new(RuchyExpr::Literal(Literal::Integer(42)))) };
         assert!(matches!(expr1, RuchyExpr::Return { value: None }));
         assert!(matches!(expr2, RuchyExpr::Return { value: Some(_) }));
     }
@@ -801,9 +720,7 @@ mod tests {
     #[test]
     fn test_ruchy_expr_break_continue() {
         let break_expr = RuchyExpr::Break { label: None };
-        let continue_expr = RuchyExpr::Continue {
-            label: Some("outer".to_string()),
-        };
+        let continue_expr = RuchyExpr::Continue { label: Some("outer".to_string()) };
         assert!(matches!(break_expr, RuchyExpr::Break { .. }));
         assert!(matches!(continue_expr, RuchyExpr::Continue { .. }));
     }
@@ -811,14 +728,8 @@ mod tests {
     #[test]
     fn test_pattern_variants() {
         assert_eq!(Pattern::Wildcard, Pattern::Wildcard);
-        assert_eq!(
-            Pattern::Identifier("x".to_string()),
-            Pattern::Identifier("x".to_string())
-        );
-        assert_eq!(
-            Pattern::Literal(Literal::Integer(1)),
-            Pattern::Literal(Literal::Integer(1))
-        );
+        assert_eq!(Pattern::Identifier("x".to_string()), Pattern::Identifier("x".to_string()));
+        assert_eq!(Pattern::Literal(Literal::Integer(1)), Pattern::Literal(Literal::Integer(1)));
         assert_eq!(Pattern::Tuple(vec![]), Pattern::Tuple(vec![]));
         assert_eq!(Pattern::List(vec![]), Pattern::List(vec![]));
     }
@@ -853,11 +764,7 @@ mod tests {
 
     #[test]
     fn test_struct_field() {
-        let field = StructField {
-            name: "x".to_string(),
-            typ: RuchyType::I64,
-            is_public: true,
-        };
+        let field = StructField { name: "x".to_string(), typ: RuchyType::I64, is_public: true };
         assert_eq!(field.clone(), field);
     }
 
@@ -891,10 +798,7 @@ mod tests {
 
     #[test]
     fn test_ruchy_type_reference() {
-        let ref_type = RuchyType::Reference {
-            typ: Box::new(RuchyType::I64),
-            is_mutable: false,
-        };
+        let ref_type = RuchyType::Reference { typ: Box::new(RuchyType::I64), is_mutable: false };
         assert_eq!(ref_type.clone(), ref_type);
     }
 
@@ -950,10 +854,7 @@ mod tests {
     fn test_builder_convert_literal_string() {
         let builder = RuchyAstBuilder::new();
         let result = builder.convert_literal(&HirLiteral::String("hello".to_string()));
-        assert_eq!(
-            result,
-            RuchyExpr::Literal(Literal::String("hello".to_string()))
-        );
+        assert_eq!(result, RuchyExpr::Literal(Literal::String("hello".to_string())));
     }
 
     #[test]
@@ -973,59 +874,27 @@ mod tests {
     #[test]
     fn test_builder_convert_binary_op_arithmetic() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Add).unwrap(),
-            BinaryOp::Add
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Subtract).unwrap(),
-            BinaryOp::Subtract
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Multiply).unwrap(),
-            BinaryOp::Multiply
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Divide).unwrap(),
-            BinaryOp::Divide
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Modulo).unwrap(),
-            BinaryOp::Modulo
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Power).unwrap(),
-            BinaryOp::Power
-        );
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Add).unwrap(), BinaryOp::Add);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Subtract).unwrap(), BinaryOp::Subtract);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Multiply).unwrap(), BinaryOp::Multiply);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Divide).unwrap(), BinaryOp::Divide);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Modulo).unwrap(), BinaryOp::Modulo);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Power).unwrap(), BinaryOp::Power);
     }
 
     #[test]
     fn test_builder_convert_binary_op_comparison() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Equal).unwrap(),
-            BinaryOp::Equal
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::NotEqual).unwrap(),
-            BinaryOp::NotEqual
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Less).unwrap(),
-            BinaryOp::Less
-        );
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Equal).unwrap(), BinaryOp::Equal);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::NotEqual).unwrap(), BinaryOp::NotEqual);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Less).unwrap(), BinaryOp::Less);
         assert_eq!(
             builder.convert_binary_op(&HirBinaryOp::LessEqual).unwrap(),
             BinaryOp::LessEqual
         );
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Greater).unwrap(), BinaryOp::Greater);
         assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Greater).unwrap(),
-            BinaryOp::Greater
-        );
-        assert_eq!(
-            builder
-                .convert_binary_op(&HirBinaryOp::GreaterEqual)
-                .unwrap(),
+            builder.convert_binary_op(&HirBinaryOp::GreaterEqual).unwrap(),
             BinaryOp::GreaterEqual
         );
     }
@@ -1033,14 +902,8 @@ mod tests {
     #[test]
     fn test_builder_convert_binary_op_logical() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::And).unwrap(),
-            BinaryOp::And
-        );
-        assert_eq!(
-            builder.convert_binary_op(&HirBinaryOp::Or).unwrap(),
-            BinaryOp::Or
-        );
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::And).unwrap(), BinaryOp::And);
+        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Or).unwrap(), BinaryOp::Or);
     }
 
     #[test]
@@ -1071,40 +934,19 @@ mod tests {
     #[test]
     fn test_builder_convert_unary_op() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(
-            builder.convert_unary_op(&HirUnaryOp::Not).unwrap(),
-            UnaryOp::Not
-        );
-        assert_eq!(
-            builder.convert_unary_op(&HirUnaryOp::Negate).unwrap(),
-            UnaryOp::Negate
-        );
-        assert_eq!(
-            builder.convert_unary_op(&HirUnaryOp::BitwiseNot).unwrap(),
-            UnaryOp::BitwiseNot
-        );
+        assert_eq!(builder.convert_unary_op(&HirUnaryOp::Not).unwrap(), UnaryOp::Not);
+        assert_eq!(builder.convert_unary_op(&HirUnaryOp::Negate).unwrap(), UnaryOp::Negate);
+        assert_eq!(builder.convert_unary_op(&HirUnaryOp::BitwiseNot).unwrap(), UnaryOp::BitwiseNot);
     }
 
     #[test]
     fn test_builder_convert_type_primitives() {
         let builder = RuchyAstBuilder::new();
         assert_eq!(builder.convert_type(&HirType::Int).unwrap(), RuchyType::I64);
-        assert_eq!(
-            builder.convert_type(&HirType::Float).unwrap(),
-            RuchyType::F64
-        );
-        assert_eq!(
-            builder.convert_type(&HirType::String).unwrap(),
-            RuchyType::String
-        );
-        assert_eq!(
-            builder.convert_type(&HirType::Bool).unwrap(),
-            RuchyType::Bool
-        );
-        assert_eq!(
-            builder.convert_type(&HirType::Any).unwrap(),
-            RuchyType::Dynamic
-        );
+        assert_eq!(builder.convert_type(&HirType::Float).unwrap(), RuchyType::F64);
+        assert_eq!(builder.convert_type(&HirType::String).unwrap(), RuchyType::String);
+        assert_eq!(builder.convert_type(&HirType::Bool).unwrap(), RuchyType::Bool);
+        assert_eq!(builder.convert_type(&HirType::Any).unwrap(), RuchyType::Dynamic);
     }
 
     #[test]
@@ -1364,12 +1206,7 @@ mod tests {
             return_type: Some(HirType::Int),
         };
         let result = builder.convert_hir_expr(&expr).unwrap();
-        if let RuchyExpr::Function {
-            is_async,
-            return_type,
-            ..
-        } = result
-        {
+        if let RuchyExpr::Function { is_async, return_type, .. } = result {
             assert!(is_async);
             assert!(return_type.is_some());
         } else {
@@ -1386,10 +1223,7 @@ mod tests {
             is_mutable: true,
         };
         let result = builder.convert_statement(&stmt).unwrap();
-        if let RuchyExpr::Let {
-            name, is_mutable, ..
-        } = result
-        {
+        if let RuchyExpr::Let { name, is_mutable, .. } = result {
             assert_eq!(name, "x");
             assert!(is_mutable);
         } else {
@@ -1416,11 +1250,8 @@ mod tests {
     #[test]
     fn test_builder_convert_params_with_type() {
         let builder = RuchyAstBuilder::new();
-        let params = vec![HirParam {
-            name: "x".to_string(),
-            typ: Some(HirType::Int),
-            default: None,
-        }];
+        let params =
+            vec![HirParam { name: "x".to_string(), typ: Some(HirType::Int), default: None }];
         let result = builder.convert_params(&params).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].name, "x");
@@ -1444,23 +1275,12 @@ mod tests {
     fn test_ruchy_expr_function() {
         let expr = RuchyExpr::Function {
             name: "foo".to_string(),
-            params: vec![Param {
-                name: "x".to_string(),
-                typ: Some(RuchyType::I64),
-                default: None,
-            }],
+            params: vec![Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None }],
             body: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
             is_async: true,
             return_type: Some(RuchyType::I64),
         };
-        if let RuchyExpr::Function {
-            name,
-            params,
-            is_async,
-            return_type,
-            ..
-        } = &expr
-        {
+        if let RuchyExpr::Function { name, params, is_async, return_type, .. } = &expr {
             assert_eq!(name, "foo");
             assert_eq!(params.len(), 1);
             assert!(is_async);
@@ -1505,9 +1325,7 @@ mod tests {
     fn test_ruchy_expr_pipeline() {
         let expr = RuchyExpr::Pipeline {
             expr: Box::new(RuchyExpr::List(vec![])),
-            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier(
-                "f".to_string(),
-            )))],
+            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string())))],
         };
         if let RuchyExpr::Pipeline { stages, .. } = &expr {
             assert_eq!(stages.len(), 1);
@@ -1537,10 +1355,7 @@ mod tests {
             body: Box::new(RuchyExpr::Identifier("x".to_string())),
             is_mutable: false,
         };
-        if let RuchyExpr::Let {
-            name, is_mutable, ..
-        } = &expr
-        {
+        if let RuchyExpr::Let { name, is_mutable, .. } = &expr {
             assert_eq!(name, "x");
             assert!(!is_mutable);
         }
@@ -1600,27 +1415,20 @@ mod tests {
 
     #[test]
     fn test_ruchy_expr_await() {
-        let expr = RuchyExpr::Await {
-            expr: Box::new(RuchyExpr::Identifier("future".to_string())),
-        };
+        let expr = RuchyExpr::Await { expr: Box::new(RuchyExpr::Identifier("future".to_string())) };
         assert!(matches!(expr, RuchyExpr::Await { .. }));
     }
 
     #[test]
     fn test_ruchy_expr_try() {
-        let expr = RuchyExpr::Try {
-            expr: Box::new(RuchyExpr::Identifier("result".to_string())),
-        };
+        let expr = RuchyExpr::Try { expr: Box::new(RuchyExpr::Identifier("result".to_string())) };
         assert!(matches!(expr, RuchyExpr::Try { .. }));
     }
 
     #[test]
     fn test_ruchy_expr_dataframe() {
         let expr = RuchyExpr::DataFrame {
-            columns: vec![DataFrameColumn {
-                name: "col1".to_string(),
-                values: vec![],
-            }],
+            columns: vec![DataFrameColumn { name: "col1".to_string(), values: vec![] }],
         };
         if let RuchyExpr::DataFrame { columns } = &expr {
             assert_eq!(columns.len(), 1);

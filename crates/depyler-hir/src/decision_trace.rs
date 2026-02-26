@@ -252,12 +252,7 @@ impl MmapDecisionWriter {
             .open(path)
             .map_err(|e| format!("Failed to create file: {}", e))?;
 
-        Ok(Self {
-            file,
-            offset: 0,
-            capacity: size,
-            decisions: Vec::new(),
-        })
+        Ok(Self { file, offset: 0, capacity: size, decisions: Vec::new() })
     }
 
     /// Append a decision to the buffer
@@ -296,19 +291,13 @@ impl MmapDecisionWriter {
         }
 
         // Write to file (overwrite from beginning)
-        self.file
-            .set_len(0)
-            .map_err(|e| format!("Failed to truncate file: {}", e))?;
+        self.file.set_len(0).map_err(|e| format!("Failed to truncate file: {}", e))?;
         use std::io::Seek;
         self.file
             .seek(std::io::SeekFrom::Start(0))
             .map_err(|e| format!("Failed to seek: {}", e))?;
-        self.file
-            .write_all(&packed)
-            .map_err(|e| format!("Failed to write decisions: {}", e))?;
-        self.file
-            .flush()
-            .map_err(|e| format!("Failed to flush file: {}", e))?;
+        self.file.write_all(&packed).map_err(|e| format!("Failed to write decisions: {}", e))?;
+        self.file.flush().map_err(|e| format!("Failed to flush file: {}", e))?;
         self.offset = packed.len();
 
         Ok(())
@@ -487,10 +476,7 @@ pub fn build_causal_chain(
             }
             visited.insert(decision.id);
 
-            chain.push(CausalLink {
-                decision: (*decision).clone(),
-                depth,
-            });
+            chain.push(CausalLink { decision: (*decision).clone(), depth });
 
             // Move to Python span for next iteration
             current_span = decision.py_span;
@@ -534,20 +520,12 @@ pub struct JsonFileWriter {
 impl JsonFileWriter {
     /// Create a new JSON file writer
     pub fn new(path: &std::path::Path) -> Self {
-        Self {
-            path: path.to_path_buf(),
-            buffer: Vec::new(),
-            max_buffer_size: 1000,
-        }
+        Self { path: path.to_path_buf(), buffer: Vec::new(), max_buffer_size: 1000 }
     }
 
     /// Create with custom buffer size
     pub fn with_buffer_size(path: &std::path::Path, max_size: usize) -> Self {
-        Self {
-            path: path.to_path_buf(),
-            buffer: Vec::new(),
-            max_buffer_size: max_size,
-        }
+        Self { path: path.to_path_buf(), buffer: Vec::new(), max_buffer_size: max_size }
     }
 }
 
@@ -591,9 +569,7 @@ impl DecisionWriter for JsonFileWriter {
             writeln!(writer, "{}", json).map_err(|e| format!("Failed to write decision: {}", e))?;
         }
 
-        writer
-            .flush()
-            .map_err(|e| format!("Failed to flush writer: {}", e))?;
+        writer.flush().map_err(|e| format!("Failed to flush writer: {}", e))?;
 
         self.buffer.clear();
         Ok(())
@@ -803,12 +779,7 @@ impl RingCollector {
 
     /// Create with custom capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            buffer: Vec::with_capacity(capacity),
-            write_pos: 0,
-            capacity,
-            total_collected: 0,
-        }
+        Self { buffer: Vec::with_capacity(capacity), write_pos: 0, capacity, total_collected: 0 }
     }
 
     /// Get total traces collected (including overwritten)
@@ -998,10 +969,7 @@ pub struct HashChainedTrace {
 impl HashChainCollector {
     /// Create a new hash chain collector
     pub fn new() -> Self {
-        Self {
-            traces: Vec::new(),
-            chain_hash: 0,
-        }
+        Self { traces: Vec::new(), chain_hash: 0 }
     }
 
     /// Verify the integrity of the hash chain
@@ -1017,11 +985,7 @@ impl HashChainCollector {
 
         // Verify each entry's hash
         for i in 0..self.traces.len() {
-            let expected_prev = if i == 0 {
-                0
-            } else {
-                self.traces[i - 1].entry_hash
-            };
+            let expected_prev = if i == 0 { 0 } else { self.traces[i - 1].entry_hash };
             if self.traces[i].prev_hash != expected_prev {
                 return false;
             }
@@ -1078,11 +1042,7 @@ impl TraceCollector for HashChainCollector {
         let prev_hash = self.chain_hash;
         let entry_hash = Self::compute_hash(&trace, prev_hash);
 
-        self.traces.push(HashChainedTrace {
-            trace,
-            prev_hash,
-            entry_hash,
-        });
+        self.traces.push(HashChainedTrace { trace, prev_hash, entry_hash });
 
         self.chain_hash = entry_hash;
     }
@@ -1220,10 +1180,7 @@ mod tests {
 
         // Each category should have a unique display string
         let displays: Vec<String> = categories.iter().map(|c| c.to_string()).collect();
-        let unique_count = displays
-            .iter()
-            .collect::<std::collections::HashSet<_>>()
-            .len();
+        let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
         assert_eq!(
             unique_count,
             categories.len(),
@@ -1234,26 +1191,11 @@ mod tests {
     #[test]
     fn test_decision_category_display() {
         assert_eq!(DecisionCategory::TypeMapping.to_string(), "type_mapping");
-        assert_eq!(
-            DecisionCategory::BorrowStrategy.to_string(),
-            "borrow_strategy"
-        );
-        assert_eq!(
-            DecisionCategory::LifetimeInfer.to_string(),
-            "lifetime_infer"
-        );
-        assert_eq!(
-            DecisionCategory::MethodDispatch.to_string(),
-            "method_dispatch"
-        );
-        assert_eq!(
-            DecisionCategory::ImportResolve.to_string(),
-            "import_resolve"
-        );
-        assert_eq!(
-            DecisionCategory::ErrorHandling.to_string(),
-            "error_handling"
-        );
+        assert_eq!(DecisionCategory::BorrowStrategy.to_string(), "borrow_strategy");
+        assert_eq!(DecisionCategory::LifetimeInfer.to_string(), "lifetime_infer");
+        assert_eq!(DecisionCategory::MethodDispatch.to_string(), "method_dispatch");
+        assert_eq!(DecisionCategory::ImportResolve.to_string(), "import_resolve");
+        assert_eq!(DecisionCategory::ErrorHandling.to_string(), "error_handling");
         assert_eq!(DecisionCategory::Ownership.to_string(), "ownership");
     }
 
@@ -1659,39 +1601,17 @@ mod tests {
 
         // Each variant should have unique display string
         let displays: Vec<String> = decisions.iter().map(|d| d.to_string()).collect();
-        let unique_count = displays
-            .iter()
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        assert_eq!(
-            unique_count,
-            decisions.len(),
-            "All decisions should have unique display names"
-        );
+        let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
+        assert_eq!(unique_count, decisions.len(), "All decisions should have unique display names");
     }
 
     #[test]
     fn test_transpile_decision_display() {
-        assert_eq!(
-            TranspileDecision::TypeInference.to_string(),
-            "type_inference"
-        );
-        assert_eq!(
-            TranspileDecision::OwnershipInference.to_string(),
-            "ownership_inference"
-        );
-        assert_eq!(
-            TranspileDecision::MethodResolution.to_string(),
-            "method_resolution"
-        );
-        assert_eq!(
-            TranspileDecision::ImportMapping.to_string(),
-            "import_mapping"
-        );
-        assert_eq!(
-            TranspileDecision::ControlFlowTransform.to_string(),
-            "control_flow_transform"
-        );
+        assert_eq!(TranspileDecision::TypeInference.to_string(), "type_inference");
+        assert_eq!(TranspileDecision::OwnershipInference.to_string(), "ownership_inference");
+        assert_eq!(TranspileDecision::MethodResolution.to_string(), "method_resolution");
+        assert_eq!(TranspileDecision::ImportMapping.to_string(), "import_mapping");
+        assert_eq!(TranspileDecision::ControlFlowTransform.to_string(), "control_flow_transform");
     }
 
     #[test]
@@ -1777,12 +1697,8 @@ mod tests {
     #[test]
     fn test_ring_collector_collect_single() {
         let mut collector = RingCollector::new();
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.9,
-            "Test trace",
-        );
+        let trace =
+            TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.9, "Test trace");
 
         collector.collect(trace);
         assert_eq!(collector.len(), 1);
@@ -1983,10 +1899,7 @@ mod tests {
     fn test_stream_collector_default() {
         let collector = StreamCollector::default();
         assert!(collector.is_empty());
-        assert_eq!(
-            collector.flush_threshold,
-            StreamCollector::DEFAULT_FLUSH_THRESHOLD
-        );
+        assert_eq!(collector.flush_threshold, StreamCollector::DEFAULT_FLUSH_THRESHOLD);
     }
 
     // ========================================================================
@@ -2003,12 +1916,8 @@ mod tests {
     #[test]
     fn test_hash_chain_collector_collect_single() {
         let mut collector = HashChainCollector::new();
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.9,
-            "First trace",
-        );
+        let trace =
+            TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.9, "First trace");
 
         collector.collect(trace);
         assert_eq!(collector.len(), 1);
@@ -2060,19 +1969,13 @@ mod tests {
             collector.collect(trace);
         }
 
-        assert!(
-            collector.verify_chain(),
-            "Hash chain should verify successfully"
-        );
+        assert!(collector.verify_chain(), "Hash chain should verify successfully");
     }
 
     #[test]
     fn test_hash_chain_collector_empty_verify() {
         let collector = HashChainCollector::new();
-        assert!(
-            collector.verify_chain(),
-            "Empty chain should verify successfully"
-        );
+        assert!(collector.verify_chain(), "Empty chain should verify successfully");
     }
 
     #[test]
@@ -2140,11 +2043,7 @@ mod tests {
     fn test_hash_chained_trace_serialization() {
         let trace = TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.9, "Test");
 
-        let chained = HashChainedTrace {
-            trace,
-            prev_hash: 12345,
-            entry_hash: 67890,
-        };
+        let chained = HashChainedTrace { trace, prev_hash: 12345, entry_hash: 67890 };
 
         let json = serde_json::to_string(&chained).unwrap();
         assert!(json.contains("prev_hash"));
@@ -2160,12 +2059,8 @@ mod tests {
     #[test]
     fn test_trace_collector_export_json() {
         let mut collector = RingCollector::new();
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.9,
-            "Test export",
-        );
+        let trace =
+            TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.9, "Test export");
 
         collector.collect(trace);
         let json = collector.export_json();
@@ -2334,12 +2229,8 @@ mod tests {
 
     #[test]
     fn test_transpile_trace_clone() {
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.85,
-            "Test trace",
-        );
+        let trace =
+            TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.85, "Test trace");
         let cloned = trace.clone();
         assert_eq!(trace.decision, cloned.decision);
         assert_eq!(trace.rule_id, cloned.rule_id);
@@ -2420,12 +2311,8 @@ mod tests {
         let mut collector = HashChainCollector::new();
         let initial_hash = collector.chain_hash();
 
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.85,
-            "Hash test",
-        );
+        let trace =
+            TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.85, "Hash test");
         collector.collect(trace);
 
         let new_hash = collector.chain_hash();
@@ -2447,11 +2334,7 @@ mod tests {
             collector.collect(trace);
             let hash = collector.chain_hash();
             // Each addition should produce a different hash
-            assert!(
-                seen_hashes.insert(hash),
-                "Hash collision detected at iteration {}",
-                i
-            );
+            assert!(seen_hashes.insert(hash), "Hash collision detected at iteration {}", i);
         }
 
         // Chain should be valid
@@ -2507,11 +2390,7 @@ mod tests {
         };
         let cloned = outcome.clone();
         match cloned {
-            CompileOutcome::Error {
-                code,
-                message,
-                span,
-            } => {
+            CompileOutcome::Error { code, message, span } => {
                 assert_eq!(code, "E0308");
                 assert!(message.contains("mismatch"));
                 assert_eq!(span, Some((1, 10)));
@@ -2789,17 +2668,9 @@ mod tests {
 
     #[test]
     fn test_hash_chained_trace_clone() {
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.85,
-            "Clone test",
-        );
-        let chained = HashChainedTrace {
-            trace: trace.clone(),
-            entry_hash: 12345,
-            prev_hash: 0,
-        };
+        let trace =
+            TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.85, "Clone test");
+        let chained = HashChainedTrace { trace: trace.clone(), entry_hash: 12345, prev_hash: 0 };
         let cloned = chained.clone();
         assert_eq!(chained.entry_hash, cloned.entry_hash);
         assert_eq!(chained.prev_hash, cloned.prev_hash);
@@ -2835,11 +2706,7 @@ mod tests {
             span: Some((10, 25)),
         };
         match outcome {
-            CompileOutcome::Error {
-                span,
-                code,
-                message,
-            } => {
+            CompileOutcome::Error { span, code, message } => {
                 assert_eq!(span, Some((10, 25)));
                 assert_eq!(code, "E0308");
                 assert!(message.contains("mismatch"));

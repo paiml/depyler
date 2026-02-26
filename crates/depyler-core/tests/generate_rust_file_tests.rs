@@ -106,10 +106,7 @@ mod simple_function_tests {
         let type_mapper = TypeMapper::new();
         let result = generate_rust_file(&module, &type_mapper);
 
-        assert!(
-            result.is_ok(),
-            "Simple function should transpile successfully"
-        );
+        assert!(result.is_ok(), "Simple function should transpile successfully");
 
         if let Ok((code, _dependencies)) = result {
             assert!(syn::parse_file(&code).is_ok(), "Code must be valid Rust");
@@ -183,10 +180,7 @@ mod multiple_functions_tests {
     #[test]
     fn test_multiple_functions_deterministic() {
         let mut module = create_empty_module();
-        module.functions = vec![
-            create_simple_function("func1"),
-            create_simple_function("func2"),
-        ];
+        module.functions = vec![create_simple_function("func1"), create_simple_function("func2")];
 
         let type_mapper = TypeMapper::new();
 
@@ -236,18 +230,8 @@ mod function_with_params_tests {
 
         let mut func = create_simple_function("add");
         func.params = SmallVec::from_vec(vec![
-            HirParam {
-                name: Symbol::from("a"),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
-            HirParam {
-                name: Symbol::from("b"),
-                ty: Type::Int,
-                default: None,
-                is_vararg: false,
-            },
+            HirParam { name: Symbol::from("a"), ty: Type::Int, default: None, is_vararg: false },
+            HirParam { name: Symbol::from("b"), ty: Type::Int, default: None, is_vararg: false },
         ]);
         func.ret_type = Type::Int;
 
@@ -256,10 +240,7 @@ mod function_with_params_tests {
         let type_mapper = TypeMapper::new();
         let result = generate_rust_file(&module, &type_mapper);
 
-        assert!(
-            result.is_ok(),
-            "Function with multiple params should transpile"
-        );
+        assert!(result.is_ok(), "Function with multiple params should transpile");
 
         if let Ok((code, _dependencies)) = result {
             assert!(code.contains("fn add"));
@@ -284,10 +265,8 @@ mod regression_tests {
             },
             {
                 let mut m = create_empty_module();
-                m.functions = vec![
-                    create_simple_function("func1"),
-                    create_simple_function("func2"),
-                ];
+                m.functions =
+                    vec![create_simple_function("func1"), create_simple_function("func2")];
                 m
             },
         ];

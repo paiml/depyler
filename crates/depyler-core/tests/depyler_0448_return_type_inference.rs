@@ -151,11 +151,7 @@ def get_mixed(flag):
     );
 
     // Should use Value
-    assert!(
-        rust.contains("Value"),
-        "Mixed return types should use Value. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Value"), "Mixed return types should use Value. Generated:\n{}", rust);
 }
 
 #[test]

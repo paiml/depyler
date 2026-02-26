@@ -86,10 +86,7 @@ def get_length(items: list) -> int:
     return len(items)
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".len()"),
-        "len() should use .len(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".len()"), "len() should use .len(). Got:\n{rust}");
 }
 
 #[test]
@@ -164,10 +161,7 @@ def double_all(items: list) -> list:
     return list(map(lambda x: x * 2, items))
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".map("),
-        "map() should use .map(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".map("), "map() should use .map(). Got:\n{rust}");
 }
 
 #[test]
@@ -178,10 +172,7 @@ def evens_only(items: list) -> list:
     return list(filter(lambda x: x % 2 == 0, items))
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".filter("),
-        "filter() should use .filter(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".filter("), "filter() should use .filter(). Got:\n{rust}");
 }
 
 #[test]
@@ -192,10 +183,7 @@ def pair_up(a: list, b: list) -> list:
     return list(zip(a, b))
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".zip("),
-        "zip() should use .zip(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".zip("), "zip() should use .zip(). Got:\n{rust}");
 }
 
 #[test]
@@ -206,10 +194,7 @@ def with_indices(items: list) -> list:
     return list(enumerate(items))
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".enumerate()"),
-        "enumerate() should use .enumerate(). Got:\n{rust}"
-    );
+    assert!(rust.contains(".enumerate()"), "enumerate() should use .enumerate(). Got:\n{rust}");
 }
 
 #[test]
@@ -485,10 +470,7 @@ def nested() -> int:
     return len(list(range(10)))
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".len()"),
-        "Nested calls should work. Got:\n{rust}"
-    );
+    assert!(rust.contains(".len()"), "Nested calls should work. Got:\n{rust}");
 }
 
 #[test]

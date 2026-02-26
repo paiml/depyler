@@ -94,10 +94,7 @@ pub fn is_bool_type(t: &Type) -> bool {
 
 /// Check if a type is a collection (list, dict, set)
 pub fn is_collection_type(t: &Type) -> bool {
-    matches!(
-        t,
-        Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
-    )
+    matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_))
 }
 
 /// Classify a union type for error messages and debugging
@@ -297,10 +294,7 @@ mod tests {
 
     #[test]
     fn test_is_collection_type_dict() {
-        assert!(is_collection_type(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(is_collection_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -310,10 +304,7 @@ mod tests {
 
     #[test]
     fn test_is_collection_type_tuple() {
-        assert!(is_collection_type(&Type::Tuple(vec![
-            Type::Int,
-            Type::String
-        ])));
+        assert!(is_collection_type(&Type::Tuple(vec![Type::Int, Type::String])));
     }
 
     #[test]

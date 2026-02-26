@@ -23,9 +23,7 @@ impl Default for ScopeTracker {
 impl ScopeTracker {
     /// Create a new scope tracker with a single empty scope
     pub fn new() -> Self {
-        Self {
-            declared_vars: vec![HashSet::new()],
-        }
+        Self { declared_vars: vec![HashSet::new()] }
     }
 
     /// Enter a new nested scope
@@ -49,16 +47,12 @@ impl ScopeTracker {
 
     /// Check if a variable is declared in any enclosing scope
     pub fn is_declared(&self, var_name: &str) -> bool {
-        self.declared_vars
-            .iter()
-            .any(|scope| scope.contains(var_name))
+        self.declared_vars.iter().any(|scope| scope.contains(var_name))
     }
 
     /// Check if a variable is declared in the current (innermost) scope only
     pub fn is_declared_in_current_scope(&self, var_name: &str) -> bool {
-        self.declared_vars
-            .last()
-            .is_some_and(|scope| scope.contains(var_name))
+        self.declared_vars.last().is_some_and(|scope| scope.contains(var_name))
     }
 
     /// Declare a variable in the current scope
@@ -79,10 +73,7 @@ impl ScopeTracker {
 
     /// Get all declared variables across all scopes
     pub fn all_declared_vars(&self) -> HashSet<String> {
-        self.declared_vars
-            .iter()
-            .flat_map(|scope| scope.iter().cloned())
-            .collect()
+        self.declared_vars.iter().flat_map(|scope| scope.iter().cloned()).collect()
     }
 
     /// Get variables declared in the current scope only

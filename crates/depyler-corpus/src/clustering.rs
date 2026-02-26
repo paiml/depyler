@@ -60,11 +60,8 @@ impl ErrorFeatures {
     /// Create from error code and count.
     pub fn from_error(code: &str, count: usize, total_errors: usize) -> Self {
         let category_idx = Self::category_index(code);
-        let severity = if total_errors > 0 {
-            (count as f64 / total_errors as f64).min(1.0)
-        } else {
-            0.0
-        };
+        let severity =
+            if total_errors > 0 { (count as f64 / total_errors as f64).min(1.0) } else { 0.0 };
 
         Self {
             code: code.to_string(),
@@ -124,11 +121,7 @@ impl Default for ClusterAnalyzer {
 impl ClusterAnalyzer {
     /// Create a new cluster analyzer with default parameters.
     pub fn new() -> Self {
-        Self {
-            max_k: 5,
-            max_iterations: 100,
-            convergence_threshold: 0.001,
-        }
+        Self { max_k: 5, max_iterations: 100, convergence_threshold: 0.001 }
     }
 
     /// Set maximum K for elbow method.
@@ -277,11 +270,7 @@ impl ClusterAnalyzer {
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let dist: f64 = point
-                    .iter()
-                    .zip(c.iter())
-                    .map(|(a, b)| (a - b).powi(2))
-                    .sum();
+                let dist: f64 = point.iter().zip(c.iter()).map(|(a, b)| (a - b).powi(2)).sum();
                 (i, dist)
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -338,11 +327,7 @@ impl ClusterAnalyzer {
                     .unwrap_or_default();
 
                 // Calculate variance
-                let centroid = if id < centroids.len() {
-                    centroids[id].clone()
-                } else {
-                    vec![]
-                };
+                let centroid = if id < centroids.len() { centroids[id].clone() } else { vec![] };
 
                 let variance = if !centroid.is_empty() {
                     members
@@ -413,10 +398,7 @@ impl ClusterAnalyzer {
             let a = if same_cluster.is_empty() {
                 0.0
             } else {
-                same_cluster
-                    .iter()
-                    .map(|p| self.euclidean_distance(point, p))
-                    .sum::<f64>()
+                same_cluster.iter().map(|p| self.euclidean_distance(point, p)).sum::<f64>()
                     / same_cluster.len() as f64
             };
 
@@ -437,11 +419,9 @@ impl ClusterAnalyzer {
                     .collect();
 
                 if !other_points.is_empty() {
-                    let avg_dist = other_points
-                        .iter()
-                        .map(|p| self.euclidean_distance(point, p))
-                        .sum::<f64>()
-                        / other_points.len() as f64;
+                    let avg_dist =
+                        other_points.iter().map(|p| self.euclidean_distance(point, p)).sum::<f64>()
+                            / other_points.len() as f64;
                     min_b = min_b.min(avg_dist);
                 }
             }
@@ -459,11 +439,7 @@ impl ClusterAnalyzer {
     }
 
     fn euclidean_distance(&self, a: &[f64], b: &[f64]) -> f64 {
-        a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| (x - y).powi(2))
-            .sum::<f64>()
-            .sqrt()
+        a.iter().zip(b.iter()).map(|(x, y)| (x - y).powi(2)).sum::<f64>().sqrt()
     }
 }
 
@@ -536,12 +512,7 @@ mod tests {
     #[test]
     fn test_kmeans_basic() {
         let analyzer = ClusterAnalyzer::new();
-        let data = vec![
-            vec![1.0, 1.0],
-            vec![1.1, 1.1],
-            vec![5.0, 5.0],
-            vec![5.1, 5.1],
-        ];
+        let data = vec![vec![1.0, 1.0], vec![1.1, 1.1], vec![5.0, 5.0], vec![5.1, 5.1]];
 
         let (assignments, _centroids) = analyzer.kmeans(&data, 2);
 

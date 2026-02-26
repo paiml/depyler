@@ -432,12 +432,7 @@ def tuple_dict(data: dict[str, tuple[int, int]]) -> int:
 fn test_property_primitive_types() {
     let pipeline = DepylerPipeline::new();
 
-    let test_cases = vec![
-        ("int", "42"),
-        ("float", "3.14"),
-        ("bool", "True"),
-        ("str", "\"hello\""),
-    ];
+    let test_cases = vec![("int", "42"), ("float", "3.14"), ("bool", "True"), ("str", "\"hello\"")];
 
     for (type_name, value) in test_cases {
         let python_code = format!(
@@ -449,12 +444,7 @@ def test_{}_type(x: {}) -> {}:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            type_name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", type_name, result.err());
     }
 }
 
@@ -481,12 +471,7 @@ def test_{}_type() -> {}:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", name, result.err());
     }
 }
 

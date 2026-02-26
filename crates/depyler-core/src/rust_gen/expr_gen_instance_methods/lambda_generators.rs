@@ -11,11 +11,11 @@ use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::keywords;
-use crate::trace_decision;
 use crate::rust_gen::truthiness_helpers::{
     is_collection_generic_base, is_collection_type_name, is_collection_var_name,
     is_option_var_name, is_string_var_name,
 };
+use crate::trace_decision;
 use anyhow::{bail, Result};
 use syn::{self, parse_quote};
 
@@ -39,10 +39,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // to have non-Copy types cloned before capture to avoid use-after-move errors.
         let param_set: std::collections::HashSet<String> = params.iter().cloned().collect();
         let body_vars = crate::rust_gen::var_analysis::collect_vars_in_expr(body);
-        let captured_vars: Vec<String> = body_vars
-            .into_iter()
-            .filter(|v| !param_set.contains(v))
-            .collect();
+        let captured_vars: Vec<String> =
+            body_vars.into_iter().filter(|v| !param_set.contains(v)).collect();
 
         // DEPYLER-1202: Generate clone statements for non-Copy captured variables
         let mut clone_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
@@ -162,27 +160,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             },
             HirExpr::Call { func, args, kwargs } => HirExpr::Call {
                 func: func.clone(),
-                args: args
-                    .iter()
-                    .map(|a| self.substitute_captured_vars(a, mappings))
-                    .collect(),
+                args: args.iter().map(|a| self.substitute_captured_vars(a, mappings)).collect(),
                 kwargs: kwargs
                     .iter()
                     .map(|(k, v)| (k.clone(), self.substitute_captured_vars(v, mappings)))
                     .collect(),
             },
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } => HirExpr::MethodCall {
+            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
                 object: Box::new(self.substitute_captured_vars(object, mappings)),
                 method: method.clone(),
-                args: args
-                    .iter()
-                    .map(|a| self.substitute_captured_vars(a, mappings))
-                    .collect(),
+                args: args.iter().map(|a| self.substitute_captured_vars(a, mappings)).collect(),
                 kwargs: kwargs
                     .iter()
                     .map(|(k, v)| (k.clone(), self.substitute_captured_vars(v, mappings)))
@@ -202,22 +189,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 orelse: Box::new(self.substitute_captured_vars(orelse, mappings)),
             },
             HirExpr::List(elements) => HirExpr::List(
-                elements
-                    .iter()
-                    .map(|e| self.substitute_captured_vars(e, mappings))
-                    .collect(),
+                elements.iter().map(|e| self.substitute_captured_vars(e, mappings)).collect(),
             ),
             HirExpr::Tuple(elements) => HirExpr::Tuple(
-                elements
-                    .iter()
-                    .map(|e| self.substitute_captured_vars(e, mappings))
-                    .collect(),
+                elements.iter().map(|e| self.substitute_captured_vars(e, mappings)).collect(),
             ),
             HirExpr::Set(elements) => HirExpr::Set(
-                elements
-                    .iter()
-                    .map(|e| self.substitute_captured_vars(e, mappings))
-                    .collect(),
+                elements.iter().map(|e| self.substitute_captured_vars(e, mappings)).collect(),
             ),
             HirExpr::Dict(pairs) => HirExpr::Dict(
                 pairs
@@ -247,7 +225,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             _ => expr.clone(),
         }
     }
-
 
     pub(crate) fn convert_await(&mut self, value: &HirExpr) -> Result<syn::Expr> {
         let value_expr = value.to_rust_expr(self.ctx)?;
@@ -331,31 +308,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                                 if is_args_var {
                                     // Check if this argument is optional (Option<T> type, not boolean)
-                                    self.ctx
-                                        .argparser_tracker
-                                        .parsers
-                                        .values()
-                                        .any(|parser_info| {
-                                            parser_info.arguments.iter().any(|arg| {
-                                                let field_name = arg.rust_field_name();
-                                                if field_name != *attr {
-                                                    return false;
-                                                }
+                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                        parser_info.arguments.iter().any(|arg| {
+                                            let field_name = arg.rust_field_name();
+                                            if field_name != *attr {
+                                                return false;
+                                            }
 
-                                                // Argument is NOT an Option if it has action="store_true" or "store_false"
-                                                if matches!(
-                                                    arg.action.as_deref(),
-                                                    Some("store_true") | Some("store_false")
-                                                ) {
-                                                    return false;
-                                                }
+                                            // Argument is NOT an Option if it has action="store_true" or "store_false"
+                                            if matches!(
+                                                arg.action.as_deref(),
+                                                Some("store_true") | Some("store_false")
+                                            ) {
+                                                return false;
+                                            }
 
-                                                // Argument is an Option<T> if: not required AND no default value AND not positional
-                                                !arg.is_positional
-                                                    && !arg.required.unwrap_or(false)
-                                                    && arg.default.is_none()
-                                            })
+                                            // Argument is an Option<T> if: not required AND no default value AND not positional
+                                            !arg.is_positional
+                                                && !arg.required.unwrap_or(false)
+                                                && arg.default.is_none()
                                         })
+                                    })
                                 } else {
                                     false
                                 }
@@ -423,38 +396,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                                 if is_args_var {
                                     // Look up the field type in argparse arguments
-                                    self.ctx
-                                        .argparser_tracker
-                                        .parsers
-                                        .values()
-                                        .any(|parser_info| {
-                                            parser_info.arguments.iter().any(|arg| {
-                                                // Match field name (normalized from Python argument name)
-                                                let field_name = arg.rust_field_name();
-                                                if field_name == *attr {
-                                                    // Check if this field is a collection type
-                                                    // Either explicit type annotation OR inferred from nargs
-                                                    let is_vec_from_nargs = matches!(
-                                                        arg.nargs.as_deref(),
-                                                        Some("+") | Some("*")
-                                                    );
-                                                    let is_collection_type =
-                                                        if let Some(ref arg_type) = arg.arg_type {
-                                                            matches!(
-                                                                arg_type,
-                                                                Type::List(_)
-                                                                    | Type::Dict(_, _)
-                                                                    | Type::Set(_)
-                                                            )
-                                                        } else {
-                                                            false
-                                                        };
-                                                    is_vec_from_nargs || is_collection_type
-                                                } else {
-                                                    false
-                                                }
-                                            })
+                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                        parser_info.arguments.iter().any(|arg| {
+                                            // Match field name (normalized from Python argument name)
+                                            let field_name = arg.rust_field_name();
+                                            if field_name == *attr {
+                                                // Check if this field is a collection type
+                                                // Either explicit type annotation OR inferred from nargs
+                                                let is_vec_from_nargs = matches!(
+                                                    arg.nargs.as_deref(),
+                                                    Some("+") | Some("*")
+                                                );
+                                                let is_collection_type =
+                                                    if let Some(ref arg_type) = arg.arg_type {
+                                                        matches!(
+                                                            arg_type,
+                                                            Type::List(_)
+                                                                | Type::Dict(_, _)
+                                                                | Type::Set(_)
+                                                        )
+                                                    } else {
+                                                        false
+                                                    };
+                                                is_vec_from_nargs || is_collection_type
+                                            } else {
+                                                false
+                                            }
                                         })
+                                    })
                                 } else {
                                     false
                                 }
@@ -689,12 +658,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn substitute_var_in_expr(&self, expr: &HirExpr, old_name: &str, new_name: &str) -> HirExpr {
         match expr {
             HirExpr::Var(name) if name == old_name => HirExpr::Var(new_name.to_string()),
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } => HirExpr::MethodCall {
+            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
                 object: Box::new(self.substitute_var_in_expr(object, old_name, new_name)),
                 method: method.clone(),
                 args: args
@@ -703,12 +667,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .collect(),
                 kwargs: kwargs
                     .iter()
-                    .map(|(k, v)| {
-                        (
-                            k.clone(),
-                            self.substitute_var_in_expr(v, old_name, new_name),
-                        )
-                    })
+                    .map(|(k, v)| (k.clone(), self.substitute_var_in_expr(v, old_name, new_name)))
                     .collect(),
             },
             HirExpr::Attribute { value, attr } => HirExpr::Attribute {
@@ -723,12 +682,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .collect(),
                 kwargs: kwargs
                     .iter()
-                    .map(|(k, v)| {
-                        (
-                            k.clone(),
-                            self.substitute_var_in_expr(v, old_name, new_name),
-                        )
-                    })
+                    .map(|(k, v)| (k.clone(), self.substitute_var_in_expr(v, old_name, new_name)))
                     .collect(),
             },
             // For other expression types, return as-is (could be extended if needed)
@@ -1027,9 +981,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Temporarily register target variable with element type for condition conversion
             let target_var_name = gen.target.clone();
             if let Some(ref elem_ty) = element_type {
-                self.ctx
-                    .var_types
-                    .insert(target_var_name.clone(), elem_ty.clone());
+                self.ctx.var_types.insert(target_var_name.clone(), elem_ty.clone());
             }
 
             // DEPYLER-1076: When function returns impl Iterator, closures need `move`
@@ -1191,10 +1143,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Tuple pattern
             let inner = &target[1..target.len() - 1];
             let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-            let idents: Vec<syn::Ident> = parts
-                .iter()
-                .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
-                .collect();
+            let idents: Vec<syn::Ident> =
+                parts.iter().map(|s| syn::Ident::new(s, proc_macro2::Span::call_site())).collect();
             Ok(parse_quote! { ( #(#idents),* ) })
         } else {
             // Simple variable
@@ -1223,5 +1173,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         })
     }
-
 }

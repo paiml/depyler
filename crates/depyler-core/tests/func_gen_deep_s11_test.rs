@@ -19,10 +19,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -39,11 +37,7 @@ def count(items: list, start: int = 0) -> int:
     return len(items) + start
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count"),
-        "Should transpile default int param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count"), "Should transpile default int param. Got: {}", result);
 }
 
 #[test]
@@ -53,11 +47,7 @@ def greet(name: str = "World") -> str:
     return f"Hello, {name}!"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn greet"),
-        "Should transpile default string param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn greet"), "Should transpile default string param. Got: {}", result);
 }
 
 #[test]
@@ -71,11 +61,7 @@ def find(items: list, default = None):
     return default
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find"),
-        "Should transpile default None param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find"), "Should transpile default None param. Got: {}", result);
 }
 
 #[test]
@@ -87,11 +73,7 @@ def process(data: list, verbose: bool = False) -> list:
     return data
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn process"),
-        "Should transpile default bool param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn process"), "Should transpile default bool param. Got: {}", result);
 }
 
 #[test]
@@ -101,11 +83,7 @@ def scale(value: float, factor: float = 1.0) -> float:
     return value * factor
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn scale"),
-        "Should transpile default float param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn scale"), "Should transpile default float param. Got: {}", result);
 }
 
 #[test]
@@ -116,11 +94,7 @@ def extend(items: list, extra: list = []) -> list:
     return items
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn extend"),
-        "Should transpile default empty list. Got: {}",
-        result
-    );
+    assert!(result.contains("fn extend"), "Should transpile default empty list. Got: {}", result);
 }
 
 #[test]
@@ -131,11 +105,7 @@ def merge(base: dict, extra: dict = {}) -> dict:
     return base
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn merge"),
-        "Should transpile default empty dict. Got: {}",
-        result
-    );
+    assert!(result.contains("fn merge"), "Should transpile default empty dict. Got: {}", result);
 }
 
 #[test]
@@ -172,11 +142,7 @@ def total(*args) -> int:
     return s
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn total"),
-        "Should transpile *args. Got: {}",
-        result
-    );
+    assert!(result.contains("fn total"), "Should transpile *args. Got: {}", result);
 }
 
 #[test]
@@ -186,11 +152,7 @@ def concat(sep: str, *args) -> str:
     return sep.join(args)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn concat"),
-        "Should transpile regular + *args. Got: {}",
-        result
-    );
+    assert!(result.contains("fn concat"), "Should transpile regular + *args. Got: {}", result);
 }
 
 #[test]
@@ -200,11 +162,7 @@ def config(**kwargs) -> dict:
     return kwargs
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn config"),
-        "Should transpile **kwargs. Got: {}",
-        result
-    );
+    assert!(result.contains("fn config"), "Should transpile **kwargs. Got: {}", result);
 }
 
 // ============================================================================
@@ -221,11 +179,7 @@ def make_list(n: int) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn make_list"),
-        "Should transpile list return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn make_list"), "Should transpile list return. Got: {}", result);
 }
 
 #[test]
@@ -238,11 +192,7 @@ def make_dict(keys: list, values: list) -> dict:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn make_dict"),
-        "Should transpile dict return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn make_dict"), "Should transpile dict return. Got: {}", result);
 }
 
 #[test]
@@ -255,11 +205,7 @@ def unique(items: list) -> set:
     return result
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn unique"),
-        "Should transpile set return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn unique"), "Should transpile set return. Got: {}", result);
 }
 
 #[test]
@@ -269,11 +215,7 @@ def minmax(items: list) -> tuple:
     return (min(items), max(items))
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn minmax"),
-        "Should transpile tuple return. Got: {}",
-        result
-    );
+    assert!(result.contains("fn minmax"), "Should transpile tuple return. Got: {}", result);
 }
 
 #[test]
@@ -284,11 +226,7 @@ def side_effect(items: list):
     items.sort()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn side_effect"),
-        "Should transpile void function. Got: {}",
-        result
-    );
+    assert!(result.contains("fn side_effect"), "Should transpile void function. Got: {}", result);
 }
 
 // ============================================================================
@@ -304,11 +242,7 @@ def outer(x: int) -> int:
     return inner(x)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn outer"),
-        "Should transpile nested function. Got: {}",
-        result
-    );
+    assert!(result.contains("fn outer"), "Should transpile nested function. Got: {}", result);
 }
 
 #[test]
@@ -320,11 +254,7 @@ def make_adder(n: int):
     return adder
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn make_adder"),
-        "Should transpile closure. Got: {}",
-        result
-    );
+    assert!(result.contains("fn make_adder"), "Should transpile closure. Got: {}", result);
 }
 
 #[test]
@@ -357,11 +287,7 @@ def sort_by_key(pairs: list) -> list:
     return pairs
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sort_by_key"),
-        "Should transpile lambda in sort. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sort_by_key"), "Should transpile lambda in sort. Got: {}", result);
 }
 
 #[test]
@@ -385,11 +311,7 @@ def square_all(items: list) -> list:
     return list(map(lambda x: x ** 2, items))
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn square_all"),
-        "Should transpile lambda in map. Got: {}",
-        result
-    );
+    assert!(result.contains("fn square_all"), "Should transpile lambda in map. Got: {}", result);
 }
 
 #[test]
@@ -400,11 +322,7 @@ def apply():
     return double(5)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn apply"),
-        "Should transpile lambda assignment. Got: {}",
-        result
-    );
+    assert!(result.contains("fn apply"), "Should transpile lambda assignment. Got: {}", result);
 }
 
 // ============================================================================
@@ -460,11 +378,7 @@ def complex_sig(a: int, b: str, c: float, d: bool, e: list, f: dict) -> str:
     return f"{a} {b} {c} {d}"
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn complex_sig"),
-        "Should transpile all param types. Got: {}",
-        result
-    );
+    assert!(result.contains("fn complex_sig"), "Should transpile all param types. Got: {}", result);
 }
 
 #[test]
@@ -476,11 +390,7 @@ def sum_ints(items: List[int]) -> int:
     return sum(items)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sum_ints"),
-        "Should transpile typed List param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sum_ints"), "Should transpile typed List param. Got: {}", result);
 }
 
 #[test]
@@ -510,11 +420,7 @@ def maybe(x: Optional[int] = None) -> int:
     return x
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn maybe"),
-        "Should transpile Optional param. Got: {}",
-        result
-    );
+    assert!(result.contains("fn maybe"), "Should transpile Optional param. Got: {}", result);
 }
 
 // ============================================================================
@@ -530,11 +436,7 @@ def fib(n: int) -> int:
     return fib(n - 1) + fib(n - 2)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn fib"),
-        "Should transpile recursive fib. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fib"), "Should transpile recursive fib. Got: {}", result);
 }
 
 #[test]
@@ -564,11 +466,7 @@ def sum_tail(n: int, acc: int = 0) -> int:
     return sum_tail(n - 1, acc + n)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn sum_tail"),
-        "Should transpile tail recursive. Got: {}",
-        result
-    );
+    assert!(result.contains("fn sum_tail"), "Should transpile tail recursive. Got: {}", result);
 }
 
 // ============================================================================
@@ -582,11 +480,7 @@ async def fetch(url: str) -> str:
     return url
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn fetch"),
-        "Should transpile async function. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fetch"), "Should transpile async function. Got: {}", result);
 }
 
 #[test]
@@ -599,11 +493,7 @@ async def delayed(n: int) -> int:
     return n
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn delayed"),
-        "Should transpile async with await. Got: {}",
-        result
-    );
+    assert!(result.contains("fn delayed"), "Should transpile async with await. Got: {}", result);
 }
 
 // ============================================================================
@@ -620,11 +510,7 @@ def count_up(n: int):
         i += 1
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn count_up"),
-        "Should transpile simple generator. Got: {}",
-        result
-    );
+    assert!(result.contains("fn count_up"), "Should transpile simple generator. Got: {}", result);
 }
 
 #[test]

@@ -17,10 +17,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -37,7 +35,11 @@ def pad_num(s: str) -> str:
     return s.zfill(5)
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") && result.contains("starts_with"), "zfill basic: {}", result);
+        assert!(
+            result.contains("width") && result.contains("starts_with"),
+            "zfill basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -47,7 +49,11 @@ def pad_neg() -> str:
     return "-42".zfill(6)
 "#;
         let result = transpile(code);
-        assert!(result.contains("starts_with") || result.contains("zfill") || result.contains("0"), "zfill negative: {}", result);
+        assert!(
+            result.contains("starts_with") || result.contains("zfill") || result.contains("0"),
+            "zfill negative: {}",
+            result
+        );
     }
 
     #[test]
@@ -87,7 +93,11 @@ def pad_plus() -> str:
     return "+42".zfill(6)
 "#;
         let result = transpile(code);
-        assert!(result.contains("starts_with") || result.contains("sign"), "zfill plus: {}", result);
+        assert!(
+            result.contains("starts_with") || result.contains("sign"),
+            "zfill plus: {}",
+            result
+        );
     }
 
     #[test]
@@ -117,7 +127,11 @@ def pad_var(s: str, w: int) -> str:
     return s.zfill(w)
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("starts_with"), "zfill var: {}", result);
+        assert!(
+            result.contains("width") || result.contains("starts_with"),
+            "zfill var: {}",
+            result
+        );
     }
 
     #[test]
@@ -128,7 +142,11 @@ def pad_expr(n: int) -> str:
     return s.zfill(8)
 "#;
         let result = transpile(code);
-        assert!(result.contains("zfill") || result.contains("width") || result.contains("0"), "zfill expr: {}", result);
+        assert!(
+            result.contains("zfill") || result.contains("width") || result.contains("0"),
+            "zfill expr: {}",
+            result
+        );
     }
 
     // ========================================================================
@@ -142,7 +160,11 @@ def cap(s: str) -> str:
     return s.capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize basic: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -152,7 +174,11 @@ def cap_lit() -> str:
     return "hello".capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize literal: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -172,7 +198,11 @@ def cap_mixed() -> str:
     return "hELLO".capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize mixed: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize mixed: {}",
+            result
+        );
     }
 
     #[test]
@@ -182,7 +212,11 @@ def cap_digits() -> str:
     return "123abc".capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("chars") || result.contains("to_uppercase"), "capitalize digits: {}", result);
+        assert!(
+            result.contains("chars") || result.contains("to_uppercase"),
+            "capitalize digits: {}",
+            result
+        );
     }
 
     #[test]
@@ -192,7 +226,11 @@ def cap_empty() -> str:
     return "".capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("chars") || result.contains("None"), "capitalize empty: {}", result);
+        assert!(
+            result.contains("chars") || result.contains("None"),
+            "capitalize empty: {}",
+            result
+        );
     }
 
     #[test]
@@ -202,7 +240,11 @@ def cap_single() -> str:
     return "a".capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize single: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize single: {}",
+            result
+        );
     }
 
     #[test]
@@ -212,7 +254,11 @@ def cap_spaces() -> str:
     return "hello world".capitalize()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize spaces: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize spaces: {}",
+            result
+        );
     }
 
     #[test]
@@ -233,7 +279,11 @@ def cap_assign(s: str) -> str:
     return result
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("chars"), "capitalize assign: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("chars"),
+            "capitalize assign: {}",
+            result
+        );
     }
 
     // ========================================================================
@@ -247,7 +297,11 @@ def swap(s: str) -> str:
     return s.swapcase()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase"), "swapcase basic: {}", result);
+        assert!(
+            result.contains("is_uppercase") || result.contains("to_lowercase"),
+            "swapcase basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -257,7 +311,11 @@ def swap_lit() -> str:
     return "HeLLo".swapcase()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") && result.contains("to_lowercase"), "swapcase literal: {}", result);
+        assert!(
+            result.contains("is_uppercase") && result.contains("to_lowercase"),
+            "swapcase literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -277,7 +335,11 @@ def swap_lower() -> str:
     return "abc".swapcase()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") && result.contains("chars"), "swapcase lower: {}", result);
+        assert!(
+            result.contains("to_uppercase") && result.contains("chars"),
+            "swapcase lower: {}",
+            result
+        );
     }
 
     #[test]
@@ -318,7 +380,11 @@ def swap_assign(s: str) -> str:
     return swapped
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase"), "swapcase assign: {}", result);
+        assert!(
+            result.contains("is_uppercase") || result.contains("to_lowercase"),
+            "swapcase assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -328,7 +394,11 @@ def swap_chain(s: str) -> str:
     return s.swapcase()
 "#;
         let result = transpile(code);
-        assert!(result.contains("collect::<String>") || result.contains("String"), "swapcase chain: {}", result);
+        assert!(
+            result.contains("collect::<String>") || result.contains("String"),
+            "swapcase chain: {}",
+            result
+        );
     }
 
     #[test]
@@ -357,21 +427,33 @@ def swap_one() -> str:
     fn test_wave18_string_expandtabs_custom() {
         let code = "def expand4(s: str) -> str:\n    return s.expandtabs(4)\n";
         let result = transpile(code);
-        assert!(result.contains("replace") && result.contains("repeat"), "expandtabs custom: {}", result);
+        assert!(
+            result.contains("replace") && result.contains("repeat"),
+            "expandtabs custom: {}",
+            result
+        );
     }
 
     #[test]
     fn test_wave18_string_expandtabs_literal() {
         let code = "def expand_lit() -> str:\n    return \"a\\tb\".expandtabs()\n";
         let result = transpile(code);
-        assert!(result.contains("replace") || result.contains("repeat"), "expandtabs literal: {}", result);
+        assert!(
+            result.contains("replace") || result.contains("repeat"),
+            "expandtabs literal: {}",
+            result
+        );
     }
 
     #[test]
     fn test_wave18_string_expandtabs_custom_2() {
         let code = "def expand2(s: str) -> str:\n    return s.expandtabs(2)\n";
         let result = transpile(code);
-        assert!(result.contains("replace") && result.contains("repeat"), "expandtabs 2: {}", result);
+        assert!(
+            result.contains("replace") && result.contains("repeat"),
+            "expandtabs 2: {}",
+            result
+        );
     }
 
     #[test]
@@ -385,7 +467,11 @@ def swap_one() -> str:
     fn test_wave18_string_expandtabs_variable() {
         let code = "def expand_var(s: str, n: int) -> str:\n    return s.expandtabs(n)\n";
         let result = transpile(code);
-        assert!(result.contains("replace") && result.contains("repeat"), "expandtabs var: {}", result);
+        assert!(
+            result.contains("replace") && result.contains("repeat"),
+            "expandtabs var: {}",
+            result
+        );
     }
 
     #[test]
@@ -428,7 +514,11 @@ def ctr(s: str) -> str:
     return s.center(10)
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") && result.contains("total_pad"), "center basic: {}", result);
+        assert!(
+            result.contains("width") && result.contains("total_pad"),
+            "center basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -448,7 +538,11 @@ def ctr_lit() -> str:
     return "hi".center(10)
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("total_pad"), "center literal: {}", result);
+        assert!(
+            result.contains("width") || result.contains("total_pad"),
+            "center literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -458,7 +552,11 @@ def ctr_star() -> str:
     return "hi".center(10, "*")
 "#;
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "center star: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "center star: {}",
+            result
+        );
     }
 
     #[test]
@@ -468,7 +566,11 @@ def ctr_wide(s: str) -> str:
     return s.center(20)
 "#;
         let result = transpile(code);
-        assert!(result.contains("left_pad") || result.contains("total_pad"), "center wide: {}", result);
+        assert!(
+            result.contains("left_pad") || result.contains("total_pad"),
+            "center wide: {}",
+            result
+        );
     }
 
     #[test]
@@ -488,7 +590,11 @@ def ctr_dash(s: str) -> str:
     return s.center(20, "-")
 "#;
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "center dash: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "center dash: {}",
+            result
+        );
     }
 
     #[test]
@@ -509,7 +615,11 @@ def ctr_assign(s: str) -> str:
     return centered
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("total_pad"), "center assign: {}", result);
+        assert!(
+            result.contains("width") || result.contains("total_pad"),
+            "center assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -543,7 +653,11 @@ def lj_fill(s: str) -> str:
     return s.ljust(10, "-")
 "#;
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "ljust fill: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "ljust fill: {}",
+            result
+        );
     }
 
     #[test]
@@ -553,7 +667,11 @@ def lj_lit() -> str:
     return "hi".ljust(10)
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("fillchar"), "ljust literal: {}", result);
+        assert!(
+            result.contains("width") || result.contains("fillchar"),
+            "ljust literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -583,7 +701,11 @@ def lj_zero(s: str) -> str:
     return s.ljust(10, "0")
 "#;
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "ljust zero: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "ljust zero: {}",
+            result
+        );
     }
 
     #[test]
@@ -604,7 +726,11 @@ def lj_assign(s: str) -> str:
     return padded
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("fillchar"), "ljust assign: {}", result);
+        assert!(
+            result.contains("width") || result.contains("fillchar"),
+            "ljust assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -648,7 +774,11 @@ def rj_fill(s: str) -> str:
     return s.rjust(10, "0")
 "#;
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "rjust fill: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "rjust fill: {}",
+            result
+        );
     }
 
     #[test]
@@ -658,7 +788,11 @@ def rj_lit() -> str:
     return "hi".rjust(10)
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("fillchar"), "rjust literal: {}", result);
+        assert!(
+            result.contains("width") || result.contains("fillchar"),
+            "rjust literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -668,7 +802,11 @@ def rj_star() -> str:
     return "hi".rjust(10, "*")
 "#;
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "rjust star: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "rjust star: {}",
+            result
+        );
     }
 
     #[test]
@@ -685,7 +823,11 @@ def rj_narrow() -> str:
     fn test_wave18_string_rjust_hash_fill() {
         let code = "def rj_hash(s: str) -> str:\n    return s.rjust(20, \"#\")\n";
         let result = transpile(code);
-        assert!(result.contains("fillchar") || result.contains("format!"), "rjust hash: {}", result);
+        assert!(
+            result.contains("fillchar") || result.contains("format!"),
+            "rjust hash: {}",
+            result
+        );
     }
 
     #[test]
@@ -706,7 +848,11 @@ def rj_assign(s: str) -> str:
     return padded
 "#;
         let result = transpile(code);
-        assert!(result.contains("width") || result.contains("fillchar"), "rjust assign: {}", result);
+        assert!(
+            result.contains("width") || result.contains("fillchar"),
+            "rjust assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -740,7 +886,11 @@ def part(s: str) -> tuple:
     return s.partition(":")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition basic: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -750,7 +900,11 @@ def part_lit() -> tuple:
     return "a:b:c".partition(":")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition literal: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -760,7 +914,11 @@ def part_space(s: str) -> tuple:
     return s.partition(" ")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition space: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition space: {}",
+            result
+        );
     }
 
     #[test]
@@ -770,7 +928,11 @@ def part_miss() -> tuple:
     return "hello".partition("xyz")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition miss: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition miss: {}",
+            result
+        );
     }
 
     #[test]
@@ -780,7 +942,11 @@ def part_multi(s: str) -> tuple:
     return s.partition("::")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("sep_str"), "partition multi: {}", result);
+        assert!(
+            result.contains("find") || result.contains("sep_str"),
+            "partition multi: {}",
+            result
+        );
     }
 
     #[test]
@@ -791,7 +957,11 @@ def part_assign(s: str) -> tuple:
     return result
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition assign: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -801,7 +971,11 @@ def part_dash() -> tuple:
     return "key-value-pair".partition("-")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition dash: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition dash: {}",
+            result
+        );
     }
 
     #[test]
@@ -811,7 +985,11 @@ def part_eq(s: str) -> tuple:
     return s.partition("=")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("partition"), "partition eq: {}", result);
+        assert!(
+            result.contains("find") || result.contains("partition"),
+            "partition eq: {}",
+            result
+        );
     }
 
     #[test]
@@ -821,7 +999,11 @@ def part_start() -> tuple:
     return ":hello".partition(":")
 "#;
         let result = transpile(code);
-        assert!(result.contains("find") || result.contains("before"), "partition start: {}", result);
+        assert!(
+            result.contains("find") || result.contains("before"),
+            "partition start: {}",
+            result
+        );
     }
 
     #[test]
@@ -900,7 +1082,11 @@ def check_id(s: str) -> bool:
     return s.isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("is_alphanumeric"), "isidentifier valid: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("is_alphanumeric"),
+            "isidentifier valid: {}",
+            result
+        );
     }
 
     #[test]
@@ -910,7 +1096,11 @@ def check_valid() -> bool:
     return "valid_name".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_empty") || result.contains("enumerate"), "isidentifier valid lit: {}", result);
+        assert!(
+            result.contains("is_empty") || result.contains("enumerate"),
+            "isidentifier valid lit: {}",
+            result
+        );
     }
 
     #[test]
@@ -920,7 +1110,11 @@ def check_invalid() -> bool:
     return "123bad".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("enumerate"), "isidentifier invalid lit: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("enumerate"),
+            "isidentifier invalid lit: {}",
+            result
+        );
     }
 
     #[test]
@@ -930,7 +1124,11 @@ def check_under() -> bool:
     return "_private".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("_") || result.contains("is_alphabetic"), "isidentifier underscore: {}", result);
+        assert!(
+            result.contains("_") || result.contains("is_alphabetic"),
+            "isidentifier underscore: {}",
+            result
+        );
     }
 
     #[test]
@@ -950,7 +1148,11 @@ def check_spaces() -> bool:
     return "has space".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphanumeric") || result.contains("enumerate"), "isidentifier spaces: {}", result);
+        assert!(
+            result.contains("is_alphanumeric") || result.contains("enumerate"),
+            "isidentifier spaces: {}",
+            result
+        );
     }
 
     #[test]
@@ -961,7 +1163,11 @@ def check_assign(s: str) -> bool:
     return is_id
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("is_alphanumeric"), "isidentifier assign: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("is_alphanumeric"),
+            "isidentifier assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -971,7 +1177,11 @@ def check_dunder() -> bool:
     return "__init__".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("enumerate") || result.contains("is_alphabetic"), "isidentifier dunder: {}", result);
+        assert!(
+            result.contains("enumerate") || result.contains("is_alphabetic"),
+            "isidentifier dunder: {}",
+            result
+        );
     }
 
     #[test]
@@ -981,7 +1191,11 @@ def check_single() -> bool:
     return "x".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("enumerate"), "isidentifier single: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("enumerate"),
+            "isidentifier single: {}",
+            result
+        );
     }
 
     #[test]
@@ -991,7 +1205,11 @@ def check_digit_only() -> bool:
     return "42".isidentifier()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("enumerate"), "isidentifier digit: {}", result);
+        assert!(
+            result.contains("is_alphabetic") || result.contains("enumerate"),
+            "isidentifier digit: {}",
+            result
+        );
     }
 
     // ========================================================================
@@ -1035,7 +1253,11 @@ def rs_noargs(s: str) -> list:
     return s.rsplit()
 "#;
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") && result.contains("rev"), "rsplit no args: {}", result);
+        assert!(
+            result.contains("split_whitespace") && result.contains("rev"),
+            "rsplit no args: {}",
+            result
+        );
     }
 
     #[test]
@@ -1110,7 +1332,11 @@ def fmt1(name: str) -> str:
     return "Hello, {}!".format(name)
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format single: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format single: {}",
+            result
+        );
     }
 
     #[test]
@@ -1150,7 +1376,11 @@ def fmt_int(n: int) -> str:
     return "Number: {}".format(n)
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format int: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format int: {}",
+            result
+        );
     }
 
     #[test]
@@ -1181,7 +1411,11 @@ def fmt_assign(x: str) -> str:
     return msg
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format assign: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -1191,7 +1425,11 @@ def fmt_var_tmpl(tmpl: str, val: str) -> str:
     return tmpl.format(val)
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format var tmpl: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format var tmpl: {}",
+            result
+        );
     }
 
     #[test]
@@ -1201,7 +1439,11 @@ def fmt_empty() -> str:
     return "{}".format("test")
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format empty ph: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format empty ph: {}",
+            result
+        );
     }
 
     #[test]
@@ -1221,7 +1463,11 @@ def fmt_float(x: float) -> str:
     return "Value: {}".format(x)
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format float: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format float: {}",
+            result
+        );
     }
 
     #[test]
@@ -1231,7 +1477,11 @@ def fmt_bool(b: bool) -> str:
     return "Flag: {}".format(b)
 "#;
         let result = transpile(code);
-        assert!(result.contains("replacen") || result.contains("format!"), "format bool: {}", result);
+        assert!(
+            result.contains("replacen") || result.contains("format!"),
+            "format bool: {}",
+            result
+        );
     }
 
     #[test]
@@ -1265,7 +1515,11 @@ def titlecase(s: str) -> str:
     return s.title()
 "#;
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("to_uppercase"), "title basic: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("to_uppercase"),
+            "title basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -1275,7 +1529,11 @@ def title_lit() -> str:
     return "hello world".title()
 "#;
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("join"), "title literal: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("join"),
+            "title literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -1285,7 +1543,11 @@ def title_single() -> str:
     return "hello".title()
 "#;
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("to_uppercase"), "title single: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("to_uppercase"),
+            "title single: {}",
+            result
+        );
     }
 
     #[test]
@@ -1305,7 +1567,11 @@ def title_mixed() -> str:
     return "hELLO wORLD".title()
 "#;
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("split_whitespace"), "title mixed: {}", result);
+        assert!(
+            result.contains("to_uppercase") || result.contains("split_whitespace"),
+            "title mixed: {}",
+            result
+        );
     }
 
     #[test]
@@ -1325,7 +1591,11 @@ def title_empty() -> str:
     return "".title()
 "#;
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("None"), "title empty: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("None"),
+            "title empty: {}",
+            result
+        );
     }
 
     #[test]
@@ -1336,7 +1606,11 @@ def title_assign(s: str) -> str:
     return titled
 "#;
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("to_uppercase"), "title assign: {}", result);
+        assert!(
+            result.contains("split_whitespace") || result.contains("to_uppercase"),
+            "title assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -1370,7 +1644,11 @@ def check_upper(s: str) -> bool:
     return s.isupper()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("is_alphabetic"), "isupper basic: {}", result);
+        assert!(
+            result.contains("is_uppercase") || result.contains("is_alphabetic"),
+            "isupper basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -1411,7 +1689,11 @@ def check_upper_digits() -> bool:
     return "ABC123".isupper()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("is_alphabetic"), "isupper digits: {}", result);
+        assert!(
+            result.contains("is_uppercase") || result.contains("is_alphabetic"),
+            "isupper digits: {}",
+            result
+        );
     }
 
     #[test]
@@ -1421,7 +1703,11 @@ def check_lower(s: str) -> bool:
     return s.islower()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_lowercase") || result.contains("is_alphabetic"), "islower basic: {}", result);
+        assert!(
+            result.contains("is_lowercase") || result.contains("is_alphabetic"),
+            "islower basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -1852,7 +2138,11 @@ def cnt_lit() -> int:
     return "aababc".count("ab")
 "#;
         let result = transpile(code);
-        assert!(result.contains("matches") && result.contains("count"), "count literal: {}", result);
+        assert!(
+            result.contains("matches") && result.contains("count"),
+            "count literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -1897,7 +2187,11 @@ def enc(s: str) -> bytes:
     return s.encode()
 "#;
         let result = transpile(code);
-        assert!(result.contains("as_bytes") && result.contains("to_vec"), "encode default: {}", result);
+        assert!(
+            result.contains("as_bytes") && result.contains("to_vec"),
+            "encode default: {}",
+            result
+        );
     }
 
     #[test]
@@ -1907,7 +2201,11 @@ def enc_utf8(s: str) -> bytes:
     return s.encode("utf-8")
 "#;
         let result = transpile(code);
-        assert!(result.contains("as_bytes") && result.contains("to_vec"), "encode utf8: {}", result);
+        assert!(
+            result.contains("as_bytes") && result.contains("to_vec"),
+            "encode utf8: {}",
+            result
+        );
     }
 
     #[test]
@@ -1917,7 +2215,11 @@ def enc_lit() -> bytes:
     return "hello".encode()
 "#;
         let result = transpile(code);
-        assert!(result.contains("as_bytes") && result.contains("to_vec"), "encode literal: {}", result);
+        assert!(
+            result.contains("as_bytes") && result.contains("to_vec"),
+            "encode literal: {}",
+            result
+        );
     }
 
     #[test]
@@ -1928,7 +2230,11 @@ def enc_assign(s: str) -> bytes:
     return data
 "#;
         let result = transpile(code);
-        assert!(result.contains("as_bytes") && result.contains("to_vec"), "encode assign: {}", result);
+        assert!(
+            result.contains("as_bytes") && result.contains("to_vec"),
+            "encode assign: {}",
+            result
+        );
     }
 
     #[test]
@@ -2035,7 +2341,11 @@ def check_title(s: str) -> bool:
     return s.istitle()
 "#;
         let result = transpile(code);
-        assert!(result.contains("prev_is_cased") || result.contains("is_uppercase"), "istitle basic: {}", result);
+        assert!(
+            result.contains("prev_is_cased") || result.contains("is_uppercase"),
+            "istitle basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -2045,7 +2355,11 @@ def check_title_lit() -> bool:
     return "Hello World".istitle()
 "#;
         let result = transpile(code);
-        assert!(result.contains("prev_is_cased") || result.contains("is_uppercase"), "istitle literal: {}", result);
+        assert!(
+            result.contains("prev_is_cased") || result.contains("is_uppercase"),
+            "istitle literal: {}",
+            result
+        );
     }
 
     // ========================================================================
@@ -2083,7 +2397,11 @@ def rfind_sub(s: str) -> int:
     return s.rfind("x")
 "#;
         let result = transpile(code);
-        assert!(result.contains("rfind") || result.contains("unwrap_or"), "rfind basic: {}", result);
+        assert!(
+            result.contains("rfind") || result.contains("unwrap_or"),
+            "rfind basic: {}",
+            result
+        );
     }
 
     #[test]
@@ -2113,6 +2431,10 @@ def dec(s: str) -> str:
     return s.decode()
 "#;
         let result = transpile(code);
-        assert!(result.contains("from_utf8_lossy") || result.contains("to_string"), "decode basic: {}", result);
+        assert!(
+            result.contains("from_utf8_lossy") || result.contains("to_string"),
+            "decode basic: {}",
+            result
+        );
     }
 }

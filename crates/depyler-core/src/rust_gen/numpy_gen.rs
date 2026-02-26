@@ -45,11 +45,7 @@ pub enum NumpyCall {
     /// np.cos(a) - element-wise cos
     Cos { arr: TokenStream },
     /// np.clip(a, min, max) - clip values
-    Clip {
-        arr: TokenStream,
-        min: TokenStream,
-        max: TokenStream,
-    },
+    Clip { arr: TokenStream, min: TokenStream, max: TokenStream },
     /// np.argmax(a) - index of max element
     ArgMax { arr: TokenStream },
     /// np.argmin(a) - index of min element
@@ -246,18 +242,11 @@ mod tests {
 
     #[test]
     fn test_generate_dot() {
-        let call = NumpyCall::Dot {
-            a: quote!(a),
-            b: quote!(b),
-        };
+        let call = NumpyCall::Dot { a: quote!(a), b: quote!(b) };
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("dot"),
-            "Should generate dot call: {}",
-            code_str
-        );
+        assert!(code_str.contains("dot"), "Should generate dot call: {}", code_str);
         assert!(
             code_str.contains("unwrap") || code_str.contains("expect"),
             "Should handle result: {}",
@@ -271,11 +260,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("sum"),
-            "Should generate sum call: {}",
-            code_str
-        );
+        assert!(code_str.contains("sum"), "Should generate sum call: {}", code_str);
     }
 
     #[test]
@@ -284,11 +269,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("mean"),
-            "Should generate mean call: {}",
-            code_str
-        );
+        assert!(code_str.contains("mean"), "Should generate mean call: {}", code_str);
     }
 
     #[test]
@@ -297,11 +278,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("sqrt"),
-            "Should generate sqrt call: {}",
-            code_str
-        );
+        assert!(code_str.contains("sqrt"), "Should generate sqrt call: {}", code_str);
     }
 
     #[test]
@@ -310,11 +287,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("zeros"),
-            "Should generate zeros call: {}",
-            code_str
-        );
+        assert!(code_str.contains("zeros"), "Should generate zeros call: {}", code_str);
     }
 
     #[test]
@@ -323,28 +296,16 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("ones"),
-            "Should generate ones call: {}",
-            code_str
-        );
+        assert!(code_str.contains("ones"), "Should generate ones call: {}", code_str);
     }
 
     #[test]
     fn test_generate_clip() {
-        let call = NumpyCall::Clip {
-            arr: quote!(arr),
-            min: quote!(0.0),
-            max: quote!(1.0),
-        };
+        let call = NumpyCall::Clip { arr: quote!(arr), min: quote!(0.0), max: quote!(1.0) };
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("clamp"),
-            "Should generate clamp call: {}",
-            code_str
-        );
+        assert!(code_str.contains("clamp"), "Should generate clamp call: {}", code_str);
     }
 
     #[test]
@@ -374,16 +335,8 @@ mod tests {
         let stmt = trueno_use_statement();
         let stmt_str = stmt.to_string();
 
-        assert!(
-            stmt_str.contains("trueno"),
-            "Should use trueno: {}",
-            stmt_str
-        );
-        assert!(
-            stmt_str.contains("Vector"),
-            "Should import Vector: {}",
-            stmt_str
-        );
+        assert!(stmt_str.contains("trueno"), "Should use trueno: {}", stmt_str);
+        assert!(stmt_str.contains("Vector"), "Should import Vector: {}", stmt_str);
     }
 
     #[test]
@@ -392,11 +345,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("norm"),
-            "Should generate norm call: {}",
-            code_str
-        );
+        assert!(code_str.contains("norm"), "Should generate norm call: {}", code_str);
     }
 
     #[test]
@@ -405,11 +354,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("argmax"),
-            "Should generate argmax call: {}",
-            code_str
-        );
+        assert!(code_str.contains("argmax"), "Should generate argmax call: {}", code_str);
     }
 
     #[test]
@@ -432,11 +377,7 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
-        assert!(
-            code_str.contains("variance"),
-            "Should generate variance call: {}",
-            code_str
-        );
+        assert!(code_str.contains("variance"), "Should generate variance call: {}", code_str);
     }
 
     #[test]
@@ -524,9 +465,7 @@ mod tests {
 
     #[test]
     fn test_generate_norm_uses_norm_l2() {
-        let call = NumpyCall::Norm {
-            arr: quote!(a + b),
-        };
+        let call = NumpyCall::Norm { arr: quote!(a + b) };
         let code = generate_trueno_code(&call);
         assert!(code.to_string().contains("norm_l2"));
     }
@@ -540,10 +479,7 @@ mod tests {
 
     #[test]
     fn test_generate_dot_with_expressions() {
-        let call = NumpyCall::Dot {
-            a: quote!(vec1),
-            b: quote!(vec2),
-        };
+        let call = NumpyCall::Dot { a: quote!(vec1), b: quote!(vec2) };
         let code = generate_trueno_code(&call);
         let s = code.to_string();
         assert!(s.contains("vec1"));

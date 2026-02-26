@@ -38,6 +38,7 @@ coverage/
 tarpaulin-report.html
 *.profraw
 *.profdata
+lcov.info
 
 # PMAT quality gates and TDG baseline
 .pmat/baseline.json
@@ -139,6 +140,7 @@ None
 # PMAT
 .pmat/backup/
 .pmat/context.idx/
+.pmat/dead-code-cache.json
 .pmat-qa/
 
 # Nix

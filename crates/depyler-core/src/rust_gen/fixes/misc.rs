@@ -125,10 +125,7 @@ pub(super) fn fix_datetime_subtraction(code: &str) -> String {
             // Pattern: ((d2) - (d1).day() as i32).abs()
             // Fix: ((d2.day as i32) - (d1.day as i32)).abs()
             let fixed = line
-                .replace(
-                    "((d2) - (d1).day() as i32)",
-                    "((d2.day as i32) - (d1.day as i32))",
-                )
+                .replace("((d2) - (d1).day() as i32)", "((d2.day as i32) - (d1.day as i32))")
                 .replace("((d2) - (d1).day())", "((d2.day as i32) - (d1.day as i32))");
             result.push(fixed);
         } else {
@@ -223,9 +220,8 @@ pub(super) fn fix_path_or_string_union_coercion(code: &str) -> String {
     ];
     for line in &lines {
         let trimmed = line.trim();
-        let is_call_to_path_fn = path_union_fns
-            .iter()
-            .any(|f| trimmed.contains(&format!("{}(", f)));
+        let is_call_to_path_fn =
+            path_union_fns.iter().any(|f| trimmed.contains(&format!("{}(", f)));
         if is_call_to_path_fn {
             let mut fixed = line.to_string();
             for pat in &field_patterns {
@@ -644,8 +640,7 @@ pub(super) fn fix_closure_to_dyn_fn_ref(code: &str) -> String {
                     // Find the closing `)` of the outer call
                     if let Some(close_paren) = new_line.rfind(");") {
                         let closure_text = &new_line[move_idx + 2..close_paren];
-                        let replacement =
-                            format!(" &({})", closure_text);
+                        let replacement = format!(" &({})", closure_text);
                         new_line = format!(
                             "{}{}{}",
                             &new_line[..move_idx + 1],
@@ -756,7 +751,8 @@ pub(super) fn fix_unclosed_vec_macro(code: &str) -> String {
                     has_bracket = true;
                     break;
                 }
-                if next_trimmed == "}" || next_trimmed.starts_with("pub fn ")
+                if next_trimmed == "}"
+                    || next_trimmed.starts_with("pub fn ")
                     || next_trimmed.starts_with("#[doc")
                 {
                     break;
@@ -846,10 +842,7 @@ fn parse_pub_field(field_line: &str) -> Option<(String, String)> {
     let after_pub = field_line.strip_prefix("pub ").unwrap_or("");
     let colon = after_pub.find(':')?;
     let field_name = after_pub[..colon].trim().to_string();
-    let field_type = after_pub[colon + 1..]
-        .trim()
-        .trim_end_matches(',')
-        .to_string();
+    let field_type = after_pub[colon + 1..].trim().trim_end_matches(',').to_string();
     Some((field_name, field_type))
 }
 
@@ -1095,9 +1088,7 @@ pub(super) fn fix_ambiguous_into_type_annotation(code: &str) -> String {
                         // Only annotate if no existing type annotation
                         if !var_name.contains(':')
                             && !var_name.is_empty()
-                            && var_name
-                                .chars()
-                                .all(|c| c.is_alphanumeric() || c == '_')
+                            && var_name.chars().all(|c| c.is_alphanumeric() || c == '_')
                         {
                             let insert_pos = let_offset + 4 + eq_offset;
                             new_line = format!(
@@ -1186,9 +1177,7 @@ pub(super) fn fix_dict_get_return(code: &str) -> String {
                 }
             }
             // Fix tail: option var
-            if !trimmed.ends_with(';')
-                && option_dv_vars.iter().any(|v| v.as_str() == trimmed)
-            {
+            if !trimmed.ends_with(';') && option_dv_vars.iter().any(|v| v.as_str() == trimmed) {
                 let indent = &line[..line.len() - trimmed.len()];
                 result.push_str(&format!(
                     "{}{}.unwrap_or(DepylerValue::Int(0i64)).into()",
@@ -1224,11 +1213,8 @@ pub(super) fn fix_iter_on_impl_iterator(code: &str) -> String {
                 if let Some(paren) = after_fn.find('(') {
                     let fn_name = after_fn[..paren].trim();
                     // Strip generic parameters (e.g., fibonacci_generator<'a> -> fibonacci_generator)
-                    let fn_name = if let Some(gen) = fn_name.find('<') {
-                        &fn_name[..gen]
-                    } else {
-                        fn_name
-                    };
+                    let fn_name =
+                        if let Some(gen) = fn_name.find('<') { &fn_name[..gen] } else { fn_name };
                     if !fn_name.is_empty() {
                         iter_fns.push(fn_name.to_string());
                     }
@@ -1428,7 +1414,9 @@ fn build_custom_fn_return_map(code: &str) -> std::collections::HashMap<String, S
     let mut fn_returns = std::collections::HashMap::new();
     for line in code.lines() {
         let trimmed = line.trim();
-        if !(trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) || !trimmed.contains("-> ") {
+        if !(trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            || !trimmed.contains("-> ")
+        {
             continue;
         }
         if let Some((fn_name, ret_type)) = extract_fn_name_and_return(trimmed) {
@@ -1442,18 +1430,12 @@ fn build_custom_fn_return_map(code: &str) -> std::collections::HashMap<String, S
 
 /// Extract function name and return type from a function signature line.
 fn extract_fn_name_and_return(trimmed: &str) -> Option<(String, String)> {
-    let after_fn = trimmed
-        .strip_prefix("pub fn ")
-        .or_else(|| trimmed.strip_prefix("fn "))?;
+    let after_fn = trimmed.strip_prefix("pub fn ").or_else(|| trimmed.strip_prefix("fn "))?;
     let paren_pos = after_fn.find('(')?;
     let fn_name = after_fn[..paren_pos].trim().to_string();
     let arrow_pos = trimmed.find("-> ")?;
     let after_arrow = &trimmed[arrow_pos + 3..];
-    let ret_type = after_arrow
-        .trim_end_matches('{')
-        .trim_end_matches("where")
-        .trim()
-        .to_string();
+    let ret_type = after_arrow.trim_end_matches('{').trim_end_matches("where").trim().to_string();
     Some((fn_name, ret_type))
 }
 
@@ -1537,9 +1519,7 @@ fn extract_result_vec_inner_type(trimmed: &str) -> Option<(String, String)> {
     if !trimmed.contains("-> Result<Vec<") {
         return None;
     }
-    let after_fn = trimmed
-        .strip_prefix("pub fn ")
-        .or_else(|| trimmed.strip_prefix("fn "))?;
+    let after_fn = trimmed.strip_prefix("pub fn ").or_else(|| trimmed.strip_prefix("fn "))?;
     let paren_pos = after_fn.find('(')?;
     let fn_name = after_fn[..paren_pos].trim().to_string();
     let vec_start = trimmed.find("-> Result<Vec<")?;
@@ -1632,10 +1612,7 @@ fn try_fix_vec_new_line(
     let correct_inner = fn_vec_type.get(fn_name)?;
     let indent = &line[..line.len() - trimmed.len()];
     let trailing = if trimmed.ends_with(',') { "," } else { "" };
-    Some(format!(
-        "{}Vec::<{}>::new(){}",
-        indent, correct_inner, trailing
-    ))
+    Some(format!("{}Vec::<{}>::new(){}", indent, correct_inner, trailing))
 }
 
 pub(super) fn fix_let_unit_type_annotation(code: &str) -> String {
@@ -1647,7 +1624,10 @@ pub(super) fn fix_let_unit_type_annotation(code: &str) -> String {
     for line in &lines {
         let trimmed = line.trim();
         // Match: let IDENT: () = EXPR  (but NOT let _: () = ...)
-        if trimmed.starts_with("let ") && trimmed.contains(": () =") && !trimmed.starts_with("let _:") {
+        if trimmed.starts_with("let ")
+            && trimmed.contains(": () =")
+            && !trimmed.starts_with("let _:")
+        {
             let new_line = line.replace(": () =", " =");
             result.push(new_line);
         } else {
@@ -1722,11 +1702,7 @@ fn extract_bool_from_let_binding(trimmed: &str, vars: &mut Vec<String>) {
 }
 
 /// Extract loop variables iterating over Vec<bool> parameters.
-fn extract_bool_from_for_loop(
-    trimmed: &str,
-    vec_bool_params: &[String],
-    vars: &mut Vec<String>,
-) {
+fn extract_bool_from_for_loop(trimmed: &str, vec_bool_params: &[String], vars: &mut Vec<String>) {
     let Some(in_pos) = trimmed.find(" in ") else {
         return;
     };

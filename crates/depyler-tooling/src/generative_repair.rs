@@ -22,8 +22,8 @@
 //! This module requires the `generative` feature to enable MCTS functionality.
 //! Without the feature, a stub implementation is provided.
 
-use depyler_hir::hir::HirModule;
 use anyhow::Result;
+use depyler_hir::hir::HirModule;
 use proc_macro2::TokenStream;
 use std::hash::{Hash, Hasher};
 
@@ -71,18 +71,12 @@ impl CodeState {
     /// Create a new code state from tokens
     pub fn new(tokens: Vec<String>) -> Self {
         let is_complete = tokens.iter().any(|t| t == "EOF");
-        Self {
-            tokens,
-            is_complete,
-        }
+        Self { tokens, is_complete }
     }
 
     /// Create an empty initial state
     pub fn initial() -> Self {
-        Self {
-            tokens: vec![],
-            is_complete: false,
-        }
+        Self { tokens: vec![], is_complete: false }
     }
 
     /// Get the current tokens
@@ -124,10 +118,7 @@ pub struct CodeAction {
 impl CodeAction {
     /// Create a new code action
     pub fn new(name: impl Into<String>, token: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            token: token.into(),
-        }
+        Self { name: name.into(), token: token.into() }
     }
 }
 
@@ -164,11 +155,7 @@ impl StateSpace<CodeState, CodeAction> for CodeStateSpace {
     fn evaluate(&self, state: &CodeState) -> Reward {
         // Simple reward: 1.0 if tokens contain all target patterns, 0.0 otherwise
         let tokens_str = state.tokens.join(" ");
-        let matches = self
-            .target_patterns
-            .iter()
-            .filter(|p| tokens_str.contains(*p))
-            .count();
+        let matches = self.target_patterns.iter().filter(|p| tokens_str.contains(*p)).count();
 
         if self.target_patterns.is_empty() {
             0.5 // Neutral if no patterns
@@ -178,9 +165,7 @@ impl StateSpace<CodeState, CodeAction> for CodeStateSpace {
     }
 
     fn clone_space(&self) -> Box<dyn StateSpace<CodeState, CodeAction> + Send + Sync> {
-        Box::new(Self {
-            target_patterns: self.target_patterns.clone(),
-        })
+        Box::new(Self { target_patterns: self.target_patterns.clone() })
     }
 }
 
@@ -251,9 +236,7 @@ pub struct GenerativeRepair {
 impl GenerativeRepair {
     /// Create a new generative repair engine with default config
     pub fn new() -> Self {
-        Self {
-            config: GenerativeRepairConfig::default(),
-        }
+        Self { config: GenerativeRepairConfig::default() }
     }
 
     /// Create a new generative repair engine with custom config
@@ -345,13 +328,8 @@ impl GenerativeRepair {
     /// Convert code state tokens to TokenStream
     #[cfg(feature = "generative")]
     fn tokens_to_stream(&self, state: &CodeState) -> Result<TokenStream> {
-        let code = state
-            .tokens()
-            .iter()
-            .filter(|t| *t != "EOF")
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(" ");
+        let code =
+            state.tokens().iter().filter(|t| *t != "EOF").cloned().collect::<Vec<_>>().join(" ");
 
         // Try to parse as Rust code
         match code.parse::<TokenStream>() {
@@ -602,12 +580,8 @@ mod tests {
 
     #[test]
     fn test_synthesis_result_debug() {
-        let result = SynthesisResult {
-            success: false,
-            code: None,
-            iterations: 50,
-            expected_reward: 0.25,
-        };
+        let result =
+            SynthesisResult { success: false, code: None, iterations: 50, expected_reward: 0.25 };
         let debug_str = format!("{:?}", result);
         assert!(debug_str.contains("SynthesisResult"));
         assert!(debug_str.contains("success"));
@@ -631,12 +605,8 @@ mod tests {
 
     #[test]
     fn test_synthesis_result_no_code() {
-        let result = SynthesisResult {
-            success: false,
-            code: None,
-            iterations: 0,
-            expected_reward: 0.0,
-        };
+        let result =
+            SynthesisResult { success: false, code: None, iterations: 0, expected_reward: 0.0 };
         assert!(!result.success);
         assert!(result.code.is_none());
         assert_eq!(result.iterations, 0);
@@ -691,10 +661,7 @@ mod tests {
 
     #[test]
     fn test_generative_repair_config_custom_seed() {
-        let config = GenerativeRepairConfig {
-            seed: 12345,
-            ..Default::default()
-        };
+        let config = GenerativeRepairConfig { seed: 12345, ..Default::default() };
         let repair = GenerativeRepair::with_config(config);
         assert_eq!(repair.config().seed, 12345);
     }
@@ -766,11 +733,8 @@ mod tests {
 
         #[test]
         fn test_mcts_integration() {
-            let config = GenerativeRepairConfig {
-                max_iterations: 10,
-                seed: 42,
-                ..Default::default()
-            };
+            let config =
+                GenerativeRepairConfig { max_iterations: 10, seed: 42, ..Default::default() };
 
             let repair = GenerativeRepair::with_config(config);
             let hir = create_empty_hir();

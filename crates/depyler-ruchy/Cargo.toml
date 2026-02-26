@@ -39,3 +39,6 @@ actor = []
 [lib]
 name = "depyler_ruchy"
 path = "src/lib.rs"
+
+[lints]
+workspace = true

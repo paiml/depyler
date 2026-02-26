@@ -214,19 +214,14 @@ impl LambdaTypeMapper {
             },
         );
 
-        Self {
-            event_mappings,
-            response_mappings,
-        }
+        Self { event_mappings, response_mappings }
     }
 
     /// Get event type mapping for a Lambda event type
     pub fn get_event_mapping(&self, event_type: &LambdaEventType) -> Option<&EventTypeMapping> {
         // Handle EventBridge with custom types
         if let LambdaEventType::EventBridgeEvent(Some(_)) = event_type {
-            return self
-                .event_mappings
-                .get(&LambdaEventType::EventBridgeEvent(None));
+            return self.event_mappings.get(&LambdaEventType::EventBridgeEvent(None));
         }
 
         self.event_mappings.get(event_type)
@@ -239,9 +234,7 @@ impl LambdaTypeMapper {
     ) -> Option<&ResponseTypeMapping> {
         // Handle EventBridge with custom types
         if let LambdaEventType::EventBridgeEvent(Some(_)) = event_type {
-            return self
-                .response_mappings
-                .get(&LambdaEventType::EventBridgeEvent(None));
+            return self.response_mappings.get(&LambdaEventType::EventBridgeEvent(None));
         }
 
         self.response_mappings.get(event_type)
@@ -568,9 +561,8 @@ mod tests {
     fn test_response_mapping_retrieval() {
         let mapper = LambdaTypeMapper::new();
 
-        let apigw_response = mapper
-            .get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let apigw_response =
+            mapper.get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
         assert_eq!(apigw_response.rust_type, "ApiGatewayProxyResponse");
         assert!(apigw_response.conversion_impl.is_some());
     }
@@ -600,9 +592,7 @@ mod tests {
     #[test]
     fn test_custom_eventbridge_types_generation() {
         let mapper = LambdaTypeMapper::new();
-        let generated = mapper
-            .generate_custom_eventbridge_types("OrderEvent")
-            .unwrap();
+        let generated = mapper.generate_custom_eventbridge_types("OrderEvent").unwrap();
 
         assert!(generated.contains("struct OrderEvent"));
         assert!(generated.contains("enum EventType"));
@@ -620,9 +610,8 @@ mod tests {
     #[test]
     fn test_response_builders() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let builder =
+            mapper.generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
 
         assert!(builder.contains("ResponseBuilder"));
         assert!(builder.contains("fn status"));
@@ -665,17 +654,13 @@ mod tests {
     fn test_lambda_type_mapper_default() {
         let mapper = LambdaTypeMapper::default();
         // Default impl calls new()
-        assert!(mapper
-            .get_event_mapping(&LambdaEventType::S3Event)
-            .is_some());
+        assert!(mapper.get_event_mapping(&LambdaEventType::S3Event).is_some());
     }
 
     #[test]
     fn test_sqs_event_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::SqsEvent)
-            .unwrap();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::SqsEvent).unwrap();
         assert_eq!(mapping.rust_type, "SqsEvent");
         assert_eq!(mapping.aws_events_module, "sqs");
     }
@@ -683,18 +668,14 @@ mod tests {
     #[test]
     fn test_sqs_response_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::SqsEvent)
-            .unwrap();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::SqsEvent).unwrap();
         assert_eq!(mapping.rust_type, "SqsBatchResponse");
     }
 
     #[test]
     fn test_sns_event_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::SnsEvent)
-            .unwrap();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::SnsEvent).unwrap();
         assert_eq!(mapping.rust_type, "SnsEvent");
         assert_eq!(mapping.aws_events_module, "sns");
     }
@@ -702,18 +683,14 @@ mod tests {
     #[test]
     fn test_sns_response_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::SnsEvent)
-            .unwrap();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::SnsEvent).unwrap();
         assert_eq!(mapping.rust_type, "serde_json::Value");
     }
 
     #[test]
     fn test_dynamodb_event_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::DynamodbEvent)
-            .unwrap();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::DynamodbEvent).unwrap();
         assert_eq!(mapping.rust_type, "DynamodbEvent");
         assert_eq!(mapping.aws_events_module, "dynamodb");
     }
@@ -721,18 +698,14 @@ mod tests {
     #[test]
     fn test_dynamodb_response_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::DynamodbEvent)
-            .unwrap();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::DynamodbEvent).unwrap();
         assert_eq!(mapping.rust_type, "serde_json::Value");
     }
 
     #[test]
     fn test_eventbridge_base_event_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::EventBridgeEvent(None))
-            .unwrap();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::EventBridgeEvent(None)).unwrap();
         assert_eq!(mapping.rust_type, "EventBridgeEvent<serde_json::Value>");
         assert_eq!(mapping.aws_events_module, "eventbridge");
     }
@@ -740,9 +713,8 @@ mod tests {
     #[test]
     fn test_eventbridge_base_response_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::EventBridgeEvent(None))
-            .unwrap();
+        let mapping =
+            mapper.get_response_mapping(&LambdaEventType::EventBridgeEvent(None)).unwrap();
         assert_eq!(mapping.rust_type, "()");
     }
 
@@ -757,18 +729,14 @@ mod tests {
     #[test]
     fn test_s3_response_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::S3Event)
-            .unwrap();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::S3Event).unwrap();
         assert_eq!(mapping.rust_type, "serde_json::Value");
     }
 
     #[test]
     fn test_apigw_v1_event_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
         assert_eq!(mapping.rust_type, "ApiGatewayProxyRequest");
         assert_eq!(mapping.aws_events_module, "apigw");
         assert!(!mapping.imports.is_empty());
@@ -777,9 +745,7 @@ mod tests {
     #[test]
     fn test_apigw_v2_event_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::ApiGatewayV2HttpRequest)
-            .unwrap();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::ApiGatewayV2HttpRequest).unwrap();
         assert_eq!(mapping.rust_type, "ApiGatewayV2httpRequest");
         assert_eq!(mapping.aws_events_module, "apigw");
     }
@@ -787,9 +753,8 @@ mod tests {
     #[test]
     fn test_apigw_v2_response_mapping() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::ApiGatewayV2HttpRequest)
-            .unwrap();
+        let mapping =
+            mapper.get_response_mapping(&LambdaEventType::ApiGatewayV2HttpRequest).unwrap();
         assert_eq!(mapping.rust_type, "ApiGatewayV2httpResponse");
         assert!(mapping.conversion_impl.is_some());
     }
@@ -820,10 +785,8 @@ mod tests {
     fn test_type_conversion_rules_status_code() {
         let mapper = LambdaTypeMapper::new();
         let rules = mapper.get_type_conversion_rules();
-        let status_rule = rules
-            .iter()
-            .find(|r| matches!(r.lambda_context, LambdaContext::StatusCode))
-            .unwrap();
+        let status_rule =
+            rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::StatusCode)).unwrap();
         assert_eq!(status_rule.python_pattern, "int");
         assert_eq!(status_rule.rust_type, "u16");
     }
@@ -832,10 +795,8 @@ mod tests {
     fn test_type_conversion_rules_timestamp() {
         let mapper = LambdaTypeMapper::new();
         let rules = mapper.get_type_conversion_rules();
-        let timestamp_rule = rules
-            .iter()
-            .find(|r| matches!(r.lambda_context, LambdaContext::Timestamp))
-            .unwrap();
+        let timestamp_rule =
+            rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::Timestamp)).unwrap();
         assert_eq!(timestamp_rule.python_pattern, "float");
         assert_eq!(timestamp_rule.rust_type, "f64");
         assert!(timestamp_rule.serde_attribute.is_some());
@@ -845,10 +806,8 @@ mod tests {
     fn test_type_conversion_rules_records() {
         let mapper = LambdaTypeMapper::new();
         let rules = mapper.get_type_conversion_rules();
-        let records_rule = rules
-            .iter()
-            .find(|r| matches!(r.lambda_context, LambdaContext::Records))
-            .unwrap();
+        let records_rule =
+            rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::Records)).unwrap();
         assert_eq!(records_rule.python_pattern, "List[dict]");
         assert_eq!(records_rule.rust_type, "Vec<Record>");
     }
@@ -879,10 +838,8 @@ mod tests {
     fn test_type_conversion_rules_body() {
         let mapper = LambdaTypeMapper::new();
         let rules = mapper.get_type_conversion_rules();
-        let body_rule = rules
-            .iter()
-            .find(|r| matches!(r.lambda_context, LambdaContext::Body))
-            .unwrap();
+        let body_rule =
+            rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::Body)).unwrap();
         assert_eq!(body_rule.rust_type, "Option<String>");
     }
 
@@ -890,19 +847,16 @@ mod tests {
     fn test_type_conversion_rules_header_value() {
         let mapper = LambdaTypeMapper::new();
         let rules = mapper.get_type_conversion_rules();
-        let header_rule = rules
-            .iter()
-            .find(|r| matches!(r.lambda_context, LambdaContext::HeaderValue))
-            .unwrap();
+        let header_rule =
+            rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::HeaderValue)).unwrap();
         assert_eq!(header_rule.rust_type, "HeaderValue");
     }
 
     #[test]
     fn test_generate_response_builders_apigw_v2() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::ApiGatewayV2HttpRequest)
-            .unwrap();
+        let builder =
+            mapper.generate_response_builders(&LambdaEventType::ApiGatewayV2HttpRequest).unwrap();
         assert!(builder.contains("ResponseBuilderV2"));
         assert!(builder.contains("fn status"));
         assert!(builder.contains("fn json"));
@@ -911,9 +865,7 @@ mod tests {
     #[test]
     fn test_generate_response_builders_sqs() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::SqsEvent)
-            .unwrap();
+        let builder = mapper.generate_response_builders(&LambdaEventType::SqsEvent).unwrap();
         assert!(builder.contains("SqsResponseBuilder"));
         assert!(builder.contains("add_failure"));
     }
@@ -921,36 +873,29 @@ mod tests {
     #[test]
     fn test_generate_response_builders_s3() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::S3Event)
-            .unwrap();
+        let builder = mapper.generate_response_builders(&LambdaEventType::S3Event).unwrap();
         assert!(builder.is_empty()); // S3 has no custom builder
     }
 
     #[test]
     fn test_generate_response_builders_sns() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::SnsEvent)
-            .unwrap();
+        let builder = mapper.generate_response_builders(&LambdaEventType::SnsEvent).unwrap();
         assert!(builder.is_empty());
     }
 
     #[test]
     fn test_generate_response_builders_dynamodb() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::DynamodbEvent)
-            .unwrap();
+        let builder = mapper.generate_response_builders(&LambdaEventType::DynamodbEvent).unwrap();
         assert!(builder.is_empty());
     }
 
     #[test]
     fn test_generate_response_builders_eventbridge() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::EventBridgeEvent(None))
-            .unwrap();
+        let builder =
+            mapper.generate_response_builders(&LambdaEventType::EventBridgeEvent(None)).unwrap();
         assert!(builder.is_empty());
     }
 
@@ -1083,9 +1028,7 @@ mod tests {
     #[test]
     fn test_custom_eventbridge_types_struct_definition() {
         let mapper = LambdaTypeMapper::new();
-        let generated = mapper
-            .generate_custom_eventbridge_types("TestEvent")
-            .unwrap();
+        let generated = mapper.generate_custom_eventbridge_types("TestEvent").unwrap();
         assert!(generated.contains("pub struct TestEvent"));
         assert!(generated.contains("#[derive(Debug, Deserialize, Serialize)]"));
     }
@@ -1093,9 +1036,7 @@ mod tests {
     #[test]
     fn test_custom_eventbridge_types_enum_definition() {
         let mapper = LambdaTypeMapper::new();
-        let generated = mapper
-            .generate_custom_eventbridge_types("MyCustom")
-            .unwrap();
+        let generated = mapper.generate_custom_eventbridge_types("MyCustom").unwrap();
         assert!(generated.contains("pub enum EventType"));
         assert!(generated.contains("CustomEvent(MyCustom)"));
     }
@@ -1104,18 +1045,14 @@ mod tests {
     fn test_s3_event_imports() {
         let mapper = LambdaTypeMapper::new();
         let mapping = mapper.get_event_mapping(&LambdaEventType::S3Event).unwrap();
-        assert!(mapping
-            .imports
-            .iter()
-            .any(|i| i.contains("aws_lambda_events::s3")));
+        assert!(mapping.imports.iter().any(|i| i.contains("aws_lambda_events::s3")));
     }
 
     #[test]
     fn test_apigw_v1_response_has_conversion() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let mapping =
+            mapper.get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
         let impl_str = mapping.conversion_impl.as_ref().unwrap();
         assert!(impl_str.contains("From<HandlerOutput>"));
     }
@@ -1123,13 +1060,8 @@ mod tests {
     #[test]
     fn test_eventbridge_imports() {
         let mapper = LambdaTypeMapper::new();
-        let mapping = mapper
-            .get_event_mapping(&LambdaEventType::EventBridgeEvent(None))
-            .unwrap();
-        assert!(mapping
-            .imports
-            .iter()
-            .any(|i| i.contains("EventBridgeEvent")));
+        let mapping = mapper.get_event_mapping(&LambdaEventType::EventBridgeEvent(None)).unwrap();
+        assert!(mapping.imports.iter().any(|i| i.contains("EventBridgeEvent")));
         assert!(mapping.imports.iter().any(|i| i.contains("serde_json")));
     }
 
@@ -1143,18 +1075,15 @@ mod tests {
     #[test]
     fn test_response_builder_contains_build_method() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest)
-            .unwrap();
+        let builder =
+            mapper.generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
         assert!(builder.contains("fn build(self)"));
     }
 
     #[test]
     fn test_sqs_response_builder_batch_failures() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper
-            .generate_response_builders(&LambdaEventType::SqsEvent)
-            .unwrap();
+        let builder = mapper.generate_response_builders(&LambdaEventType::SqsEvent).unwrap();
         assert!(builder.contains("batch_item_failures"));
         assert!(builder.contains("SqsBatchItemFailure"));
     }

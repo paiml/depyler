@@ -17,10 +17,7 @@ fn main() {{
 "#,
         rust_code,
         function_name,
-        args.iter()
-            .map(|a| a.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
+        args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", ")
     );
 
     // Write to temporary file with .rs extension
@@ -56,10 +53,7 @@ fn main() {{
 
     // Parse the output
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let result = stdout
-        .trim()
-        .parse::<i32>()
-        .context("Failed to parse output as i32")?;
+    let result = stdout.trim().parse::<i32>().context("Failed to parse output as i32")?;
 
     Ok(result)
 }
@@ -77,10 +71,7 @@ if __name__ == "__main__":
 "#,
         python_code,
         function_name,
-        args.iter()
-            .map(|a| a.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
+        args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", ")
     );
 
     // Write to temporary file
@@ -100,10 +91,7 @@ if __name__ == "__main__":
 
     // Parse the output
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let result = stdout
-        .trim()
-        .parse::<i32>()
-        .context("Failed to parse output as i32")?;
+    let result = stdout.trim().parse::<i32>().context("Failed to parse output as i32")?;
 
     Ok(result)
 }

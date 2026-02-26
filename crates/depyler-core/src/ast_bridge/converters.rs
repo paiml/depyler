@@ -69,11 +69,7 @@ impl StmtConverter {
         if a.targets.len() == 1 {
             // Single target - simple case
             let target = extract_assign_target(&a.targets[0])?;
-            Ok(HirStmt::Assign {
-                target,
-                value,
-                type_annotation: None,
-            })
+            Ok(HirStmt::Assign { target, value, type_annotation: None })
         } else {
             // Multiple targets: i = j = 0 becomes Block([j = 0, i = j])
             // For simple values (literals), we can assign the same value to each
@@ -83,11 +79,7 @@ impl StmtConverter {
             // Assign to each target from right to left (last gets the value first)
             for target_expr in a.targets.iter().rev() {
                 let target = extract_assign_target(target_expr)?;
-                stmts.push(HirStmt::Assign {
-                    target,
-                    value: value.clone(),
-                    type_annotation: None,
-                });
+                stmts.push(HirStmt::Assign { target, value: value.clone(), type_annotation: None });
             }
 
             // Reverse to get left-to-right order for Rust emission
@@ -105,15 +97,10 @@ impl StmtConverter {
         };
 
         // Extract type annotation
-        let type_annotation = Some(super::type_extraction::TypeExtractor::extract_type(
-            &a.annotation,
-        )?);
+        let type_annotation =
+            Some(super::type_extraction::TypeExtractor::extract_type(&a.annotation)?);
 
-        Ok(HirStmt::Assign {
-            target,
-            value,
-            type_annotation,
-        })
+        Ok(HirStmt::Assign { target, value, type_annotation })
     }
 
     fn convert_return(r: ast::StmtReturn) -> Result<HirStmt> {
@@ -124,16 +111,8 @@ impl StmtConverter {
     fn convert_if(i: ast::StmtIf) -> Result<HirStmt> {
         let condition = super::convert_expr(*i.test)?;
         let then_body = convert_body(i.body)?;
-        let else_body = if i.orelse.is_empty() {
-            None
-        } else {
-            Some(convert_body(i.orelse)?)
-        };
-        Ok(HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        })
+        let else_body = if i.orelse.is_empty() { None } else { Some(convert_body(i.orelse)?) };
+        Ok(HirStmt::If { condition, then_body, else_body })
     }
 
     fn convert_while(w: ast::StmtWhile) -> Result<HirStmt> {
@@ -210,24 +189,18 @@ impl StmtConverter {
         // Convert the target to an expression for the left side of the binary op
         let left = match &target {
             AssignTarget::Symbol(s) => Box::new(HirExpr::Var(s.clone())),
-            AssignTarget::Attribute { value, attr } => Box::new(HirExpr::Attribute {
-                value: value.clone(),
-                attr: attr.clone(),
-            }),
-            AssignTarget::Index { base, index } => Box::new(HirExpr::Index {
-                base: base.clone(),
-                index: index.clone(),
-            }),
+            AssignTarget::Attribute { value, attr } => {
+                Box::new(HirExpr::Attribute { value: value.clone(), attr: attr.clone() })
+            }
+            AssignTarget::Index { base, index } => {
+                Box::new(HirExpr::Index { base: base.clone(), index: index.clone() })
+            }
             _ => bail!("Augmented assignment not supported for this target type"),
         };
 
         let right = Box::new(super::convert_expr(*a.value)?);
         let value = HirExpr::Binary { op, left, right };
-        Ok(HirStmt::Assign {
-            target,
-            value,
-            type_annotation: None,
-        })
+        Ok(HirStmt::Assign { target, value, type_annotation: None })
     }
 
     fn convert_raise(r: ast::StmtRaise) -> Result<HirStmt> {
@@ -310,22 +283,14 @@ impl StmtConverter {
         // Determine body: if more items, recurse; otherwise use original body
         let body = if items.is_empty() {
             // Base case: no more context managers, use the original body
-            body_stmts
-                .into_iter()
-                .map(super::convert_stmt)
-                .collect::<Result<Vec<_>>>()?
+            body_stmts.into_iter().map(super::convert_stmt).collect::<Result<Vec<_>>>()?
         } else {
             // Recursive case: wrap remaining items
             let inner_with = Self::build_nested_with(items, body_stmts, is_async)?;
             vec![inner_with]
         };
 
-        Ok(HirStmt::With {
-            context,
-            target,
-            body,
-            is_async,
-        })
+        Ok(HirStmt::With { context, target, body, is_async })
     }
 
     fn convert_try(t: ast::StmtTry) -> Result<HirStmt> {
@@ -346,31 +311,15 @@ impl StmtConverter {
             let name = h.name.as_ref().map(|id| id.to_string());
             let handler_body = convert_body(h.body)?;
 
-            handlers.push(crate::hir::ExceptHandler {
-                exception_type,
-                name,
-                body: handler_body,
-            });
+            handlers.push(crate::hir::ExceptHandler { exception_type, name, body: handler_body });
         }
 
-        let orelse = if t.orelse.is_empty() {
-            None
-        } else {
-            Some(convert_body(t.orelse)?)
-        };
+        let orelse = if t.orelse.is_empty() { None } else { Some(convert_body(t.orelse)?) };
 
-        let finalbody = if t.finalbody.is_empty() {
-            None
-        } else {
-            Some(convert_body(t.finalbody)?)
-        };
+        let finalbody =
+            if t.finalbody.is_empty() { None } else { Some(convert_body(t.finalbody)?) };
 
-        Ok(HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        })
+        Ok(HirStmt::Try { body, handlers, orelse, finalbody })
     }
 
     fn convert_assert(a: ast::StmtAssert) -> Result<HirStmt> {
@@ -530,21 +479,12 @@ impl ExprConverter {
                     let iterable = Box::new(Self::convert(c.args[0].clone())?);
 
                     // Extract lambda parameters and body
-                    let key_params: Vec<String> = lambda
-                        .args
-                        .args
-                        .iter()
-                        .map(|arg| arg.def.arg.to_string())
-                        .collect();
+                    let key_params: Vec<String> =
+                        lambda.args.args.iter().map(|arg| arg.def.arg.to_string()).collect();
 
                     let key_body = Box::new(Self::convert(*lambda.body.clone())?);
 
-                    return Ok(HirExpr::SortByKey {
-                        iterable,
-                        key_params,
-                        key_body,
-                        reverse_expr,
-                    });
+                    return Ok(HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr });
                 }
 
                 // DEPYLER-0307 + DEPYLER-0502: If reverse specified but no key, create SortByKey with identity function
@@ -559,22 +499,14 @@ impl ExprConverter {
                     let key_params = vec!["x".to_string()];
                     let key_body = Box::new(HirExpr::Var("x".to_string()));
 
-                    return Ok(HirExpr::SortByKey {
-                        iterable,
-                        key_params,
-                        key_body,
-                        reverse_expr,
-                    });
+                    return Ok(HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr });
                 }
             }
         }
 
         // DEPYLER-0382: Handle *args unpacking for supported functions
         // Check if any args use the Starred expression (unpacking operator)
-        let has_starred = c
-            .args
-            .iter()
-            .any(|arg| matches!(arg, ast::Expr::Starred(_)));
+        let has_starred = c.args.iter().any(|arg| matches!(arg, ast::Expr::Starred(_)));
 
         if has_starred {
             // Special handling for os.path.join(*parts)
@@ -587,10 +519,8 @@ impl ExprConverter {
                             && attr.attr.as_str() == "join"
                         {
                             // Extract the starred argument
-                            if let Some(ast::Expr::Starred(starred)) = c
-                                .args
-                                .iter()
-                                .find(|arg| matches!(arg, ast::Expr::Starred(_)))
+                            if let Some(ast::Expr::Starred(starred)) =
+                                c.args.iter().find(|arg| matches!(arg, ast::Expr::Starred(_)))
                             {
                                 let parts_expr = Self::convert(*starred.value.clone())?;
 
@@ -611,10 +541,8 @@ impl ExprConverter {
             if let ast::Expr::Name(name) = &*c.func {
                 if name.id.as_str() == "print" {
                     // Extract the starred argument
-                    if let Some(ast::Expr::Starred(starred)) = c
-                        .args
-                        .iter()
-                        .find(|arg| matches!(arg, ast::Expr::Starred(_)))
+                    if let Some(ast::Expr::Starred(starred)) =
+                        c.args.iter().find(|arg| matches!(arg, ast::Expr::Starred(_)))
                     {
                         let items_expr = Self::convert(*starred.value.clone())?;
 
@@ -636,11 +564,7 @@ impl ExprConverter {
             // We don't need to bail - just convert the starred args to regular args by unwrapping them
         }
 
-        let args = c
-            .args
-            .into_iter()
-            .map(Self::convert)
-            .collect::<Result<Vec<_>>>()?;
+        let args = c.args.into_iter().map(Self::convert).collect::<Result<Vec<_>>>()?;
 
         // DEPYLER-0364: Extract keyword arguments from Python AST
         let kwargs: Vec<(String, HirExpr)> = c
@@ -667,22 +591,13 @@ impl ExprConverter {
                 // Method call
                 let object = Box::new(Self::convert(*attr.value.clone())?);
                 let method = attr.attr.to_string();
-                Ok(HirExpr::MethodCall {
-                    object,
-                    method,
-                    args,
-                    kwargs,
-                })
+                Ok(HirExpr::MethodCall { object, method, args, kwargs })
             }
             // DEPYLER-0188: Subscript function call: handlers[name](args)
             // Converts to DynamicCall where callee is an Index expression
             ast::Expr::Subscript(subscript) => {
                 let callee = Box::new(Self::convert_subscript(subscript.clone())?);
-                Ok(HirExpr::DynamicCall {
-                    callee,
-                    args,
-                    kwargs,
-                })
+                Ok(HirExpr::DynamicCall { callee, args, kwargs })
             }
             _ => bail!("Unsupported function call type: {:?}", c.func),
         }
@@ -714,12 +629,7 @@ impl ExprConverter {
                     .transpose()?
                     .map(Box::new);
 
-                Ok(HirExpr::Slice {
-                    base,
-                    start,
-                    stop,
-                    step,
-                })
+                Ok(HirExpr::Slice { base, start, stop, step })
             }
             _ => {
                 // Regular indexing
@@ -730,11 +640,7 @@ impl ExprConverter {
     }
 
     fn convert_list(l: ast::ExprList) -> Result<HirExpr> {
-        let elts = l
-            .elts
-            .into_iter()
-            .map(Self::convert)
-            .collect::<Result<Vec<_>>>()?;
+        let elts = l.elts.into_iter().map(Self::convert).collect::<Result<Vec<_>>>()?;
         Ok(HirExpr::List(elts))
     }
 
@@ -753,11 +659,7 @@ impl ExprConverter {
     }
 
     fn convert_tuple(t: ast::ExprTuple) -> Result<HirExpr> {
-        let elts = t
-            .elts
-            .into_iter()
-            .map(Self::convert)
-            .collect::<Result<Vec<_>>>()?;
+        let elts = t.elts.into_iter().map(Self::convert).collect::<Result<Vec<_>>>()?;
         Ok(HirExpr::Tuple(elts))
     }
 
@@ -777,11 +679,7 @@ impl ExprConverter {
         let mut result = Self::convert(b.values[0].clone())?;
         for value in b.values.iter().skip(1) {
             let right = Self::convert(value.clone())?;
-            result = HirExpr::Binary {
-                op,
-                left: Box::new(result),
-                right: Box::new(right),
-            };
+            result = HirExpr::Binary { op, left: Box::new(result), right: Box::new(right) };
         }
 
         Ok(result)
@@ -813,12 +711,7 @@ impl ExprConverter {
                 } else {
                     "is_some".to_string()
                 };
-                return Ok(HirExpr::MethodCall {
-                    object,
-                    method,
-                    args: vec![],
-                    kwargs: vec![],
-                });
+                return Ok(HirExpr::MethodCall { object, method, args: vec![], kwargs: vec![] });
             }
 
             // Check if comparing with True or False
@@ -830,16 +723,8 @@ impl ExprConverter {
                 // Convert 'x is not True' to x != true, 'x is not False' to x != false
                 let left_hir = Box::new(Self::convert(*c.left)?);
                 let right_hir = Box::new(Self::convert(comparator.clone())?);
-                let op = if matches!(c.ops[0], ast::CmpOp::Is) {
-                    BinOp::Eq
-                } else {
-                    BinOp::NotEq
-                };
-                return Ok(HirExpr::Binary {
-                    op,
-                    left: left_hir,
-                    right: right_hir,
-                });
+                let op = if matches!(c.ops[0], ast::CmpOp::Is) { BinOp::Eq } else { BinOp::NotEq };
+                return Ok(HirExpr::Binary { op, left: left_hir, right: right_hir });
             }
         }
 
@@ -852,11 +737,7 @@ impl ExprConverter {
             let left_hir = Box::new(Self::convert(left_expr.clone())?);
             let right_hir = Box::new(Self::convert(comparator.clone())?);
 
-            comparisons.push(HirExpr::Binary {
-                op: op_hir,
-                left: left_hir,
-                right: right_hir,
-            });
+            comparisons.push(HirExpr::Binary { op: op_hir, left: left_hir, right: right_hir });
 
             // For next iteration, the right side becomes the left side
             left_expr = comparator.clone();
@@ -922,17 +803,10 @@ impl ExprConverter {
                 .map(|if_expr| Self::convert(if_expr.clone()))
                 .collect::<Result<Vec<_>>>()?;
 
-            generators.push(crate::hir::HirComprehension {
-                target,
-                iter,
-                conditions,
-            });
+            generators.push(crate::hir::HirComprehension { target, iter, conditions });
         }
 
-        Ok(HirExpr::ListComp {
-            element,
-            generators,
-        })
+        Ok(HirExpr::ListComp { element, generators })
     }
 
     fn convert_set_comp(sc: ast::ExprSetComp) -> Result<HirExpr> {
@@ -977,17 +851,10 @@ impl ExprConverter {
                 .map(|if_expr| Self::convert(if_expr.clone()))
                 .collect::<Result<Vec<_>>>()?;
 
-            generators.push(crate::hir::HirComprehension {
-                target,
-                iter,
-                conditions,
-            });
+            generators.push(crate::hir::HirComprehension { target, iter, conditions });
         }
 
-        Ok(HirExpr::SetComp {
-            element,
-            generators,
-        })
+        Ok(HirExpr::SetComp { element, generators })
     }
 
     fn convert_dict_comp(dc: ast::ExprDictComp) -> Result<HirExpr> {
@@ -1033,18 +900,10 @@ impl ExprConverter {
                 .map(|if_expr| Self::convert(if_expr.clone()))
                 .collect::<Result<Vec<_>>>()?;
 
-            generators.push(crate::hir::HirComprehension {
-                target,
-                iter,
-                conditions,
-            });
+            generators.push(crate::hir::HirComprehension { target, iter, conditions });
         }
 
-        Ok(HirExpr::DictComp {
-            key,
-            value,
-            generators,
-        })
+        Ok(HirExpr::DictComp { key, value, generators })
     }
 
     fn convert_generator_exp(ge: ast::ExprGeneratorExp) -> Result<HirExpr> {
@@ -1090,27 +949,15 @@ impl ExprConverter {
                 .map(|if_expr| Self::convert(if_expr.clone()))
                 .collect::<Result<Vec<_>>>()?;
 
-            generators.push(crate::hir::HirComprehension {
-                target,
-                iter,
-                conditions,
-            });
+            generators.push(crate::hir::HirComprehension { target, iter, conditions });
         }
 
-        Ok(HirExpr::GeneratorExp {
-            element,
-            generators,
-        })
+        Ok(HirExpr::GeneratorExp { element, generators })
     }
 
     fn convert_lambda(l: ast::ExprLambda) -> Result<HirExpr> {
         // Extract parameter names
-        let params: Vec<String> = l
-            .args
-            .args
-            .iter()
-            .map(|arg| arg.def.arg.to_string())
-            .collect();
+        let params: Vec<String> = l.args.args.iter().map(|arg| arg.def.arg.to_string()).collect();
 
         // Convert body expression
         let body = Box::new(super::convert_expr(*l.body)?);
@@ -1119,11 +966,7 @@ impl ExprConverter {
     }
 
     fn convert_set(s: ast::ExprSet) -> Result<HirExpr> {
-        let elems = s
-            .elts
-            .into_iter()
-            .map(super::convert_expr)
-            .collect::<Result<Vec<_>>>()?;
+        let elems = s.elts.into_iter().map(super::convert_expr).collect::<Result<Vec<_>>>()?;
         Ok(HirExpr::Set(elems))
     }
 
@@ -1139,11 +982,7 @@ impl ExprConverter {
     }
 
     fn convert_yield(y: ast::ExprYield) -> Result<HirExpr> {
-        let value = y
-            .value
-            .map(|v| Self::convert(*v))
-            .transpose()?
-            .map(Box::new);
+        let value = y.value.map(|v| Self::convert(*v)).transpose()?.map(Box::new);
         Ok(HirExpr::Yield { value })
     }
 
@@ -1233,12 +1072,7 @@ fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>
             None
         };
 
-        params.push(HirParam {
-            name,
-            ty,
-            default,
-            is_vararg: false,
-        });
+        params.push(HirParam { name, ty, default, is_vararg: false });
     }
 
     // DEPYLER-0507: Handle variadic parameter (*args)
@@ -1250,12 +1084,7 @@ fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>
             Type::Unknown
         };
 
-        params.push(HirParam {
-            name,
-            ty,
-            default: None,
-            is_vararg: true,
-        });
+        params.push(HirParam { name, ty, default: None, is_vararg: true });
     }
 
     Ok(params)

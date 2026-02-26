@@ -23,10 +23,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -51,13 +49,17 @@ mod tests {
 
     #[test]
     fn test_w15ca_class_003_init_string_field() {
-        let result = transpile("class Person:\n    def __init__(self, name: str):\n        self.name = name\n");
+        let result = transpile(
+            "class Person:\n    def __init__(self, name: str):\n        self.name = name\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_class_004_init_bool_field() {
-        let result = transpile("class Toggle:\n    def __init__(self, active: bool):\n        self.active = active\n");
+        let result = transpile(
+            "class Toggle:\n    def __init__(self, active: bool):\n        self.active = active\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -177,7 +179,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_class_024_staticmethod_no_args() {
-        let result = transpile("class Constants:\n    @staticmethod\n    def pi() -> float:\n        return 3.14159\n");
+        let result = transpile(
+            "class Constants:\n    @staticmethod\n    def pi() -> float:\n        return 3.14159\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -267,13 +271,17 @@ mod tests {
 
     #[test]
     fn test_w15ca_class_039_class_variable_int() {
-        let result = transpile("class Limits:\n    MAX = 100\n    def __init__(self):\n        self.current = 0\n");
+        let result = transpile(
+            "class Limits:\n    MAX = 100\n    def __init__(self):\n        self.current = 0\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_class_040_class_variable_string() {
-        let result = transpile("class Version:\n    NAME = \"v1\"\n    def __init__(self):\n        self.build = 0\n");
+        let result = transpile(
+            "class Version:\n    NAME = \"v1\"\n    def __init__(self):\n        self.build = 0\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -417,7 +425,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_class_064_class_with_negative_init() {
-        let result = transpile("class Offset:\n    def __init__(self):\n        self.x = -1\n        self.y = -1\n");
+        let result = transpile(
+            "class Offset:\n    def __init__(self):\n        self.x = -1\n        self.y = -1\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -488,7 +498,8 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_005_await_in_assignment() {
-        let result = transpile("async def load():\n    result = await read_file()\n    return result\n");
+        let result =
+            transpile("async def load():\n    result = await read_file()\n    return result\n");
         assert!(!result.is_empty());
     }
 
@@ -530,13 +541,17 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_012_await_with_param() {
-        let result = transpile("async def request(url: str):\n    data = await fetch(url)\n    return data\n");
+        let result = transpile(
+            "async def request(url: str):\n    data = await fetch(url)\n    return data\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_async_013_multiple_awaits() {
-        let result = transpile("async def pipeline():\n    a = await step1()\n    b = await step2()\n    return a\n");
+        let result = transpile(
+            "async def pipeline():\n    a = await step1()\n    b = await step2()\n    return a\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -548,7 +563,8 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_015_async_with_print() {
-        let result = transpile("async def log_data():\n    data = await get_data()\n    print(data)\n");
+        let result =
+            transpile("async def log_data():\n    data = await get_data()\n    print(data)\n");
         assert!(!result.is_empty());
     }
 
@@ -560,7 +576,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_017_async_with_local_var() {
-        let result = transpile("async def process():\n    count: int = 0\n    count = count + 1\n    return count\n");
+        let result = transpile(
+            "async def process():\n    count: int = 0\n    count = count + 1\n    return count\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -584,7 +602,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_021_async_for_loop_body() {
-        let result = transpile("async def process_items(items: list):\n    for item in items:\n        print(item)\n");
+        let result = transpile(
+            "async def process_items(items: list):\n    for item in items:\n        print(item)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -608,7 +628,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_025_async_multiple_params_types() {
-        let result = transpile("async def handle(name: str, count: int, flag: bool) -> str:\n    return name\n");
+        let result = transpile(
+            "async def handle(name: str, count: int, flag: bool) -> str:\n    return name\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -620,19 +642,24 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_027_async_with_assert() {
-        let result = transpile("async def validate(x: int) -> int:\n    assert x > 0\n    return x\n");
+        let result =
+            transpile("async def validate(x: int) -> int:\n    assert x > 0\n    return x\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_async_028_async_return_bool_expr() {
-        let result = transpile("async def both_positive(a: int, b: int) -> bool:\n    return a > 0 and b > 0\n");
+        let result = transpile(
+            "async def both_positive(a: int, b: int) -> bool:\n    return a > 0 and b > 0\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_async_029_async_with_string_concat() {
-        let result = transpile("async def build_msg(prefix: str, body: str) -> str:\n    return prefix + body\n");
+        let result = transpile(
+            "async def build_msg(prefix: str, body: str) -> str:\n    return prefix + body\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -662,25 +689,32 @@ mod tests {
 
     #[test]
     fn test_w15ca_async_034_two_async_functions() {
-        let result = transpile("async def first() -> int:\n    return 1\n\nasync def second() -> int:\n    return 2\n");
+        let result = transpile(
+            "async def first() -> int:\n    return 1\n\nasync def second() -> int:\n    return 2\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_async_035_async_and_sync_together() {
-        let result = transpile("def sync_fn() -> int:\n    return 1\n\nasync def async_fn() -> int:\n    return 2\n");
+        let result = transpile(
+            "def sync_fn() -> int:\n    return 1\n\nasync def async_fn() -> int:\n    return 2\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_async_036_async_with_early_return() {
-        let result = transpile("async def guard(x: int) -> int:\n    if x < 0:\n        return 0\n    return x\n");
+        let result = transpile(
+            "async def guard(x: int) -> int:\n    if x < 0:\n        return 0\n    return x\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_async_037_async_arithmetic_chain() {
-        let result = transpile("async def calc(a: int, b: int, c: int) -> int:\n    return a + b * c\n");
+        let result =
+            transpile("async def calc(a: int, b: int, c: int) -> int:\n    return a + b * c\n");
         assert!(!result.is_empty());
     }
 
@@ -786,7 +820,8 @@ mod tests {
 
     #[test]
     fn test_w15ca_error_014_raise_runtime_error() {
-        let result = transpile("def fail() -> int:\n    raise RuntimeError(\"failed\")\n    return 0\n");
+        let result =
+            transpile("def fail() -> int:\n    raise RuntimeError(\"failed\")\n    return 0\n");
         assert!(!result.is_empty());
     }
 
@@ -810,7 +845,8 @@ mod tests {
 
     #[test]
     fn test_w15ca_error_018_bare_raise() {
-        let result = transpile("def reraise():\n    try:\n        x = 1\n    except:\n        raise\n");
+        let result =
+            transpile("def reraise():\n    try:\n        x = 1\n    except:\n        raise\n");
         assert!(!result.is_empty());
     }
 
@@ -841,7 +877,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_error_023_assert_with_message() {
-        let result = transpile("def check_msg(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n");
+        let result = transpile(
+            "def check_msg(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -925,7 +963,8 @@ mod tests {
 
     #[test]
     fn test_w15ca_error_037_raise_stop_iteration() {
-        let result = transpile("def done() -> int:\n    raise StopIteration(\"end\")\n    return 0\n");
+        let result =
+            transpile("def done() -> int:\n    raise StopIteration(\"end\")\n    return 0\n");
         assert!(!result.is_empty());
     }
 
@@ -973,7 +1012,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_error_045_raise_not_implemented() {
-        let result = transpile("def stub() -> int:\n    raise NotImplementedError(\"not done\")\n    return 0\n");
+        let result = transpile(
+            "def stub() -> int:\n    raise NotImplementedError(\"not done\")\n    return 0\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1049,7 +1090,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_func_007_three_defaults() {
-        let result = transpile("def config(a: int = 1, b: int = 2, c: int = 3) -> int:\n    return a + b + c\n");
+        let result = transpile(
+            "def config(a: int = 1, b: int = 2, c: int = 3) -> int:\n    return a + b + c\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1079,7 +1122,9 @@ mod tests {
 
     #[test]
     fn test_w15ca_func_012_nested_function_basic() {
-        let result = transpile("def outer() -> int:\n    def inner() -> int:\n        return 42\n    return inner()\n");
+        let result = transpile(
+            "def outer() -> int:\n    def inner() -> int:\n        return 42\n    return inner()\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1141,13 +1186,16 @@ mod tests {
 
     #[test]
     fn test_w15ca_func_022_generator_yield_computed() {
-        let result = transpile("def doubled(n: int):\n    for i in range(n):\n        yield i * 2\n");
+        let result =
+            transpile("def doubled(n: int):\n    for i in range(n):\n        yield i * 2\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w15ca_func_023_lambda_in_assignment() {
-        let result = transpile("def use_lambda() -> int:\n    double = lambda x: x * 2\n    return double(5)\n");
+        let result = transpile(
+            "def use_lambda() -> int:\n    double = lambda x: x * 2\n    return double(5)\n",
+        );
         assert!(!result.is_empty());
     }
 

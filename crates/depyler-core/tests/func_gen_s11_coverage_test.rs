@@ -18,10 +18,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -80,11 +78,7 @@ def log_message(msg: str) -> None:
     print(msg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn log_message"),
-        "Should generate void function. Got: {}",
-        result
-    );
+    assert!(result.contains("fn log_message"), "Should generate void function. Got: {}", result);
 }
 
 #[test]
@@ -142,11 +136,7 @@ def process(data: str, verbose: bool = False) -> str:
     return data
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("verbose"),
-        "Should handle default bool param. Got: {}",
-        result
-    );
+    assert!(result.contains("verbose"), "Should handle default bool param. Got: {}", result);
 }
 
 // ============================================================================
@@ -163,7 +153,10 @@ def compute(a: int, b: float, c: str, d: bool) -> float:
 "#;
     let result = transpile(code);
     assert!(
-        result.contains("a") && result.contains("b") && result.contains("c") && result.contains("d"),
+        result.contains("a")
+            && result.contains("b")
+            && result.contains("c")
+            && result.contains("d"),
         "Should handle many params. Got: {}",
         result
     );
@@ -252,11 +245,7 @@ def factorial(n: int) -> int:
     return n * factorial(n - 1)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("factorial"),
-        "Should handle recursion. Got: {}",
-        result
-    );
+    assert!(result.contains("factorial"), "Should handle recursion. Got: {}", result);
 }
 
 #[test]
@@ -268,11 +257,7 @@ def fib(n: int) -> int:
     return fib(n - 1) + fib(n - 2)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fib"),
-        "Should handle fibonacci recursion. Got: {}",
-        result
-    );
+    assert!(result.contains("fib"), "Should handle fibonacci recursion. Got: {}", result);
 }
 
 // ============================================================================
@@ -365,11 +350,7 @@ def count_down(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("while"),
-        "Should handle while loop. Got: {}",
-        result
-    );
+    assert!(result.contains("while"), "Should handle while loop. Got: {}", result);
 }
 
 #[test]

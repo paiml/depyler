@@ -62,9 +62,7 @@ impl BatchCompiler {
     pub fn new(input_dir: &Path) -> Self {
         Self {
             input_dir: input_dir.to_path_buf(),
-            parallel_jobs: std::thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(4),
+            parallel_jobs: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
             display_mode: DisplayMode::default(),
         }
     }
@@ -99,10 +97,7 @@ impl BatchCompiler {
         let mut join_set = JoinSet::new();
 
         for py_file in python_files {
-            let permit = Arc::clone(&semaphore)
-                .acquire_owned()
-                .await
-                .expect("semaphore acquire");
+            let permit = Arc::clone(&semaphore).acquire_owned().await.expect("semaphore acquire");
             let py_file = py_file.clone();
             join_set.spawn(async move {
                 let _permit = permit;
@@ -495,10 +490,7 @@ pub async fn compile_single_file(py_file: &Path) -> Result<CompilationResult> {
     }
 
     let rust_code = std::fs::read_to_string(&output_file).unwrap_or_default();
-    let name = py_file
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("verification_target");
+    let name = py_file.file_stem().and_then(|s| s.to_str()).unwrap_or("verification_target");
 
     match cargo_first::compile_with_cargo(name, &rust_code, None) {
         Ok(result) if result.success => Ok(make_success_result(py_file, output_file)),

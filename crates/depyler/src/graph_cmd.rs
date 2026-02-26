@@ -91,14 +91,10 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
     println!("Analyzing corpus: {}", corpus_dir.display());
 
     // Find all Python files
-    for entry in WalkDir::new(corpus_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path().extension().is_some_and(|ext| ext == "py")
-                && !e.path().to_string_lossy().contains("__pycache__")
-        })
-    {
+    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(|e| e.ok()).filter(|e| {
+        e.path().extension().is_some_and(|ext| ext == "py")
+            && !e.path().to_string_lossy().contains("__pycache__")
+    }) {
         let path = entry.path();
         files_analyzed += 1;
 
@@ -220,14 +216,10 @@ pub fn vectorize_corpus(
     eprintln!("Vectorizing failures from: {}", corpus_dir.display());
 
     // Find all Python files
-    for entry in WalkDir::new(corpus_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path().extension().is_some_and(|ext| ext == "py")
-                && !e.path().to_string_lossy().contains("__pycache__")
-        })
-    {
+    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(|e| e.ok()).filter(|e| {
+        e.path().extension().is_some_and(|ext| ext == "py")
+            && !e.path().to_string_lossy().contains("__pycache__")
+    }) {
         let path = entry.path();
         files_processed += 1;
 
@@ -274,10 +266,7 @@ pub fn vectorize_corpus(
         }
     }
 
-    eprintln!(
-        "Processed {} files ({} panicked)",
-        files_processed, files_panicked
-    );
+    eprintln!("Processed {} files ({} panicked)", files_processed, files_panicked);
 
     // Serialize output
     let output_str = match format {
@@ -286,11 +275,7 @@ pub fn vectorize_corpus(
     };
 
     fs::write(output, &output_str)?;
-    eprintln!(
-        "Vectorized {} failures to: {}",
-        all_vectorized.len(),
-        output.display()
-    );
+    eprintln!("Vectorized {} failures to: {}", all_vectorized.len(), output.display());
 
     Ok(())
 }
@@ -338,11 +323,8 @@ fn check_rust_compilation(rust_code: &str) -> Vec<(String, String, usize)> {
                     .unwrap_or("E0000")
                     .to_string();
 
-                let message = json
-                    .get("message")
-                    .and_then(|m| m.as_str())
-                    .unwrap_or("")
-                    .to_string();
+                let message =
+                    json.get("message").and_then(|m| m.as_str()).unwrap_or("").to_string();
 
                 let line_num = json
                     .get("spans")
@@ -601,7 +583,9 @@ mod tests {
 
     #[test]
     fn test_s11_transpile_isolated_with_imports() {
-        let result = transpile_isolated("from typing import List\n\ndef foo(items: List[int]) -> int:\n    return sum(items)\n");
+        let result = transpile_isolated(
+            "from typing import List\n\ndef foo(items: List[int]) -> int:\n    return sum(items)\n",
+        );
         assert!(result.is_some());
     }
 
@@ -693,11 +677,7 @@ def fibonacci(n: int) -> int:
     fn test_s11_analyze_corpus_with_python_files() {
         let temp = tempfile::tempdir().unwrap();
         let py_file = temp.path().join("simple.py");
-        std::fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
         let result = analyze_corpus(temp.path(), 3, None);
         assert!(result.is_ok());
     }
@@ -738,11 +718,7 @@ def fibonacci(n: int) -> int:
         let temp = tempfile::tempdir().unwrap();
         // Write Python code that will produce Rust with errors
         let py_file = temp.path().join("bad.py");
-        std::fs::write(
-            &py_file,
-            "def foo(x):\n    return x.unknown_method()\n",
-        )
-        .unwrap();
+        std::fs::write(&py_file, "def foo(x):\n    return x.unknown_method()\n").unwrap();
         let output = temp.path().join("vectors.json");
         let result = vectorize_corpus(temp.path(), &output, "json");
         assert!(result.is_ok());

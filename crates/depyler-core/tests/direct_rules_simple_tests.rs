@@ -190,9 +190,7 @@ mod tests {
                     right: Box::new(HirExpr::Literal(Literal::Int(0))),
                 },
                 then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                    0,
-                ))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -370,10 +368,7 @@ mod tests {
             alias: None,
             items: vec![
                 ImportItem::Named("List".to_string()),
-                ImportItem::Aliased {
-                    name: "Dict".to_string(),
-                    alias: "Dictionary".to_string(),
-                },
+                ImportItem::Aliased { name: "Dict".to_string(), alias: "Dictionary".to_string() },
             ],
         });
 

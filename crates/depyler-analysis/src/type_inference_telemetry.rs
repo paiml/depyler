@@ -130,9 +130,7 @@ impl TypeInferenceTelemetry {
 
     /// Get the global telemetry instance
     pub fn global() -> Arc<TypeInferenceTelemetry> {
-        GLOBAL_TELEMETRY
-            .get_or_init(|| Arc::new(TypeInferenceTelemetry::new()))
-            .clone()
+        GLOBAL_TELEMETRY.get_or_init(|| Arc::new(TypeInferenceTelemetry::new())).clone()
     }
 
     /// Reset the global instance (useful for tests)
@@ -198,10 +196,7 @@ impl TypeInferenceTelemetry {
 
     /// Get all events
     pub fn events(&self) -> Vec<UnknownTypeEvent> {
-        self.events
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get stats by expression kind
@@ -227,10 +222,7 @@ impl TypeInferenceTelemetry {
 
     /// Clear all recorded data
     pub fn clear(&self) {
-        self.events
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clear();
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).clear();
         self.stats.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 
@@ -634,11 +626,8 @@ mod tests {
 
     #[test]
     fn test_telemetry_summary_debug() {
-        let summary = TelemetrySummary {
-            total_unknowns: 0,
-            unique_expr_kinds: 0,
-            top_unknown_kinds: vec![],
-        };
+        let summary =
+            TelemetrySummary { total_unknowns: 0, unique_expr_kinds: 0, top_unknown_kinds: vec![] };
         let debug = format!("{:?}", summary);
         assert!(debug.contains("TelemetrySummary"));
     }

@@ -119,33 +119,20 @@ pub(super) fn analyze_module(module: &HirModule) -> ModuleAnalysis {
 
     // DEPYLER-0490/0491: Set needs_* flags based on imported modules AND items
     let needs_chrono = imported_modules.contains_key("datetime")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("chrono::"));
+        || imported_items.values().any(|path| path.starts_with("chrono::"));
     let needs_tempfile = imported_modules.contains_key("tempfile")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("tempfile::"));
+        || imported_items.values().any(|path| path.starts_with("tempfile::"));
     let needs_itertools = imported_modules.contains_key("itertools")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("itertools::"));
+        || imported_items.values().any(|path| path.starts_with("itertools::"));
     let needs_statrs = imported_modules.contains_key("statistics")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("statrs::"));
+        || imported_items.values().any(|path| path.starts_with("statrs::"));
     let needs_url = imported_modules.contains_key("urllib.parse")
         || imported_modules.contains_key("urllib")
-        || imported_items
-            .values()
-            .any(|path| path.starts_with("url::"));
+        || imported_items.values().any(|path| path.starts_with("url::"));
 
     // DEPYLER-NASA-ASYNC: Detect async usage
     let has_async_functions = module.functions.iter().any(|f| f.properties.is_async);
-    let has_async_methods = module
-        .classes
-        .iter()
-        .any(|c| c.methods.iter().any(|m| m.is_async));
+    let has_async_methods = module.classes.iter().any(|c| c.methods.iter().any(|m| m.is_async));
     let has_asyncio_import = imported_modules.contains_key("asyncio");
     let has_async_code = has_async_functions || has_async_methods || has_asyncio_import;
     let needs_tokio_from_async = has_async_code;
@@ -185,11 +172,7 @@ pub(super) fn analyze_module(module: &HirModule) -> ModuleAnalysis {
 /// # Complexity
 /// 2 (iter + map + collect)
 fn extract_class_names(module: &HirModule) -> HashSet<String> {
-    module
-        .classes
-        .iter()
-        .map(|class| class.name.clone())
-        .collect()
+    module.classes.iter().map(|class| class.name.clone()).collect()
 }
 
 /// Build map of mutating methods per class (DEPYLER-0231)
@@ -230,16 +213,11 @@ fn extract_property_methods(module: &HirModule) -> HashSet<String> {
 ///
 /// # Complexity
 /// 3 (loop + map + collect)
-fn extract_class_field_defaults(
-    module: &HirModule,
-) -> HashMap<String, Vec<Option<HirExpr>>> {
+fn extract_class_field_defaults(module: &HirModule) -> HashMap<String, Vec<Option<HirExpr>>> {
     let mut result = HashMap::new();
     for class in &module.classes {
-        let defaults: Vec<Option<HirExpr>> = class
-            .fields
-            .iter()
-            .map(|f| f.default_value.clone())
-            .collect();
+        let defaults: Vec<Option<HirExpr>> =
+            class.fields.iter().map(|f| f.default_value.clone()).collect();
         result.insert(class.name.clone(), defaults);
     }
     result

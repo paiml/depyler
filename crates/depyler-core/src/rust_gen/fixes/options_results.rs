@@ -109,7 +109,10 @@ fn collect_option_params_from_signature(
     }
 }
 
-pub(super) fn fix_is_none_in_line(line: &str, option_params: &std::collections::HashSet<String>) -> String {
+pub(super) fn fix_is_none_in_line(
+    line: &str,
+    option_params: &std::collections::HashSet<String>,
+) -> String {
     let mut result = line.to_string();
     // Find VAR.is_none() patterns where VAR doesn't contain Option-like indicators
     while let Some(pos) = result.find(".is_none()") {
@@ -184,12 +187,12 @@ fn extract_fn_name_from_sig(trimmed: &str) -> Option<String> {
     let rest = &trimmed[start..];
     let paren = rest.find('(')?;
     let raw_name = rest[..paren].trim();
-    let name = if let Some(lt) = raw_name.find('<') {
-        raw_name[..lt].trim()
+    let name = if let Some(lt) = raw_name.find('<') { raw_name[..lt].trim() } else { raw_name };
+    if name.is_empty() {
+        None
     } else {
-        raw_name
-    };
-    if name.is_empty() { None } else { Some(name.to_string()) }
+        Some(name.to_string())
+    }
 }
 
 /// Try to fix a double-wrapped Ok(result_fn(...)) line. Returns Some(fixed) if fixed.
@@ -399,12 +402,8 @@ fn try_extract_option_hashmap_var(trimmed: &str) -> Option<String> {
     }
     let colon_pos = trimmed.find(':')?;
     let before = trimmed[..colon_pos].trim();
-    let name = before
-        .strip_prefix("let ")
-        .unwrap_or(before)
-        .trim()
-        .trim_start_matches("mut ")
-        .trim();
+    let name =
+        before.strip_prefix("let ").unwrap_or(before).trim().trim_start_matches("mut ").trim();
     if name.is_empty()
         || !name.chars().all(|c| c.is_alphanumeric() || c == '_')
         || name.starts_with("pub ")
@@ -427,10 +426,8 @@ fn fix_contains_key_on_option(line: &str, option_hashmap_vars: &[String]) -> Str
         let after = &new_line[start + pat.len()..];
         let Some(close) = after.find(')') else { continue };
         let key_arg = &after[..close];
-        let replacement = format!(
-            "{}.as_ref().map_or(false, |_ohm| _ohm.contains_key({}))",
-            var, key_arg
-        );
+        let replacement =
+            format!("{}.as_ref().map_or(false, |_ohm| _ohm.contains_key({}))", var, key_arg);
         let end_pos = start + pat.len() + close + 1;
         new_line = format!("{}{}{}", &new_line[..start], replacement, &new_line[end_pos..]);
     }
@@ -585,7 +582,11 @@ fn extract_is_some_guard_var(trimmed: &str) -> Option<String> {
     let is_some_pos = trimmed.find(".is_some()")?;
     let before = &trimmed[3..is_some_pos]; // skip "if "
     let var = before.strip_suffix(".clone()").unwrap_or(before).trim();
-    if var.is_empty() { None } else { Some(var.to_string()) }
+    if var.is_empty() {
+        None
+    } else {
+        Some(var.to_string())
+    }
 }
 
 /// Count brace delta (`{` = +1, `}` = -1) for a trimmed line.
@@ -678,7 +679,11 @@ fn update_is_some_guard_state(
     guard_depth: &mut i32,
     in_guard: &mut bool,
 ) {
-    if !option_params.is_empty() && !*in_guard && trimmed.starts_with("if ") && trimmed.contains(".is_some()") {
+    if !option_params.is_empty()
+        && !*in_guard
+        && trimmed.starts_with("if ")
+        && trimmed.contains(".is_some()")
+    {
         for param in option_params {
             if trimmed.contains(&format!("{}.is_some()", param)) {
                 *is_some_param = Some(param.clone());
@@ -736,12 +741,7 @@ pub(super) fn fix_let_discard_ok_return(code: &str) -> String {
 }
 
 /// Try to convert `let _ = Ok(EXPR);` to `Ok(EXPR)` if it's followed by `}`.
-fn try_fix_let_discard_ok(
-    line: &str,
-    trimmed: &str,
-    lines: &[&str],
-    idx: usize,
-) -> Option<String> {
+fn try_fix_let_discard_ok(line: &str, trimmed: &str, lines: &[&str], idx: usize) -> Option<String> {
     if !trimmed.starts_with("let _ = Ok(") || !trimmed.ends_with(");") {
         return None;
     }
@@ -812,9 +812,7 @@ fn build_result_fn_set(code: &str) -> std::collections::HashSet<String> {
     for line in code.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
-            let after_fn = trimmed
-                .strip_prefix("pub fn ")
-                .unwrap_or(&trimmed[3..]);
+            let after_fn = trimmed.strip_prefix("pub fn ").unwrap_or(&trimmed[3..]);
             if let Some(paren_pos) = after_fn.find('(') {
                 let name = after_fn[..paren_pos].trim().to_string();
                 if trimmed.contains("-> Result<") {

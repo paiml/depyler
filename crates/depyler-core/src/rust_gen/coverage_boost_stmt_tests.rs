@@ -11,9 +11,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -51,8 +49,7 @@ fn test_assign_multiple_targets() {
 
 #[test]
 fn test_assign_from_call() {
-    let code =
-        transpile("def foo(items: list) -> int:\n    n = len(items)\n    return n");
+    let code = transpile("def foo(items: list) -> int:\n    n = len(items)\n    return n");
     assert!(code.contains("len()"), "assign from call: {}", code);
 }
 
@@ -70,9 +67,7 @@ fn test_assign_string() {
 
 #[test]
 fn test_assign_nested_dict() {
-    let code = transpile(
-        "def foo(data: dict):\n    value = data[\"key\"]\n    return value",
-    );
+    let code = transpile("def foo(data: dict):\n    value = data[\"key\"]\n    return value");
     assert!(!code.is_empty(), "nested dict: {}", code);
 }
 
@@ -93,18 +88,12 @@ fn test_assign_ternary() {
     let code = transpile(
         "def pick(x: int) -> str:\n    label = \"big\" if x > 10 else \"small\"\n    return label",
     );
-    assert!(
-        code.contains("if") || code.contains("else"),
-        "ternary: {}",
-        code
-    );
+    assert!(code.contains("if") || code.contains("else"), "ternary: {}", code);
 }
 
 #[test]
 fn test_assign_string_method() {
-    let code = transpile(
-        "def clean(s: str) -> str:\n    result = s.strip()\n    return result",
-    );
+    let code = transpile("def clean(s: str) -> str:\n    result = s.strip()\n    return result");
     assert!(code.contains("trim"), "string method assign: {}", code);
 }
 
@@ -121,11 +110,7 @@ fn test_expr_stmt_method_call() {
 #[test]
 fn test_expr_stmt_print() {
     let code = transpile("def foo():\n    print(\"hello\")");
-    assert!(
-        code.contains("println!") || code.contains("print"),
-        "print expr: {}",
-        code
-    );
+    assert!(code.contains("println!") || code.contains("print"), "print expr: {}", code);
 }
 
 #[test]
@@ -160,8 +145,7 @@ fn test_expr_stmt_list_clear() {
 
 #[test]
 fn test_expr_stmt_list_pop() {
-    let code =
-        transpile("def foo(items: list) -> int:\n    return items.pop()");
+    let code = transpile("def foo(items: list) -> int:\n    return items.pop()");
     assert!(code.contains("pop"), "pop expr stmt: {}", code);
 }
 
@@ -177,58 +161,38 @@ fn test_return_none_explicit() {
 
 #[test]
 fn test_return_tuple_two() {
-    let code =
-        transpile("def foo(x: int) -> tuple:\n    return (x, x + 1)");
-    assert!(
-        code.contains("(") || code.contains(","),
-        "return tuple: {}",
-        code
-    );
+    let code = transpile("def foo(x: int) -> tuple:\n    return (x, x + 1)");
+    assert!(code.contains("(") || code.contains(","), "return tuple: {}", code);
 }
 
 #[test]
 fn test_return_tuple_three() {
-    let code = transpile(
-        "def foo(x: int) -> tuple:\n    return (x, x + 1, x + 2)",
-    );
+    let code = transpile("def foo(x: int) -> tuple:\n    return (x, x + 1, x + 2)");
     assert!(!code.is_empty(), "return 3-tuple: {}", code);
 }
 
 #[test]
 fn test_return_list_literal() {
     let code = transpile("def foo() -> list:\n    return [1, 2, 3]");
-    assert!(
-        code.contains("vec!") || code.contains("Vec"),
-        "return list: {}",
-        code
-    );
+    assert!(code.contains("vec!") || code.contains("Vec"), "return list: {}", code);
 }
 
 #[test]
 fn test_return_dict_literal() {
-    let code =
-        transpile("def foo() -> dict:\n    return {\"a\": 1, \"b\": 2}");
+    let code = transpile("def foo() -> dict:\n    return {\"a\": 1, \"b\": 2}");
     assert!(!code.is_empty(), "return dict: {}", code);
 }
 
 #[test]
 fn test_return_string_format() {
-    let code = transpile(
-        "def greet(name: str) -> str:\n    return f\"Hello, {name}\"",
-    );
+    let code = transpile("def greet(name: str) -> str:\n    return f\"Hello, {name}\"");
     assert!(code.contains("format!"), "return fstring: {}", code);
 }
 
 #[test]
 fn test_return_boolean_expr() {
-    let code = transpile(
-        "def check(x: int) -> bool:\n    return x > 0 and x < 100",
-    );
-    assert!(
-        code.contains("&&") || code.contains(">"),
-        "return bool expr: {}",
-        code
-    );
+    let code = transpile("def check(x: int) -> bool:\n    return x > 0 and x < 100");
+    assert!(code.contains("&&") || code.contains(">"), "return bool expr: {}", code);
 }
 
 #[test]
@@ -239,9 +203,7 @@ fn test_return_empty() {
 
 #[test]
 fn test_return_nested_call() {
-    let code = transpile(
-        "def foo(items: list) -> int:\n    return len(sorted(items))",
-    );
+    let code = transpile("def foo(items: list) -> int:\n    return len(sorted(items))");
     assert!(!code.is_empty(), "return nested call: {}", code);
 }
 
@@ -251,25 +213,19 @@ fn test_return_nested_call() {
 
 #[test]
 fn test_assign_index_dict_set() {
-    let code = transpile(
-        "def set_val(d: dict, key: str, val: int):\n    d[key] = val",
-    );
+    let code = transpile("def set_val(d: dict, key: str, val: int):\n    d[key] = val");
     assert!(code.contains("insert"), "dict index set: {}", code);
 }
 
 #[test]
 fn test_assign_index_list_set() {
-    let code = transpile(
-        "def set_val(items: list, idx: int, val: int):\n    items[idx] = val",
-    );
+    let code = transpile("def set_val(items: list, idx: int, val: int):\n    items[idx] = val");
     assert!(code.contains("["), "list index set: {}", code);
 }
 
 #[test]
 fn test_assign_index_negative() {
-    let code = transpile(
-        "def set_last(items: list, val: int):\n    items[-1] = val",
-    );
+    let code = transpile("def set_last(items: list, val: int):\n    items[-1] = val");
     assert!(!code.is_empty(), "negative index: {}", code);
 }
 
@@ -278,11 +234,7 @@ fn test_assign_index_string_key() {
     let code = transpile(
         "def set_config(config: dict):\n    config[\"host\"] = \"localhost\"\n    config[\"port\"] = 8080",
     );
-    assert!(
-        code.contains("insert") || code.contains("localhost"),
-        "string key: {}",
-        code
-    );
+    assert!(code.contains("insert") || code.contains("localhost"), "string key: {}", code);
 }
 
 #[test]
@@ -299,17 +251,13 @@ fn test_assign_index_counter_pattern() {
 
 #[test]
 fn test_assign_tuple_unpack_two() {
-    let code = transpile(
-        "def split_pair(pair: tuple) -> int:\n    a, b = pair\n    return a + b",
-    );
+    let code = transpile("def split_pair(pair: tuple) -> int:\n    a, b = pair\n    return a + b");
     assert!(!code.is_empty(), "tuple unpack 2: {}", code);
 }
 
 #[test]
 fn test_assign_tuple_unpack_three() {
-    let code = transpile(
-        "def unpack(t: tuple) -> int:\n    a, b, c = t\n    return a + b + c",
-    );
+    let code = transpile("def unpack(t: tuple) -> int:\n    a, b, c = t\n    return a + b + c");
     assert!(!code.is_empty(), "tuple unpack 3: {}", code);
 }
 
@@ -318,18 +266,12 @@ fn test_assign_tuple_from_enumerate() {
     let code = transpile(
         "def indexed(items: list):\n    for i, val in enumerate(items):\n        print(i, val)",
     );
-    assert!(
-        code.contains("enumerate") || code.contains("iter"),
-        "enumerate unpack: {}",
-        code
-    );
+    assert!(code.contains("enumerate") || code.contains("iter"), "enumerate unpack: {}", code);
 }
 
 #[test]
 fn test_assign_tuple_swap() {
-    let code = transpile(
-        "def swap(a: int, b: int) -> tuple:\n    a, b = b, a\n    return (a, b)",
-    );
+    let code = transpile("def swap(a: int, b: int) -> tuple:\n    a, b = b, a\n    return (a, b)");
     assert!(!code.is_empty(), "swap pattern: {}", code);
 }
 
@@ -338,18 +280,13 @@ fn test_assign_tuple_from_split() {
     let code = transpile(
         "def parse(line: str) -> str:\n    key, value = line.split(\"=\", 1)\n    return key",
     );
-    assert!(
-        code.contains("split") || code.contains("splitn"),
-        "split unpack: {}",
-        code
-    );
+    assert!(code.contains("split") || code.contains("splitn"), "split unpack: {}", code);
 }
 
 #[test]
 fn test_assign_tuple_reassign() {
-    let code = transpile(
-        "def fib() -> int:\n    a = 0\n    b = 1\n    a, b = b, a + b\n    return b",
-    );
+    let code =
+        transpile("def fib() -> int:\n    a = 0\n    b = 1\n    a, b = b, a + b\n    return b");
     assert!(!code.is_empty(), "fib swap: {}", code);
 }
 
@@ -370,11 +307,7 @@ fn test_stmt_if_else() {
     let code = transpile(
         "def check(x: int) -> str:\n    if x > 0:\n        return \"positive\"\n    else:\n        return \"non-positive\"",
     );
-    assert!(
-        code.contains("if") && code.contains("else"),
-        "if-else: {}",
-        code
-    );
+    assert!(code.contains("if") && code.contains("else"), "if-else: {}", code);
 }
 
 #[test]
@@ -427,16 +360,14 @@ fn test_stmt_try_except_as() {
 
 #[test]
 fn test_stmt_raise() {
-    let code = transpile(
-        "def validate(x: int):\n    if x < 0:\n        raise ValueError(\"negative\")",
-    );
+    let code =
+        transpile("def validate(x: int):\n    if x < 0:\n        raise ValueError(\"negative\")");
     assert!(!code.is_empty(), "raise: {}", code);
 }
 
 #[test]
 fn test_stmt_assert() {
-    let code =
-        transpile("def check(x: int):\n    assert x > 0, \"must be positive\"");
+    let code = transpile("def check(x: int):\n    assert x > 0, \"must be positive\"");
     assert!(code.contains("assert"), "assert: {}", code);
 }
 
@@ -445,11 +376,7 @@ fn test_stmt_break_continue() {
     let code = transpile(
         "def find_first(items: list, target: int) -> int:\n    for i in range(len(items)):\n        if items[i] == target:\n            return i\n        if items[i] < 0:\n            continue\n    return -1",
     );
-    assert!(
-        code.contains("continue") || code.contains("return"),
-        "break/continue: {}",
-        code
-    );
+    assert!(code.contains("continue") || code.contains("return"), "break/continue: {}", code);
 }
 
 #[test]
@@ -465,11 +392,7 @@ fn test_stmt_while_break() {
     let code = transpile(
         "def search(items: list, target: int) -> bool:\n    i = 0\n    while i < len(items):\n        if items[i] == target:\n            break\n        i += 1\n    return i < len(items)",
     );
-    assert!(
-        code.contains("break") || code.contains("while"),
-        "while break: {}",
-        code
-    );
+    assert!(code.contains("break") || code.contains("while"), "while break: {}", code);
 }
 
 // =============================================================================
@@ -481,11 +404,7 @@ fn test_method_stmt_self_assign() {
     let code = transpile(
         "class Counter:\n    def __init__(self):\n        self.count = 0\n    def increment(self):\n        self.count += 1",
     );
-    assert!(
-        code.contains("count") || code.contains("self"),
-        "method self assign: {}",
-        code
-    );
+    assert!(code.contains("count") || code.contains("self"), "method self assign: {}", code);
 }
 
 #[test]

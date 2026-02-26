@@ -77,22 +77,16 @@ pub fn convert_int_cast(
                 // DEPYLER-99MODE-S9: Check if variable is a char from string iteration
                 // int(ch) where ch is a char should use to_digit, not parse
                 if ctx.char_iter_vars.contains(var_name) {
-                    return Ok(
-                        parse_quote! { #arg.to_digit(10).unwrap_or(0) as i32 },
-                    );
+                    return Ok(parse_quote! { #arg.to_digit(10).unwrap_or(0) as i32 });
                 }
 
-                let is_known_string = ctx
-                    .var_types
-                    .get(var_name)
-                    .is_some_and(|t| matches!(t, Type::String));
+                let is_known_string =
+                    ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String));
 
                 // DEPYLER-99MODE-S9: If we have concrete type info, use it
                 if let Some(var_type) = ctx.var_types.get(var_name) {
                     if matches!(var_type, Type::String) {
-                        return Ok(
-                            parse_quote! { #arg.parse::<i32>().unwrap_or_default() },
-                        );
+                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
                     }
                     // Known non-string type: just cast
                     return Ok(parse_quote! { (#arg) as i32 });
@@ -119,12 +113,7 @@ pub fn convert_int_cast(
             }
 
             // Check if method call returns String type
-            HirExpr::MethodCall {
-                object,
-                method,
-                args: method_args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args: method_args, .. } => {
                 if is_string_method_call_fn(object, method, method_args) {
                     return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
                 }
@@ -152,14 +141,10 @@ pub fn convert_int_cast(
             // DEPYLER-99MODE-S9: Index into a string → parse to int
             HirExpr::Index { base, .. } => {
                 if let HirExpr::Var(base_name) = base.as_ref() {
-                    let is_string_base = ctx
-                        .var_types
-                        .get(base_name)
-                        .is_some_and(|t| matches!(t, Type::String));
+                    let is_string_base =
+                        ctx.var_types.get(base_name).is_some_and(|t| matches!(t, Type::String));
                     if is_string_base {
-                        return Ok(
-                            parse_quote! { #arg.parse::<i32>().unwrap_or_default() },
-                        );
+                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
                     }
                 }
                 return Ok(parse_quote! { (#arg) as i32 });
@@ -249,11 +234,8 @@ pub fn convert_float_cast(
 
             // Check if variable is known to be String type
             HirExpr::Var(var_name) => {
-                let is_string = ctx
-                    .var_types
-                    .get(var_name)
-                    .is_some_and(|t| matches!(t, Type::String))
-                    || {
+                let is_string =
+                    ctx.var_types.get(var_name).is_some_and(|t| matches!(t, Type::String)) || {
                         // Heuristic: only names that strongly suggest string type
                         // Note: "value" is NOT included - it's too generic and could be any type
                         let name = var_name.as_str();
@@ -553,9 +535,7 @@ pub fn is_bool_expr(expr: &HirExpr) -> Option<bool> {
         // Boolean literals
         HirExpr::Literal(Literal::Bool(_)) => Some(true),
         // Logical operations
-        HirExpr::Unary {
-            op: UnaryOp::Not, ..
-        } => Some(true),
+        HirExpr::Unary { op: UnaryOp::Not, .. } => Some(true),
         _ => None,
     }
 }
@@ -595,11 +575,7 @@ mod tests {
         // Simulate path detection
         let result = convert_str_conversion(&hir_args, &args, |_| true).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("display"),
-            "Expected .display(), got: {}",
-            result_str
-        );
+        assert!(result_str.contains("display"), "Expected .display(), got: {}", result_str);
     }
 
     #[test]
@@ -648,11 +624,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { "42" }];
         let result = convert_int_cast(&ctx, &hir_args, &args, |_, _, _| false, |_| None).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("parse"),
-            "Expected parse, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("parse"), "Expected parse, got: {}", result_str);
     }
 
     #[test]
@@ -662,11 +634,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { 42 }];
         let result = convert_int_cast(&ctx, &hir_args, &args, |_, _, _| false, |_| None).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("42"),
-            "Expected 42, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("42"), "Expected 42, got: {}", result_str);
     }
 
     #[test]
@@ -704,11 +672,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { count }];
         let result = convert_int_cast(&ctx, &hir_args, &args, |_, _, _| false, |_| None).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("as i32"),
-            "Expected as i32, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("as i32"), "Expected as i32, got: {}", result_str);
     }
 
     #[test]
@@ -754,11 +718,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { "3.14" }];
         let result = convert_float_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("parse"),
-            "Expected parse, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("parse"), "Expected parse, got: {}", result_str);
     }
 
     #[test]
@@ -768,11 +728,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { 42 }];
         let result = convert_float_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("as f64"),
-            "Expected as f64, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("as f64"), "Expected as f64, got: {}", result_str);
     }
 
     #[test]
@@ -802,20 +758,14 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { s.split() }];
         let result = convert_float_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("parse"),
-            "Expected parse for split(), got: {}",
-            result_str
-        );
+        assert!(result_str.contains("parse"), "Expected parse for split(), got: {}", result_str);
     }
 
     #[test]
     fn test_convert_float_cast_index_dict_numeric() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types.insert(
-            "d".to_string(),
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-        );
+        ctx.var_types
+            .insert("d".to_string(), Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         let hir_args = vec![HirExpr::Index {
             base: Box::new(HirExpr::Var("d".to_string())),
             index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
@@ -833,8 +783,7 @@ mod tests {
     #[test]
     fn test_convert_float_cast_index_list_numeric() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("lst".to_string(), Type::List(Box::new(Type::Int)));
+        ctx.var_types.insert("lst".to_string(), Type::List(Box::new(Type::Int)));
         let hir_args = vec![HirExpr::Index {
             base: Box::new(HirExpr::Var("lst".to_string())),
             index: Box::new(HirExpr::Literal(Literal::Int(0))),
@@ -842,11 +791,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { lst[0] }];
         let result = convert_float_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("as f64"),
-            "Expected as f64 for list[i], got: {}",
-            result_str
-        );
+        assert!(result_str.contains("as f64"), "Expected as f64 for list[i], got: {}", result_str);
     }
 
     #[test]
@@ -864,11 +809,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { 42 }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("true"),
-            "Expected true, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("true"), "Expected true, got: {}", result_str);
     }
 
     #[test]
@@ -879,11 +820,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { 0 }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("false"),
-            "Expected false, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("false"), "Expected false, got: {}", result_str);
     }
 
     #[test]
@@ -893,11 +830,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { 3.15 }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("true"),
-            "Expected true, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("true"), "Expected true, got: {}", result_str);
     }
 
     #[test]
@@ -907,11 +840,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { 0.0 }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("false"),
-            "Expected false, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("false"), "Expected false, got: {}", result_str);
     }
 
     #[test]
@@ -921,11 +850,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { true }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("true"),
-            "Expected true, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("true"), "Expected true, got: {}", result_str);
     }
 
     #[test]
@@ -936,11 +861,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { "hello" }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("true"),
-            "Expected true, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("true"), "Expected true, got: {}", result_str);
     }
 
     #[test]
@@ -951,11 +872,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { "" }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("false"),
-            "Expected false, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("false"), "Expected false, got: {}", result_str);
     }
 
     #[test]
@@ -966,11 +883,7 @@ mod tests {
         let args: Vec<syn::Expr> = vec![parse_quote! { n }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
-        assert!(
-            result_str.contains("!= 0"),
-            "Expected != 0 for int, got: {}",
-            result_str
-        );
+        assert!(result_str.contains("!= 0"), "Expected != 0 for int, got: {}", result_str);
     }
 
     #[test]
@@ -1055,8 +968,7 @@ mod tests {
     #[test]
     fn test_is_string_method_call_get_on_string_list() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("strings".to_string(), Type::List(Box::new(Type::String)));
+        ctx.var_types.insert("strings".to_string(), Type::List(Box::new(Type::String)));
         let obj = HirExpr::Var("strings".to_string());
         // get on Vec<String> should return true
         assert!(is_string_method_call(&ctx, &obj, "get", &[]));
@@ -1065,8 +977,7 @@ mod tests {
     #[test]
     fn test_is_string_method_call_get_on_int_list() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types
-            .insert("numbers".to_string(), Type::List(Box::new(Type::Int)));
+        ctx.var_types.insert("numbers".to_string(), Type::List(Box::new(Type::Int)));
         let obj = HirExpr::Var("numbers".to_string());
         // get on Vec<i32> should return false
         assert!(!is_string_method_call(&ctx, &obj, "get", &[]));
@@ -1098,10 +1009,8 @@ mod tests {
 
     #[test]
     fn test_is_bool_expr_not() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert_eq!(is_bool_expr(&expr), Some(true));
     }
 

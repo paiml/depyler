@@ -147,10 +147,7 @@ impl TranspilerPatcher {
         let count = apr.patches.len();
         for patch in apr.patches {
             if patch.enabled {
-                self.patches
-                    .entry(patch.error_pattern.clone())
-                    .or_default()
-                    .push(patch);
+                self.patches.entry(patch.error_pattern.clone()).or_default().push(patch);
             }
         }
 
@@ -390,10 +387,7 @@ impl TranspilerPatcher {
         ];
 
         for patch in defaults {
-            self.patches
-                .entry(patch.error_pattern.clone())
-                .or_default()
-                .push(patch);
+            self.patches.entry(patch.error_pattern.clone()).or_default().push(patch);
         }
     }
 
@@ -406,10 +400,8 @@ impl TranspilerPatcher {
         context_keywords: &[String],
     ) -> Vec<&PatchRecord> {
         let message_lower = error_message.to_lowercase();
-        let context_lower: Vec<String> = context_keywords
-            .iter()
-            .map(|kw| kw.to_lowercase())
-            .collect();
+        let context_lower: Vec<String> =
+            context_keywords.iter().map(|kw| kw.to_lowercase()).collect();
 
         self.patches
             .get(error_code)
@@ -649,10 +641,7 @@ impl TranspilerPatcher {
             return Ok(result);
         }
 
-        Err(anyhow::anyhow!(
-            "Could not find pattern '{}' to insert match arm",
-            before_pattern
-        ))
+        Err(anyhow::anyhow!("Could not find pattern '{}' to insert match arm", before_pattern))
     }
 
     /// Replace a match arm
@@ -717,10 +706,7 @@ impl TranspilerPatcher {
             return Ok(result);
         }
 
-        Err(anyhow::anyhow!(
-            "Could not find function {} to wrap body",
-            patch.target_function
-        ))
+        Err(anyhow::anyhow!("Could not find function {} to wrap body", patch.target_function))
     }
 
     /// Add an import statement
@@ -839,10 +825,7 @@ mod tests {
         // But context_keywords from source line has "vec"
         let context_keywords = vec!["vec".to_string(), "list".to_string()];
         let patches = patcher.find_patches("E0308", "mismatched types", &context_keywords);
-        assert!(
-            !patches.is_empty(),
-            "Should find patches via context_keywords"
-        );
+        assert!(!patches.is_empty(), "Should find patches via context_keywords");
     }
 
     #[test]
@@ -852,10 +835,7 @@ mod tests {
 
         // Test no match when neither message nor context has keywords
         let patches = patcher.find_patches("E0308", "mismatched types", &[]);
-        assert!(
-            patches.is_empty(),
-            "Should not find patches without relevant keywords"
-        );
+        assert!(patches.is_empty(), "Should not find patches without relevant keywords");
     }
 
     #[test]
@@ -888,9 +868,7 @@ mod tests {
     fn test_patch_type_variants() {
         let inject = PatchType::InjectAtStart;
         let before_ret = PatchType::InjectBeforeReturn;
-        let add_arm = PatchType::AddMatchArm {
-            before_pattern: "test".to_string(),
-        };
+        let add_arm = PatchType::AddMatchArm { before_pattern: "test".to_string() };
 
         assert_ne!(inject, before_ret);
         assert_ne!(before_ret, add_arm);
@@ -943,10 +921,7 @@ mod tests {
         let mut patcher = TranspilerPatcher::new("/tmp/test");
         patcher.load_defaults();
         let patches = patcher.find_patches("E9999", "unknown error", &[]);
-        assert!(
-            patches.is_empty(),
-            "Should return empty for unknown error code"
-        );
+        assert!(patches.is_empty(), "Should return empty for unknown error code");
     }
 
     #[test]
@@ -963,10 +938,7 @@ mod tests {
         patcher.load_defaults();
         let context = vec!["VEC".to_string(), "LIST".to_string()];
         let patches = patcher.find_patches("E0308", "mismatched types", &context);
-        assert!(
-            !patches.is_empty(),
-            "Should match context keywords case-insensitively"
-        );
+        assert!(!patches.is_empty(), "Should match context keywords case-insensitively");
     }
 
     #[test]
@@ -1028,11 +1000,7 @@ mod tests {
         let mut patcher = TranspilerPatcher::new("/tmp/test");
         let count = patcher.load_apr(&apr_path)?;
         assert_eq!(count, 1, "Should count disabled patch");
-        assert_eq!(
-            patcher.patch_count(),
-            0,
-            "Disabled patch should not be loaded"
-        );
+        assert_eq!(patcher.patch_count(), 0, "Disabled patch should not be loaded");
 
         Ok(())
     }
@@ -1069,10 +1037,7 @@ mod tests {
         };
 
         let result = patcher.apply_patch(&patch)?;
-        assert!(
-            !result.success,
-            "Should fail when target file doesn't exist"
-        );
+        assert!(!result.success, "Should fail when target file doesn't exist");
         assert!(result.description.contains("not found"));
 
         Ok(())
@@ -1111,10 +1076,7 @@ pub fn test_function(x: i32) -> i32 {
         assert!(result.backup_path.is_some(), "Should create backup");
 
         let modified = std::fs::read_to_string(&test_file)?;
-        assert!(
-            modified.contains("let injected = true;"),
-            "Should inject code"
-        );
+        assert!(modified.contains("let injected = true;"), "Should inject code");
 
         Ok(())
     }
@@ -1155,10 +1117,7 @@ impl TestStruct {
         assert!(result.success, "Impl patch should succeed");
 
         let modified = std::fs::read_to_string(&test_file)?;
-        assert!(
-            modified.contains("let impl_injected = true;"),
-            "Should inject in impl method"
-        );
+        assert!(modified.contains("let impl_injected = true;"), "Should inject in impl method");
 
         Ok(())
     }
@@ -1196,10 +1155,7 @@ pub fn calculate(x: i32) -> i32 {
         assert!(result.success, "Before return patch should succeed");
 
         let modified = std::fs::read_to_string(&test_file)?;
-        assert!(
-            modified.contains("let before_ret = 1;"),
-            "Should inject before return"
-        );
+        assert!(modified.contains("let before_ret = 1;"), "Should inject before return");
 
         Ok(())
     }
@@ -1229,9 +1185,7 @@ pub fn match_test(val: &str) -> i32 {
             impl_block: None,
             error_pattern: "E0308".to_string(),
             error_keywords: vec!["test".to_string()],
-            patch_type: PatchType::AddMatchArm {
-                before_pattern: "existing".to_string(),
-            },
+            patch_type: PatchType::AddMatchArm { before_pattern: "existing".to_string() },
             code_template: "new => 2,".to_string(),
             confidence: 0.9,
             enabled: true,
@@ -1271,9 +1225,7 @@ pub fn replace_test(val: i32) -> i32 {
             impl_block: None,
             error_pattern: "E0308".to_string(),
             error_keywords: vec!["test".to_string()],
-            patch_type: PatchType::ReplaceMatchArm {
-                pattern: "42".to_string(),
-            },
+            patch_type: PatchType::ReplaceMatchArm { pattern: "42".to_string() },
             code_template: "{ 99 }".to_string(),
             confidence: 0.85,
             enabled: true,
@@ -1283,10 +1235,7 @@ pub fn replace_test(val: i32) -> i32 {
         assert!(result.success, "Replace match arm should succeed");
 
         let modified = std::fs::read_to_string(&test_file)?;
-        assert!(
-            modified.contains("42 => { 99 }"),
-            "Should replace match arm body"
-        );
+        assert!(modified.contains("42 => { 99 }"), "Should replace match arm body");
 
         Ok(())
     }
@@ -1323,10 +1272,7 @@ pub fn wrap_me() -> i32 {
         assert!(result.success, "Wrap body should succeed");
 
         let modified = std::fs::read_to_string(&test_file)?;
-        assert!(
-            modified.contains("println!(\"wrapped\")"),
-            "Should wrap body"
-        );
+        assert!(modified.contains("println!(\"wrapped\")"), "Should wrap body");
         assert!(modified.contains("42"), "Should preserve original body");
 
         Ok(())
@@ -1397,10 +1343,7 @@ pub fn test() {}
         assert!(result.success, "Add first import should succeed");
 
         let modified = std::fs::read_to_string(&test_file)?;
-        assert!(
-            modified.contains("use std::collections::HashMap;"),
-            "Should add import at top"
-        );
+        assert!(modified.contains("use std::collections::HashMap;"), "Should add import at top");
 
         Ok(())
     }
@@ -1495,10 +1438,7 @@ pub fn old_type(x: OldType) -> OldType {
         };
 
         let rollback_result = patcher.rollback(&result);
-        assert!(
-            rollback_result.is_ok(),
-            "Rollback without backup should not error"
-        );
+        assert!(rollback_result.is_ok(), "Rollback without backup should not error");
 
         Ok(())
     }

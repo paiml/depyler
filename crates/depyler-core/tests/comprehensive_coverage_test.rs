@@ -187,9 +187,7 @@ fn test_if_simple() {
 }
 #[test]
 fn test_if_else() {
-    assert!(ok(
-        "def f(x):\n    if x:\n        return 1\n    else:\n        return 0"
-    ));
+    assert!(ok("def f(x):\n    if x:\n        return 1\n    else:\n        return 0"));
 }
 #[test]
 fn test_if_elif() {
@@ -201,9 +199,7 @@ fn test_if_elif_chain() {
 }
 #[test]
 fn test_if_nested() {
-    assert!(ok(
-        "def f(x, y):\n    if x:\n        if y:\n            return 1\n    return 0"
-    ));
+    assert!(ok("def f(x, y):\n    if x:\n        if y:\n            return 1\n    return 0"));
 }
 #[test]
 fn test_if_and() {
@@ -231,9 +227,7 @@ fn test_if_in() {
 }
 #[test]
 fn test_if_not_in() {
-    assert!(ok(
-        "def f(x):\n    if x not in [1, 2, 3]:\n        return True"
-    ));
+    assert!(ok("def f(x):\n    if x not in [1, 2, 3]:\n        return True"));
 }
 #[test]
 fn test_if_is_none() {
@@ -245,9 +239,7 @@ fn test_if_is_not_none() {
 }
 #[test]
 fn test_if_isinstance() {
-    assert!(ok(
-        "def f(x):\n    if isinstance(x, int):\n        return True"
-    ));
+    assert!(ok("def f(x):\n    if isinstance(x, int):\n        return True"));
 }
 #[test]
 fn test_if_callable() {
@@ -255,9 +247,7 @@ fn test_if_callable() {
 }
 #[test]
 fn test_if_hasattr() {
-    assert!(ok(
-        "def f(x):\n    if hasattr(x, 'name'):\n        return True"
-    ));
+    assert!(ok("def f(x):\n    if hasattr(x, 'name'):\n        return True"));
 }
 
 // ============================================================================
@@ -290,33 +280,23 @@ fn test_for_string() {
 }
 #[test]
 fn test_for_dict_keys() {
-    assert!(ok(
-        "def f():\n    d = {'a': 1}\n    for k in d:\n        pass"
-    ));
+    assert!(ok("def f():\n    d = {'a': 1}\n    for k in d:\n        pass"));
 }
 #[test]
 fn test_for_dict_items() {
-    assert!(ok(
-        "def f():\n    d = {'a': 1}\n    for k, v in d.items():\n        pass"
-    ));
+    assert!(ok("def f():\n    d = {'a': 1}\n    for k, v in d.items():\n        pass"));
 }
 #[test]
 fn test_for_dict_values() {
-    assert!(ok(
-        "def f():\n    d = {'a': 1}\n    for v in d.values():\n        pass"
-    ));
+    assert!(ok("def f():\n    d = {'a': 1}\n    for v in d.values():\n        pass"));
 }
 #[test]
 fn test_for_enumerate() {
-    assert!(ok(
-        "def f():\n    for i, x in enumerate([1, 2]):\n        pass"
-    ));
+    assert!(ok("def f():\n    for i, x in enumerate([1, 2]):\n        pass"));
 }
 #[test]
 fn test_for_enumerate_start() {
-    assert!(ok(
-        "def f():\n    for i, x in enumerate([1, 2], 1):\n        pass"
-    ));
+    assert!(ok("def f():\n    for i, x in enumerate([1, 2], 1):\n        pass"));
 }
 #[test]
 fn test_for_zip() {
@@ -324,9 +304,7 @@ fn test_for_zip() {
 }
 #[test]
 fn test_for_zip_three() {
-    assert!(ok(
-        "def f():\n    for a, b, c in zip([1], [2], [3]):\n        pass"
-    ));
+    assert!(ok("def f():\n    for a, b, c in zip([1], [2], [3]):\n        pass"));
 }
 #[test]
 fn test_for_reversed() {
@@ -334,45 +312,31 @@ fn test_for_reversed() {
 }
 #[test]
 fn test_for_sorted() {
-    assert!(ok(
-        "def f():\n    for x in sorted([3, 1, 2]):\n        pass"
-    ));
+    assert!(ok("def f():\n    for x in sorted([3, 1, 2]):\n        pass"));
 }
 #[test]
 fn test_for_filter() {
-    assert!(ok(
-        "def f():\n    for x in filter(lambda x: x > 0, [1, -1]):\n        pass"
-    ));
+    assert!(ok("def f():\n    for x in filter(lambda x: x > 0, [1, -1]):\n        pass"));
 }
 #[test]
 fn test_for_map() {
-    assert!(ok(
-        "def f():\n    for x in map(lambda x: x * 2, [1, 2]):\n        pass"
-    ));
+    assert!(ok("def f():\n    for x in map(lambda x: x * 2, [1, 2]):\n        pass"));
 }
 #[test]
 fn test_for_break() {
-    assert!(ok(
-        "def f():\n    for i in range(10):\n        if i == 5:\n            break"
-    ));
+    assert!(ok("def f():\n    for i in range(10):\n        if i == 5:\n            break"));
 }
 #[test]
 fn test_for_continue() {
-    assert!(ok(
-        "def f():\n    for i in range(10):\n        if i % 2 == 0:\n            continue"
-    ));
+    assert!(ok("def f():\n    for i in range(10):\n        if i % 2 == 0:\n            continue"));
 }
 #[test]
 fn test_for_else() {
-    assert!(ok(
-        "def f():\n    for i in range(3):\n        pass\n    else:\n        return True"
-    ));
+    assert!(ok("def f():\n    for i in range(3):\n        pass\n    else:\n        return True"));
 }
 #[test]
 fn test_for_nested() {
-    assert!(ok(
-        "def f():\n    for i in range(3):\n        for j in range(3):\n            pass"
-    ));
+    assert!(ok("def f():\n    for i in range(3):\n        for j in range(3):\n            pass"));
 }
 
 // ============================================================================
@@ -412,21 +376,15 @@ fn test_while_nested() {
 
 #[test]
 fn test_try_except() {
-    assert!(ok(
-        "def f():\n    try:\n        x = 1\n    except:\n        pass"
-    ));
+    assert!(ok("def f():\n    try:\n        x = 1\n    except:\n        pass"));
 }
 #[test]
 fn test_try_except_type() {
-    assert!(ok(
-        "def f():\n    try:\n        x = 1\n    except ValueError:\n        pass"
-    ));
+    assert!(ok("def f():\n    try:\n        x = 1\n    except ValueError:\n        pass"));
 }
 #[test]
 fn test_try_except_as() {
-    assert!(ok(
-        "def f():\n    try:\n        x = 1\n    except ValueError as e:\n        print(e)"
-    ));
+    assert!(ok("def f():\n    try:\n        x = 1\n    except ValueError as e:\n        print(e)"));
 }
 #[test]
 fn test_try_except_multi() {
@@ -446,9 +404,7 @@ fn test_try_else() {
 }
 #[test]
 fn test_try_finally() {
-    assert!(ok(
-        "def f():\n    try:\n        x = 1\n    finally:\n        print('done')"
-    ));
+    assert!(ok("def f():\n    try:\n        x = 1\n    finally:\n        print('done')"));
 }
 #[test]
 fn test_try_except_finally() {
@@ -473,9 +429,7 @@ fn test_with_no_as() {
 }
 #[test]
 fn test_with_multi() {
-    assert!(ok(
-        "def f():\n    with open('a') as a, open('b') as b:\n        pass"
-    ));
+    assert!(ok("def f():\n    with open('a') as a, open('b') as b:\n        pass"));
 }
 
 // ============================================================================
@@ -553,15 +507,11 @@ fn test_func_docstring() {
 }
 #[test]
 fn test_func_nested() {
-    assert!(ok(
-        "def outer():\n    def inner():\n        return 1\n    return inner()"
-    ));
+    assert!(ok("def outer():\n    def inner():\n        return 1\n    return inner()"));
 }
 #[test]
 fn test_func_closure() {
-    assert!(ok(
-        "def outer(x):\n    def inner():\n        return x\n    return inner"
-    ));
+    assert!(ok("def outer(x):\n    def inner():\n        return x\n    return inner"));
 }
 #[test]
 fn test_func_recursive() {
@@ -584,9 +534,7 @@ fn test_async_return() {
 }
 #[test]
 fn test_async_await() {
-    assert!(ok(
-        "async def f():\n    async def g():\n        return 1\n    return await g()"
-    ));
+    assert!(ok("async def f():\n    async def g():\n        return 1\n    return await g()"));
 }
 
 // ============================================================================
@@ -624,9 +572,7 @@ fn test_class_init() {
 }
 #[test]
 fn test_class_init_args() {
-    assert!(ok(
-        "class C:\n    def __init__(self, x):\n        self.x = x"
-    ));
+    assert!(ok("class C:\n    def __init__(self, x):\n        self.x = x"));
 }
 #[test]
 fn test_class_method() {
@@ -634,21 +580,15 @@ fn test_class_method() {
 }
 #[test]
 fn test_class_staticmethod() {
-    assert!(ok(
-        "class C:\n    @staticmethod\n    def f():\n        return 1"
-    ));
+    assert!(ok("class C:\n    @staticmethod\n    def f():\n        return 1"));
 }
 #[test]
 fn test_class_classmethod() {
-    assert!(ok(
-        "class C:\n    @classmethod\n    def f(cls):\n        return cls()"
-    ));
+    assert!(ok("class C:\n    @classmethod\n    def f(cls):\n        return cls()"));
 }
 #[test]
 fn test_class_property() {
-    assert!(ok(
-        "class C:\n    @property\n    def x(self):\n        return self._x"
-    ));
+    assert!(ok("class C:\n    @property\n    def x(self):\n        return self._x"));
 }
 #[test]
 fn test_class_dunder_str() {
@@ -656,21 +596,15 @@ fn test_class_dunder_str() {
 }
 #[test]
 fn test_class_dunder_repr() {
-    assert!(ok(
-        "class C:\n    def __repr__(self):\n        return 'C()'"
-    ));
+    assert!(ok("class C:\n    def __repr__(self):\n        return 'C()'"));
 }
 #[test]
 fn test_class_dunder_eq() {
-    assert!(ok(
-        "class C:\n    def __eq__(self, other):\n        return True"
-    ));
+    assert!(ok("class C:\n    def __eq__(self, other):\n        return True"));
 }
 #[test]
 fn test_class_dunder_lt() {
-    assert!(ok(
-        "class C:\n    def __lt__(self, other):\n        return True"
-    ));
+    assert!(ok("class C:\n    def __lt__(self, other):\n        return True"));
 }
 #[test]
 fn test_class_dunder_len() {
@@ -678,45 +612,31 @@ fn test_class_dunder_len() {
 }
 #[test]
 fn test_class_dunder_iter() {
-    assert!(ok(
-        "class C:\n    def __iter__(self):\n        return iter([])"
-    ));
+    assert!(ok("class C:\n    def __iter__(self):\n        return iter([])"));
 }
 #[test]
 fn test_class_dunder_getitem() {
-    assert!(ok(
-        "class C:\n    def __getitem__(self, key):\n        return None"
-    ));
+    assert!(ok("class C:\n    def __getitem__(self, key):\n        return None"));
 }
 #[test]
 fn test_class_dunder_setitem() {
-    assert!(ok(
-        "class C:\n    def __setitem__(self, key, val):\n        pass"
-    ));
+    assert!(ok("class C:\n    def __setitem__(self, key, val):\n        pass"));
 }
 #[test]
 fn test_class_dunder_contains() {
-    assert!(ok(
-        "class C:\n    def __contains__(self, item):\n        return False"
-    ));
+    assert!(ok("class C:\n    def __contains__(self, item):\n        return False"));
 }
 #[test]
 fn test_class_dunder_add() {
-    assert!(ok(
-        "class C:\n    def __add__(self, other):\n        return self"
-    ));
+    assert!(ok("class C:\n    def __add__(self, other):\n        return self"));
 }
 #[test]
 fn test_class_dunder_sub() {
-    assert!(ok(
-        "class C:\n    def __sub__(self, other):\n        return self"
-    ));
+    assert!(ok("class C:\n    def __sub__(self, other):\n        return self"));
 }
 #[test]
 fn test_class_dunder_mul() {
-    assert!(ok(
-        "class C:\n    def __mul__(self, other):\n        return self"
-    ));
+    assert!(ok("class C:\n    def __mul__(self, other):\n        return self"));
 }
 #[test]
 fn test_class_dunder_call() {
@@ -733,9 +653,7 @@ fn test_class_dunder_enter_exit() {
 
 #[test]
 fn test_dataclass_simple() {
-    assert!(ok(
-        "from dataclasses import dataclass\n\n@dataclass\nclass C:\n    x: int"
-    ));
+    assert!(ok("from dataclasses import dataclass\n\n@dataclass\nclass C:\n    x: int"));
 }
 #[test]
 fn test_dataclass_multi_fields() {
@@ -745,9 +663,7 @@ fn test_dataclass_multi_fields() {
 }
 #[test]
 fn test_dataclass_default() {
-    assert!(ok(
-        "from dataclasses import dataclass\n\n@dataclass\nclass C:\n    x: int = 0"
-    ));
+    assert!(ok("from dataclasses import dataclass\n\n@dataclass\nclass C:\n    x: int = 0"));
 }
 #[test]
 fn test_dataclass_frozen() {
@@ -1545,9 +1461,7 @@ fn test_type_set() {
 }
 #[test]
 fn test_type_tuple() {
-    assert!(ok(
-        "from typing import Tuple\nx: Tuple[int, str] = (1, 'a')"
-    ));
+    assert!(ok("from typing import Tuple\nx: Tuple[int, str] = (1, 'a')"));
 }
 #[test]
 fn test_type_optional() {
@@ -1559,9 +1473,7 @@ fn test_type_union() {
 }
 #[test]
 fn test_type_callable() {
-    assert!(ok(
-        "from typing import Callable\nf: Callable[[int], int] = lambda x: x"
-    ));
+    assert!(ok("from typing import Callable\nf: Callable[[int], int] = lambda x: x"));
 }
 #[test]
 fn test_type_any() {

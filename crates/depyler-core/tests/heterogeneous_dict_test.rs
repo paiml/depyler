@@ -24,9 +24,7 @@ use rustpython_parser::{parse, Mode};
 /// Transpile with optimizer (matches CLI behavior)
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
 
     // Run optimizer (like CLI does)
     let hir_program = depyler_core::hir::HirProgram {
@@ -124,10 +122,7 @@ def main():
     // Verify generated code uses DepylerValue for heterogeneous dicts
     // DEPYLER-1051: Hybrid Fallback uses DepylerValue::Dict
     if !rust.contains("DepylerValue::Dict") {
-        panic!(
-            "Heterogeneous dict should use DepylerValue::Dict. Generated:\n{}",
-            rust
-        );
+        panic!("Heterogeneous dict should use DepylerValue::Dict. Generated:\n{}", rust);
     }
     if !rust.contains("DepylerValue::Str") {
         panic!("Should use DepylerValue::Str. Generated:\n{}", rust);
@@ -191,11 +186,7 @@ def main():
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Homogeneous dict (all int values) should use HashMap directly
-    assert!(
-        rust.contains("HashMap"),
-        "Homogeneous dict should use HashMap. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("HashMap"), "Homogeneous dict should use HashMap. Generated:\n{}", rust);
 
     assert_compiles(&rust, "homogeneous_dict_uses_hashmap");
 }

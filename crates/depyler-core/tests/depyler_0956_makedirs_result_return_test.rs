@@ -15,9 +15,7 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new()
-        .python_to_hir(ast)
-        .map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -77,11 +75,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(
-        rust.contains(".unwrap()"),
-        "Expected .unwrap() but got: {}",
-        rust
-    );
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
 
     // Verify it compiles
     assert_compiles(&rust, "makedirs");
@@ -100,11 +94,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(
-        rust.contains(".unwrap()"),
-        "Expected .unwrap() but got: {}",
-        rust
-    );
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
 
     // Verify it compiles
     assert_compiles(&rust, "mkdir");
@@ -123,11 +113,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(
-        rust.contains(".unwrap()"),
-        "Expected .unwrap() but got: {}",
-        rust
-    );
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
 
     // Verify it compiles
     assert_compiles(&rust, "rmdir");
@@ -146,11 +132,7 @@ def test():
     let rust = transpile(python).expect("transpilation failed");
 
     // Must use .unwrap() not ?
-    assert!(
-        rust.contains(".unwrap()"),
-        "Expected .unwrap() but got: {}",
-        rust
-    );
+    assert!(rust.contains(".unwrap()"), "Expected .unwrap() but got: {}", rust);
 
     // Verify it compiles
     assert_compiles(&rust, "rename");

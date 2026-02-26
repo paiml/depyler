@@ -105,11 +105,7 @@ def safe_divide(dot, norm_a, norm_b):
     // NOT: else { 0 }
     let has_else_with_int = code.contains("else { 0 }");
 
-    assert!(
-        !has_else_with_int,
-        "Else branch should use f32 literal, not integer 0: {}",
-        code
-    );
+    assert!(!has_else_with_int, "Else branch should use f32 literal, not integer 0: {}", code);
 }
 
 /// Test cosine similarity pattern (full integration)

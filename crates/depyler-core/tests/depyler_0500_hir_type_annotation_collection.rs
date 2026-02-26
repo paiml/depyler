@@ -24,9 +24,7 @@ fn parse_and_generate(python: &str) -> (HirModule, TypeEnvironment) {
         type_ignores: vec![],
         range: Default::default(),
     });
-    ast_bridge::AstBridge::new()
-        .python_to_hir(ast)
-        .expect("Should generate HIR")
+    ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR")
 }
 
 #[test]
@@ -52,16 +50,8 @@ fn test_collect_function_signature() {
     let (_hir, type_env) = parse_and_generate(python);
 
     // Both parameters collected
-    assert_eq!(
-        type_env.get_var_type("a"),
-        Some(&Type::Int),
-        "Parameter 'a' should be Int"
-    );
-    assert_eq!(
-        type_env.get_var_type("b"),
-        Some(&Type::Int),
-        "Parameter 'b' should be Int"
-    );
+    assert_eq!(type_env.get_var_type("a"), Some(&Type::Int), "Parameter 'a' should be Int");
+    assert_eq!(type_env.get_var_type("b"), Some(&Type::Int), "Parameter 'b' should be Int");
 }
 
 #[test]
@@ -70,11 +60,7 @@ fn test_collect_variable_annotations() {
     let (_hir, type_env) = parse_and_generate(python);
 
     // Variable annotations collected (module-level constants)
-    assert_eq!(
-        type_env.get_var_type("x"),
-        Some(&Type::Int),
-        "Variable 'x: int' should be Int"
-    );
+    assert_eq!(type_env.get_var_type("x"), Some(&Type::Int), "Variable 'x: int' should be Int");
     assert_eq!(
         type_env.get_var_type("y"),
         Some(&Type::String),
@@ -109,11 +95,7 @@ fn test_unannotated_variable_not_in_env() {
     let (_hir, type_env) = parse_and_generate(python);
 
     // Unannotated variables NOT in TypeEnvironment (Pass 1 only collects explicit annotations)
-    assert_eq!(
-        type_env.get_var_type("x"),
-        None,
-        "Unannotated variables not collected in Pass 1"
-    );
+    assert_eq!(type_env.get_var_type("x"), None, "Unannotated variables not collected in Pass 1");
 }
 
 #[test]
@@ -130,10 +112,7 @@ def bar(x: str) -> str:
     // Currently TypeEnvironment is global scope
     // The second 'x: str' should create a new version (SSA)
     // This test verifies SSA variable versioning works
-    assert!(
-        type_env.get_var_type("x").is_some(),
-        "Should have at least one 'x' binding"
-    );
+    assert!(type_env.get_var_type("x").is_some(), "Should have at least one 'x' binding");
 }
 
 #[test]

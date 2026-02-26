@@ -1,7 +1,7 @@
+use anyhow::Result;
 use depyler_hir::hir::{
     AssignTarget, ConstGeneric, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
 };
-use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 
 /// Analyzes Python code to detect fixed-size array patterns and infer const generics
@@ -14,10 +14,7 @@ pub struct ConstGenericInferencer {
 
 impl ConstGenericInferencer {
     pub fn new() -> Self {
-        Self {
-            const_values: HashMap::new(),
-            const_params: HashSet::new(),
-        }
+        Self { const_values: HashMap::new(), const_params: HashSet::new() }
     }
 
     /// Analyze a module and infer const generic requirements
@@ -65,16 +62,10 @@ impl ConstGenericInferencer {
     /// Scan statements to detect const usage patterns
     fn scan_statement_for_consts(&mut self, stmt: &HirStmt) -> Result<()> {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(symbol),
-                value,
-                ..
-            } => self.scan_assign_for_const(symbol, value),
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => self.scan_if_branches(then_body, else_body),
+            HirStmt::Assign { target: AssignTarget::Symbol(symbol), value, .. } => {
+                self.scan_assign_for_const(symbol, value)
+            }
+            HirStmt::If { then_body, else_body, .. } => self.scan_if_branches(then_body, else_body),
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => self.scan_stmt_block(body),
             _ => Ok(()),
         }
@@ -109,11 +100,9 @@ impl ConstGenericInferencer {
     /// Detect patterns that indicate fixed-size arrays
     fn detect_fixed_size_pattern(&self, expr: &HirExpr) -> Option<usize> {
         match expr {
-            HirExpr::Binary {
-                op: depyler_hir::hir::BinOp::Mul,
-                left,
-                right,
-            } => self.detect_multiply_pattern(left, right),
+            HirExpr::Binary { op: depyler_hir::hir::BinOp::Mul, left, right } => {
+                self.detect_multiply_pattern(left, right)
+            }
             HirExpr::List(elements) => self.detect_literal_list_size(elements),
             HirExpr::Call { func, args, .. } => self.detect_array_func_call(func, args),
             _ => None,
@@ -121,8 +110,7 @@ impl ConstGenericInferencer {
     }
 
     fn detect_multiply_pattern(&self, left: &HirExpr, right: &HirExpr) -> Option<usize> {
-        self.check_list_times_int(left, right)
-            .or_else(|| self.check_list_times_int(right, left))
+        self.check_list_times_int(left, right).or_else(|| self.check_list_times_int(right, left))
     }
 
     fn check_list_times_int(&self, list_side: &HirExpr, int_side: &HirExpr) -> Option<usize> {
@@ -205,12 +193,7 @@ impl ConstGenericInferencer {
         // First, collect variable assignments
         let mut var_sizes = HashMap::new();
         for stmt in &function.body {
-            if let HirStmt::Assign {
-                target: AssignTarget::Symbol(symbol),
-                value,
-                ..
-            } = stmt
-            {
+            if let HirStmt::Assign { target: AssignTarget::Symbol(symbol), value, .. } = stmt {
                 if let Some(size) = self.detect_fixed_size_pattern(value) {
                     var_sizes.insert(symbol.clone(), size);
                 }
@@ -262,11 +245,7 @@ impl ConstGenericInferencer {
             HirStmt::Assign { value, .. } => {
                 self.scan_expr_for_mutations(value, mutated);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.scan_expr_for_mutations(condition, mutated);
                 for s in then_body {
                     self.scan_stmt_for_mutations(s, mutated);
@@ -301,12 +280,7 @@ impl ConstGenericInferencer {
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
         match expr {
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 // Mutating list methods
                 if matches!(
                     method.as_str(),
@@ -359,11 +333,7 @@ impl ConstGenericInferencer {
     fn find_const_usage_in_stmt(&self, param_name: &str, stmt: &HirStmt) -> Option<usize> {
         match stmt {
             HirStmt::Assign { value, .. } => self.find_const_usage_in_expr(param_name, value),
-            HirStmt::If {
-                condition: _,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition: _, then_body, else_body } => {
                 // Check condition for len(param) == N
                 // Recursively check bodies
                 for s in then_body {
@@ -388,11 +358,9 @@ impl ConstGenericInferencer {
     #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn find_const_usage_in_expr(&self, param_name: &str, expr: &HirExpr) -> Option<usize> {
         match expr {
-            HirExpr::Binary {
-                op: depyler_hir::hir::BinOp::Eq,
-                left,
-                right,
-            } => self.find_len_equality_pattern(param_name, left, right),
+            HirExpr::Binary { op: depyler_hir::hir::BinOp::Eq, left, right } => {
+                self.find_len_equality_pattern(param_name, left, right)
+            }
             HirExpr::Index { base, index } => self.find_index_pattern(param_name, base, index),
             _ => None,
         }
@@ -454,11 +422,9 @@ impl ConstGenericInferencer {
         match stmt {
             HirStmt::Assign { value, .. } => self.transform_expression(value),
             HirStmt::Return(Some(expr)) => self.transform_expression(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => self.transform_if_stmt(condition, then_body, else_body),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.transform_if_stmt(condition, then_body, else_body)
+            }
             HirStmt::While { condition, body } => self.transform_while_stmt(condition, body),
             HirStmt::For { iter, body, .. } => self.transform_for_stmt(iter, body),
             _ => Ok(()),
@@ -510,19 +476,15 @@ impl ConstGenericInferencer {
             HirExpr::Call { args, .. } => self.transform_call_args(args),
             HirExpr::MethodCall { object, args, .. } => self.transform_method_call(object, args),
             HirExpr::Index { base, index } => self.transform_index_expr(base, index),
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => self.transform_slice_expr(base, start, stop, step),
+            HirExpr::Slice { base, start, stop, step } => {
+                self.transform_slice_expr(base, start, stop, step)
+            }
             HirExpr::Dict(pairs) => self.transform_dict_expr(pairs),
             HirExpr::Tuple(elements) => self.transform_tuple_expr(elements),
             HirExpr::Borrow { expr, .. } => self.transform_expression(expr),
-            HirExpr::ListComp {
-                element,
-                generators,
-            } => self.transform_list_comp(element, generators),
+            HirExpr::ListComp { element, generators } => {
+                self.transform_list_comp(element, generators)
+            }
             _ => Ok(()),
         }
     }
@@ -628,11 +590,11 @@ impl Default for ConstGenericInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use depyler_annotations::TranspilationAnnotations;
     use depyler_hir::hir::{
         BinOp, FunctionProperties, HirComprehension, HirExpr, HirFunction, HirModule, HirParam,
         HirStmt, UnaryOp,
     };
-    use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
     // ========== Constructor Tests ==========
@@ -1008,9 +970,7 @@ mod tests {
         let mut stmt = HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                2,
-            ))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
         };
         assert!(inferencer.transform_statement(&mut stmt).is_ok());
     }
@@ -1137,10 +1097,8 @@ mod tests {
     #[test]
     fn test_transform_borrow_expr() {
         let mut inferencer = ConstGenericInferencer::new();
-        let mut expr = HirExpr::Borrow {
-            expr: Box::new(HirExpr::Var("x".to_string())),
-            mutable: false,
-        };
+        let mut expr =
+            HirExpr::Borrow { expr: Box::new(HirExpr::Var("x".to_string())), mutable: false };
         assert!(inferencer.transform_expression(&mut expr).is_ok());
     }
 
@@ -1220,10 +1178,7 @@ mod tests {
         let mut inferencer = ConstGenericInferencer::new();
         let mut function = HirFunction {
             name: "process_array".to_string(),
-            params: smallvec![HirParam::new(
-                "arr".to_string(),
-                Type::List(Box::new(Type::Int))
-            )],
+            params: smallvec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::List(Box::new(Type::Int)),
             body: vec![
                 HirStmt::Assign {

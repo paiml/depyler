@@ -34,10 +34,8 @@ pub fn convert_itertools_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
-    let arg_exprs: Vec<syn::Expr> = args
-        .iter()
-        .map(|arg| arg.to_rust_expr(ctx))
-        .collect::<Result<Vec<_>>>()?;
+    let arg_exprs: Vec<syn::Expr> =
+        args.iter().map(|arg| arg.to_rust_expr(ctx)).collect::<Result<Vec<_>>>()?;
 
     let result = match method {
         "count" => convert_count(&arg_exprs)?,
@@ -62,16 +60,8 @@ pub fn convert_itertools_method(
 
 /// itertools.count(start=0, step=1) - Infinite counter
 fn convert_count(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
-    let start = if !arg_exprs.is_empty() {
-        arg_exprs[0].clone()
-    } else {
-        parse_quote!(0)
-    };
-    let step = if arg_exprs.len() >= 2 {
-        arg_exprs[1].clone()
-    } else {
-        parse_quote!(1)
-    };
+    let start = if !arg_exprs.is_empty() { arg_exprs[0].clone() } else { parse_quote!(0) };
+    let step = if arg_exprs.len() >= 2 { arg_exprs[1].clone() } else { parse_quote!(1) };
 
     Ok(parse_quote! {
         {
@@ -405,10 +395,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_count_with_start_and_step() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(0)),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(0)), HirExpr::Literal(Literal::Int(2))];
         let result = convert_itertools_method("count", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -419,10 +406,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_count_negative_step() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(10)),
-            HirExpr::Var("neg_step".to_string()),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(10)), HirExpr::Var("neg_step".to_string())];
         let result = convert_itertools_method("count", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -495,10 +479,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_repeat_with_times() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Literal(Literal::Int(42)),
-            HirExpr::Literal(Literal::Int(5)),
-        ];
+        let args = vec![HirExpr::Literal(Literal::Int(42)), HirExpr::Literal(Literal::Int(5))];
         let result = convert_itertools_method("repeat", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -599,10 +580,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_islice_stop_only() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("items".to_string()),
-            HirExpr::Literal(Literal::Int(5)),
-        ];
+        let args = vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(5))];
         let result = convert_itertools_method("islice", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -662,10 +640,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_takewhile() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("pred".to_string()),
-            HirExpr::Var("items".to_string()),
-        ];
+        let args = vec![HirExpr::Var("pred".to_string()), HirExpr::Var("items".to_string())];
         let result = convert_itertools_method("takewhile", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -686,10 +661,8 @@ mod tests {
     #[test]
     fn test_convert_takewhile_lambda() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("is_positive".to_string()),
-            HirExpr::Var("numbers".to_string()),
-        ];
+        let args =
+            vec![HirExpr::Var("is_positive".to_string()), HirExpr::Var("numbers".to_string())];
         let result = convert_itertools_method("takewhile", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -708,10 +681,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_dropwhile() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("pred".to_string()),
-            HirExpr::Var("items".to_string()),
-        ];
+        let args = vec![HirExpr::Var("pred".to_string()), HirExpr::Var("items".to_string())];
         let result = convert_itertools_method("dropwhile", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -732,10 +702,8 @@ mod tests {
     #[test]
     fn test_convert_dropwhile_lambda() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("is_whitespace".to_string()),
-            HirExpr::Var("chars".to_string()),
-        ];
+        let args =
+            vec![HirExpr::Var("is_whitespace".to_string()), HirExpr::Var("chars".to_string())];
         let result = convert_itertools_method("dropwhile", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -794,10 +762,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_compress() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("data".to_string()),
-            HirExpr::Var("selectors".to_string()),
-        ];
+        let args = vec![HirExpr::Var("data".to_string()), HirExpr::Var("selectors".to_string())];
         let result = convert_itertools_method("compress", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -818,10 +783,7 @@ mod tests {
     #[test]
     fn test_convert_compress_with_bools() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("letters".to_string()),
-            HirExpr::Var("mask".to_string()),
-        ];
+        let args = vec![HirExpr::Var("letters".to_string()), HirExpr::Var("mask".to_string())];
         let result = convert_itertools_method("compress", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -840,10 +802,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_groupby() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("items".to_string()),
-            HirExpr::Var("key_fn".to_string()),
-        ];
+        let args = vec![HirExpr::Var("items".to_string()), HirExpr::Var("key_fn".to_string())];
         let result = convert_itertools_method("groupby", &args, &mut ctx);
         assert!(result.is_ok());
         assert!(ctx.needs_itertools);
@@ -868,10 +827,7 @@ mod tests {
     fn test_convert_groupby_sets_needs_itertools() {
         let mut ctx = CodeGenContext::default();
         assert!(!ctx.needs_itertools);
-        let args = vec![
-            HirExpr::Var("data".to_string()),
-            HirExpr::Var("get_key".to_string()),
-        ];
+        let args = vec![HirExpr::Var("data".to_string()), HirExpr::Var("get_key".to_string())];
         let _ = convert_itertools_method("groupby", &args, &mut ctx);
         assert!(ctx.needs_itertools);
     }
@@ -879,10 +835,7 @@ mod tests {
     #[test]
     fn test_convert_groupby_with_lambda() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("words".to_string()),
-            HirExpr::Var("first_char".to_string()),
-        ];
+        let args = vec![HirExpr::Var("words".to_string()), HirExpr::Var("first_char".to_string())];
         let result = convert_itertools_method("groupby", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -935,10 +888,7 @@ mod tests {
     #[test]
     fn test_convert_product_collects() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("list1".to_string()),
-            HirExpr::Var("list2".to_string()),
-        ];
+        let args = vec![HirExpr::Var("list1".to_string()), HirExpr::Var("list2".to_string())];
         let result = convert_itertools_method("product", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -973,10 +923,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_permutations_with_r() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("items".to_string()),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(2))];
         let result = convert_itertools_method("permutations", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -1018,10 +965,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_combinations() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("items".to_string()),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Var("items".to_string()), HirExpr::Literal(Literal::Int(2))];
         let result = convert_itertools_method("combinations", &args, &mut ctx);
         assert!(result.is_ok());
         assert!(ctx.needs_itertools);
@@ -1044,10 +988,7 @@ mod tests {
     fn test_convert_combinations_sets_needs_itertools() {
         let mut ctx = CodeGenContext::default();
         assert!(!ctx.needs_itertools);
-        let args = vec![
-            HirExpr::Var("abc".to_string()),
-            HirExpr::Literal(Literal::Int(2)),
-        ];
+        let args = vec![HirExpr::Var("abc".to_string()), HirExpr::Literal(Literal::Int(2))];
         let _ = convert_itertools_method("combinations", &args, &mut ctx);
         assert!(ctx.needs_itertools);
     }
@@ -1055,10 +996,7 @@ mod tests {
     #[test]
     fn test_convert_combinations_with_variable_r() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("data".to_string()),
-            HirExpr::Var("r".to_string()),
-        ];
+        let args = vec![HirExpr::Var("data".to_string()), HirExpr::Var("r".to_string())];
         let result = convert_itertools_method("combinations", &args, &mut ctx);
         assert!(result.is_ok());
     }
@@ -1109,10 +1047,7 @@ mod tests {
     #[test]
     fn test_convert_zip_longest_collects() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("list1".to_string()),
-            HirExpr::Var("list2".to_string()),
-        ];
+        let args = vec![HirExpr::Var("list1".to_string()), HirExpr::Var("list2".to_string())];
         let result = convert_itertools_method("zip_longest", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

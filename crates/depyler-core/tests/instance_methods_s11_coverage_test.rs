@@ -14,10 +14,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -34,11 +32,7 @@ def centered(s: str, width: int) -> str:
     return s.center(width)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn centered"),
-        "Should transpile str.center. Got: {}",
-        result
-    );
+    assert!(result.contains("fn centered"), "Should transpile str.center. Got: {}", result);
 }
 
 #[test]
@@ -48,11 +42,7 @@ def left_justify(s: str, width: int) -> str:
     return s.ljust(width)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn left_justify"),
-        "Should transpile str.ljust. Got: {}",
-        result
-    );
+    assert!(result.contains("fn left_justify"), "Should transpile str.ljust. Got: {}", result);
 }
 
 #[test]
@@ -62,11 +52,7 @@ def right_justify(s: str, width: int) -> str:
     return s.rjust(width)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn right_justify"),
-        "Should transpile str.rjust. Got: {}",
-        result
-    );
+    assert!(result.contains("fn right_justify"), "Should transpile str.rjust. Got: {}", result);
 }
 
 #[test]
@@ -76,11 +62,7 @@ def zero_pad(s: str, width: int) -> str:
     return s.zfill(width)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn zero_pad"),
-        "Should transpile str.zfill. Got: {}",
-        result
-    );
+    assert!(result.contains("fn zero_pad"), "Should transpile str.zfill. Got: {}", result);
 }
 
 // ============================================================================
@@ -94,11 +76,7 @@ def swap(s: str) -> str:
     return s.swapcase()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn swap"),
-        "Should transpile str.swapcase. Got: {}",
-        result
-    );
+    assert!(result.contains("fn swap"), "Should transpile str.swapcase. Got: {}", result);
 }
 
 #[test]
@@ -108,11 +86,7 @@ def fold(s: str) -> str:
     return s.casefold()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn fold"),
-        "Should transpile str.casefold. Got: {}",
-        result
-    );
+    assert!(result.contains("fn fold"), "Should transpile str.casefold. Got: {}", result);
 }
 
 #[test]
@@ -122,11 +96,7 @@ def title_case(s: str) -> str:
     return s.title()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn title_case"),
-        "Should transpile str.title. Got: {}",
-        result
-    );
+    assert!(result.contains("fn title_case"), "Should transpile str.title. Got: {}", result);
 }
 
 #[test]
@@ -136,11 +106,7 @@ def cap(s: str) -> str:
     return s.capitalize()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn cap"),
-        "Should transpile str.capitalize. Got: {}",
-        result
-    );
+    assert!(result.contains("fn cap"), "Should transpile str.capitalize. Got: {}", result);
 }
 
 // ============================================================================
@@ -154,11 +120,7 @@ def is_print(s: str) -> bool:
     return s.isprintable()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_print"),
-        "Should transpile str.isprintable. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_print"), "Should transpile str.isprintable. Got: {}", result);
 }
 
 #[test]
@@ -168,11 +130,7 @@ def is_up(s: str) -> bool:
     return s.isupper()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_up"),
-        "Should transpile str.isupper. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_up"), "Should transpile str.isupper. Got: {}", result);
 }
 
 #[test]
@@ -182,11 +140,7 @@ def is_low(s: str) -> bool:
     return s.islower()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_low"),
-        "Should transpile str.islower. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_low"), "Should transpile str.islower. Got: {}", result);
 }
 
 #[test]
@@ -196,11 +150,7 @@ def is_title(s: str) -> bool:
     return s.istitle()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_title"),
-        "Should transpile str.istitle. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_title"), "Should transpile str.istitle. Got: {}", result);
 }
 
 #[test]
@@ -210,11 +160,7 @@ def is_num(s: str) -> bool:
     return s.isnumeric()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_num"),
-        "Should transpile str.isnumeric. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_num"), "Should transpile str.isnumeric. Got: {}", result);
 }
 
 #[test]
@@ -224,11 +170,7 @@ def is_dec(s: str) -> bool:
     return s.isdecimal()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_dec"),
-        "Should transpile str.isdecimal. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_dec"), "Should transpile str.isdecimal. Got: {}", result);
 }
 
 #[test]
@@ -238,11 +180,7 @@ def is_asc(s: str) -> bool:
     return s.isascii()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_asc"),
-        "Should transpile str.isascii. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_asc"), "Should transpile str.isascii. Got: {}", result);
 }
 
 #[test]
@@ -252,11 +190,7 @@ def is_ident(s: str) -> bool:
     return s.isidentifier()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_ident"),
-        "Should transpile str.isidentifier. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_ident"), "Should transpile str.isidentifier. Got: {}", result);
 }
 
 #[test]
@@ -266,11 +200,7 @@ def is_ws(s: str) -> bool:
     return s.isspace()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_ws"),
-        "Should transpile str.isspace. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_ws"), "Should transpile str.isspace. Got: {}", result);
 }
 
 #[test]
@@ -280,11 +210,7 @@ def is_an(s: str) -> bool:
     return s.isalnum()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn is_an"),
-        "Should transpile str.isalnum. Got: {}",
-        result
-    );
+    assert!(result.contains("fn is_an"), "Should transpile str.isalnum. Got: {}", result);
 }
 
 // ============================================================================
@@ -299,11 +225,7 @@ def split_at(s: str, sep: str) -> str:
     return parts[0]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn split_at"),
-        "Should transpile str.partition. Got: {}",
-        result
-    );
+    assert!(result.contains("fn split_at"), "Should transpile str.partition. Got: {}", result);
 }
 
 #[test]
@@ -314,11 +236,7 @@ def rsplit_at(s: str, sep: str) -> str:
     return parts[0]
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn rsplit_at"),
-        "Should transpile str.rpartition. Got: {}",
-        result
-    );
+    assert!(result.contains("fn rsplit_at"), "Should transpile str.rpartition. Got: {}", result);
 }
 
 #[test]
@@ -328,11 +246,7 @@ def expand(s: str) -> str:
     return s.expandtabs()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn expand"),
-        "Should transpile str.expandtabs. Got: {}",
-        result
-    );
+    assert!(result.contains("fn expand"), "Should transpile str.expandtabs. Got: {}", result);
 }
 
 #[test]
@@ -342,11 +256,7 @@ def greet(name: str) -> str:
     return "Hello {}".format(name)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn greet"),
-        "Should transpile str.format. Got: {}",
-        result
-    );
+    assert!(result.contains("fn greet"), "Should transpile str.format. Got: {}", result);
 }
 
 #[test]
@@ -356,11 +266,7 @@ def to_bytes(s: str) -> bytes:
     return s.encode()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn to_bytes"),
-        "Should transpile str.encode. Got: {}",
-        result
-    );
+    assert!(result.contains("fn to_bytes"), "Should transpile str.encode. Got: {}", result);
 }
 
 #[test]
@@ -370,11 +276,7 @@ def split_right(s: str, sep: str) -> list:
     return s.rsplit(sep)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn split_right"),
-        "Should transpile str.rsplit. Got: {}",
-        result
-    );
+    assert!(result.contains("fn split_right"), "Should transpile str.rsplit. Got: {}", result);
 }
 
 // ============================================================================
@@ -388,11 +290,7 @@ def ensure_key(d: dict, key: str, val: int) -> int:
     return d.setdefault(key, val)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn ensure_key"),
-        "Should transpile dict.setdefault. Got: {}",
-        result
-    );
+    assert!(result.contains("fn ensure_key"), "Should transpile dict.setdefault. Got: {}", result);
 }
 
 #[test]
@@ -402,11 +300,7 @@ def reset(d: dict) -> None:
     d.clear()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("clear"),
-        "Should transpile dict.clear. Got: {}",
-        result
-    );
+    assert!(result.contains("clear"), "Should transpile dict.clear. Got: {}", result);
 }
 
 #[test]
@@ -416,11 +310,7 @@ def clone_dict(d: dict) -> dict:
     return d.copy()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("clone"),
-        "Should transpile dict.copy. Got: {}",
-        result
-    );
+    assert!(result.contains("clone"), "Should transpile dict.copy. Got: {}", result);
 }
 
 #[test]
@@ -430,11 +320,7 @@ def get_keys(d: dict) -> list:
     return list(d.keys())
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("keys"),
-        "Should transpile dict.keys. Got: {}",
-        result
-    );
+    assert!(result.contains("keys"), "Should transpile dict.keys. Got: {}", result);
 }
 
 #[test]
@@ -444,11 +330,7 @@ def get_values(d: dict) -> list:
     return list(d.values())
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("values"),
-        "Should transpile dict.values. Got: {}",
-        result
-    );
+    assert!(result.contains("values"), "Should transpile dict.values. Got: {}", result);
 }
 
 #[test]
@@ -556,11 +438,7 @@ def add_item(s: Set[int], val: int) -> None:
     s.add(val)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("insert"),
-        "Should transpile set.add as insert. Got: {}",
-        result
-    );
+    assert!(result.contains("insert"), "Should transpile set.add as insert. Got: {}", result);
 }
 
 #[test]
@@ -588,11 +466,7 @@ def clear_set(s: Set[int]) -> None:
     s.clear()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("clear"),
-        "Should transpile set.clear. Got: {}",
-        result
-    );
+    assert!(result.contains("clear"), "Should transpile set.clear. Got: {}", result);
 }
 
 // ============================================================================
@@ -634,11 +508,7 @@ def clear_list(items: list) -> None:
     items.clear()
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("clear"),
-        "Should transpile list.clear. Got: {}",
-        result
-    );
+    assert!(result.contains("clear"), "Should transpile list.clear. Got: {}", result);
 }
 
 #[test]
@@ -668,11 +538,7 @@ def write_out(msg: str) -> None:
     sys.stdout.write(msg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn write_out"),
-        "Should transpile sys.stdout.write. Got: {}",
-        result
-    );
+    assert!(result.contains("fn write_out"), "Should transpile sys.stdout.write. Got: {}", result);
 }
 
 #[test]
@@ -684,11 +550,7 @@ def write_err(msg: str) -> None:
     sys.stderr.write(msg)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn write_err"),
-        "Should transpile sys.stderr.write. Got: {}",
-        result
-    );
+    assert!(result.contains("fn write_err"), "Should transpile sys.stderr.write. Got: {}", result);
 }
 
 // ============================================================================
@@ -722,11 +584,7 @@ def has_digit(text: str) -> bool:
     return re.search(r"\d", text) is not None
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn has_digit"),
-        "Should transpile re.search. Got: {}",
-        result
-    );
+    assert!(result.contains("fn has_digit"), "Should transpile re.search. Got: {}", result);
 }
 
 #[test]
@@ -738,11 +596,7 @@ def find_numbers(text: str) -> list:
     return re.findall(r"\d+", text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn find_numbers"),
-        "Should transpile re.findall. Got: {}",
-        result
-    );
+    assert!(result.contains("fn find_numbers"), "Should transpile re.findall. Got: {}", result);
 }
 
 #[test]
@@ -754,11 +608,7 @@ def clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 "#;
     let result = transpile(code);
-    assert!(
-        result.contains("fn clean_text"),
-        "Should transpile re.sub. Got: {}",
-        result
-    );
+    assert!(result.contains("fn clean_text"), "Should transpile re.sub. Got: {}", result);
 }
 
 // ============================================================================

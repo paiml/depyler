@@ -25,7 +25,8 @@ mod tests {
 
     #[test]
     fn test_sys_exit_with_code() {
-        let result = transpile("import sys\ndef quit_app(code: int) -> None:\n    sys.exit(code)\n");
+        let result =
+            transpile("import sys\ndef quit_app(code: int) -> None:\n    sys.exit(code)\n");
         assert!(!result.is_empty());
         assert!(result.contains("exit"));
     }
@@ -46,7 +47,9 @@ mod tests {
     #[test]
     fn test_sys_version() {
         // Exercise sys.version code path via method call form
-        let _ok = transpile_ok("import sys\ndef get_version() -> str:\n    v = sys.version()\n    return v\n");
+        let _ok = transpile_ok(
+            "import sys\ndef get_version() -> str:\n    v = sys.version()\n    return v\n",
+        );
     }
 
     #[test]
@@ -58,7 +61,8 @@ mod tests {
     #[test]
     fn test_sys_path() {
         // Exercise sys.path code path via method call form
-        let _ok = transpile_ok("import sys\ndef get_path() -> list:\n    p = sys.path()\n    return p\n");
+        let _ok =
+            transpile_ok("import sys\ndef get_path() -> list:\n    p = sys.path()\n    return p\n");
     }
 
     #[test]
@@ -127,7 +131,9 @@ mod tests {
 
     #[test]
     fn test_re_findall_string_literals() {
-        let result = transpile("import re\ndef find_all() -> list:\n    return re.findall(\"a\", \"banana\")\n");
+        let result = transpile(
+            "import re\ndef find_all() -> list:\n    return re.findall(\"a\", \"banana\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -139,7 +145,8 @@ mod tests {
 
     #[test]
     fn test_re_finditer_string_literals() {
-        let result = transpile("import re\ndef find_iter():\n    return re.finditer(\"a\", \"banana\")\n");
+        let result =
+            transpile("import re\ndef find_iter():\n    return re.finditer(\"a\", \"banana\")\n");
         assert!(!result.is_empty());
     }
 
@@ -151,7 +158,9 @@ mod tests {
 
     #[test]
     fn test_re_sub_string_literals() {
-        let result = transpile("import re\ndef substitute() -> str:\n    return re.sub(\"a\", \"b\", \"banana\")\n");
+        let result = transpile(
+            "import re\ndef substitute() -> str:\n    return re.sub(\"a\", \"b\", \"banana\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -163,7 +172,9 @@ mod tests {
 
     #[test]
     fn test_re_subn_string_literals() {
-        let result = transpile("import re\ndef substitute_n():\n    return re.subn(\"a\", \"b\", \"banana\")\n");
+        let result = transpile(
+            "import re\ndef substitute_n():\n    return re.subn(\"a\", \"b\", \"banana\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -175,7 +186,9 @@ mod tests {
 
     #[test]
     fn test_re_split_string_literals() {
-        let result = transpile("import re\ndef split_text() -> list:\n    return re.split(\",\", \"a,b,c\")\n");
+        let result = transpile(
+            "import re\ndef split_text() -> list:\n    return re.split(\",\", \"a,b,c\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -187,25 +200,32 @@ mod tests {
 
     #[test]
     fn test_re_compile_string_literal() {
-        let result = transpile("import re\ndef compile_pattern():\n    return re.compile(\"abc\")\n");
+        let result =
+            transpile("import re\ndef compile_pattern():\n    return re.compile(\"abc\")\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_re_compile_variable() {
-        let result = transpile("import re\ndef compile_pattern(pattern: str):\n    return re.compile(pattern)\n");
+        let result = transpile(
+            "import re\ndef compile_pattern(pattern: str):\n    return re.compile(pattern)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_re_escape_string_literal() {
-        let result = transpile("import re\ndef escape_text() -> str:\n    return re.escape(\"hello.world\")\n");
+        let result = transpile(
+            "import re\ndef escape_text() -> str:\n    return re.escape(\"hello.world\")\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_re_escape_variable() {
-        let result = transpile("import re\ndef escape_text(text: str) -> str:\n    return re.escape(text)\n");
+        let result = transpile(
+            "import re\ndef escape_text(text: str) -> str:\n    return re.escape(text)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -301,7 +321,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_md5_with_data() {
-        let result = transpile("import hashlib\ndef make_hash(data: bytes):\n    return hashlib.md5(data)\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash(data: bytes):\n    return hashlib.md5(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -313,7 +335,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_sha1_with_data() {
-        let result = transpile("import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha1(data)\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha1(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -325,7 +349,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_sha256_with_data() {
-        let result = transpile("import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha256(data)\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha256(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -337,7 +363,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_sha512_with_data() {
-        let result = transpile("import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha512(data)\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha512(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -349,7 +377,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_sha384_with_data() {
-        let result = transpile("import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha384(data)\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash(data: bytes):\n    return hashlib.sha384(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -361,7 +391,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_blake2b_with_data() {
-        let result = transpile("import hashlib\ndef make_hash(data: bytes):\n    return hashlib.blake2b(data)\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash(data: bytes):\n    return hashlib.blake2b(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -379,7 +411,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_new_with_algo() {
-        let result = transpile("import hashlib\ndef make_hash() -> None:\n    h = hashlib.new(\"sha256\")\n");
+        let result = transpile(
+            "import hashlib\ndef make_hash() -> None:\n    h = hashlib.new(\"sha256\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -395,13 +429,17 @@ mod tests {
 
     #[test]
     fn test_json_dumps() {
-        let result = transpile("import json\ndef to_json(data: dict) -> str:\n    return json.dumps(data)\n");
+        let result = transpile(
+            "import json\ndef to_json(data: dict) -> str:\n    return json.dumps(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_json_loads() {
-        let result = transpile("import json\ndef from_json(text: str) -> dict:\n    return json.loads(text)\n");
+        let result = transpile(
+            "import json\ndef from_json(text: str) -> dict:\n    return json.loads(text)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -411,42 +449,48 @@ mod tests {
 
     #[test]
     fn test_math_sqrt() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.sqrt(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.sqrt(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("sqrt"));
     }
 
     #[test]
     fn test_math_sin() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.sin(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.sin(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("sin"));
     }
 
     #[test]
     fn test_math_cos() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.cos(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.cos(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("cos"));
     }
 
     #[test]
     fn test_math_tan() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.tan(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.tan(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("tan"));
     }
 
     #[test]
     fn test_math_floor() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.floor(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.floor(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("floor"));
     }
 
     #[test]
     fn test_math_ceil() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.ceil(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.ceil(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("ceil"));
     }
@@ -461,14 +505,17 @@ mod tests {
 
     #[test]
     fn test_math_pow() {
-        let result = transpile("import math\ndef calc(x: float, y: float) -> float:\n    return math.pow(x, y)\n");
+        let result = transpile(
+            "import math\ndef calc(x: float, y: float) -> float:\n    return math.pow(x, y)\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("powf"));
     }
 
     #[test]
     fn test_math_log_natural() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.log(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.log(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("ln"));
     }
@@ -481,7 +528,8 @@ mod tests {
 
     #[test]
     fn test_math_exp() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.exp(x)\n");
+        let result =
+            transpile("import math\ndef calc(x: float) -> float:\n    return math.exp(x)\n");
         assert!(!result.is_empty());
         assert!(result.contains("exp"));
     }
@@ -492,25 +540,30 @@ mod tests {
 
     #[test]
     fn test_random_randint() {
-        let result = transpile("import random\ndef roll(a: int, b: int) -> int:\n    return random.randint(a, b)\n");
+        let result = transpile(
+            "import random\ndef roll(a: int, b: int) -> int:\n    return random.randint(a, b)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_random_random() {
-        let result = transpile("import random\ndef get_rand() -> float:\n    return random.random()\n");
+        let result =
+            transpile("import random\ndef get_rand() -> float:\n    return random.random()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_random_choice() {
-        let result = transpile("import random\ndef pick(items: list):\n    return random.choice(items)\n");
+        let result =
+            transpile("import random\ndef pick(items: list):\n    return random.choice(items)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_random_shuffle() {
-        let result = transpile("import random\ndef mix(items: list) -> None:\n    random.shuffle(items)\n");
+        let result =
+            transpile("import random\ndef mix(items: list) -> None:\n    random.shuffle(items)\n");
         assert!(!result.is_empty());
     }
 
@@ -527,7 +580,8 @@ mod tests {
 
     #[test]
     fn test_time_sleep() {
-        let result = transpile("import time\ndef wait(secs: float) -> None:\n    time.sleep(secs)\n");
+        let result =
+            transpile("import time\ndef wait(secs: float) -> None:\n    time.sleep(secs)\n");
         assert!(!result.is_empty());
         assert!(result.contains("sleep"));
     }
@@ -559,7 +613,8 @@ mod tests {
 
     #[test]
     fn test_time_ctime_with_timestamp() {
-        let result = transpile("import time\ndef get_ctime(ts: float) -> str:\n    return time.ctime(ts)\n");
+        let result =
+            transpile("import time\ndef get_ctime(ts: float) -> str:\n    return time.ctime(ts)\n");
         assert!(!result.is_empty());
     }
 
@@ -571,7 +626,8 @@ mod tests {
 
     #[test]
     fn test_time_gmtime_with_timestamp() {
-        let result = transpile("import time\ndef get_gmtime(ts: float):\n    return time.gmtime(ts)\n");
+        let result =
+            transpile("import time\ndef get_gmtime(ts: float):\n    return time.gmtime(ts)\n");
         assert!(!result.is_empty());
     }
 
@@ -583,13 +639,17 @@ mod tests {
 
     #[test]
     fn test_time_localtime_with_timestamp() {
-        let result = transpile("import time\ndef get_localtime(ts: float):\n    return time.localtime(ts)\n");
+        let result = transpile(
+            "import time\ndef get_localtime(ts: float):\n    return time.localtime(ts)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_time_mktime() {
-        let result = transpile("import time\ndef to_timestamp(t: tuple) -> float:\n    return time.mktime(t)\n");
+        let result = transpile(
+            "import time\ndef to_timestamp(t: tuple) -> float:\n    return time.mktime(t)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -599,13 +659,15 @@ mod tests {
 
     #[test]
     fn test_os_unlink() {
-        let result = transpile("import os\ndef remove_file(path: str) -> None:\n    os.unlink(path)\n");
+        let result =
+            transpile("import os\ndef remove_file(path: str) -> None:\n    os.unlink(path)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_remove() {
-        let result = transpile("import os\ndef remove_file(path: str) -> None:\n    os.remove(path)\n");
+        let result =
+            transpile("import os\ndef remove_file(path: str) -> None:\n    os.remove(path)\n");
         assert!(!result.is_empty());
     }
 
@@ -617,19 +679,23 @@ mod tests {
 
     #[test]
     fn test_os_makedirs() {
-        let result = transpile("import os\ndef make_dirs(path: str) -> None:\n    os.makedirs(path)\n");
+        let result =
+            transpile("import os\ndef make_dirs(path: str) -> None:\n    os.makedirs(path)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_rmdir() {
-        let result = transpile("import os\ndef remove_dir(path: str) -> None:\n    os.rmdir(path)\n");
+        let result =
+            transpile("import os\ndef remove_dir(path: str) -> None:\n    os.rmdir(path)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_rename() {
-        let result = transpile("import os\ndef rename_file(src: str, dst: str) -> None:\n    os.rename(src, dst)\n");
+        let result = transpile(
+            "import os\ndef rename_file(src: str, dst: str) -> None:\n    os.rename(src, dst)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -641,7 +707,8 @@ mod tests {
 
     #[test]
     fn test_os_chdir() {
-        let result = transpile("import os\ndef change_dir(path: str) -> None:\n    os.chdir(path)\n");
+        let result =
+            transpile("import os\ndef change_dir(path: str) -> None:\n    os.chdir(path)\n");
         assert!(!result.is_empty());
     }
 
@@ -653,13 +720,15 @@ mod tests {
 
     #[test]
     fn test_os_listdir_with_path() {
-        let result = transpile("import os\ndef list_dir(path: str) -> list:\n    return os.listdir(path)\n");
+        let result =
+            transpile("import os\ndef list_dir(path: str) -> list:\n    return os.listdir(path)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_getenv_one_arg() {
-        let result = transpile("import os\ndef get_env(key: str) -> str:\n    return os.getenv(key)\n");
+        let result =
+            transpile("import os\ndef get_env(key: str) -> str:\n    return os.getenv(key)\n");
         assert!(!result.is_empty());
     }
 
@@ -675,43 +744,57 @@ mod tests {
 
     #[test]
     fn test_os_path_join() {
-        let result = transpile("import os\ndef join_paths(a: str, b: str) -> str:\n    return os.path.join(a, b)\n");
+        let result = transpile(
+            "import os\ndef join_paths(a: str, b: str) -> str:\n    return os.path.join(a, b)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_path_basename() {
-        let result = transpile("import os\ndef get_basename(path: str) -> str:\n    return os.path.basename(path)\n");
+        let result = transpile(
+            "import os\ndef get_basename(path: str) -> str:\n    return os.path.basename(path)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_path_dirname() {
-        let result = transpile("import os\ndef get_dirname(path: str) -> str:\n    return os.path.dirname(path)\n");
+        let result = transpile(
+            "import os\ndef get_dirname(path: str) -> str:\n    return os.path.dirname(path)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_path_exists() {
-        let result = transpile("import os\ndef file_exists(path: str) -> bool:\n    return os.path.exists(path)\n");
+        let result = transpile(
+            "import os\ndef file_exists(path: str) -> bool:\n    return os.path.exists(path)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_path_isfile() {
-        let result = transpile("import os\ndef is_file(path: str) -> bool:\n    return os.path.isfile(path)\n");
+        let result = transpile(
+            "import os\ndef is_file(path: str) -> bool:\n    return os.path.isfile(path)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_path_isdir() {
-        let result = transpile("import os\ndef is_dir(path: str) -> bool:\n    return os.path.isdir(path)\n");
+        let result = transpile(
+            "import os\ndef is_dir(path: str) -> bool:\n    return os.path.isdir(path)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_path_expanduser() {
-        let result = transpile("import os\ndef expand_home(path: str) -> str:\n    return os.path.expanduser(path)\n");
+        let result = transpile(
+            "import os\ndef expand_home(path: str) -> str:\n    return os.path.expanduser(path)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -721,7 +804,8 @@ mod tests {
 
     #[test]
     fn test_os_environ_get() {
-        let result = transpile("import os\ndef get_env(key: str) -> str:\n    return os.environ.get(key)\n");
+        let result =
+            transpile("import os\ndef get_env(key: str) -> str:\n    return os.environ.get(key)\n");
         assert!(!result.is_empty());
     }
 
@@ -733,19 +817,22 @@ mod tests {
 
     #[test]
     fn test_os_environ_keys() {
-        let result = transpile("import os\ndef get_keys() -> list:\n    return os.environ.keys()\n");
+        let result =
+            transpile("import os\ndef get_keys() -> list:\n    return os.environ.keys()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_environ_values() {
-        let result = transpile("import os\ndef get_values() -> list:\n    return os.environ.values()\n");
+        let result =
+            transpile("import os\ndef get_values() -> list:\n    return os.environ.values()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_os_environ_items() {
-        let result = transpile("import os\ndef get_items() -> list:\n    return os.environ.items()\n");
+        let result =
+            transpile("import os\ndef get_items() -> list:\n    return os.environ.items()\n");
         assert!(!result.is_empty());
     }
 
@@ -824,14 +911,17 @@ mod tests {
 
     #[test]
     fn test_string_join() {
-        let result = transpile("def join_parts(sep: str, parts: list) -> str:\n    return sep.join(parts)\n");
+        let result = transpile(
+            "def join_parts(sep: str, parts: list) -> str:\n    return sep.join(parts)\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("join"));
     }
 
     #[test]
     fn test_string_replace() {
-        let result = transpile("def replace_text(s: str) -> str:\n    return s.replace(\"old\", \"new\")\n");
+        let result =
+            transpile("def replace_text(s: str) -> str:\n    return s.replace(\"old\", \"new\")\n");
         assert!(!result.is_empty());
         assert!(result.contains("replace"));
     }
@@ -896,13 +986,15 @@ mod tests {
 
     #[test]
     fn test_list_pop_with_index() {
-        let result = transpile("def pop_item(items: list, idx: int) -> int:\n    return items.pop(idx)\n");
+        let result =
+            transpile("def pop_item(items: list, idx: int) -> int:\n    return items.pop(idx)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_list_remove() {
-        let result = transpile("def remove_item(items: list, x: int) -> None:\n    items.remove(x)\n");
+        let result =
+            transpile("def remove_item(items: list, x: int) -> None:\n    items.remove(x)\n");
         assert!(!result.is_empty());
     }
 
@@ -947,7 +1039,9 @@ mod tests {
 
     #[test]
     fn test_dict_get_with_string_default() {
-        let result = transpile("def get_val(d: dict, key: str) -> str:\n    return d.get(key, \"fallback\")\n");
+        let result = transpile(
+            "def get_val(d: dict, key: str) -> str:\n    return d.get(key, \"fallback\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -973,25 +1067,31 @@ mod tests {
 
     #[test]
     fn test_dict_fromkeys_with_default() {
-        let result = transpile("def make_dict(keys: list) -> dict:\n    return dict.fromkeys(keys, 0)\n");
+        let result =
+            transpile("def make_dict(keys: list) -> dict:\n    return dict.fromkeys(keys, 0)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_dict_fromkeys_no_default() {
-        let result = transpile("def make_dict(keys: list) -> dict:\n    return dict.fromkeys(keys)\n");
+        let result =
+            transpile("def make_dict(keys: list) -> dict:\n    return dict.fromkeys(keys)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_int_from_bytes_big() {
-        let result = transpile("def to_int(data: bytes) -> int:\n    return int.from_bytes(data, \"big\")\n");
+        let result = transpile(
+            "def to_int(data: bytes) -> int:\n    return int.from_bytes(data, \"big\")\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_int_from_bytes_little() {
-        let result = transpile("def to_int(data: bytes) -> int:\n    return int.from_bytes(data, \"little\")\n");
+        let result = transpile(
+            "def to_int(data: bytes) -> int:\n    return int.from_bytes(data, \"little\")\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1001,37 +1101,45 @@ mod tests {
 
     #[test]
     fn test_threading_semaphore() {
-        let result = transpile("import threading\ndef make_sem() -> None:\n    s = threading.Semaphore(5)\n");
+        let result = transpile(
+            "import threading\ndef make_sem() -> None:\n    s = threading.Semaphore(5)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_threading_semaphore_no_args() {
-        let result = transpile("import threading\ndef make_sem() -> None:\n    s = threading.Semaphore()\n");
+        let result =
+            transpile("import threading\ndef make_sem() -> None:\n    s = threading.Semaphore()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_threading_lock() {
-        let result = transpile("import threading\ndef make_lock() -> None:\n    lk = threading.Lock()\n");
+        let result =
+            transpile("import threading\ndef make_lock() -> None:\n    lk = threading.Lock()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_threading_rlock() {
-        let result = transpile("import threading\ndef make_lock() -> None:\n    lk = threading.RLock()\n");
+        let result =
+            transpile("import threading\ndef make_lock() -> None:\n    lk = threading.RLock()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_threading_event() {
-        let result = transpile("import threading\ndef make_event() -> None:\n    ev = threading.Event()\n");
+        let result =
+            transpile("import threading\ndef make_event() -> None:\n    ev = threading.Event()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_threading_thread() {
-        let result = transpile("import threading\ndef spawn_thread() -> None:\n    t = threading.Thread()\n");
+        let result = transpile(
+            "import threading\ndef spawn_thread() -> None:\n    t = threading.Thread()\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1043,43 +1151,51 @@ mod tests {
 
     #[test]
     fn test_queue_lifo_queue() {
-        let result = transpile("import queue\ndef make_queue() -> None:\n    q = queue.LifoQueue()\n");
+        let result =
+            transpile("import queue\ndef make_queue() -> None:\n    q = queue.LifoQueue()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_queue_priority_queue() {
-        let result = transpile("import queue\ndef make_queue() -> None:\n    q = queue.PriorityQueue()\n");
+        let result =
+            transpile("import queue\ndef make_queue() -> None:\n    q = queue.PriorityQueue()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_datetime_datetime() {
-        let result = transpile("import datetime\ndef get_now() -> None:\n    dt = datetime.datetime()\n");
+        let result =
+            transpile("import datetime\ndef get_now() -> None:\n    dt = datetime.datetime()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_datetime_date() {
-        let result = transpile("import datetime\ndef get_date() -> None:\n    d = datetime.date()\n");
+        let result =
+            transpile("import datetime\ndef get_date() -> None:\n    d = datetime.date()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_datetime_time() {
-        let result = transpile("import datetime\ndef get_time() -> None:\n    t = datetime.time()\n");
+        let result =
+            transpile("import datetime\ndef get_time() -> None:\n    t = datetime.time()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_datetime_timedelta_with_arg() {
-        let result = transpile("import datetime\ndef delta(days: int) -> None:\n    d = datetime.timedelta(days)\n");
+        let result = transpile(
+            "import datetime\ndef delta(days: int) -> None:\n    d = datetime.timedelta(days)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_datetime_timedelta_no_args() {
-        let result = transpile("import datetime\ndef delta() -> None:\n    d = datetime.timedelta()\n");
+        let result =
+            transpile("import datetime\ndef delta() -> None:\n    d = datetime.timedelta()\n");
         assert!(!result.is_empty());
     }
 
@@ -1091,7 +1207,9 @@ mod tests {
 
     #[test]
     fn test_collections_deque_no_args() {
-        let result = transpile("import collections\ndef make_deque() -> None:\n    d = collections.deque()\n");
+        let result = transpile(
+            "import collections\ndef make_deque() -> None:\n    d = collections.deque()\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("VecDeque"));
     }
@@ -1104,7 +1222,9 @@ mod tests {
 
     #[test]
     fn test_collections_counter_no_args() {
-        let result = transpile("import collections\ndef make_counter() -> None:\n    c = collections.Counter()\n");
+        let result = transpile(
+            "import collections\ndef make_counter() -> None:\n    c = collections.Counter()\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1116,13 +1236,17 @@ mod tests {
 
     #[test]
     fn test_collections_ordered_dict_no_args() {
-        let result = transpile("import collections\ndef make_od() -> None:\n    od = collections.OrderedDict()\n");
+        let result = transpile(
+            "import collections\ndef make_od() -> None:\n    od = collections.OrderedDict()\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_collections_defaultdict() {
-        let result = transpile("import collections\ndef make_dd() -> None:\n    dd = collections.defaultdict()\n");
+        let result = transpile(
+            "import collections\ndef make_dd() -> None:\n    dd = collections.defaultdict()\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1132,37 +1256,44 @@ mod tests {
 
     #[test]
     fn test_asyncio_event() {
-        let result = transpile("import asyncio\ndef make_event() -> None:\n    ev = asyncio.Event()\n");
+        let result =
+            transpile("import asyncio\ndef make_event() -> None:\n    ev = asyncio.Event()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_asyncio_lock() {
-        let result = transpile("import asyncio\ndef make_lock() -> None:\n    lk = asyncio.Lock()\n");
+        let result =
+            transpile("import asyncio\ndef make_lock() -> None:\n    lk = asyncio.Lock()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_asyncio_semaphore_with_arg() {
-        let result = transpile("import asyncio\ndef make_sem(n: int) -> None:\n    s = asyncio.Semaphore(n)\n");
+        let result = transpile(
+            "import asyncio\ndef make_sem(n: int) -> None:\n    s = asyncio.Semaphore(n)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_asyncio_semaphore_no_arg() {
-        let result = transpile("import asyncio\ndef make_sem() -> None:\n    s = asyncio.Semaphore()\n");
+        let result =
+            transpile("import asyncio\ndef make_sem() -> None:\n    s = asyncio.Semaphore()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_asyncio_queue() {
-        let result = transpile("import asyncio\ndef make_queue() -> None:\n    q = asyncio.Queue()\n");
+        let result =
+            transpile("import asyncio\ndef make_queue() -> None:\n    q = asyncio.Queue()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_asyncio_sleep_with_arg() {
-        let result = transpile("import asyncio\ndef wait(s: float) -> None:\n    asyncio.sleep(s)\n");
+        let result =
+            transpile("import asyncio\ndef wait(s: float) -> None:\n    asyncio.sleep(s)\n");
         assert!(!result.is_empty());
     }
 
@@ -1174,7 +1305,8 @@ mod tests {
 
     #[test]
     fn test_asyncio_run() {
-        let result = transpile("import asyncio\ndef run_async(coro) -> None:\n    asyncio.run(coro)\n");
+        let result =
+            transpile("import asyncio\ndef run_async(coro) -> None:\n    asyncio.run(coro)\n");
         assert!(!result.is_empty());
     }
 
@@ -1184,13 +1316,16 @@ mod tests {
 
     #[test]
     fn test_json_loads_constructor() {
-        let result = transpile("import json\ndef parse_json(s: str) -> dict:\n    return json.loads(s)\n");
+        let result =
+            transpile("import json\ndef parse_json(s: str) -> dict:\n    return json.loads(s)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_json_dumps_constructor() {
-        let result = transpile("import json\ndef to_json_str(data: dict) -> str:\n    return json.dumps(data)\n");
+        let result = transpile(
+            "import json\ndef to_json_str(data: dict) -> str:\n    return json.dumps(data)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1200,35 +1335,43 @@ mod tests {
 
     #[test]
     fn test_list_comprehension_simple() {
-        let result = transpile("def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n");
+        let result =
+            transpile("def squares(n: int) -> list:\n    return [x * x for x in range(n)]\n");
         assert!(!result.is_empty());
         assert!(result.contains("into_iter"));
     }
 
     #[test]
     fn test_list_comprehension_with_condition() {
-        let result = transpile("def evens(n: int) -> list:\n    return [x for x in range(n) if x % 2 == 0]\n");
+        let result = transpile(
+            "def evens(n: int) -> list:\n    return [x for x in range(n) if x % 2 == 0]\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("filter"));
     }
 
     #[test]
     fn test_set_comprehension_simple() {
-        let result = transpile("def unique_squares(items: list) -> set:\n    return {x * x for x in items}\n");
+        let result = transpile(
+            "def unique_squares(items: list) -> set:\n    return {x * x for x in items}\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("HashSet"));
     }
 
     #[test]
     fn test_set_comprehension_with_condition() {
-        let result = transpile("def filtered_set(items: list) -> set:\n    return {x for x in items if x > 0}\n");
+        let result = transpile(
+            "def filtered_set(items: list) -> set:\n    return {x for x in items if x > 0}\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("filter"));
     }
 
     #[test]
     fn test_dict_comprehension_simple() {
-        let result = transpile("def make_dict(keys: list) -> dict:\n    return {k: k * 2 for k in keys}\n");
+        let result =
+            transpile("def make_dict(keys: list) -> dict:\n    return {k: k * 2 for k in keys}\n");
         assert!(!result.is_empty());
         assert!(result.contains("HashMap"));
     }
@@ -1275,7 +1418,8 @@ mod tests {
 
     #[test]
     fn test_fstring_multiple_exprs() {
-        let result = transpile("def fmt(a: int, b: int) -> str:\n    return f\"{a} + {b} = {a + b}\"\n");
+        let result =
+            transpile("def fmt(a: int, b: int) -> str:\n    return f\"{a} + {b} = {a + b}\"\n");
         assert!(!result.is_empty());
         assert!(result.contains("format!"));
     }
@@ -1330,13 +1474,16 @@ mod tests {
 
     #[test]
     fn test_dynamic_call_no_args() {
-        let result = transpile("def call_fn(handlers: dict, name: str):\n    return handlers[name]()\n");
+        let result =
+            transpile("def call_fn(handlers: dict, name: str):\n    return handlers[name]()\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_dynamic_call_with_args() {
-        let result = transpile("def call_fn(handlers: dict, name: str, x: int):\n    return handlers[name](x)\n");
+        let result = transpile(
+            "def call_fn(handlers: dict, name: str, x: int):\n    return handlers[name](x)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1352,7 +1499,9 @@ mod tests {
 
     #[test]
     fn test_deque_popleft() {
-        let result = transpile("from collections import deque\ndef pop_front(d: deque):\n    return d.popleft()\n");
+        let result = transpile(
+            "from collections import deque\ndef pop_front(d: deque):\n    return d.popleft()\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1372,7 +1521,8 @@ mod tests {
 
     #[test]
     fn test_static_method_call() {
-        let result = transpile("def call_static() -> int:\n    return Counter.create_with_value(5)\n");
+        let result =
+            transpile("def call_static() -> int:\n    return Counter.create_with_value(5)\n");
         assert!(!result.is_empty());
     }
 
@@ -1392,13 +1542,16 @@ mod tests {
 
     #[test]
     fn test_numpy_array() {
-        let result = transpile("import numpy as np\ndef make_arr():\n    return np.array([1.0, 2.0, 3.0])\n");
+        let result = transpile(
+            "import numpy as np\ndef make_arr():\n    return np.array([1.0, 2.0, 3.0])\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_numpy_dot() {
-        let result = transpile("import numpy as np\ndef dot_product(a, b):\n    return np.dot(a, b)\n");
+        let result =
+            transpile("import numpy as np\ndef dot_product(a, b):\n    return np.dot(a, b)\n");
         assert!(!result.is_empty());
     }
 
@@ -1416,13 +1569,16 @@ mod tests {
 
     #[test]
     fn test_numpy_sqrt_scalar() {
-        let result = transpile("import numpy as np\ndef root(x: float) -> float:\n    return np.sqrt(x)\n");
+        let result =
+            transpile("import numpy as np\ndef root(x: float) -> float:\n    return np.sqrt(x)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_numpy_abs_scalar() {
-        let result = transpile("import numpy as np\ndef absolute(x: float) -> float:\n    return np.abs(x)\n");
+        let result = transpile(
+            "import numpy as np\ndef absolute(x: float) -> float:\n    return np.abs(x)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1440,25 +1596,31 @@ mod tests {
 
     #[test]
     fn test_numpy_exp_scalar() {
-        let result = transpile("import numpy as np\ndef exponent(x: float) -> float:\n    return np.exp(x)\n");
+        let result = transpile(
+            "import numpy as np\ndef exponent(x: float) -> float:\n    return np.exp(x)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_numpy_log_scalar() {
-        let result = transpile("import numpy as np\ndef logarithm(x: float) -> float:\n    return np.log(x)\n");
+        let result = transpile(
+            "import numpy as np\ndef logarithm(x: float) -> float:\n    return np.log(x)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_numpy_sin_scalar() {
-        let result = transpile("import numpy as np\ndef sine(x: float) -> float:\n    return np.sin(x)\n");
+        let result =
+            transpile("import numpy as np\ndef sine(x: float) -> float:\n    return np.sin(x)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_numpy_cos_scalar() {
-        let result = transpile("import numpy as np\ndef cosine(x: float) -> float:\n    return np.cos(x)\n");
+        let result =
+            transpile("import numpy as np\ndef cosine(x: float) -> float:\n    return np.cos(x)\n");
         assert!(!result.is_empty());
     }
 
@@ -1494,13 +1656,15 @@ mod tests {
 
     #[test]
     fn test_numpy_zeros() {
-        let result = transpile("import numpy as np\ndef make_zeros(n: int):\n    return np.zeros(n)\n");
+        let result =
+            transpile("import numpy as np\ndef make_zeros(n: int):\n    return np.zeros(n)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_numpy_ones() {
-        let result = transpile("import numpy as np\ndef make_ones(n: int):\n    return np.ones(n)\n");
+        let result =
+            transpile("import numpy as np\ndef make_ones(n: int):\n    return np.ones(n)\n");
         assert!(!result.is_empty());
     }
 
@@ -1516,19 +1680,22 @@ mod tests {
 
     #[test]
     fn test_startswith_variable_arg() {
-        let result = transpile("def check(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n");
+        let result =
+            transpile("def check(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_endswith_variable_arg() {
-        let result = transpile("def check(s: str, suffix: str) -> bool:\n    return s.endswith(suffix)\n");
+        let result =
+            transpile("def check(s: str, suffix: str) -> bool:\n    return s.endswith(suffix)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_split_variable_sep() {
-        let result = transpile("def split_it(s: str, sep: str) -> list:\n    return s.split(sep)\n");
+        let result =
+            transpile("def split_it(s: str, sep: str) -> list:\n    return s.split(sep)\n");
         assert!(!result.is_empty());
     }
 
@@ -1546,13 +1713,16 @@ mod tests {
 
     #[test]
     fn test_replace_variable_args() {
-        let result = transpile("def replace_it(s: str, old: str, new: str) -> str:\n    return s.replace(old, new)\n");
+        let result = transpile(
+            "def replace_it(s: str, old: str, new: str) -> str:\n    return s.replace(old, new)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_contains_variable_arg() {
-        let result = transpile("def has_it(s: str, sub: str) -> bool:\n    return s.contains(sub)\n");
+        let result =
+            transpile("def has_it(s: str, sub: str) -> bool:\n    return s.contains(sub)\n");
         assert!(!result.is_empty());
     }
 
@@ -1642,13 +1812,16 @@ mod tests {
 
     #[test]
     fn test_dict_contains_key_by_name() {
-        let result = transpile("def has_key(d: dict, k: str) -> bool:\n    return d.contains_key(k)\n");
+        let result =
+            transpile("def has_key(d: dict, k: str) -> bool:\n    return d.contains_key(k)\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_list_extend() {
-        let result = transpile("def extend_list(items: list, more: list) -> None:\n    items.extend(more)\n");
+        let result = transpile(
+            "def extend_list(items: list, more: list) -> None:\n    items.extend(more)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1676,7 +1849,8 @@ mod tests {
 
     #[test]
     fn test_os_listdir_constructor() {
-        let result = transpile("import os\ndef ls(path: str) -> list:\n    return os.listdir(path)\n");
+        let result =
+            transpile("import os\ndef ls(path: str) -> list:\n    return os.listdir(path)\n");
         assert!(!result.is_empty());
     }
 
@@ -1686,13 +1860,16 @@ mod tests {
 
     #[test]
     fn test_property_method_access() {
-        let result = transpile("class MyClass:\n    def get_name(self) -> str:\n        return self.name\n");
+        let result =
+            transpile("class MyClass:\n    def get_name(self) -> str:\n        return self.name\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_self_field_clone() {
-        let result = transpile("class MyClass:\n    def get_items(self) -> list:\n        return self.items\n");
+        let result = transpile(
+            "class MyClass:\n    def get_items(self) -> list:\n        return self.items\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1730,7 +1907,9 @@ mod tests {
 
     #[test]
     fn test_math_combined_arithmetic() {
-        let result = transpile("import math\ndef calc(x: float) -> float:\n    return math.floor(math.sqrt(x))\n");
+        let result = transpile(
+            "import math\ndef calc(x: float) -> float:\n    return math.floor(math.sqrt(x))\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1778,26 +1957,34 @@ mod tests {
 
     #[test]
     fn test_list_comp_with_method_call() {
-        let result = transpile("def upper_all(words: list) -> list:\n    return [w.upper() for w in words]\n");
+        let result = transpile(
+            "def upper_all(words: list) -> list:\n    return [w.upper() for w in words]\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_list_comp_with_arithmetic() {
-        let result = transpile("def doubles(n: int) -> list:\n    return [x * 2 for x in range(n)]\n");
+        let result =
+            transpile("def doubles(n: int) -> list:\n    return [x * 2 for x in range(n)]\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_set_comp_with_arithmetic() {
-        let result = transpile("def unique_mods(items: list) -> set:\n    return {x % 10 for x in items}\n");
+        let result =
+            transpile("def unique_mods(items: list) -> set:\n    return {x % 10 for x in items}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_dict_comp_with_enumerate() {
-        let result = transpile("def index_map(items: list) -> dict:\n    return {i: v for i, v in enumerate(items)}\n");
-        assert!(transpile_ok("def index_map(items: list) -> dict:\n    return {i: v for i, v in enumerate(items)}\n"));
+        let result = transpile(
+            "def index_map(items: list) -> dict:\n    return {i: v for i, v in enumerate(items)}\n",
+        );
+        assert!(transpile_ok(
+            "def index_map(items: list) -> dict:\n    return {i: v for i, v in enumerate(items)}\n"
+        ));
     }
 
     // ========================================================================
@@ -1812,7 +1999,8 @@ mod tests {
 
     #[test]
     fn test_fstring_with_method_call() {
-        let result = transpile("def fmt(name: str) -> str:\n    return f\"Hello {name.upper()}\"\n");
+        let result =
+            transpile("def fmt(name: str) -> str:\n    return f\"Hello {name.upper()}\"\n");
         assert!(!result.is_empty());
     }
 
@@ -1828,7 +2016,9 @@ mod tests {
 
     #[test]
     fn test_hashlib_sha256_round_trip() {
-        let result = transpile("import hashlib\ndef hash_data(data: bytes):\n    h = hashlib.sha256()\n    return h\n");
+        let result = transpile(
+            "import hashlib\ndef hash_data(data: bytes):\n    h = hashlib.sha256()\n    return h\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1866,7 +2056,8 @@ mod tests {
 
     #[test]
     fn test_set_update() {
-        let result = transpile("def merge_sets(s: set, other: set) -> None:\n    s.update(other)\n");
+        let result =
+            transpile("def merge_sets(s: set, other: set) -> None:\n    s.update(other)\n");
         assert!(!result.is_empty());
     }
 
@@ -1882,7 +2073,8 @@ mod tests {
 
     #[test]
     fn test_os_path_join_single() {
-        let result = transpile("import os\ndef to_path(s: str) -> str:\n    return os.path.join(s)\n");
+        let result =
+            transpile("import os\ndef to_path(s: str) -> str:\n    return os.path.join(s)\n");
         assert!(!result.is_empty());
     }
 
@@ -1921,7 +2113,9 @@ mod tests {
         assert!(transpile_ok("import math\ndef f(x: float) -> float:\n    return math.floor(x)\n"));
         assert!(transpile_ok("import math\ndef f(x: float) -> float:\n    return math.ceil(x)\n"));
         assert!(transpile_ok("import math\ndef f(x: float) -> float:\n    return math.exp(x)\n"));
-        assert!(transpile_ok("import math\ndef f(x: float, y: float) -> float:\n    return math.pow(x, y)\n"));
+        assert!(transpile_ok(
+            "import math\ndef f(x: float, y: float) -> float:\n    return math.pow(x, y)\n"
+        ));
     }
 
     #[test]
@@ -1930,7 +2124,9 @@ mod tests {
         assert!(transpile_ok("import re\ndef f(p: str, t: str):\n    return re.match(p, t)\n"));
         assert!(transpile_ok("import re\ndef f(p: str, t: str):\n    return re.fullmatch(p, t)\n"));
         assert!(transpile_ok("import re\ndef f(p: str, t: str):\n    return re.findall(p, t)\n"));
-        assert!(transpile_ok("import re\ndef f(p: str, r: str, t: str):\n    return re.sub(p, r, t)\n"));
+        assert!(transpile_ok(
+            "import re\ndef f(p: str, r: str, t: str):\n    return re.sub(p, r, t)\n"
+        ));
     }
 
     #[test]
@@ -1954,8 +2150,12 @@ mod tests {
     fn test_ok_base64_all_funcs() {
         assert!(transpile_ok("import base64\ndef f(d: bytes):\n    return base64.b64encode(d)\n"));
         assert!(transpile_ok("import base64\ndef f(d: str):\n    return base64.b64decode(d)\n"));
-        assert!(transpile_ok("import base64\ndef f(d: bytes):\n    return base64.urlsafe_b64encode(d)\n"));
-        assert!(transpile_ok("import base64\ndef f(d: str):\n    return base64.urlsafe_b64decode(d)\n"));
+        assert!(transpile_ok(
+            "import base64\ndef f(d: bytes):\n    return base64.urlsafe_b64encode(d)\n"
+        ));
+        assert!(transpile_ok(
+            "import base64\ndef f(d: str):\n    return base64.urlsafe_b64decode(d)\n"
+        ));
         // b32encode/b32decode may not be in all pipeline modes
         let _ = transpile_ok("import base64\ndef f(d: bytes):\n    return base64.b32encode(d)\n");
         let _ = transpile_ok("import base64\ndef f(d: bytes):\n    return base64.b32decode(d)\n");
@@ -2010,7 +2210,8 @@ mod tests {
     #[test]
     fn test_sys_getsizeof() {
         // sys.getsizeof may not be available in all pipeline modes
-        let _ok = transpile_ok("import sys\ndef get_size(obj) -> int:\n    return sys.getsizeof(obj)\n");
+        let _ok =
+            transpile_ok("import sys\ndef get_size(obj) -> int:\n    return sys.getsizeof(obj)\n");
     }
 
     // ========================================================================
@@ -2045,7 +2246,9 @@ mod tests {
 
     #[test]
     fn test_list_comp_filter_transform() {
-        let result = transpile("def process(items: list) -> list:\n    return [x * 2 for x in items if x > 0]\n");
+        let result = transpile(
+            "def process(items: list) -> list:\n    return [x * 2 for x in items if x > 0]\n",
+        );
         assert!(!result.is_empty());
         assert!(result.contains("filter"));
         assert!(result.contains("map"));
@@ -2071,7 +2274,11 @@ mod tests {
 
     #[test]
     fn test_os_environ_contains_key() {
-        let result = transpile("import os\ndef has_env(key: str) -> bool:\n    return os.environ.contains_key(key)\n");
-        assert!(transpile_ok("import os\ndef has_env(key: str) -> bool:\n    return os.environ.contains_key(key)\n"));
+        let result = transpile(
+            "import os\ndef has_env(key: str) -> bool:\n    return os.environ.contains_key(key)\n",
+        );
+        assert!(transpile_ok(
+            "import os\ndef has_env(key: str) -> bool:\n    return os.environ.contains_key(key)\n"
+        ));
     }
 }

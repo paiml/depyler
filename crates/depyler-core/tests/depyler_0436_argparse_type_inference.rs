@@ -43,11 +43,7 @@ def port_validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -76,11 +72,7 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -92,11 +84,7 @@ def validator(value):
     );
 
     // Should NOT use cast syntax (value) as i32
-    assert!(
-        !rust.contains("(value) as i32"),
-        "Should not use cast for string parsing: {}",
-        rust
-    );
+    assert!(!rust.contains("(value) as i32"), "Should not use cast for string parsing: {}", rust);
 }
 
 #[test]
@@ -112,11 +100,7 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -153,11 +137,7 @@ def port_number(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -166,26 +146,14 @@ def port_number(value):
     std::fs::write(&temp_file, &rust).unwrap();
 
     let compile_result = std::process::Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            &temp_file,
-            "-o",
-            &temp_rlib,
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", &temp_file, "-o", &temp_rlib])
         .output();
 
     // Cleanup
     let _ = std::fs::remove_file(&temp_file);
     let _ = std::fs::remove_file(&temp_rlib);
 
-    assert!(
-        compile_result.is_ok(),
-        "rustc should run successfully: {:?}",
-        compile_result.err()
-    );
+    assert!(compile_result.is_ok(), "rustc should run successfully: {:?}", compile_result.err());
 
     let output = compile_result.unwrap();
 
@@ -198,15 +166,7 @@ def port_number(value):
         stderr
     );
 
-    assert!(
-        !stderr.contains("cannot cast"),
-        "Should not have cast errors. Stderr: {}",
-        stderr
-    );
+    assert!(!stderr.contains("cannot cast"), "Should not have cast errors. Stderr: {}", stderr);
 
-    assert!(
-        output.status.success(),
-        "Compilation should succeed. Stderr: {}",
-        stderr
-    );
+    assert!(output.status.success(), "Compilation should succeed. Stderr: {}", stderr);
 }

@@ -59,41 +59,19 @@ fn main() -> anyhow::Result<()> {
     let config = UnifiedTrainingConfig {
         seed: args.seed,
         synthetic_samples: args.synthetic_samples,
-        oip_data_path: args
-            .oip
-            .as_ref()
-            .map(|p: &PathBuf| p.to_string_lossy().to_string()),
-        real_errors_path: args
-            .errors
-            .as_ref()
-            .map(|p: &PathBuf| p.to_string_lossy().to_string()),
-        graph_corpus_path: args
-            .graph
-            .as_ref()
-            .map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        oip_data_path: args.oip.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        real_errors_path: args.errors.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        graph_corpus_path: args.graph.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
         balance_classes: args.balance,
-        max_per_class: if args.balance {
-            Some(args.max_per_class)
-        } else {
-            None
-        },
+        max_per_class: if args.balance { Some(args.max_per_class) } else { None },
     };
 
     println!("Configuration:");
     println!("  Seed: {}", config.seed);
     println!("  Synthetic samples: {}", config.synthetic_samples);
-    println!(
-        "  OIP data: {}",
-        config.oip_data_path.as_deref().unwrap_or("none")
-    );
-    println!(
-        "  Real errors: {}",
-        config.real_errors_path.as_deref().unwrap_or("none")
-    );
-    println!(
-        "  Graph corpus: {}",
-        config.graph_corpus_path.as_deref().unwrap_or("none")
-    );
+    println!("  OIP data: {}", config.oip_data_path.as_deref().unwrap_or("none"));
+    println!("  Real errors: {}", config.real_errors_path.as_deref().unwrap_or("none"));
+    println!("  Graph corpus: {}", config.graph_corpus_path.as_deref().unwrap_or("none"));
     println!("  Balance classes: {}", config.balance_classes);
     if let Some(max) = config.max_per_class {
         println!("  Max per class: {}", max);
@@ -108,33 +86,15 @@ fn main() -> anyhow::Result<()> {
     println!();
     println!("=== Training Data Statistics ===");
     println!("Sources:");
-    println!(
-        "  Synthetic:    {:>6} samples",
-        result.stats.synthetic_count
-    );
+    println!("  Synthetic:    {:>6} samples", result.stats.synthetic_count);
     println!("  Depyler:      {:>6} samples", result.stats.depyler_count);
-    println!(
-        "  Verificar:    {:>6} samples",
-        result.stats.verificar_count
-    );
+    println!("  Verificar:    {:>6} samples", result.stats.verificar_count);
     println!("  OIP GitHub:   {:>6} samples", result.stats.oip_count);
-    println!(
-        "  Real errors:  {:>6} samples",
-        result.stats.real_errors_count
-    );
-    println!(
-        "  Graph corpus: {:>6} samples",
-        result.stats.graph_corpus_count
-    );
+    println!("  Real errors:  {:>6} samples", result.stats.real_errors_count);
+    println!("  Graph corpus: {:>6} samples", result.stats.graph_corpus_count);
     println!("  ────────────────────────");
-    println!(
-        "  Total before dedup: {:>6}",
-        result.stats.total_before_dedupe
-    );
-    println!(
-        "  Duplicates removed: {:>6}",
-        result.stats.duplicates_removed
-    );
+    println!("  Total before dedup: {:>6}", result.stats.total_before_dedupe);
+    println!("  Duplicates removed: {:>6}", result.stats.duplicates_removed);
     println!("  Final count:        {:>6}", result.stats.final_count);
     println!();
 
@@ -156,25 +116,10 @@ fn main() -> anyhow::Result<()> {
 
     // Calculate accuracy estimate from training stats
     let accuracy = if result.stats.final_count > 0 {
-        let max_per_cat = result
-            .stats
-            .by_category
-            .values()
-            .max()
-            .copied()
-            .unwrap_or(0);
-        let min_per_cat = result
-            .stats
-            .by_category
-            .values()
-            .min()
-            .copied()
-            .unwrap_or(0);
-        let balance_ratio = if max_per_cat > 0 {
-            min_per_cat as f64 / max_per_cat as f64
-        } else {
-            1.0
-        };
+        let max_per_cat = result.stats.by_category.values().max().copied().unwrap_or(0);
+        let min_per_cat = result.stats.by_category.values().min().copied().unwrap_or(0);
+        let balance_ratio =
+            if max_per_cat > 0 { min_per_cat as f64 / max_per_cat as f64 } else { 1.0 };
         0.75 + (0.20 * balance_ratio)
     } else {
         0.0

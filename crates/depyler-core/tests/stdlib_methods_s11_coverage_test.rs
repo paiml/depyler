@@ -10,10 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -68,7 +66,11 @@ def logarithm(x: float) -> float:
     return math.log(x)
 "#;
     let result = transpile(code);
-    assert!(result.contains("ln") || result.contains("log"), "Should transpile math.log. Got: {}", result);
+    assert!(
+        result.contains("ln") || result.contains("log"),
+        "Should transpile math.log. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -80,7 +82,11 @@ def trig(x: float) -> float:
     return math.sin(x) + math.cos(x)
 "#;
     let result = transpile(code);
-    assert!(result.contains("sin") && result.contains("cos"), "Should transpile sin/cos. Got: {}", result);
+    assert!(
+        result.contains("sin") && result.contains("cos"),
+        "Should transpile sin/cos. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -96,7 +102,11 @@ def join_path(a: str, b: str) -> str:
     return os.path.join(a, b)
 "#;
     let result = transpile(code);
-    assert!(result.contains("join") || result.contains("Path"), "Should transpile os.path.join. Got: {}", result);
+    assert!(
+        result.contains("join") || result.contains("Path"),
+        "Should transpile os.path.join. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -108,7 +118,11 @@ def file_exists(path: str) -> bool:
     return os.path.exists(path)
 "#;
     let result = transpile(code);
-    assert!(result.contains("exists") || result.contains("Path"), "Should transpile os.path.exists. Got: {}", result);
+    assert!(
+        result.contains("exists") || result.contains("Path"),
+        "Should transpile os.path.exists. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -124,8 +138,11 @@ def parse_json(s: str) -> dict:
     return json.loads(s)
 "#;
     let result = transpile(code);
-    assert!(result.contains("serde_json") || result.contains("from_str") || result.contains("parse"),
-            "Should transpile json.loads. Got: {}", result);
+    assert!(
+        result.contains("serde_json") || result.contains("from_str") || result.contains("parse"),
+        "Should transpile json.loads. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -137,8 +154,11 @@ def to_json(data: dict) -> str:
     return json.dumps(data)
 "#;
     let result = transpile(code);
-    assert!(result.contains("serde_json") || result.contains("to_string") || result.contains("json"),
-            "Should transpile json.dumps. Got: {}", result);
+    assert!(
+        result.contains("serde_json") || result.contains("to_string") || result.contains("json"),
+        "Should transpile json.dumps. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -162,7 +182,11 @@ def count_sub(s: str, sub: str) -> int:
     return s.count(sub)
 "#;
     let result = transpile(code);
-    assert!(result.contains("matches") || result.contains("count"), "Should transpile str.count. Got: {}", result);
+    assert!(
+        result.contains("matches") || result.contains("count"),
+        "Should transpile str.count. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -172,7 +196,11 @@ def all_digits(s: str) -> bool:
     return s.isdigit()
 "#;
     let result = transpile(code);
-    assert!(result.contains("is_ascii_digit") || result.contains("chars"), "Should transpile str.isdigit. Got: {}", result);
+    assert!(
+        result.contains("is_ascii_digit") || result.contains("chars"),
+        "Should transpile str.isdigit. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -182,7 +210,11 @@ def all_alpha(s: str) -> bool:
     return s.isalpha()
 "#;
     let result = transpile(code);
-    assert!(result.contains("is_alphabetic") || result.contains("chars"), "Should transpile str.isalpha. Got: {}", result);
+    assert!(
+        result.contains("is_alphabetic") || result.contains("chars"),
+        "Should transpile str.isalpha. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -246,8 +278,11 @@ def remove_item(items: list, val: int) -> None:
     items.remove(val)
 "#;
     let result = transpile(code);
-    assert!(result.contains("retain") || result.contains("remove") || result.contains("position"),
-            "Should transpile list.remove. Got: {}", result);
+    assert!(
+        result.contains("retain") || result.contains("remove") || result.contains("position"),
+        "Should transpile list.remove. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -284,8 +319,11 @@ def iterate_dict(data: dict) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("iter") || result.contains("items") || result.contains("for"),
-            "Should transpile dict.items. Got: {}", result);
+    assert!(
+        result.contains("iter") || result.contains("items") || result.contains("for"),
+        "Should transpile dict.items. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -295,8 +333,11 @@ def merge(a: dict, b: dict) -> None:
     a.update(b)
 "#;
     let result = transpile(code);
-    assert!(result.contains("extend") || result.contains("update") || result.contains("insert"),
-            "Should transpile dict.update. Got: {}", result);
+    assert!(
+        result.contains("extend") || result.contains("update") || result.contains("insert"),
+        "Should transpile dict.update. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -306,8 +347,11 @@ def remove_key(data: dict, key: str) -> int:
     return data.pop(key)
 "#;
     let result = transpile(code);
-    assert!(result.contains("remove") || result.contains("pop"),
-            "Should transpile dict.pop. Got: {}", result);
+    assert!(
+        result.contains("remove") || result.contains("pop"),
+        "Should transpile dict.pop. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -323,8 +367,11 @@ def combine(a: Set[int], b: Set[int]) -> Set[int]:
     return a.union(b)
 "#;
     let result = transpile(code);
-    assert!(result.contains("union") || result.contains("HashSet"),
-            "Should transpile set.union. Got: {}", result);
+    assert!(
+        result.contains("union") || result.contains("HashSet"),
+        "Should transpile set.union. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -336,8 +383,11 @@ def common(a: Set[int], b: Set[int]) -> Set[int]:
     return a.intersection(b)
 "#;
     let result = transpile(code);
-    assert!(result.contains("intersection") || result.contains("HashSet"),
-            "Should transpile set.intersection. Got: {}", result);
+    assert!(
+        result.contains("intersection") || result.contains("HashSet"),
+        "Should transpile set.intersection. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -349,8 +399,11 @@ def diff(a: Set[int], b: Set[int]) -> Set[int]:
     return a.difference(b)
 "#;
     let result = transpile(code);
-    assert!(result.contains("difference") || result.contains("HashSet"),
-            "Should transpile set.difference. Got: {}", result);
+    assert!(
+        result.contains("difference") || result.contains("HashSet"),
+        "Should transpile set.difference. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -364,8 +417,11 @@ def greet(name: str) -> None:
     print(name)
 "#;
     let result = transpile(code);
-    assert!(result.contains("println") || result.contains("print"),
-            "Should transpile print(). Got: {}", result);
+    assert!(
+        result.contains("println") || result.contains("print"),
+        "Should transpile print(). Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -388,7 +444,11 @@ def count(n: int) -> int:
     return total
 "#;
     let result = transpile(code);
-    assert!(result.contains("0..") || result.contains("range"), "Should transpile range(). Got: {}", result);
+    assert!(
+        result.contains("0..") || result.contains("range"),
+        "Should transpile range(). Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -442,7 +502,11 @@ def total(items: list) -> int:
     return sum(items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("sum") || result.contains("iter"), "Should transpile sum(). Got: {}", result);
+    assert!(
+        result.contains("sum") || result.contains("iter"),
+        "Should transpile sum(). Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -452,7 +516,11 @@ def has_positive(items: list) -> bool:
     return any(x > 0 for x in items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("any") || result.contains("iter"), "Should transpile any(). Got: {}", result);
+    assert!(
+        result.contains("any") || result.contains("iter"),
+        "Should transpile any(). Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -462,5 +530,9 @@ def all_positive(items: list) -> bool:
     return all(x > 0 for x in items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("all") || result.contains("iter"), "Should transpile all(). Got: {}", result);
+    assert!(
+        result.contains("all") || result.contains("iter"),
+        "Should transpile all(). Got: {}",
+        result
+    );
 }

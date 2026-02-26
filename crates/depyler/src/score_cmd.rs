@@ -55,11 +55,7 @@ fn score_file(
     let parse_ok = pipeline.transpile(&python_source).is_ok();
 
     // Get Rust code if parse succeeded
-    let rust_code = if parse_ok {
-        pipeline.transpile(&python_source).ok()
-    } else {
-        None
-    };
+    let rust_code = if parse_ok { pipeline.transpile(&python_source).ok() } else { None };
 
     // Phase A2 & A3: Type check and build (if we have Rust code)
     let (type_check_ok, build_ok, errors) = if let Some(ref code) = rust_code {
@@ -165,11 +161,7 @@ fn generate_cargo_toml_for_code(code: &str) -> String {
         deps.push("rand = \"0.8\"");
     }
 
-    let deps_section = if deps.is_empty() {
-        String::new()
-    } else {
-        deps.join("\n")
-    };
+    let deps_section = if deps.is_empty() { String::new() } else { deps.join("\n") };
 
     format!(
         r#"[package]
@@ -274,11 +266,7 @@ fn format_human(report: &CorpusScoreReport) -> String {
     // Summary
     output.push_str(&format!("Files scored: {}\n", report.results.len()));
 
-    let gateway_passed = report
-        .results
-        .iter()
-        .filter(|r| r.score.gateway_passed)
-        .count();
+    let gateway_passed = report.results.iter().filter(|r| r.score.gateway_passed).count();
     output.push_str(&format!(
         "Gateway passed: {}/{} ({:.1}%)\n",
         gateway_passed,
@@ -383,11 +371,7 @@ fn format_markdown(report: &CorpusScoreReport) -> String {
     output.push_str("## Summary\n\n");
     output.push_str(&format!("- **Files scored**: {}\n", report.results.len()));
 
-    let gateway_passed = report
-        .results
-        .iter()
-        .filter(|r| r.score.gateway_passed)
-        .count();
+    let gateway_passed = report.results.iter().filter(|r| r.score.gateway_passed).count();
     output.push_str(&format!(
         "- **Gateway passed**: {}/{} ({:.1}%)\n",
         gateway_passed,
@@ -666,12 +650,7 @@ mod tests {
         let json_str = format_json(&report).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
         assert!(parsed["category_averages"]["compilation"].as_u64().unwrap() > 0);
-        assert!(
-            parsed["category_averages"]["type_inference"]
-                .as_u64()
-                .unwrap()
-                > 0
-        );
+        assert!(parsed["category_averages"]["type_inference"].as_u64().unwrap() > 0);
     }
 
     #[test]
@@ -819,7 +798,8 @@ use rand::Rng;
 
     #[test]
     fn test_s11_parse_cargo_errors_long_error_code() {
-        let output = "error[E1234]: some very long error message with lots of details about what went wrong";
+        let output =
+            "error[E1234]: some very long error message with lots of details about what went wrong";
         let errors = parse_cargo_errors(output);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "E1234");
@@ -916,21 +896,9 @@ use rand::Rng;
     fn test_s11_format_human_multiple_blockers() {
         let mut report = make_test_report();
         report.top_blockers = vec![
-            Blocker {
-                pattern: "E0308".to_string(),
-                affected_files: 10,
-                avg_points_lost: 5.5,
-            },
-            Blocker {
-                pattern: "E0425".to_string(),
-                affected_files: 7,
-                avg_points_lost: 3.0,
-            },
-            Blocker {
-                pattern: "E0599".to_string(),
-                affected_files: 3,
-                avg_points_lost: 2.1,
-            },
+            Blocker { pattern: "E0308".to_string(), affected_files: 10, avg_points_lost: 5.5 },
+            Blocker { pattern: "E0425".to_string(), affected_files: 7, avg_points_lost: 3.0 },
+            Blocker { pattern: "E0599".to_string(), affected_files: 3, avg_points_lost: 2.1 },
         ];
         let output = format_human(&report);
         assert!(output.contains("E0308"));
@@ -943,16 +911,8 @@ use rand::Rng;
     fn test_s11_format_json_multiple_blockers() {
         let mut report = make_test_report();
         report.top_blockers = vec![
-            Blocker {
-                pattern: "E0308".to_string(),
-                affected_files: 10,
-                avg_points_lost: 5.5,
-            },
-            Blocker {
-                pattern: "E0425".to_string(),
-                affected_files: 7,
-                avg_points_lost: 3.0,
-            },
+            Blocker { pattern: "E0308".to_string(), affected_files: 10, avg_points_lost: 5.5 },
+            Blocker { pattern: "E0425".to_string(), affected_files: 7, avg_points_lost: 3.0 },
         ];
         let json_str = format_json(&report).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
@@ -988,20 +948,11 @@ use rand::Rng;
     fn test_s11_score_file_simple() {
         let temp = tempfile::tempdir().unwrap();
         let py_file = temp.path().join("simple.py");
-        std::fs::write(
-            &py_file,
-            "def add(a: int, b: int) -> int:\n    return a + b\n",
-        )
-        .unwrap();
+        std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
         let config = ScoringConfig::default();
         let calculator = ScoreCalculator::with_config(config);
-        let result = score_file(
-            &py_file.to_path_buf(),
-            ScoringMode::Quick,
-            &calculator,
-            false,
-        );
+        let result = score_file(&py_file.to_path_buf(), ScoringMode::Quick, &calculator, false);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.score.total > 0);
@@ -1015,12 +966,7 @@ use rand::Rng;
 
         let config = ScoringConfig::default();
         let calculator = ScoreCalculator::with_config(config);
-        let result = score_file(
-            &py_file.to_path_buf(),
-            ScoringMode::Quick,
-            &calculator,
-            false,
-        );
+        let result = score_file(&py_file.to_path_buf(), ScoringMode::Quick, &calculator, false);
         assert!(result.is_ok());
         let result = result.unwrap();
         // Parse should fail, so compilation score should be low
@@ -1251,11 +1197,7 @@ pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "🔍 Scoring {} Python files (mode: {:?})...\n",
-        python_files.len(),
-        mode
-    );
+    println!("🔍 Scoring {} Python files (mode: {:?})...\n", python_files.len(), mode);
 
     // Score each file
     let mut results = vec![];
@@ -1276,11 +1218,7 @@ pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
             }
         }
     }
-    eprintln!(
-        "\r[{}/{}] Scoring... 100%",
-        python_files.len(),
-        python_files.len()
-    );
+    eprintln!("\r[{}/{}] Scoring... 100%", python_files.len(), python_files.len());
     println!();
 
     // Aggregate results

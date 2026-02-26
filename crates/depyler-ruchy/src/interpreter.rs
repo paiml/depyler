@@ -68,9 +68,7 @@ impl RuchyInterpreter {
     /// Fallback execution for builds without interpreter feature
     #[cfg(not(feature = "interpreter"))]
     pub fn execute(&self, _code: &str) -> Result<String> {
-        Err(anyhow!(
-            "Interpreter feature not enabled. Rebuild with --features interpreter"
-        ))
+        Err(anyhow!("Interpreter feature not enabled. Rebuild with --features interpreter"))
     }
 
     /// Validates Ruchy syntax
@@ -109,9 +107,7 @@ impl RuchyInterpreter {
     /// Fallback REPL for builds without interpreter feature
     #[cfg(not(feature = "interpreter"))]
     pub fn start_repl(&self) -> Result<()> {
-        Err(anyhow!(
-            "REPL not available. Rebuild with --features interpreter"
-        ))
+        Err(anyhow!("REPL not available. Rebuild with --features interpreter"))
     }
 
     /// Benchmarks the interpreter performance

@@ -74,9 +74,7 @@ impl Bm25Scorer {
     /// Returns error if corpus is empty.
     pub fn fit<S: AsRef<str>>(&mut self, documents: &[S]) -> Result<(), OracleError> {
         if documents.is_empty() {
-            return Err(OracleError::Feature(
-                "Cannot fit BM25 on empty corpus".to_string(),
-            ));
+            return Err(OracleError::Feature("Cannot fit BM25 on empty corpus".to_string()));
         }
 
         // Tokenize and compute statistics
@@ -228,17 +226,11 @@ pub fn reciprocal_rank_fusion(
     top_k: usize,
 ) -> Vec<RrfResult> {
     // Build rank maps (1-indexed ranks)
-    let bm25_ranks: HashMap<usize, usize> = bm25_ranking
-        .iter()
-        .enumerate()
-        .map(|(rank, (idx, _))| (*idx, rank + 1))
-        .collect();
+    let bm25_ranks: HashMap<usize, usize> =
+        bm25_ranking.iter().enumerate().map(|(rank, (idx, _))| (*idx, rank + 1)).collect();
 
-    let tfidf_ranks: HashMap<usize, usize> = tfidf_ranking
-        .iter()
-        .enumerate()
-        .map(|(rank, (idx, _))| (*idx, rank + 1))
-        .collect();
+    let tfidf_ranks: HashMap<usize, usize> =
+        tfidf_ranking.iter().enumerate().map(|(rank, (idx, _))| (*idx, rank + 1)).collect();
 
     // Collect all unique document indices
     let mut all_docs: std::collections::HashSet<usize> = std::collections::HashSet::new();
@@ -265,21 +257,12 @@ pub fn reciprocal_rank_fusion(
                 score += 1.0 / (RRF_K + tfidf_rank as f64);
             }
 
-            RrfResult {
-                doc_idx,
-                score,
-                bm25_rank,
-                tfidf_rank,
-            }
+            RrfResult { doc_idx, score, bm25_rank, tfidf_rank }
         })
         .collect();
 
     // Sort by RRF score descending
-    results.sort_by(|a, b| {
-        b.score
-            .partial_cmp(&a.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
     // Return top-k
     results.truncate(top_k);
@@ -486,11 +469,8 @@ mod tests {
     #[test]
     fn test_bm25_score_exact_match_highest() {
         let mut scorer = Bm25Scorer::new();
-        let docs = vec![
-            "expected i32 found str",
-            "cannot borrow as mutable",
-            "type mismatch error",
-        ];
+        let docs =
+            vec!["expected i32 found str", "cannot borrow as mutable", "type mismatch error"];
         scorer.fit(&docs).unwrap();
 
         let scores = scorer.score("expected i32 found str");
@@ -723,10 +703,7 @@ mod tests {
                 .unwrap();
 
         let sim = cosine_similarity(&matrix, 0, &matrix, 1);
-        assert!(
-            (sim - 1.0).abs() < 0.001,
-            "Identical vectors should have similarity 1.0"
-        );
+        assert!((sim - 1.0).abs() < 0.001, "Identical vectors should have similarity 1.0");
     }
 
     #[test]
@@ -735,10 +712,7 @@ mod tests {
             aprender::primitives::Matrix::from_vec(2, 2, vec![1.0, 0.0, 0.0, 1.0]).unwrap();
 
         let sim = cosine_similarity(&matrix, 0, &matrix, 1);
-        assert!(
-            (sim - 0.0).abs() < 0.001,
-            "Orthogonal vectors should have similarity 0.0"
-        );
+        assert!((sim - 0.0).abs() < 0.001, "Orthogonal vectors should have similarity 0.0");
     }
 
     #[test]
@@ -860,10 +834,7 @@ mod tests {
 
         let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
 
-        assert!(
-            result.is_empty(),
-            "Empty rankings should produce empty result"
-        );
+        assert!(result.is_empty(), "Empty rankings should produce empty result");
     }
 
     #[test]
@@ -954,11 +925,7 @@ mod tests {
 
         let result = reciprocal_rank_fusion(&bm25, &tfidf, 100);
 
-        assert_eq!(
-            result.len(),
-            2,
-            "Should return all docs when top_k > corpus"
-        );
+        assert_eq!(result.len(), 2, "Should return all docs when top_k > corpus");
     }
 
     #[test]
@@ -993,10 +960,7 @@ mod tests {
         // Doc 1: rank 2 in TF-IDF only -> 1/62
         // Doc 2 should be first due to appearing in both
 
-        assert_eq!(
-            result[0].doc_idx, 2,
-            "Doc in both rankings should rank first"
-        );
+        assert_eq!(result[0].doc_idx, 2, "Doc in both rankings should rank first");
         assert!(result[0].score > result[1].score);
     }
 
@@ -1154,10 +1118,7 @@ mod tests {
     fn test_bm25_document_length_normalization() {
         let mut scorer = Bm25Scorer::new();
         // Short doc vs very long doc, both contain "target"
-        let docs = vec![
-            "target",
-            "target word word word word word word word word word word word",
-        ];
+        let docs = vec!["target", "target word word word word word word word word word word word"];
         scorer.fit(&docs).unwrap();
 
         let scores = scorer.score("target");
@@ -1190,10 +1151,7 @@ mod tests {
         let high_tf_score = scores.iter().find(|(idx, _)| *idx == 0).unwrap().1;
         let low_tf_score = scores.iter().find(|(idx, _)| *idx == 1).unwrap().1;
 
-        assert!(
-            high_tf_score > low_tf_score,
-            "High TF doc should score higher"
-        );
+        assert!(high_tf_score > low_tf_score, "High TF doc should score higher");
     }
 
     #[test]
@@ -1235,10 +1193,7 @@ mod tests {
         assert!(!results.is_empty());
         // Scores should be very low (near zero)
         for (_, rrf) in &results {
-            assert!(
-                rrf.score < 0.05,
-                "Non-matching query should have low scores"
-            );
+            assert!(rrf.score < 0.05, "Non-matching query should have low scores");
         }
     }
 
@@ -1260,12 +1215,7 @@ mod tests {
 
     #[test]
     fn test_rrf_result_clone() {
-        let result = RrfResult {
-            doc_idx: 42,
-            score: 0.5,
-            bm25_rank: 1,
-            tfidf_rank: 2,
-        };
+        let result = RrfResult { doc_idx: 42, score: 0.5, bm25_rank: 1, tfidf_rank: 2 };
 
         let cloned = result.clone();
         assert_eq!(cloned.doc_idx, 42);
@@ -1276,12 +1226,7 @@ mod tests {
 
     #[test]
     fn test_rrf_result_debug() {
-        let result = RrfResult {
-            doc_idx: 1,
-            score: 0.033,
-            bm25_rank: 1,
-            tfidf_rank: 1,
-        };
+        let result = RrfResult { doc_idx: 1, score: 0.033, bm25_rank: 1, tfidf_rank: 1 };
 
         let debug_str = format!("{:?}", result);
         assert!(debug_str.contains("doc_idx"));

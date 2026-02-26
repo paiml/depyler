@@ -23,20 +23,12 @@ def create_person() -> Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // The new() method should have parameters in order: name, age, email
     // Check that the struct is generated
-    assert!(
-        code.contains("struct Person"),
-        "Should generate Person struct: {}",
-        code
-    );
+    assert!(code.contains("struct Person"), "Should generate Person struct: {}", code);
 }
 
 /// Test dataclass with default values - ordering should be preserved
@@ -57,18 +49,10 @@ def create_config() -> Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("struct Config"),
-        "Should generate Config struct: {}",
-        code
-    );
+    assert!(code.contains("struct Config"), "Should generate Config struct: {}", code);
 }
 
 /// Test dataclass with mixed required and optional fields
@@ -90,19 +74,11 @@ def create_item(id: int, name: str) -> Item:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should generate struct with fields in correct order
-    assert!(
-        code.contains("struct Item"),
-        "Should generate Item struct: {}",
-        code
-    );
+    assert!(code.contains("struct Item"), "Should generate Item struct: {}", code);
 }
 
 /// Test dataclass instantiation with positional arguments
@@ -123,11 +99,7 @@ def origin() -> Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should generate new() call with correct argument order
@@ -155,18 +127,10 @@ def square(size: float) -> Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
-    assert!(
-        code.contains("struct Rectangle"),
-        "Should generate Rectangle struct: {}",
-        code
-    );
+    assert!(code.contains("struct Rectangle"), "Should generate Rectangle struct: {}", code);
 }
 
 /// Test nested dataclass
@@ -192,11 +156,7 @@ def create_person() -> Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     assert!(

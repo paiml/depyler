@@ -237,9 +237,7 @@ mod tests {
 
     #[test]
     fn test_clone() {
-        let config = ChaosConfig::new()
-            .with_memory_limit(100)
-            .with_cpu_limit(0.5);
+        let config = ChaosConfig::new().with_memory_limit(100).with_cpu_limit(0.5);
         let cloned = config.clone();
         assert_eq!(cloned.memory_limit, 100);
         assert_eq!(cloned.cpu_limit, 0.5);
@@ -290,73 +288,52 @@ mod tests {
 
     #[test]
     fn test_chaos_error_memory_limit_exceeded() {
-        let err = ChaosError::MemoryLimitExceeded {
-            limit: 500,
-            used: 1000,
-        };
+        let err = ChaosError::MemoryLimitExceeded { limit: 500, used: 1000 };
         assert!(matches!(err, ChaosError::MemoryLimitExceeded { .. }));
     }
 
     #[test]
     fn test_chaos_error_timeout() {
-        let err = ChaosError::Timeout {
-            elapsed: Duration::from_secs(10),
-            limit: Duration::from_secs(5),
-        };
+        let err =
+            ChaosError::Timeout { elapsed: Duration::from_secs(10), limit: Duration::from_secs(5) };
         assert!(matches!(err, ChaosError::Timeout { .. }));
     }
 
     #[test]
     fn test_chaos_error_signal_injection_failed() {
-        let err = ChaosError::SignalInjectionFailed {
-            signal: 15,
-            reason: "Not permitted".to_string(),
-        };
+        let err =
+            ChaosError::SignalInjectionFailed { signal: 15, reason: "Not permitted".to_string() };
         assert!(matches!(err, ChaosError::SignalInjectionFailed { .. }));
     }
 
     #[test]
     fn test_chaos_error_clone() {
-        let err = ChaosError::MemoryLimitExceeded {
-            limit: 100,
-            used: 200,
-        };
+        let err = ChaosError::MemoryLimitExceeded { limit: 100, used: 200 };
         let cloned = err.clone();
         assert_eq!(cloned, err);
     }
 
     #[test]
     fn test_chaos_error_partial_eq() {
-        let err1 = ChaosError::Timeout {
-            elapsed: Duration::from_secs(1),
-            limit: Duration::from_secs(1),
-        };
-        let err2 = ChaosError::Timeout {
-            elapsed: Duration::from_secs(1),
-            limit: Duration::from_secs(1),
-        };
+        let err1 =
+            ChaosError::Timeout { elapsed: Duration::from_secs(1), limit: Duration::from_secs(1) };
+        let err2 =
+            ChaosError::Timeout { elapsed: Duration::from_secs(1), limit: Duration::from_secs(1) };
         assert_eq!(err1, err2);
     }
 
     #[test]
     fn test_chaos_error_ne() {
-        let err1 = ChaosError::Timeout {
-            elapsed: Duration::from_secs(1),
-            limit: Duration::from_secs(2),
-        };
-        let err2 = ChaosError::Timeout {
-            elapsed: Duration::from_secs(3),
-            limit: Duration::from_secs(2),
-        };
+        let err1 =
+            ChaosError::Timeout { elapsed: Duration::from_secs(1), limit: Duration::from_secs(2) };
+        let err2 =
+            ChaosError::Timeout { elapsed: Duration::from_secs(3), limit: Duration::from_secs(2) };
         assert_ne!(err1, err2);
     }
 
     #[test]
     fn test_chaos_error_debug() {
-        let err = ChaosError::SignalInjectionFailed {
-            signal: 9,
-            reason: "SIGKILL".to_string(),
-        };
+        let err = ChaosError::SignalInjectionFailed { signal: 9, reason: "SIGKILL".to_string() };
         let debug = format!("{:?}", err);
         assert!(debug.contains("SignalInjectionFailed"));
         assert!(debug.contains("9"));
@@ -427,28 +404,17 @@ mod tests {
 
     #[test]
     fn test_chaos_error_display() {
-        let mem_err = ChaosError::MemoryLimitExceeded {
-            limit: 1000,
-            used: 2000,
-        };
-        assert_eq!(
-            mem_err.to_string(),
-            "Memory limit exceeded: 2000 > 1000 bytes"
-        );
+        let mem_err = ChaosError::MemoryLimitExceeded { limit: 1000, used: 2000 };
+        assert_eq!(mem_err.to_string(), "Memory limit exceeded: 2000 > 1000 bytes");
 
-        let timeout_err = ChaosError::Timeout {
-            elapsed: Duration::from_secs(5),
-            limit: Duration::from_secs(3),
-        };
+        let timeout_err =
+            ChaosError::Timeout { elapsed: Duration::from_secs(5), limit: Duration::from_secs(3) };
         assert!(timeout_err.to_string().contains("Timeout"));
 
         let signal_err = ChaosError::SignalInjectionFailed {
             signal: 9,
             reason: "Permission denied".to_string(),
         };
-        assert_eq!(
-            signal_err.to_string(),
-            "Signal injection failed (9): Permission denied"
-        );
+        assert_eq!(signal_err.to_string(), "Signal injection failed (9): Permission denied");
     }
 }

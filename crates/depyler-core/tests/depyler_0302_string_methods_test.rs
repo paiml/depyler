@@ -12,15 +12,11 @@ def strip_leading(s: str) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1128: Check only the strip_leading function, not entire file
     // (PyStringMethods trait may have lstrip method definitions)
-    let fn_start = rust_code
-        .find("fn strip_leading")
-        .expect("Should have strip_leading function");
+    let fn_start = rust_code.find("fn strip_leading").expect("Should have strip_leading function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -43,14 +39,11 @@ def strip_trailing(s: str) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1128: Check only the strip_trailing function, not entire file
-    let fn_start = rust_code
-        .find("fn strip_trailing")
-        .expect("Should have strip_trailing function");
+    let fn_start =
+        rust_code.find("fn strip_trailing").expect("Should have strip_trailing function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -72,14 +65,11 @@ def is_alphanumeric(s: str) -> bool:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // DEPYLER-1128: Check only the is_alphanumeric function, not entire file
-    let fn_start = rust_code
-        .find("fn is_alphanumeric")
-        .expect("Should have is_alphanumeric function");
+    let fn_start =
+        rust_code.find("fn is_alphanumeric").expect("Should have is_alphanumeric function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(300) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -102,9 +92,7 @@ def count_occurrences(s: str, substring: str) -> int:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     println!("Generated Rust code:\n{}", rust_code);
 
@@ -126,23 +114,12 @@ def process_string(text: str) -> tuple[str, str, bool, int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation failed");
+    let rust_code = pipeline.transpile(python_code).expect("Transpilation failed");
 
     // All methods should be translated correctly
-    assert!(
-        rust_code.contains("trim_start()"),
-        "Should contain trim_start()"
-    );
-    assert!(
-        rust_code.contains("trim_end()"),
-        "Should contain trim_end()"
-    );
-    assert!(
-        rust_code.contains("is_alphanumeric()"),
-        "Should contain is_alphanumeric()"
-    );
+    assert!(rust_code.contains("trim_start()"), "Should contain trim_start()");
+    assert!(rust_code.contains("trim_end()"), "Should contain trim_end()");
+    assert!(rust_code.contains("is_alphanumeric()"), "Should contain is_alphanumeric()");
     assert!(rust_code.contains("matches"), "Should contain matches");
 
     println!("Generated Rust code:\n{}", rust_code);

@@ -302,10 +302,7 @@ pub(super) fn infer_lazy_constant_type(
                 return quote! { std::collections::HashMap<#key_type, #val_type> };
             }
             // DEPYLER-1172: Handle math module constants (math.pi, math.e, etc.)
-            HirExpr::Attribute {
-                value: attr_obj,
-                attr,
-            } => {
+            HirExpr::Attribute { value: attr_obj, attr } => {
                 if let HirExpr::Var(module_name) = attr_obj.as_ref() {
                     if module_name == "math" {
                         match attr.as_str() {
@@ -448,11 +445,7 @@ pub(super) fn infer_binary_expr_type(
                 HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
                 HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
                 HirExpr::Literal(Literal::String(_)) => Some(quote! { String }),
-                HirExpr::Binary {
-                    op: inner_op,
-                    left: inner_left,
-                    ..
-                } => {
+                HirExpr::Binary { op: inner_op, left: inner_left, .. } => {
                     // Recursively infer from nested binary expr
                     infer_binary_expr_type(inner_op, inner_left)
                 }
@@ -549,10 +542,7 @@ pub(super) fn infer_list_element_type(elems: &[HirExpr]) -> Type {
     match &elems[0] {
         HirExpr::Literal(Literal::Int(_)) => {
             // Verify all elements are integers
-            if elems
-                .iter()
-                .all(|e| matches!(e, HirExpr::Literal(Literal::Int(_))))
-            {
+            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::Int(_)))) {
                 Type::Int
             } else {
                 Type::Unknown // Heterogeneous
@@ -561,10 +551,7 @@ pub(super) fn infer_list_element_type(elems: &[HirExpr]) -> Type {
         HirExpr::Literal(Literal::Float(_)) => {
             // Verify all elements are floats (or ints - promote to float)
             if elems.iter().all(|e| {
-                matches!(
-                    e,
-                    HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_))
-                )
+                matches!(e, HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_)))
             }) {
                 Type::Float
             } else {
@@ -572,20 +559,14 @@ pub(super) fn infer_list_element_type(elems: &[HirExpr]) -> Type {
             }
         }
         HirExpr::Literal(Literal::String(_)) => {
-            if elems
-                .iter()
-                .all(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
-            {
+            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::String(_)))) {
                 Type::String
             } else {
                 Type::Unknown
             }
         }
         HirExpr::Literal(Literal::Bool(_)) => {
-            if elems
-                .iter()
-                .all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_))))
-            {
+            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_)))) {
                 Type::Bool
             } else {
                 Type::Unknown
@@ -864,11 +845,7 @@ pub(super) fn is_path_constant_expr(value: &HirExpr) -> bool {
             matches!(attr.as_str(), "parent" | "root" | "anchor") || is_path_constant_expr(value)
         }
         // path / segment division
-        HirExpr::Binary {
-            left,
-            op: BinOp::Div,
-            ..
-        } => is_path_constant_expr(left),
+        HirExpr::Binary { left, op: BinOp::Div, .. } => is_path_constant_expr(left),
         _ => false,
     }
 }
@@ -910,27 +887,18 @@ pub(super) fn infer_unary_type(
             }
         }
         // DEPYLER-1040b: Nested logical NOT (e.g., !!True)
-        (
-            UnaryOp::Not,
-            HirExpr::Unary {
-                operand: inner,
-                op: UnaryOp::Not,
-            },
-        ) => match inner.as_ref() {
+        (UnaryOp::Not, HirExpr::Unary { operand: inner, op: UnaryOp::Not }) => match inner.as_ref()
+        {
             HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
             _ => ctx.fallback_type_annotation(),
         },
         // DEPYLER-1040b: Nested bitwise NOT (e.g., ~~0xFF)
-        (
-            UnaryOp::BitNot,
-            HirExpr::Unary {
-                operand: inner,
-                op: UnaryOp::BitNot,
-            },
-        ) => match inner.as_ref() {
-            HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
-            _ => ctx.fallback_type_annotation(),
-        },
+        (UnaryOp::BitNot, HirExpr::Unary { operand: inner, op: UnaryOp::BitNot }) => {
+            match inner.as_ref() {
+                HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+                _ => ctx.fallback_type_annotation(),
+            }
+        }
         // DEPYLER-1040b: NOT on identifier - fallback to bool (logical not always returns bool)
         (UnaryOp::Not, _) => {
             quote! { : bool }

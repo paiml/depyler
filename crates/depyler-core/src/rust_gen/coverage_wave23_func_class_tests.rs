@@ -11,10 +11,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -22,10 +20,8 @@ fn transpile(python_code: &str) -> String {
 
 fn try_transpile(python_code: &str) -> anyhow::Result<String> {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm)?;
     Ok(result)
@@ -161,7 +157,9 @@ fn test_w23fc_021() {
 
 #[test]
 fn test_w23fc_022() {
-    let result = transpile("def fib(n: int) -> int:\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)");
+    let result = transpile(
+        "def fib(n: int) -> int:\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)",
+    );
     assert!(!result.is_empty());
 }
 
@@ -269,7 +267,8 @@ fn test_w23fc_039() {
 
 #[test]
 fn test_w23fc_040() {
-    let result = transpile("def f():\n    x = 10\n    def inner():\n        return x\n    return inner()");
+    let result =
+        transpile("def f():\n    x = 10\n    def inner():\n        return x\n    return inner()");
     assert!(!result.is_empty());
 }
 
@@ -333,7 +332,7 @@ fn test_w23fc_050() {
     assert!(!result.is_empty());
 }
 
-    // Class definitions: tests 51-120
+// Class definitions: tests 51-120
 
 #[test]
 fn test_w23fc_051() {
@@ -421,7 +420,8 @@ fn test_w23fc_064() {
 
 #[test]
 fn test_w23fc_065() {
-    let result = transpile("class Foo:\n    def check(self, obj):\n        return isinstance(obj, int)");
+    let result =
+        transpile("class Foo:\n    def check(self, obj):\n        return isinstance(obj, int)");
     assert!(!result.is_empty());
 }
 
@@ -439,7 +439,8 @@ fn test_w23fc_067() {
 
 #[test]
 fn test_w23fc_068() {
-    let result = transpile("class Foo:\n    count = 0\n    def __init__(self):\n        Foo.count += 1");
+    let result =
+        transpile("class Foo:\n    count = 0\n    def __init__(self):\n        Foo.count += 1");
     assert!(!result.is_empty());
 }
 
@@ -469,7 +470,9 @@ fn test_w23fc_072() {
 
 #[test]
 fn test_w23fc_073() {
-    let result = transpile("class Foo:\n    def __init__(self):\n        pass\n    def method(self):\n        pass");
+    let result = transpile(
+        "class Foo:\n    def __init__(self):\n        pass\n    def method(self):\n        pass",
+    );
     assert!(!result.is_empty());
 }
 
@@ -493,7 +496,8 @@ fn test_w23fc_076() {
 
 #[test]
 fn test_w23fc_077() {
-    let result = transpile("class Foo:\n    def add(self, a: int, b: int) -> int:\n        return a + b");
+    let result =
+        transpile("class Foo:\n    def add(self, a: int, b: int) -> int:\n        return a + b");
     assert!(!result.is_empty());
 }
 
@@ -535,7 +539,9 @@ fn test_w23fc_083() {
 
 #[test]
 fn test_w23fc_084() {
-    let result = transpile("class Foo:\n    def m1(self):\n        return 1\n    def m2(self):\n        return 2");
+    let result = transpile(
+        "class Foo:\n    def m1(self):\n        return 1\n    def m2(self):\n        return 2",
+    );
     assert!(!result.is_empty());
 }
 
@@ -547,7 +553,8 @@ fn test_w23fc_085() {
 
 #[test]
 fn test_w23fc_086() {
-    let result = transpile("class Foo:\n    def process(self, data: dict) -> dict:\n        return data");
+    let result =
+        transpile("class Foo:\n    def process(self, data: dict) -> dict:\n        return data");
     assert!(!result.is_empty());
 }
 
@@ -589,7 +596,9 @@ fn test_w23fc_092() {
 
 #[test]
 fn test_w23fc_093() {
-    let result = transpile("class Foo:\n    def compute(self, x: int, y: int) -> int:\n        return x * y + x");
+    let result = transpile(
+        "class Foo:\n    def compute(self, x: int, y: int) -> int:\n        return x * y + x",
+    );
     assert!(!result.is_empty());
 }
 
@@ -607,7 +616,8 @@ fn test_w23fc_095() {
 
 #[test]
 fn test_w23fc_096() {
-    let result = transpile("class Foo:\n    def method_with_default(self, x: int = 42):\n        return x");
+    let result =
+        transpile("class Foo:\n    def method_with_default(self, x: int = 42):\n        return x");
     assert!(!result.is_empty());
 }
 
@@ -619,7 +629,8 @@ fn test_w23fc_097() {
 
 #[test]
 fn test_w23fc_098() {
-    let result = transpile("class Foo:\n    def __init__(self, **kwargs):\n        self.kwargs = kwargs");
+    let result =
+        transpile("class Foo:\n    def __init__(self, **kwargs):\n        self.kwargs = kwargs");
     assert!(!result.is_empty());
 }
 
@@ -667,7 +678,8 @@ fn test_w23fc_105() {
 
 #[test]
 fn test_w23fc_106() {
-    let result = transpile("class Foo:\n    VERSION = '1.0'\n    def __init__(self):\n        pass");
+    let result =
+        transpile("class Foo:\n    VERSION = '1.0'\n    def __init__(self):\n        pass");
     assert!(!result.is_empty());
 }
 
@@ -708,7 +720,11 @@ fn test_w23fc_112() {
     let result = try_transpile("class Foo:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n    def swap(self):\n        self.x, self.y = self.y, self.x");
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("tuple unpacking"), "Expected tuple unpacking error, got: {}", err_msg);
+    assert!(
+        err_msg.contains("tuple unpacking"),
+        "Expected tuple unpacking error, got: {}",
+        err_msg
+    );
 }
 
 #[test]
@@ -719,7 +735,9 @@ fn test_w23fc_113() {
 
 #[test]
 fn test_w23fc_114() {
-    let result = transpile("class Foo:\n    def __init__(self, val: str = 'default'):\n        self.val = val");
+    let result = transpile(
+        "class Foo:\n    def __init__(self, val: str = 'default'):\n        self.val = val",
+    );
     assert!(!result.is_empty());
 }
 
@@ -759,7 +777,7 @@ fn test_w23fc_120() {
     assert!(!result.is_empty());
 }
 
-    // Error handling: tests 121-160
+// Error handling: tests 121-160
 
 #[test]
 fn test_w23fc_121() {
@@ -787,7 +805,8 @@ fn test_w23fc_124() {
 
 #[test]
 fn test_w23fc_125() {
-    let result = transpile("try:\n    x = 1\nexcept:\n    x = 2\nelse:\n    x = 3\nfinally:\n    pass");
+    let result =
+        transpile("try:\n    x = 1\nexcept:\n    x = 2\nelse:\n    x = 3\nfinally:\n    pass");
     assert!(!result.is_empty());
 }
 
@@ -805,19 +824,24 @@ fn test_w23fc_127() {
 
 #[test]
 fn test_w23fc_128() {
-    let result = transpile("try:\n    x = 1\nexcept ValueError:\n    x = 2\nexcept KeyError:\n    x = 3");
+    let result =
+        transpile("try:\n    x = 1\nexcept ValueError:\n    x = 2\nexcept KeyError:\n    x = 3");
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_w23fc_129() {
-    let result = transpile("try:\n    try:\n        x = 1 / 0\n    except:\n        pass\nexcept:\n    pass");
+    let result = transpile(
+        "try:\n    try:\n        x = 1 / 0\n    except:\n        pass\nexcept:\n    pass",
+    );
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_w23fc_130() {
-    let result = transpile("for i in range(10):\n    try:\n        x = i / (i - 5)\n    except:\n        continue");
+    let result = transpile(
+        "for i in range(10):\n    try:\n        x = i / (i - 5)\n    except:\n        continue",
+    );
     assert!(!result.is_empty());
 }
 
@@ -829,7 +853,9 @@ fn test_w23fc_131() {
 
 #[test]
 fn test_w23fc_132() {
-    let result = transpile("try:\n    lst = [1, 2, 3]\n    val = lst[10]\nexcept IndexError:\n    val = None");
+    let result = transpile(
+        "try:\n    lst = [1, 2, 3]\n    val = lst[10]\nexcept IndexError:\n    val = None",
+    );
     assert!(!result.is_empty());
 }
 
@@ -841,13 +867,16 @@ fn test_w23fc_133() {
 
 #[test]
 fn test_w23fc_134() {
-    let result = transpile("try:\n    d = {}\n    x = d['missing']\nexcept KeyError:\n    x = 'default'");
+    let result =
+        transpile("try:\n    d = {}\n    x = d['missing']\nexcept KeyError:\n    x = 'default'");
     assert!(!result.is_empty());
 }
 
 #[test]
 fn test_w23fc_135() {
-    let result = transpile("try:\n    x = None\n    y = x.method()\nexcept AttributeError:\n    y = 'error'");
+    let result = transpile(
+        "try:\n    x = None\n    y = x.method()\nexcept AttributeError:\n    y = 'error'",
+    );
     assert!(!result.is_empty());
 }
 
@@ -889,7 +918,9 @@ fn test_w23fc_141() {
 
 #[test]
 fn test_w23fc_142() {
-    let result = transpile("for i in [1, 2, 3]:\n    try:\n        result = i * 2\n    except:\n        result = 0");
+    let result = transpile(
+        "for i in [1, 2, 3]:\n    try:\n        result = i * 2\n    except:\n        result = 0",
+    );
     assert!(!result.is_empty());
 }
 
@@ -937,7 +968,8 @@ fn test_w23fc_149() {
 
 #[test]
 fn test_w23fc_150() {
-    let result = transpile("def f():\n    try:\n        x = 10\n    except:\n        x = 0\n    return x");
+    let result =
+        transpile("def f():\n    try:\n        x = 10\n    except:\n        x = 0\n    return x");
     assert!(!result.is_empty());
 }
 
@@ -955,7 +987,8 @@ fn test_w23fc_152() {
 
 #[test]
 fn test_w23fc_153() {
-    let result = transpile("try:\n    result = True\nexcept:\n    result = False\nelse:\n    result = True");
+    let result =
+        transpile("try:\n    result = True\nexcept:\n    result = False\nelse:\n    result = True");
     assert!(!result.is_empty());
 }
 
@@ -967,7 +1000,8 @@ fn test_w23fc_154() {
 
 #[test]
 fn test_w23fc_155() {
-    let result = transpile("try:\n    data = []\n    first = data[0]\nexcept IndexError:\n    first = None");
+    let result =
+        transpile("try:\n    data = []\n    first = data[0]\nexcept IndexError:\n    first = None");
     assert!(!result.is_empty());
 }
 
@@ -991,7 +1025,9 @@ fn test_w23fc_158() {
 
 #[test]
 fn test_w23fc_159() {
-    let result = transpile("try:\n    my_list = [1, 2]\n    x = my_list.pop()\nexcept IndexError:\n    x = 0");
+    let result = transpile(
+        "try:\n    my_list = [1, 2]\n    x = my_list.pop()\nexcept IndexError:\n    x = 0",
+    );
     assert!(!result.is_empty());
 }
 
@@ -1001,7 +1037,7 @@ fn test_w23fc_160() {
     assert!(!result.is_empty());
 }
 
-    // With statements: tests 161-180
+// With statements: tests 161-180
 
 #[test]
 fn test_w23fc_161() {
@@ -1059,7 +1095,9 @@ fn test_w23fc_169() {
 
 #[test]
 fn test_w23fc_170() {
-    let result = transpile("with open('test.txt', 'r') as f:\n    content = f.read()\n    length = len(content)");
+    let result = transpile(
+        "with open('test.txt', 'r') as f:\n    content = f.read()\n    length = len(content)",
+    );
     assert!(!result.is_empty());
 }
 
@@ -1123,7 +1161,7 @@ fn test_w23fc_180() {
     assert!(!result.is_empty());
 }
 
-    // Decorators and special: tests 181-200
+// Decorators and special: tests 181-200
 
 #[test]
 fn test_w23fc_181() {
@@ -1133,7 +1171,8 @@ fn test_w23fc_181() {
 
 #[test]
 fn test_w23fc_182() {
-    let result = transpile("def f1():\n    return 1\ndef f2():\n    return 2\ndef f3():\n    return 3");
+    let result =
+        transpile("def f1():\n    return 1\ndef f2():\n    return 2\ndef f3():\n    return 3");
     assert!(!result.is_empty());
 }
 
@@ -1163,7 +1202,8 @@ fn test_w23fc_186() {
 
 #[test]
 fn test_w23fc_187() {
-    let result = transpile("def f(lst):\n    if (n := len(lst)) > 0:\n        return n\n    return 0");
+    let result =
+        transpile("def f(lst):\n    if (n := len(lst)) > 0:\n        return n\n    return 0");
     assert!(!result.is_empty());
 }
 
@@ -1175,7 +1215,8 @@ fn test_w23fc_188() {
 
 #[test]
 fn test_w23fc_189() {
-    let result = transpile("def outer():\n    x = 10\n    def inner():\n        return x\n    return inner");
+    let result =
+        transpile("def outer():\n    x = 10\n    def inner():\n        return x\n    return inner");
     assert!(!result.is_empty());
 }
 
@@ -1241,6 +1282,7 @@ fn test_w23fc_199() {
 
 #[test]
 fn test_w23fc_200() {
-    let result = transpile("def f(n: int):\n    if n == 0:\n        return 1\n    return n * f(n - 1)");
+    let result =
+        transpile("def f(n: int):\n    if n == 0:\n        return 1\n    return n * f(n - 1)");
     assert!(!result.is_empty());
 }

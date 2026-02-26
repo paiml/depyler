@@ -124,12 +124,7 @@ pub struct ExampleState {
 impl ExampleState {
     /// Create new example state
     pub fn new(path: PathBuf, compiles: bool) -> Self {
-        Self {
-            path,
-            compiles,
-            errors: vec![],
-            last_compiled: None,
-        }
+        Self { path, compiles, errors: vec![], last_compiled: None }
     }
 }
 
@@ -228,15 +223,9 @@ mod tests {
     fn test_display_mode_from_str() {
         assert_eq!("rich".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
         assert_eq!("RICH".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
-        assert_eq!(
-            "minimal".parse::<DisplayMode>().unwrap(),
-            DisplayMode::Minimal
-        );
+        assert_eq!("minimal".parse::<DisplayMode>().unwrap(), DisplayMode::Minimal);
         assert_eq!("json".parse::<DisplayMode>().unwrap(), DisplayMode::Json);
-        assert_eq!(
-            "silent".parse::<DisplayMode>().unwrap(),
-            DisplayMode::Silent
-        );
+        assert_eq!("silent".parse::<DisplayMode>().unwrap(), DisplayMode::Silent);
         assert_eq!("unknown".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
     }
 
@@ -442,10 +431,7 @@ mod tests {
     #[test]
     fn test_example_state_with_errors() {
         let mut state = ExampleState::new(PathBuf::from("error.py"), false);
-        state.errors = vec![
-            "E0599: no method".to_string(),
-            "E0308: type mismatch".to_string(),
-        ];
+        state.errors = vec!["E0599: no method".to_string(), "E0308: type mismatch".to_string()];
         state.last_compiled = Some(std::time::SystemTime::now());
 
         let json = serde_json::to_string(&state).unwrap();
@@ -573,12 +559,8 @@ mod tests {
 
     #[test]
     fn test_display_mode_serialization() {
-        let modes = vec![
-            DisplayMode::Rich,
-            DisplayMode::Minimal,
-            DisplayMode::Json,
-            DisplayMode::Silent,
-        ];
+        let modes =
+            vec![DisplayMode::Rich, DisplayMode::Minimal, DisplayMode::Json, DisplayMode::Silent];
         for mode in modes {
             let json = serde_json::to_string(&mode).unwrap();
             let parsed: DisplayMode = serde_json::from_str(&json).unwrap();

@@ -90,10 +90,7 @@ fn apply_string_replacements(code: String) -> String {
         .replace(" { ", " {\n    ")
         .replace(" } ", "\n}\n")
         .replace("} ;", "};")
-        .replace(
-            "use std :: collections :: HashMap ;",
-            "use std::collections::HashMap;",
-        )
+        .replace("use std :: collections :: HashMap ;", "use std::collections::HashMap;")
         // Fix method call spacing
         .replace(" . ", ".")
         .replace(" (", "(")
@@ -235,10 +232,7 @@ mod tests {
         // "} ;" → "};"
         let input2 = "struct S { } ;".to_string();
         let output2 = apply_string_replacements(input2);
-        assert!(
-            !output2.contains("} ;"),
-            "Brace semicolon spacing not fixed"
-        );
+        assert!(!output2.contains("} ;"), "Brace semicolon spacing not fixed");
     }
 
     /// Unit Test: HashMap import specific fix
@@ -385,11 +379,8 @@ mod tests {
     /// Verifies: Line 114 (macro invocation fix)
     #[test]
     fn test_apply_string_replacements_macros() {
-        let test_cases = vec![
-            ("println !", "println!"),
-            ("vec !", "vec!"),
-            ("format !", "format!"),
-        ];
+        let test_cases =
+            vec![("println !", "println!"), ("vec !", "vec!"), ("format !", "format!")];
 
         for (input, expected) in test_cases {
             let output = apply_string_replacements(input.to_string());
@@ -408,10 +399,7 @@ mod tests {
 
         let input2 = "x<self".to_string();
         let output2 = apply_string_replacements(input2);
-        assert!(
-            output2.contains("< self"),
-            "Self comparison spacing not fixed"
-        );
+        assert!(output2.contains("< self"), "Self comparison spacing not fixed");
     }
 
     /// Unit Test: Range operators
@@ -445,10 +433,7 @@ mod tests {
         let input = "".to_string();
         let result = format_rust_code(input);
         // rustfmt adds a newline even to empty input
-        assert!(
-            result.trim().is_empty() || result == "\n",
-            "Empty or newline only"
-        );
+        assert!(result.trim().is_empty() || result == "\n", "Empty or newline only");
     }
 
     /// Unit Test: Rustfmt fallback on invalid syntax
@@ -459,10 +444,7 @@ mod tests {
         let input = "fn broken( { { { invalid".to_string();
         let result = format_rust_code(input);
         // Should return the string-replaced version (rustfmt failed, fell back)
-        assert!(
-            !result.is_empty(),
-            "Should return fallback code on rustfmt failure"
-        );
+        assert!(!result.is_empty(), "Should return fallback code on rustfmt failure");
     }
 
     /// Property Test: Replacement idempotency
@@ -481,11 +463,7 @@ mod tests {
         for input in inputs {
             let once = apply_string_replacements(input.to_string());
             let twice = apply_string_replacements(once.clone());
-            assert_eq!(
-                once, twice,
-                "Replacements should be idempotent for '{}'",
-                input
-            );
+            assert_eq!(once, twice, "Replacements should be idempotent for '{}'", input);
         }
     }
 

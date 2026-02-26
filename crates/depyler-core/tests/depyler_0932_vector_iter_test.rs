@@ -19,9 +19,7 @@ def iterate_array(a: float, b: float, c: float) -> list[str]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Should use as_slice().iter() for Vector iteration
     assert!(
@@ -57,9 +55,7 @@ def minmax_print(a: float, b: float, c: float):
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let rust_code = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Debug output
     eprintln!("Generated code:\n{}", rust_code);
@@ -98,9 +94,7 @@ def sum_elements(a: float, b: float, c: float) -> float:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // For loop over Vector should iterate properly
     // Either inline iteration or using as_slice
@@ -123,9 +117,7 @@ def stringify_array(a: float, b: float) -> str:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let result = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Generator over Vector should use proper iteration
     if result.contains("Vector") {
@@ -158,9 +150,7 @@ def main():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(python)
-        .expect("transpilation should succeed");
+    let rust_code = pipeline.transpile(python).expect("transpilation should succeed");
 
     // Debug: print the generated code
     eprintln!("Generated Rust code:\n{}", rust_code);
@@ -195,10 +185,7 @@ def main():
                 break;
             } else if after_trimmed.starts_with(".as_slice()") {
                 // Correct pattern: result.as_slice().iter()
-                eprintln!(
-                    "Found correct pattern at index {}: result.as_slice()",
-                    abs_idx
-                );
+                eprintln!("Found correct pattern at index {}: result.as_slice()", abs_idx);
             }
 
             search_start = abs_idx + 1;

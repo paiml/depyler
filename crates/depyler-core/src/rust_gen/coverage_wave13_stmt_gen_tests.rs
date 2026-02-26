@@ -4,9 +4,7 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let pipeline = DepylerPipeline::new();
-        pipeline
-            .transpile(python_code)
-            .expect("transpilation should succeed")
+        pipeline.transpile(python_code).expect("transpilation should succeed")
     }
 
     // Assignment Patterns (30 tests)
@@ -57,14 +55,20 @@ mod tests {
     fn test_w13sg_assign_007_augmented_mul() {
         let code = "x = 4\nx *= 3";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("*") || result.contains("x")), "should handle *= operator");
+        assert!(
+            !result.is_empty() && (result.contains("*") || result.contains("x")),
+            "should handle *= operator"
+        );
     }
 
     #[test]
     fn test_w13sg_assign_008_augmented_div() {
         let code = "x = 10\nx /= 2";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("/") || result.contains("x")), "should handle /= operator");
+        assert!(
+            !result.is_empty() && (result.contains("/") || result.contains("x")),
+            "should handle /= operator"
+        );
     }
 
     #[test]
@@ -78,7 +82,10 @@ mod tests {
     fn test_w13sg_assign_010_augmented_mod() {
         let code = "x = 10\nx %= 3";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("%") || result.contains("x")), "should handle %= operator");
+        assert!(
+            !result.is_empty() && (result.contains("%") || result.contains("x")),
+            "should handle %= operator"
+        );
     }
 
     #[test]
@@ -92,35 +99,50 @@ mod tests {
     fn test_w13sg_assign_012_augmented_bitand() {
         let code = "x = 15\nx &= 7";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("&") || result.contains("x")), "should handle &= operator");
+        assert!(
+            !result.is_empty() && (result.contains("&") || result.contains("x")),
+            "should handle &= operator"
+        );
     }
 
     #[test]
     fn test_w13sg_assign_013_augmented_bitor() {
         let code = "x = 8\nx |= 4";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("|") || result.contains("x")), "should handle |= operator");
+        assert!(
+            !result.is_empty() && (result.contains("|") || result.contains("x")),
+            "should handle |= operator"
+        );
     }
 
     #[test]
     fn test_w13sg_assign_014_augmented_bitxor() {
         let code = "x = 12\nx ^= 5";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("^") || result.contains("x")), "should handle ^= operator");
+        assert!(
+            !result.is_empty() && (result.contains("^") || result.contains("x")),
+            "should handle ^= operator"
+        );
     }
 
     #[test]
     fn test_w13sg_assign_015_augmented_lshift() {
         let code = "x = 2\nx <<= 3";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains("<<") || result.contains("x")), "should handle <<= operator");
+        assert!(
+            !result.is_empty() && (result.contains("<<") || result.contains("x")),
+            "should handle <<= operator"
+        );
     }
 
     #[test]
     fn test_w13sg_assign_016_augmented_rshift() {
         let code = "x = 16\nx >>= 2";
         let result = transpile(code);
-        assert!(!result.is_empty() && (result.contains(">>") || result.contains("x")), "should handle >>= operator");
+        assert!(
+            !result.is_empty() && (result.contains(">>") || result.contains("x")),
+            "should handle >>= operator"
+        );
     }
 
     #[test]
@@ -248,7 +270,10 @@ mod tests {
     fn test_w13sg_control_004_if_elif_else() {
         let code = "if x == 1:\n    y = 1\nelif x == 2:\n    y = 2\nelse:\n    y = 3";
         let result = transpile(code);
-        assert!(result.contains("if") && result.contains("else"), "should generate full if-elif-else");
+        assert!(
+            result.contains("if") && result.contains("else"),
+            "should generate full if-elif-else"
+        );
     }
 
     #[test]
@@ -274,7 +299,8 @@ mod tests {
 
     #[test]
     fn test_w13sg_control_008_while_continue() {
-        let code = "while x < 10:\n    if x % 2 == 0:\n        x += 1\n        continue\n    x += 1";
+        let code =
+            "while x < 10:\n    if x % 2 == 0:\n        x += 1\n        continue\n    x += 1";
         let result = transpile(code);
         assert!(result.contains("continue"), "should generate continue statement");
     }
@@ -302,7 +328,8 @@ mod tests {
 
     #[test]
     fn test_w13sg_control_012_for_else() {
-        let code = "for i in range(5):\n    if i == 3:\n        break\nelse:\n    print('completed')";
+        let code =
+            "for i in range(5):\n    if i == 3:\n        break\nelse:\n    print('completed')";
         let result = transpile(code);
         assert!(!result.is_empty(), "should handle for-else");
     }
@@ -924,7 +951,8 @@ mod tests {
 
     #[test]
     fn test_w13sg_class_020_class_init_multiple_params() {
-        let code = "class C:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y";
+        let code =
+            "class C:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y";
         let result = transpile(code);
         assert!(!result.is_empty(), "should handle __init__ with multiple params");
     }
@@ -1424,5 +1452,4 @@ mod tests {
         let result = transpile(code);
         assert!(result.contains("let"), "should handle generator expression in list()");
     }
-
 }

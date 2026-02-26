@@ -91,11 +91,7 @@ pub fn create_pipeline(config: &TranspileConfig) -> DepylerPipeline {
 
     if config.debug || config.source_map {
         let debug_config = DebugConfig {
-            debug_level: if config.debug {
-                DebugLevel::Full
-            } else {
-                DebugLevel::Basic
-            },
+            debug_level: if config.debug { DebugLevel::Full } else { DebugLevel::Basic },
             generate_source_map: config.source_map,
             preserve_symbols: true,
             debug_prints: config.debug,
@@ -156,11 +152,7 @@ pub fn calculate_metrics(result: &TranspileResult) -> TranspileMetrics {
         0.0
     };
 
-    TranspileMetrics {
-        compression_ratio,
-        total_time_ms,
-        throughput_kb_per_sec: throughput,
-    }
+    TranspileMetrics { compression_ratio, total_time_ms, throughput_kb_per_sec: throughput }
 }
 
 /// Transpilation metrics
@@ -227,10 +219,7 @@ pub fn compute_output_paths(
     let main_output = compute_output_path(input, output);
 
     let autofix_output = if config.auto_fix && config.async_mode {
-        let stem = main_output
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy();
+        let stem = main_output.file_stem().unwrap_or_default().to_string_lossy();
         let mut p = main_output.clone();
         p.set_file_name(format!("{}.autofix.rs", stem));
         Some(p)
@@ -238,11 +227,8 @@ pub fn compute_output_paths(
         None
     };
 
-    let test_output = if config.gen_tests {
-        Some(main_output.with_extension("test.rs"))
-    } else {
-        None
-    };
+    let test_output =
+        if config.gen_tests { Some(main_output.with_extension("test.rs")) } else { None };
 
     let cargo_toml = if has_dependencies {
         let mut p = main_output.clone();
@@ -261,31 +247,17 @@ pub fn compute_output_paths(
         None
     };
 
-    OutputPaths {
-        main_output,
-        autofix_output,
-        test_output,
-        cargo_toml,
-        source_map,
-    }
+    OutputPaths { main_output, autofix_output, test_output, cargo_toml, source_map }
 }
 
 /// Extract package name from output path
 pub fn extract_package_name(output_path: &Path) -> String {
-    output_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("transpiled_package")
-        .to_string()
+    output_path.file_stem().and_then(|s| s.to_str()).unwrap_or("transpiled_package").to_string()
 }
 
 /// Extract source file name from output path
 pub fn extract_source_file_name(output_path: &Path) -> String {
-    output_path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("main.rs")
-        .to_string()
+    output_path.file_name().and_then(|s| s.to_str()).unwrap_or("main.rs").to_string()
 }
 
 /// Format initialization trace details
@@ -295,27 +267,15 @@ pub fn format_init_trace(config: &TranspileConfig) -> Vec<(String, String)> {
             "Verification".to_string(),
             if config.verify { "enabled" } else { "disabled" }.to_string(),
         ),
-        (
-            "Debug mode".to_string(),
-            if config.debug { "enabled" } else { "disabled" }.to_string(),
-        ),
+        ("Debug mode".to_string(), if config.debug { "enabled" } else { "disabled" }.to_string()),
         (
             "Source map".to_string(),
-            if config.source_map {
-                "enabled"
-            } else {
-                "disabled"
-            }
-            .to_string(),
+            if config.source_map { "enabled" } else { "disabled" }.to_string(),
         ),
         (
             "Audit trail".to_string(),
-            if config.audit_trail {
-                "enabled (HashChainCollector)"
-            } else {
-                "disabled"
-            }
-            .to_string(),
+            if config.audit_trail { "enabled (HashChainCollector)" } else { "disabled" }
+                .to_string(),
         ),
     ]
 }
@@ -334,14 +294,8 @@ pub fn format_codegen_trace(
     dependencies_count: usize,
 ) -> Vec<(String, String)> {
     vec![
-        (
-            "Generated Rust code".to_string(),
-            format!("{} bytes", output_size),
-        ),
-        (
-            "Dependencies detected".to_string(),
-            format!("{}", dependencies_count),
-        ),
+        ("Generated Rust code".to_string(), format!("{} bytes", output_size)),
+        ("Dependencies detected".to_string(), format!("{}", dependencies_count)),
         ("Generation".to_string(), "complete".to_string()),
     ]
 }
@@ -352,22 +306,11 @@ pub fn format_oracle_trace(
     pattern_path: Option<&Path>,
 ) -> Vec<(String, String)> {
     let mut details = vec![
-        (
-            "Threshold".to_string(),
-            format!("{:.0}%", oracle_config.threshold * 100.0),
-        ),
-        (
-            "Max retries".to_string(),
-            format!("{}", oracle_config.max_retries),
-        ),
+        ("Threshold".to_string(), format!("{:.0}%", oracle_config.threshold * 100.0)),
+        ("Max retries".to_string(), format!("{}", oracle_config.max_retries)),
         (
             "LLM fallback".to_string(),
-            if oracle_config.llm_fallback {
-                "enabled"
-            } else {
-                "disabled"
-            }
-            .to_string(),
+            if oracle_config.llm_fallback { "enabled" } else { "disabled" }.to_string(),
         ),
     ];
 
@@ -397,16 +340,8 @@ pub fn format_summary(
     };
 
     let mut lines = vec![
-        format!(
-            "📄 Source: {} ({} bytes)",
-            input_path.display(),
-            source_size
-        ),
-        format!(
-            "📝 Output: {} ({} bytes)",
-            output_path.display(),
-            output_size
-        ),
+        format!("📄 Source: {} ({} bytes)", input_path.display(), source_size),
+        format!("📝 Output: {} ({} bytes)", output_path.display(), output_size),
     ];
 
     if dependencies_count > 0 {
@@ -496,10 +431,7 @@ pub fn format_ml_result(
     if is_auto_fix && is_high {
         format!("🔧 Auto-fix applied with {:.2}% confidence", confidence_pct)
     } else if is_high {
-        format!(
-            "✓ High confidence ({:.2}%) - auto-fix would apply",
-            confidence_pct
-        )
+        format!("✓ High confidence ({:.2}%) - auto-fix would apply", confidence_pct)
     } else {
         format!(
             "⚠ Low confidence ({:.2}%) - manual review recommended [strategy: {}]",
@@ -568,49 +500,26 @@ mod tests {
 
     #[test]
     fn test_autofix_strategy_synchronous() {
-        let config = TranspileConfig {
-            auto_fix: true,
-            ..Default::default()
-        };
-        assert_eq!(
-            determine_autofix_strategy(&config),
-            AutoFixStrategy::Synchronous
-        );
+        let config = TranspileConfig { auto_fix: true, ..Default::default() };
+        assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::Synchronous);
     }
 
     #[test]
     fn test_autofix_strategy_async() {
-        let config = TranspileConfig {
-            auto_fix: true,
-            async_mode: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { auto_fix: true, async_mode: true, ..Default::default() };
         assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::Async);
     }
 
     #[test]
     fn test_autofix_strategy_suggest_only() {
-        let config = TranspileConfig {
-            suggest_fixes: true,
-            ..Default::default()
-        };
-        assert_eq!(
-            determine_autofix_strategy(&config),
-            AutoFixStrategy::SuggestOnly
-        );
+        let config = TranspileConfig { suggest_fixes: true, ..Default::default() };
+        assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::SuggestOnly);
     }
 
     #[test]
     fn test_autofix_strategy_autofix_overrides_suggest() {
-        let config = TranspileConfig {
-            auto_fix: true,
-            suggest_fixes: true,
-            ..Default::default()
-        };
-        assert_eq!(
-            determine_autofix_strategy(&config),
-            AutoFixStrategy::Synchronous
-        );
+        let config = TranspileConfig { auto_fix: true, suggest_fixes: true, ..Default::default() };
+        assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::Synchronous);
     }
 
     // =====================================================
@@ -635,10 +544,7 @@ mod tests {
     fn test_evaluate_confidence_unknown_nan() {
         assert_eq!(evaluate_confidence(f64::NAN, 0.8), ConfidenceLevel::Unknown);
         assert_eq!(evaluate_confidence(0.9, f64::NAN), ConfidenceLevel::Unknown);
-        assert_eq!(
-            evaluate_confidence(f64::NAN, f64::NAN),
-            ConfidenceLevel::Unknown
-        );
+        assert_eq!(evaluate_confidence(f64::NAN, f64::NAN), ConfidenceLevel::Unknown);
     }
 
     // =====================================================
@@ -711,10 +617,7 @@ mod tests {
     #[test]
     fn test_compute_output_paths_with_tests() {
         let input = Path::new("/src/test.py");
-        let config = TranspileConfig {
-            gen_tests: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { gen_tests: true, ..Default::default() };
         let paths = compute_output_paths(input, None, &config, false);
         assert_eq!(paths.test_output, Some(PathBuf::from("/src/test.test.rs")));
     }
@@ -730,30 +633,17 @@ mod tests {
     #[test]
     fn test_compute_output_paths_with_source_map() {
         let input = Path::new("/src/test.py");
-        let config = TranspileConfig {
-            source_map: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { source_map: true, ..Default::default() };
         let paths = compute_output_paths(input, None, &config, false);
-        assert_eq!(
-            paths.source_map,
-            Some(PathBuf::from("/src/test.rs.sourcemap.json"))
-        );
+        assert_eq!(paths.source_map, Some(PathBuf::from("/src/test.rs.sourcemap.json")));
     }
 
     #[test]
     fn test_compute_output_paths_with_async_autofix() {
         let input = Path::new("/src/test.py");
-        let config = TranspileConfig {
-            auto_fix: true,
-            async_mode: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { auto_fix: true, async_mode: true, ..Default::default() };
         let paths = compute_output_paths(input, None, &config, false);
-        assert_eq!(
-            paths.autofix_output,
-            Some(PathBuf::from("/src/test.autofix.rs"))
-        );
+        assert_eq!(paths.autofix_output, Some(PathBuf::from("/src/test.autofix.rs")));
     }
 
     #[test]
@@ -781,15 +671,9 @@ mod tests {
 
     #[test]
     fn test_extract_package_name() {
-        assert_eq!(
-            extract_package_name(Path::new("/src/my_project.rs")),
-            "my_project"
-        );
+        assert_eq!(extract_package_name(Path::new("/src/my_project.rs")), "my_project");
         assert_eq!(extract_package_name(Path::new("example.rs")), "example");
-        assert_eq!(
-            extract_package_name(Path::new("/a/b/c/test_module.rs")),
-            "test_module"
-        );
+        assert_eq!(extract_package_name(Path::new("/a/b/c/test_module.rs")), "test_module");
     }
 
     #[test]
@@ -800,10 +684,7 @@ mod tests {
 
     #[test]
     fn test_extract_source_file_name() {
-        assert_eq!(
-            extract_source_file_name(Path::new("/src/main.rs")),
-            "main.rs"
-        );
+        assert_eq!(extract_source_file_name(Path::new("/src/main.rs")), "main.rs");
         assert_eq!(extract_source_file_name(Path::new("lib.rs")), "lib.rs");
     }
 
@@ -861,12 +742,8 @@ mod tests {
 
     #[test]
     fn test_format_oracle_trace_without_pattern() {
-        let oracle_config = OracleConfig {
-            enabled: true,
-            threshold: 0.75,
-            max_retries: 3,
-            llm_fallback: false,
-        };
+        let oracle_config =
+            OracleConfig { enabled: true, threshold: 0.75, max_retries: 3, llm_fallback: false };
         let trace = format_oracle_trace(&oracle_config, None);
         assert_eq!(trace.len(), 3);
         assert!(trace[0].1.contains("75%"));
@@ -876,12 +753,8 @@ mod tests {
 
     #[test]
     fn test_format_oracle_trace_with_pattern() {
-        let oracle_config = OracleConfig {
-            enabled: true,
-            threshold: 0.8,
-            max_retries: 5,
-            llm_fallback: true,
-        };
+        let oracle_config =
+            OracleConfig { enabled: true, threshold: 0.8, max_retries: 5, llm_fallback: true };
         let pattern = Path::new("/patterns/oracle.json");
         let trace = format_oracle_trace(&oracle_config, Some(pattern));
         assert_eq!(trace.len(), 4);
@@ -928,31 +801,15 @@ mod tests {
 
     #[test]
     fn test_format_summary_verified() {
-        let summary = format_summary(
-            Path::new("in.py"),
-            Path::new("out.rs"),
-            100,
-            80,
-            2,
-            20,
-            0,
-            true,
-        );
+        let summary =
+            format_summary(Path::new("in.py"), Path::new("out.rs"), 100, 80, 2, 20, 0, true);
         assert!(summary.iter().any(|s| s.contains("Verified")));
     }
 
     #[test]
     fn test_format_summary_zero_parse_time() {
-        let summary = format_summary(
-            Path::new("in.py"),
-            Path::new("out.rs"),
-            100,
-            80,
-            0,
-            10,
-            0,
-            false,
-        );
+        let summary =
+            format_summary(Path::new("in.py"), Path::new("out.rs"), 100, 80, 0, 10, 0, false);
         assert!(summary.iter().any(|s| s.contains("0.0 KB/s")));
     }
 
@@ -1011,28 +868,19 @@ mod tests {
 
     #[test]
     fn test_requires_oracle_oracle_flag() {
-        let config = TranspileConfig {
-            oracle: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { oracle: true, ..Default::default() };
         assert!(requires_oracle(&config));
     }
 
     #[test]
     fn test_requires_oracle_auto_fix() {
-        let config = TranspileConfig {
-            auto_fix: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { auto_fix: true, ..Default::default() };
         assert!(requires_oracle(&config));
     }
 
     #[test]
     fn test_requires_oracle_suggest_fixes() {
-        let config = TranspileConfig {
-            suggest_fixes: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { suggest_fixes: true, ..Default::default() };
         assert!(requires_oracle(&config));
     }
 
@@ -1048,29 +896,19 @@ mod tests {
 
     #[test]
     fn test_determine_debug_level_basic() {
-        let config = TranspileConfig {
-            source_map: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { source_map: true, ..Default::default() };
         assert_eq!(determine_debug_level(&config), DebugLevel::Basic);
     }
 
     #[test]
     fn test_determine_debug_level_full() {
-        let config = TranspileConfig {
-            debug: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { debug: true, ..Default::default() };
         assert_eq!(determine_debug_level(&config), DebugLevel::Full);
     }
 
     #[test]
     fn test_determine_debug_level_debug_overrides_source_map() {
-        let config = TranspileConfig {
-            debug: true,
-            source_map: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { debug: true, source_map: true, ..Default::default() };
         assert_eq!(determine_debug_level(&config), DebugLevel::Full);
     }
 
@@ -1154,39 +992,26 @@ mod tests {
 
     #[test]
     fn test_create_pipeline_with_verify() {
-        let config = TranspileConfig {
-            verify: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { verify: true, ..Default::default() };
         let _pipeline = create_pipeline(&config);
     }
 
     #[test]
     fn test_create_pipeline_with_debug() {
-        let config = TranspileConfig {
-            debug: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { debug: true, ..Default::default() };
         let _pipeline = create_pipeline(&config);
     }
 
     #[test]
     fn test_create_pipeline_with_source_map() {
-        let config = TranspileConfig {
-            source_map: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { source_map: true, ..Default::default() };
         let _pipeline = create_pipeline(&config);
     }
 
     #[test]
     fn test_create_pipeline_all_options() {
-        let config = TranspileConfig {
-            verify: true,
-            debug: true,
-            source_map: true,
-            ..Default::default()
-        };
+        let config =
+            TranspileConfig { verify: true, debug: true, source_map: true, ..Default::default() };
         let _pipeline = create_pipeline(&config);
     }
 
@@ -1206,10 +1031,7 @@ mod tests {
 
     #[test]
     fn test_transpile_with_verify() {
-        let config = TranspileConfig {
-            verify: true,
-            ..Default::default()
-        };
+        let config = TranspileConfig { verify: true, ..Default::default() };
         let source = "x: int = 42\n";
         let result = transpile_source(source, &config).unwrap();
         assert!(!result.rust_code.is_empty());

@@ -40,3 +40,6 @@ required-features = ["parquet-storage"]
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
+
+[lints]
+workspace = true

@@ -21,11 +21,7 @@ impl TypeQuery {
     /// Create a new TypeQuery from a database path.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let db = TypeDatabase::new(path)?;
-        Ok(Self {
-            db,
-            cache: HashMap::new(),
-            cache_populated: false,
-        })
+        Ok(Self { db, cache: HashMap::new(), cache_populated: false })
     }
 
     /// Load all facts into the in-memory cache for O(1) lookups.
@@ -238,12 +234,7 @@ mod tests {
         let db = TypeDatabase::new(&db_path).unwrap();
 
         let facts = vec![
-            TypeFact::function(
-                "requests",
-                "get",
-                "(url: str, **kwargs) -> Response",
-                "Response",
-            ),
+            TypeFact::function("requests", "get", "(url: str, **kwargs) -> Response", "Response"),
             TypeFact::function(
                 "requests",
                 "post",
@@ -251,20 +242,8 @@ mod tests {
                 "Response",
             ),
             TypeFact::class("requests.models", "Response"),
-            TypeFact::method(
-                "requests.models",
-                "Response",
-                "json",
-                "(self) -> dict",
-                "dict",
-            ),
-            TypeFact::method(
-                "requests.models",
-                "Response",
-                "text",
-                "(self) -> str",
-                "str",
-            ),
+            TypeFact::method("requests.models", "Response", "json", "(self) -> dict", "dict"),
+            TypeFact::method("requests.models", "Response", "text", "(self) -> str", "str"),
         ];
 
         db.write(&facts).unwrap();

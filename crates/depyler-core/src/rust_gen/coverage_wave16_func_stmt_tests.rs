@@ -24,10 +24,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -39,7 +37,8 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_001_nested_function_basic() {
-        let result = transpile("def outer():\n    def inner():\n        return 42\n    return inner()\n");
+        let result =
+            transpile("def outer():\n    def inner():\n        return 42\n    return inner()\n");
         assert!(!result.is_empty());
         assert!(result.contains("fn"));
     }
@@ -52,7 +51,8 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_003_nested_function_two_levels() {
-        let result = transpile("def level1():\n    def level2():\n        return 10\n    return level2()\n");
+        let result =
+            transpile("def level1():\n    def level2():\n        return 10\n    return level2()\n");
         assert!(!result.is_empty());
     }
 
@@ -138,13 +138,17 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_017_keyword_only_multiple() {
-        let result = transpile("def func(*, width: int = 10, height: int = 20):\n    return width * height\n");
+        let result = transpile(
+            "def func(*, width: int = 10, height: int = 20):\n    return width * height\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_func_018_default_none_guard() {
-        let result = transpile("def func(lst = None):\n    if lst is None:\n        lst = []\n    return lst\n");
+        let result = transpile(
+            "def func(lst = None):\n    if lst is None:\n        lst = []\n    return lst\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -156,7 +160,8 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_020_default_string_param() {
-        let result = transpile("def greet(name: str = \"world\") -> str:\n    return \"hello \" + name\n");
+        let result =
+            transpile("def greet(name: str = \"world\") -> str:\n    return \"hello \" + name\n");
         assert!(!result.is_empty());
     }
 
@@ -210,7 +215,9 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_029_return_computed_tuple() {
-        let result = transpile("def minmax(a: int, b: int):\n    if a < b:\n        return a, b\n    return b, a\n");
+        let result = transpile(
+            "def minmax(a: int, b: int):\n    if a < b:\n        return a, b\n    return b, a\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -222,13 +229,15 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_031_typed_params_bool_return() {
-        let result = transpile("def is_valid(x: int, y: int) -> bool:\n    return x > 0 and y > 0\n");
+        let result =
+            transpile("def is_valid(x: int, y: int) -> bool:\n    return x > 0 and y > 0\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_func_032_typed_float_return() {
-        let result = transpile("def average(a: float, b: float) -> float:\n    return (a + b) / 2.0\n");
+        let result =
+            transpile("def average(a: float, b: float) -> float:\n    return (a + b) / 2.0\n");
         assert!(!result.is_empty());
     }
 
@@ -294,13 +303,16 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_043_docstring_single_line() {
-        let result = transpile("def func():\n    \"\"\"Single line docstring.\"\"\"\n    return 1\n");
+        let result =
+            transpile("def func():\n    \"\"\"Single line docstring.\"\"\"\n    return 1\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_func_044_docstring_multiline() {
-        let result = transpile("def func():\n    \"\"\"First line.\n\n    More details.\n    \"\"\"\n    return 1\n");
+        let result = transpile(
+            "def func():\n    \"\"\"First line.\n\n    More details.\n    \"\"\"\n    return 1\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -374,7 +386,9 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_056_function_multiple_defaults() {
-        let result = transpile("def config(host: str = \"localhost\", port: int = 8080) -> str:\n    return host\n");
+        let result = transpile(
+            "def config(host: str = \"localhost\", port: int = 8080) -> str:\n    return host\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -446,13 +460,17 @@ mod tests {
 
     #[test]
     fn test_w16fs_func_068_function_with_enumerate() {
-        let result = transpile("def indexed(items: list):\n    for i, item in enumerate(items):\n        print(i)\n");
+        let result = transpile(
+            "def indexed(items: list):\n    for i, item in enumerate(items):\n        print(i)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_func_069_function_with_zip() {
-        let result = transpile("def paired(a: list, b: list):\n    for x, y in zip(a, b):\n        print(x)\n");
+        let result = transpile(
+            "def paired(a: list, b: list):\n    for x, y in zip(a, b):\n        print(x)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -480,7 +498,8 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_073_with_no_as() {
-        let result = transpile("def use_ctx():\n    with open(\"f.txt\"):\n        print(\"done\")\n");
+        let result =
+            transpile("def use_ctx():\n    with open(\"f.txt\"):\n        print(\"done\")\n");
         assert!(!result.is_empty());
     }
 
@@ -546,7 +565,9 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_084_reraise() {
-        let result = transpile("def reraise():\n    try:\n        x = int(\"abc\")\n    except:\n        raise\n");
+        let result = transpile(
+            "def reraise():\n    try:\n        x = int(\"abc\")\n    except:\n        raise\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -571,7 +592,9 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_088_global_statement() {
-        let result = transpile("counter = 0\ndef increment():\n    global counter\n    counter = counter + 1\n");
+        let result = transpile(
+            "counter = 0\ndef increment():\n    global counter\n    counter = counter + 1\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -709,7 +732,8 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_111_multiple_assign_same_value() {
-        let result = transpile("def init():\n    a = 0\n    b = 0\n    c = 0\n    return a + b + c\n");
+        let result =
+            transpile("def init():\n    a = 0\n    b = 0\n    c = 0\n    return a + b + c\n");
         assert!(!result.is_empty());
     }
 
@@ -805,19 +829,25 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_127_raise_not_implemented() {
-        let result = transpile("def abstract_method():\n    raise NotImplementedError(\"subclass must implement\")\n");
+        let result = transpile(
+            "def abstract_method():\n    raise NotImplementedError(\"subclass must implement\")\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_stmt_128_pass_in_if() {
-        let result = transpile("def maybe(x: int):\n    if x > 0:\n        pass\n    else:\n        return x\n");
+        let result = transpile(
+            "def maybe(x: int):\n    if x > 0:\n        pass\n    else:\n        return x\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_stmt_129_pass_in_except() {
-        let result = transpile("def silent():\n    try:\n        x = int(\"abc\")\n    except:\n        pass\n");
+        let result = transpile(
+            "def silent():\n    try:\n        x = int(\"abc\")\n    except:\n        pass\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -829,7 +859,8 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_131_return_empty() {
-        let result = transpile("def early_exit(x: int):\n    if x < 0:\n        return\n    print(x)\n");
+        let result =
+            transpile("def early_exit(x: int):\n    if x < 0:\n        return\n    print(x)\n");
         assert!(!result.is_empty());
     }
 
@@ -865,13 +896,16 @@ mod tests {
 
     #[test]
     fn test_w16fs_stmt_137_assign_from_binary_op() {
-        let result = transpile("def compute(a: int, b: int) -> int:\n    result: int = a + b\n    return result\n");
+        let result = transpile(
+            "def compute(a: int, b: int) -> int:\n    result: int = a + b\n    return result\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_stmt_138_assign_from_comparison() {
-        let result = transpile("def is_big(x: int) -> bool:\n    big: bool = x > 100\n    return big\n");
+        let result =
+            transpile("def is_big(x: int) -> bool:\n    big: bool = x > 100\n    return big\n");
         assert!(!result.is_empty());
     }
 
@@ -1031,13 +1065,15 @@ mod tests {
 
     #[test]
     fn test_w16fs_type_164_membership_in_list() {
-        let result = transpile("def contains(items: list, val: int) -> bool:\n    return val in items\n");
+        let result =
+            transpile("def contains(items: list, val: int) -> bool:\n    return val in items\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_165_membership_not_in() {
-        let result = transpile("def missing(items: list, val: int) -> bool:\n    return val not in items\n");
+        let result =
+            transpile("def missing(items: list, val: int) -> bool:\n    return val not in items\n");
         assert!(!result.is_empty());
     }
 
@@ -1079,19 +1115,23 @@ mod tests {
 
     #[test]
     fn test_w16fs_type_172_complex_expr_add_mul() {
-        let result = transpile("def calc(a: int, b: int, c: int, d: int) -> int:\n    return (a + b) * (c - d)\n");
+        let result = transpile(
+            "def calc(a: int, b: int, c: int, d: int) -> int:\n    return (a + b) * (c - d)\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_173_complex_expr_nested_parens() {
-        let result = transpile("def nested(x: int, y: int) -> int:\n    return ((x + 1) * (y - 1)) + 2\n");
+        let result =
+            transpile("def nested(x: int, y: int) -> int:\n    return ((x + 1) * (y - 1)) + 2\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_174_ternary_basic() {
-        let result = transpile("def pick(x: int) -> str:\n    return \"pos\" if x > 0 else \"neg\"\n");
+        let result =
+            transpile("def pick(x: int) -> str:\n    return \"pos\" if x > 0 else \"neg\"\n");
         assert!(!result.is_empty());
     }
 
@@ -1115,19 +1155,22 @@ mod tests {
 
     #[test]
     fn test_w16fs_type_178_fstring_expression() {
-        let result = transpile("def fmt_expr(a: int, b: int) -> str:\n    return f\"sum = {a + b}\"\n");
+        let result =
+            transpile("def fmt_expr(a: int, b: int) -> str:\n    return f\"sum = {a + b}\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_179_fstring_format_spec() {
-        let result = transpile("def fmt_float(value: float) -> str:\n    return f\"{value:.2f}\"\n");
+        let result =
+            transpile("def fmt_float(value: float) -> str:\n    return f\"{value:.2f}\"\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_180_fstring_multiple_values() {
-        let result = transpile("def fmt_multi(x: int, y: int) -> str:\n    return f\"{x} and {y}\"\n");
+        let result =
+            transpile("def fmt_multi(x: int, y: int) -> str:\n    return f\"{x} and {y}\"\n");
         assert!(!result.is_empty());
     }
 
@@ -1157,7 +1200,9 @@ mod tests {
 
     #[test]
     fn test_w16fs_type_185_complex_boolean_expr() {
-        let result = transpile("def check(a: bool, b: bool, c: bool) -> bool:\n    return (a and b) or (not c)\n");
+        let result = transpile(
+            "def check(a: bool, b: bool, c: bool) -> bool:\n    return (a and b) or (not c)\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1211,7 +1256,9 @@ mod tests {
 
     #[test]
     fn test_w16fs_type_194_div_and_mod() {
-        let result = transpile("def divmod_manual(a: int, b: int):\n    q = a // b\n    r = a % b\n    return q, r\n");
+        let result = transpile(
+            "def divmod_manual(a: int, b: int):\n    q = a // b\n    r = a % b\n    return q, r\n",
+        );
         assert!(!result.is_empty());
     }
 
@@ -1223,31 +1270,37 @@ mod tests {
 
     #[test]
     fn test_w16fs_type_196_list_comprehension_simple() {
-        let result = transpile("def squares(n: int) -> list:\n    return [i * i for i in range(n)]\n");
+        let result =
+            transpile("def squares(n: int) -> list:\n    return [i * i for i in range(n)]\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_197_list_comprehension_filter() {
-        let result = transpile("def evens(n: int) -> list:\n    return [i for i in range(n) if i % 2 == 0]\n");
+        let result = transpile(
+            "def evens(n: int) -> list:\n    return [i for i in range(n) if i % 2 == 0]\n",
+        );
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_198_dict_comprehension() {
-        let result = transpile("def mapping(n: int) -> dict:\n    return {i: i * i for i in range(n)}\n");
+        let result =
+            transpile("def mapping(n: int) -> dict:\n    return {i: i * i for i in range(n)}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_199_set_comprehension() {
-        let result = transpile("def unique_squares(n: int) -> set:\n    return {i * i for i in range(n)}\n");
+        let result =
+            transpile("def unique_squares(n: int) -> set:\n    return {i * i for i in range(n)}\n");
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w16fs_type_200_fstring_with_method_call() {
-        let result = transpile("def fmt_upper(name: str) -> str:\n    return f\"HELLO {name.upper()}\"\n");
+        let result =
+            transpile("def fmt_upper(name: str) -> str:\n    return f\"HELLO {name.upper()}\"\n");
         assert!(!result.is_empty());
     }
 }

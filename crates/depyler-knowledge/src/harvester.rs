@@ -117,13 +117,7 @@ impl Harvester {
         info!(package = %package, "Attempting to fetch stub package");
 
         let output = Command::new("uv")
-            .args([
-                "pip",
-                "install",
-                "--target",
-                self.target_dir.to_str().unwrap_or("."),
-                package,
-            ])
+            .args(["pip", "install", "--target", self.target_dir.to_str().unwrap_or("."), package])
             .output();
 
         match output {
@@ -384,11 +378,7 @@ mod tests {
             package: "pkg".to_string(),
             root: PathBuf::from("/tmp"),
             stub_files: vec![],
-            source_files: vec![
-                PathBuf::from("a.py"),
-                PathBuf::from("b.py"),
-                PathBuf::from("c.py"),
-            ],
+            source_files: vec![PathBuf::from("a.py"), PathBuf::from("b.py"), PathBuf::from("c.py")],
             has_types_package: false,
         };
         assert!(!result.has_stubs());
@@ -553,10 +543,7 @@ mod tests {
         let result = HarvestResult {
             package: "numpy".to_string(),
             root: PathBuf::from("/tmp"),
-            stub_files: vec![
-                PathBuf::from("numpy/__init__.pyi"),
-                PathBuf::from("numpy/core.pyi"),
-            ],
+            stub_files: vec![PathBuf::from("numpy/__init__.pyi"), PathBuf::from("numpy/core.pyi")],
             source_files: vec![
                 PathBuf::from("numpy/__init__.py"),
                 PathBuf::from("numpy/core.py"),

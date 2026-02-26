@@ -32,11 +32,7 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -56,11 +52,7 @@ class Counter:
 
     // Should take &self parameter
     let has_self_ref = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(
-        has_self_ref,
-        "Method should take &self parameter.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_self_ref, "Method should take &self parameter.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -77,19 +69,11 @@ class Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn area"),
-        "Should have area method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn area"), "Should have area method.\nGot:\n{}", rust_code);
 
     // Should access self.width and self.height
     let has_width = rust_code.contains("self.width") || rust_code.contains("self .width");
@@ -114,11 +98,7 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -130,11 +110,7 @@ class Counter:
 
     // Should take &mut self since it modifies fields
     let has_mut_self = rust_code.contains("&mut self") || rust_code.contains("& mut self");
-    assert!(
-        has_mut_self,
-        "Mutating method should take &mut self.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_mut_self, "Mutating method should take &mut self.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -150,26 +126,14 @@ class Calculator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn add"),
-        "Should have add method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn add"), "Should have add method.\nGot:\n{}", rust_code);
 
     // Should have amount parameter
-    assert!(
-        rust_code.contains("amount"),
-        "Should have amount parameter.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("amount"), "Should have amount parameter.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -188,19 +152,11 @@ class Circle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn diameter"),
-        "Should have diameter method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn diameter"), "Should have diameter method.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn circumference"),
@@ -211,11 +167,7 @@ class Circle:
     // Should call self.diameter()
     let calls_diameter =
         rust_code.contains("self.diameter()") || rust_code.contains("self .diameter");
-    assert!(
-        calls_diameter,
-        "Should call self.diameter().\nGot:\n{}",
-        rust_code
-    );
+    assert!(calls_diameter, "Should call self.diameter().\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -237,25 +189,13 @@ class BankAccount:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn deposit"),
-        "Should have deposit method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn deposit"), "Should have deposit method.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn withdraw"),
-        "Should have withdraw method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn withdraw"), "Should have withdraw method.\nGot:\n{}", rust_code);
 
     assert!(
         rust_code.contains("fn get_balance"),
@@ -277,11 +217,7 @@ class StringHolder:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -295,11 +231,7 @@ class StringHolder:
     let has_return_type = rust_code.contains("-> i32")
         || rust_code.contains("-> i64")
         || rust_code.contains("-> usize");
-    assert!(
-        has_return_type,
-        "Should have return type annotation.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_return_type, "Should have return type annotation.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -315,19 +247,11 @@ class Logger:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn log"),
-        "Should have log method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn log"), "Should have log method.\nGot:\n{}", rust_code);
 
     // Methods with None return might have -> () or no return type
     // Both are acceptable
@@ -351,21 +275,13 @@ def test_distance() -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
     // Should call method on instance (flexible about whitespace)
     let calls_method = rust_code.contains("p.distance_from_origin") && rust_code.contains("()");
-    assert!(
-        calls_method,
-        "Should call p.distance_from_origin().\nGot:\n{}",
-        rust_code
-    );
+    assert!(calls_method, "Should call p.distance_from_origin().\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -390,25 +306,13 @@ def compute() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn add"),
-        "Should have add method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn add"), "Should have add method.\nGot:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("fn multiply"),
-        "Should have multiply method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn multiply"), "Should have multiply method.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -424,19 +328,11 @@ class Formatter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("fn format"),
-        "Should have format method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn format"), "Should have format method.\nGot:\n{}", rust_code);
 
     // Should have text and suffix parameters
     assert!(
@@ -463,11 +359,7 @@ def convert_temperature(c: float) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 

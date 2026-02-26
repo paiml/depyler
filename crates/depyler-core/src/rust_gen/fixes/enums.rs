@@ -45,9 +45,7 @@ pub(super) fn is_trailing_pascal_case(line: &str) -> bool {
         return false;
     }
     // Must be a single identifier (no spaces, no operators)
-    trimmed
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    trimmed.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 pub(super) fn fix_enum_dot_to_path_separator(code: &str) -> String {
@@ -316,17 +314,12 @@ pub(super) fn generate_enum_new_method(enum_name: &str, arms: &[(String, String)
     method.push_str("        let s = s.into();\n");
     method.push_str("        match s.as_str() {\n");
     for (variant, string_val) in arms {
-        method.push_str(&format!(
-            "            \"{}\" => {}::{},\n",
-            string_val, enum_name, variant
-        ));
+        method
+            .push_str(&format!("            \"{}\" => {}::{},\n", string_val, enum_name, variant));
     }
     // Default to first variant
     if let Some((first_variant, _)) = arms.first() {
-        method.push_str(&format!(
-            "            _ => {}::{},\n",
-            enum_name, first_variant
-        ));
+        method.push_str(&format!("            _ => {}::{},\n", enum_name, first_variant));
     }
     method.push_str("        }\n");
     method.push_str("    }\n");
@@ -535,10 +528,7 @@ pub(super) fn collect_non_dv_enum_names(code: &str) -> Vec<String> {
     for line in code.lines() {
         let t = line.trim();
         if let Some(rest) = t.strip_prefix("pub enum ") {
-            let name = rest
-                .split(|c: char| !c.is_alphanumeric() && c != '_')
-                .next()
-                .unwrap_or("");
+            let name = rest.split(|c: char| !c.is_alphanumeric() && c != '_').next().unwrap_or("");
             if !name.is_empty() && name != "DepylerValue" {
                 names.push(name.to_string());
             }
@@ -563,9 +553,7 @@ pub(super) fn is_pascal_case(name: &str) -> bool {
 pub(super) fn is_screaming_snake(name: &str) -> bool {
     !name.is_empty()
         && name.len() > 1
-        && name
-            .chars()
-            .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+        && name.chars().all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
 }
 
 pub(super) fn skip_block(start: usize, lines: &[&str]) -> usize {

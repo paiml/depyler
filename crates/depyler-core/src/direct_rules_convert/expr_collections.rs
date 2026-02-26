@@ -10,10 +10,8 @@ use super::ExprConverter;
 
 impl<'a> ExprConverter<'a> {
     pub(super) fn convert_list(&self, elts: &[HirExpr]) -> Result<syn::Expr> {
-        let elt_exprs: Vec<syn::Expr> = elts
-            .iter()
-            .map(|e| self.convert(e))
-            .collect::<Result<Vec<_>>>()?;
+        let elt_exprs: Vec<syn::Expr> =
+            elts.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?;
 
         // DEPYLER-0780: Always use vec![] for list literals
         // Array literals [T; N] are incompatible with &Vec<T> parameters
@@ -62,9 +60,8 @@ impl<'a> ExprConverter<'a> {
         }
 
         // Quick check: if any value is a dict or list, it's potentially mixed
-        let has_dict_or_list = items
-            .iter()
-            .any(|(_, v)| matches!(v, HirExpr::Dict(_) | HirExpr::List(_)));
+        let has_dict_or_list =
+            items.iter().any(|(_, v)| matches!(v, HirExpr::Dict(_) | HirExpr::List(_)));
 
         if has_dict_or_list {
             return true;
@@ -221,10 +218,8 @@ impl<'a> ExprConverter<'a> {
     }
 
     pub(super) fn convert_tuple(&self, elts: &[HirExpr]) -> Result<syn::Expr> {
-        let elt_exprs: Vec<syn::Expr> = elts
-            .iter()
-            .map(|e| self.convert(e))
-            .collect::<Result<Vec<_>>>()?;
+        let elt_exprs: Vec<syn::Expr> =
+            elts.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?;
         Ok(parse_quote! { (#(#elt_exprs),*) })
     }
 
@@ -366,10 +361,7 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Call { func, .. } if func == "deque" || func == "collections.deque" => true,
             // Variables with deque-like names
             HirExpr::Var(name) => {
-                matches!(
-                    name.as_str(),
-                    "d" | "dq" | "deque" | "queue" | "buffer" | "deck"
-                )
+                matches!(name.as_str(), "d" | "dq" | "deque" | "queue" | "buffer" | "deck")
             }
             _ => false,
         }
@@ -472,6 +464,4 @@ impl<'a> ExprConverter<'a> {
             _ => bail!("Invalid set operator"),
         }
     }
-
-
 }

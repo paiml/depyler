@@ -19,14 +19,7 @@ fn check_compiles(rust_code: &str) -> Result<(), String> {
     std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write error: {}", e))?;
 
     let output = Command::new("rustc")
-        .args([
-            "--crate-type",
-            "lib",
-            "--edition",
-            "2021",
-            "-o",
-            "/dev/null",
-        ])
+        .args(["--crate-type", "lib", "--edition", "2021", "-o", "/dev/null"])
         .arg(&temp_file)
         .output()
         .map_err(|e| format!("Compile error: {}", e))?;
@@ -94,11 +87,7 @@ def merge_configs(base: dict, extra: dict) -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Dict.update() should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Dict.update() should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
@@ -129,11 +118,7 @@ def create_record(name: str, age: int) -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Dict literal with mixed values should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Dict literal with mixed values should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
@@ -166,11 +151,7 @@ def build_nested() -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Nested dict assignment should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Nested dict assignment should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);
@@ -203,11 +184,7 @@ def count_items(items: list) -> dict:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Dict with int values should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Dict with int values should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
     eprintln!("Generated code:\n{}", rust_code);

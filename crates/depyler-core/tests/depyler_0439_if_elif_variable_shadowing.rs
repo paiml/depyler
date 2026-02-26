@@ -104,10 +104,7 @@ def test_func():
     );
 
     // Verify compilation
-    assert!(
-        !result.contains("let mut value;\n    let mut value"),
-        "Found duplicate declarations"
-    );
+    assert!(!result.contains("let mut value;\n    let mut value"), "Found duplicate declarations");
 }
 
 /// Unit Test 3: Nested If with Independent Variables
@@ -257,19 +254,11 @@ def test_func():
 
     // Should have ONLY ONE `let mut a` declaration
     let a_count = result.matches("let mut a").count();
-    assert_eq!(
-        a_count, 1,
-        "Expected exactly 1 'let mut a' declaration, found {}",
-        a_count
-    );
+    assert_eq!(a_count, 1, "Expected exactly 1 'let mut a' declaration, found {}", a_count);
 
     // Should have ONLY ONE `let mut b` declaration
     let b_count = result.matches("let mut b").count();
-    assert_eq!(
-        b_count, 1,
-        "Expected exactly 1 'let mut b' declaration, found {}",
-        b_count
-    );
+    assert_eq!(b_count, 1, "Expected exactly 1 'let mut b' declaration, found {}", b_count);
 }
 
 /// Unit Test 7: Compilation Test - Generated Code Must Compile

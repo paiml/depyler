@@ -20,10 +20,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -608,14 +606,16 @@ mod tests {
 
     #[test]
     fn test_wave19_081_dict_fromkeys_one_arg() {
-        let code = "def f() -> dict:\n    keys = [\"a\", \"b\", \"c\"]\n    return dict.fromkeys(keys)";
+        let code =
+            "def f() -> dict:\n    keys = [\"a\", \"b\", \"c\"]\n    return dict.fromkeys(keys)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_wave19_082_dict_fromkeys_two_args() {
-        let code = "def f() -> dict:\n    keys = [\"x\", \"y\", \"z\"]\n    return dict.fromkeys(keys, 0)";
+        let code =
+            "def f() -> dict:\n    keys = [\"x\", \"y\", \"z\"]\n    return dict.fromkeys(keys, 0)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -657,7 +657,8 @@ mod tests {
 
     #[test]
     fn test_wave19_088_int_from_bytes_big() {
-        let code = "def f() -> int:\n    data = b\"\\x00\\x01\"\n    return int.from_bytes(data, \"big\")";
+        let code =
+            "def f() -> int:\n    data = b\"\\x00\\x01\"\n    return int.from_bytes(data, \"big\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -966,7 +967,8 @@ mod tests {
 
     #[test]
     fn test_wave19_131_augmented_assign_dict_key_plus() {
-        let code = "def f() -> dict:\n    d = {\"a\": 1, \"b\": 2}\n    d[\"a\"] += 10\n    return d";
+        let code =
+            "def f() -> dict:\n    d = {\"a\": 1, \"b\": 2}\n    d[\"a\"] += 10\n    return d";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -994,7 +996,8 @@ mod tests {
 
     #[test]
     fn test_wave19_135_augmented_assign_list_index_minus() {
-        let code = "def f() -> list:\n    items = [10, 20, 30]\n    items[1] -= 5\n    return items";
+        let code =
+            "def f() -> list:\n    items = [10, 20, 30]\n    items[1] -= 5\n    return items";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1110,7 +1113,8 @@ mod tests {
 
     #[test]
     fn test_wave19_152_augmented_assign_plus_int() {
-        let code = "def f() -> int:\n    total = 0\n    total += 5\n    total += 10\n    return total";
+        let code =
+            "def f() -> int:\n    total = 0\n    total += 5\n    total += 10\n    return total";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1152,7 +1156,8 @@ mod tests {
 
     #[test]
     fn test_wave19_158_assign_from_dict_get() {
-        let code = "def f(d: dict, key: str) -> str:\n    val = d.get(key, \"default\")\n    return val";
+        let code =
+            "def f(d: dict, key: str) -> str:\n    val = d.get(key, \"default\")\n    return val";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1221,7 +1226,8 @@ mod tests {
 
     #[test]
     fn test_wave19_168_assign_bitwise_or() {
-        let code = "def f() -> int:\n    flags = 0\n    flags |= 1\n    flags |= 4\n    return flags";
+        let code =
+            "def f() -> int:\n    flags = 0\n    flags |= 1\n    flags |= 4\n    return flags";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

@@ -379,12 +379,7 @@ def test_try_except_finally():
     for (name, python_code) in test_cases {
         let result = pipeline.transpile(python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", name, result.err());
     }
 }
 

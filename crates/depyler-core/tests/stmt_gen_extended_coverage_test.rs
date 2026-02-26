@@ -725,12 +725,7 @@ def test_return():
     for (stmt_type, python_code) in test_cases {
         let result = pipeline.transpile(python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            stmt_type,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", stmt_type, result.err());
     }
 }
 
@@ -756,12 +751,7 @@ def test_{}(items: {}) -> {}:
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            func_name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", func_name, result.err());
     }
 }
 

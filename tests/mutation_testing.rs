@@ -54,10 +54,7 @@ pub struct MutationTester {
 
 impl Default for MutationTester {
     fn default() -> Self {
-        Self {
-            pipeline: DepylerPipeline::new(),
-            mutations_cache: HashMap::new(),
-        }
+        Self { pipeline: DepylerPipeline::new(), mutations_cache: HashMap::new() }
     }
 }
 
@@ -89,8 +86,7 @@ impl MutationTester {
         // Statement mutations
         mutations.extend(self.generate_statement_mutations(code));
 
-        self.mutations_cache
-            .insert(code.to_string(), mutations.clone());
+        self.mutations_cache.insert(code.to_string(), mutations.clone());
         mutations
     }
 
@@ -365,14 +361,8 @@ def arithmetic_test(a: int, b: int) -> int:
         println!("Arithmetic mutations: {}", arithmetic_mutations);
         println!("Relational mutations: {}", relational_mutations);
 
-        assert!(
-            arithmetic_mutations > 0,
-            "Should generate arithmetic mutations"
-        );
-        assert!(
-            relational_mutations > 0,
-            "Should generate relational mutations"
-        );
+        assert!(arithmetic_mutations > 0, "Should generate arithmetic mutations");
+        assert!(relational_mutations > 0, "Should generate relational mutations");
 
         // Test some specific mutations
         for mutation in &mutations {
@@ -409,10 +399,7 @@ def arithmetic_test(a: int, b: int) -> int:
         println!("Mutated:  {}", mutated_code);
 
         assert!(mutated_code.contains("x - 1"), "Should replace + with -");
-        assert!(
-            !mutated_code.contains("x + 1"),
-            "Should not contain original operator"
-        );
+        assert!(!mutated_code.contains("x + 1"), "Should not contain original operator");
     }
 
     /// Test individual mutation results
@@ -424,14 +411,8 @@ def arithmetic_test(a: int, b: int) -> int:
 
         // Test cases with known mutation behavior
         let test_cases = vec![
-            (
-                "def simple(x: int) -> int: return x + 1",
-                "Should work with simple arithmetic",
-            ),
-            (
-                "def compare(a: int, b: int) -> bool: return a > b",
-                "Should work with comparisons",
-            ),
+            ("def simple(x: int) -> int: return x + 1", "Should work with simple arithmetic"),
+            ("def compare(a: int, b: int) -> bool: return a > b", "Should work with comparisons"),
             (
                 "def logical(p: bool, q: bool) -> bool: return p and q",
                 "Should work with logical ops",
@@ -509,10 +490,7 @@ def arithmetic_test(a: int, b: int) -> int:
         );
 
         // Performance check - mutation testing is compute-intensive, allow reasonable time
-        assert!(
-            duration.as_secs() < 60,
-            "Mutation testing should complete in under 60 seconds"
-        );
+        assert!(duration.as_secs() < 60, "Mutation testing should complete in under 60 seconds");
     }
 
     /// Test mutation operator coverage
@@ -536,10 +514,7 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
 
         let mutations = tester.generate_mutations(comprehensive_code);
 
-        println!(
-            "Generated {} mutations for comprehensive code",
-            mutations.len()
-        );
+        println!("Generated {} mutations for comprehensive code", mutations.len());
 
         // Check that all operator types are represented
         let operator_counts: HashMap<_, _> = mutations
@@ -556,10 +531,7 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
         }
 
         // Should have multiple operator types
-        assert!(
-            operator_counts.len() >= 3,
-            "Should have at least 3 operator types"
-        );
+        assert!(operator_counts.len() >= 3, "Should have at least 3 operator types");
 
         // Test a subset of mutations
         let sample_size = std::cmp::min(mutations.len(), 10);
@@ -623,10 +595,7 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
 
         // Verify actual mutations are equivalent
         for (m1, m2) in mutations1.iter().zip(mutations2.iter()) {
-            assert_eq!(
-                m1.mutated, m2.mutated,
-                "Cached mutations should be identical"
-            );
+            assert_eq!(m1.mutated, m2.mutated, "Cached mutations should be identical");
         }
 
         // Test with different code - should add new cache entry
@@ -653,14 +622,8 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
             ("", "Empty code"),
             ("# Just a comment", "Comment only"),
             ("def empty(): pass", "Empty function"),
-            (
-                "def single_line(x: int) -> int: return x",
-                "Single expression",
-            ),
-            (
-                "def unicode_函数(参数: int) -> int: return 参数 + 1",
-                "Unicode identifiers",
-            ),
+            ("def single_line(x: int) -> int: return x", "Single expression"),
+            ("def unicode_函数(参数: int) -> int: return 参数 + 1", "Unicode identifiers"),
         ];
 
         for (code, description) in edge_cases {

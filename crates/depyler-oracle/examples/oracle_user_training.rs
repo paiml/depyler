@@ -21,10 +21,7 @@ fn main() -> anyhow::Result<()> {
     println!("Model path: {}", model_path.display());
 
     match predictor.load(&model_path) {
-        Ok(()) => println!(
-            "Loaded existing model ({} patterns)",
-            predictor.pattern_count()
-        ),
+        Ok(()) => println!("Loaded existing model ({} patterns)", predictor.pattern_count()),
         Err(e) => println!("No existing model: {}", e),
     }
 
@@ -78,11 +75,7 @@ fn main() -> anyhow::Result<()> {
 
     for (error_msg, fix_template, category) in &training_pairs {
         predictor.learn_pattern(error_msg, fix_template, *category);
-        println!(
-            "  Learned: {:?} → {}",
-            category,
-            &fix_template[..40.min(fix_template.len())]
-        );
+        println!("  Learned: {:?} → {}", category, &fix_template[..40.min(fix_template.len())]);
     }
 
     // Step 3: Fit the vectorizer for similarity matching
@@ -121,15 +114,8 @@ fn main() -> anyhow::Result<()> {
     println!("=== Saving Model ===\n");
 
     predictor.save(&model_path)?;
-    println!(
-        "Saved {} patterns to {}",
-        predictor.pattern_count(),
-        model_path.display()
-    );
-    println!(
-        "New patterns this session: {}",
-        predictor.pattern_count() - initial_count
-    );
+    println!("Saved {} patterns to {}", predictor.pattern_count(), model_path.display());
+    println!("New patterns this session: {}", predictor.pattern_count() - initial_count);
 
     // Step 6: Show statistics by category
     println!("\n=== Pattern Statistics ===\n");

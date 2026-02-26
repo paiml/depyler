@@ -360,11 +360,7 @@ fn test_is_len_call_true() {
 
 #[test]
 fn test_is_len_call_false_other_func() {
-    let expr = HirExpr::Call {
-        func: "print".to_string(),
-        args: vec![],
-        kwargs: vec![],
-    };
+    let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
     assert!(!is_len_call(&expr));
 }
 
@@ -419,11 +415,7 @@ fn test_is_pure_expression_call_not_pure() {
 
 #[test]
 fn test_is_pure_expression_call_print() {
-    let expr = HirExpr::Call {
-        func: "print".to_string(),
-        args: vec![],
-        kwargs: vec![],
-    };
+    let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
     assert!(!is_pure_expression_direct(&expr));
 }
 
@@ -470,19 +462,15 @@ fn test_is_pure_expression_index() {
 
 #[test]
 fn test_is_pure_expression_tuple() {
-    let expr = HirExpr::Tuple(vec![
-        HirExpr::Literal(Literal::Int(1)),
-        HirExpr::Var("x".to_string()),
-    ]);
+    let expr =
+        HirExpr::Tuple(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Var("x".to_string())]);
     assert!(is_pure_expression_direct(&expr));
 }
 
 #[test]
 fn test_is_pure_expression_unary() {
-    let expr = HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand: Box::new(HirExpr::Literal(Literal::Int(42))),
-    };
+    let expr =
+        HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Literal(Literal::Int(42))) };
     assert!(is_pure_expression_direct(&expr));
 }
 
@@ -865,10 +853,8 @@ fn test_convert_expr_list_empty() {
 #[test]
 fn test_convert_expr_list_with_elements() {
     let type_mapper = TypeMapper::default();
-    let expr = HirExpr::List(vec![
-        HirExpr::Literal(Literal::Int(1)),
-        HirExpr::Literal(Literal::Int(2)),
-    ]);
+    let expr =
+        HirExpr::List(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))]);
     let result = convert_expr(&expr, &type_mapper);
     assert!(result.is_ok());
 }
@@ -917,11 +903,7 @@ fn test_convert_expr_attribute() {
 #[test]
 fn test_convert_expr_call_simple() {
     let type_mapper = TypeMapper::default();
-    let expr = HirExpr::Call {
-        func: "func".to_string(),
-        args: vec![],
-        kwargs: vec![],
-    };
+    let expr = HirExpr::Call { func: "func".to_string(), args: vec![], kwargs: vec![] };
     let result = convert_expr(&expr, &type_mapper);
     assert!(result.is_ok());
 }
@@ -952,10 +934,8 @@ fn test_convert_expr_unary_not() {
 #[test]
 fn test_convert_expr_unary_neg() {
     let type_mapper = TypeMapper::default();
-    let expr = HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand: Box::new(HirExpr::Literal(Literal::Int(42))),
-    };
+    let expr =
+        HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Literal(Literal::Int(42))) };
     let result = convert_expr(&expr, &type_mapper);
     assert!(result.is_ok());
 }
@@ -1086,15 +1066,9 @@ fn test_DEPYLER_1049_time_time_in_class_method() {
     let result_str = quote::quote!(#result).to_string();
 
     // Should contain SystemTime and UNIX_EPOCH
-    assert!(
-        result_str.contains("SystemTime"),
-        "Should use std::time::SystemTime"
-    );
+    assert!(result_str.contains("SystemTime"), "Should use std::time::SystemTime");
     assert!(result_str.contains("UNIX_EPOCH"), "Should use UNIX_EPOCH");
-    assert!(
-        result_str.contains("as_secs_f64"),
-        "Should return f64 seconds"
-    );
+    assert!(result_str.contains("as_secs_f64"), "Should return f64 seconds");
 }
 
 #[test]
@@ -1142,10 +1116,7 @@ fn test_DEPYLER_1049_time_monotonic_in_class_method() {
     let result_str = quote::quote!(#result).to_string();
 
     // Should contain Instant::now
-    assert!(
-        result_str.contains("Instant"),
-        "Should use std::time::Instant"
-    );
+    assert!(result_str.contains("Instant"), "Should use std::time::Instant");
     assert!(result_str.contains("now"), "Should call now()");
 }
 
@@ -1176,11 +1147,7 @@ fn test_DEPYLER_1200_re_search_in_class_method() {
         "Should use regex crate. Got: {}",
         result_str
     );
-    assert!(
-        !result_str.contains("None"),
-        "Should NOT generate None. Got: {}",
-        result_str
-    );
+    assert!(!result_str.contains("None"), "Should NOT generate None. Got: {}", result_str);
 }
 
 // =========================================================================
@@ -1193,11 +1160,7 @@ fn test_convert_symbol_assignment_immutable() {
     let mutable_vars = std::collections::HashSet::new();
     let result = convert_symbol_assignment("x", value_expr, &mutable_vars).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("let x"),
-        "Should create let binding: {}",
-        code
-    );
+    assert!(code.contains("let x"), "Should create let binding: {}", code);
     assert!(!code.contains("mut"), "Should not be mutable: {}", code);
 }
 
@@ -1231,11 +1194,7 @@ fn test_convert_attribute_assignment_self_field() {
     let value_expr: syn::Expr = parse_quote! { 42 };
     let result = convert_attribute_assignment(&base, "x", value_expr, &type_mapper).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("self") && code.contains("x"),
-        "Should set self.x: {}",
-        code
-    );
+    assert!(code.contains("self") && code.contains("x"), "Should set self.x: {}", code);
 }
 
 #[test]
@@ -1260,11 +1219,7 @@ fn test_convert_index_assignment_simple() {
     let value_expr: syn::Expr = parse_quote! { 42 };
     let result = convert_index_assignment(&base, &index, value_expr, &type_mapper).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("insert"),
-        "Should use insert for dict assignment: {}",
-        code
-    );
+    assert!(code.contains("insert"), "Should use insert for dict assignment: {}", code);
 }
 
 #[test]
@@ -1312,11 +1267,7 @@ fn test_assign_stmt_with_mutable_vars_attribute() {
         convert_assign_stmt_with_mutable_vars(&target, value_expr, &type_mapper, &mutable_vars)
             .unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("value"),
-        "Should assign to attribute: {}",
-        code
-    );
+    assert!(code.contains("value"), "Should assign to attribute: {}", code);
 }
 
 #[test]
@@ -1348,11 +1299,7 @@ fn test_assign_stmt_with_mutable_vars_tuple() {
         convert_assign_stmt_with_mutable_vars(&target, value_expr, &type_mapper, &mutable_vars)
             .unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("a") && code.contains("b"),
-        "Should unpack tuple: {}",
-        code
-    );
+    assert!(code.contains("a") && code.contains("b"), "Should unpack tuple: {}", code);
 }
 
 // =========================================================================
@@ -1381,18 +1328,12 @@ fn test_convert_stmt_with_context_if_else() {
     let stmt = HirStmt::If {
         condition: HirExpr::Literal(Literal::Bool(true)),
         then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-        else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-            0,
-        ))))]),
+        else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
     };
     let result =
         convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("if") && code.contains("else"),
-        "Should have if/else: {}",
-        code
-    );
+    assert!(code.contains("if") && code.contains("else"), "Should have if/else: {}", code);
 }
 
 #[test]
@@ -1451,16 +1392,8 @@ fn test_convert_stmt_with_context_for_tuple_target() {
     let result =
         convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("k") && code.contains("v"),
-        "Should unpack tuple: {}",
-        code
-    );
-    assert!(
-        code.contains("iter"),
-        "Should use .iter() for .items(): {}",
-        code
-    );
+    assert!(code.contains("k") && code.contains("v"), "Should unpack tuple: {}", code);
+    assert!(code.contains("iter"), "Should use .iter() for .items(): {}", code);
 }
 
 #[test]
@@ -1538,11 +1471,7 @@ fn test_convert_stmt_with_context_pure_expr() {
     let result =
         convert_stmt_with_context(&stmt, &type_mapper, false, &empty_set, &empty_map).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("let _"),
-        "Pure expr should use let _: {}",
-        code
-    );
+    assert!(code.contains("let _"), "Pure expr should use let _: {}", code);
 }
 
 // =========================================================================
@@ -1681,10 +1610,8 @@ fn test_expr_converter_convert_list_empty() {
 fn test_expr_converter_convert_list_with_elements() {
     let type_mapper = TypeMapper::default();
     let converter = ExprConverter::new(&type_mapper);
-    let expr = HirExpr::List(vec![
-        HirExpr::Literal(Literal::Int(1)),
-        HirExpr::Literal(Literal::Int(2)),
-    ]);
+    let expr =
+        HirExpr::List(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))]);
     let result = converter.convert(&expr);
     assert!(result.is_ok());
 }
@@ -1726,10 +1653,8 @@ fn test_expr_converter_convert_tuple() {
 fn test_expr_converter_convert_set() {
     let type_mapper = TypeMapper::default();
     let converter = ExprConverter::new(&type_mapper);
-    let expr = HirExpr::Set(vec![
-        HirExpr::Literal(Literal::Int(1)),
-        HirExpr::Literal(Literal::Int(2)),
-    ]);
+    let expr =
+        HirExpr::Set(vec![HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))]);
     let result = converter.convert(&expr);
     assert!(result.is_ok());
 }
@@ -1790,11 +1715,7 @@ fn test_expr_converter_convert_if_expr() {
     };
     let result = converter.convert(&expr).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("if") && code.contains("else"),
-        "Should have ternary: {}",
-        code
-    );
+    assert!(code.contains("if") && code.contains("else"), "Should have ternary: {}", code);
 }
 
 #[test]
@@ -1846,10 +1767,8 @@ fn test_expr_converter_convert_method_call() {
 fn test_expr_converter_convert_unary_neg() {
     let type_mapper = TypeMapper::default();
     let converter = ExprConverter::new(&type_mapper);
-    let expr = HirExpr::Unary {
-        op: UnaryOp::Neg,
-        operand: Box::new(HirExpr::Var("x".to_string())),
-    };
+    let expr =
+        HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
     let result = converter.convert(&expr);
     assert!(result.is_ok());
 }
@@ -1959,11 +1878,7 @@ fn test_expr_converter_convert_call_print() {
     };
     let result = converter.convert(&expr).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("println"),
-        "Should convert to println!: {}",
-        code
-    );
+    assert!(code.contains("println"), "Should convert to println!: {}", code);
 }
 
 #[test]
@@ -2008,11 +1923,7 @@ fn test_expr_converter_convert_call_str() {
     };
     let result = converter.convert(&expr).unwrap();
     let code = quote::quote!(#result).to_string();
-    assert!(
-        code.contains("to_string"),
-        "Should convert to to_string(): {}",
-        code
-    );
+    assert!(code.contains("to_string"), "Should convert to to_string(): {}", code);
 }
 
 #[test]
@@ -2095,8 +2006,7 @@ fn test_convert_block_with_context_single() {
     let empty_set = std::collections::HashSet::new();
     let empty_map = std::collections::HashMap::new();
     let stmts = vec![HirStmt::Pass];
-    let result =
-        convert_block_with_context(&stmts, &type_mapper, false, &empty_set, &empty_map);
+    let result = convert_block_with_context(&stmts, &type_mapper, false, &empty_set, &empty_map);
     assert!(result.is_ok());
 }
 
@@ -2199,10 +2109,7 @@ fn test_find_mutable_vars_non_mutating_method() {
         }),
     ];
     let result = find_mutable_vars_in_body(&stmts);
-    assert!(
-        !result.contains("text"),
-        "upper() should NOT mark as mutable"
-    );
+    assert!(!result.contains("text"), "upper() should NOT mark as mutable");
 }
 
 // =========================================================================
@@ -2227,11 +2134,7 @@ fn test_is_pure_expression_nested_binary() {
 fn test_is_pure_expression_binary_with_call_impure() {
     let expr = HirExpr::Binary {
         op: BinOp::Add,
-        left: Box::new(HirExpr::Call {
-            func: "foo".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        }),
+        left: Box::new(HirExpr::Call { func: "foo".to_string(), args: vec![], kwargs: vec![] }),
         right: Box::new(HirExpr::Literal(Literal::Int(1))),
     };
     assert!(!is_pure_expression_direct(&expr));

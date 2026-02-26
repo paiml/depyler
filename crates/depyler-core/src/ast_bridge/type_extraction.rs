@@ -51,10 +51,9 @@ impl TypeExtractor {
             // DEPYLER-0188: Handle string literal forward references (-> "ClassName")
             // PEP 484: Forward references use string literals containing type names
             // DEPYLER-0740: Parse forward references to extract generic types
-            ast::Expr::Constant(ast::ExprConstant {
-                value: ast::Constant::Str(s),
-                ..
-            }) => Self::parse_forward_reference(s.as_str()),
+            ast::Expr::Constant(ast::ExprConstant { value: ast::Constant::Str(s), .. }) => {
+                Self::parse_forward_reference(s.as_str())
+            }
             // DEPYLER-0273: Handle PEP 604 union syntax (int | None)
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
@@ -72,11 +71,8 @@ impl TypeExtractor {
                 } else {
                     // Multiple elements [T1, T2, ...] -> extract as Tuple for Callable params
                     // This allows Callable[[int, str], bool] to correctly map parameters
-                    let types = list
-                        .elts
-                        .iter()
-                        .map(Self::extract_type)
-                        .collect::<Result<Vec<_>>>()?;
+                    let types =
+                        list.elts.iter().map(Self::extract_type).collect::<Result<Vec<_>>>()?;
                     Ok(Type::Tuple(types))
                 }
             }
@@ -129,10 +125,7 @@ impl TypeExtractor {
                     return Self::extract_simple_type(base);
                 }
 
-                return Ok(Type::Generic {
-                    base: base.to_string(),
-                    params,
-                });
+                return Ok(Type::Generic { base: base.to_string(), params });
             }
         }
 
@@ -168,10 +161,8 @@ impl TypeExtractor {
             }
 
             // General union: T | U | V -> Union[T, U, V]
-            let union_types: Vec<Type> = parts
-                .iter()
-                .map(|p| Self::extract_simple_type(p))
-                .collect::<Result<Vec<_>>>()?;
+            let union_types: Vec<Type> =
+                parts.iter().map(|p| Self::extract_simple_type(p)).collect::<Result<Vec<_>>>()?;
 
             return Ok(Type::Union(union_types));
         }
@@ -246,10 +237,7 @@ impl TypeExtractor {
         if params.is_empty() {
             Ok(Type::Custom(base_name.to_string()))
         } else {
-            Ok(Type::Generic {
-                base: base_name.to_string(),
-                params,
-            })
+            Ok(Type::Generic { base: base_name.to_string(), params })
         }
     }
 
@@ -280,11 +268,7 @@ impl TypeExtractor {
     fn extract_tuple_type(s: &ast::ExprSubscript) -> Result<Type> {
         match s.slice.as_ref() {
             ast::Expr::Tuple(t) => {
-                let types = t
-                    .elts
-                    .iter()
-                    .map(Self::extract_type)
-                    .collect::<Result<Vec<_>>>()?;
+                let types = t.elts.iter().map(Self::extract_type).collect::<Result<Vec<_>>>()?;
                 Ok(Type::Tuple(types))
             }
             // Single type in tuple[T] case - make it a 1-tuple
@@ -308,11 +292,7 @@ impl TypeExtractor {
     fn extract_union_type(s: &ast::ExprSubscript) -> Result<Type> {
         match s.slice.as_ref() {
             ast::Expr::Tuple(t) => {
-                let types = t
-                    .elts
-                    .iter()
-                    .map(Self::extract_type)
-                    .collect::<Result<Vec<_>>>()?;
+                let types = t.elts.iter().map(Self::extract_type).collect::<Result<Vec<_>>>()?;
                 Ok(Type::Union(types))
             }
             // Single type in Union[T] case
@@ -484,9 +464,9 @@ impl TypeExtractor {
             },
             // DEPYLER-1025: Queue module - use std types (NASA mode default)
             "queue" => match type_name {
-                "Queue" | "LifoQueue" | "PriorityQueue" => Some(Type::Custom(
-                    "std::collections::VecDeque<String>".to_string(),
-                )),
+                "Queue" | "LifoQueue" | "PriorityQueue" => {
+                    Some(Type::Custom("std::collections::VecDeque<String>".to_string()))
+                }
                 _ => Some(Type::Custom("String".to_string())),
             },
             // DEPYLER-1025: Multiprocessing - use String placeholder
@@ -495,9 +475,7 @@ impl TypeExtractor {
             "asyncio" => match type_name {
                 "Task" => Some(Type::Custom("std::thread::JoinHandle<()>".to_string())),
                 "Event" => Some(Type::Custom("std::sync::Condvar".to_string())),
-                "Queue" => Some(Type::Custom(
-                    "std::sync::mpsc::Receiver<String>".to_string(),
-                )),
+                "Queue" => Some(Type::Custom("std::sync::mpsc::Receiver<String>".to_string())),
                 "Lock" => Some(Type::Custom("std::sync::Mutex<()>".to_string())),
                 "Semaphore" => Some(Type::Custom("std::sync::Mutex<i32>".to_string())),
                 _ => Some(Type::Custom("String".to_string())),

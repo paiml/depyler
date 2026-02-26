@@ -58,9 +58,7 @@ fn test_end_to_end_corpus_generation() {
     // 2. Generate examples using PythonExampleGenerator
     let generator = PythonExampleGenerator::new(stdlib_funcs.clone());
     let config = SyntheticConfig::default();
-    let examples = generator
-        .generate(&stdlib_funcs, &config)
-        .expect("Generation should succeed");
+    let examples = generator.generate(&stdlib_funcs, &config).expect("Generation should succeed");
 
     // Should generate examples (at least some)
     assert!(!examples.is_empty(), "Should generate at least one example");
@@ -75,16 +73,8 @@ fn test_end_to_end_corpus_generation() {
         let success = i % 5 != 0;
         let result = TranspileResult {
             python_source: example.source.clone(),
-            rust_output: if success {
-                Some("fn foo() {}".to_string())
-            } else {
-                None
-            },
-            transpile_error: if success {
-                None
-            } else {
-                Some("mock error".to_string())
-            },
+            rust_output: if success { Some("fn foo() {}".to_string()) } else { None },
+            transpile_error: if success { None } else { Some("mock error".to_string()) },
             compile_errors: vec![],
             content_hash: i as u64,
         };
@@ -121,10 +111,7 @@ fn test_optimizer_execution_integration() {
     // Verify result structure
     assert!(result.fitness >= 0.0, "Fitness should be non-negative");
     assert!(result.evaluations > 0, "Should have evaluations");
-    assert!(
-        result.params.quality_threshold >= 0.1,
-        "Quality threshold should be valid"
-    );
+    assert!(result.params.quality_threshold >= 0.1, "Quality threshold should be valid");
 }
 
 #[test]
@@ -143,10 +130,7 @@ fn test_optimizer_with_curriculum_integration() {
 
     // Curriculum should produce valid results
     assert!(result.fitness >= 0.0, "Fitness should be non-negative");
-    assert!(
-        !result.history.is_empty(),
-        "Should have optimization history"
-    );
+    assert!(!result.history.is_empty(), "Should have optimization history");
 }
 
 // ============================================================================
@@ -194,10 +178,7 @@ fn test_autofixer_training_from_corpus() {
     predictor.train_from_corpus(&dataset);
 
     // 3. Verify patterns were extracted
-    assert!(
-        predictor.pattern_count() >= 5,
-        "Should extract patterns from all categories"
-    );
+    assert!(predictor.pattern_count() >= 5, "Should extract patterns from all categories");
 
     // 4. Test predictions
     let type_fix = predictor.predict(ErrorCategory::TypeMismatch);
@@ -229,22 +210,10 @@ fn test_curriculum_progression_integration() {
     }
 
     // Should progress through all 4 levels
-    assert!(
-        levels_visited.contains(&DifficultyLevel::Basic),
-        "Should visit Basic"
-    );
-    assert!(
-        levels_visited.contains(&DifficultyLevel::Intermediate),
-        "Should visit Intermediate"
-    );
-    assert!(
-        levels_visited.contains(&DifficultyLevel::Advanced),
-        "Should visit Advanced"
-    );
-    assert!(
-        levels_visited.contains(&DifficultyLevel::Expert),
-        "Should visit Expert"
-    );
+    assert!(levels_visited.contains(&DifficultyLevel::Basic), "Should visit Basic");
+    assert!(levels_visited.contains(&DifficultyLevel::Intermediate), "Should visit Intermediate");
+    assert!(levels_visited.contains(&DifficultyLevel::Advanced), "Should visit Advanced");
+    assert!(levels_visited.contains(&DifficultyLevel::Expert), "Should visit Expert");
 }
 
 // ============================================================================
@@ -353,8 +322,5 @@ fn test_full_pipeline_integration() {
     let mut predictor = CorpusFixPredictor::new();
     predictor.train_from_corpus(&dataset);
 
-    assert!(
-        predictor.pattern_count() > 0,
-        "Should extract patterns from corpus"
-    );
+    assert!(predictor.pattern_count() > 0, "Should extract patterns from corpus");
 }

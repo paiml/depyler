@@ -104,14 +104,8 @@ impl TypeEnvironment {
             let var_id = self.next_var_id;
             self.next_var_id += 1;
 
-            self.bindings.insert(
-                var_id,
-                TypeInfo {
-                    name: name.to_string(),
-                    version,
-                    ty: ty.clone(),
-                },
-            );
+            self.bindings
+                .insert(var_id, TypeInfo { name: name.to_string(), version, ty: ty.clone() });
 
             self.current_bindings.insert(name.to_string(), var_id);
 
@@ -176,9 +170,7 @@ impl TypeEnvironment {
         let checker = SubtypeChecker::new();
 
         // Check if inferred <: expected (subtyping)
-        checker
-            .check_subtype(&inferred, expected)
-            .map_err(|e| format!("Type check failed: {}", e))
+        checker.check_subtype(&inferred, expected).map_err(|e| format!("Type check failed: {}", e))
     }
 }
 

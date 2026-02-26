@@ -22,10 +22,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -144,7 +142,8 @@ mod tests {
 
     #[test]
     fn test_w20ss_015_subscript_assign_variable_index() {
-        let code = "def func(i: int) -> list:\n    arr = [0, 0, 0]\n    arr[i] = 42\n    return arr";
+        let code =
+            "def func(i: int) -> list:\n    arr = [0, 0, 0]\n    arr[i] = 42\n    return arr";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -506,7 +505,8 @@ mod tests {
 
     #[test]
     fn test_w20ss_065_augassign_dict_sub() {
-        let code = "def func() -> dict:\n    d = {\"count\": 10}\n    d[\"count\"] -= 1\n    return d";
+        let code =
+            "def func() -> dict:\n    d = {\"count\": 10}\n    d[\"count\"] -= 1\n    return d";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -580,7 +580,8 @@ mod tests {
 
     #[test]
     fn test_w20ss_075_assign_from_list_comprehension() {
-        let code = "def func() -> list:\n    squares = [x * x for x in range(10)]\n    return squares";
+        let code =
+            "def func() -> list:\n    squares = [x * x for x in range(10)]\n    return squares";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -713,7 +714,8 @@ mod tests {
 
     #[test]
     fn test_w20ss_094_assign_from_list_method() {
-        let code = "def func() -> int:\n    items = [3, 1, 2]\n    count = len(items)\n    return count";
+        let code =
+            "def func() -> int:\n    items = [3, 1, 2]\n    count = len(items)\n    return count";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1114,14 +1116,16 @@ mod tests {
 
     #[test]
     fn test_w20ss_149_startswith_assigned() {
-        let code = "def func(s: str) -> bool:\n    result = s.startswith(\"http\")\n    return result";
+        let code =
+            "def func(s: str) -> bool:\n    result = s.startswith(\"http\")\n    return result";
         let result = transpile(code);
         assert!(result.contains("starts_with"));
     }
 
     #[test]
     fn test_w20ss_150_endswith_assigned() {
-        let code = "def func(s: str) -> bool:\n    result = s.endswith(\".txt\")\n    return result";
+        let code =
+            "def func(s: str) -> bool:\n    result = s.endswith(\".txt\")\n    return result";
         let result = transpile(code);
         assert!(result.contains("ends_with"));
     }
@@ -1155,7 +1159,11 @@ mod tests {
     fn test_w20ss_154_title() {
         let code = "def func(s: str) -> str:\n    return s.title()";
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("to_uppercase") || !result.is_empty());
+        assert!(
+            result.contains("split_whitespace")
+                || result.contains("to_uppercase")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1378,7 +1386,8 @@ mod tests {
 
     #[test]
     fn test_w20ss_185_join_assigned() {
-        let code = "def func(items: list) -> str:\n    result = \",\".join(items)\n    return result";
+        let code =
+            "def func(items: list) -> str:\n    result = \",\".join(items)\n    return result";
         let result = transpile(code);
         assert!(result.contains("join"));
     }
@@ -1391,7 +1400,11 @@ mod tests {
     fn test_w20ss_186_isdigit() {
         let code = "def func(s: str) -> bool:\n    return s.isdigit()";
         let result = transpile(code);
-        assert!(result.contains("is_numeric") || result.contains("is_ascii_digit") || !result.is_empty());
+        assert!(
+            result.contains("is_numeric")
+                || result.contains("is_ascii_digit")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1431,14 +1444,20 @@ mod tests {
 
     #[test]
     fn test_w20ss_192_isdigit_in_condition() {
-        let code = "def func(s: str) -> bool:\n    if s.isdigit():\n        return True\n    return False";
+        let code =
+            "def func(s: str) -> bool:\n    if s.isdigit():\n        return True\n    return False";
         let result = transpile(code);
-        assert!(result.contains("is_numeric") || result.contains("is_ascii_digit") || !result.is_empty());
+        assert!(
+            result.contains("is_numeric")
+                || result.contains("is_ascii_digit")
+                || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w20ss_193_isalpha_in_condition() {
-        let code = "def func(s: str) -> bool:\n    if s.isalpha():\n        return True\n    return False";
+        let code =
+            "def func(s: str) -> bool:\n    if s.isalpha():\n        return True\n    return False";
         let result = transpile(code);
         assert!(result.contains("is_alphabetic") || !result.is_empty());
     }

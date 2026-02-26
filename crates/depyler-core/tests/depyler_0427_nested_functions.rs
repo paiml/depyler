@@ -31,11 +31,7 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Simple nested function should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Simple nested function should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
 
@@ -109,21 +105,14 @@ def outer(y):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Nested function with capture should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Nested function with capture should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
 
     // Should use closure syntax (let inner = move |x| ...)
     // The closure should capture y from the outer scope
     // Note: The actual addition might be via .py_add() method or + operator
-    assert!(
-        rust.contains("move |x") || rust.contains("|x|"),
-        "Should contain closure syntax"
-    );
+    assert!(rust.contains("move |x") || rust.contains("|x|"), "Should contain closure syntax");
     // Check that y is used inside the closure (could be via .py_add(y) or + y)
     assert!(
         rust.contains("py_add(y)") || rust.contains("+ y"),
@@ -175,10 +164,7 @@ def filter_csv_advanced(input_file, filters):
     );
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("matches_all_filters"),
-        "Should contain nested function name"
-    );
+    assert!(rust.contains("matches_all_filters"), "Should contain nested function name");
 }
 
 #[test]
@@ -204,10 +190,7 @@ def group_by_hour(file_path):
     );
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("extract_hour"),
-        "Should contain nested function name"
-    );
+    assert!(rust.contains("extract_hour"), "Should contain nested function name");
 }
 
 // ============================================================================
@@ -221,10 +204,7 @@ fn test_DEPYLER_0427_csv_filter_full_file() {
 
     // Check if file exists first
     if !std::path::Path::new(csv_filter_path).exists() {
-        eprintln!(
-            "WARNING: csv_filter.py not found at {}, skipping test",
-            csv_filter_path
-        );
+        eprintln!("WARNING: csv_filter.py not found at {}, skipping test", csv_filter_path);
         return;
     }
 
@@ -245,11 +225,7 @@ fn test_DEPYLER_0427_csv_filter_full_file() {
         }
     }
 
-    assert!(
-        result.is_ok(),
-        "csv_filter.py should transpile successfully: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "csv_filter.py should transpile successfully: {:?}", result.err());
 }
 
 #[test]
@@ -259,10 +235,7 @@ fn test_DEPYLER_0427_log_analyzer_full_file() {
 
     // Check if file exists first
     if !std::path::Path::new(log_analyzer_path).exists() {
-        eprintln!(
-            "WARNING: log_analyzer.py not found at {}, skipping test",
-            log_analyzer_path
-        );
+        eprintln!("WARNING: log_analyzer.py not found at {}, skipping test", log_analyzer_path);
         return;
     }
 
@@ -271,11 +244,7 @@ fn test_DEPYLER_0427_log_analyzer_full_file() {
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(&python);
-    assert!(
-        result.is_ok(),
-        "log_analyzer.py should transpile successfully: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "log_analyzer.py should transpile successfully: {:?}", result.err());
 }
 
 // ============================================================================
@@ -294,11 +263,7 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Nested function with docstring should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Nested function with docstring should transpile: {:?}", result.err());
 }
 
 #[test]
@@ -312,9 +277,5 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Nested function with type hints should transpile: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Nested function with type hints should transpile: {:?}", result.err());
 }

@@ -28,10 +28,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -66,7 +64,12 @@ mod tests {
     fn test_w19id_004_file_readlines_collect() {
         let code = "def all_lines(f) -> list:\n    lines: list = f.readlines()\n    return lines\n";
         let result = transpile(code);
-        assert!(result.contains("lines") || result.contains("BufReader") || result.contains("collect") || !result.is_empty());
+        assert!(
+            result.contains("lines")
+                || result.contains("BufReader")
+                || result.contains("collect")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -78,7 +81,8 @@ mod tests {
 
     #[test]
     fn test_w19id_006_file_read_with_size_arg() {
-        let code = "def read_chunk(f, n: int) -> bytes:\n    chunk: bytes = f.read(n)\n    return chunk\n";
+        let code =
+            "def read_chunk(f, n: int) -> bytes:\n    chunk: bytes = f.read(n)\n    return chunk\n";
         let result = transpile(code);
         assert!(result.contains("read") || result.contains("buf") || !result.is_empty());
     }
@@ -106,7 +110,8 @@ mod tests {
 
     #[test]
     fn test_w19id_010_file_readlines_len() {
-        let code = "def line_count(f) -> int:\n    lines: list = f.readlines()\n    return len(lines)\n";
+        let code =
+            "def line_count(f) -> int:\n    lines: list = f.readlines()\n    return len(lines)\n";
         let result = transpile(code);
         assert!(result.contains("len") || result.contains(".len()") || !result.is_empty());
     }
@@ -120,7 +125,8 @@ mod tests {
 
     #[test]
     fn test_w19id_012_file_readline_strip() {
-        let code = "def clean_line(f) -> str:\n    line: str = f.readline()\n    return line.strip()\n";
+        let code =
+            "def clean_line(f) -> str:\n    line: str = f.readline()\n    return line.strip()\n";
         let result = transpile(code);
         assert!(result.contains("trim") || result.contains("strip") || !result.is_empty());
     }
@@ -162,7 +168,8 @@ mod tests {
 
     #[test]
     fn test_w19id_018_file_readline_in_condition() {
-        let code = "def check_first(f) -> bool:\n    line: str = f.readline()\n    return len(line) > 0\n";
+        let code =
+            "def check_first(f) -> bool:\n    line: str = f.readline()\n    return len(line) > 0\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -231,14 +238,18 @@ mod tests {
     fn test_w19id_027_path_resolve() {
         let code = "def abs_path(path) -> str:\n    return path.resolve()\n";
         let result = transpile(code);
-        assert!(result.contains("canonicalize") || result.contains("resolve") || !result.is_empty());
+        assert!(
+            result.contains("canonicalize") || result.contains("resolve") || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w19id_028_path_absolute() {
         let code = "def make_absolute(path) -> str:\n    return path.absolute()\n";
         let result = transpile(code);
-        assert!(result.contains("canonicalize") || result.contains("absolute") || !result.is_empty());
+        assert!(
+            result.contains("canonicalize") || result.contains("absolute") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -341,21 +352,24 @@ mod tests {
 
     #[test]
     fn test_w19id_043_path_absolute_assign() {
-        let code = "def full_path(path) -> str:\n    full: str = path.absolute()\n    return full\n";
+        let code =
+            "def full_path(path) -> str:\n    full: str = path.absolute()\n    return full\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w19id_044_path_stat_resolve_chain() {
-        let code = "def info(path) -> None:\n    resolved: str = path.resolve()\n    st = path.stat()\n";
+        let code =
+            "def info(path) -> None:\n    resolved: str = path.resolve()\n    st = path.stat()\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w19id_045_path_read_text_strip() {
-        let code = "def clean_load(p) -> str:\n    text: str = p.read_text()\n    return text.strip()\n";
+        let code =
+            "def clean_load(p) -> str:\n    text: str = p.read_text()\n    return text.strip()\n";
         let result = transpile(code);
         assert!(result.contains("trim") || !result.is_empty());
     }
@@ -382,7 +396,12 @@ mod tests {
     fn test_w19id_048_print_help_call() {
         let code = "def show_help(parser) -> None:\n    parser.print_help()\n";
         let result = transpile(code);
-        assert!(result.contains("help") || result.contains("print") || result.contains("CommandFactory") || !result.is_empty());
+        assert!(
+            result.contains("help")
+                || result.contains("print")
+                || result.contains("CommandFactory")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -512,7 +531,11 @@ mod tests {
     fn test_w19id_066_lstrip_with_chars() {
         let code = "def trim_left_x(s: str) -> str:\n    return s.lstrip(\"x\")\n";
         let result = transpile(code);
-        assert!(result.contains("trim_start_matches") || result.contains("lstrip") || !result.is_empty());
+        assert!(
+            result.contains("trim_start_matches")
+                || result.contains("lstrip")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -526,7 +549,9 @@ mod tests {
     fn test_w19id_068_rstrip_with_chars() {
         let code = "def trim_right_y(s: str) -> str:\n    return s.rstrip(\"y\")\n";
         let result = transpile(code);
-        assert!(result.contains("trim_end_matches") || result.contains("rstrip") || !result.is_empty());
+        assert!(
+            result.contains("trim_end_matches") || result.contains("rstrip") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -547,7 +572,11 @@ mod tests {
     fn test_w19id_071_title_return() {
         let code = "def titlecase(s: str) -> str:\n    return s.title()\n";
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("split_whitespace") || !result.is_empty());
+        assert!(
+            result.contains("to_uppercase")
+                || result.contains("split_whitespace")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -559,7 +588,8 @@ mod tests {
 
     #[test]
     fn test_w19id_073_capitalize_assign() {
-        let code = "def cap_it(s: str) -> str:\n    result: str = s.capitalize()\n    return result\n";
+        let code =
+            "def cap_it(s: str) -> str:\n    result: str = s.capitalize()\n    return result\n";
         let result = transpile(code);
         assert!(result.contains("to_uppercase") || !result.is_empty());
     }
@@ -568,7 +598,11 @@ mod tests {
     fn test_w19id_074_swapcase() {
         let code = "def swap(s: str) -> str:\n    return s.swapcase()\n";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("to_lowercase") || !result.is_empty());
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("to_lowercase")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -603,7 +637,11 @@ mod tests {
     fn test_w19id_079_istitle() {
         let code = "def check_title(s: str) -> bool:\n    return s.istitle()\n";
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("is_lowercase") || !result.is_empty());
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("is_lowercase")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -631,7 +669,11 @@ mod tests {
     fn test_w19id_083_isidentifier() {
         let code = "def valid_id(s: str) -> bool:\n    return s.isidentifier()\n";
         let result = transpile(code);
-        assert!(result.contains("is_alphabetic") || result.contains("is_alphanumeric") || !result.is_empty());
+        assert!(
+            result.contains("is_alphabetic")
+                || result.contains("is_alphanumeric")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -645,7 +687,12 @@ mod tests {
     fn test_w19id_085_hex_method() {
         let code = "def to_hex(s: str) -> str:\n    return s.hex()\n";
         let result = transpile(code);
-        assert!(result.contains("format") || result.contains("hex") || result.contains("02x") || !result.is_empty());
+        assert!(
+            result.contains("format")
+                || result.contains("hex")
+                || result.contains("02x")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -659,7 +706,12 @@ mod tests {
     fn test_w19id_087_center_width() {
         let code = "def pad_center(s: str) -> str:\n    return s.center(20)\n";
         let result = transpile(code);
-        assert!(result.contains("pad") || result.contains("width") || result.contains("format") || !result.is_empty());
+        assert!(
+            result.contains("pad")
+                || result.contains("width")
+                || result.contains("format")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -750,7 +802,12 @@ mod tests {
     fn test_w19id_100_rsplit_no_args() {
         let code = "def rsplit_ws(s: str) -> list:\n    return s.rsplit()\n";
         let result = transpile(code);
-        assert!(result.contains("split_whitespace") || result.contains("rev") || result.contains("rsplit") || !result.is_empty());
+        assert!(
+            result.contains("split_whitespace")
+                || result.contains("rev")
+                || result.contains("rsplit")
+                || !result.is_empty()
+        );
     }
 
     // ========================================================================
@@ -850,7 +907,8 @@ mod tests {
 
     #[test]
     fn test_w19id_114_list_insert_middle() {
-        let code = "def insert_mid(lst: list, idx: int, val: int) -> None:\n    lst.insert(idx, val)\n";
+        let code =
+            "def insert_mid(lst: list, idx: int, val: int) -> None:\n    lst.insert(idx, val)\n";
         let result = transpile(code);
         assert!(result.contains("insert") || !result.is_empty());
     }
@@ -878,7 +936,8 @@ mod tests {
 
     #[test]
     fn test_w19id_118_list_clear_and_append() {
-        let code = "def reset(lst: list, val: int) -> None:\n    lst.clear()\n    lst.append(val)\n";
+        let code =
+            "def reset(lst: list, val: int) -> None:\n    lst.clear()\n    lst.append(val)\n";
         let result = transpile(code);
         assert!(result.contains("clear") || !result.is_empty());
     }
@@ -899,7 +958,8 @@ mod tests {
 
     #[test]
     fn test_w19id_121_list_pop_and_append() {
-        let code = "def move_first(lst: list) -> None:\n    val: int = lst.pop(0)\n    lst.append(val)\n";
+        let code =
+            "def move_first(lst: list) -> None:\n    val: int = lst.pop(0)\n    lst.append(val)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -941,9 +1001,15 @@ mod tests {
 
     #[test]
     fn test_w19id_127_list_sort_key_reverse() {
-        let code = "def sort_desc_key(lst: list) -> None:\n    lst.sort(key=lambda x: x, reverse=True)\n";
+        let code =
+            "def sort_desc_key(lst: list) -> None:\n    lst.sort(key=lambda x: x, reverse=True)\n";
         let result = transpile(code);
-        assert!(result.contains("sort_by") || result.contains("Reverse") || result.contains("sort") || !result.is_empty());
+        assert!(
+            result.contains("sort_by")
+                || result.contains("Reverse")
+                || result.contains("sort")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1017,7 +1083,12 @@ mod tests {
     fn test_w19id_137_dict_items() {
         let code = "def all_items(d: dict) -> list:\n    return d.items()\n";
         let result = transpile(code);
-        assert!(result.contains("iter") || result.contains("items") || result.contains("collect") || !result.is_empty());
+        assert!(
+            result.contains("iter")
+                || result.contains("items")
+                || result.contains("collect")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1071,7 +1142,8 @@ mod tests {
 
     #[test]
     fn test_w19id_145_dict_items_in_loop() {
-        let code = "def print_all(d: dict) -> None:\n    for k, v in d.items():\n        x: int = v\n";
+        let code =
+            "def print_all(d: dict) -> None:\n    for k, v in d.items():\n        x: int = v\n";
         let result = transpile(code);
         assert!(result.contains("iter") || result.contains("items") || !result.is_empty());
     }
@@ -1085,14 +1157,16 @@ mod tests {
 
     #[test]
     fn test_w19id_147_dict_values_sum() {
-        let code = "def total(d: dict) -> int:\n    vals: list = d.values()\n    return sum(vals)\n";
+        let code =
+            "def total(d: dict) -> int:\n    vals: list = d.values()\n    return sum(vals)\n";
         let result = transpile(code);
         assert!(result.contains("values") || !result.is_empty());
     }
 
     #[test]
     fn test_w19id_148_dict_setdefault_list() {
-        let code = "def ensure_list(d: dict, key: str) -> list:\n    return d.setdefault(key, [])\n";
+        let code =
+            "def ensure_list(d: dict, key: str) -> list:\n    return d.setdefault(key, [])\n";
         let result = transpile(code);
         assert!(result.contains("entry") || result.contains("or_insert") || !result.is_empty());
     }
@@ -1106,7 +1180,8 @@ mod tests {
 
     #[test]
     fn test_w19id_150_dict_popitem_assign() {
-        let code = "def pop_entry(d: dict) -> tuple:\n    item: tuple = d.popitem()\n    return item\n";
+        let code =
+            "def pop_entry(d: dict) -> tuple:\n    item: tuple = d.popitem()\n    return item\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1148,7 +1223,8 @@ mod tests {
 
     #[test]
     fn test_w19id_156_dict_update_empty() {
-        let code = "def update_fresh(d: dict) -> None:\n    extra: dict = {}\n    d.update(extra)\n";
+        let code =
+            "def update_fresh(d: dict) -> None:\n    extra: dict = {}\n    d.update(extra)\n";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1162,7 +1238,8 @@ mod tests {
 
     #[test]
     fn test_w19id_158_dict_clear_and_update() {
-        let code = "def reset_dict(d: dict, fresh: dict) -> None:\n    d.clear()\n    d.update(fresh)\n";
+        let code =
+            "def reset_dict(d: dict, fresh: dict) -> None:\n    d.clear()\n    d.update(fresh)\n";
         let result = transpile(code);
         assert!(result.contains("clear") || !result.is_empty());
     }
@@ -1178,7 +1255,12 @@ mod tests {
     fn test_w19id_160_dict_items_collect() {
         let code = "def pairs(d: dict) -> list:\n    result: list = d.items()\n    return result\n";
         let result = transpile(code);
-        assert!(result.contains("iter") || result.contains("items") || result.contains("collect") || !result.is_empty());
+        assert!(
+            result.contains("iter")
+                || result.contains("items")
+                || result.contains("collect")
+                || !result.is_empty()
+        );
     }
 
     // ========================================================================
@@ -1224,28 +1306,42 @@ mod tests {
     fn test_w19id_166_set_issuperset() {
         let code = "def is_sup(a: set, b: set) -> bool:\n    return a.issuperset(b)\n";
         let result = transpile(code);
-        assert!(result.contains("is_superset") || result.contains("issuperset") || !result.is_empty());
+        assert!(
+            result.contains("is_superset") || result.contains("issuperset") || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w19id_167_set_isdisjoint() {
         let code = "def no_common(a: set, b: set) -> bool:\n    return a.isdisjoint(b)\n";
         let result = transpile(code);
-        assert!(result.contains("is_disjoint") || result.contains("isdisjoint") || !result.is_empty());
+        assert!(
+            result.contains("is_disjoint") || result.contains("isdisjoint") || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w19id_168_set_intersection_update() {
         let code = "def keep_common(a: set, b: set) -> None:\n    a.intersection_update(b)\n";
         let result = transpile(code);
-        assert!(result.contains("intersection") || result.contains("retain") || result.contains("clear") || !result.is_empty());
+        assert!(
+            result.contains("intersection")
+                || result.contains("retain")
+                || result.contains("clear")
+                || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w19id_169_set_difference_update() {
         let code = "def remove_common(a: set, b: set) -> None:\n    a.difference_update(b)\n";
         let result = transpile(code);
-        assert!(result.contains("difference") || result.contains("clear") || result.contains("extend") || !result.is_empty());
+        assert!(
+            result.contains("difference")
+                || result.contains("clear")
+                || result.contains("extend")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1292,7 +1388,8 @@ mod tests {
 
     #[test]
     fn test_w19id_176_set_union_assign() {
-        let code = "def merged(a: set, b: set) -> set:\n    result: set = a.union(b)\n    return result\n";
+        let code =
+            "def merged(a: set, b: set) -> set:\n    result: set = a.union(b)\n    return result\n";
         let result = transpile(code);
         assert!(result.contains("union") || !result.is_empty());
     }
@@ -1329,14 +1426,18 @@ mod tests {
     fn test_w19id_181_set_issuperset_conditional() {
         let code = "def check_sup(a: set, b: set) -> bool:\n    if a.issuperset(b):\n        return True\n    return False\n";
         let result = transpile(code);
-        assert!(result.contains("is_superset") || result.contains("issuperset") || !result.is_empty());
+        assert!(
+            result.contains("is_superset") || result.contains("issuperset") || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w19id_182_set_isdisjoint_conditional() {
         let code = "def no_overlap(a: set, b: set) -> bool:\n    if a.isdisjoint(b):\n        return True\n    return False\n";
         let result = transpile(code);
-        assert!(result.contains("is_disjoint") || result.contains("isdisjoint") || !result.is_empty());
+        assert!(
+            result.contains("is_disjoint") || result.contains("isdisjoint") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1348,7 +1449,8 @@ mod tests {
 
     #[test]
     fn test_w19id_184_set_discard_idempotent() {
-        let code = "def safe_remove(s: set, val: int) -> None:\n    s.discard(val)\n    s.discard(val)\n";
+        let code =
+            "def safe_remove(s: set, val: int) -> None:\n    s.discard(val)\n    s.discard(val)\n";
         let result = transpile(code);
         assert!(result.contains("remove") || !result.is_empty());
     }
@@ -1448,14 +1550,18 @@ mod tests {
     fn test_w19id_198_set_issuperset_return() {
         let code = "def sup_check(a: set, b: set) -> bool:\n    result: bool = a.issuperset(b)\n    return result\n";
         let result = transpile(code);
-        assert!(result.contains("is_superset") || result.contains("issuperset") || !result.is_empty());
+        assert!(
+            result.contains("is_superset") || result.contains("issuperset") || !result.is_empty()
+        );
     }
 
     #[test]
     fn test_w19id_199_set_isdisjoint_return() {
         let code = "def disj_check(a: set, b: set) -> bool:\n    result: bool = a.isdisjoint(b)\n    return result\n";
         let result = transpile(code);
-        assert!(result.contains("is_disjoint") || result.contains("isdisjoint") || !result.is_empty());
+        assert!(
+            result.contains("is_disjoint") || result.contains("isdisjoint") || !result.is_empty()
+        );
     }
 
     #[test]

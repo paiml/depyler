@@ -37,11 +37,8 @@ fn prop_function_name_preservation(func_name: String, params: Vec<String>) -> Te
     }
 
     // Create a simple function
-    let param_list = if params.is_empty() {
-        String::new()
-    } else {
-        params.join(": int, ") + ": int"
-    };
+    let param_list =
+        if params.is_empty() { String::new() } else { params.join(": int, ") + ": int" };
 
     let python_source = format!("def {}({}) -> int:\n    return 42", func_name, param_list);
 
@@ -133,10 +130,8 @@ fn prop_variable_assignment_preservation(var_name: String, value: i32) -> TestRe
         return TestResult::discard();
     }
 
-    let python_source = format!(
-        "def test_func() -> int:\n    {} = {}\n    return {}",
-        var_name, value, var_name
-    );
+    let python_source =
+        format!("def test_func() -> int:\n    {} = {}\n    return {}", var_name, value, var_name);
 
     let pipeline = DepylerPipeline::new();
 

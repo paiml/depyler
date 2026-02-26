@@ -8,10 +8,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -103,10 +101,7 @@ def f() -> int:
         return -1
 "#,
     );
-    assert!(
-        code.contains("42") && code.contains("-1"),
-        "Should handle bare except: {code}"
-    );
+    assert!(code.contains("42") && code.contains("-1"), "Should handle bare except: {code}");
 }
 
 // ── Complex control flow ────────────────────────────────────────
@@ -181,10 +176,7 @@ def f(a: list, b: list) -> list:
     return result
 "#,
     );
-    assert!(
-        code.contains("zip") || code.contains("iter()"),
-        "Should generate zip: {code}"
-    );
+    assert!(code.contains("zip") || code.contains("iter()"), "Should generate zip: {code}");
 }
 
 #[test]
@@ -264,10 +256,7 @@ def f(x: int) -> int:
     return x
 "#,
     );
-    assert!(
-        code.contains("+=") || code.contains("+ 10"),
-        "Should generate +=: {code}"
-    );
+    assert!(code.contains("+=") || code.contains("+ 10"), "Should generate +=: {code}");
 }
 
 #[test]
@@ -294,10 +283,7 @@ def f(items: list) -> list:
     return items
 "#,
     );
-    assert!(
-        code.contains("extend") || code.contains("+="),
-        "Should generate list extend: {code}"
-    );
+    assert!(code.contains("extend") || code.contains("+="), "Should generate list extend: {code}");
 }
 
 // ── With statement / context managers ───────────────────────────
@@ -488,14 +474,8 @@ class Rectangle:
         return 2 * (self.width + self.height)
 "#,
     );
-    assert!(
-        code.contains("width") && code.contains("height"),
-        "Should have fields: {code}"
-    );
-    assert!(
-        code.contains("area") && code.contains("perimeter"),
-        "Should have methods: {code}"
-    );
+    assert!(code.contains("width") && code.contains("height"), "Should have fields: {code}");
+    assert!(code.contains("area") && code.contains("perimeter"), "Should have methods: {code}");
 }
 
 // ── String formatting ───────────────────────────────────────────
@@ -508,10 +488,7 @@ def f(name: str, age: int) -> str:
     return f"Hello {name}, you are {age} years old"
 "#,
     );
-    assert!(
-        code.contains("format!") || code.contains("Hello"),
-        "Should generate format!: {code}"
-    );
+    assert!(code.contains("format!") || code.contains("Hello"), "Should generate format!: {code}");
 }
 
 #[test]
@@ -536,10 +513,7 @@ def f(x: float) -> str:
     return f"{x:.2f}"
 "#,
     );
-    assert!(
-        code.contains("format!") || code.contains(".2"),
-        "Should generate format spec: {code}"
-    );
+    assert!(code.contains("format!") || code.contains(".2"), "Should generate format spec: {code}");
 }
 
 // ── Slice operations ────────────────────────────────────────────

@@ -344,10 +344,7 @@ impl GraphBuilder {
                 // Add inheritance edges
                 for base in &c.bases {
                     if let ast::Expr::Name(name) = base {
-                        let edge = GraphEdge {
-                            kind: EdgeKind::Inherits,
-                            weight: 1.0,
-                        };
+                        let edge = GraphEdge { kind: EdgeKind::Inherits, weight: 1.0 };
                         graph.add_edge(c.name.as_ref(), name.id.as_ref(), edge);
                     }
                 }
@@ -430,10 +427,7 @@ impl GraphBuilder {
                     if self.known_functions.contains_key(&callee_name)
                         || self.known_classes.contains_key(&callee_name)
                     {
-                        let edge = GraphEdge {
-                            kind: EdgeKind::Calls,
-                            weight: 1.0,
-                        };
+                        let edge = GraphEdge { kind: EdgeKind::Calls, weight: 1.0 };
                         graph.add_edge(caller, &callee_name, edge);
                     }
                 }
@@ -537,9 +531,8 @@ class Derived(Base):
 
         // Derived should inherit from Base
         let edges = graph.outgoing_edges("Derived");
-        let inherits_base = edges
-            .iter()
-            .any(|(node, edge)| node.id == "Base" && edge.kind == EdgeKind::Inherits);
+        let inherits_base =
+            edges.iter().any(|(node, edge)| node.id == "Base" && edge.kind == EdgeKind::Inherits);
         assert!(inherits_base);
     }
 
@@ -695,10 +688,7 @@ def bar():
         let mut builder = GraphBuilder::new();
         let mut graph = builder.build_from_source(python).unwrap();
 
-        let edge = GraphEdge {
-            kind: EdgeKind::Calls,
-            weight: 1.0,
-        };
+        let edge = GraphEdge { kind: EdgeKind::Calls, weight: 1.0 };
         let added = graph.add_edge("nonexistent", "foo", edge);
         assert!(!added);
     }
@@ -709,10 +699,7 @@ def bar():
         let mut builder = GraphBuilder::new();
         let mut graph = builder.build_from_source(python).unwrap();
 
-        let edge = GraphEdge {
-            kind: EdgeKind::Calls,
-            weight: 1.0,
-        };
+        let edge = GraphEdge { kind: EdgeKind::Calls, weight: 1.0 };
         let added = graph.add_edge("foo", "nonexistent", edge);
         assert!(!added);
     }
@@ -720,10 +707,7 @@ def bar():
     #[test]
     fn test_add_edge_both_missing() {
         let mut graph = DependencyGraph::new();
-        let edge = GraphEdge {
-            kind: EdgeKind::Calls,
-            weight: 1.0,
-        };
+        let edge = GraphEdge { kind: EdgeKind::Calls, weight: 1.0 };
         let added = graph.add_edge("a", "b", edge);
         assert!(!added);
     }
@@ -734,10 +718,7 @@ def bar():
         let mut builder = GraphBuilder::new();
         let mut graph = builder.build_from_source(python).unwrap();
 
-        let edge = GraphEdge {
-            kind: EdgeKind::Calls,
-            weight: 2.0,
-        };
+        let edge = GraphEdge { kind: EdgeKind::Calls, weight: 2.0 };
         let added = graph.add_edge("bar", "foo", edge);
         assert!(added);
         assert_eq!(graph.edge_count(), 1);

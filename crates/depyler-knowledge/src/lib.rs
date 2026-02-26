@@ -192,13 +192,8 @@ mod tests {
 
     #[test]
     fn test_type_fact_method() {
-        let fact = TypeFact::method(
-            "requests.models",
-            "Response",
-            "json",
-            "(self) -> dict",
-            "dict",
-        );
+        let fact =
+            TypeFact::method("requests.models", "Response", "json", "(self) -> dict", "dict");
         assert_eq!(fact.symbol, "Response.json");
         assert_eq!(fact.kind, TypeFactKind::Method);
     }
@@ -213,31 +208,19 @@ mod tests {
 
     #[test]
     fn test_type_fact_kind_from_str() {
-        assert_eq!(
-            "function".parse::<TypeFactKind>().unwrap(),
-            TypeFactKind::Function
-        );
-        assert_eq!(
-            "class".parse::<TypeFactKind>().unwrap(),
-            TypeFactKind::Class
-        );
+        assert_eq!("function".parse::<TypeFactKind>().unwrap(), TypeFactKind::Function);
+        assert_eq!("class".parse::<TypeFactKind>().unwrap(), TypeFactKind::Class);
         assert!("invalid".parse::<TypeFactKind>().is_err());
     }
 
     #[test]
     fn test_type_fact_kind_from_str_method() {
-        assert_eq!(
-            "method".parse::<TypeFactKind>().unwrap(),
-            TypeFactKind::Method
-        );
+        assert_eq!("method".parse::<TypeFactKind>().unwrap(), TypeFactKind::Method);
     }
 
     #[test]
     fn test_type_fact_kind_from_str_attribute() {
-        assert_eq!(
-            "attribute".parse::<TypeFactKind>().unwrap(),
-            TypeFactKind::Attribute
-        );
+        assert_eq!("attribute".parse::<TypeFactKind>().unwrap(), TypeFactKind::Attribute);
     }
 
     #[test]
@@ -277,12 +260,7 @@ mod tests {
 
     #[test]
     fn test_type_fact_function_fqn() {
-        let fact = TypeFact::function(
-            "os.path",
-            "join",
-            "(path: str, *paths: str) -> str",
-            "str",
-        );
+        let fact = TypeFact::function("os.path", "join", "(path: str, *paths: str) -> str", "str");
         assert_eq!(fact.fqn(), "os.path.join");
     }
 
@@ -346,13 +324,7 @@ mod tests {
 
     #[test]
     fn test_type_fact_method_class_with_dots() {
-        let fact = TypeFact::method(
-            "pkg.submod",
-            "MyClass",
-            "do_thing",
-            "(self) -> None",
-            "None",
-        );
+        let fact = TypeFact::method("pkg.submod", "MyClass", "do_thing", "(self) -> None", "None");
         assert_eq!(fact.fqn(), "pkg.submod.MyClass.do_thing");
     }
 

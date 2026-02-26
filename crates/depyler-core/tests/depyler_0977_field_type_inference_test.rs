@@ -74,18 +74,9 @@ class Config:
     let retry_field = class.fields.iter().find(|f| f.name == "retry");
 
     // These should already have correct types from literal inference
-    assert!(matches!(
-        mode_field.map(|f| &f.field_type),
-        Some(Type::String)
-    ));
-    assert!(matches!(
-        timeout_field.map(|f| &f.field_type),
-        Some(Type::Int)
-    ));
-    assert!(matches!(
-        retry_field.map(|f| &f.field_type),
-        Some(Type::Bool)
-    ));
+    assert!(matches!(mode_field.map(|f| &f.field_type), Some(Type::String)));
+    assert!(matches!(timeout_field.map(|f| &f.field_type), Some(Type::Int)));
+    assert!(matches!(retry_field.map(|f| &f.field_type), Some(Type::Bool)));
 }
 
 /// Test: Dict field type inference from update/assignment

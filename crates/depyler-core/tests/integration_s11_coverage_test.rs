@@ -11,10 +11,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -39,7 +37,11 @@ def word_count(text: str) -> dict:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn word_count"), "Should generate function. Got: {}", result);
-    assert!(result.contains("HashMap") || result.contains("counts"), "Should use HashMap. Got: {}", result);
+    assert!(
+        result.contains("HashMap") || result.contains("counts"),
+        "Should use HashMap. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -54,7 +56,11 @@ def positive_doubles(items: list) -> list:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn positive_doubles"), "Should generate function");
-    assert!(result.contains("push") || result.contains("collect"), "Should use push/collect. Got: {}", result);
+    assert!(
+        result.contains("push") || result.contains("collect"),
+        "Should use push/collect. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -85,7 +91,11 @@ def clean_and_split(text: str) -> list:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("trim") || result.contains("to_lowercase"), "Should have string methods. Got: {}", result);
+    assert!(
+        result.contains("trim") || result.contains("to_lowercase"),
+        "Should have string methods. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -147,8 +157,11 @@ def find_first(items: list, target: int) -> Optional[int]:
     return None
 "#;
     let result = transpile(code);
-    assert!(result.contains("Option") || result.contains("None") || result.contains("Some"),
-            "Should use Option type. Got: {}", result);
+    assert!(
+        result.contains("Option") || result.contains("None") || result.contains("Some"),
+        "Should use Option type. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -208,7 +221,11 @@ def bubble_sort(arr: list) -> list:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn bubble_sort"), "Should generate bubble sort");
-    assert!(result.contains("for") || result.contains("range"), "Should have loops. Got: {}", result);
+    assert!(
+        result.contains("for") || result.contains("range"),
+        "Should have loops. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -292,7 +309,11 @@ def reverse_words(sentence: str) -> str:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn reverse_words"), "Should generate reverse_words");
-    assert!(result.contains("split") || result.contains("join"), "Should use string methods. Got: {}", result);
+    assert!(
+        result.contains("split") || result.contains("join"),
+        "Should use string methods. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -332,7 +353,11 @@ def is_prime(n: int) -> bool:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn is_prime"), "Should generate prime check");
-    assert!(result.contains("false") || result.contains("true"), "Should have boolean returns. Got: {}", result);
+    assert!(
+        result.contains("false") || result.contains("true"),
+        "Should have boolean returns. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -456,7 +481,11 @@ def validate(name: str, age: int) -> bool:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn validate"), "Should generate validate");
-    assert!(result.contains("false") && result.contains("true"), "Should have boolean returns. Got: {}", result);
+    assert!(
+        result.contains("false") && result.contains("true"),
+        "Should have boolean returns. Got: {}",
+        result
+    );
 }
 
 // ============================================================================
@@ -518,8 +547,11 @@ def find_duplicate(items: list) -> int:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn find_duplicate"), "Should generate find_duplicate");
-    assert!(result.contains("HashSet") || result.contains("set") || result.contains("insert"),
-            "Should use set. Got: {}", result);
+    assert!(
+        result.contains("HashSet") || result.contains("set") || result.contains("insert"),
+        "Should use set. Got: {}",
+        result
+    );
 }
 
 #[test]
@@ -536,5 +568,9 @@ def filter_and_transform(items: list, threshold: int) -> list:
 "#;
     let result = transpile(code);
     assert!(result.contains("fn filter_and_transform"), "Should generate function");
-    assert!(result.contains("if") || result.contains("else"), "Should have conditionals. Got: {}", result);
+    assert!(
+        result.contains("if") || result.contains("else"),
+        "Should have conditionals. Got: {}",
+        result
+    );
 }

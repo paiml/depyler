@@ -28,11 +28,7 @@ impl CitlResult {
 
     /// Create a result from compilation statistics
     pub fn from_stats(compiled: usize, total: usize, iterations: usize, fixes: usize) -> Self {
-        let rate = if total == 0 {
-            1.0
-        } else {
-            compiled as f64 / total as f64
-        };
+        let rate = if total == 0 { 1.0 } else { compiled as f64 / total as f64 };
         Self {
             success: rate >= 1.0,
             compilation_rate: rate,
@@ -68,11 +64,7 @@ pub struct CitlConfig {
 
 impl Default for CitlConfig {
     fn default() -> Self {
-        Self {
-            max_iterations: 10,
-            confidence_threshold: 0.8,
-            verbose: false,
-        }
+        Self { max_iterations: 10, confidence_threshold: 0.8, verbose: false }
     }
 }
 
@@ -103,12 +95,7 @@ pub struct QualityTargets {
 
 impl Default for QualityTargets {
     fn default() -> Self {
-        Self {
-            min_tdg: 0.0,
-            max_tdg: 2.0,
-            max_complexity: 10,
-            min_coverage: 80,
-        }
+        Self { min_tdg: 0.0, max_tdg: 2.0, max_complexity: 10, min_coverage: 80 }
     }
 }
 
@@ -156,11 +143,7 @@ pub struct DoctestConfig {
 
 impl Default for DoctestConfig {
     fn default() -> Self {
-        Self {
-            module_prefix: String::new(),
-            include_classes: true,
-            include_pytest: false,
-        }
+        Self { module_prefix: String::new(), include_classes: true, include_pytest: false }
     }
 }
 
@@ -235,10 +218,7 @@ impl FileFilter {
 
     /// Create a Python file filter excluding tests
     pub fn python_no_tests() -> Self {
-        Self {
-            skip_test_files: true,
-            ..Self::python()
-        }
+        Self { skip_test_files: true, ..Self::python() }
     }
 
     /// Check if a directory should be skipped
@@ -384,13 +364,7 @@ pub struct BatchProgress {
 
 impl BatchProgress {
     pub fn new(total: usize) -> Self {
-        Self {
-            total,
-            completed: 0,
-            succeeded: 0,
-            failed: 0,
-            skipped: 0,
-        }
+        Self { total, completed: 0, succeeded: 0, failed: 0, skipped: 0 }
     }
 
     /// Record a success
@@ -568,37 +542,25 @@ mod tests {
 
     #[test]
     fn test_citl_config_validate_zero_iterations() {
-        let config = CitlConfig {
-            max_iterations: 0,
-            ..Default::default()
-        };
+        let config = CitlConfig { max_iterations: 0, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_citl_config_validate_too_many_iterations() {
-        let config = CitlConfig {
-            max_iterations: 101,
-            ..Default::default()
-        };
+        let config = CitlConfig { max_iterations: 101, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_citl_config_validate_invalid_threshold() {
-        let config = CitlConfig {
-            confidence_threshold: 1.5,
-            ..Default::default()
-        };
+        let config = CitlConfig { confidence_threshold: 1.5, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_citl_config_validate_negative_threshold() {
-        let config = CitlConfig {
-            confidence_threshold: -0.1,
-            ..Default::default()
-        };
+        let config = CitlConfig { confidence_threshold: -0.1, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
@@ -623,38 +585,25 @@ mod tests {
 
     #[test]
     fn test_quality_targets_validate_negative_tdg() {
-        let targets = QualityTargets {
-            min_tdg: -1.0,
-            ..Default::default()
-        };
+        let targets = QualityTargets { min_tdg: -1.0, ..Default::default() };
         assert!(targets.validate().is_err());
     }
 
     #[test]
     fn test_quality_targets_validate_invalid_range() {
-        let targets = QualityTargets {
-            min_tdg: 3.0,
-            max_tdg: 2.0,
-            ..Default::default()
-        };
+        let targets = QualityTargets { min_tdg: 3.0, max_tdg: 2.0, ..Default::default() };
         assert!(targets.validate().is_err());
     }
 
     #[test]
     fn test_quality_targets_validate_zero_complexity() {
-        let targets = QualityTargets {
-            max_complexity: 0,
-            ..Default::default()
-        };
+        let targets = QualityTargets { max_complexity: 0, ..Default::default() };
         assert!(targets.validate().is_err());
     }
 
     #[test]
     fn test_quality_targets_validate_high_coverage() {
-        let targets = QualityTargets {
-            min_coverage: 101,
-            ..Default::default()
-        };
+        let targets = QualityTargets { min_coverage: 101, ..Default::default() };
         assert!(targets.validate().is_err());
     }
 
@@ -706,10 +655,7 @@ mod tests {
 
     #[test]
     fn test_doctest_config_module_name_with_prefix() {
-        let config = DoctestConfig {
-            module_prefix: "mypackage".to_string(),
-            ..Default::default()
-        };
+        let config = DoctestConfig { module_prefix: "mypackage".to_string(), ..Default::default() };
         let path = Path::new("utils.py");
         let name = config.module_name(path);
         assert!(name.starts_with("mypackage."));
@@ -728,22 +674,15 @@ mod tests {
 
     #[test]
     fn test_doctest_summary_total_examples() {
-        let summary = DoctestSummary {
-            total_doctests: 10,
-            total_pytest: 5,
-            ..Default::default()
-        };
+        let summary = DoctestSummary { total_doctests: 10, total_pytest: 5, ..Default::default() };
         assert_eq!(summary.total_examples(), 15);
         assert!(summary.has_examples());
     }
 
     #[test]
     fn test_doctest_summary_extraction_rate() {
-        let summary = DoctestSummary {
-            files_processed: 10,
-            files_with_examples: 4,
-            ..Default::default()
-        };
+        let summary =
+            DoctestSummary { files_processed: 10, files_with_examples: 4, ..Default::default() };
         assert!((summary.extraction_rate() - 40.0).abs() < 0.001);
     }
 
@@ -855,14 +794,8 @@ mod tests {
 
     #[test]
     fn test_architecture_target_triple() {
-        assert_eq!(
-            Architecture::X86_64.target_triple(),
-            "x86_64-unknown-linux-musl"
-        );
-        assert_eq!(
-            Architecture::Arm64.target_triple(),
-            "aarch64-unknown-linux-musl"
-        );
+        assert_eq!(Architecture::X86_64.target_triple(), "x86_64-unknown-linux-musl");
+        assert_eq!(Architecture::Arm64.target_triple(), "aarch64-unknown-linux-musl");
     }
 
     // =====================================================
@@ -884,46 +817,31 @@ mod tests {
 
     #[test]
     fn test_lambda_config_validate_low_memory() {
-        let config = LambdaConfig {
-            memory_mb: 64,
-            ..Default::default()
-        };
+        let config = LambdaConfig { memory_mb: 64, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_lambda_config_validate_high_memory() {
-        let config = LambdaConfig {
-            memory_mb: 20000,
-            ..Default::default()
-        };
+        let config = LambdaConfig { memory_mb: 20000, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_lambda_config_validate_zero_timeout() {
-        let config = LambdaConfig {
-            timeout_secs: 0,
-            ..Default::default()
-        };
+        let config = LambdaConfig { timeout_secs: 0, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_lambda_config_validate_high_timeout() {
-        let config = LambdaConfig {
-            timeout_secs: 1000,
-            ..Default::default()
-        };
+        let config = LambdaConfig { timeout_secs: 1000, ..Default::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn test_lambda_config_estimated_cost() {
-        let config = LambdaConfig {
-            memory_mb: 1024,
-            ..Default::default()
-        };
+        let config = LambdaConfig { memory_mb: 1024, ..Default::default() };
         let cost = config.estimated_cost_per_million(100);
         assert!(cost > 0.0);
     }

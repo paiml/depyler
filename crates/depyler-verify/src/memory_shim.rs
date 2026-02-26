@@ -68,20 +68,11 @@ impl AllocationTracker {
 pub enum MemoryViolation {
     UseAfterFree(String),
     DoubleFree(String),
-    BufferOverflow {
-        index: i64,
-        size: usize,
-    },
-    BufferUnderflow {
-        index: i64,
-    },
+    BufferOverflow { index: i64, size: usize },
+    BufferUnderflow { index: i64 },
     NullDereference,
     UninitializedAccess(String),
-    DataRace {
-        var: String,
-        op1: String,
-        op2: String,
-    },
+    DataRace { var: String, op1: String, op2: String },
 }
 
 impl MemoryViolation {
@@ -98,10 +89,7 @@ impl MemoryViolation {
     }
 
     pub fn is_exploitable(&self) -> bool {
-        matches!(
-            self,
-            Self::UseAfterFree(_) | Self::BufferOverflow { .. } | Self::DoubleFree(_)
-        )
+        matches!(self, Self::UseAfterFree(_) | Self::BufferOverflow { .. } | Self::DoubleFree(_))
     }
 
     pub fn cwe_id(&self) -> u32 {
@@ -143,9 +131,7 @@ pub struct BoundsChecker {
 
 impl BoundsChecker {
     pub fn new() -> Self {
-        Self {
-            array_sizes: HashMap::new(),
-        }
+        Self { array_sizes: HashMap::new() }
     }
 
     pub fn register_array(&mut self, name: &str, size: usize) {
@@ -235,10 +221,7 @@ impl InitializationTracker {
     }
 
     pub fn initialize_field(&mut self, var: &str, field: &str) {
-        self.partially_initialized
-            .entry(var.to_string())
-            .or_default()
-            .insert(field.to_string());
+        self.partially_initialized.entry(var.to_string()).or_default().insert(field.to_string());
     }
 
     pub fn is_initialized(&self, var: &str) -> bool {
@@ -276,17 +259,11 @@ impl DataRaceDetector {
     }
 
     pub fn record_read(&mut self, var: &str, thread: &str) {
-        self.concurrent_reads
-            .entry(var.to_string())
-            .or_default()
-            .push(thread.to_string());
+        self.concurrent_reads.entry(var.to_string()).or_default().push(thread.to_string());
     }
 
     pub fn record_write(&mut self, var: &str, thread: &str) {
-        self.concurrent_writes
-            .entry(var.to_string())
-            .or_default()
-            .push(thread.to_string());
+        self.concurrent_writes.entry(var.to_string()).or_default().push(thread.to_string());
     }
 
     pub fn check_races(&self) -> Vec<MemoryViolation> {
@@ -420,10 +397,7 @@ mod tests {
     fn test_memory_violation_severity() {
         assert_eq!(MemoryViolation::UseAfterFree("x".to_string()).severity(), 5);
         assert_eq!(MemoryViolation::DoubleFree("x".to_string()).severity(), 5);
-        assert_eq!(
-            MemoryViolation::BufferOverflow { index: 10, size: 5 }.severity(),
-            5
-        );
+        assert_eq!(MemoryViolation::BufferOverflow { index: 10, size: 5 }.severity(), 5);
         assert_eq!(MemoryViolation::NullDereference.severity(), 4);
     }
 
@@ -439,10 +413,7 @@ mod tests {
     fn test_memory_violation_cwe_id() {
         assert_eq!(MemoryViolation::UseAfterFree("x".to_string()).cwe_id(), 416);
         assert_eq!(MemoryViolation::DoubleFree("x".to_string()).cwe_id(), 415);
-        assert_eq!(
-            MemoryViolation::BufferOverflow { index: 10, size: 5 }.cwe_id(),
-            787
-        );
+        assert_eq!(MemoryViolation::BufferOverflow { index: 10, size: 5 }.cwe_id(), 787);
         assert_eq!(MemoryViolation::BufferUnderflow { index: -1 }.cwe_id(), 125);
         assert_eq!(MemoryViolation::NullDereference.cwe_id(), 476);
         assert_eq!(
@@ -493,23 +464,14 @@ mod tests {
         let mut checker = BoundsChecker::new();
         checker.register_array("arr", 10);
         let violation = checker.check_bounds("arr", 10);
-        assert!(matches!(
-            violation,
-            Some(MemoryViolation::BufferOverflow {
-                index: 10,
-                size: 10
-            })
-        ));
+        assert!(matches!(violation, Some(MemoryViolation::BufferOverflow { index: 10, size: 10 })));
     }
 
     #[test]
     fn test_bounds_checker_underflow() {
         let checker = BoundsChecker::new();
         let violation = checker.check_bounds("arr", -1);
-        assert!(matches!(
-            violation,
-            Some(MemoryViolation::BufferUnderflow { index: -1 })
-        ));
+        assert!(matches!(violation, Some(MemoryViolation::BufferUnderflow { index: -1 })));
     }
 
     #[test]
@@ -560,10 +522,7 @@ mod tests {
     fn test_null_checker_dereference_unsafe() {
         let mut checker = NullChecker::new();
         checker.mark_nullable("x");
-        assert!(matches!(
-            checker.check_dereference("x"),
-            Some(MemoryViolation::NullDereference)
-        ));
+        assert!(matches!(checker.check_dereference("x"), Some(MemoryViolation::NullDereference)));
     }
 
     // InitializationTracker tests
@@ -592,10 +551,7 @@ mod tests {
     #[test]
     fn test_initialization_tracker_check_access_uninit() {
         let tracker = InitializationTracker::new();
-        assert!(matches!(
-            tracker.check_access("x"),
-            Some(MemoryViolation::UninitializedAccess(_))
-        ));
+        assert!(matches!(tracker.check_access("x"), Some(MemoryViolation::UninitializedAccess(_))));
     }
 
     #[test]

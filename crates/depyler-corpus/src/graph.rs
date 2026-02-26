@@ -79,11 +79,7 @@ impl Default for GraphAnalyzer {
 impl GraphAnalyzer {
     /// Create a new graph analyzer with default parameters.
     pub fn new() -> Self {
-        Self {
-            damping: 0.85,
-            max_iterations: 100,
-            convergence: 1e-6,
-        }
+        Self { damping: 0.85, max_iterations: 100, convergence: 1e-6 }
     }
 
     /// Build and analyze the error graph.
@@ -138,13 +134,7 @@ impl GraphAnalyzer {
         // Build communities
         let communities = self.build_communities(&nodes, &community_map);
 
-        ErrorGraph {
-            nodes,
-            edges,
-            communities,
-            top_by_pagerank,
-            modularity,
-        }
+        ErrorGraph { nodes, edges, communities, top_by_pagerank, modularity }
     }
 
     fn build_edges(
@@ -158,11 +148,7 @@ impl GraphAnalyzer {
             .iter()
             .map(|((from, to), &count)| {
                 let weight = count as f64 / max_count;
-                ErrorEdge {
-                    from: from.clone(),
-                    to: to.clone(),
-                    weight,
-                }
+                ErrorEdge { from: from.clone(), to: to.clone(), weight }
             })
             .collect()
     }
@@ -181,14 +167,8 @@ impl GraphAnalyzer {
 
         // Add edges (bidirectional for undirected graph)
         for edge in edges {
-            adjacency
-                .entry(edge.from.clone())
-                .or_default()
-                .push((edge.to.clone(), edge.weight));
-            adjacency
-                .entry(edge.to.clone())
-                .or_default()
-                .push((edge.from.clone(), edge.weight));
+            adjacency.entry(edge.from.clone()).or_default().push((edge.to.clone(), edge.weight));
+            adjacency.entry(edge.to.clone()).or_default().push((edge.from.clone(), edge.weight));
         }
 
         adjacency
@@ -267,19 +247,13 @@ impl GraphAnalyzer {
         }
 
         // Initialize: each node in its own community
-        let mut community: HashMap<String, usize> = nodes
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (n.clone(), i))
-            .collect();
+        let mut community: HashMap<String, usize> =
+            nodes.iter().enumerate().map(|(i, n)| (n.clone(), i)).collect();
 
         // Total edge weight
-        let total_weight: f64 = adjacency
-            .values()
-            .flat_map(|neighbors| neighbors.iter())
-            .map(|(_, w)| w)
-            .sum::<f64>()
-            / 2.0; // Divide by 2 for undirected graph
+        let total_weight: f64 =
+            adjacency.values().flat_map(|neighbors| neighbors.iter()).map(|(_, w)| w).sum::<f64>()
+                / 2.0; // Divide by 2 for undirected graph
 
         if total_weight == 0.0 {
             return (community, 0.0);
@@ -297,10 +271,7 @@ impl GraphAnalyzer {
                 let neighbor_comms: HashSet<usize> = adjacency
                     .get(node)
                     .map(|neighbors| {
-                        neighbors
-                            .iter()
-                            .map(|(n, _)| *community.get(n).unwrap_or(&0))
-                            .collect()
+                        neighbors.iter().map(|(n, _)| *community.get(n).unwrap_or(&0)).collect()
                     })
                     .unwrap_or_default();
 
@@ -427,20 +398,16 @@ impl GraphAnalyzer {
         let mut q = 0.0;
 
         for (node_i, &comm_i) in community {
-            let k_i: f64 = adjacency
-                .get(node_i)
-                .map(|n| n.iter().map(|(_, w)| w).sum())
-                .unwrap_or(0.0);
+            let k_i: f64 =
+                adjacency.get(node_i).map(|n| n.iter().map(|(_, w)| w).sum()).unwrap_or(0.0);
 
             for (node_j, &comm_j) in community {
                 if comm_i != comm_j {
                     continue;
                 }
 
-                let k_j: f64 = adjacency
-                    .get(node_j)
-                    .map(|n| n.iter().map(|(_, w)| w).sum())
-                    .unwrap_or(0.0);
+                let k_j: f64 =
+                    adjacency.get(node_j).map(|n| n.iter().map(|(_, w)| w).sum()).unwrap_or(0.0);
 
                 // Edge weight between i and j
                 let a_ij: f64 = adjacency
@@ -483,13 +450,7 @@ impl GraphAnalyzer {
 
                 let label = self.generate_community_label(&members);
 
-                ErrorCommunity {
-                    id,
-                    members: member_codes,
-                    dominant,
-                    total_count,
-                    label,
-                }
+                ErrorCommunity { id, members: member_codes, dominant, total_count, label }
             })
             .collect()
     }
@@ -513,10 +474,7 @@ impl GraphAnalyzer {
         } else if borrow_errors > total / 2 {
             "Ownership Community".to_string()
         } else {
-            format!(
-                "Mixed Community ({} errors)",
-                members.iter().map(|n| n.count).sum::<usize>()
-            )
+            format!("Mixed Community ({} errors)", members.iter().map(|n| n.count).sum::<usize>())
         }
     }
 }
@@ -592,10 +550,7 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
         adjacency.insert("A".to_string(), vec![("B".to_string(), 1.0)]);
-        adjacency.insert(
-            "B".to_string(),
-            vec![("A".to_string(), 1.0), ("C".to_string(), 1.0)],
-        );
+        adjacency.insert("B".to_string(), vec![("A".to_string(), 1.0), ("C".to_string(), 1.0)]);
         adjacency.insert("C".to_string(), vec![("B".to_string(), 1.0)]);
 
         let nodes = vec!["A".to_string(), "B".to_string(), "C".to_string()];
@@ -612,27 +567,17 @@ mod tests {
     #[test]
     fn test_extract_co_occurrences() {
         let file_errors = vec![
-            (
-                "file1.rs".to_string(),
-                vec!["E0308".to_string(), "E0412".to_string()],
-            ),
+            ("file1.rs".to_string(), vec!["E0308".to_string(), "E0412".to_string()]),
             (
                 "file2.rs".to_string(),
-                vec![
-                    "E0308".to_string(),
-                    "E0412".to_string(),
-                    "E0425".to_string(),
-                ],
+                vec!["E0308".to_string(), "E0412".to_string(), "E0425".to_string()],
             ),
         ];
 
         let co_occur = extract_co_occurrences(&file_errors);
 
         // E0308-E0412 appears in both files
-        assert_eq!(
-            co_occur.get(&("E0308".to_string(), "E0412".to_string())),
-            Some(&2)
-        );
+        assert_eq!(co_occur.get(&("E0308".to_string(), "E0412".to_string())), Some(&2));
     }
 
     #[test]
@@ -659,12 +604,7 @@ mod tests {
 
     #[test]
     fn test_error_node_creation() {
-        let node = ErrorNode {
-            code: "E0308".to_string(),
-            count: 10,
-            pagerank: 0.5,
-            community: 0,
-        };
+        let node = ErrorNode { code: "E0308".to_string(), count: 10, pagerank: 0.5, community: 0 };
 
         assert_eq!(node.code, "E0308");
         assert_eq!(node.count, 10);
@@ -674,18 +614,8 @@ mod tests {
     fn test_community_label_generation() {
         let analyzer = GraphAnalyzer::new();
 
-        let node1 = ErrorNode {
-            code: "E0308".to_string(),
-            count: 10,
-            pagerank: 0.5,
-            community: 0,
-        };
-        let node2 = ErrorNode {
-            code: "E0309".to_string(),
-            count: 5,
-            pagerank: 0.3,
-            community: 0,
-        };
+        let node1 = ErrorNode { code: "E0308".to_string(), count: 10, pagerank: 0.5, community: 0 };
+        let node2 = ErrorNode { code: "E0309".to_string(), count: 5, pagerank: 0.3, community: 0 };
         let type_nodes = vec![&node1, &node2];
 
         let label = analyzer.generate_community_label(&type_nodes);

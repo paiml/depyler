@@ -352,10 +352,7 @@ mod fallback_tests {
 
     #[test]
     fn test_static_item_mapping_struct() {
-        let mapping = StaticItemMapping {
-            python_name: "loads",
-            rust_name: "from_str",
-        };
+        let mapping = StaticItemMapping { python_name: "loads", rust_name: "from_str" };
         assert_eq!(mapping.python_name, "loads");
         assert_eq!(mapping.rust_name, "from_str");
     }
@@ -411,10 +408,7 @@ mod tests {
 
     #[test]
     fn test_item_lookup_numpy() {
-        assert_eq!(
-            get_item_mapping("numpy", "array"),
-            Some("Vector::from_slice")
-        );
+        assert_eq!(get_item_mapping("numpy", "array"), Some("Vector::from_slice"));
         assert_eq!(get_item_mapping("numpy", "sum"), Some("Vector::sum"));
     }
 
@@ -431,10 +425,6 @@ mod tests {
     #[test]
     fn test_supported_modules_count() {
         let count = supported_modules().count();
-        assert!(
-            count >= 30,
-            "Should have at least 30 modules, got {}",
-            count
-        );
+        assert!(count >= 30, "Should have at least 30 modules, got {}", count);
     }
 }

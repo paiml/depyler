@@ -138,11 +138,7 @@ impl SyntheticGenerator {
                 _ => "Check type annotations and conversions",
             };
 
-            samples.push(TrainingSample::with_fix(
-                &msg,
-                ErrorCategory::TypeMismatch,
-                fix,
-            ));
+            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::TypeMismatch, fix));
             idx += 1;
         }
 
@@ -153,43 +149,25 @@ impl SyntheticGenerator {
     fn generate_borrow_checker_samples(&self) -> Vec<TrainingSample> {
         let mut samples = Vec::with_capacity(self.config.samples_per_category);
 
-        let var_names = [
-            "x", "y", "data", "value", "item", "result", "buf", "config", "state", "cache",
-        ];
-        let error_codes = [
-            "E0382", "E0502", "E0499", "E0505", "E0507", "E0596", "E0597", "E0373",
-        ];
+        let var_names =
+            ["x", "y", "data", "value", "item", "result", "buf", "config", "state", "cache"];
+        let error_codes = ["E0382", "E0502", "E0499", "E0505", "E0507", "E0596", "E0597", "E0373"];
 
         let patterns = [
             ("use of moved value", "Clone before moving or use reference"),
-            (
-                "borrow of moved value",
-                "Restructure to avoid move before borrow",
-            ),
+            ("borrow of moved value", "Restructure to avoid move before borrow"),
             (
                 "cannot borrow as mutable because also borrowed as immutable",
                 "Separate mutable and immutable borrows",
             ),
-            (
-                "cannot borrow as mutable more than once",
-                "Use RefCell for interior mutability",
-            ),
-            (
-                "cannot move out of borrowed content",
-                "Clone or change signature",
-            ),
+            ("cannot borrow as mutable more than once", "Use RefCell for interior mutability"),
+            ("cannot move out of borrowed content", "Clone or change signature"),
             (
                 "cannot borrow as mutable, as it is not declared as mutable",
                 "Add mut to declaration",
             ),
-            (
-                "does not live long enough",
-                "Extend lifetime or use owned data",
-            ),
-            (
-                "closure may outlive current function",
-                "Use move keyword in closure",
-            ),
+            ("does not live long enough", "Extend lifetime or use owned data"),
+            ("closure may outlive current function", "Use move keyword in closure"),
         ];
 
         let mut idx = 0;
@@ -204,23 +182,11 @@ impl SyntheticGenerator {
                 code,
                 pattern,
                 var,
-                if pattern.contains("moved") {
-                    "moved"
-                } else {
-                    "borrowed"
-                },
-                if pattern.contains("moved") {
-                    "used"
-                } else {
-                    "borrowed again"
-                }
+                if pattern.contains("moved") { "moved" } else { "borrowed" },
+                if pattern.contains("moved") { "used" } else { "borrowed again" }
             );
 
-            samples.push(TrainingSample::with_fix(
-                &msg,
-                ErrorCategory::BorrowChecker,
-                fix,
-            ));
+            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::BorrowChecker, fix));
             idx += 1;
         }
 
@@ -237,22 +203,10 @@ impl SyntheticGenerator {
         let patterns = [
             ("missing lifetime specifier", "Add lifetime parameter: <'a>"),
             ("explicit lifetime required", "Add lifetime annotation"),
-            (
-                "cannot infer appropriate lifetime",
-                "Add explicit lifetime bounds",
-            ),
-            (
-                "needs to satisfy 'static requirement",
-                "Use Box or Arc for 'static",
-            ),
-            (
-                "cannot return reference to temporary",
-                "Return owned value instead",
-            ),
-            (
-                "temporary value dropped while borrowed",
-                "Bind temporary to variable",
-            ),
+            ("cannot infer appropriate lifetime", "Add explicit lifetime bounds"),
+            ("needs to satisfy 'static requirement", "Use Box or Arc for 'static"),
+            ("cannot return reference to temporary", "Return owned value instead"),
+            ("temporary value dropped while borrowed", "Bind temporary to variable"),
         ];
 
         let mut idx = 0;
@@ -267,11 +221,7 @@ impl SyntheticGenerator {
                 code, pattern, lt
             );
 
-            samples.push(TrainingSample::with_fix(
-                &msg,
-                ErrorCategory::LifetimeError,
-                fix,
-            ));
+            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::LifetimeError, fix));
             idx += 1;
         }
 
@@ -330,11 +280,7 @@ impl SyntheticGenerator {
                 _ => format!("Implement {} for the type", trait_name),
             };
 
-            samples.push(TrainingSample::with_fix(
-                &msg,
-                ErrorCategory::TraitBound,
-                &fix,
-            ));
+            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::TraitBound, &fix));
             idx += 1;
         }
 
@@ -387,26 +333,16 @@ impl SyntheticGenerator {
                     item.to_lowercase()
                 ),
                 "E0432" => format!("error[{}]: unresolved import `{}`", code, module),
-                "E0603" => format!(
-                    "error[{}]: module `{}` is private",
-                    code,
-                    item.to_lowercase()
-                ),
-                "E0599" => format!(
-                    "error[{}]: no method named `{}` found",
-                    code,
-                    item.to_lowercase()
-                ),
+                "E0603" => format!("error[{}]: module `{}` is private", code, item.to_lowercase()),
+                "E0599" => {
+                    format!("error[{}]: no method named `{}` found", code, item.to_lowercase())
+                }
                 _ => format!("error[{}]: import error for `{}`", code, module),
             };
 
             let fix = format!("Add: use {};", module);
 
-            samples.push(TrainingSample::with_fix(
-                &msg,
-                ErrorCategory::MissingImport,
-                &fix,
-            ));
+            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::MissingImport, &fix));
             idx += 1;
         }
 
@@ -421,25 +357,13 @@ impl SyntheticGenerator {
             ("expected `;`, found `}`", "Add missing semicolon"),
             ("expected `{`, found `=>`", "Check match arm syntax"),
             ("unexpected token `)`", "Check for extra parentheses"),
-            (
-                "expected expression, found `let`",
-                "Remove let in expression position",
-            ),
+            ("expected expression, found `let`", "Remove let in expression position"),
             ("unclosed delimiter", "Add missing closing bracket/brace"),
-            (
-                "expected identifier, found keyword",
-                "Use raw identifier r#keyword",
-            ),
-            (
-                "expected pattern, found expression",
-                "Use pattern syntax in match",
-            ),
+            ("expected identifier, found keyword", "Use raw identifier r#keyword"),
+            ("expected pattern, found expression", "Use pattern syntax in match"),
             ("expected type, found `=`", "Check type annotation syntax"),
             ("missing `fn` for method definition", "Add fn keyword"),
-            (
-                "expected `->`, found `=>`",
-                "Use -> for return type, => for match arms",
-            ),
+            ("expected `->`, found `=>`", "Use -> for return type, => for match arms"),
         ];
 
         let contexts = [
@@ -464,11 +388,7 @@ impl SyntheticGenerator {
                 context
             );
 
-            samples.push(TrainingSample::with_fix(
-                &msg,
-                ErrorCategory::SyntaxError,
-                fix,
-            ));
+            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::SyntaxError, fix));
             idx += 1;
         }
 
@@ -491,11 +411,8 @@ pub fn generate_synthetic_corpus() -> TrainingDataset {
 /// Generate synthetic dataset with custom sample count per category.
 #[must_use]
 pub fn generate_synthetic_corpus_sized(samples_per_category: usize) -> TrainingDataset {
-    SyntheticGenerator::with_config(SyntheticConfig {
-        samples_per_category,
-        ..Default::default()
-    })
-    .generate()
+    SyntheticGenerator::with_config(SyntheticConfig { samples_per_category, ..Default::default() })
+        .generate()
 }
 
 #[cfg(test)]
@@ -511,10 +428,7 @@ mod tests {
 
     #[test]
     fn test_synthetic_config_clone() {
-        let config = SyntheticConfig {
-            samples_per_category: 100,
-            seed: 123,
-        };
+        let config = SyntheticConfig { samples_per_category: 100, seed: 123 };
         let cloned = config.clone();
         assert_eq!(cloned.samples_per_category, 100);
         assert_eq!(cloned.seed, 123);
@@ -542,10 +456,7 @@ mod tests {
 
     #[test]
     fn test_synthetic_generator_with_config() {
-        let config = SyntheticConfig {
-            samples_per_category: 50,
-            seed: 99,
-        };
+        let config = SyntheticConfig { samples_per_category: 50, seed: 99 };
         let gen = SyntheticGenerator::with_config(config);
         assert_eq!(gen.config.samples_per_category, 50);
         assert_eq!(gen.config.seed, 99);
@@ -576,15 +487,9 @@ mod tests {
     fn test_category_balance() {
         let dataset = generate_synthetic_corpus_sized(100);
 
-        let type_count = dataset
-            .samples_for_category(ErrorCategory::TypeMismatch)
-            .len();
-        let borrow_count = dataset
-            .samples_for_category(ErrorCategory::BorrowChecker)
-            .len();
-        let lifetime_count = dataset
-            .samples_for_category(ErrorCategory::LifetimeError)
-            .len();
+        let type_count = dataset.samples_for_category(ErrorCategory::TypeMismatch).len();
+        let borrow_count = dataset.samples_for_category(ErrorCategory::BorrowChecker).len();
+        let lifetime_count = dataset.samples_for_category(ErrorCategory::LifetimeError).len();
 
         // Each category should have ~100 samples
         assert!(type_count >= 100, "TypeMismatch: {}", type_count);
@@ -596,24 +501,12 @@ mod tests {
     fn test_all_categories_present() {
         let dataset = generate_synthetic_corpus_sized(50);
 
-        let type_count = dataset
-            .samples_for_category(ErrorCategory::TypeMismatch)
-            .len();
-        let borrow_count = dataset
-            .samples_for_category(ErrorCategory::BorrowChecker)
-            .len();
-        let lifetime_count = dataset
-            .samples_for_category(ErrorCategory::LifetimeError)
-            .len();
-        let trait_count = dataset
-            .samples_for_category(ErrorCategory::TraitBound)
-            .len();
-        let import_count = dataset
-            .samples_for_category(ErrorCategory::MissingImport)
-            .len();
-        let syntax_count = dataset
-            .samples_for_category(ErrorCategory::SyntaxError)
-            .len();
+        let type_count = dataset.samples_for_category(ErrorCategory::TypeMismatch).len();
+        let borrow_count = dataset.samples_for_category(ErrorCategory::BorrowChecker).len();
+        let lifetime_count = dataset.samples_for_category(ErrorCategory::LifetimeError).len();
+        let trait_count = dataset.samples_for_category(ErrorCategory::TraitBound).len();
+        let import_count = dataset.samples_for_category(ErrorCategory::MissingImport).len();
+        let syntax_count = dataset.samples_for_category(ErrorCategory::SyntaxError).len();
 
         assert!(type_count > 0, "No TypeMismatch samples");
         assert!(borrow_count > 0, "No BorrowChecker samples");
@@ -628,11 +521,7 @@ mod tests {
         let dataset = generate_synthetic_corpus_sized(10);
 
         for sample in dataset.samples() {
-            assert!(
-                sample.fix.is_some(),
-                "Sample missing fix: {}",
-                sample.message
-            );
+            assert!(sample.fix.is_some(), "Sample missing fix: {}", sample.message);
         }
     }
 
@@ -710,10 +599,8 @@ mod tests {
 
     #[test]
     fn test_generate_returns_dataset() {
-        let gen = SyntheticGenerator::with_config(SyntheticConfig {
-            samples_per_category: 5,
-            seed: 1,
-        });
+        let gen =
+            SyntheticGenerator::with_config(SyntheticConfig { samples_per_category: 5, seed: 1 });
         let dataset = gen.generate();
         // 5 * 6 categories = 30
         assert_eq!(dataset.len(), 30);
@@ -749,10 +636,7 @@ mod tests {
         eprintln!("  Depyler:    {:>6} samples", depyler.len());
         eprintln!("  Synthetic:  {:>6} samples", synthetic.len());
         eprintln!("  -----------------------------------");
-        eprintln!(
-            "  Total:      {:>6} samples",
-            verificar.len() + depyler.len() + synthetic.len()
-        );
+        eprintln!("  Total:      {:>6} samples", verificar.len() + depyler.len() + synthetic.len());
         eprintln!("===========================================\n");
 
         // Total should be > 12,000 (synthetic alone is 12,000)

@@ -110,11 +110,7 @@ impl EphemeralWorkspace {
         let lib_path = src_dir.join("lib.rs");
         std::fs::write(&lib_path, rust_code).context("Failed to write lib.rs")?;
 
-        Ok(Self {
-            dir,
-            name: name.to_string(),
-            lib_path,
-        })
+        Ok(Self { dir, name: name.to_string(), lib_path })
     }
 
     /// Get the path to the workspace directory
@@ -178,12 +174,7 @@ impl EphemeralWorkspace {
             }
         }
 
-        Ok(CheckResult {
-            success: output.status.success(),
-            errors,
-            warnings,
-            stderr,
-        })
+        Ok(CheckResult { success: output.status.success(), errors, warnings, stderr })
     }
 
     /// Parse a single compiler message
@@ -194,11 +185,7 @@ impl EphemeralWorkspace {
         warnings: &mut Vec<CompilerWarning>,
     ) {
         let level = message.get("level").and_then(|l| l.as_str()).unwrap_or("");
-        let msg_text = message
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("")
-            .to_string();
+        let msg_text = message.get("message").and_then(|m| m.as_str()).unwrap_or("").to_string();
         let code = message
             .get("code")
             .and_then(|c| c.get("code"))
@@ -206,38 +193,26 @@ impl EphemeralWorkspace {
             .map(|s| s.to_string());
 
         // Parse span if available
-        let span = message
-            .get("spans")
-            .and_then(|s| s.as_array())
-            .and_then(|arr| arr.first())
-            .map(|s| ErrorSpan {
-                file: s
-                    .get("file_name")
-                    .and_then(|f| f.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                line_start: s.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
-                line_end: s.get("line_end").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
-                column_start: s.get("column_start").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
-                column_end: s.get("column_end").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
+        let span =
+            message.get("spans").and_then(|s| s.as_array()).and_then(|arr| arr.first()).map(|s| {
+                ErrorSpan {
+                    file: s.get("file_name").and_then(|f| f.as_str()).unwrap_or("").to_string(),
+                    line_start: s.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
+                    line_end: s.get("line_end").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
+                    column_start: s.get("column_start").and_then(|c| c.as_u64()).unwrap_or(0)
+                        as u32,
+                    column_end: s.get("column_end").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
+                }
             });
 
         match level {
             "error" => {
                 // Determine if this is a semantic error vs dependency error
                 let is_semantic = !Self::is_dependency_error(&code, &msg_text);
-                errors.push(CompilerError {
-                    code,
-                    message: msg_text,
-                    span,
-                    is_semantic,
-                });
+                errors.push(CompilerError { code, message: msg_text, span, is_semantic });
             }
             "warning" => {
-                warnings.push(CompilerWarning {
-                    code,
-                    message: msg_text,
-                });
+                warnings.push(CompilerWarning { code, message: msg_text });
             }
             _ => {}
         }
@@ -377,12 +352,8 @@ mod tests {
 
     #[test]
     fn test_check_result_success_fields() {
-        let result = CheckResult {
-            success: true,
-            errors: vec![],
-            warnings: vec![],
-            stderr: String::new(),
-        };
+        let result =
+            CheckResult { success: true, errors: vec![], warnings: vec![], stderr: String::new() };
         assert!(result.success);
         assert!(result.errors.is_empty());
         assert!(result.warnings.is_empty());
@@ -438,12 +409,8 @@ mod tests {
 
     #[test]
     fn test_check_result_debug() {
-        let result = CheckResult {
-            success: true,
-            errors: vec![],
-            warnings: vec![],
-            stderr: String::new(),
-        };
+        let result =
+            CheckResult { success: true, errors: vec![], warnings: vec![], stderr: String::new() };
         let debug = format!("{:?}", result);
         assert!(debug.contains("CheckResult"));
         assert!(debug.contains("success"));
@@ -523,19 +490,14 @@ mod tests {
 
     #[test]
     fn test_compiler_warning_no_code() {
-        let warning = CompilerWarning {
-            code: None,
-            message: "warning without code".to_string(),
-        };
+        let warning = CompilerWarning { code: None, message: "warning without code".to_string() };
         assert!(warning.code.is_none());
     }
 
     #[test]
     fn test_compiler_warning_clone() {
-        let warning = CompilerWarning {
-            code: Some("dead_code".to_string()),
-            message: "unused".to_string(),
-        };
+        let warning =
+            CompilerWarning { code: Some("dead_code".to_string()), message: "unused".to_string() };
         let cloned = warning.clone();
         assert_eq!(cloned.code, warning.code);
         assert_eq!(cloned.message, warning.message);
@@ -543,10 +505,8 @@ mod tests {
 
     #[test]
     fn test_compiler_warning_debug() {
-        let warning = CompilerWarning {
-            code: Some("test".to_string()),
-            message: "msg".to_string(),
-        };
+        let warning =
+            CompilerWarning { code: Some("test".to_string()), message: "msg".to_string() };
         let debug = format!("{:?}", warning);
         assert!(debug.contains("CompilerWarning"));
     }
@@ -687,11 +647,7 @@ edition = "2021"
         let workspace = EphemeralWorkspace::new("test_valid", rust_code, cargo_toml).unwrap();
         let result = workspace.check().unwrap();
 
-        assert!(
-            result.success,
-            "Valid code should compile: {:?}",
-            result.errors
-        );
+        assert!(result.success, "Valid code should compile: {:?}", result.errors);
         assert!(result.errors.is_empty(), "Should have no errors");
     }
 
@@ -715,10 +671,7 @@ edition = "2021"
         assert!(!result.success, "Invalid code should fail");
         assert!(!result.errors.is_empty(), "Should have errors");
         // This is a semantic error, not dependency error
-        assert!(
-            result.errors.iter().any(|e| e.is_semantic),
-            "Should be semantic error"
-        );
+        assert!(result.errors.iter().any(|e| e.is_semantic), "Should be semantic error");
     }
 
     #[test]
@@ -745,11 +698,7 @@ serde = { version = "1.0", features = ["derive"] }
         let workspace = EphemeralWorkspace::new("test_serde", rust_code, cargo_toml).unwrap();
         let result = workspace.check().unwrap();
 
-        assert!(
-            result.success,
-            "Code with serde should compile: {:?}",
-            result.errors
-        );
+        assert!(result.success, "Code with serde should compile: {:?}", result.errors);
     }
 
     // === is_dependency_error tests ===
@@ -793,20 +742,11 @@ serde = { version = "1.0", features = ["derive"] }
     #[test]
     fn test_is_dependency_error_message_based() {
         // Check message-based detection
-        assert!(EphemeralWorkspace::is_dependency_error(
-            &None,
-            "can't find crate `foo`"
-        ));
+        assert!(EphemeralWorkspace::is_dependency_error(&None, "can't find crate `foo`"));
 
-        assert!(EphemeralWorkspace::is_dependency_error(
-            &None,
-            "unresolved import `bar::baz`"
-        ));
+        assert!(EphemeralWorkspace::is_dependency_error(&None, "unresolved import `bar::baz`"));
 
-        assert!(EphemeralWorkspace::is_dependency_error(
-            &None,
-            "could not find `qux` in `xyz`"
-        ));
+        assert!(EphemeralWorkspace::is_dependency_error(&None, "could not find `qux` in `xyz`"));
     }
 
     #[test]
@@ -822,19 +762,13 @@ serde = { version = "1.0", features = ["derive"] }
             "borrow of moved value"
         ));
 
-        assert!(!EphemeralWorkspace::is_dependency_error(
-            &None,
-            "some other error message"
-        ));
+        assert!(!EphemeralWorkspace::is_dependency_error(&None, "some other error message"));
     }
 
     #[test]
     fn test_is_dependency_error_none_code() {
         // With None code, relies on message
-        assert!(!EphemeralWorkspace::is_dependency_error(
-            &None,
-            "type mismatch"
-        ));
+        assert!(!EphemeralWorkspace::is_dependency_error(&None, "type mismatch"));
     }
 
     // === compile_with_cargo integration tests ===
@@ -851,10 +785,7 @@ serde = { version = "1.0", features = ["derive"] }
             }
         "#;
         let result = compile_with_cargo("test_default", rust_code, None).unwrap();
-        assert!(
-            result.success,
-            "Simple code should compile with default toml"
-        );
+        assert!(result.success, "Simple code should compile with default toml");
     }
 
     #[test]

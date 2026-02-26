@@ -37,11 +37,7 @@ impl KaizenMetrics {
 
     /// Create metrics with initial compilation rate
     pub fn with_initial_rate(rate: f64) -> Self {
-        Self {
-            compilation_rate: rate,
-            rate_history: vec![rate],
-            ..Default::default()
-        }
+        Self { compilation_rate: rate, rate_history: vec![rate], ..Default::default() }
     }
 
     /// Record the outcome of a Hunt Mode cycle

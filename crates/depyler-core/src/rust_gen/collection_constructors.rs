@@ -85,10 +85,7 @@ pub fn convert_frozenset_constructor(
             })
         }
     } else {
-        bail!(
-            "frozenset() takes at most 1 argument ({} given)",
-            args.len()
-        )
+        bail!("frozenset() takes at most 1 argument ({} given)", args.len())
     }
 }
 

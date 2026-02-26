@@ -22,10 +22,7 @@ impl Default for TypeEnvironment {
 
 impl TypeEnvironment {
     pub fn new() -> Self {
-        let mut env = Self {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-        };
+        let mut env = Self { variables: HashMap::new(), functions: HashMap::new() };
 
         // Add built-in functions
         env.add_builtin_functions();
@@ -88,9 +85,7 @@ impl Default for TypeInferencer {
 
 impl TypeInferencer {
     pub fn new() -> Self {
-        Self {
-            env: TypeEnvironment::new(),
-        }
+        Self { env: TypeEnvironment::new() }
     }
 
     pub fn infer_function(&mut self, func: &HirFunction) -> Result<HashMap<String, Type>> {
@@ -123,11 +118,7 @@ impl TypeInferencer {
                 // are currently not tracked for type flow analysis. Only symbol assignments
                 // update the type environment. This is a known limitation.
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.infer_expr(condition)?;
                 self.infer_body(then_body)?;
                 if let Some(else_stmts) = else_body {
@@ -173,12 +164,7 @@ impl TypeInferencer {
                     self.infer_expr(message)?;
                 }
             }
-            HirStmt::With {
-                context,
-                target: _,
-                body,
-                ..
-            } => {
+            HirStmt::With { context, target: _, body, .. } => {
                 // Infer type of context expression
                 self.infer_expr(context)?;
 
@@ -188,12 +174,7 @@ impl TypeInferencer {
                     self.infer_stmt(stmt)?;
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 // Infer types in try body
                 self.infer_body(body)?;
 
@@ -260,10 +241,7 @@ impl TypeInferencer {
     }
 
     fn infer_variable(&self, name: &str) -> Type {
-        self.env
-            .get_var_type(name)
-            .cloned()
-            .unwrap_or(Type::Unknown)
+        self.env.get_var_type(name).cloned().unwrap_or(Type::Unknown)
     }
 
     fn infer_binary(
@@ -323,10 +301,8 @@ impl TypeInferencer {
     }
 
     fn infer_tuple(&mut self, elts: &[HirExpr]) -> Result<Type> {
-        let types: Vec<Type> = elts
-            .iter()
-            .map(|e| self.infer_expr(e))
-            .collect::<Result<Vec<_>>>()?;
+        let types: Vec<Type> =
+            elts.iter().map(|e| self.infer_expr(e)).collect::<Result<Vec<_>>>()?;
         Ok(Type::Tuple(types))
     }
 
@@ -474,14 +450,8 @@ mod tests {
         let inferencer = TypeInferencer::new();
 
         assert_eq!(inferencer.infer_literal(&Literal::Int(42)), Type::Int);
-        assert_eq!(
-            inferencer.infer_literal(&Literal::Float(std::f64::consts::PI)),
-            Type::Float
-        );
-        assert_eq!(
-            inferencer.infer_literal(&Literal::String("hello".to_string())),
-            Type::String
-        );
+        assert_eq!(inferencer.infer_literal(&Literal::Float(std::f64::consts::PI)), Type::Float);
+        assert_eq!(inferencer.infer_literal(&Literal::String("hello".to_string())), Type::String);
         assert_eq!(inferencer.infer_literal(&Literal::Bool(true)), Type::Bool);
         assert_eq!(inferencer.infer_literal(&Literal::None), Type::None);
     }
@@ -503,22 +473,13 @@ mod tests {
         let inferencer = TypeInferencer::new();
 
         // Int + Int = Int
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int), Type::Int);
 
         // Float + Int = Float
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Float, &Type::Int),
-            Type::Float
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Float, &Type::Int), Type::Float);
 
         // Int + Float = Float
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Mul, &Type::Int, &Type::Float),
-            Type::Float
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Mul, &Type::Int, &Type::Float), Type::Float);
 
         // Unknown types
         assert_eq!(
@@ -531,18 +492,8 @@ mod tests {
     fn test_infer_binary_op_comparison() {
         let inferencer = TypeInferencer::new();
 
-        for op in [
-            BinOp::Eq,
-            BinOp::NotEq,
-            BinOp::Lt,
-            BinOp::LtEq,
-            BinOp::Gt,
-            BinOp::GtEq,
-        ] {
-            assert_eq!(
-                inferencer.infer_binary_op(op, &Type::Int, &Type::Int),
-                Type::Bool
-            );
+        for op in [BinOp::Eq, BinOp::NotEq, BinOp::Lt, BinOp::LtEq, BinOp::Gt, BinOp::GtEq] {
+            assert_eq!(inferencer.infer_binary_op(op, &Type::Int, &Type::Int), Type::Bool);
         }
     }
 
@@ -550,37 +501,19 @@ mod tests {
     fn test_infer_binary_op_logical() {
         let inferencer = TypeInferencer::new();
 
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::And, &Type::Bool, &Type::Bool),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::And, &Type::Bool, &Type::Bool), Type::Bool);
 
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Or, &Type::Bool, &Type::Bool),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Or, &Type::Bool, &Type::Bool), Type::Bool);
     }
 
     #[test]
     fn test_infer_binary_op_bitwise() {
         let inferencer = TypeInferencer::new();
 
-        for op in [
-            BinOp::BitAnd,
-            BinOp::BitOr,
-            BinOp::BitXor,
-            BinOp::LShift,
-            BinOp::RShift,
-        ] {
-            assert_eq!(
-                inferencer.infer_binary_op(op, &Type::Int, &Type::Int),
-                Type::Int
-            );
+        for op in [BinOp::BitAnd, BinOp::BitOr, BinOp::BitXor, BinOp::LShift, BinOp::RShift] {
+            assert_eq!(inferencer.infer_binary_op(op, &Type::Int, &Type::Int), Type::Int);
 
-            assert_eq!(
-                inferencer.infer_binary_op(op, &Type::String, &Type::Int),
-                Type::Unknown
-            );
+            assert_eq!(inferencer.infer_binary_op(op, &Type::String, &Type::Int), Type::Unknown);
         }
     }
 
@@ -608,32 +541,17 @@ mod tests {
         let inferencer = TypeInferencer::new();
 
         // Not operator
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::Not, &Type::Bool),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::Not, &Type::Bool), Type::Bool);
 
         // Negation/positive preserve type
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::Neg, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::Neg, &Type::Int), Type::Int);
 
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::Pos, &Type::Float),
-            Type::Float
-        );
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::Pos, &Type::Float), Type::Float);
 
         // Bitwise not on integers
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::BitNot, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::BitNot, &Type::Int), Type::Int);
 
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::BitNot, &Type::String),
-            Type::Unknown
-        );
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::BitNot, &Type::String), Type::Unknown);
     }
 
     #[test]
@@ -641,10 +559,7 @@ mod tests {
         let inferencer = TypeInferencer::new();
 
         // List elements
-        assert_eq!(
-            inferencer.get_element_type(&Type::List(Box::new(Type::Int))),
-            Type::Int
-        );
+        assert_eq!(inferencer.get_element_type(&Type::List(Box::new(Type::Int))), Type::Int);
 
         // Tuple elements (first element)
         assert_eq!(
@@ -653,10 +568,7 @@ mod tests {
         );
 
         // Empty tuple
-        assert_eq!(
-            inferencer.get_element_type(&Type::Tuple(vec![])),
-            Type::Unknown
-        );
+        assert_eq!(inferencer.get_element_type(&Type::Tuple(vec![])), Type::Unknown);
 
         // Dict values
         assert_eq!(
@@ -673,10 +585,8 @@ mod tests {
 
     #[test]
     fn test_function_signature() {
-        let sig = FunctionSignature {
-            params: vec![Type::Int, Type::String],
-            return_type: Type::Bool,
-        };
+        let sig =
+            FunctionSignature { params: vec![Type::Int, Type::String], return_type: Type::Bool };
 
         assert_eq!(sig.params, vec![Type::Int, Type::String]);
         assert_eq!(sig.return_type, Type::Bool);
@@ -719,10 +629,7 @@ mod tests {
         // Empty dict
         let expr = HirExpr::Dict(vec![]);
         let result = inferencer.infer_expr(&expr).unwrap();
-        assert_eq!(
-            result,
-            Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
-        );
+        assert_eq!(result, Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)));
 
         // Dict with string keys and int values
         let expr = HirExpr::Dict(vec![(
@@ -730,10 +637,7 @@ mod tests {
             HirExpr::Literal(Literal::Int(42)),
         )]);
         let result = inferencer.infer_expr(&expr).unwrap();
-        assert_eq!(
-            result,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
-        );
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
     }
 
     #[test]
@@ -746,10 +650,7 @@ mod tests {
             HirExpr::Literal(Literal::Bool(true)),
         ]);
         let result = inferencer.infer_expr(&expr).unwrap();
-        assert_eq!(
-            result,
-            Type::Tuple(vec![Type::Int, Type::String, Type::Bool])
-        );
+        assert_eq!(result, Type::Tuple(vec![Type::Int, Type::String, Type::Bool]));
     }
 
     #[test]
@@ -758,10 +659,7 @@ mod tests {
 
         // len() call
         let result = inferencer
-            .infer_call(
-                "len",
-                &[HirExpr::Literal(Literal::String("test".to_string()))],
-            )
+            .infer_call("len", &[HirExpr::Literal(Literal::String("test".to_string()))])
             .unwrap();
         assert_eq!(result, Type::Int);
 
@@ -827,10 +725,7 @@ mod tests {
         // Target: Line 190 - delete match arm HirExpr::Call{func, args, ..}
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_call(
-                "len",
-                &[HirExpr::Literal(Literal::String("test".to_string()))],
-            )
+            .infer_call("len", &[HirExpr::Literal(Literal::String("test".to_string()))])
             .unwrap();
         assert_eq!(result, Type::Int);
         // If match arm deleted: would return Type::Unknown
@@ -855,10 +750,7 @@ mod tests {
         // Target: Line 192 - delete match arm HirExpr::List(elts)
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_list(&[
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Int(2)),
-            ])
+            .infer_list(&[HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))])
             .unwrap();
         assert_eq!(result, Type::List(Box::new(Type::Int)));
         // If match arm deleted: would return Type::Unknown
@@ -874,10 +766,7 @@ mod tests {
                 HirExpr::Literal(Literal::Int(42)),
             )])
             .unwrap();
-        assert_eq!(
-            result,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
-        );
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         // If match arm deleted: would return Type::Unknown
     }
 
@@ -956,14 +845,8 @@ mod tests {
     fn test_binop_arithmetic_arm_kill_mutation() {
         // Target: Line 291 - delete match arm BinOp::Add | Sub | Mul | Div | FloorDiv | Mod
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int),
-            Type::Int
-        );
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Mul, &Type::Float, &Type::Float),
-            Type::Float
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int), Type::Int);
+        assert_eq!(inferencer.infer_binary_op(BinOp::Mul, &Type::Float, &Type::Float), Type::Float);
         // If match arm deleted: would return Type::Unknown
     }
 
@@ -971,10 +854,7 @@ mod tests {
     fn test_binop_comparison_arm_kill_mutation() {
         // Target: Line 301 - delete match arm BinOp::Eq | NotEq | Lt | LtEq | Gt | GtEq
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Eq, &Type::Int, &Type::Int),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Eq, &Type::Int, &Type::Int), Type::Bool);
         assert_eq!(
             inferencer.infer_binary_op(BinOp::NotEq, &Type::String, &Type::String),
             Type::Bool
@@ -986,14 +866,8 @@ mod tests {
     fn test_binop_logical_arm_kill_mutation() {
         // Target: Line 305 - delete match arm BinOp::And | BinOp::Or
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::And, &Type::Bool, &Type::Bool),
-            Type::Bool
-        );
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Or, &Type::Bool, &Type::Bool),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::And, &Type::Bool, &Type::Bool), Type::Bool);
+        assert_eq!(inferencer.infer_binary_op(BinOp::Or, &Type::Bool, &Type::Bool), Type::Bool);
         // If match arm deleted: would return Type::Unknown
     }
 
@@ -1001,14 +875,8 @@ mod tests {
     fn test_binop_bitwise_arm_kill_mutation() {
         // Target: Line 307 - delete match arm BinOp::BitAnd | BitOr | BitXor | LShift | RShift
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::BitAnd, &Type::Int, &Type::Int),
-            Type::Int
-        );
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::LShift, &Type::Int, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::BitAnd, &Type::Int, &Type::Int), Type::Int);
+        assert_eq!(inferencer.infer_binary_op(BinOp::LShift, &Type::Int, &Type::Int), Type::Int);
         // If match arm deleted: would return Type::Unknown
     }
 
@@ -1035,15 +903,9 @@ mod tests {
         // Tests arithmetic type compatibility check
         let inferencer = TypeInferencer::new();
         // Int and Int should work (both numeric)
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int), Type::Int);
         // Float and Float should work (both numeric)
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Float, &Type::Float),
-            Type::Float
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Float, &Type::Float), Type::Float);
         // String and String should NOT work for arithmetic
         assert_eq!(
             inferencer.infer_binary_op(BinOp::Add, &Type::String, &Type::String),
@@ -1058,15 +920,9 @@ mod tests {
         // Tests both operands are Int (line 294 checks after Float coercion)
         let inferencer = TypeInferencer::new();
         // Int and Int should work
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int), Type::Int);
         // Int and Float should coerce to Float (line 292 handles this)
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Float),
-            Type::Float
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Float), Type::Float);
         // String and String should fail
         assert_eq!(
             inferencer.infer_binary_op(BinOp::Add, &Type::String, &Type::String),
@@ -1081,10 +937,7 @@ mod tests {
         // Tests both operands are Int for bitwise
         let inferencer = TypeInferencer::new();
         // Int and Int should work
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::BitAnd, &Type::Int, &Type::Int),
-            Type::Int
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::BitAnd, &Type::Int, &Type::Int), Type::Int);
         // Float and Int should NOT work (bitwise requires Int)
         assert_eq!(
             inferencer.infer_binary_op(BinOp::BitAnd, &Type::Float, &Type::Int),
@@ -1110,10 +963,7 @@ mod tests {
         // Target: Line 206 - replace infer_literal -> Type with Default::default()
         let inferencer = TypeInferencer::new();
         assert_eq!(inferencer.infer_literal(&Literal::Int(42)), Type::Int);
-        assert_eq!(
-            inferencer.infer_literal(&Literal::String("test".to_string())),
-            Type::String
-        );
+        assert_eq!(inferencer.infer_literal(&Literal::String("test".to_string())), Type::String);
         // If mutated to Default::default(): would return Type::Unknown
     }
 
@@ -1121,10 +971,7 @@ mod tests {
     fn test_return_get_element_type_default_kill_mutation() {
         // Target: Line 337 - replace get_element_type -> Type with Default::default()
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.get_element_type(&Type::List(Box::new(Type::Int))),
-            Type::Int
-        );
+        assert_eq!(inferencer.get_element_type(&Type::List(Box::new(Type::Int))), Type::Int);
         assert_eq!(
             inferencer.get_element_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Float))),
             Type::Float
@@ -1136,14 +983,8 @@ mod tests {
     fn test_return_infer_unary_op_default_kill_mutation() {
         // Target: Line 321 - replace infer_unary_op -> Type with Default::default()
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::Neg, &Type::Int),
-            Type::Int
-        );
-        assert_eq!(
-            inferencer.infer_unary_op(UnaryOp::Not, &Type::Bool),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::Neg, &Type::Int), Type::Int);
+        assert_eq!(inferencer.infer_unary_op(UnaryOp::Not, &Type::Bool), Type::Bool);
         // If mutated to Default::default(): would return Type::Unknown
     }
 
@@ -1151,14 +992,8 @@ mod tests {
     fn test_return_infer_binary_op_default_kill_mutation() {
         // Target: Line 287 - replace infer_binary_op -> Type with Default::default()
         let inferencer = TypeInferencer::new();
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int),
-            Type::Int
-        );
-        assert_eq!(
-            inferencer.infer_binary_op(BinOp::Eq, &Type::String, &Type::String),
-            Type::Bool
-        );
+        assert_eq!(inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int), Type::Int);
+        assert_eq!(inferencer.infer_binary_op(BinOp::Eq, &Type::String, &Type::String), Type::Bool);
         // If mutated to Default::default(): would return Type::Unknown
     }
 
@@ -1186,10 +1021,7 @@ mod tests {
                 HirExpr::Literal(Literal::Int(42)),
             )])
             .unwrap();
-        assert_eq!(
-            result,
-            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
-        );
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         // If mutated to Ok(Default::default()): would return Type::Unknown
     }
 
@@ -1198,10 +1030,7 @@ mod tests {
         // Target: Line 240 - replace infer_call -> Result<Type> with Ok(Default::default())
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_call(
-                "len",
-                &[HirExpr::Literal(Literal::String("test".to_string()))],
-            )
+            .infer_call("len", &[HirExpr::Literal(Literal::String("test".to_string()))])
             .unwrap();
         assert_eq!(result, Type::Int);
         // If mutated to Ok(Default::default()): would return Type::Unknown
@@ -1226,10 +1055,7 @@ mod tests {
         // Target: Line 259 - replace infer_list -> Result<Type> with Ok(Default::default())
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_list(&[
-                HirExpr::Literal(Literal::Int(1)),
-                HirExpr::Literal(Literal::Int(2)),
-            ])
+            .infer_list(&[HirExpr::Literal(Literal::Int(1)), HirExpr::Literal(Literal::Int(2))])
             .unwrap();
         assert_eq!(result, Type::List(Box::new(Type::Int)));
         // If mutated to Ok(Default::default()): would return Type::Unknown
@@ -1254,9 +1080,8 @@ mod tests {
     fn test_return_infer_unary_ok_default_kill_mutation() {
         // Target: Line 234 - replace infer_unary -> Result<Type> with Ok(Default::default())
         let mut inferencer = TypeInferencer::new();
-        let result = inferencer
-            .infer_unary(&UnaryOp::Neg, &HirExpr::Literal(Literal::Int(42)))
-            .unwrap();
+        let result =
+            inferencer.infer_unary(&UnaryOp::Neg, &HirExpr::Literal(Literal::Int(42))).unwrap();
         assert_eq!(result, Type::Int);
         // If mutated to Ok(Default::default()): would return Type::Unknown
     }

@@ -31,11 +31,7 @@ fn test_convert_constant_int() {
 
 #[test]
 fn test_convert_constant_float() {
-    let expr = ExprConstant {
-        value: Constant::Float(3.5),
-        kind: None,
-        range: Default::default(),
-    };
+    let expr = ExprConstant { value: Constant::Float(3.5), kind: None, range: Default::default() };
     let result = ExprConverter::convert(Expr::Constant(expr)).unwrap();
     assert!(matches!(result, HirExpr::Literal(Literal::Float(f)) if (f - 3.5).abs() < 0.001));
 }
@@ -56,22 +52,14 @@ fn test_convert_constant_string() {
 
 #[test]
 fn test_convert_constant_bool() {
-    let expr = ExprConstant {
-        value: Constant::Bool(true),
-        kind: None,
-        range: Default::default(),
-    };
+    let expr = ExprConstant { value: Constant::Bool(true), kind: None, range: Default::default() };
     let result = ExprConverter::convert(Expr::Constant(expr)).unwrap();
     assert!(matches!(result, HirExpr::Literal(Literal::Bool(true))));
 }
 
 #[test]
 fn test_convert_constant_none() {
-    let expr = ExprConstant {
-        value: Constant::None,
-        kind: None,
-        range: Default::default(),
-    };
+    let expr = ExprConstant { value: Constant::None, kind: None, range: Default::default() };
     let result = ExprConverter::convert(Expr::Constant(expr)).unwrap();
     assert!(matches!(result, HirExpr::Literal(Literal::None)));
 }
@@ -96,11 +84,8 @@ fn test_convert_constant_bytes() {
 
 #[test]
 fn test_convert_name() {
-    let expr = ExprName {
-        id: "variable".into(),
-        ctx: ast::ExprContext::Load,
-        range: Default::default(),
-    };
+    let expr =
+        ExprName { id: "variable".into(), ctx: ast::ExprContext::Load, range: Default::default() };
     let result = ExprConverter::convert(Expr::Name(expr)).unwrap();
     match result {
         HirExpr::Var(name) => assert_eq!(name, "variable"),
@@ -158,12 +143,7 @@ fn test_convert_method_call() {
     let expr = parse_expr("obj.method(1, 2)");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
             assert!(matches!(*object, HirExpr::Var(ref name) if name == "obj"));
             assert_eq!(method, "method");
             assert_eq!(args.len(), 2);
@@ -252,12 +232,7 @@ fn test_convert_slice() {
     let expr = parse_expr("arr[1:5]");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => {
+        HirExpr::Slice { base, start, stop, step } => {
             assert!(matches!(*base, HirExpr::Var(ref name) if name == "arr"));
             assert!(
                 matches!(start, Some(ref s) if matches!(**s, HirExpr::Literal(Literal::Int(1))))
@@ -291,10 +266,7 @@ fn test_convert_list_comp() {
     let expr = parse_expr("[x * 2 for x in range(10)]");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
-        HirExpr::ListComp {
-            element,
-            generators,
-        } => {
+        HirExpr::ListComp { element, generators } => {
             assert_eq!(generators.len(), 1);
             assert_eq!(generators[0].target, "x");
             assert!(generators[0].conditions.is_empty());
@@ -511,11 +483,7 @@ fn test_convert_if() {
     let stmt = parse_stmt("if x > 0:\n    print('positive')");
     let result = StmtConverter::convert(stmt).unwrap();
     match result {
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
+        HirStmt::If { condition, then_body, else_body } => {
             assert!(matches!(condition, HirExpr::Binary { op: BinOp::Gt, .. }));
             assert_eq!(then_body.len(), 1);
             assert!(else_body.is_none());
@@ -608,12 +576,7 @@ fn test_convert_with() {
     let stmt = parse_stmt("with open('file') as f:\n    data = f.read()");
     let result = StmtConverter::convert(stmt).unwrap();
     match result {
-        HirStmt::With {
-            context,
-            target,
-            body,
-            is_async: _,
-        } => {
+        HirStmt::With { context, target, body, is_async: _ } => {
             assert!(matches!(context, HirExpr::Call { .. }));
             assert_eq!(target, Some("f".to_string()));
             assert_eq!(body.len(), 1);
@@ -641,10 +604,7 @@ fn test_convert_set_comp() {
     let expr = parse_expr("{x * 2 for x in range(10)}");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
-        HirExpr::SetComp {
-            element,
-            generators,
-        } => {
+        HirExpr::SetComp { element, generators } => {
             assert_eq!(generators.len(), 1);
             assert_eq!(generators[0].target, "x");
             assert!(generators[0].conditions.is_empty());
@@ -679,18 +639,11 @@ fn test_error_on_chained_comparison() {
     // Pattern: a < b < c becomes (a < b) and (b < c)
     let expr = parse_expr("a < b < c");
     let result = ExprConverter::convert(expr);
-    assert!(
-        result.is_ok(),
-        "Chained comparisons should now be supported"
-    );
+    assert!(result.is_ok(), "Chained comparisons should now be supported");
 
     // Verify it's desugared to binary AND of two comparisons
     match result.unwrap() {
-        HirExpr::Binary {
-            op: BinOp::And,
-            left,
-            right,
-        } => {
+        HirExpr::Binary { op: BinOp::And, left, right } => {
             // Left should be (a < b)
             assert!(matches!(*left, HirExpr::Binary { op: BinOp::Lt, .. }));
             // Right should be (b < c)
@@ -723,12 +676,7 @@ fn test_is_none_converts_to_method_call() {
     let result = ExprConverter::convert(expr).unwrap();
 
     match result {
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
             assert_eq!(method, "is_none");
             assert!(args.is_empty());
             // Object should be the variable 'x'
@@ -744,12 +692,7 @@ fn test_is_not_none_converts_to_is_some() {
     let result = ExprConverter::convert(expr).unwrap();
 
     match result {
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
             assert_eq!(method, "is_some");
             assert!(args.is_empty());
             assert!(matches!(*object, HirExpr::Var(_)));

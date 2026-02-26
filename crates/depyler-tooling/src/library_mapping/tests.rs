@@ -55,9 +55,7 @@ fn test_DEPYLER_0903_item_mapping_direct() {
 fn test_DEPYLER_0903_item_mapping_method_call() {
     let item = ItemMapping {
         rust_name: "head".to_string(),
-        pattern: TransformPattern::MethodCall {
-            extra_args: vec!["None".to_string()],
-        },
+        pattern: TransformPattern::MethodCall { extra_args: vec!["None".to_string()] },
         type_transform: None,
     };
 
@@ -73,9 +71,7 @@ fn test_DEPYLER_0903_item_mapping_method_call() {
 fn test_DEPYLER_0903_item_mapping_constructor() {
     let item = ItemMapping {
         rust_name: "DataFrame".to_string(),
-        pattern: TransformPattern::Constructor {
-            method: "new".to_string(),
-        },
+        pattern: TransformPattern::Constructor { method: "new".to_string() },
         type_transform: None,
     };
 
@@ -143,11 +139,7 @@ fn test_DEPYLER_0903_reorder_args_duplicate_index() {
 fn test_DEPYLER_0903_typed_template_valid() {
     let result = TransformPattern::validate_typed_template(
         "{client}.put_object().bucket({bucket}).key({key})",
-        &[
-            "client".to_string(),
-            "bucket".to_string(),
-            "key".to_string(),
-        ],
+        &["client".to_string(), "bucket".to_string(), "key".to_string()],
         &[ParamType::Expr, ParamType::String, ParamType::String],
     );
     assert!(result.is_ok());
@@ -334,10 +326,7 @@ fn test_DEPYLER_0903_registry_module_count() {
 
 #[test]
 fn test_DEPYLER_0903_confidence_levels() {
-    assert_eq!(
-        MappingConfidence::default(),
-        MappingConfidence::Experimental
-    );
+    assert_eq!(MappingConfidence::default(), MappingConfidence::Experimental);
 
     let verified = MappingConfidence::Verified;
     let community = MappingConfidence::Community;
@@ -364,9 +353,7 @@ fn test_DEPYLER_0903_library_mapping_serde_roundtrip() {
             "array".to_string(),
             ItemMapping {
                 rust_name: "Array".to_string(),
-                pattern: TransformPattern::Constructor {
-                    method: "from_vec".to_string(),
-                },
+                pattern: TransformPattern::Constructor { method: "from_vec".to_string() },
                 type_transform: None,
             },
         )]),
@@ -386,16 +373,10 @@ fn test_DEPYLER_0903_transform_pattern_serde() {
     // Test each variant serializes correctly
     let patterns = vec![
         TransformPattern::Direct,
-        TransformPattern::MethodCall {
-            extra_args: vec!["arg1".to_string()],
-        },
+        TransformPattern::MethodCall { extra_args: vec!["arg1".to_string()] },
         TransformPattern::PropertyToMethod,
-        TransformPattern::Constructor {
-            method: "new".to_string(),
-        },
-        TransformPattern::ReorderArgs {
-            indices: vec![2, 0, 1],
-        },
+        TransformPattern::Constructor { method: "new".to_string() },
+        TransformPattern::ReorderArgs { indices: vec![2, 0, 1] },
         TransformPattern::TypedTemplate {
             pattern: "{x}.method()".to_string(),
             params: vec!["x".to_string()],

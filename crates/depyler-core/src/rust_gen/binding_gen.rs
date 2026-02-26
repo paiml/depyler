@@ -64,21 +64,14 @@ pub fn parse_signature(signature: &str) -> ParsedSignature {
     };
 
     // Remove outer parentheses
-    let params_str = params_str
-        .trim_start_matches('(')
-        .trim_end_matches(')')
-        .trim();
+    let params_str = params_str.trim_start_matches('(').trim_end_matches(')').trim();
 
     let mut params = Vec::new();
     let mut is_self_method = false;
 
     // Handle empty params
     if params_str.is_empty() {
-        return ParsedSignature {
-            params,
-            return_type,
-            is_self_method,
-        };
+        return ParsedSignature { params, return_type, is_self_method };
     }
 
     // Parse each parameter, handling nested brackets
@@ -119,11 +112,7 @@ pub fn parse_signature(signature: &str) -> ParsedSignature {
         }
     }
 
-    ParsedSignature {
-        params,
-        return_type,
-        is_self_method,
-    }
+    ParsedSignature { params, return_type, is_self_method }
 }
 
 /// Split parameters respecting nested brackets
@@ -411,9 +400,7 @@ pub fn generate_module_function(
         .collect();
 
     // Parse return type path into tokens (e.g., "models::Response")
-    let return_type: TokenStream = return_type_path
-        .parse()
-        .unwrap_or_else(|_| quote! { String });
+    let return_type: TokenStream = return_type_path.parse().unwrap_or_else(|_| quote! { String });
 
     // DEPYLER-1116: Construct the return type using its ::new() constructor
     // Phantom structs wrap String, so we create an instance with empty string
@@ -525,11 +512,7 @@ impl<'a> BindingGenerator<'a> {
                     self.collect_from_expr(expr);
                 }
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.collect_from_expr(condition);
                 for s in then_body {
                     self.collect_from_stmt(s);
@@ -558,12 +541,7 @@ impl<'a> BindingGenerator<'a> {
                     self.collect_from_stmt(s);
                 }
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 for s in body {
                     self.collect_from_stmt(s);
                 }
@@ -616,12 +594,7 @@ impl<'a> BindingGenerator<'a> {
     fn collect_from_expr(&mut self, expr: &HirExpr) {
         match expr {
             // Pattern: requests.get(url) -> MethodCall on module variable
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } => {
+            HirExpr::MethodCall { object, method, args, kwargs } => {
                 // Check if object is a module reference
                 if let HirExpr::Var(module_name) = object.as_ref() {
                     if self.used_symbols.modules.contains(module_name) {
@@ -656,11 +629,7 @@ impl<'a> BindingGenerator<'a> {
             }
 
             // DynamicCall has callee as expression
-            HirExpr::DynamicCall {
-                callee,
-                args,
-                kwargs,
-            } => {
+            HirExpr::DynamicCall { callee, args, kwargs } => {
                 self.collect_from_expr(callee);
                 for arg in args {
                     self.collect_from_expr(arg);
@@ -707,12 +676,7 @@ impl<'a> BindingGenerator<'a> {
                 self.collect_from_expr(index);
             }
 
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 self.collect_from_expr(base);
                 if let Some(s) = start {
                     self.collect_from_expr(s);
@@ -729,14 +693,8 @@ impl<'a> BindingGenerator<'a> {
                 self.collect_from_expr(body);
             }
 
-            HirExpr::ListComp {
-                element,
-                generators,
-            }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators } => {
                 self.collect_from_expr(element);
                 for gen in generators {
                     self.collect_from_expr(&gen.iter);
@@ -746,11 +704,7 @@ impl<'a> BindingGenerator<'a> {
                 }
             }
 
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 self.collect_from_expr(key);
                 self.collect_from_expr(value);
                 for gen in generators {
@@ -761,10 +715,7 @@ impl<'a> BindingGenerator<'a> {
                 }
             }
 
-            HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::GeneratorExp { element, generators } => {
                 self.collect_from_expr(element);
                 for gen in generators {
                     self.collect_from_expr(&gen.iter);
@@ -788,12 +739,7 @@ impl<'a> BindingGenerator<'a> {
                 self.collect_from_expr(expr);
             }
 
-            HirExpr::SortByKey {
-                iterable,
-                key_body,
-                reverse_expr,
-                ..
-            } => {
+            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
                 self.collect_from_expr(iterable);
                 self.collect_from_expr(key_body);
                 if let Some(r) = reverse_expr {
@@ -846,10 +792,7 @@ impl<'a> BindingGenerator<'a> {
                 if let Ok(sig_str) = signature_result {
                     let sig = parse_signature(&sig_str);
                     let func_tokens = generate_module_function(function, &sig, &return_type_path);
-                    module_functions
-                        .entry(module.clone())
-                        .or_default()
-                        .push(func_tokens);
+                    module_functions.entry(module.clone()).or_default().push(func_tokens);
                 }
 
                 // Skip struct generation if we've already generated this type
@@ -861,11 +804,8 @@ impl<'a> BindingGenerator<'a> {
 
                 // Find the module containing this class and generate struct
                 // Try common patterns: module.models.ClassName, module.ClassName
-                let module_patterns = vec![
-                    format!("{}.models", module),
-                    format!("{}.api", module),
-                    module.clone(),
-                ];
+                let module_patterns =
+                    vec![format!("{}.models", module), format!("{}.api", module), module.clone()];
 
                 for mod_prefix in &module_patterns {
                     // Look for class methods
@@ -917,11 +857,7 @@ impl<'a> BindingGenerator<'a> {
                 combined_structs
             };
 
-            module_contents
-                .entry(top_module)
-                .or_default()
-                .0
-                .push(nested);
+            module_contents.entry(top_module).or_default().0.push(nested);
         }
 
         // Add module-level functions
@@ -1117,11 +1053,7 @@ mod tests {
         let code = struct_tokens.to_string();
 
         // Should contain String wrapper for NASA mode compatibility
-        assert!(
-            code.contains("pub String"),
-            "Expected String wrapper but got: {}",
-            code
-        );
+        assert!(code.contains("pub String"), "Expected String wrapper but got: {}", code);
         assert!(code.contains("pub struct TestResponse"));
         assert!(
             code.contains("fn new (inner : String)"),

@@ -177,11 +177,7 @@ def safe_get(data, key, default):
     let rust = transpile_python(python).unwrap();
 
     // Should use Value.get()
-    assert!(
-        rust.contains("data.get("),
-        "Should use .get() method. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("data.get("), "Should use .get() method. Generated:\n{}", rust);
 }
 
 #[test]

@@ -26,11 +26,7 @@ def double_numbers(numbers: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -43,11 +39,7 @@ def double_numbers(numbers: list) -> list:
     // Should have lambda/closure syntax
     let has_closure =
         rust_code.contains("|x|") || rust_code.contains("| x |") || rust_code.contains("|&x|");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have map operation
     let has_map = rust_code.contains(".map") || rust_code.contains("map(");
@@ -63,11 +55,7 @@ def filter_positive(numbers: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -80,19 +68,11 @@ def filter_positive(numbers: list) -> list:
     // Should have lambda/closure syntax
     let has_closure =
         rust_code.contains("|x|") || rust_code.contains("| x |") || rust_code.contains("|&x|");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have filter operation
     let has_filter = rust_code.contains(".filter") || rust_code.contains("filter(");
-    assert!(
-        has_filter,
-        "Should have filter operation.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_filter, "Should have filter operation.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -104,11 +84,7 @@ def sort_by_length(words: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -121,11 +97,7 @@ def sort_by_length(words: list) -> list:
     // Should have lambda/closure syntax
     let has_closure =
         rust_code.contains("|x|") || rust_code.contains("| x |") || rust_code.contains("|&x|");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have sort operation
     let has_sort = rust_code.contains(".sort") || rust_code.contains("sorted");
@@ -141,11 +113,7 @@ def add_pairs(pairs: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -159,11 +127,7 @@ def add_pairs(pairs: list) -> list:
     let has_multi_param = rust_code.contains("|x, y|")
         || rust_code.contains("| x, y |")
         || rust_code.contains("|(x, y)");
-    assert!(
-        has_multi_param,
-        "Should have multi-parameter closure.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_multi_param, "Should have multi-parameter closure.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -176,11 +140,7 @@ def process_items(items: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -193,11 +153,7 @@ def process_items(items: list) -> list:
     // Should have lambda/closure
     let has_closure =
         rust_code.contains("|x|") || rust_code.contains("| x |") || rust_code.contains("|&x|");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have iteration
     let has_iter =
@@ -214,11 +170,7 @@ def add_offset(numbers: list, offset: int) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -231,18 +183,10 @@ def add_offset(numbers: list, offset: int) -> list:
     // Should have lambda/closure
     let has_closure =
         rust_code.contains("|x|") || rust_code.contains("| x |") || rust_code.contains("|&x|");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should reference offset
-    assert!(
-        rust_code.contains("offset"),
-        "Should reference offset variable.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("offset"), "Should reference offset variable.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -254,11 +198,7 @@ def combine_lists(list1: list, list2: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -272,19 +212,11 @@ def combine_lists(list1: list, list2: list) -> list:
     let has_multi_param = rust_code.contains("|x, y|")
         || rust_code.contains("| x, y |")
         || rust_code.contains("|(x, y)");
-    assert!(
-        has_multi_param,
-        "Should have multi-parameter closure.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_multi_param, "Should have multi-parameter closure.\nGot:\n{}", rust_code);
 
     // Should have zip or similar combination
     let has_zip = rust_code.contains("zip") || rust_code.contains("iter");
-    assert!(
-        has_zip,
-        "Should have zip or iteration.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_zip, "Should have zip or iteration.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -296,11 +228,7 @@ def nested_transform(matrix: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -313,19 +241,11 @@ def nested_transform(matrix: list) -> list:
     // Should have nested closures
     let has_closures = (rust_code.contains("|row|") || rust_code.contains("| row |"))
         && (rust_code.contains("|x|") || rust_code.contains("| x |"));
-    assert!(
-        has_closures,
-        "Should have nested closures.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closures, "Should have nested closures.\nGot:\n{}", rust_code);
 
     // Should have map operations
     let map_count = rust_code.matches("map").count();
-    assert!(
-        map_count >= 2,
-        "Should have multiple map operations.\nGot:\n{}",
-        rust_code
-    );
+    assert!(map_count >= 2, "Should have multiple map operations.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -337,11 +257,7 @@ def classify_numbers(numbers: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -354,19 +270,11 @@ def classify_numbers(numbers: list) -> list:
     // Should have lambda/closure
     let has_closure =
         rust_code.contains("|x|") || rust_code.contains("| x |") || rust_code.contains("|&x|");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have conditional logic
     let has_conditional = rust_code.contains("if") || rust_code.contains("match");
-    assert!(
-        has_conditional,
-        "Should have conditional logic.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_conditional, "Should have conditional logic.\nGot:\n{}", rust_code);
 }
 
 #[test]
@@ -379,11 +287,7 @@ def calculate_distances(points: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.as_ref().err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
     let rust_code = result.unwrap();
 
@@ -395,18 +299,10 @@ def calculate_distances(points: list) -> list:
 
     // Should have lambda/closure
     let has_closure = rust_code.contains("|p|") || rust_code.contains("| p |");
-    assert!(
-        has_closure,
-        "Should have closure syntax.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_closure, "Should have closure syntax.\nGot:\n{}", rust_code);
 
     // Should have mathematical operations
     let has_math =
         rust_code.contains("pow") || rust_code.contains("sqrt") || rust_code.contains("**");
-    assert!(
-        has_math,
-        "Should have mathematical operations.\nGot:\n{}",
-        rust_code
-    );
+    assert!(has_math, "Should have mathematical operations.\nGot:\n{}", rust_code);
 }

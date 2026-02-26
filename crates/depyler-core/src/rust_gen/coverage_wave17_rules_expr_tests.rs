@@ -17,10 +17,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -241,7 +239,8 @@ mod tests {
 
     #[test]
     fn test_w17re_augassign_028_augadd_with_call() {
-        let code = "def f(lst: list) -> int:\n    count = 0\n    count += len(lst)\n    return count";
+        let code =
+            "def f(lst: list) -> int:\n    count = 0\n    count += len(lst)\n    return count";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -370,7 +369,10 @@ mod tests {
         let code = "def f(x: int) -> bool:\n    return x is not None";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("is_some") || result.contains("None") || result.contains("!"), "is not None: {result}");
+        assert!(
+            result.contains("is_some") || result.contains("None") || result.contains("!"),
+            "is not None: {result}"
+        );
     }
 
     #[test]
@@ -378,7 +380,10 @@ mod tests {
         let code = "def f(x: int) -> bool:\n    return x in [1, 2, 3]";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("contains") || result.contains("iter") || result.contains("in"), "in list: {result}");
+        assert!(
+            result.contains("contains") || result.contains("iter") || result.contains("in"),
+            "in list: {result}"
+        );
     }
 
     #[test]
@@ -386,7 +391,10 @@ mod tests {
         let code = "def f(x: int) -> bool:\n    return x not in [1, 2, 3]";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("!") || result.contains("not") || result.contains("contains"), "not in list: {result}");
+        assert!(
+            result.contains("!") || result.contains("not") || result.contains("contains"),
+            "not in list: {result}"
+        );
     }
 
     #[test]
@@ -537,7 +545,8 @@ mod tests {
 
     #[test]
     fn test_w17re_compare_067_bool_short_circuit_and() {
-        let code = "def f(x: int) -> int:\n    if x > 0 and x < 100:\n        return x\n    return 0";
+        let code =
+            "def f(x: int) -> int:\n    if x > 0 and x < 100:\n        return x\n    return 0";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("&&"), "short circuit and: {result}");
@@ -545,7 +554,8 @@ mod tests {
 
     #[test]
     fn test_w17re_compare_068_bool_short_circuit_or() {
-        let code = "def f(x: int) -> int:\n    if x < 0 or x > 100:\n        return 0\n    return x";
+        let code =
+            "def f(x: int) -> int:\n    if x < 0 or x > 100:\n        return 0\n    return x";
         let result = transpile(code);
         assert!(!result.is_empty());
         assert!(result.contains("||"), "short circuit or: {result}");
@@ -927,7 +937,8 @@ mod tests {
 
     #[test]
     fn test_w17re_var_121_builtin_int_ref() {
-        let code = "def f() -> list:\n    items = [\"1\", \"2\", \"3\"]\n    return list(map(int, items))";
+        let code =
+            "def f() -> list:\n    items = [\"1\", \"2\", \"3\"]\n    return list(map(int, items))";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1177,7 +1188,8 @@ mod tests {
 
     #[test]
     fn test_w17re_var_156_const_string_list() {
-        let code = "COLORS = [\"red\", \"green\", \"blue\"]\n\ndef f() -> int:\n    return len(COLORS)";
+        let code =
+            "COLORS = [\"red\", \"green\", \"blue\"]\n\ndef f() -> int:\n    return len(COLORS)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1284,7 +1296,10 @@ mod tests {
         let code = "def f(s: str) -> str:\n    return s.strip().upper()";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("trim") || result.contains("strip") || result.contains("to_uppercase"), "chain: {result}");
+        assert!(
+            result.contains("trim") || result.contains("strip") || result.contains("to_uppercase"),
+            "chain: {result}"
+        );
     }
 
     #[test]
@@ -1337,7 +1352,13 @@ mod tests {
         let code = "def f() -> list:\n    return [x * 2 for x in range(5)]";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("map") || result.contains("iter") || result.contains("collect") || result.contains("vec"), "list comp: {result}");
+        assert!(
+            result.contains("map")
+                || result.contains("iter")
+                || result.contains("collect")
+                || result.contains("vec"),
+            "list comp: {result}"
+        );
     }
 
     #[test]
@@ -1399,7 +1420,8 @@ mod tests {
 
     #[test]
     fn test_w17re_expr_186_walrus_basic() {
-        let code = "def f(x: int) -> int:\n    if (y := x * 2) > 10:\n        return y\n    return 0";
+        let code =
+            "def f(x: int) -> int:\n    if (y := x * 2) > 10:\n        return y\n    return 0";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

@@ -1,7 +1,7 @@
 use crate::error_reporting::EnhancedError;
-use depyler_hir::hir::{HirExpr, HirFunction, HirStmt, Type};
 use anyhow::Result;
 use colored::Colorize;
+use depyler_hir::hir::{HirExpr, HirFunction, HirStmt, Type};
 use std::collections::HashMap;
 
 /// Type inference hints provider
@@ -62,11 +62,7 @@ enum TypeConstraint {
     Compatible { var: String, ty: Type },
     /// Variable used in operation requiring specific type
     #[allow(dead_code)]
-    OperatorConstraint {
-        var: String,
-        op: String,
-        required: Type,
-    },
+    OperatorConstraint { var: String, op: String, required: Type },
     /// Variable passed to function expecting type (DEPYLER-0492: stdlib signatures)
     ArgumentConstraint {
         var: String,
@@ -150,16 +146,10 @@ impl TypeHintProvider {
                 // DEPYLER-0492: Infer type from default value first (highest confidence)
                 if let Some(hint) = self.infer_from_default(&param.name, &param.default) {
                     hints.push(hint.clone());
-                    self.parameter_hints
-                        .entry(func.name.clone())
-                        .or_default()
-                        .push(hint);
+                    self.parameter_hints.entry(func.name.clone()).or_default().push(hint);
                 } else if let Some(hint) = self.infer_parameter_type(&param.name) {
                     hints.push(hint.clone());
-                    self.parameter_hints
-                        .entry(func.name.clone())
-                        .or_default()
-                        .push(hint);
+                    self.parameter_hints.entry(func.name.clone()).or_default().push(hint);
                 }
             }
         }
@@ -231,10 +221,7 @@ impl TypeHintProvider {
 
     /// Format type hints for display
     pub fn format_hints(&self, hints: &[TypeHint]) -> String {
-        hints
-            .iter()
-            .map(|hint| self.format_single_hint(hint))
-            .collect()
+        hints.iter().map(|hint| self.format_single_hint(hint)).collect()
     }
 
     fn format_single_hint(&self, hint: &TypeHint) -> String {
@@ -245,8 +232,7 @@ impl TypeHintProvider {
         output.push_str(&format!(
             "{} {} for {} {} ({})\n",
             "Hint:".bright_blue(),
-            self.type_to_annotation(&hint.suggested_type)
-                .color(confidence_color),
+            self.type_to_annotation(&hint.suggested_type).color(confidence_color),
             target_str,
             format!("[{:?}]", hint.confidence).dimmed(),
             hint.reason.italic()
@@ -275,12 +261,7 @@ impl TypeHintProvider {
 
     fn append_location_if_present(&self, output: &mut String, location: Option<(usize, usize)>) {
         if let Some((line, col)) = location {
-            output.push_str(&format!(
-                "     {} line {}, column {}\n",
-                "at".dimmed(),
-                line,
-                col
-            ));
+            output.push_str(&format!("     {} line {}, column {}\n", "at".dimmed(), line, col));
         }
     }
 
@@ -300,20 +281,15 @@ impl TypeHintProvider {
             } => self.analyze_assignment(var_name, value),
             HirStmt::Assign { .. } => Ok(()),
             HirStmt::Return(Some(expr)) => self.analyze_return(expr),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => self.analyze_if_stmt(condition, then_body, else_body),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if_stmt(condition, then_body, else_body)
+            }
             HirStmt::While { condition, body } => self.analyze_while_stmt(condition, body),
             HirStmt::For { target, iter, body } => self.analyze_for_stmt(target, iter, body),
             // DEPYLER-0436: Analyze Try blocks to infer types from exception handlers
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => self.analyze_try_stmt(body, handlers, finalbody),
+            HirStmt::Try { body, handlers, finalbody, .. } => {
+                self.analyze_try_stmt(body, handlers, finalbody)
+            }
             // DEPYLER-0432: Analyze With statements to infer types from context (e.g., open(filepath))
             HirStmt::With { context, body, .. } => self.analyze_with_stmt(context, body),
             HirStmt::Expr(expr) => self.analyze_expr(expr),
@@ -349,14 +325,12 @@ impl TypeHintProvider {
         if let HirExpr::Var(var) = condition {
             // Variable used directly as condition → likely bool
             // Add multiple constraints for higher confidence (need 4+ for High confidence)
-            self.context.constraints.push(TypeConstraint::Compatible {
-                var: var.to_string(),
-                ty: Type::Bool,
-            });
-            self.context.constraints.push(TypeConstraint::Compatible {
-                var: var.to_string(),
-                ty: Type::Bool,
-            });
+            self.context
+                .constraints
+                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::Bool });
+            self.context
+                .constraints
+                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::Bool });
         }
     }
 
@@ -371,9 +345,7 @@ impl TypeHintProvider {
         if let depyler_hir::hir::AssignTarget::Symbol(target_name) = target {
             // Track the loop variable source
             if let HirExpr::Var(iter_var) = iter {
-                self.context
-                    .loop_var_sources
-                    .insert(target_name.clone(), iter_var.clone());
+                self.context.loop_var_sources.insert(target_name.clone(), iter_var.clone());
             }
 
             self.analyze_for_loop(target_name, iter)?;
@@ -426,12 +398,9 @@ impl TypeHintProvider {
         match expr {
             HirExpr::Binary { left, right, op } => self.analyze_binary_op(left, right, *op),
             HirExpr::Call { func, args, .. } => self.analyze_call(func, args),
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                ..
-            } => self.analyze_method_call(object, method, args),
+            HirExpr::MethodCall { object, method, args, .. } => {
+                self.analyze_method_call(object, method, args)
+            }
             HirExpr::Index { base, index } => self.analyze_indexing(base, index),
             // DEPYLER-0492: Slicing operations imply list/vector type
             HirExpr::Slice { base, .. } => self.analyze_slicing(base),
@@ -541,10 +510,7 @@ impl TypeHintProvider {
     }
 
     fn add_compatible_constraint(&mut self, var_name: &str, ty: Type) {
-        self.context.constraints.push(TypeConstraint::Compatible {
-            var: var_name.to_string(),
-            ty,
-        });
+        self.context.constraints.push(TypeConstraint::Compatible { var: var_name.to_string(), ty });
     }
 
     fn infer_from_collection(&mut self, var_name: &str, value: &HirExpr) {
@@ -622,9 +588,8 @@ impl TypeHintProvider {
         }
 
         // Check if any element is None
-        let has_none = elems
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(depyler_hir::hir::Literal::None)));
+        let has_none =
+            elems.iter().any(|e| matches!(e, HirExpr::Literal(depyler_hir::hir::Literal::None)));
 
         // Get element type from first non-None element
         let base_elem_type = elems
@@ -668,10 +633,7 @@ impl TypeHintProvider {
         if let Some(func_name) = &self.context.current_function {
             self.context
                 .constraints
-                .push(TypeConstraint::ReturnConstraint {
-                    var: func_name.clone(),
-                    ty: return_type,
-                });
+                .push(TypeConstraint::ReturnConstraint { var: func_name.clone(), ty: return_type });
         }
         self.analyze_expr(expr)?;
         Ok(())
@@ -694,10 +656,9 @@ impl TypeHintProvider {
         };
 
         if !matches!(elem_type, Type::Unknown) {
-            self.context.constraints.push(TypeConstraint::Compatible {
-                var: target.to_string(),
-                ty: elem_type,
-            });
+            self.context
+                .constraints
+                .push(TypeConstraint::Compatible { var: target.to_string(), ty: elem_type });
         }
 
         self.analyze_expr(iter)?;
@@ -830,10 +791,9 @@ impl TypeHintProvider {
     fn analyze_open_call(&mut self, args: &[HirExpr]) {
         if let Some(HirExpr::Var(var)) = args.first() {
             // open(filepath) means filepath is a file path (String/&str)
-            self.context.constraints.push(TypeConstraint::Compatible {
-                var: var.to_string(),
-                ty: Type::String,
-            });
+            self.context
+                .constraints
+                .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
             // Record string-like pattern for stronger evidence
             self.record_usage_pattern(var, UsagePattern::StringLike);
         }
@@ -851,10 +811,9 @@ impl TypeHintProvider {
             // This is the argparse validator pattern: def validator(value): int(value)
             if func == "int" {
                 // Add evidence that this variable is a String (will map to &str)
-                self.context.constraints.push(TypeConstraint::Compatible {
-                    var: var.to_string(),
-                    ty: Type::String,
-                });
+                self.context
+                    .constraints
+                    .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
                 // Also record string-like usage pattern for stronger evidence
                 self.record_usage_pattern(var, UsagePattern::StringLike);
             } else {
@@ -875,14 +834,12 @@ impl TypeHintProvider {
     }
 
     fn add_argument_constraint(&mut self, var: &str, func: &str, expected: Type) {
-        self.context
-            .constraints
-            .push(TypeConstraint::ArgumentConstraint {
-                var: var.to_string(),
-                func: func.to_string(),
-                _param_idx: 0,
-                expected,
-            });
+        self.context.constraints.push(TypeConstraint::ArgumentConstraint {
+            var: var.to_string(),
+            func: func.to_string(),
+            _param_idx: 0,
+            expected,
+        });
     }
 
     fn analyze_call_arguments(&mut self, args: &[HirExpr]) -> Result<()> {
@@ -904,35 +861,24 @@ impl TypeHintProvider {
                 if let Some(HirExpr::Var(cmd_var)) = args.first() {
                     // subprocess.run(cmd) -> cmd should be Vec<String>
                     // Use ArgumentConstraint for high-confidence stdlib signature
-                    self.context
-                        .constraints
-                        .push(TypeConstraint::ArgumentConstraint {
-                            var: cmd_var.to_string(),
-                            func: "subprocess.run".to_string(),
-                            _param_idx: 0,
-                            expected: Type::List(Box::new(Type::String)),
-                        });
+                    self.context.constraints.push(TypeConstraint::ArgumentConstraint {
+                        var: cmd_var.to_string(),
+                        func: "subprocess.run".to_string(),
+                        _param_idx: 0,
+                        expected: Type::List(Box::new(Type::String)),
+                    });
                     self.record_usage_pattern(cmd_var, UsagePattern::Container);
                 }
             }
 
             // String methods
-            if [
-                "upper",
-                "lower",
-                "strip",
-                "split",
-                "replace",
-                "startswith",
-                "endswith",
-            ]
-            .contains(&method)
+            if ["upper", "lower", "strip", "split", "replace", "startswith", "endswith"]
+                .contains(&method)
             {
                 self.record_usage_pattern(var, UsagePattern::StringLike);
-                self.context.constraints.push(TypeConstraint::Compatible {
-                    var: var.to_string(),
-                    ty: Type::String,
-                });
+                self.context
+                    .constraints
+                    .push(TypeConstraint::Compatible { var: var.to_string(), ty: Type::String });
             }
 
             // List methods
@@ -983,11 +929,7 @@ impl TypeHintProvider {
     }
 
     fn record_usage_pattern(&mut self, var: &str, pattern: UsagePattern) {
-        self.context
-            .usage_patterns
-            .entry(var.to_string())
-            .or_default()
-            .push(pattern);
+        self.context.usage_patterns.entry(var.to_string()).or_default().push(pattern);
     }
 
     /// DEPYLER-0492: Infer parameter type from default value (Certain confidence)
@@ -1001,7 +943,7 @@ impl TypeHintProvider {
                 depyler_hir::hir::Literal::Float(_) => Type::Float,
                 depyler_hir::hir::Literal::String(_) => Type::String,
                 depyler_hir::hir::Literal::None => return None, // None doesn't give type info
-                _ => return None,                         // Other literals not yet supported
+                _ => return None,                               // Other literals not yet supported
             },
             _ => return None, // Complex defaults not yet supported
         };
@@ -1038,12 +980,9 @@ impl TypeHintProvider {
                     self.add_operator_evidence(op, required, type_votes);
                 }
                 // DEPYLER-0492: High-confidence stdlib function signatures
-                TypeConstraint::ArgumentConstraint {
-                    var,
-                    func,
-                    expected,
-                    ..
-                } if var == param_name => {
+                TypeConstraint::ArgumentConstraint { var, func, expected, .. }
+                    if var == param_name =>
+                {
                     self.add_argument_evidence(func, expected, type_votes);
                 }
                 _ => {}
@@ -1127,18 +1066,14 @@ impl TypeHintProvider {
     }
 
     fn add_iterator_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
-        let (count, reasons) = type_votes
-            .entry(Type::List(Box::new(Type::Unknown)))
-            .or_default();
+        let (count, reasons) = type_votes.entry(Type::List(Box::new(Type::Unknown))).or_default();
         *count += 1;
         reasons.push("used as iterator".to_string());
     }
 
     /// DEPYLER-0492: High-confidence evidence from integer indexing/slicing operations
     fn add_container_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
-        let (count, reasons) = type_votes
-            .entry(Type::List(Box::new(Type::Unknown)))
-            .or_default();
+        let (count, reasons) = type_votes.entry(Type::List(Box::new(Type::Unknown))).or_default();
         *count += 4; // High confidence - indexing strongly implies list type
         reasons.push("indexing/slicing operation".to_string());
     }
@@ -1160,9 +1095,8 @@ impl TypeHintProvider {
         param_name: &str,
         type_votes: HashMap<Type, (u32, Vec<String>)>,
     ) -> Option<TypeHint> {
-        let (suggested_type, (score, reasons)) = type_votes
-            .into_iter()
-            .max_by_key(|(_, (count, _))| *count)?;
+        let (suggested_type, (score, reasons)) =
+            type_votes.into_iter().max_by_key(|(_, (count, _))| *count)?;
 
         let confidence = self.score_to_confidence(score);
 
@@ -1195,10 +1129,7 @@ impl TypeHintProvider {
         for constraint in &self.context.constraints {
             if let TypeConstraint::ReturnConstraint { var, ty } = constraint {
                 if var == func_name && !matches!(ty, Type::Unknown) {
-                    return_types
-                        .entry(ty.clone())
-                        .or_default()
-                        .push("explicit return".to_string());
+                    return_types.entry(ty.clone()).or_default().push("explicit return".to_string());
                 }
             }
         }
@@ -1207,9 +1138,8 @@ impl TypeHintProvider {
     }
 
     fn build_return_type_hint(&self, return_types: HashMap<Type, Vec<String>>) -> Option<TypeHint> {
-        let (suggested_type, reasons) = return_types
-            .into_iter()
-            .max_by_key(|(_, reasons)| reasons.len())?;
+        let (suggested_type, reasons) =
+            return_types.into_iter().max_by_key(|(_, reasons)| reasons.len())?;
 
         let confidence = self.return_confidence(&reasons);
 
@@ -1251,9 +1181,8 @@ impl TypeHintProvider {
             UsagePattern::StringLike => *type_score.entry(Type::String).or_insert(0) += 2,
             // DEPYLER-0492: Integer indexing/slicing strongly implies list type (High confidence)
             UsagePattern::Container => {
-                *type_score
-                    .entry(Type::List(Box::new(Type::Unknown)))
-                    .or_insert(0) += 4 // High confidence (was 1)
+                *type_score.entry(Type::List(Box::new(Type::Unknown))).or_insert(0) += 4
+                // High confidence (was 1)
             }
             // DEPYLER-0552: String-keyed access strongly implies dict type (Higher confidence)
             UsagePattern::DictAccess => {
@@ -1300,9 +1229,8 @@ impl TypeHintProvider {
         }
 
         // DEPYLER-0739: Check if any element is None
-        let has_none = elems
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(depyler_hir::hir::Literal::None)));
+        let has_none =
+            elems.iter().any(|e| matches!(e, HirExpr::Literal(depyler_hir::hir::Literal::None)));
 
         // DEPYLER-0741: Check if this is a list of dicts and ANY dict has None values
         // If so, all dicts should have Option<V> value type for consistency
@@ -1406,9 +1334,8 @@ impl TypeHintProvider {
         }
 
         // Check if any element is None
-        let has_none = elems
-            .iter()
-            .any(|e| matches!(e, HirExpr::Literal(depyler_hir::hir::Literal::None)));
+        let has_none =
+            elems.iter().any(|e| matches!(e, HirExpr::Literal(depyler_hir::hir::Literal::None)));
 
         // Get element type from first non-None element
         let base_elem_type = elems
@@ -1603,11 +1530,7 @@ fn format_list_annotation(elem: &Type) -> String {
 }
 
 fn format_dict_annotation(k: &Type, v: &Type) -> String {
-    format!(
-        "dict[{}, {}]",
-        type_to_annotation_inner(k),
-        type_to_annotation_inner(v)
-    )
+    format!("dict[{}, {}]", type_to_annotation_inner(k), type_to_annotation_inner(v))
 }
 
 fn format_optional_annotation(inner: &Type) -> String {
@@ -1776,9 +1699,7 @@ mod tests {
         assert!(!hints.is_empty());
 
         let param_hints = provider.parameter_hints.get("add_numbers").unwrap();
-        assert!(param_hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::Int)));
+        assert!(param_hints.iter().any(|h| matches!(h.suggested_type, Type::Int)));
     }
 
     #[test]
@@ -1803,9 +1724,7 @@ mod tests {
         provider.analyze_function(&func).unwrap();
 
         let param_hints = provider.parameter_hints.get("process_text").unwrap();
-        assert!(param_hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(param_hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -1871,10 +1790,7 @@ mod tests {
         let hints = provider.analyze_function(&func).unwrap();
         // Known types should not generate hints
         assert!(
-            hints.is_empty()
-                || hints
-                    .iter()
-                    .all(|h| !matches!(h.target, HintTarget::Parameter(_)))
+            hints.is_empty() || hints.iter().all(|h| !matches!(h.target, HintTarget::Parameter(_)))
         );
     }
 
@@ -1967,10 +1883,7 @@ mod tests {
     #[test]
     fn test_type_to_annotation_tuple() {
         let tuple_type = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
-        assert_eq!(
-            type_to_annotation_inner(&tuple_type),
-            "tuple[int, str, bool]"
-        );
+        assert_eq!(type_to_annotation_inner(&tuple_type), "tuple[int, str, bool]");
     }
 
     #[test]
@@ -1986,10 +1899,7 @@ mod tests {
 
     #[test]
     fn test_type_to_annotation_nested() {
-        let nested = Type::List(Box::new(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        )));
+        let nested = Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert_eq!(type_to_annotation_inner(&nested), "list[dict[str, int]]");
     }
 
@@ -2295,9 +2205,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("to_lower").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2321,9 +2229,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("clean").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2347,9 +2253,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("tokenize").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2374,9 +2278,7 @@ mod tests {
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("add_item").unwrap();
         // Should infer list type from append
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::List(_))));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
     }
 
     // ============================================================
@@ -2403,9 +2305,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("get_length").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::List(_))));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
     }
 
     #[test]
@@ -2428,9 +2328,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("read_file").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2454,9 +2352,7 @@ mod tests {
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("parse_int").unwrap();
         // int(value) means value is a string
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     // ============================================================
@@ -2482,9 +2378,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("get_first").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::List(_))));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
     }
 
     #[test]
@@ -2506,9 +2400,7 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("get_value").unwrap();
-        assert!(hints
-            .iter()
-            .any(|h| matches!(h.suggested_type, Type::Dict(_, _))));
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Dict(_, _))));
     }
 
     // ============================================================
@@ -2751,15 +2643,9 @@ mod tests {
     fn test_get_confidence_color() {
         let provider = TypeHintProvider::new();
         assert_eq!(provider.get_confidence_color(Confidence::Certain), "green");
-        assert_eq!(
-            provider.get_confidence_color(Confidence::High),
-            "bright green"
-        );
+        assert_eq!(provider.get_confidence_color(Confidence::High), "bright green");
         assert_eq!(provider.get_confidence_color(Confidence::Medium), "yellow");
-        assert_eq!(
-            provider.get_confidence_color(Confidence::Low),
-            "bright yellow"
-        );
+        assert_eq!(provider.get_confidence_color(Confidence::Low), "bright yellow");
     }
 
     // ============================================================
@@ -2791,10 +2677,7 @@ mod tests {
 
     #[test]
     fn test_type_constraint_compatible_debug() {
-        let constraint = TypeConstraint::Compatible {
-            var: "x".to_string(),
-            ty: Type::Int,
-        };
+        let constraint = TypeConstraint::Compatible { var: "x".to_string(), ty: Type::Int };
         let debug = format!("{:?}", constraint);
         assert!(debug.contains("Compatible"));
         assert!(debug.contains("x"));
@@ -2802,10 +2685,7 @@ mod tests {
 
     #[test]
     fn test_type_constraint_compatible_clone() {
-        let constraint = TypeConstraint::Compatible {
-            var: "value".to_string(),
-            ty: Type::String,
-        };
+        let constraint = TypeConstraint::Compatible { var: "value".to_string(), ty: Type::String };
         let cloned = constraint.clone();
         if let TypeConstraint::Compatible { var, ty } = cloned {
             assert_eq!(var, "value");
@@ -2838,13 +2718,7 @@ mod tests {
             expected: Type::List(Box::new(Type::Int)),
         };
         let cloned = constraint.clone();
-        if let TypeConstraint::ArgumentConstraint {
-            var,
-            func,
-            _param_idx,
-            expected,
-        } = cloned
-        {
+        if let TypeConstraint::ArgumentConstraint { var, func, _param_idx, expected } = cloned {
             assert_eq!(var, "data");
             assert_eq!(func, "len");
             assert_eq!(_param_idx, 1);
@@ -2856,10 +2730,8 @@ mod tests {
 
     #[test]
     fn test_type_constraint_return_debug() {
-        let constraint = TypeConstraint::ReturnConstraint {
-            var: "result".to_string(),
-            ty: Type::Bool,
-        };
+        let constraint =
+            TypeConstraint::ReturnConstraint { var: "result".to_string(), ty: Type::Bool };
         let debug = format!("{:?}", constraint);
         assert!(debug.contains("ReturnConstraint"));
         assert!(debug.contains("result"));
@@ -2867,10 +2739,8 @@ mod tests {
 
     #[test]
     fn test_type_constraint_return_clone() {
-        let constraint = TypeConstraint::ReturnConstraint {
-            var: "output".to_string(),
-            ty: Type::String,
-        };
+        let constraint =
+            TypeConstraint::ReturnConstraint { var: "output".to_string(), ty: Type::String };
         let cloned = constraint.clone();
         if let TypeConstraint::ReturnConstraint { var, ty } = cloned {
             assert_eq!(var, "output");
@@ -3079,7 +2949,9 @@ mod tests {
                     right: Box::new(HirExpr::Literal(Literal::Int(0))),
                 },
                 then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(true))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(false))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
+                    false,
+                ))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

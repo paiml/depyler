@@ -289,11 +289,7 @@ def complex_function(n: int) -> int:
             let test_code = format!(
                 "def test_func({}) -> int: return {}",
                 params.join(", "),
-                if args.is_empty() {
-                    "0".to_string()
-                } else {
-                    args.join(" + ")
-                }
+                if args.is_empty() { "0".to_string() } else { args.join(" + ") }
             );
 
             let start = Instant::now();

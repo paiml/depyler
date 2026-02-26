@@ -19,3 +19,6 @@ thiserror = "1.0"
 
 [dev-dependencies]
 serde_json = "1.0"
+
+[lints]
+workspace = true

@@ -71,10 +71,7 @@ def work_with_dicts():
         println!("Generated dict code:\n{}", rust_code);
 
         // Check for HashMap usage
-        assert!(
-            rust_code.contains("HashMap"),
-            "Should use HashMap for Python dicts"
-        );
+        assert!(rust_code.contains("HashMap"), "Should use HashMap for Python dicts");
     }
 }
 

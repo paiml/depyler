@@ -112,16 +112,12 @@ fn test_assign_augmented_rshift() {
 
 #[test]
 fn test_if_simple() {
-    assert!(transpiles(
-        "def f(x):\n    if x > 0:\n        return 1\n    return 0"
-    ));
+    assert!(transpiles("def f(x):\n    if x > 0:\n        return 1\n    return 0"));
 }
 
 #[test]
 fn test_if_else() {
-    assert!(transpiles(
-        "def f(x):\n    if x > 0:\n        return 1\n    else:\n        return -1"
-    ));
+    assert!(transpiles("def f(x):\n    if x > 0:\n        return 1\n    else:\n        return -1"));
 }
 
 #[test]
@@ -141,9 +137,7 @@ fn test_if_nested() {
 
 #[test]
 fn test_if_no_else() {
-    assert!(transpiles(
-        "def f(x):\n    if x > 0:\n        print('positive')"
-    ));
+    assert!(transpiles("def f(x):\n    if x > 0:\n        print('positive')"));
 }
 
 // =============================================================================
@@ -152,51 +146,37 @@ fn test_if_no_else() {
 
 #[test]
 fn test_for_range() {
-    assert!(transpiles(
-        "def f():\n    for i in range(10):\n        print(i)"
-    ));
+    assert!(transpiles("def f():\n    for i in range(10):\n        print(i)"));
 }
 
 #[test]
 fn test_for_list() {
-    assert!(transpiles(
-        "def f(lst):\n    for item in lst:\n        print(item)"
-    ));
+    assert!(transpiles("def f(lst):\n    for item in lst:\n        print(item)"));
 }
 
 #[test]
 fn test_for_enumerate() {
-    assert!(transpiles(
-        "def f(lst):\n    for i, item in enumerate(lst):\n        print(i, item)"
-    ));
+    assert!(transpiles("def f(lst):\n    for i, item in enumerate(lst):\n        print(i, item)"));
 }
 
 #[test]
 fn test_for_zip() {
-    assert!(transpiles(
-        "def f(a, b):\n    for x, y in zip(a, b):\n        print(x, y)"
-    ));
+    assert!(transpiles("def f(a, b):\n    for x, y in zip(a, b):\n        print(x, y)"));
 }
 
 #[test]
 fn test_for_dict_items() {
-    assert!(transpiles(
-        "def f(d):\n    for k, v in d.items():\n        print(k, v)"
-    ));
+    assert!(transpiles("def f(d):\n    for k, v in d.items():\n        print(k, v)"));
 }
 
 #[test]
 fn test_for_dict_keys() {
-    assert!(transpiles(
-        "def f(d):\n    for k in d.keys():\n        print(k)"
-    ));
+    assert!(transpiles("def f(d):\n    for k in d.keys():\n        print(k)"));
 }
 
 #[test]
 fn test_for_dict_values() {
-    assert!(transpiles(
-        "def f(d):\n    for v in d.values():\n        print(v)"
-    ));
+    assert!(transpiles("def f(d):\n    for v in d.values():\n        print(v)"));
 }
 
 #[test]
@@ -232,9 +212,7 @@ fn test_for_else() {
 
 #[test]
 fn test_while_simple() {
-    assert!(transpiles(
-        "def f():\n    x = 0\n    while x < 10:\n        x += 1"
-    ));
+    assert!(transpiles("def f():\n    x = 0\n    while x < 10:\n        x += 1"));
 }
 
 #[test]
@@ -265,9 +243,7 @@ fn test_while_else() {
 
 #[test]
 fn test_try_except_bare() {
-    assert!(transpiles(
-        "def f():\n    try:\n        x = 1 / 0\n    except:\n        pass"
-    ));
+    assert!(transpiles("def f():\n    try:\n        x = 1 / 0\n    except:\n        pass"));
 }
 
 #[test]
@@ -327,9 +303,7 @@ fn test_raise_simple() {
 
 #[test]
 fn test_raise_with_message() {
-    assert!(transpiles(
-        "def f():\n    raise ValueError('error message')"
-    ));
+    assert!(transpiles("def f():\n    raise ValueError('error message')"));
 }
 
 #[test]
@@ -339,9 +313,7 @@ fn test_raise_from() {
 
 #[test]
 fn test_raise_bare() {
-    assert!(transpiles(
-        "def f():\n    try:\n        x = 1 / 0\n    except:\n        raise"
-    ));
+    assert!(transpiles("def f():\n    try:\n        x = 1 / 0\n    except:\n        raise"));
 }
 
 // =============================================================================
@@ -350,9 +322,7 @@ fn test_raise_bare() {
 
 #[test]
 fn test_with_simple() {
-    assert!(transpiles(
-        "def f():\n    with open('file.txt') as f:\n        pass"
-    ));
+    assert!(transpiles("def f():\n    with open('file.txt') as f:\n        pass"));
 }
 
 #[test]
@@ -362,9 +332,7 @@ fn test_with_no_as() {
 
 #[test]
 fn test_with_multiple() {
-    assert!(transpiles(
-        "def f():\n    with open('a.txt') as a, open('b.txt') as b:\n        pass"
-    ));
+    assert!(transpiles("def f():\n    with open('a.txt') as a, open('b.txt') as b:\n        pass"));
 }
 
 #[test]
@@ -395,9 +363,7 @@ fn test_return_tuple() {
 
 #[test]
 fn test_return_conditional() {
-    assert!(transpiles(
-        "def f(x):\n    return 'positive' if x > 0 else 'non-positive'"
-    ));
+    assert!(transpiles("def f(x):\n    return 'positive' if x > 0 else 'non-positive'"));
 }
 
 // =============================================================================
@@ -411,9 +377,7 @@ fn test_assert_simple() {
 
 #[test]
 fn test_assert_with_message() {
-    assert!(transpiles(
-        "def f(x):\n    assert x > 0, 'x must be positive'"
-    ));
+    assert!(transpiles("def f(x):\n    assert x > 0, 'x must be positive'"));
 }
 
 // =============================================================================
@@ -455,9 +419,7 @@ fn test_expr_stmt_method() {
 
 #[test]
 fn test_break_in_for() {
-    assert!(transpiles(
-        "def f():\n    for i in range(10):\n        break"
-    ));
+    assert!(transpiles("def f():\n    for i in range(10):\n        break"));
 }
 
 #[test]
@@ -467,16 +429,12 @@ fn test_break_in_while() {
 
 #[test]
 fn test_continue_in_for() {
-    assert!(transpiles(
-        "def f():\n    for i in range(10):\n        continue"
-    ));
+    assert!(transpiles("def f():\n    for i in range(10):\n        continue"));
 }
 
 #[test]
 fn test_continue_in_while() {
-    assert!(transpiles(
-        "def f():\n    x = 0\n    while x < 10:\n        x += 1\n        continue"
-    ));
+    assert!(transpiles("def f():\n    x = 0\n    while x < 10:\n        x += 1\n        continue"));
 }
 
 // =============================================================================
@@ -519,9 +477,7 @@ fn test_match_or_pattern() {
 
 #[test]
 fn test_nested_function_simple() {
-    assert!(transpiles(
-        "def outer():\n    def inner():\n        return 1\n    return inner()"
-    ));
+    assert!(transpiles("def outer():\n    def inner():\n        return 1\n    return inner()"));
 }
 
 #[test]
@@ -542,9 +498,7 @@ fn test_nested_function_multiple() {
 
 #[test]
 fn test_global_stmt() {
-    assert!(transpiles(
-        "counter = 0\ndef increment():\n    global counter\n    counter += 1"
-    ));
+    assert!(transpiles("counter = 0\ndef increment():\n    global counter\n    counter += 1"));
 }
 
 #[test]
@@ -589,9 +543,7 @@ fn test_async_for() {
 
 #[test]
 fn test_async_with_statement() {
-    assert!(transpiles(
-        "async def f():\n    async with some_context() as ctx:\n        pass"
-    ));
+    assert!(transpiles("async def f():\n    async with some_context() as ctx:\n        pass"));
 }
 
 // =============================================================================
@@ -600,16 +552,12 @@ fn test_async_with_statement() {
 
 #[test]
 fn test_generator_simple() {
-    assert!(transpiles(
-        "def gen():\n    yield 1\n    yield 2\n    yield 3"
-    ));
+    assert!(transpiles("def gen():\n    yield 1\n    yield 2\n    yield 3"));
 }
 
 #[test]
 fn test_generator_from_loop() {
-    assert!(transpiles(
-        "def gen(n):\n    for i in range(n):\n        yield i"
-    ));
+    assert!(transpiles("def gen(n):\n    for i in range(n):\n        yield i"));
 }
 
 #[test]

@@ -214,13 +214,8 @@ impl SyntheticGenerator for PythonExampleGenerator {
         }
 
         // Contains the target function
-        if generated.source.contains(
-            generated
-                .target_function
-                .split('.')
-                .next_back()
-                .unwrap_or(""),
-        ) {
+        if generated.source.contains(generated.target_function.split('.').next_back().unwrap_or(""))
+        {
             score += 0.2;
         }
 
@@ -397,12 +392,7 @@ impl CorpusMetrics {
             return 0.0;
         }
         let max = *self.category_distribution.values().max().unwrap_or(&0) as f32;
-        let min = *self
-            .category_distribution
-            .values()
-            .min()
-            .unwrap_or(&1)
-            .max(&1) as f32;
+        let min = *self.category_distribution.values().min().unwrap_or(&1).max(&1) as f32;
         max / min
     }
 }
@@ -464,11 +454,7 @@ impl SelfSupervisedCorpusGenerator {
         // Process compile errors
         for error in &result.compile_errors {
             let category = auto_label(error);
-            *self
-                .metrics
-                .category_distribution
-                .entry(category)
-                .or_insert(0) += 1;
+            *self.metrics.category_distribution.entry(category).or_insert(0) += 1;
         }
 
         self.metrics.accepted += 1;
@@ -526,12 +512,7 @@ impl GenerationParams {
     /// Create from a parameter vector (DE solution).
     #[must_use]
     pub fn from_vec(params: &[f64]) -> Self {
-        assert!(
-            params.len() >= Self::DIM,
-            "Need {} params, got {}",
-            Self::DIM,
-            params.len()
-        );
+        assert!(params.len() >= Self::DIM, "Need {} params, got {}", Self::DIM, params.len());
 
         // Normalize strategy weights to sum to 1.0
         let weight_sum = params[0] + params[1] + params[2] + params[3] + params[4];
@@ -581,10 +562,7 @@ impl GenerationParams {
         weights.insert(GenerationStrategy::DocstringMining, self.weight_docstring);
         weights.insert(GenerationStrategy::TypeEnumeration, self.weight_type_enum);
         weights.insert(GenerationStrategy::EdgeCases, self.weight_edge_cases);
-        weights.insert(
-            GenerationStrategy::ErrorInduction,
-            self.weight_error_induction,
-        );
+        weights.insert(GenerationStrategy::ErrorInduction, self.weight_error_induction);
         weights.insert(GenerationStrategy::Composition, self.weight_composition);
         weights
     }
@@ -850,12 +828,7 @@ pub struct EvaluationConfig {
 
 impl Default for EvaluationConfig {
     fn default() -> Self {
-        Self {
-            k_folds: 5,
-            min_accuracy: 0.85,
-            min_diversity: 0.5,
-            seed: 42,
-        }
+        Self { k_folds: 5, min_accuracy: 0.85, min_diversity: 0.5, seed: 42 }
     }
 }
 
@@ -884,13 +857,7 @@ impl BenchmarkResult {
         generation_time_secs: f64,
         training_time_secs: f64,
     ) -> Self {
-        Self {
-            name: name.into(),
-            params,
-            metrics,
-            generation_time_secs,
-            training_time_secs,
-        }
+        Self { name: name.into(), params, metrics, generation_time_secs, training_time_secs }
     }
 
     /// Check if this result is better than another.
@@ -910,10 +877,7 @@ impl Evaluator {
     /// Create a new evaluator.
     #[must_use]
     pub fn new(config: EvaluationConfig) -> Self {
-        Self {
-            config,
-            results: Vec::new(),
-        }
+        Self { config, results: Vec::new() }
     }
 
     /// Get the evaluation configuration.
@@ -1031,10 +995,7 @@ fn generate_type_example(func: &StdlibFunction) -> String {
 
 fn generate_error_example(func: &StdlibFunction) -> String {
     // Generate intentionally wrong type to induce error
-    format!(
-        "from {} import {}\nresult = {}(None)  # Wrong type",
-        func.module, func.name, func.name
-    )
+    format!("from {} import {}\nresult = {}(None)  # Wrong type", func.module, func.name, func.name)
 }
 
 // ============================================================================
@@ -1063,10 +1024,9 @@ impl DifficultyLevel {
     pub fn strategies(&self) -> Vec<GenerationStrategy> {
         match self {
             DifficultyLevel::Basic => vec![GenerationStrategy::DocstringMining],
-            DifficultyLevel::Intermediate => vec![
-                GenerationStrategy::DocstringMining,
-                GenerationStrategy::TypeEnumeration,
-            ],
+            DifficultyLevel::Intermediate => {
+                vec![GenerationStrategy::DocstringMining, GenerationStrategy::TypeEnumeration]
+            }
             DifficultyLevel::Advanced => vec![
                 GenerationStrategy::TypeEnumeration,
                 GenerationStrategy::EdgeCases,
@@ -1227,11 +1187,7 @@ pub fn run_optimization(
     let mut optimizer = MetaheuristicOptimizer::new(optimizer_config);
 
     // Use subset of stdlib for faster evaluation
-    let eval_funcs: Vec<_> = stdlib_funcs
-        .iter()
-        .take(config.eval_stdlib_count)
-        .cloned()
-        .collect();
+    let eval_funcs: Vec<_> = stdlib_funcs.iter().take(config.eval_stdlib_count).cloned().collect();
 
     optimizer.optimize(|params| {
         evaluate_fitness_with_curriculum(
@@ -1414,9 +1370,7 @@ impl CorpusFixPredictor {
     #[must_use]
     pub fn predict(&self, category: ErrorCategory) -> Option<&ExtractedFix> {
         self.patterns.get(&category).and_then(|fixes| {
-            fixes
-                .iter()
-                .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap())
+            fixes.iter().max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap())
         })
     }
 
@@ -1509,16 +1463,10 @@ mod tests {
         let gen = PythonExampleGenerator::new(funcs.clone());
         let config = SyntheticConfig::default();
 
-        let examples = gen
-            .generate(&funcs, &config)
-            .expect("generation should succeed");
+        let examples = gen.generate(&funcs, &config).expect("generation should succeed");
 
         // Should generate at least docstring + type + error examples
-        assert!(
-            examples.len() >= 2,
-            "Expected at least 2 examples, got {}",
-            examples.len()
-        );
+        assert!(examples.len() >= 2, "Expected at least 2 examples, got {}", examples.len());
     }
 
     #[test]
@@ -1534,11 +1482,7 @@ mod tests {
         };
 
         let score = gen.quality_score(&good_example, &func);
-        assert!(
-            score >= 0.7,
-            "Good example should have high quality score: {}",
-            score
-        );
+        assert!(score >= 0.7, "Good example should have high quality score: {}", score);
     }
 
     #[test]
@@ -1568,11 +1512,7 @@ mod tests {
         ];
 
         let score = SyntheticGenerator::diversity_score(&gen, &examples);
-        assert!(
-            score > 0.5,
-            "Diverse examples should have high diversity: {:.2}",
-            score
-        );
+        assert!(score > 0.5, "Diverse examples should have high diversity: {:.2}", score);
     }
 
     // ========================================================================
@@ -1665,36 +1605,23 @@ mod tests {
 
     #[test]
     fn test_corpus_metrics_acceptance_rate() {
-        let metrics = CorpusMetrics {
-            total_generated: 100,
-            accepted: 80,
-            ..Default::default()
-        };
+        let metrics = CorpusMetrics { total_generated: 100, accepted: 80, ..Default::default() };
         assert!((metrics.acceptance_rate() - 0.8).abs() < f32::EPSILON);
     }
 
     #[test]
     fn test_corpus_metrics_duplicate_rate() {
-        let metrics = CorpusMetrics {
-            total_generated: 100,
-            rejected_duplicate: 5,
-            ..Default::default()
-        };
+        let metrics =
+            CorpusMetrics { total_generated: 100, rejected_duplicate: 5, ..Default::default() };
         assert!((metrics.duplicate_rate() - 0.05).abs() < f32::EPSILON);
     }
 
     #[test]
     fn test_corpus_metrics_imbalance_ratio() {
         let mut metrics = CorpusMetrics::default();
-        metrics
-            .category_distribution
-            .insert(ErrorCategory::TypeMismatch, 100);
-        metrics
-            .category_distribution
-            .insert(ErrorCategory::BorrowChecker, 50);
-        metrics
-            .category_distribution
-            .insert(ErrorCategory::Other, 10);
+        metrics.category_distribution.insert(ErrorCategory::TypeMismatch, 100);
+        metrics.category_distribution.insert(ErrorCategory::BorrowChecker, 50);
+        metrics.category_distribution.insert(ErrorCategory::Other, 10);
 
         assert!((metrics.imbalance_ratio() - 10.0).abs() < f32::EPSILON);
     }
@@ -1731,12 +1658,7 @@ mod tests {
 
         assert!(gen.add_result(&result));
         assert_eq!(gen.metrics().accepted, 1);
-        assert_eq!(
-            gen.metrics()
-                .category_distribution
-                .get(&ErrorCategory::TypeMismatch),
-            Some(&1)
-        );
+        assert_eq!(gen.metrics().category_distribution.get(&ErrorCategory::TypeMismatch), Some(&1));
     }
 
     #[test]
@@ -1826,10 +1748,7 @@ mod tests {
             + params.weight_edge_cases
             + params.weight_error_induction
             + params.weight_composition;
-        assert!(
-            (weight_sum - 1.0).abs() < 0.001,
-            "Weights should be normalized"
-        );
+        assert!((weight_sum - 1.0).abs() < 0.001, "Weights should be normalized");
 
         // Quality threshold preserved
         assert!((params.quality_threshold - 0.75).abs() < 0.001);
@@ -1953,11 +1872,8 @@ mod tests {
 
     #[test]
     fn test_metaheuristic_optimizer_reset() {
-        let config = OptimizerConfig {
-            max_evaluations: 20,
-            population_size: 5,
-            ..Default::default()
-        };
+        let config =
+            OptimizerConfig { max_evaluations: 20, population_size: 5, ..Default::default() };
 
         let mut optimizer = MetaheuristicOptimizer::new(config.clone());
 
@@ -1972,11 +1888,8 @@ mod tests {
 
     #[test]
     fn test_optimized_result_fields() {
-        let config = OptimizerConfig {
-            max_evaluations: 30,
-            population_size: 5,
-            ..Default::default()
-        };
+        let config =
+            OptimizerConfig { max_evaluations: 30, population_size: 5, ..Default::default() };
 
         let mut optimizer = MetaheuristicOptimizer::new(config);
         let result = optimizer.optimize(|_| 0.75);
@@ -2029,15 +1942,9 @@ mod tests {
             diversity_score: 0.8,
             ..Default::default()
         };
-        corpus_metrics
-            .category_distribution
-            .insert(ErrorCategory::TypeMismatch, 300);
-        corpus_metrics
-            .category_distribution
-            .insert(ErrorCategory::BorrowChecker, 200);
-        corpus_metrics
-            .category_distribution
-            .insert(ErrorCategory::Other, 500);
+        corpus_metrics.category_distribution.insert(ErrorCategory::TypeMismatch, 300);
+        corpus_metrics.category_distribution.insert(ErrorCategory::BorrowChecker, 200);
+        corpus_metrics.category_distribution.insert(ErrorCategory::Other, 500);
 
         let eval_metrics = EvaluationMetrics::from_corpus(&corpus_metrics, 0.92, 0.88);
 
@@ -2090,10 +1997,7 @@ mod tests {
     #[test]
     fn test_benchmark_result_creation() {
         let params = GenerationParams::default();
-        let metrics = EvaluationMetrics {
-            estimated_accuracy: 0.92,
-            ..Default::default()
-        };
+        let metrics = EvaluationMetrics { estimated_accuracy: 0.92, ..Default::default() };
 
         let result = BenchmarkResult::new("Test Config", params, metrics, 10.5, 5.2);
 
@@ -2109,11 +2013,7 @@ mod tests {
         let better = BenchmarkResult::new(
             "Better",
             params.clone(),
-            EvaluationMetrics {
-                estimated_accuracy: 0.95,
-                macro_f1: 0.93,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.95, macro_f1: 0.93, ..Default::default() },
             1.0,
             1.0,
         );
@@ -2121,11 +2021,7 @@ mod tests {
         let worse = BenchmarkResult::new(
             "Worse",
             params,
-            EvaluationMetrics {
-                estimated_accuracy: 0.80,
-                macro_f1: 0.75,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.80, macro_f1: 0.75, ..Default::default() },
             1.0,
             1.0,
         );
@@ -2151,10 +2047,7 @@ mod tests {
         let result1 = BenchmarkResult::new(
             "Config A",
             GenerationParams::default(),
-            EvaluationMetrics {
-                estimated_accuracy: 0.90,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.90, ..Default::default() },
             1.0,
             1.0,
         );
@@ -2162,10 +2055,7 @@ mod tests {
         let result2 = BenchmarkResult::new(
             "Config B",
             GenerationParams::default(),
-            EvaluationMetrics {
-                estimated_accuracy: 0.95,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.95, ..Default::default() },
             1.0,
             1.0,
         );
@@ -2184,11 +2074,7 @@ mod tests {
         evaluator.add_result(BenchmarkResult::new(
             "Low",
             GenerationParams::default(),
-            EvaluationMetrics {
-                estimated_accuracy: 0.80,
-                macro_f1: 0.75,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.80, macro_f1: 0.75, ..Default::default() },
             1.0,
             1.0,
         ));
@@ -2196,11 +2082,7 @@ mod tests {
         evaluator.add_result(BenchmarkResult::new(
             "High",
             GenerationParams::default(),
-            EvaluationMetrics {
-                estimated_accuracy: 0.95,
-                macro_f1: 0.93,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.95, macro_f1: 0.93, ..Default::default() },
             1.0,
             1.0,
         ));
@@ -2208,11 +2090,7 @@ mod tests {
         evaluator.add_result(BenchmarkResult::new(
             "Medium",
             GenerationParams::default(),
-            EvaluationMetrics {
-                estimated_accuracy: 0.88,
-                macro_f1: 0.85,
-                ..Default::default()
-            },
+            EvaluationMetrics { estimated_accuracy: 0.88, macro_f1: 0.85, ..Default::default() },
             1.0,
             1.0,
         ));
@@ -2245,11 +2123,8 @@ mod tests {
             macro_f1: 0.93,
         };
 
-        let worse = EvaluationMetrics {
-            estimated_accuracy: 0.70,
-            macro_f1: 0.65,
-            ..Default::default()
-        };
+        let worse =
+            EvaluationMetrics { estimated_accuracy: 0.70, macro_f1: 0.65, ..Default::default() };
 
         assert!(evaluator.improves_over_baseline(&improved));
         assert!(!evaluator.improves_over_baseline(&worse));
@@ -2320,10 +2195,7 @@ mod tests {
             + DifficultyLevel::Advanced.weight()
             + DifficultyLevel::Expert.weight();
 
-        assert!(
-            (total_weight - 1.0).abs() < 0.001,
-            "Weights should sum to 1.0"
-        );
+        assert!((total_weight - 1.0).abs() < 0.001, "Weights should sum to 1.0");
     }
 
     #[test]

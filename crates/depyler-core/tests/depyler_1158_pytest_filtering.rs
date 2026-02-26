@@ -94,10 +94,7 @@ def my_fixture():
     return 42
 "#;
 
-    assert!(
-        has_pytest_import(source),
-        "Should detect 'from pytest import'"
-    );
+    assert!(has_pytest_import(source), "Should detect 'from pytest import'");
 }
 
 #[test]
@@ -107,10 +104,7 @@ def add(a, b):
     return a + b
 "#;
 
-    assert!(
-        !has_pytest_import(source),
-        "Should not detect pytest import"
-    );
+    assert!(!has_pytest_import(source), "Should not detect pytest import");
 }
 
 // ========================================================================
@@ -125,10 +119,7 @@ def test_write_file(tmp_path):
     file.write_text("hello")
 "#;
 
-    assert!(
-        uses_pytest_fixtures(source),
-        "Should detect tmp_path fixture"
-    );
+    assert!(uses_pytest_fixtures(source), "Should detect tmp_path fixture");
 }
 
 #[test]
@@ -138,10 +129,7 @@ def test_mock_env(monkeypatch):
     monkeypatch.setenv("KEY", "value")
 "#;
 
-    assert!(
-        uses_pytest_fixtures(source),
-        "Should detect monkeypatch fixture"
-    );
+    assert!(uses_pytest_fixtures(source), "Should detect monkeypatch fixture");
 }
 
 #[test]
@@ -163,10 +151,7 @@ def test_complex(tmp_path, monkeypatch, capsys):
     pass
 "#;
 
-    assert!(
-        uses_pytest_fixtures(source),
-        "Should detect multiple fixtures"
-    );
+    assert!(uses_pytest_fixtures(source), "Should detect multiple fixtures");
 }
 
 #[test]
@@ -193,10 +178,7 @@ def sample_data():
     return [1, 2, 3]
 "#;
 
-    assert!(
-        should_exclude_from_convergence("conftest.py", source),
-        "Should exclude conftest.py"
-    );
+    assert!(should_exclude_from_convergence("conftest.py", source), "Should exclude conftest.py");
 }
 
 #[test]
@@ -235,10 +217,7 @@ def main():
     print("Hello, World!")
 "#;
 
-    assert!(
-        !should_exclude_from_convergence("main.py", source),
-        "Should NOT exclude regular code"
-    );
+    assert!(!should_exclude_from_convergence("main.py", source), "Should NOT exclude regular code");
 }
 
 // ========================================================================

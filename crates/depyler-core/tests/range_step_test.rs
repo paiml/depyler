@@ -54,10 +54,7 @@ def count_by_twos():
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code for range(0, 10, 2):\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("step_by"),
-        "Should use step_by for step parameter"
-    );
+    assert!(rust_code.contains("step_by"), "Should use step_by for step parameter");
     assert!(rust_code.contains("2"), "Should include step value 2");
 }
 
@@ -131,10 +128,7 @@ def dynamic_range(start: int, end: int, step: int):
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code for range with variables:\n{}", rust_code);
 
-    assert!(
-        rust_code.contains("step_by"),
-        "Should use step_by with variables"
-    );
+    assert!(rust_code.contains("step_by"), "Should use step_by with variables");
 }
 
 #[test]

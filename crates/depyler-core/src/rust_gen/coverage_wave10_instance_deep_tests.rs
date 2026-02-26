@@ -19,10 +19,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -526,7 +524,9 @@ s2 = {1, 2}
 x = s1.issuperset(s2)
 "#;
         let result = transpile(py);
-        assert!(result.contains("issuperset") || result.contains("is_superset") || result.len() > 0);
+        assert!(
+            result.contains("issuperset") || result.contains("is_superset") || result.len() > 0
+        );
     }
 
     #[test]
@@ -610,7 +610,9 @@ s2 = {3, 4}
 x = s1.isdisjoint(s2)
 "#;
         let result = transpile(py);
-        assert!(result.contains("isdisjoint") || result.contains("is_disjoint") || result.len() > 0);
+        assert!(
+            result.contains("isdisjoint") || result.contains("is_disjoint") || result.len() > 0
+        );
     }
 
     #[test]
@@ -1284,7 +1286,9 @@ s = "HelloWorld"
 s2 = s.removeprefix("Hello")
 "#;
         let result = transpile(py);
-        assert!(result.contains("removeprefix") || result.contains("strip_prefix") || result.len() > 0);
+        assert!(
+            result.contains("removeprefix") || result.contains("strip_prefix") || result.len() > 0
+        );
     }
 
     #[test]
@@ -1294,7 +1298,9 @@ s = "HelloWorld"
 s2 = s.removesuffix("World")
 "#;
         let result = transpile(py);
-        assert!(result.contains("removesuffix") || result.contains("strip_suffix") || result.len() > 0);
+        assert!(
+            result.contains("removesuffix") || result.contains("strip_suffix") || result.len() > 0
+        );
     }
 
     #[test]
@@ -1344,7 +1350,9 @@ s = "hello123"
 x = s.isalnum()
 "#;
         let result = transpile(py);
-        assert!(result.contains("isalnum") || result.contains("is_alphanumeric") || result.len() > 0);
+        assert!(
+            result.contains("isalnum") || result.contains("is_alphanumeric") || result.len() > 0
+        );
     }
 
     #[test]
@@ -1414,7 +1422,9 @@ s = "hello world"
 x = s.startswith("hello")
 "#;
         let result = transpile(py);
-        assert!(result.contains("startswith") || result.contains("starts_with") || result.len() > 0);
+        assert!(
+            result.contains("startswith") || result.contains("starts_with") || result.len() > 0
+        );
     }
 
     #[test]
@@ -1935,7 +1945,9 @@ with open("file.txt", "r") as f:
     lines = f.readlines()
 "#;
         let result = transpile(py);
-        assert!(result.contains("readlines") || result.contains("read_to_string") || result.len() > 0);
+        assert!(
+            result.contains("readlines") || result.contains("read_to_string") || result.len() > 0
+        );
     }
 
     #[test]

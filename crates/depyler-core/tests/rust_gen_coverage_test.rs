@@ -234,11 +234,7 @@ from typing import List
     // Should not have duplicate "use std::collections::" statements
     let use_count = rust_code.matches("use std::collections").count();
     // Deduplication should reduce redundant imports
-    assert!(
-        use_count <= 2,
-        "Too many duplicate use statements: {}",
-        use_count
-    );
+    assert!(use_count <= 2, "Too many duplicate use statements: {}", use_count);
 }
 
 /// Unit Test: HashMap import when needed
@@ -410,12 +406,7 @@ def test_{}():
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            description,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", description, result.err());
     }
 }
 
@@ -443,12 +434,7 @@ def test_{}():
         );
         let result = pipeline.transpile(&python_code);
 
-        assert!(
-            result.is_ok(),
-            "Failed to transpile {}: {:?}",
-            description,
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to transpile {}: {:?}", description, result.err());
     }
 }
 
@@ -520,10 +506,7 @@ def main():
     return x
 "#;
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Basic transpilation should succeed after DEPYLER-1088 fix"
-    );
+    assert!(result.is_ok(), "Basic transpilation should succeed after DEPYLER-1088 fix");
 }
 
 /// Regression Test: DEPYLER-1088 - Inline #[arg()] attributes preserved
@@ -538,15 +521,9 @@ def process(name: str) -> str:
     return name.upper()
 "#;
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Code with string params should compile after DEPYLER-1088 fix"
-    );
+    assert!(result.is_ok(), "Code with string params should compile after DEPYLER-1088 fix");
     let rust_code = result.unwrap();
-    assert!(
-        rust_code.contains("fn process"),
-        "Function should be generated"
-    );
+    assert!(rust_code.contains("fn process"), "Function should be generated");
 }
 
 /// Regression Test: DEPYLER-1090 - Strip clap::CommandFactory imports in NASA mode
@@ -736,10 +713,7 @@ def subtract_int_from_float(value: float, count: int) -> float:
 
     // Should compile - verify it contains proper type handling
     // Either explicit cast (count as f64) or works with DepylerValue
-    assert!(
-        rust_code.contains("fn subtract_int_from_float"),
-        "Function should be generated"
-    );
+    assert!(rust_code.contains("fn subtract_int_from_float"), "Function should be generated");
 }
 
 /// Regression Test: DEPYLER-1095 - Python negative indexing (list[-1])
@@ -796,10 +770,7 @@ def get_at(items: list, idx: int) -> int:
 
     // For variable indices, should generate runtime check
     // Either explicit < 0 check or use safe method like .get()
-    assert!(
-        rust_code.contains("fn get_at"),
-        "Function should be generated"
-    );
+    assert!(rust_code.contains("fn get_at"), "Function should be generated");
 }
 
 /// DEPYLER-1096: Boolean truthiness coercion regression test.
@@ -851,17 +822,11 @@ def check_flag(flag: bool) -> str:
     let rust_code = result.unwrap();
 
     // Extract just the check_flag function body
-    let fn_start = rust_code
-        .find("fn check_flag")
-        .expect("Function should exist");
+    let fn_start = rust_code.find("fn check_flag").expect("Function should exist");
     let fn_body = &rust_code[fn_start..];
 
     // For bool types, should generate simple `if flag` without coercion
-    assert!(
-        fn_body.contains("if flag"),
-        "Bool condition should be `if flag`: {}",
-        fn_body
-    );
+    assert!(fn_body.contains("if flag"), "Bool condition should be `if flag`: {}", fn_body);
 }
 
 #[test]
@@ -880,18 +845,12 @@ def is_positive(n: int) -> bool:
     let rust_code = result.unwrap();
 
     // Extract just the is_positive function body
-    let fn_start = rust_code
-        .find("fn is_positive")
-        .expect("Function should exist");
+    let fn_start = rust_code.find("fn is_positive").expect("Function should exist");
     let fn_body = &rust_code[fn_start..];
 
     // The comparison `n > 0` returns bool - should be present without extra coercion
     // CSE may extract to a temp variable like _cse_temp_0 = n > 0
-    assert!(
-        fn_body.contains("n > 0"),
-        "Comparison expression should be present: {}",
-        fn_body
-    );
+    assert!(fn_body.contains("n > 0"), "Comparison expression should be present: {}", fn_body);
 }
 
 /// DEPYLER-1097: all() builtin regression test.
@@ -1036,11 +995,7 @@ def has_negative(data: list[float]) -> bool:
     return any(x < 0 for x in data)
 "#;
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
     let rust_code = result.unwrap();
 
     // The comparison should use float literal (0f64 or 0.0)
@@ -1065,11 +1020,7 @@ def filter_positive(values: list[float]) -> list[float]:
     return [x for x in values if x > 0]
 "#;
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
     let rust_code = result.unwrap();
 
     // The comprehension should compile - if type propagation works,

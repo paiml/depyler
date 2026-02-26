@@ -83,41 +83,24 @@ fn map_category(category: &str, subcategory: &str, error_code: &str) -> ErrorCat
 /// Generate fix suggestion based on graph context and error type
 fn generate_fix_suggestion(failure: &VectorizedFailure) -> Option<String> {
     let fix_type = &failure.labels.fix_type;
-    let node_id = failure
-        .graph_context
-        .node_id
-        .as_deref()
-        .unwrap_or("unknown");
+    let node_id = failure.graph_context.node_id.as_deref().unwrap_or("unknown");
 
     match fix_type.as_str() {
-        "unwrap_result" => Some(format!(
-            "In {}: Remove double Result wrapping - use ? operator directly",
-            node_id
-        )),
-        "type_annotation" => Some(format!(
-            "In {}: Add explicit type annotation to resolve DepylerValue",
-            node_id
-        )),
-        "to_string" => Some(format!(
-            "In {}: Convert &str to String using .to_string()",
-            node_id
-        )),
-        "cast" => Some(format!(
-            "In {}: Add numeric type cast (as i64, as f64)",
-            node_id
-        )),
-        "add_trait_impl" => Some(format!(
-            "In {}: Implement required trait or use trait object",
-            node_id
-        )),
-        "add_import" => Some(format!(
-            "In {}: Add missing use statement or import",
-            node_id
-        )),
-        "derive_trait" => Some(format!(
-            "In {}: Add #[derive(Clone, Debug)] or implement trait",
-            node_id
-        )),
+        "unwrap_result" => {
+            Some(format!("In {}: Remove double Result wrapping - use ? operator directly", node_id))
+        }
+        "type_annotation" => {
+            Some(format!("In {}: Add explicit type annotation to resolve DepylerValue", node_id))
+        }
+        "to_string" => Some(format!("In {}: Convert &str to String using .to_string()", node_id)),
+        "cast" => Some(format!("In {}: Add numeric type cast (as i64, as f64)", node_id)),
+        "add_trait_impl" => {
+            Some(format!("In {}: Implement required trait or use trait object", node_id))
+        }
+        "add_import" => Some(format!("In {}: Add missing use statement or import", node_id)),
+        "derive_trait" => {
+            Some(format!("In {}: Add #[derive(Clone, Debug)] or implement trait", node_id))
+        }
         "type_inference" => {
             // More specific fix based on error code
             match failure.error_code.as_str() {
@@ -221,23 +204,14 @@ pub struct GraphCorpusStats {
 
 /// Analyze graph corpus and return statistics
 pub fn analyze_graph_corpus(failures: &[VectorizedFailure]) -> GraphCorpusStats {
-    let mut stats = GraphCorpusStats {
-        total_samples: failures.len(),
-        ..Default::default()
-    };
+    let mut stats = GraphCorpusStats { total_samples: failures.len(), ..Default::default() };
 
     for failure in failures {
         // Count by category
-        *stats
-            .by_category
-            .entry(failure.labels.category.clone())
-            .or_insert(0) += 1;
+        *stats.by_category.entry(failure.labels.category.clone()).or_insert(0) += 1;
 
         // Count by error code
-        *stats
-            .by_error_code
-            .entry(failure.error_code.clone())
-            .or_insert(0) += 1;
+        *stats.by_error_code.entry(failure.error_code.clone()).or_insert(0) += 1;
 
         // Count with graph context
         if failure.graph_context.node_id.is_some() {

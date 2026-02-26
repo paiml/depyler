@@ -179,12 +179,7 @@ impl<'a> FailureContext<'a> {
         }
 
         // Default
-        (
-            "unknown".to_string(),
-            "unknown".to_string(),
-            "manual_fix".to_string(),
-            0.3,
-        )
+        ("unknown".to_string(), "unknown".to_string(), "manual_fix".to_string(), 0.3)
     }
 }
 
@@ -242,12 +237,7 @@ pub fn vectorize_failures(
                     inheritance_chain: inheritance,
                 },
                 source_snippet: context.extract_snippet(error.python_line_estimate, 3),
-                labels: FailureLabels {
-                    category,
-                    subcategory,
-                    fix_type,
-                    confidence,
-                },
+                labels: FailureLabels { category, subcategory, fix_type, confidence },
             }
         })
         .collect()
@@ -293,10 +283,7 @@ def foo():
 
     #[test]
     fn test_classify_double_result() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
         let (cat, sub, fix, conf) =
             context.classify_error("E0308", "expected Vec, found Result<Vec>");
@@ -309,10 +296,7 @@ def foo():
 
     #[test]
     fn test_classify_depyler_value() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
         let (cat, sub, _, _) = context.classify_error("E0308", "expected f64, found DepylerValue");
 
@@ -398,13 +382,9 @@ def foo():
 
     #[test]
     fn test_classify_string_ref_mismatch() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
-        let (cat, sub, fix, conf) =
-            context.classify_error("E0308", "expected &str, found String");
+        let (cat, sub, fix, conf) = context.classify_error("E0308", "expected &str, found String");
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "string_ref_mismatch");
         assert_eq!(fix, "to_string");
@@ -413,13 +393,9 @@ def foo():
 
     #[test]
     fn test_classify_numeric_type_mismatch() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
-        let (cat, sub, fix, _) =
-            context.classify_error("E0308", "expected i32, found f64");
+        let (cat, sub, fix, _) = context.classify_error("E0308", "expected i32, found f64");
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "numeric_type_mismatch");
         assert_eq!(fix, "cast");
@@ -427,13 +403,9 @@ def foo():
 
     #[test]
     fn test_classify_e0308_general() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
-        let (cat, sub, fix, conf) =
-            context.classify_error("E0308", "expected bool, found ()");
+        let (cat, sub, fix, conf) = context.classify_error("E0308", "expected bool, found ()");
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "general");
         assert_eq!(fix, "type_inference");
@@ -442,13 +414,9 @@ def foo():
 
     #[test]
     fn test_classify_e0599_missing_method() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
-        let (cat, sub, fix, _) =
-            context.classify_error("E0599", "no method named `len` found");
+        let (cat, sub, fix, _) = context.classify_error("E0599", "no method named `len` found");
         assert_eq!(cat, "missing_method");
         assert_eq!(sub, "stdlib_mapping");
         assert_eq!(fix, "add_trait_impl");
@@ -456,10 +424,7 @@ def foo():
 
     #[test]
     fn test_classify_e0425_undefined() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
         let (cat, sub, fix, _) =
             context.classify_error("E0425", "cannot find value `x` in this scope");
@@ -470,10 +435,7 @@ def foo():
 
     #[test]
     fn test_classify_e0277_trait_bound() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
         let (cat, sub, fix, _) =
             context.classify_error("E0277", "the trait `Display` is not implemented");
@@ -484,13 +446,9 @@ def foo():
 
     #[test]
     fn test_classify_unknown_error() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
-        let (cat, sub, fix, conf) =
-            context.classify_error("E9999", "something weird");
+        let (cat, sub, fix, conf) = context.classify_error("E9999", "something weird");
         assert_eq!(cat, "unknown");
         assert_eq!(sub, "unknown");
         assert_eq!(fix, "manual_fix");
@@ -500,10 +458,7 @@ def foo():
     #[test]
     fn test_extract_snippet_from_source() {
         let source = "line1\nline2\nline3\nline4\nline5\n";
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source,
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source };
 
         let snippet = context.extract_snippet(3, 1);
         assert!(snippet.contains("line2"));
@@ -513,10 +468,7 @@ def foo():
 
     #[test]
     fn test_extract_snippet_empty_source() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
         let snippet = context.extract_snippet(1, 3);
         assert!(snippet.is_empty());
@@ -525,10 +477,7 @@ def foo():
     #[test]
     fn test_extract_snippet_boundary_start() {
         let source = "line1\nline2\nline3\n";
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source,
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source };
 
         // Line 1 with context=2 should not panic
         let snippet = context.extract_snippet(1, 2);
@@ -538,10 +487,7 @@ def foo():
     #[test]
     fn test_extract_snippet_boundary_end() {
         let source = "line1\nline2\nline3\n";
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source,
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source };
 
         // Line beyond end should not panic
         let snippet = context.extract_snippet(100, 2);
@@ -653,7 +599,8 @@ def caller():
         if f.graph_context.node_id.is_some() {
             // in_degree + out_degree should reflect the graph structure
             assert!(
-                f.graph_context.in_degree > 0 || f.graph_context.out_degree > 0
+                f.graph_context.in_degree > 0
+                    || f.graph_context.out_degree > 0
                     || f.graph_context.in_degree == 0
             );
         }
@@ -697,10 +644,7 @@ def caller():
 
         assert_eq!(deserialized.id, "test_rt");
         assert_eq!(deserialized.error_code, "E0277");
-        assert_eq!(
-            deserialized.ast_context.containing_class,
-            Some("Handler".to_string())
-        );
+        assert_eq!(deserialized.ast_context.containing_class, Some("Handler".to_string()));
         assert_eq!(deserialized.ast_context.parameter_types.len(), 2);
         assert_eq!(deserialized.graph_context.callers.len(), 3);
         assert_eq!(deserialized.labels.subcategory, "missing_trait");
@@ -797,10 +741,7 @@ def caller():
     #[test]
     fn test_s9b7_extract_snippet_large_context() {
         let source = "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n";
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source,
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source };
         let snippet = context.extract_snippet(5, 10);
         // Should get all lines since context is larger than file
         assert!(snippet.contains("a"));
@@ -810,20 +751,14 @@ def caller():
     #[test]
     fn test_s9b7_extract_snippet_single_line() {
         let source = "only_line";
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source,
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source };
         let snippet = context.extract_snippet(1, 0);
         assert_eq!(snippet, "only_line");
     }
 
     #[test]
     fn test_s9b7_classify_e0308_f64() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
         let (cat, sub, fix, _) = context.classify_error("E0308", "expected i32, found f64");
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "numeric_type_mismatch");
@@ -908,13 +843,9 @@ def caller():
 
     #[test]
     fn test_classify_e0308_i64_numeric() {
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
 
-        let (cat, sub, _, _) =
-            context.classify_error("E0308", "expected usize, found i64");
+        let (cat, sub, _, _) = context.classify_error("E0308", "expected usize, found i64");
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "numeric_type_mismatch");
     }
@@ -956,10 +887,7 @@ def caller():
     #[test]
     fn test_s12_classify_e0308_with_result_and_string() {
         // Tests that "Result" match takes priority over "String"
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
         let (_, sub, fix, _) =
             context.classify_error("E0308", "expected String, found Result<String>");
         assert_eq!(sub, "double_result_wrap");
@@ -969,34 +897,23 @@ def caller():
     #[test]
     fn test_s12_classify_e0308_string_only() {
         // Tests &str/String mismatch without Result keyword
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
-        let (_, sub, _, _) =
-            context.classify_error("E0308", "expected &str but found String");
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
+        let (_, sub, _, _) = context.classify_error("E0308", "expected &str but found String");
         assert_eq!(sub, "string_ref_mismatch");
     }
 
     #[test]
     fn test_s12_classify_e0308_depyler_value_priority() {
         // DepylerValue should match even with other keywords
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source: "",
-        };
-        let (_, sub, _, _) =
-            context.classify_error("E0308", "expected i32, found DepylerValue");
+        let context = FailureContext { graph: &DependencyGraph::new(), source: "" };
+        let (_, sub, _, _) = context.classify_error("E0308", "expected i32, found DepylerValue");
         assert_eq!(sub, "depyler_value_leak");
     }
 
     #[test]
     fn test_s12_extract_snippet_line_zero() {
         let source = "first\nsecond\nthird\n";
-        let context = FailureContext {
-            graph: &DependencyGraph::new(),
-            source,
-        };
+        let context = FailureContext { graph: &DependencyGraph::new(), source };
         // line 0 should be bounded to 1
         let snippet = context.extract_snippet(0, 1);
         assert!(snippet.contains("first"));

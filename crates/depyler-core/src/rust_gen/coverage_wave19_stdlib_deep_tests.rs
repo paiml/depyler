@@ -23,10 +23,8 @@ mod tests {
     #[allow(unused_variables)]
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -178,7 +176,8 @@ mod tests {
 
     #[test]
     fn test_wave19_sys_021_exit_in_if() {
-        let code = "import sys\ndef maybe_exit(flag: bool) -> None:\n    if flag:\n        sys.exit(0)";
+        let code =
+            "import sys\ndef maybe_exit(flag: bool) -> None:\n    if flag:\n        sys.exit(0)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -192,7 +191,8 @@ mod tests {
 
     #[test]
     fn test_wave19_sys_023_path_append() {
-        let code = "import sys\ndef add_path(p: str) -> None:\n    paths: list = []\n    paths.append(p)";
+        let code =
+            "import sys\ndef add_path(p: str) -> None:\n    paths: list = []\n    paths.append(p)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -213,7 +213,8 @@ mod tests {
 
     #[test]
     fn test_wave19_sys_026_argv_iteration() {
-        let code = "import sys\ndef print_args() -> None:\n    for arg in sys.argv:\n        print(arg)";
+        let code =
+            "import sys\ndef print_args() -> None:\n    for arg in sys.argv:\n        print(arg)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -234,7 +235,8 @@ mod tests {
 
     #[test]
     fn test_wave19_sys_029_stderr_msg() {
-        let code = "import sys\ndef log_err(msg: str) -> None:\n    sys.stderr.write(msg + \"\\n\")";
+        let code =
+            "import sys\ndef log_err(msg: str) -> None:\n    sys.stderr.write(msg + \"\\n\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -350,14 +352,16 @@ mod tests {
 
     #[test]
     fn test_wave19_re_045_split_whitespace() {
-        let code = "import re\ndef split_ws(text: str) -> list:\n    return re.split(r\"\\s+\", text)";
+        let code =
+            "import re\ndef split_ws(text: str) -> list:\n    return re.split(r\"\\s+\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_wave19_re_046_split_comma() {
-        let code = "import re\ndef split_csv(text: str) -> list:\n    return re.split(r\",\\s*\", text)";
+        let code =
+            "import re\ndef split_csv(text: str) -> list:\n    return re.split(r\",\\s*\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -420,7 +424,8 @@ mod tests {
 
     #[test]
     fn test_wave19_re_055_split_maxsplit() {
-        let code = "import re\ndef split_first(text: str) -> list:\n    return re.split(r\":\", text)";
+        let code =
+            "import re\ndef split_first(text: str) -> list:\n    return re.split(r\":\", text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -592,7 +597,8 @@ mod tests {
 
     #[test]
     fn test_wave19_colorsys_079_hls_to_rgb_zero() {
-        let code = "import colorsys\ndef dark() -> tuple:\n    return colorsys.hls_to_rgb(0.0, 0.0, 0.0)";
+        let code =
+            "import colorsys\ndef dark() -> tuple:\n    return colorsys.hls_to_rgb(0.0, 0.0, 0.0)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -659,7 +665,8 @@ mod tests {
 
     #[test]
     fn test_wave19_math_088_pow() {
-        let code = "import math\ndef power(x: float, y: float) -> float:\n    return math.pow(x, y)";
+        let code =
+            "import math\ndef power(x: float, y: float) -> float:\n    return math.pow(x, y)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -708,7 +715,8 @@ mod tests {
 
     #[test]
     fn test_wave19_math_095_gcd() {
-        let code = "import math\ndef greatest_common(a: int, b: int) -> int:\n    return math.gcd(a, b)";
+        let code =
+            "import math\ndef greatest_common(a: int, b: int) -> int:\n    return math.gcd(a, b)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -750,21 +758,24 @@ mod tests {
 
     #[test]
     fn test_wave19_math_101_radians() {
-        let code = "import math\ndef to_radians(deg: float) -> float:\n    return math.radians(deg)";
+        let code =
+            "import math\ndef to_radians(deg: float) -> float:\n    return math.radians(deg)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_wave19_math_102_degrees() {
-        let code = "import math\ndef to_degrees(rad: float) -> float:\n    return math.degrees(rad)";
+        let code =
+            "import math\ndef to_degrees(rad: float) -> float:\n    return math.degrees(rad)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
 
     #[test]
     fn test_wave19_math_103_atan2() {
-        let code = "import math\ndef angle(y: float, x: float) -> float:\n    return math.atan2(y, x)";
+        let code =
+            "import math\ndef angle(y: float, x: float) -> float:\n    return math.atan2(y, x)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -831,7 +842,8 @@ mod tests {
 
     #[test]
     fn test_wave19_json_112_dumps_list() {
-        let code = "import json\ndef list_to_json(items: list) -> str:\n    return json.dumps(items)";
+        let code =
+            "import json\ndef list_to_json(items: list) -> str:\n    return json.dumps(items)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -852,7 +864,8 @@ mod tests {
 
     #[test]
     fn test_wave19_json_115_loads_list() {
-        let code = "import json\ndef list_from_json(text: str) -> list:\n    return json.loads(text)";
+        let code =
+            "import json\ndef list_from_json(text: str) -> list:\n    return json.loads(text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1154,7 +1167,8 @@ mod tests {
 
     #[test]
     fn test_wave19_random_157_randrange() {
-        let code = "import random\ndef rand_below(stop: int) -> int:\n    return random.randrange(stop)";
+        let code =
+            "import random\ndef rand_below(stop: int) -> int:\n    return random.randrange(stop)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1196,7 +1210,8 @@ mod tests {
 
     #[test]
     fn test_wave19_random_163_uniform_zero_one() {
-        let code = "import random\ndef unit_random() -> float:\n    return random.uniform(0.0, 1.0)";
+        let code =
+            "import random\ndef unit_random() -> float:\n    return random.uniform(0.0, 1.0)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1217,7 +1232,8 @@ mod tests {
 
     #[test]
     fn test_wave19_random_166_gauss_standard() {
-        let code = "import random\ndef standard_normal() -> float:\n    return random.gauss(0.0, 1.0)";
+        let code =
+            "import random\ndef standard_normal() -> float:\n    return random.gauss(0.0, 1.0)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }

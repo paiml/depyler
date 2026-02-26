@@ -135,8 +135,7 @@ fn populate_result_bool(ctx: &mut CodeGenContext, functions: &[HirFunction]) {
 fn populate_option_returning_and_return_types(ctx: &mut CodeGenContext, functions: &[HirFunction]) {
     for func in functions {
         // Store all function return types for type tracking
-        ctx.function_return_types
-            .insert(func.name.clone(), func.ret_type.clone());
+        ctx.function_return_types.insert(func.name.clone(), func.ret_type.clone());
 
         // Track Option-returning functions specifically
         if matches!(func.ret_type, Type::Optional(_)) {
@@ -148,8 +147,7 @@ fn populate_option_returning_and_return_types(ctx: &mut CodeGenContext, function
 fn populate_param_types(ctx: &mut CodeGenContext, functions: &[HirFunction]) {
     for func in functions {
         let param_types: Vec<Type> = func.params.iter().map(|p| p.ty.clone()).collect();
-        ctx.function_param_types
-            .insert(func.name.clone(), param_types);
+        ctx.function_param_types.insert(func.name.clone(), param_types);
     }
 }
 
@@ -177,23 +175,18 @@ fn populate_param_muts(ctx: &mut CodeGenContext, functions: &[HirFunction]) {
             })
             .collect();
         if param_muts.iter().any(|&m| m) {
-            ctx.function_param_muts
-                .insert(func.name.clone(), param_muts);
+            ctx.function_param_muts.insert(func.name.clone(), param_muts);
         }
     }
 }
 
 fn populate_optional_params(ctx: &mut CodeGenContext, functions: &[HirFunction]) {
     for func in functions {
-        let optionals: Vec<bool> = func
-            .params
-            .iter()
-            .map(|p| matches!(p.ty, Type::Optional(_)))
-            .collect();
+        let optionals: Vec<bool> =
+            func.params.iter().map(|p| matches!(p.ty, Type::Optional(_))).collect();
         // Only track if any param is Optional
         if optionals.iter().any(|&b| b) {
-            ctx.function_param_optionals
-                .insert(func.name.clone(), optionals);
+            ctx.function_param_optionals.insert(func.name.clone(), optionals);
         }
     }
 }
@@ -201,8 +194,7 @@ fn populate_optional_params(ctx: &mut CodeGenContext, functions: &[HirFunction])
 fn populate_class_field_types(ctx: &mut CodeGenContext, classes: &[HirClass]) {
     for class in classes {
         for field in &class.fields {
-            ctx.class_field_types
-                .insert(field.name.clone(), field.field_type.clone());
+            ctx.class_field_types.insert(field.name.clone(), field.field_type.clone());
         }
     }
 }
@@ -211,8 +203,7 @@ fn populate_class_method_return_types(ctx: &mut CodeGenContext, classes: &[HirCl
     for class in classes {
         // Track constructor return type: ClassName() -> Type::Custom("ClassName")
         // This enables type inference for expressions like `p = Point(3, 4)`
-        ctx.function_return_types
-            .insert(class.name.clone(), Type::Custom(class.name.clone()));
+        ctx.function_return_types.insert(class.name.clone(), Type::Custom(class.name.clone()));
         // DEPYLER-99MODE-S9: Register class name so NASA mode type annotations
         // use the struct type instead of HashMap<DepylerValue, DepylerValue>
         ctx.class_names.insert(class.name.clone());
@@ -224,10 +215,8 @@ fn populate_class_method_return_types(ctx: &mut CodeGenContext, classes: &[HirCl
             }
             // Only track methods with explicit return type annotations
             if !matches!(method.ret_type, Type::Unknown | Type::None) {
-                ctx.class_method_return_types.insert(
-                    (class.name.clone(), method.name.clone()),
-                    method.ret_type.clone(),
-                );
+                ctx.class_method_return_types
+                    .insert((class.name.clone(), method.name.clone()), method.ret_type.clone());
             }
         }
     }
@@ -355,11 +344,7 @@ mod tests {
 
     #[test]
     fn test_populate_option_returning() {
-        let funcs = vec![make_func(
-            "maybe",
-            vec![],
-            Type::Optional(Box::new(Type::Int)),
-        )];
+        let funcs = vec![make_func("maybe", vec![], Type::Optional(Box::new(Type::Int)))];
         let module = make_module(funcs, vec![]);
         let mut ctx = CodeGenContext::default();
         populate_context_metadata(&module, &mut ctx);
@@ -380,10 +365,7 @@ mod tests {
         let module = make_module(funcs, vec![]);
         let mut ctx = CodeGenContext::default();
         populate_context_metadata(&module, &mut ctx);
-        assert_eq!(
-            ctx.function_param_types.get("add"),
-            Some(&vec![Type::Float, Type::Float])
-        );
+        assert_eq!(ctx.function_param_types.get("add"), Some(&vec![Type::Float, Type::Float]));
     }
 
     #[test]
@@ -408,10 +390,7 @@ mod tests {
     fn test_populate_optional_params() {
         let funcs = vec![make_func(
             "with_opt",
-            vec![
-                make_param("x", Type::Int),
-                make_param("y", Type::Optional(Box::new(Type::Int))),
-            ],
+            vec![make_param("x", Type::Int), make_param("y", Type::Optional(Box::new(Type::Int)))],
             Type::None,
         )];
         let module = make_module(funcs, vec![]);
@@ -469,8 +448,7 @@ mod tests {
         assert!(ctx.class_names.contains("Point"));
         // __init__ skipped, distance tracked
         assert_eq!(
-            ctx.class_method_return_types
-                .get(&("Point".to_string(), "distance".to_string())),
+            ctx.class_method_return_types.get(&("Point".to_string(), "distance".to_string())),
             Some(&Type::Float)
         );
         // __init__ NOT tracked

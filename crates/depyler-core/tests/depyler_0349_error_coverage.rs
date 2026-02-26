@@ -25,11 +25,7 @@ use depyler_core::error::*;
 
 #[test]
 fn test_depyler_0349_source_location_display() {
-    let loc = SourceLocation {
-        file: "main.py".to_string(),
-        line: 42,
-        column: 15,
-    };
+    let loc = SourceLocation { file: "main.py".to_string(), line: 42, column: 15 };
 
     let display = format!("{}", loc);
     assert_eq!(display, "main.py:42:15");
@@ -37,11 +33,7 @@ fn test_depyler_0349_source_location_display() {
 
 #[test]
 fn test_depyler_0349_source_location_clone_eq() {
-    let loc1 = SourceLocation {
-        file: "test.py".to_string(),
-        line: 10,
-        column: 5,
-    };
+    let loc1 = SourceLocation { file: "test.py".to_string(), line: 10, column: 5 };
 
     let loc2 = loc1.clone();
     assert_eq!(loc1, loc2);
@@ -49,11 +41,7 @@ fn test_depyler_0349_source_location_clone_eq() {
 
 #[test]
 fn test_depyler_0349_source_location_debug() {
-    let loc = SourceLocation {
-        file: "example.py".to_string(),
-        line: 1,
-        column: 1,
-    };
+    let loc = SourceLocation { file: "example.py".to_string(), line: 1, column: 1 };
 
     let debug = format!("{:?}", loc);
     assert!(debug.contains("SourceLocation"));
@@ -89,9 +77,7 @@ fn test_depyler_0349_error_kind_type_inference() {
 
 #[test]
 fn test_depyler_0349_error_kind_invalid_type_annotation() {
-    let err = TranspileError::new(ErrorKind::InvalidTypeAnnotation(
-        "List[int, str]".to_string(),
-    ));
+    let err = TranspileError::new(ErrorKind::InvalidTypeAnnotation("List[int, str]".to_string()));
     let display = format!("{}", err);
     assert!(display.contains("Invalid type annotation"));
 }
@@ -127,9 +113,8 @@ fn test_depyler_0349_error_kind_verification() {
 
 #[test]
 fn test_depyler_0349_error_kind_internal() {
-    let err = TranspileError::new(ErrorKind::InternalError(
-        "unexpected compiler state".to_string(),
-    ));
+    let err =
+        TranspileError::new(ErrorKind::InternalError("unexpected compiler state".to_string()));
     let display = format!("{}", err);
     assert!(display.contains("Internal error"));
 }
@@ -204,9 +189,8 @@ fn test_depyler_0349_result_ext_err() {
 
 #[test]
 fn test_depyler_0349_result_ext_chain_context() {
-    let result: Result<String, TranspileError> = Err(TranspileError::new(
-        ErrorKind::TypeInferenceError("unknown".to_string()),
-    ));
+    let result: Result<String, TranspileError> =
+        Err(TranspileError::new(ErrorKind::TypeInferenceError("unknown".to_string())));
 
     let with_ctx = result
         .with_context("in function 'foo'")
@@ -293,11 +277,7 @@ fn test_depyler_0349_type_mismatch_all_fields() {
 
 #[test]
 fn test_depyler_0349_type_mismatch_with_location() {
-    let loc = SourceLocation {
-        file: "types.py".to_string(),
-        line: 15,
-        column: 8,
-    };
+    let loc = SourceLocation { file: "types.py".to_string(), line: 15, column: 8 };
 
     let err = TranspileError::new(ErrorKind::TypeMismatch {
         expected: "int".to_string(),
@@ -351,11 +331,7 @@ fn test_depyler_0349_multiple_context_items() {
 
 #[test]
 fn test_depyler_0349_full_error_all_features() {
-    let loc = SourceLocation {
-        file: "complex.py".to_string(),
-        line: 100,
-        column: 50,
-    };
+    let loc = SourceLocation { file: "complex.py".to_string(), line: 100, column: 50 };
 
     let io_err = std::io::Error::new(std::io::ErrorKind::InvalidData, "malformed input");
 

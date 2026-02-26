@@ -158,7 +158,8 @@ mod tests {
 
     #[test]
     fn test_w7s_assert_condition_message() {
-        let code = "def check(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x";
+        let code =
+            "def check(x: int) -> int:\n    assert x > 0, \"must be positive\"\n    return x";
         if let Ok(result) = transpile(code) {
             assert!(result.contains("assert!"));
         }
@@ -238,7 +239,8 @@ mod tests {
 
     #[test]
     fn test_w7s_with_open_read() {
-        let code = "def read_file(path: str) -> str:\n    with open(path) as f:\n        return f.read()";
+        let code =
+            "def read_file(path: str) -> str:\n    with open(path) as f:\n        return f.read()";
         if let Ok(result) = transpile(code) {
             assert!(!result.is_empty());
         }
@@ -370,7 +372,8 @@ mod tests {
 
     #[test]
     fn test_w7s_decorator_classmethod() {
-        let code = "class Factory:\n    @classmethod\n    def create(cls) -> int:\n        return 0";
+        let code =
+            "class Factory:\n    @classmethod\n    def create(cls) -> int:\n        return 0";
         if let Ok(result) = transpile(code) {
             assert!(!result.is_empty());
         }
@@ -386,7 +389,8 @@ mod tests {
 
     #[test]
     fn test_w7s_decorator_simple() {
-        let code = "def my_decorator(f):\n    return f\n\ndef greet() -> str:\n    return \"hello\"";
+        let code =
+            "def my_decorator(f):\n    return f\n\ndef greet() -> str:\n    return \"hello\"";
         if let Ok(result) = transpile(code) {
             assert!(!result.is_empty());
         }
@@ -1429,7 +1433,8 @@ mod tests {
 
     #[test]
     fn test_w7s_multiple_statements() {
-        let code = "def multi(x: int) -> int:\n    a = x + 1\n    b = a * 2\n    c = b - 3\n    return c";
+        let code =
+            "def multi(x: int) -> int:\n    a = x + 1\n    b = a * 2\n    c = b - 3\n    return c";
         if let Ok(result) = transpile(code) {
             assert!(!result.is_empty());
         }
@@ -1659,7 +1664,8 @@ mod tests {
 
     #[test]
     fn test_w7s_complex_condition() {
-        let code = "def check(a: int, b: int, c: int) -> bool:\n    return a > 0 and b > 0 and c > 0";
+        let code =
+            "def check(a: int, b: int, c: int) -> bool:\n    return a > 0 and b > 0 and c > 0";
         if let Ok(result) = transpile(code) {
             assert!(!result.is_empty());
         }

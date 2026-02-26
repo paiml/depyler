@@ -208,10 +208,7 @@ impl GeneratedRustFixer {
                     }
                     ReplaceStrategy::Function(f) => {
                         // Apply custom function
-                        transform
-                            .pattern
-                            .captures(&error.message)
-                            .map(|caps| f(source, &caps))
+                        transform.pattern.captures(&error.message).map(|caps| f(source, &caps))
                     }
                 };
 
@@ -355,9 +352,7 @@ pub struct CompositeFixApplicator {
 impl CompositeFixApplicator {
     /// Create with default applicators
     pub fn new() -> Self {
-        Self {
-            applicators: vec![Box::new(GeneratedRustFixer::new())],
-        }
+        Self { applicators: vec![Box::new(GeneratedRustFixer::new())] }
     }
 
     /// Add a custom applicator
@@ -429,10 +424,7 @@ mod tests {
     #[test]
     fn test_fix_value_keys() {
         let source = "let keys = data.keys();";
-        let caps = regex::Regex::new(r"keys")
-            .unwrap()
-            .captures("keys")
-            .unwrap();
+        let caps = regex::Regex::new(r"keys").unwrap().captures("keys").unwrap();
         let result = fix_value_keys(source, &caps);
         assert!(result.contains("as_object()"));
     }
@@ -440,10 +432,7 @@ mod tests {
     #[test]
     fn test_fix_value_items() {
         let source = "for (k, v) in data.items() {";
-        let caps = regex::Regex::new(r"items")
-            .unwrap()
-            .captures("items")
-            .unwrap();
+        let caps = regex::Regex::new(r"items").unwrap().captures("items").unwrap();
         let result = fix_value_items(source, &caps);
         assert!(result.contains("as_object()"));
     }

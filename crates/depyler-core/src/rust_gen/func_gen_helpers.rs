@@ -222,11 +222,8 @@ mod tests {
 
     #[test]
     fn test_codegen_generic_params_single_type() {
-        let type_params = vec![TypeParameter {
-            name: "T".to_string(),
-            bounds: vec![],
-            default: None,
-        }];
+        let type_params =
+            vec![TypeParameter { name: "T".to_string(), bounds: vec![], default: None }];
         let result = codegen_generic_params(&type_params, &[]);
         let code = result.to_string();
         assert!(code.contains("T"));
@@ -294,10 +291,8 @@ mod tests {
 
     #[test]
     fn test_codegen_where_clause_multiple_bounds() {
-        let bounds = vec![
-            ("'a".to_string(), "'b".to_string()),
-            ("'c".to_string(), "'d".to_string()),
-        ];
+        let bounds =
+            vec![("'a".to_string(), "'b".to_string()), ("'c".to_string(), "'d".to_string())];
         let result = codegen_where_clause(&bounds);
         let code = result.to_string();
         assert!(code.contains("where"));
@@ -328,10 +323,7 @@ mod tests {
 
     #[test]
     fn test_codegen_function_attrs_panic_free() {
-        let props = FunctionProperties {
-            panic_free: true,
-            ..Default::default()
-        };
+        let props = FunctionProperties { panic_free: true, ..Default::default() };
         let result = codegen_function_attrs(&None, &props, &[]);
         assert_eq!(result.len(), 1);
         let code = result[0].to_string();
@@ -340,10 +332,7 @@ mod tests {
 
     #[test]
     fn test_codegen_function_attrs_always_terminates() {
-        let props = FunctionProperties {
-            always_terminates: true,
-            ..Default::default()
-        };
+        let props = FunctionProperties { always_terminates: true, ..Default::default() };
         let result = codegen_function_attrs(&None, &props, &[]);
         assert_eq!(result.len(), 1);
         let code = result[0].to_string();
@@ -362,21 +351,15 @@ mod tests {
     #[test]
     fn test_codegen_function_attrs_multiple_custom() {
         let props = FunctionProperties::default();
-        let result = codegen_function_attrs(
-            &None,
-            &props,
-            &["inline".to_string(), "must_use".to_string()],
-        );
+        let result =
+            codegen_function_attrs(&None, &props, &["inline".to_string(), "must_use".to_string()]);
         assert_eq!(result.len(), 2);
     }
 
     #[test]
     fn test_codegen_function_attrs_all() {
-        let props = FunctionProperties {
-            panic_free: true,
-            always_terminates: true,
-            ..Default::default()
-        };
+        let props =
+            FunctionProperties { panic_free: true, always_terminates: true, ..Default::default() };
         let result =
             codegen_function_attrs(&Some("Docs".to_string()), &props, &["inline".to_string()]);
         assert_eq!(result.len(), 4); // doc, panic-free, terminates, inline
@@ -419,28 +402,19 @@ mod tests {
     #[test]
     fn test_infer_expr_type_simple_bytes() {
         let expr = HirExpr::Literal(Literal::Bytes(vec![1, 2, 3]));
-        assert_eq!(
-            infer_expr_type_simple(&expr),
-            Type::Custom("Vec<u8>".to_string())
-        );
+        assert_eq!(infer_expr_type_simple(&expr), Type::Custom("Vec<u8>".to_string()));
     }
 
     #[test]
     fn test_infer_expr_type_simple_empty_list() {
         let expr = HirExpr::List(vec![]);
-        assert_eq!(
-            infer_expr_type_simple(&expr),
-            Type::List(Box::new(Type::Unknown))
-        );
+        assert_eq!(infer_expr_type_simple(&expr), Type::List(Box::new(Type::Unknown)));
     }
 
     #[test]
     fn test_infer_expr_type_simple_int_list() {
         let expr = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]);
-        assert_eq!(
-            infer_expr_type_simple(&expr),
-            Type::List(Box::new(Type::Int))
-        );
+        assert_eq!(infer_expr_type_simple(&expr), Type::List(Box::new(Type::Int)));
     }
 
     #[test]
@@ -467,19 +441,13 @@ mod tests {
     #[test]
     fn test_infer_expr_type_simple_empty_set() {
         let expr = HirExpr::Set(vec![]);
-        assert_eq!(
-            infer_expr_type_simple(&expr),
-            Type::Set(Box::new(Type::Unknown))
-        );
+        assert_eq!(infer_expr_type_simple(&expr), Type::Set(Box::new(Type::Unknown)));
     }
 
     #[test]
     fn test_infer_expr_type_simple_int_set() {
         let expr = HirExpr::Set(vec![HirExpr::Literal(Literal::Int(1))]);
-        assert_eq!(
-            infer_expr_type_simple(&expr),
-            Type::Set(Box::new(Type::Int))
-        );
+        assert_eq!(infer_expr_type_simple(&expr), Type::Set(Box::new(Type::Int)));
     }
 
     #[test]
@@ -488,10 +456,7 @@ mod tests {
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::String("s".to_string())),
         ]);
-        assert_eq!(
-            infer_expr_type_simple(&expr),
-            Type::Tuple(vec![Type::Int, Type::String])
-        );
+        assert_eq!(infer_expr_type_simple(&expr), Type::Tuple(vec![Type::Int, Type::String]));
     }
 
     #[test]

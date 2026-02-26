@@ -39,11 +39,8 @@ impl StatisticalAnalysis {
         let passed_files = results.iter().filter(|r| r.success).count();
         let failed_files = total_files - passed_files;
 
-        let single_shot_rate = if total_files > 0 {
-            (passed_files as f64 / total_files as f64) * 100.0
-        } else {
-            0.0
-        };
+        let single_shot_rate =
+            if total_files > 0 { (passed_files as f64 / total_files as f64) * 100.0 } else { 0.0 };
 
         // Wilson score interval for binomial proportion (95% CI)
         let (ci_95_lower, ci_95_upper) = Self::wilson_score_interval(

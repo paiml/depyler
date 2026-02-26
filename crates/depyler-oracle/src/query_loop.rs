@@ -265,12 +265,7 @@ impl OracleQueryLoop {
     /// Create with custom configuration
     #[must_use]
     pub fn with_config(config: QueryLoopConfig) -> Self {
-        Self {
-            config,
-            stats: OracleStats::default(),
-            pattern_path: None,
-            pattern_store: None,
-        }
+        Self { config, stats: OracleStats::default(), pattern_path: None, pattern_store: None }
     }
 
     /// Load patterns from an .apr file
@@ -286,11 +281,9 @@ impl OracleQueryLoop {
         }
 
         // Load using entrenar's DecisionPatternStore
-        let store =
-            DecisionPatternStore::load_apr(path).map_err(|e| OracleQueryError::LoadFailed {
-                path: path.to_path_buf(),
-                cause: e.to_string(),
-            })?;
+        let store = DecisionPatternStore::load_apr(path).map_err(|e| {
+            OracleQueryError::LoadFailed { path: path.to_path_buf(), cause: e.to_string() }
+        })?;
 
         self.pattern_path = Some(path.to_path_buf());
         self.pattern_store = Some(store);
@@ -409,10 +402,7 @@ impl OracleQueryLoop {
     /// Get the default pattern file path (~/.depyler/patterns.apr)
     #[must_use]
     pub fn default_pattern_path() -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(".depyler")
-            .join("patterns.apr")
+        dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(".depyler").join("patterns.apr")
     }
 
     /// Get the number of loaded patterns
@@ -680,10 +670,7 @@ mod tests {
 
     #[test]
     fn test_DEPYLER_0172_phase1_error_code_parsing_other() {
-        assert_eq!(
-            "E9999".parse::<RustErrorCode>(),
-            Ok(RustErrorCode::Other(9999))
-        );
+        assert_eq!("E9999".parse::<RustErrorCode>(), Ok(RustErrorCode::Other(9999)));
     }
 
     #[test]
@@ -738,30 +725,19 @@ mod tests {
 
     #[test]
     fn test_DEPYLER_0172_phase1_stats_hit_rate_calculation() {
-        let stats = OracleStats {
-            queries: 100,
-            hits: 75,
-            ..Default::default()
-        };
+        let stats = OracleStats { queries: 100, hits: 75, ..Default::default() };
         assert!((stats.hit_rate() - 0.75).abs() < 0.001);
     }
 
     #[test]
     fn test_DEPYLER_0172_phase1_stats_fix_success_rate() {
-        let stats = OracleStats {
-            fixes_applied: 10,
-            fixes_verified: 8,
-            ..Default::default()
-        };
+        let stats = OracleStats { fixes_applied: 10, fixes_verified: 8, ..Default::default() };
         assert!((stats.fix_success_rate() - 0.8).abs() < 0.001);
     }
 
     #[test]
     fn test_DEPYLER_0172_phase1_stats_cost_savings() {
-        let stats = OracleStats {
-            fixes_verified: 100,
-            ..Default::default()
-        };
+        let stats = OracleStats { fixes_verified: 100, ..Default::default() };
         assert_eq!(stats.estimated_savings_cents(), 400); // 100 * $0.04
     }
 
@@ -778,10 +754,7 @@ mod tests {
 
     #[test]
     fn test_DEPYLER_0172_phase1_query_loop_with_config() {
-        let config = QueryLoopConfig {
-            threshold: 0.9,
-            ..Default::default()
-        };
+        let config = QueryLoopConfig { threshold: 0.9, ..Default::default() };
         let oracle = OracleQueryLoop::with_config(config);
         assert!((oracle.config().threshold - 0.9).abs() < 0.001);
     }
@@ -815,11 +788,9 @@ mod tests {
 
         // Create and save a pattern store
         let mut store = DecisionPatternStore::new().unwrap();
-        let pattern = FixPattern::new(
-            "E0308",
-            "- let x: i32 = \"hello\";\n+ let x: &str = \"hello\";",
-        )
-        .with_decision("type_mismatch_detected");
+        let pattern =
+            FixPattern::new("E0308", "- let x: i32 = \"hello\";\n+ let x: &str = \"hello\";")
+                .with_decision("type_mismatch_detected");
         store.index_fix(pattern).unwrap();
         store.save_apr(&apr_path).unwrap();
 
@@ -894,17 +865,9 @@ mod tests {
     fn test_DEPYLER_0172_property_hit_rate_bounds() {
         // Hit rate should always be in [0.0, 1.0]
         for hits in 0..=100 {
-            let stats = OracleStats {
-                queries: 100,
-                hits,
-                ..Default::default()
-            };
+            let stats = OracleStats { queries: 100, hits, ..Default::default() };
             let rate = stats.hit_rate();
-            assert!(
-                (0.0..=1.0).contains(&rate),
-                "Hit rate out of bounds: {}",
-                rate
-            );
+            assert!((0.0..=1.0).contains(&rate), "Hit rate out of bounds: {}", rate);
         }
     }
 
@@ -1010,11 +973,7 @@ mod tests {
 
     #[test]
     fn test_DEPYLER_0172_phase4_metrics_hit_rate() {
-        let metrics = OracleMetrics {
-            queries_total: 100,
-            hits_total: 75,
-            ..Default::default()
-        };
+        let metrics = OracleMetrics { queries_total: 100, hits_total: 75, ..Default::default() };
 
         assert!((metrics.hit_rate() - 0.75).abs() < 0.001);
     }

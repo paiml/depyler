@@ -155,17 +155,9 @@ impl ErrorClassifier {
             "E0599" => (ErrorCategory::TranspilerGap, "missing_method".into(), 0.9),
             "E0308" => (ErrorCategory::TranspilerGap, "type_inference".into(), 0.85),
             "E0277" => (ErrorCategory::TranspilerGap, "trait_bound".into(), 0.8),
-            "E0425" => (
-                ErrorCategory::TranspilerGap,
-                "undefined_variable".into(),
-                0.75,
-            ),
+            "E0425" => (ErrorCategory::TranspilerGap, "undefined_variable".into(), 0.75),
             "E0433" => (ErrorCategory::TranspilerGap, "missing_import".into(), 0.85),
-            "E0432" => (
-                ErrorCategory::TranspilerGap,
-                "unresolved_import".into(),
-                0.85,
-            ),
+            "E0432" => (ErrorCategory::TranspilerGap, "unresolved_import".into(), 0.85),
             "E0382" => (ErrorCategory::TranspilerGap, "borrow_checker".into(), 0.7),
             "E0502" => (ErrorCategory::TranspilerGap, "borrow_checker".into(), 0.7),
             "E0507" => (ErrorCategory::TranspilerGap, "borrow_checker".into(), 0.7),
@@ -211,11 +203,7 @@ impl ErrorClassifier {
 
     /// Classify all errors from compilation results
     pub fn classify_all(&self, results: &[CompilationResult]) -> Vec<ErrorClassification> {
-        results
-            .iter()
-            .flat_map(|r| r.errors.iter())
-            .map(|e| self.classify(e))
-            .collect()
+        results.iter().flat_map(|r| r.errors.iter()).map(|e| self.classify(e)).collect()
     }
 
     /// Get Oracle statistics (if query loop is active)

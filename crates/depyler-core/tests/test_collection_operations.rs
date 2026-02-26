@@ -16,9 +16,7 @@ def concat_lists(list1: list[int], list2: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // DEPYLER-0290: The generated code should handle Vec concatenation
     // Should NOT generate: list1 + list2 (invalid for &Vec)
@@ -46,9 +44,7 @@ def concat_lists(list1: list[int], list2: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // Write to temp file and compile with rustc
     let temp_dir = std::env::temp_dir();
@@ -90,9 +86,7 @@ def extend_list(list1: list[int], list2: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // DEPYLER-0292: The generated code should handle extend() properly
     // Should NOT generate: result.extend(list2) where list2 is &Vec
@@ -120,9 +114,7 @@ def extend_list(list1: list[int], list2: list[int]) -> list[int]:
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     // Write to temp file and compile with rustc
     let temp_dir = std::env::temp_dir();
@@ -169,9 +161,7 @@ def combine_and_extend(list1: list[int], list2: list[int], list3: list[int]) -> 
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline
-        .transpile(python_code)
-        .expect("Transpilation should succeed");
+    let generated_code = pipeline.transpile(python_code).expect("Transpilation should succeed");
 
     println!("Generated code:\n{}", generated_code);
 

@@ -114,10 +114,7 @@ def test() -> str:
 
     // Verify correct transpilation
     assert!(result.contains("std::env::var"), "Should use std::env::var");
-    assert!(
-        result.contains("unwrap_or_else"),
-        "Should use unwrap_or_else for default"
-    );
+    assert!(result.contains("unwrap_or_else"), "Should use unwrap_or_else for default");
     assert!(
         result.contains(r#""/home/user".to_string()"#) || result.contains(r#""/home/user")"#),
         "Default value should be properly handled"
@@ -202,20 +199,14 @@ def test() -> bool:
 
     // Verify correct transpilation
     assert!(result.contains("std::env::var"), "Should use std::env::var");
-    assert!(
-        result.contains(".is_ok()"),
-        "Should use .is_ok() to check existence"
-    );
+    assert!(result.contains(".is_ok()"), "Should use .is_ok() to check existence");
 
     // Should NOT have these errors:
     assert!(
         !result.contains("contains_key"),
         "Should not use contains_key (vars is a function, not HashMap)"
     );
-    assert!(
-        !result.contains("env::vars."),
-        "Should not try to call methods on vars function"
-    );
+    assert!(!result.contains("env::vars."), "Should not try to call methods on vars function");
 }
 
 #[test]
@@ -277,10 +268,7 @@ def test_all_features() -> str:
     let result = transpile_and_compile(python).unwrap();
 
     // Verify all three bugs are fixed
-    assert!(
-        result.contains(r#""Python 3.x".to_string()"#),
-        "Bug #1 fixed"
-    );
+    assert!(result.contains(r#""Python 3.x".to_string()"#), "Bug #1 fixed");
     assert!(result.contains("unwrap_or_else"), "Bug #2 fixed");
     assert!(result.contains(".is_ok()"), "Bug #3 fixed");
 }
@@ -470,10 +458,7 @@ def test() -> bool:
 
     // Should have two .is_ok() calls
     let count = result.matches(".is_ok()").count();
-    assert!(
-        count >= 2,
-        "Should have at least 2 .is_ok() calls for both checks"
-    );
+    assert!(count >= 2, "Should have at least 2 .is_ok() calls for both checks");
 }
 
 #[test]

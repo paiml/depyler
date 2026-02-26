@@ -57,25 +57,19 @@ pub struct AutoMLConfig {
 impl AutoMLConfig {
     /// Extract config from AutoML parameter values.
     pub fn from_params(params: &HashMap<OracleParam, ParamValue>) -> Self {
-        let min_similarity = params
-            .get(&OracleParam::MinSimilarity)
-            .and_then(ParamValue::as_f64)
-            .unwrap_or(0.1) as f32;
+        let min_similarity =
+            params.get(&OracleParam::MinSimilarity).and_then(ParamValue::as_f64).unwrap_or(0.1)
+                as f32;
 
-        let ngram_min = params
-            .get(&OracleParam::NgramMin)
-            .and_then(ParamValue::as_i64)
-            .unwrap_or(1) as usize;
+        let ngram_min =
+            params.get(&OracleParam::NgramMin).and_then(ParamValue::as_i64).unwrap_or(1) as usize;
 
-        let ngram_max = params
-            .get(&OracleParam::NgramMax)
-            .and_then(ParamValue::as_i64)
-            .unwrap_or(3) as usize;
+        let ngram_max =
+            params.get(&OracleParam::NgramMax).and_then(ParamValue::as_i64).unwrap_or(3) as usize;
 
-        let error_code_weight = params
-            .get(&OracleParam::ErrorCodeWeight)
-            .and_then(ParamValue::as_f64)
-            .unwrap_or(2.0) as f32;
+        let error_code_weight =
+            params.get(&OracleParam::ErrorCodeWeight).and_then(ParamValue::as_f64).unwrap_or(2.0)
+                as f32;
 
         Self {
             min_similarity,
@@ -131,9 +125,7 @@ fn weight_error_codes(message: &str, weight: f32) -> String {
         if let Some(code_end) = message[code_start..].find(']') {
             let code = &message[code_start..code_start + code_end + 1];
             let repeat_count = weight.round() as usize;
-            let repeated = std::iter::repeat_n(code, repeat_count)
-                .collect::<Vec<_>>()
-                .join(" ");
+            let repeated = std::iter::repeat_n(code, repeat_count).collect::<Vec<_>>().join(" ");
             return format!("{} {}", repeated, message);
         }
     }
@@ -171,11 +163,8 @@ pub fn automl_optimize(n_trials: usize) -> AutoMLResult {
     let search_space = build_oracle_search_space();
     let mut search = RandomSearch::new(n_trials);
 
-    let mut best_config = AutoMLConfig {
-        min_similarity: 0.1,
-        ngram_range: (1, 3),
-        error_code_weight: 2.0,
-    };
+    let mut best_config =
+        AutoMLConfig { min_similarity: 0.1, ngram_range: (1, 3), error_code_weight: 2.0 };
     let mut best_accuracy = 0.0;
     let mut history = Vec::new();
 
@@ -193,12 +182,7 @@ pub fn automl_optimize(n_trials: usize) -> AutoMLResult {
         }
     }
 
-    AutoMLResult {
-        config: best_config,
-        accuracy: best_accuracy,
-        trials: n_trials,
-        history,
-    }
+    AutoMLResult { config: best_config, accuracy: best_accuracy, trials: n_trials, history }
 }
 
 /// Quick AutoML optimization with fewer trials.
@@ -320,11 +304,8 @@ mod tests {
 
     #[test]
     fn test_automl_config_clone() {
-        let config = AutoMLConfig {
-            min_similarity: 0.2,
-            ngram_range: (1, 4),
-            error_code_weight: 2.5,
-        };
+        let config =
+            AutoMLConfig { min_similarity: 0.2, ngram_range: (1, 4), error_code_weight: 2.5 };
         let cloned = config.clone();
         assert!((config.min_similarity - cloned.min_similarity).abs() < f32::EPSILON);
         assert_eq!(config.ngram_range, cloned.ngram_range);
@@ -332,11 +313,8 @@ mod tests {
 
     #[test]
     fn test_automl_config_debug() {
-        let config = AutoMLConfig {
-            min_similarity: 0.1,
-            ngram_range: (1, 3),
-            error_code_weight: 2.0,
-        };
+        let config =
+            AutoMLConfig { min_similarity: 0.1, ngram_range: (1, 3), error_code_weight: 2.0 };
         let debug = format!("{:?}", config);
         assert!(debug.contains("AutoMLConfig"));
     }

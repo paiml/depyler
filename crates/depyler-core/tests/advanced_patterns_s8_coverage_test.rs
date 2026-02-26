@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -215,10 +213,7 @@ def first_word(s: str) -> str:
     return s
 "#,
     );
-    assert!(
-        code.contains("fn first_word"),
-        "Should handle string return: {code}"
-    );
+    assert!(code.contains("fn first_word"), "Should handle string return: {code}");
 }
 
 #[test]
@@ -229,10 +224,7 @@ def take_n(items: list, n: int) -> list:
     return items[:n]
 "#,
     );
-    assert!(
-        code.contains("fn take_n"),
-        "Should handle list slice return: {code}"
-    );
+    assert!(code.contains("fn take_n"), "Should handle list slice return: {code}");
 }
 
 // ── Class method patterns ───────────────────────────────────────
@@ -280,10 +272,7 @@ class Queue:
         return len(self.items)
 "#,
     );
-    assert!(
-        code.contains("struct Queue"),
-        "Should generate Queue struct: {code}"
-    );
+    assert!(code.contains("struct Queue"), "Should generate Queue struct: {code}");
     assert!(
         code.contains("enqueue") && code.contains("dequeue"),
         "Should have queue methods: {code}"
@@ -357,10 +346,7 @@ def is_valid(x: int) -> bool:
     return x > 0 and x < 100 and x != 50
 "#,
     );
-    assert!(
-        code.contains("&&") || code.contains("and"),
-        "Should handle chained boolean: {code}"
-    );
+    assert!(code.contains("&&") || code.contains("and"), "Should handle chained boolean: {code}");
 }
 
 #[test]
@@ -406,10 +392,7 @@ def f(a: int, b: int) -> int:
     return a // b
 "#,
     );
-    assert!(
-        code.contains("/") || code.contains("div"),
-        "Should generate integer division: {code}"
-    );
+    assert!(code.contains("/") || code.contains("div"), "Should generate integer division: {code}");
 }
 
 #[test]
@@ -420,10 +403,7 @@ def f(base: int, exp: int) -> int:
     return base ** exp
 "#,
     );
-    assert!(
-        code.contains("pow") || code.contains("**"),
-        "Should generate power operation: {code}"
-    );
+    assert!(code.contains("pow") || code.contains("**"), "Should generate power operation: {code}");
 }
 
 #[test]
@@ -434,10 +414,7 @@ def is_even(n: int) -> bool:
     return n % 2 == 0
 "#,
     );
-    assert!(
-        code.contains("%") || code.contains("rem"),
-        "Should generate modulo: {code}"
-    );
+    assert!(code.contains("%") || code.contains("rem"), "Should generate modulo: {code}");
 }
 
 #[test]
@@ -603,10 +580,7 @@ def distance(a: int, b: int) -> int:
     return abs(a - b)
 "#,
     );
-    assert!(
-        code.contains("abs") || code.contains(".abs()"),
-        "Should handle abs: {code}"
-    );
+    assert!(code.contains("abs") || code.contains(".abs()"), "Should handle abs: {code}");
 }
 
 // ── Complex class patterns ──────────────────────────────────────
@@ -661,10 +635,7 @@ def noop() -> None:
     pass
 "#,
     );
-    assert!(
-        code.contains("fn noop"),
-        "Should generate empty function: {code}"
-    );
+    assert!(code.contains("fn noop"), "Should generate empty function: {code}");
 }
 
 #[test]
@@ -676,10 +647,7 @@ def documented() -> None:
     pass
 "#,
     );
-    assert!(
-        code.contains("fn documented"),
-        "Should handle docstring-only function: {code}"
-    );
+    assert!(code.contains("fn documented"), "Should handle docstring-only function: {code}");
 }
 
 #[test]

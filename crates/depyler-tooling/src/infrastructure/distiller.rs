@@ -84,10 +84,7 @@ fn handle_pattern_{}(ctx: &mut CodegenContext, expr: &HirExpr) -> TokenStream {{
         &self,
         store: &'a PatternStore,
     ) -> Vec<&'a TranspilationPattern> {
-        store
-            .patterns()
-            .filter(|p| self.ready_for_graduation(p))
-            .collect()
+        store.patterns().filter(|p| self.ready_for_graduation(p)).collect()
     }
 
     /// Generate a report of graduation candidates

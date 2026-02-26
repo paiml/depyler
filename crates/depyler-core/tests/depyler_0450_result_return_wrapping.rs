@@ -41,11 +41,7 @@ def set_value(data, key, value):
     );
 
     // Should end with Ok(())
-    assert!(
-        rust.contains("Ok(())"),
-        "Should end with Ok(()). Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Ok(())"), "Should end with Ok(()). Generated:\n{}", rust);
 
     // Should compile
     assert!(!rust.is_empty());
@@ -78,18 +74,10 @@ def update_config(config, key, value):
     let rust = transpile_python(python).unwrap();
 
     // Should have Result return type (because of raise)
-    assert!(
-        rust.contains("Result<"),
-        "Should have Result return type. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Result<"), "Should have Result return type. Generated:\n{}", rust);
 
     // Should end with Ok(())
-    assert!(
-        rust.contains("Ok(())"),
-        "Should end with Ok(()). Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Ok(())"), "Should end with Ok(()). Generated:\n{}", rust);
 }
 
 #[test]
@@ -124,11 +112,7 @@ def write_file(path, content):
     let rust = transpile_python(python).unwrap();
 
     // Should have Result return type
-    assert!(
-        rust.contains("Result<"),
-        "Should have Result return type. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Result<"), "Should have Result return type. Generated:\n{}", rust);
 }
 
 // =============================================================================
@@ -147,11 +131,7 @@ def get_count(items):
     let rust = transpile_python(python).unwrap();
 
     // Should have Result return type
-    assert!(
-        rust.contains("Result<"),
-        "Should have Result return type. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Result<"), "Should have Result return type. Generated:\n{}", rust);
 
     // Should use Ok() for return
     assert!(
@@ -255,11 +235,7 @@ def safe_divide(a, b):
     let rust = transpile_python(python).unwrap();
 
     // Should have Result return type
-    assert!(
-        rust.contains("Result<"),
-        "Should have Result return type. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Result<"), "Should have Result return type. Generated:\n{}", rust);
 
     // Should compile
     assert!(!rust.is_empty());
@@ -426,11 +402,7 @@ def safe_operation(data):
     let rust = transpile_python(python).unwrap();
 
     // Should NOT have Ok(Ok(...))
-    assert!(
-        !rust.contains("Ok(Ok("),
-        "Should not double-wrap Ok(). Generated:\n{}",
-        rust
-    );
+    assert!(!rust.contains("Ok(Ok("), "Should not double-wrap Ok(). Generated:\n{}", rust);
 
     // Should compile
     assert!(!rust.is_empty());
@@ -487,11 +459,7 @@ def filter_csv(input_file, output_file, column, value):
     let rust = transpile_python(python).unwrap();
 
     // Should have Result return type
-    assert!(
-        rust.contains("Result<"),
-        "Should have Result return type. Generated:\n{}",
-        rust
-    );
+    assert!(rust.contains("Result<"), "Should have Result return type. Generated:\n{}", rust);
 
     // Should compile
     assert!(!rust.is_empty());

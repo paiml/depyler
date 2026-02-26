@@ -140,11 +140,7 @@ impl CITLFixer {
         };
 
         // Optionally initialize AutoFixer as fallback
-        let autofixer = if config.use_autofixer_fallback {
-            AutoFixer::new().ok()
-        } else {
-            None
-        };
+        let autofixer = if config.use_autofixer_fallback { AutoFixer::new().ok() } else { None };
 
         Ok(Self {
             compiler,
@@ -336,8 +332,7 @@ impl CITLFixer {
 
     /// Record a successful fix to the pattern library for self-training.
     pub fn record_success(&mut self, error_embedding: ErrorEmbedding, fix_template: FixTemplate) {
-        self.pattern_library
-            .add_pattern(error_embedding, fix_template);
+        self.pattern_library.add_pattern(error_embedding, fix_template);
     }
 
     /// Save the pattern library to disk.
@@ -346,9 +341,7 @@ impl CITLFixer {
     ///
     /// Returns error if file cannot be written.
     pub fn save_patterns(&self, path: &str) -> Result<(), OracleError> {
-        self.pattern_library
-            .save(path)
-            .map_err(|e| OracleError::Model(e.to_string()))
+        self.pattern_library.save(path).map_err(|e| OracleError::Model(e.to_string()))
     }
 
     /// Get metrics summary.
@@ -495,10 +488,7 @@ mod tests {
     #[test]
     fn test_config_with_pattern_library() {
         let config = CITLFixerConfig::default().with_pattern_library("patterns.citl");
-        assert_eq!(
-            config.pattern_library_path,
-            Some("patterns.citl".to_string())
-        );
+        assert_eq!(config.pattern_library_path, Some("patterns.citl".to_string()));
     }
 
     // ============================================
@@ -512,10 +502,7 @@ mod tests {
             return;
         }
 
-        let config = CITLFixerConfig {
-            use_autofixer_fallback: false,
-            ..CITLFixerConfig::quick()
-        };
+        let config = CITLFixerConfig { use_autofixer_fallback: false, ..CITLFixerConfig::quick() };
         let mut fixer = CITLFixer::with_config(config).unwrap();
 
         let valid_code = r#"fn main() { println!("Hello"); }"#;
@@ -552,10 +539,7 @@ mod tests {
             return;
         }
 
-        let config = CITLFixerConfig {
-            use_autofixer_fallback: false,
-            ..CITLFixerConfig::quick()
-        };
+        let config = CITLFixerConfig { use_autofixer_fallback: false, ..CITLFixerConfig::quick() };
         let fixer = CITLFixer::with_config(config).unwrap();
 
         assert!(fixer.compiles("fn main() {}"));
@@ -625,10 +609,7 @@ mod tests {
             return;
         }
 
-        let config = CITLFixerConfig {
-            use_autofixer_fallback: false,
-            ..CITLFixerConfig::quick()
-        };
+        let config = CITLFixerConfig { use_autofixer_fallback: false, ..CITLFixerConfig::quick() };
         let mut fixer = CITLFixer::with_config(config).unwrap();
 
         // Valid code should be unchanged

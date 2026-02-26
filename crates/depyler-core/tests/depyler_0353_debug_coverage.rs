@@ -209,10 +209,7 @@ fn test_depyler_0353_add_function_mapping_basic() {
 
     let source_map = generator.source_map();
     // Function mappings go into function_map
-    assert!(
-        !source_map.function_map.is_empty(),
-        "Function mapping should be added"
-    );
+    assert!(!source_map.function_map.is_empty(), "Function mapping should be added");
 }
 
 #[test]
@@ -228,10 +225,7 @@ fn test_depyler_0353_add_function_mapping_async_function() {
         params: SmallVec::new(),
         ret_type: Type::Int,
         body: vec![],
-        properties: FunctionProperties {
-            is_async: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_async: true, ..Default::default() },
         annotations: Default::default(),
         docstring: Some("Async function".to_string()),
     };
@@ -239,10 +233,7 @@ fn test_depyler_0353_add_function_mapping_async_function() {
     generator.add_function_mapping(&func, 50);
 
     let source_map = generator.source_map();
-    assert!(
-        !source_map.function_map.is_empty(),
-        "Async function mapping should be added"
-    );
+    assert!(!source_map.function_map.is_empty(), "Async function mapping should be added");
 }
 
 #[test]
@@ -266,10 +257,7 @@ fn test_depyler_0353_add_function_mapping_with_docstring() {
     generator.add_function_mapping(&func, 100);
 
     let source_map = generator.source_map();
-    assert!(
-        !source_map.function_map.is_empty(),
-        "Documented function mapping should be added"
-    );
+    assert!(!source_map.function_map.is_empty(), "Documented function mapping should be added");
 }
 
 #[test]
@@ -293,10 +281,7 @@ fn test_depyler_0353_add_function_mapping_zero_rust_line() {
     generator.add_function_mapping(&func, 0);
 
     let source_map = generator.source_map();
-    assert!(
-        !source_map.function_map.is_empty(),
-        "Function at line 0 should be added"
-    );
+    assert!(!source_map.function_map.is_empty(), "Function at line 0 should be added");
 }
 
 // ============================================================================
@@ -341,10 +326,7 @@ fn test_depyler_0353_generate_function_debug_async() {
         params: SmallVec::new(),
         ret_type: Type::Int,
         body: vec![],
-        properties: FunctionProperties {
-            is_async: true,
-            ..Default::default()
-        },
+        properties: FunctionProperties { is_async: true, ..Default::default() },
         annotations: Default::default(),
         docstring: None,
     };
@@ -820,10 +802,8 @@ fn test_depyler_0353_debug_print_complex_type() {
     );
 
     // Dict[str, List[int]]
-    let complex_type = Type::Dict(
-        Box::new(Type::String),
-        Box::new(Type::List(Box::new(Type::Int))),
-    );
+    let complex_type =
+        Type::Dict(Box::new(Type::String), Box::new(Type::List(Box::new(Type::Int))));
 
     let debug_print = generator.generate_debug_print("data", &complex_type);
     assert!(!debug_print.is_empty() || debug_print.is_empty());

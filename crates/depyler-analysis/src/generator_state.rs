@@ -74,11 +74,7 @@ impl StateAnalyzer {
 
     fn analyze_statement(&mut self, stmt: &HirStmt) {
         match stmt {
-            HirStmt::Assign {
-                target,
-                value,
-                type_annotation,
-            } => {
+            HirStmt::Assign { target, value, type_annotation } => {
                 self.analyze_assign(target, value, type_annotation);
             }
             HirStmt::For { iter, body, .. } => {
@@ -87,11 +83,7 @@ impl StateAnalyzer {
             HirStmt::While { condition, body } => {
                 self.analyze_while_loop(condition, body);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.analyze_if_stmt(condition, then_body, else_body);
             }
             HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => {
@@ -102,12 +94,7 @@ impl StateAnalyzer {
                 self.analyze_expression(context);
                 self.analyze_statements(body);
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 self.analyze_statements(body);
                 for handler in handlers {
                     self.analyze_statements(&handler.body);
@@ -137,10 +124,8 @@ impl StateAnalyzer {
             },
             HirExpr::List(items) => {
                 // Infer element type from first item
-                let elem_type = items
-                    .first()
-                    .map(Self::infer_type_from_expression)
-                    .unwrap_or(Type::Unknown);
+                let elem_type =
+                    items.first().map(Self::infer_type_from_expression).unwrap_or(Type::Unknown);
                 Type::List(Box::new(elem_type))
             }
             HirExpr::Dict(_) => Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
@@ -167,10 +152,7 @@ impl StateAnalyzer {
                     let ty = type_annotation
                         .clone()
                         .unwrap_or_else(|| Self::infer_type_from_expression(value));
-                    self.state_variables.push(StateVariable {
-                        name: name_str.to_string(),
-                        ty,
-                    });
+                    self.state_variables.push(StateVariable { name: name_str.to_string(), ty });
                 }
             }
             // DEPYLER-0494 FIX: Handle tuple unpacking (a, b) = (0, 1)
@@ -178,10 +160,7 @@ impl StateAnalyzer {
                 // Infer element types from tuple value if possible
                 let element_types = if let HirExpr::Tuple(values) = value {
                     // Parallel tuple: (a, b) = (val1, val2)
-                    values
-                        .iter()
-                        .map(Self::infer_type_from_expression)
-                        .collect::<Vec<_>>()
+                    values.iter().map(Self::infer_type_from_expression).collect::<Vec<_>>()
                 } else {
                     // Can't infer from value, use Unknown
                     vec![]
@@ -194,10 +173,8 @@ impl StateAnalyzer {
                             self.declared_vars.insert(name_str.to_string());
                             // Try to get type from parallel value or use Unknown
                             let ty = element_types.get(idx).cloned().unwrap_or(Type::Unknown);
-                            self.state_variables.push(StateVariable {
-                                name: name_str.to_string(),
-                                ty,
-                            });
+                            self.state_variables
+                                .push(StateVariable { name: name_str.to_string(), ty });
                         }
                     }
                 }
@@ -279,8 +256,8 @@ impl StateAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_hir::hir::{BinOp, ExceptHandler, FunctionProperties, HirParam, Literal, UnaryOp};
     use depyler_annotations::TranspilationAnnotations;
+    use depyler_hir::hir::{BinOp, ExceptHandler, FunctionProperties, HirParam, Literal, UnaryOp};
     use smallvec::smallvec;
 
     // ============================================
@@ -312,9 +289,7 @@ mod tests {
     }
 
     fn make_yield(value: Option<HirExpr>) -> HirExpr {
-        HirExpr::Yield {
-            value: value.map(Box::new),
-        }
+        HirExpr::Yield { value: value.map(Box::new) }
     }
 
     // ============================================
@@ -324,10 +299,7 @@ mod tests {
     #[test]
     fn test_generator_state_info_clone() {
         let info = GeneratorStateInfo {
-            state_variables: vec![StateVariable {
-                name: "x".to_string(),
-                ty: Type::Int,
-            }],
+            state_variables: vec![StateVariable { name: "x".to_string(), ty: Type::Int }],
             captured_params: vec!["n".to_string()],
             yield_count: 2,
             has_loops: true,
@@ -356,10 +328,7 @@ mod tests {
 
     #[test]
     fn test_state_variable_clone() {
-        let var = StateVariable {
-            name: "counter".to_string(),
-            ty: Type::Float,
-        };
+        let var = StateVariable { name: "counter".to_string(), ty: Type::Float };
         let cloned = var.clone();
         assert_eq!(cloned.name, "counter");
         assert!(matches!(cloned.ty, Type::Float));
@@ -367,10 +336,7 @@ mod tests {
 
     #[test]
     fn test_state_variable_debug() {
-        let var = StateVariable {
-            name: "x".to_string(),
-            ty: Type::Bool,
-        };
+        let var = StateVariable { name: "x".to_string(), ty: Type::Bool };
         let debug_str = format!("{:?}", var);
         assert!(debug_str.contains("StateVariable"));
         assert!(debug_str.contains("x"));
@@ -396,9 +362,7 @@ mod tests {
         let func = make_func(
             "simple_yield",
             vec![],
-            vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                Literal::Int(42),
-            ))))],
+            vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(42)))))],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -453,11 +417,7 @@ mod tests {
         let func = make_func(
             "float_infer",
             vec![],
-            vec![make_assign(
-                "y",
-                HirExpr::Literal(Literal::Float(3.15)),
-                None,
-            )],
+            vec![make_assign("y", HirExpr::Literal(Literal::Float(3.15)), None)],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -469,11 +429,7 @@ mod tests {
         let func = make_func(
             "string_infer",
             vec![],
-            vec![make_assign(
-                "s",
-                HirExpr::Literal(Literal::String("hello".to_string())),
-                None,
-            )],
+            vec![make_assign("s", HirExpr::Literal(Literal::String("hello".to_string())), None)],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -485,11 +441,7 @@ mod tests {
         let func = make_func(
             "bool_infer",
             vec![],
-            vec![make_assign(
-                "b",
-                HirExpr::Literal(Literal::Bool(true)),
-                None,
-            )],
+            vec![make_assign("b", HirExpr::Literal(Literal::Bool(true)), None)],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -513,11 +465,7 @@ mod tests {
         let func = make_func(
             "bytes_infer",
             vec![],
-            vec![make_assign(
-                "data",
-                HirExpr::Literal(Literal::Bytes(vec![1, 2, 3])),
-                None,
-            )],
+            vec![make_assign("data", HirExpr::Literal(Literal::Bytes(vec![1, 2, 3])), None)],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -565,11 +513,8 @@ mod tests {
 
     #[test]
     fn test_infer_type_dict() {
-        let func = make_func(
-            "dict_infer",
-            vec![],
-            vec![make_assign("d", HirExpr::Dict(vec![]), None)],
-        );
+        let func =
+            make_func("dict_infer", vec![], vec![make_assign("d", HirExpr::Dict(vec![]), None)]);
         let info = GeneratorStateInfo::analyze(&func);
 
         assert!(matches!(info.state_variables[0].ty, Type::Dict(_, _)));
@@ -580,11 +525,7 @@ mod tests {
         let func = make_func(
             "set_infer",
             vec![],
-            vec![make_assign(
-                "s",
-                HirExpr::Set(vec![HirExpr::Literal(Literal::Int(1))]),
-                None,
-            )],
+            vec![make_assign("s", HirExpr::Set(vec![HirExpr::Literal(Literal::Int(1))]), None)],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -641,9 +582,7 @@ mod tests {
             vec![HirStmt::For {
                 target: depyler_hir::hir::AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::List(vec![]),
-                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Var(
-                    "i".to_string(),
-                ))))],
+                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Var("i".to_string()))))],
             }],
         );
         let info = GeneratorStateInfo::analyze(&func);
@@ -696,9 +635,7 @@ mod tests {
         let func = make_func(
             "param_capture",
             vec![make_param("n", Type::Int)],
-            vec![HirStmt::Expr(make_yield(Some(HirExpr::Var(
-                "n".to_string(),
-            ))))],
+            vec![HirStmt::Expr(make_yield(Some(HirExpr::Var("n".to_string()))))],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -710,9 +647,7 @@ mod tests {
         let func = make_func(
             "unused_param",
             vec![make_param("unused", Type::Int)],
-            vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                Literal::Int(42),
-            ))))],
+            vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(42)))))],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -803,11 +738,7 @@ mod tests {
         let info = GeneratorStateInfo::analyze(&func);
 
         assert_eq!(info.state_variables.len(), 2);
-        let names: Vec<&str> = info
-            .state_variables
-            .iter()
-            .map(|v| v.name.as_str())
-            .collect();
+        let names: Vec<&str> = info.state_variables.iter().map(|v| v.name.as_str()).collect();
         assert!(names.contains(&"a"));
         assert!(names.contains(&"b"));
     }
@@ -870,9 +801,7 @@ mod tests {
             vec![make_param("cond", Type::Bool)],
             vec![HirStmt::If {
                 condition: HirExpr::Var("cond".to_string()),
-                then_body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                    Literal::Int(1),
-                ))))],
+                then_body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(1)))))],
                 else_body: None,
             }],
         );
@@ -889,9 +818,7 @@ mod tests {
             vec![],
             vec![HirStmt::If {
                 condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                    Literal::Int(1),
-                ))))],
+                then_body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(1)))))],
                 else_body: Some(vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
                     Literal::Int(2),
                 ))))]),
@@ -912,15 +839,11 @@ mod tests {
             "try_except",
             vec![],
             vec![HirStmt::Try {
-                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                    Literal::Int(1),
-                ))))],
+                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(1)))))],
                 handlers: vec![ExceptHandler {
                     exception_type: None,
                     name: None,
-                    body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                        Literal::Int(2),
-                    ))))],
+                    body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(2)))))],
                 }],
                 orelse: None,
                 finalbody: None,
@@ -959,9 +882,7 @@ mod tests {
             "try_else",
             vec![],
             vec![HirStmt::Try {
-                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
-                    Literal::Int(1),
-                ))))],
+                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(Literal::Int(1)))))],
                 handlers: vec![],
                 orelse: Some(vec![HirStmt::Expr(make_yield(Some(HirExpr::Literal(
                     Literal::Int(2),
@@ -982,16 +903,11 @@ mod tests {
     fn test_with_statement() {
         let func = make_func(
             "with_gen",
-            vec![make_param(
-                "ctx",
-                Type::Custom("ContextManager".to_string()),
-            )],
+            vec![make_param("ctx", Type::Custom("ContextManager".to_string()))],
             vec![HirStmt::With {
                 context: HirExpr::Var("ctx".to_string()),
                 target: Some("f".to_string()),
-                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Var(
-                    "f".to_string(),
-                ))))],
+                body: vec![HirStmt::Expr(make_yield(Some(HirExpr::Var("f".to_string()))))],
                 is_async: false,
             }],
         );
@@ -1318,7 +1234,9 @@ mod tests {
                             value: HirExpr::Binary {
                                 left: Box::new(HirExpr::Var("current".to_string())),
                                 op: depyler_hir::hir::BinOp::Add,
-                                right: Box::new(HirExpr::Literal(depyler_hir::hir::Literal::Int(1))),
+                                right: Box::new(HirExpr::Literal(depyler_hir::hir::Literal::Int(
+                                    1,
+                                ))),
                             },
                             type_annotation: Some(Type::Int),
                         },
@@ -1334,11 +1252,7 @@ mod tests {
 
         assert_eq!(state_info.yield_count, 1, "Should find 1 yield");
         assert!(state_info.has_loops, "Should detect loop");
-        assert_eq!(
-            state_info.state_variables.len(),
-            1,
-            "Should find 'current' variable"
-        );
+        assert_eq!(state_info.state_variables.len(), 1, "Should find 'current' variable");
         assert_eq!(state_info.state_variables[0].name, "current");
         assert!(
             state_info.captured_params.contains(&"n".to_string()),
@@ -1379,7 +1293,9 @@ mod tests {
                             value: HirExpr::Binary {
                                 left: Box::new(HirExpr::Var("i".to_string())),
                                 op: depyler_hir::hir::BinOp::Add,
-                                right: Box::new(HirExpr::Literal(depyler_hir::hir::Literal::Int(1))),
+                                right: Box::new(HirExpr::Literal(depyler_hir::hir::Literal::Int(
+                                    1,
+                                ))),
                             },
                             type_annotation: None, // ← Reassignment, type already known
                         },
@@ -1394,11 +1310,7 @@ mod tests {
         let state_info = GeneratorStateInfo::analyze(&func);
 
         // Assert: Should find state variable 'i'
-        assert_eq!(
-            state_info.state_variables.len(),
-            1,
-            "Should find 'i' variable"
-        );
+        assert_eq!(state_info.state_variables.len(), 1, "Should find 'i' variable");
         assert_eq!(state_info.state_variables[0].name, "i");
 
         // Assert: Type should be inferred as Int from literal value

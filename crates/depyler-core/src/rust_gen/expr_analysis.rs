@@ -58,10 +58,7 @@ pub fn is_iterator_producing_expr(expr: &HirExpr) -> bool {
             is_iterator_method || is_iterator_producing_expr(object)
         }
         HirExpr::Call { func, .. } => {
-            matches!(
-                func.as_str(),
-                "iter" | "map" | "filter" | "enumerate" | "zip" | "reversed"
-            )
+            matches!(func.as_str(), "iter" | "map" | "filter" | "enumerate" | "zip" | "reversed")
         }
         _ => false,
     }
@@ -123,8 +120,7 @@ pub fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
                 "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
             ) =>
         {
-            args.first()
-                .is_some_and(|arg| is_numpy_value_expr(arg, ctx))
+            args.first().is_some_and(|arg| is_numpy_value_expr(arg, ctx))
         }
         // DEPYLER-1044: Method calls preserve numpy nature of object
         HirExpr::MethodCall { object, method, .. }
@@ -158,10 +154,7 @@ pub fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
         }
         HirExpr::Var(name) => {
             ctx.numpy_vars.contains(name)
-                || matches!(
-                    name.as_str(),
-                    "arr" | "array" | "data" | "values" | "vec" | "vector"
-                )
+                || matches!(name.as_str(), "arr" | "array" | "data" | "values" | "vec" | "vector")
         }
         _ => false,
     }
@@ -181,10 +174,9 @@ pub fn expr_returns_f64(expr: &HirExpr) -> bool {
             let is_f64_iter = method == "sum" && {
                 // Check if chain includes map to f64
                 match object.as_ref() {
-                    HirExpr::MethodCall {
-                        method: inner_method,
-                        ..
-                    } => inner_method == "map" || inner_method == "iter",
+                    HirExpr::MethodCall { method: inner_method, .. } => {
+                        inner_method == "map" || inner_method == "iter"
+                    }
                     _ => false,
                 }
             };
@@ -249,12 +241,7 @@ pub fn is_pure_expression(expr: &HirExpr) -> bool {
 /// DEPYLER-0632: dict.get(key, default) with default returns concrete type, not Option
 pub fn looks_like_option_expr(expr: &HirExpr) -> bool {
     match expr {
-        HirExpr::MethodCall {
-            method,
-            object,
-            args,
-            ..
-        } => {
+        HirExpr::MethodCall { method, object, args, .. } => {
             // Method call ending in .ok() → definitely Option
             if method == "ok" {
                 return true;
@@ -327,25 +314,19 @@ pub fn extract_string_literal(expr: &HirExpr) -> String {
 
 /// DEPYLER-0399: Extract string value from kwarg by name
 pub fn extract_kwarg_string(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
-    kwargs
-        .iter()
-        .find(|(k, _)| k == key)
-        .and_then(|(_, v)| match v {
-            HirExpr::Literal(Literal::String(s)) => Some(s.clone()),
-            _ => None,
-        })
+    kwargs.iter().find(|(k, _)| k == key).and_then(|(_, v)| match v {
+        HirExpr::Literal(Literal::String(s)) => Some(s.clone()),
+        _ => None,
+    })
 }
 
 /// DEPYLER-0399: Extract boolean value from kwarg by name
 pub fn extract_kwarg_bool(kwargs: &[(String, HirExpr)], key: &str) -> Option<bool> {
-    kwargs
-        .iter()
-        .find(|(k, _)| k == key)
-        .and_then(|(_, v)| match v {
-            HirExpr::Var(s) if s == "True" => Some(true),
-            HirExpr::Var(s) if s == "False" => Some(false),
-            _ => None,
-        })
+    kwargs.iter().find(|(k, _)| k == key).and_then(|(_, v)| match v {
+        HirExpr::Var(s) if s == "True" => Some(true),
+        HirExpr::Var(s) if s == "False" => Some(false),
+        _ => None,
+    })
 }
 
 /// DEPYLER-E0282-FIX: Check if expression contains chained PyOps (binary operations)
@@ -356,10 +337,8 @@ pub fn has_chained_pyops(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Binary { left, op, right } => {
             // Check if this is an arithmetic operation (PyOps eligible)
-            let is_arithmetic = matches!(
-                op,
-                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
-            );
+            let is_arithmetic =
+                matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod);
             if !is_arithmetic {
                 return false;
             }
@@ -407,10 +386,8 @@ pub fn get_wrapped_chained_pyops(expr: &HirExpr) -> Option<&HirExpr> {
 fn is_direct_chained_pyops(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Binary { left, op, right } => {
-            let is_arithmetic = matches!(
-                op,
-                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
-            );
+            let is_arithmetic =
+                matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod);
             if !is_arithmetic {
                 return false;
             }
@@ -456,10 +433,7 @@ pub fn is_dict_index_access(expr: &HirExpr) -> bool {
 /// DEPYLER-0359: Check if an expression contains floor division operation
 pub fn contains_floor_div(expr: &HirExpr) -> bool {
     match expr {
-        HirExpr::Binary {
-            op: BinOp::FloorDiv,
-            ..
-        } => true,
+        HirExpr::Binary { op: BinOp::FloorDiv, .. } => true,
         HirExpr::Binary { left, right, .. } => {
             contains_floor_div(left) || contains_floor_div(right)
         }
@@ -499,9 +473,7 @@ pub fn handler_ends_with_exit(handler_body: &[crate::hir::HirStmt]) -> bool {
 /// DEPYLER-0819: Check if handler body contains a raise statement
 pub fn handler_contains_raise(handler_body: &[crate::hir::HirStmt]) -> bool {
     use crate::hir::HirStmt;
-    handler_body
-        .iter()
-        .any(|stmt| matches!(stmt, HirStmt::Raise { .. }))
+    handler_body.iter().any(|stmt| matches!(stmt, HirStmt::Raise { .. }))
 }
 
 /// DEPYLER-0399: Convert string to PascalCase for enum variants
@@ -546,17 +518,9 @@ pub fn is_call_to_result_returning_fn(
 /// Returns true if target is Index and value is Binary with left being an Index to same location
 pub fn is_dict_augassign_pattern(target: &crate::hir::AssignTarget, value: &HirExpr) -> bool {
     use crate::hir::AssignTarget;
-    if let AssignTarget::Index {
-        base: target_base,
-        index: target_index,
-    } = target
-    {
+    if let AssignTarget::Index { base: target_base, index: target_index } = target {
         if let HirExpr::Binary { left, .. } = value {
-            if let HirExpr::Index {
-                base: value_base,
-                index: value_index,
-            } = left.as_ref()
-            {
+            if let HirExpr::Index { base: value_base, index: value_index } = left.as_ref() {
                 // Check if both indices refer to the same dict[key] location
                 return matches!((target_base.as_ref(), value_base.as_ref()),
                     (HirExpr::Var(t_var), HirExpr::Var(v_var)) if t_var == v_var)
@@ -585,11 +549,7 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
                     || kwargs.iter().any(|(_, v)| check_expr(v, name))
             }
             // Dynamic call - check callee expression
-            HirExpr::DynamicCall {
-                callee,
-                args,
-                kwargs,
-            } => {
+            HirExpr::DynamicCall { callee, args, kwargs } => {
                 check_expr(callee, name)
                     || args.iter().any(|a| check_expr(a, name))
                     || kwargs.iter().any(|(_, v)| check_expr(v, name))
@@ -599,12 +559,7 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
                 check_expr(left, name) || check_expr(right, name)
             }
             HirExpr::Unary { operand, .. } => check_expr(operand, name),
-            HirExpr::MethodCall {
-                object,
-                args,
-                kwargs,
-                ..
-            } => {
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
                 check_expr(object, name)
                     || args.iter().any(|a| check_expr(a, name))
                     || kwargs.iter().any(|(_, v)| check_expr(v, name))
@@ -618,32 +573,19 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
             | HirExpr::Tuple(items)
             | HirExpr::Set(items)
             | HirExpr::FrozenSet(items) => items.iter().any(|i| check_expr(i, name)),
-            HirExpr::Dict(pairs) => pairs
-                .iter()
-                .any(|(k, v)| check_expr(k, name) || check_expr(v, name)),
-            HirExpr::ListComp {
-                element,
-                generators,
+            HirExpr::Dict(pairs) => {
+                pairs.iter().any(|(k, v)| check_expr(k, name) || check_expr(v, name))
             }
-            | HirExpr::SetComp {
-                element,
-                generators,
-            }
-            | HirExpr::GeneratorExp {
-                element,
-                generators,
-            } => {
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators }
+            | HirExpr::GeneratorExp { element, generators } => {
                 check_expr(element, name)
                     || generators.iter().any(|g| {
                         check_expr(&g.iter, name)
                             || g.conditions.iter().any(|c| check_expr(c, name))
                     })
             }
-            HirExpr::DictComp {
-                key,
-                value,
-                generators,
-            } => {
+            HirExpr::DictComp { key, value, generators } => {
                 check_expr(key, name)
                     || check_expr(value, name)
                     || generators.iter().any(|g| {
@@ -653,12 +595,7 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
             }
             HirExpr::Lambda { body, .. } => check_expr(body, name),
             HirExpr::Await { value } => check_expr(value, name),
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 check_expr(base, name)
                     || start.as_ref().is_some_and(|e| check_expr(e, name))
                     || stop.as_ref().is_some_and(|e| check_expr(e, name))
@@ -673,12 +610,7 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
                 }
             }),
             HirExpr::Yield { value } => value.as_ref().is_some_and(|e| check_expr(e, name)),
-            HirExpr::SortByKey {
-                iterable,
-                key_body,
-                reverse_expr,
-                ..
-            } => {
+            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
                 check_expr(iterable, name)
                     || check_expr(key_body, name)
                     || reverse_expr.as_ref().is_some_and(|e| check_expr(e, name))
@@ -692,16 +624,10 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
         match stmt {
             HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => check_expr(expr, name),
             HirStmt::Assign { value, .. } => check_expr(value, name),
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 check_expr(condition, name)
                     || then_body.iter().any(|s| check_stmt(s, name))
-                    || else_body
-                        .as_ref()
-                        .is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
+                    || else_body.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
             }
             HirStmt::While { condition, body } => {
                 check_expr(condition, name) || body.iter().any(|s| check_stmt(s, name))
@@ -712,22 +638,11 @@ pub fn is_nested_function_recursive(name: &str, body: &[crate::hir::HirStmt]) ->
             HirStmt::With { context, body, .. } => {
                 check_expr(context, name) || body.iter().any(|s| check_stmt(s, name))
             }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 body.iter().any(|s| check_stmt(s, name))
-                    || handlers
-                        .iter()
-                        .any(|h| h.body.iter().any(|s| check_stmt(s, name)))
-                    || orelse
-                        .as_ref()
-                        .is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-                    || finalbody
-                        .as_ref()
-                        .is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
+                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, name)))
+                    || orelse.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
+                    || finalbody.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
             }
             HirStmt::FunctionDef { body, .. } => body.iter().any(|s| check_stmt(s, name)),
             HirStmt::Block(stmts) => stmts.iter().any(|s| check_stmt(s, name)),
@@ -750,11 +665,7 @@ pub fn extract_divisor_from_floor_div(expr: &HirExpr) -> anyhow::Result<&HirExpr
     use crate::hir::BinOp;
     use anyhow::bail;
     match expr {
-        HirExpr::Binary {
-            op: BinOp::FloorDiv,
-            right,
-            ..
-        } => Ok(right),
+        HirExpr::Binary { op: BinOp::FloorDiv, right, .. } => Ok(right),
         HirExpr::Binary { left, right, .. } => {
             // Recursively search for floor division
             if contains_floor_div(left) {
@@ -987,11 +898,7 @@ mod tests {
 
     #[test]
     fn test_expr_returns_usize_other_call() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_returns_usize(&expr));
     }
 
@@ -1194,86 +1101,54 @@ mod tests {
 
     #[test]
     fn test_is_iterator_call_iter() {
-        let expr = HirExpr::Call {
-            func: "iter".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "iter".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_call_map() {
-        let expr = HirExpr::Call {
-            func: "map".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "map".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_call_filter() {
-        let expr = HirExpr::Call {
-            func: "filter".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "filter".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_call_enumerate() {
-        let expr = HirExpr::Call {
-            func: "enumerate".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "enumerate".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_call_zip() {
-        let expr = HirExpr::Call {
-            func: "zip".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "zip".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_call_reversed() {
-        let expr = HirExpr::Call {
-            func: "reversed".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "reversed".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_call_other() {
-        let expr = HirExpr::Call {
-            func: "list".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "list".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_iterator_producing_expr(&expr));
     }
 
     #[test]
     fn test_is_iterator_var() {
-        assert!(!is_iterator_producing_expr(&HirExpr::Var(
-            "items".to_string()
-        )));
+        assert!(!is_iterator_producing_expr(&HirExpr::Var("items".to_string())));
     }
 
     #[test]
     fn test_is_iterator_literal() {
-        assert!(!is_iterator_producing_expr(&HirExpr::Literal(
-            Literal::Int(42)
-        )));
+        assert!(!is_iterator_producing_expr(&HirExpr::Literal(Literal::Int(42))));
     }
 
     // ============ is_pure_expression tests ============
@@ -1281,9 +1156,7 @@ mod tests {
     #[test]
     fn test_is_pure_literal() {
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Int(42))));
-        assert!(is_pure_expression(&HirExpr::Literal(Literal::String(
-            "hello".to_string()
-        ))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::String("hello".to_string()))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Bool(true))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::None)));
@@ -1308,11 +1181,7 @@ mod tests {
     fn test_is_pure_binary_impure() {
         let expr = HirExpr::Binary {
             op: BinOp::Add,
-            left: Box::new(HirExpr::Call {
-                func: "f".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            }),
+            left: Box::new(HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] }),
             right: Box::new(HirExpr::Literal(Literal::Int(1))),
         };
         assert!(!is_pure_expression(&expr));
@@ -1320,10 +1189,8 @@ mod tests {
 
     #[test]
     fn test_is_pure_unary() {
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Neg, operand: Box::new(HirExpr::Var("x".to_string())) };
         assert!(is_pure_expression(&expr));
     }
 
@@ -1342,10 +1209,8 @@ mod tests {
 
     #[test]
     fn test_is_pure_tuple() {
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Literal(Literal::Int(1)),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Var("x".to_string()), HirExpr::Literal(Literal::Int(1))]);
         assert!(is_pure_expression(&expr));
     }
 
@@ -1353,11 +1218,7 @@ mod tests {
     fn test_is_pure_tuple_impure() {
         let expr = HirExpr::Tuple(vec![
             HirExpr::Var("x".to_string()),
-            HirExpr::Call {
-                func: "f".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            },
+            HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] },
         ]);
         assert!(!is_pure_expression(&expr));
     }
@@ -1405,11 +1266,7 @@ mod tests {
 
     #[test]
     fn test_is_pure_call() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_pure_expression(&expr));
     }
 
@@ -1519,21 +1376,13 @@ mod tests {
 
     #[test]
     fn test_looks_like_option_next_call() {
-        let expr = HirExpr::Call {
-            func: "next".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "next".to_string(), args: vec![], kwargs: vec![] };
         assert!(looks_like_option_expr(&expr));
     }
 
     #[test]
     fn test_looks_like_option_other_call() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!looks_like_option_expr(&expr));
     }
 
@@ -1634,26 +1483,16 @@ mod tests {
     #[test]
     fn test_expr_infers_float_call_with_float_return() {
         let mut ctx = CodeGenContext::default();
-        ctx.function_return_types
-            .insert("compute".to_string(), Type::Float);
-        let expr = HirExpr::Call {
-            func: "compute".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        ctx.function_return_types.insert("compute".to_string(), Type::Float);
+        let expr = HirExpr::Call { func: "compute".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_infers_float(&expr, &ctx));
     }
 
     #[test]
     fn test_expr_infers_float_call_with_int_return() {
         let mut ctx = CodeGenContext::default();
-        ctx.function_return_types
-            .insert("compute".to_string(), Type::Int);
-        let expr = HirExpr::Call {
-            func: "compute".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        ctx.function_return_types.insert("compute".to_string(), Type::Int);
+        let expr = HirExpr::Call { func: "compute".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_infers_float(&expr, &ctx));
     }
 
@@ -1662,16 +1501,9 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.var_types.insert(
             "f".to_string(),
-            Type::Function {
-                params: vec![Type::Float],
-                ret: Box::new(Type::Float),
-            },
+            Type::Function { params: vec![Type::Float], ret: Box::new(Type::Float) },
         );
-        let expr = HirExpr::Call {
-            func: "f".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_infers_float(&expr, &ctx));
     }
 
@@ -1680,16 +1512,9 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.var_types.insert(
             "f".to_string(),
-            Type::Function {
-                params: vec![Type::Float],
-                ret: Box::new(Type::Int),
-            },
+            Type::Function { params: vec![Type::Float], ret: Box::new(Type::Int) },
         );
-        let expr = HirExpr::Call {
-            func: "f".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_infers_float(&expr, &ctx));
     }
 
@@ -1703,11 +1528,7 @@ mod tests {
                 params: vec![Type::List(Box::new(Type::Float)), Type::Float],
             },
         );
-        let expr = HirExpr::Call {
-            func: "f".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] };
         assert!(expr_infers_float(&expr, &ctx));
     }
 
@@ -1721,11 +1542,7 @@ mod tests {
                 params: vec![Type::List(Box::new(Type::Float)), Type::Int],
             },
         );
-        let expr = HirExpr::Call {
-            func: "f".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_infers_float(&expr, &ctx));
     }
 
@@ -1734,27 +1551,16 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.var_types.insert(
             "f".to_string(),
-            Type::Generic {
-                base: "List".to_string(),
-                params: vec![Type::Float],
-            },
+            Type::Generic { base: "List".to_string(), params: vec![Type::Float] },
         );
-        let expr = HirExpr::Call {
-            func: "f".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "f".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_infers_float(&expr, &ctx));
     }
 
     #[test]
     fn test_expr_infers_float_call_unknown() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "unknown".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "unknown".to_string(), args: vec![], kwargs: vec![] };
         assert!(!expr_infers_float(&expr, &ctx));
     }
 
@@ -1955,88 +1761,56 @@ mod tests {
     #[test]
     fn test_is_numpy_call_array() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "array".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "array".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_zeros() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "zeros".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "zeros".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_ones() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "ones".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "ones".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_empty() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "empty".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "empty".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_linspace() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "linspace".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "linspace".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_arange() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "arange".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "arange".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_full() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "full".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "full".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
     #[test]
     fn test_is_numpy_call_copy() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "copy".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "copy".to_string(), args: vec![], kwargs: vec![] };
         assert!(is_numpy_value_expr(&expr, &ctx));
     }
 
@@ -2142,11 +1916,7 @@ mod tests {
     #[test]
     fn test_is_numpy_call_other() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_numpy_value_expr(&expr, &ctx));
     }
 
@@ -2521,11 +2291,7 @@ mod tests {
 
     #[test]
     fn test_is_file_creating_other_call() {
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(!is_file_creating_expr(&expr));
     }
 
@@ -2614,22 +2380,15 @@ mod tests {
 
     #[test]
     fn test_extract_kwarg_string_found() {
-        let kwargs = vec![(
-            "name".to_string(),
-            HirExpr::Literal(Literal::String("test".to_string())),
-        )];
-        assert_eq!(
-            extract_kwarg_string(&kwargs, "name"),
-            Some("test".to_string())
-        );
+        let kwargs =
+            vec![("name".to_string(), HirExpr::Literal(Literal::String("test".to_string())))];
+        assert_eq!(extract_kwarg_string(&kwargs, "name"), Some("test".to_string()));
     }
 
     #[test]
     fn test_extract_kwarg_string_not_found() {
-        let kwargs = vec![(
-            "name".to_string(),
-            HirExpr::Literal(Literal::String("test".to_string())),
-        )];
+        let kwargs =
+            vec![("name".to_string(), HirExpr::Literal(Literal::String("test".to_string())))];
         assert_eq!(extract_kwarg_string(&kwargs, "other"), None);
     }
 
@@ -2844,10 +2603,7 @@ mod tests {
                 args: vec![],
                 kwargs: vec![],
             }),
-            HirStmt::Raise {
-                exception: None,
-                cause: None,
-            },
+            HirStmt::Raise { exception: None, cause: None },
         ];
         assert!(handler_contains_raise(&body));
     }

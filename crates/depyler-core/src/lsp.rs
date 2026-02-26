@@ -33,10 +33,7 @@ impl LspServer {
     /// // Server is ready to handle documents
     /// ```
     pub fn new() -> Self {
-        Self {
-            documents: HashMap::new(),
-            pipeline: DepylerPipeline::new(),
-        }
+        Self { documents: HashMap::new(), pipeline: DepylerPipeline::new() }
     }
 
     /// Handle document open
@@ -129,10 +126,7 @@ impl LspServer {
             if let Some(symbol) = doc.ide_integration.symbol_at_position(offset) {
                 let contents = crate::ide::generate_hover_info(symbol);
                 return Some(HoverResponse {
-                    contents: MarkupContent {
-                        kind: "markdown".to_string(),
-                        value: contents,
-                    },
+                    contents: MarkupContent { kind: "markdown".to_string(), value: contents },
                 });
             }
         }
@@ -203,10 +197,7 @@ impl LspServer {
                         let start = self.offset_to_position(&doc.content, sym.range.start());
                         let end = self.offset_to_position(&doc.content, sym.range.end());
 
-                        LocationResponse {
-                            uri: uri.to_string(),
-                            range: Range { start, end },
-                        }
+                        LocationResponse { uri: uri.to_string(), range: Range { start, end } }
                     })
                     .collect();
             }
@@ -257,10 +248,7 @@ impl LspServer {
             current_offset += ch.len_utf8();
         }
 
-        Position {
-            line,
-            character: col,
-        }
+        Position { line, character: col }
     }
 
     fn get_prefix_at_position(&self, text: &str, offset: TextSize) -> String {

@@ -38,10 +38,7 @@ def add_ints(a: int, b: int) -> int:
     return a + b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("+"),
-        "Integer addition should use +. Got:\n{rust}"
-    );
+    assert!(rust.contains("+"), "Integer addition should use +. Got:\n{rust}");
 }
 
 #[test]
@@ -77,10 +74,7 @@ def multiply(a: int, b: int) -> int:
     return a * b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("*"),
-        "Multiplication should use *. Got:\n{rust}"
-    );
+    assert!(rust.contains("*"), "Multiplication should use *. Got:\n{rust}");
 }
 
 #[test]
@@ -157,10 +151,7 @@ def greater_than(a: int, b: int) -> bool:
     return a > b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(">"),
-        "Greater than should use >. Got:\n{rust}"
-    );
+    assert!(rust.contains(">"), "Greater than should use >. Got:\n{rust}");
 }
 
 #[test]
@@ -197,10 +188,7 @@ def logical_and(a: bool, b: bool) -> bool:
     return a and b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("&&"),
-        "Logical and should use &&. Got:\n{rust}"
-    );
+    assert!(rust.contains("&&"), "Logical and should use &&. Got:\n{rust}");
 }
 
 #[test]
@@ -211,10 +199,7 @@ def logical_or(a: bool, b: bool) -> bool:
     return a or b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("||"),
-        "Logical or should use ||. Got:\n{rust}"
-    );
+    assert!(rust.contains("||"), "Logical or should use ||. Got:\n{rust}");
 }
 
 // ============================================================================
@@ -244,10 +229,7 @@ def substring_in_string(sub: str, s: str) -> bool:
     return sub in s
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("contains"),
-        "in operator for string should use contains. Got:\n{rust}"
-    );
+    assert!(rust.contains("contains"), "in operator for string should use contains. Got:\n{rust}");
 }
 
 #[test]
@@ -289,10 +271,7 @@ def is_empty_list(items: list) -> bool:
     return not items
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("is_empty"),
-        "not on collection should use is_empty. Got:\n{rust}"
-    );
+    assert!(rust.contains("is_empty"), "not on collection should use is_empty. Got:\n{rust}");
 }
 
 #[test]
@@ -424,10 +403,7 @@ def repeat_string(s: str, n: int) -> str:
     return s * n
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("repeat"),
-        "String * int should use repeat. Got:\n{rust}"
-    );
+    assert!(rust.contains("repeat"), "String * int should use repeat. Got:\n{rust}");
 }
 
 #[test]

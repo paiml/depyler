@@ -66,12 +66,7 @@ impl TranspilationCacheKey {
         let config_json = serde_json::to_string(config).unwrap_or_default();
         let config_hash = Sha256::digest(config_json.as_bytes()).into();
 
-        Self {
-            source_hash,
-            transpiler_hash,
-            env_hash,
-            config_hash,
-        }
+        Self { source_hash, transpiler_hash, env_hash, config_hash }
     }
 
     /// Hash the transpiler itself (Nix-style input addressing)
@@ -84,10 +79,7 @@ impl TranspilationCacheKey {
         }
 
         // Option 2: Use git commit hash (development mode)
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["rev-parse", "HEAD"])
-            .output()
-        {
+        if let Ok(output) = std::process::Command::new("git").args(["rev-parse", "HEAD"]).output() {
             if output.status.success() {
                 return Sha256::digest(&output.stdout).into();
             }
@@ -101,12 +93,7 @@ impl TranspilationCacheKey {
     /// Hash relevant environment variables (hermeticity)
     fn compute_env_hash() -> [u8; 32] {
         // Use BTreeMap for deterministic ordering
-        let relevant_vars = [
-            "PYTHONPATH",
-            "RUSTFLAGS",
-            "CARGO_TARGET_DIR",
-            "DEPYLER_CONFIG",
-        ];
+        let relevant_vars = ["PYTHONPATH", "RUSTFLAGS", "CARGO_TARGET_DIR", "DEPYLER_CONFIG"];
 
         let mut env_map: BTreeMap<&str, String> = BTreeMap::new();
         for var in relevant_vars {
@@ -227,10 +214,7 @@ impl CasStore {
         // Atomic write (rename is atomic on POSIX)
         let tmp_path = path.with_extension("tmp");
         let parent = path.parent().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "blob path has no parent directory",
-            )
+            io::Error::new(io::ErrorKind::InvalidInput, "blob path has no parent directory")
         })?;
         std::fs::create_dir_all(parent)?;
         std::fs::write(&tmp_path, content)?;
@@ -490,9 +474,7 @@ impl SqliteCache {
     pub fn stats(&self) -> Result<CacheStats, CacheError> {
         let total_entries: usize =
             self.conn
-                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
-                    row.get(0)
-                })?;
+                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| row.get(0))?;
 
         let hit_count: u64 = self.get_stat("total_hits")?;
         let miss_count: u64 = self.get_stat("total_misses")?;
@@ -500,20 +482,12 @@ impl SqliteCache {
 
         let oldest_entry_secs: Option<u64> = self
             .conn
-            .query_row(
-                "SELECT MIN(created_at) FROM transpilation_cache",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT MIN(created_at) FROM transpilation_cache", [], |row| row.get(0))
             .ok();
 
         let newest_entry_secs: Option<u64> = self
             .conn
-            .query_row(
-                "SELECT MAX(created_at) FROM transpilation_cache",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT MAX(created_at) FROM transpilation_cache", [], |row| row.get(0))
             .ok();
 
         let total_size_bytes = self.cas.total_size()?;
@@ -540,16 +514,11 @@ impl SqliteCache {
         // Count current entries
         let current_count: usize =
             self.conn
-                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
-                    row.get(0)
-                })?;
+                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| row.get(0))?;
 
         // Only GC if we have more than min_entries
         if current_count <= self.config.min_entries {
-            return Ok(GcResult {
-                evicted: 0,
-                freed_bytes: 0,
-            });
+            return Ok(GcResult { evicted: 0, freed_bytes: 0 });
         }
 
         // Collect blobs to remove
@@ -604,22 +573,17 @@ impl SqliteCache {
             rusqlite::params![evicted as i64, now as i64],
         )?;
 
-        Ok(GcResult {
-            evicted,
-            freed_bytes,
-        })
+        Ok(GcResult { evicted, freed_bytes })
     }
 
     /// Get all referenced blob hashes
     fn get_referenced_blobs(&self) -> Result<std::collections::HashSet<String>, CacheError> {
         let mut blobs = std::collections::HashSet::new();
-        let mut stmt = self
-            .conn
-            .prepare("SELECT rust_code_blob, cargo_toml_blob FROM transpilation_cache")?;
+        let mut stmt =
+            self.conn.prepare("SELECT rust_code_blob, cargo_toml_blob FROM transpilation_cache")?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
+        let rows =
+            stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
 
         for row in rows {
             let (rust_blob, cargo_blob) = row?;
@@ -643,11 +607,9 @@ impl SqliteCache {
     fn get_stat(&self, name: &str) -> Result<u64, CacheError> {
         let value: i64 = self
             .conn
-            .query_row(
-                "SELECT stat_value FROM cache_stats WHERE stat_name = ?1",
-                [name],
-                |row| row.get(0),
-            )
+            .query_row("SELECT stat_value FROM cache_stats WHERE stat_name = ?1", [name], |row| {
+                row.get(0)
+            })
             .unwrap_or(0);
         Ok(value as u64)
     }
@@ -688,10 +650,7 @@ pub enum CacheError {
 // ============================================================================
 
 fn current_timestamp() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
 // ============================================================================
@@ -838,10 +797,7 @@ mod tests {
     #[test]
     fn test_sqlite_cache_open() {
         let temp = TempDir::new().unwrap();
-        let config = CacheConfig {
-            cache_dir: temp.path().to_path_buf(),
-            ..Default::default()
-        };
+        let config = CacheConfig { cache_dir: temp.path().to_path_buf(), ..Default::default() };
 
         let cache = SqliteCache::open(config);
         assert!(cache.is_ok());
@@ -850,10 +806,7 @@ mod tests {
     #[test]
     fn test_sqlite_cache_store_and_lookup() {
         let temp = TempDir::new().unwrap();
-        let config = CacheConfig {
-            cache_dir: temp.path().to_path_buf(),
-            ..Default::default()
-        };
+        let config = CacheConfig { cache_dir: temp.path().to_path_buf(), ..Default::default() };
         let cache = SqliteCache::open(config.clone()).unwrap();
 
         let source = "def greet(): return 'hello'";
@@ -895,10 +848,7 @@ mod tests {
     #[test]
     fn test_sqlite_cache_miss() {
         let temp = TempDir::new().unwrap();
-        let config = CacheConfig {
-            cache_dir: temp.path().to_path_buf(),
-            ..Default::default()
-        };
+        let config = CacheConfig { cache_dir: temp.path().to_path_buf(), ..Default::default() };
         let cache = SqliteCache::open(config.clone()).unwrap();
 
         let key = TranspilationCacheKey::compute("nonexistent", &config);
@@ -909,10 +859,7 @@ mod tests {
     #[test]
     fn test_sqlite_cache_stats() {
         let temp = TempDir::new().unwrap();
-        let config = CacheConfig {
-            cache_dir: temp.path().to_path_buf(),
-            ..Default::default()
-        };
+        let config = CacheConfig { cache_dir: temp.path().to_path_buf(), ..Default::default() };
         let cache = SqliteCache::open(config.clone()).unwrap();
 
         // Initial stats
@@ -975,9 +922,7 @@ mod tests {
                 last_accessed_at: 0,
                 transpilation_time_ms: 10,
             };
-            cache
-                .store(&key, &format!("fn test{}() {{}}", i), "", entry)
-                .unwrap();
+            cache.store(&key, &format!("fn test{}() {{}}", i), "", entry).unwrap();
         }
 
         // Run GC
@@ -1013,10 +958,7 @@ mod tests {
     #[test]
     fn test_cache_workflow_end_to_end() {
         let temp = TempDir::new().unwrap();
-        let config = CacheConfig {
-            cache_dir: temp.path().to_path_buf(),
-            ..Default::default()
-        };
+        let config = CacheConfig { cache_dir: temp.path().to_path_buf(), ..Default::default() };
         let cache = SqliteCache::open(config.clone()).unwrap();
 
         // Simulate transpilation workflow
@@ -1086,18 +1028,10 @@ edition = "2021"
         let config = CacheConfig::default();
 
         // Different sources should produce different keys
-        let sources = [
-            "def a(): pass",
-            "def b(): pass",
-            "def c(): return 1",
-            "x = 1",
-            "y = 2",
-        ];
+        let sources = ["def a(): pass", "def b(): pass", "def c(): return 1", "x = 1", "y = 2"];
 
-        let keys: Vec<_> = sources
-            .iter()
-            .map(|s| TranspilationCacheKey::compute(s, &config).hex_key())
-            .collect();
+        let keys: Vec<_> =
+            sources.iter().map(|s| TranspilationCacheKey::compute(s, &config).hex_key()).collect();
 
         // All keys should be unique
         let unique: std::collections::HashSet<_> = keys.iter().collect();

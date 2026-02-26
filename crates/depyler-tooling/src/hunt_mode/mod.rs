@@ -115,25 +115,15 @@ impl HuntEngine {
         // ACT: Verify and commit if successful
         let verify_result = match repair_result {
             RepairResult::Success(fix) => self.verifier.verify_and_commit(&fix, &repro)?,
-            RepairResult::NeedsHumanReview {
-                fix,
-                confidence,
-                reason,
-            } => VerifyResult::NeedsReview {
-                fix,
-                confidence,
-                reason,
-            },
+            RepairResult::NeedsHumanReview { fix, confidence, reason } => {
+                VerifyResult::NeedsReview { fix, confidence, reason }
+            }
             RepairResult::NoFixFound => VerifyResult::NoFixAvailable,
         };
 
         // Create outcome for Hansei reflection
-        let outcome = CycleOutcome {
-            pattern,
-            repro,
-            verify_result,
-            metrics_snapshot: self.metrics.clone(),
-        };
+        let outcome =
+            CycleOutcome { pattern, repro, verify_result, metrics_snapshot: self.metrics.clone() };
 
         // Hansei: Reflect and learn
         let _lessons = self.reflector.reflect_on_cycle(&outcome);
@@ -296,10 +286,7 @@ mod tests {
         assert!((config.target_rate - 0.80).abs() < f64::EPSILON);
         assert_eq!(config.plateau_threshold, 5);
         assert!(config.enable_five_whys);
-        assert_eq!(
-            config.lessons_database,
-            PathBuf::from(".depyler/lessons.db")
-        );
+        assert_eq!(config.lessons_database, PathBuf::from(".depyler/lessons.db"));
     }
 
     #[test]
@@ -308,10 +295,7 @@ mod tests {
             lessons_database: PathBuf::from("/custom/db/lessons.sqlite"),
             ..Default::default()
         };
-        assert_eq!(
-            config.lessons_database,
-            PathBuf::from("/custom/db/lessons.sqlite")
-        );
+        assert_eq!(config.lessons_database, PathBuf::from("/custom/db/lessons.sqlite"));
     }
 
     #[test]
@@ -438,10 +422,7 @@ mod tests {
     #[test]
     fn test_hunt_engine_multiple_instances() {
         let config1 = HuntConfig::default();
-        let config2 = HuntConfig {
-            max_cycles: 10,
-            ..Default::default()
-        };
+        let config2 = HuntConfig { max_cycles: 10, ..Default::default() };
 
         let engine1 = HuntEngine::new(config1);
         let engine2 = HuntEngine::new(config2);

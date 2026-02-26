@@ -333,17 +333,9 @@ def get_length(text: str) -> int:
         || rust_code.contains("-> i64")
         || rust_code.contains("-> usize");
 
-    assert!(
-        has_str_param,
-        "Expected text: &str or String. Got:\n{}",
-        rust_code
-    );
+    assert!(has_str_param, "Expected text: &str or String. Got:\n{}", rust_code);
 
-    assert!(
-        has_int_return,
-        "Expected -> i32/i64/usize. Got:\n{}",
-        rust_code
-    );
+    assert!(has_int_return, "Expected -> i32/i64/usize. Got:\n{}", rust_code);
 }
 
 // ====================================================================================

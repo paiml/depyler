@@ -69,7 +69,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("after_help") || result.contains("epilog") || result.contains("Args"),
+                result.contains("after_help")
+                    || result.contains("epilog")
+                    || result.contains("Args"),
                 "Expected epilog/after_help in output"
             );
         }
@@ -168,7 +170,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("bool") || result.contains("SetFalse") || result.contains("no_color"),
+                result.contains("bool")
+                    || result.contains("SetFalse")
+                    || result.contains("no_color"),
                 "Expected store_false handling"
             );
         }
@@ -244,7 +248,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("mode") || result.contains("value_parser") || result.contains("fast"),
+                result.contains("mode")
+                    || result.contains("value_parser")
+                    || result.contains("fast"),
                 "Expected choices handling"
             );
         }
@@ -393,10 +399,7 @@ def main():
     print(args.num)
 ";
         if let Ok(result) = transpile(code) {
-            assert!(
-                result.contains("num") || result.contains("dest"),
-                "Expected dest handling"
-            );
+            assert!(result.contains("num") || result.contains("dest"), "Expected dest handling");
         }
     }
 
@@ -488,7 +491,10 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Subcommand") || result.contains("command") || result.contains("Run") || result.contains("enum"),
+                result.contains("Subcommand")
+                    || result.contains("command")
+                    || result.contains("Run")
+                    || result.contains("enum"),
                 "Expected subparser handling"
             );
         }
@@ -507,7 +513,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Clone") || result.contains("clone") || result.contains("Subcommand"),
+                result.contains("Clone")
+                    || result.contains("clone")
+                    || result.contains("Subcommand"),
                 "Expected subparser with help"
             );
         }
@@ -548,8 +556,11 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Run") || result.contains("Test") || result.contains("Build")
-                    || result.contains("enum") || result.contains("Subcommand"),
+                result.contains("Run")
+                    || result.contains("Test")
+                    || result.contains("Build")
+                    || result.contains("enum")
+                    || result.contains("Subcommand"),
                 "Expected multiple subcommands"
             );
         }
@@ -571,7 +582,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Install") || result.contains("package") || result.contains("verbose"),
+                result.contains("Install")
+                    || result.contains("package")
+                    || result.contains("verbose"),
                 "Expected complex CLI pattern"
             );
         }
@@ -747,7 +760,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("level") || result.contains("info") || result.contains("value_parser"),
+                result.contains("level")
+                    || result.contains("info")
+                    || result.contains("value_parser"),
                 "Expected choices with type"
             );
         }
@@ -902,8 +917,11 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Clone") || result.contains("Pull") || result.contains("Push")
-                    || result.contains("enum") || result.contains("Subcommand"),
+                result.contains("Clone")
+                    || result.contains("Pull")
+                    || result.contains("Push")
+                    || result.contains("enum")
+                    || result.contains("Subcommand"),
                 "Expected git-like subcommands"
             );
         }
@@ -946,7 +964,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("input_file") || result.contains("output") || result.contains("encoding"),
+                result.contains("input_file")
+                    || result.contains("output")
+                    || result.contains("encoding"),
                 "Expected file processing pattern"
             );
         }
@@ -1073,22 +1093,14 @@ def main():
     fn test_w8_string_upper() {
         let code = "def f(s: str) -> str:\n    return s.upper()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_uppercase"),
-            "Expected to_uppercase: {}",
-            result
-        );
+        assert!(result.contains("to_uppercase"), "Expected to_uppercase: {}", result);
     }
 
     #[test]
     fn test_w8_string_lower() {
         let code = "def f(s: str) -> str:\n    return s.lower()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_lowercase"),
-            "Expected to_lowercase: {}",
-            result
-        );
+        assert!(result.contains("to_lowercase"), "Expected to_lowercase: {}", result);
     }
 
     #[test]
@@ -1118,7 +1130,9 @@ def main():
         let code = "def f(s: str) -> str:\n    return s.swapcase()\n";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("is_uppercase") || result.contains("to_lowercase") || result.contains("to_uppercase"),
+            result.contains("is_uppercase")
+                || result.contains("to_lowercase")
+                || result.contains("to_uppercase"),
             "Expected swapcase logic: {}",
             result
         );
@@ -1128,11 +1142,7 @@ def main():
     fn test_w8_string_casefold() {
         let code = "def f(s: str) -> str:\n    return s.casefold()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_lowercase"),
-            "Expected casefold->to_lowercase: {}",
-            result
-        );
+        assert!(result.contains("to_lowercase"), "Expected casefold->to_lowercase: {}", result);
     }
 
     // ========================================================================
@@ -1143,66 +1153,42 @@ def main():
     fn test_w8_string_strip_no_args() {
         let code = "def f(s: str) -> str:\n    return s.strip()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("trim"),
-            "Expected trim(): {}",
-            result
-        );
+        assert!(result.contains("trim"), "Expected trim(): {}", result);
     }
 
     #[test]
     fn test_w8_string_strip_with_chars() {
         let code = "def f(s: str) -> str:\n    return s.strip(\"xy\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("trim_matches"),
-            "Expected trim_matches: {}",
-            result
-        );
+        assert!(result.contains("trim_matches"), "Expected trim_matches: {}", result);
     }
 
     #[test]
     fn test_w8_string_lstrip_no_args() {
         let code = "def f(s: str) -> str:\n    return s.lstrip()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("trim_start"),
-            "Expected trim_start: {}",
-            result
-        );
+        assert!(result.contains("trim_start"), "Expected trim_start: {}", result);
     }
 
     #[test]
     fn test_w8_string_lstrip_with_chars() {
         let code = "def f(s: str) -> str:\n    return s.lstrip(\"abc\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("trim_start_matches"),
-            "Expected trim_start_matches: {}",
-            result
-        );
+        assert!(result.contains("trim_start_matches"), "Expected trim_start_matches: {}", result);
     }
 
     #[test]
     fn test_w8_string_rstrip_no_args() {
         let code = "def f(s: str) -> str:\n    return s.rstrip()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("trim_end"),
-            "Expected trim_end: {}",
-            result
-        );
+        assert!(result.contains("trim_end"), "Expected trim_end: {}", result);
     }
 
     #[test]
     fn test_w8_string_rstrip_with_chars() {
         let code = "def f(s: str) -> str:\n    return s.rstrip(\"xyz\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("trim_end_matches"),
-            "Expected trim_end_matches: {}",
-            result
-        );
+        assert!(result.contains("trim_end_matches"), "Expected trim_end_matches: {}", result);
     }
 
     // ========================================================================
@@ -1213,11 +1199,7 @@ def main():
     fn test_w8_string_split_no_args() {
         let code = "def f(s: str) -> list:\n    return s.split()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("split_whitespace"),
-            "Expected split_whitespace: {}",
-            result
-        );
+        assert!(result.contains("split_whitespace"), "Expected split_whitespace: {}", result);
     }
 
     #[test]
@@ -1235,11 +1217,7 @@ def main():
     fn test_w8_string_split_with_maxsplit() {
         let code = "def f(s: str) -> list:\n    return s.split(\",\", 1)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("splitn"),
-            "Expected splitn: {}",
-            result
-        );
+        assert!(result.contains("splitn"), "Expected splitn: {}", result);
     }
 
     #[test]
@@ -1257,33 +1235,21 @@ def main():
     fn test_w8_string_rsplit_with_sep() {
         let code = "def f(s: str) -> list:\n    return s.rsplit(\".\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("rsplit"),
-            "Expected rsplit: {}",
-            result
-        );
+        assert!(result.contains("rsplit"), "Expected rsplit: {}", result);
     }
 
     #[test]
     fn test_w8_string_rsplit_with_maxsplit() {
         let code = "def f(s: str) -> list:\n    return s.rsplit(\".\", 1)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("rsplitn"),
-            "Expected rsplitn: {}",
-            result
-        );
+        assert!(result.contains("rsplitn"), "Expected rsplitn: {}", result);
     }
 
     #[test]
     fn test_w8_string_splitlines() {
         let code = "def f(s: str) -> list:\n    return s.splitlines()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("lines()"),
-            "Expected lines(): {}",
-            result
-        );
+        assert!(result.contains("lines()"), "Expected lines(): {}", result);
     }
 
     // ========================================================================
@@ -1294,33 +1260,21 @@ def main():
     fn test_w8_string_join_list() {
         let code = "def f(items: list) -> str:\n    return \", \".join(items)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains(".join("),
-            "Expected join: {}",
-            result
-        );
+        assert!(result.contains(".join("), "Expected join: {}", result);
     }
 
     #[test]
     fn test_w8_string_join_with_variable_sep() {
         let code = "def f(sep: str, items: list) -> str:\n    return sep.join(items)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains(".join("),
-            "Expected join with variable: {}",
-            result
-        );
+        assert!(result.contains(".join("), "Expected join with variable: {}", result);
     }
 
     #[test]
     fn test_w8_string_join_empty_sep() {
         let code = "def f(items: list) -> str:\n    return \"\".join(items)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains(".join("),
-            "Expected join with empty sep: {}",
-            result
-        );
+        assert!(result.contains(".join("), "Expected join with empty sep: {}", result);
     }
 
     // ========================================================================
@@ -1331,11 +1285,7 @@ def main():
     fn test_w8_string_replace_basic() {
         let code = "def f(s: str) -> str:\n    return s.replace(\"old\", \"new\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains(".replace("),
-            "Expected replace: {}",
-            result
-        );
+        assert!(result.contains(".replace("), "Expected replace: {}", result);
     }
 
     #[test]
@@ -1416,44 +1366,28 @@ def main():
     fn test_w8_string_startswith_literal() {
         let code = "def f(s: str) -> bool:\n    return s.startswith(\"pre\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("starts_with"),
-            "Expected starts_with: {}",
-            result
-        );
+        assert!(result.contains("starts_with"), "Expected starts_with: {}", result);
     }
 
     #[test]
     fn test_w8_string_endswith_literal() {
         let code = "def f(s: str) -> bool:\n    return s.endswith(\".txt\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("ends_with"),
-            "Expected ends_with: {}",
-            result
-        );
+        assert!(result.contains("ends_with"), "Expected ends_with: {}", result);
     }
 
     #[test]
     fn test_w8_string_startswith_variable() {
         let code = "def f(s: str, prefix: str) -> bool:\n    return s.startswith(prefix)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("starts_with"),
-            "Expected starts_with with variable: {}",
-            result
-        );
+        assert!(result.contains("starts_with"), "Expected starts_with with variable: {}", result);
     }
 
     #[test]
     fn test_w8_string_endswith_variable() {
         let code = "def f(s: str, suffix: str) -> bool:\n    return s.endswith(suffix)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("ends_with"),
-            "Expected ends_with with variable: {}",
-            result
-        );
+        assert!(result.contains("ends_with"), "Expected ends_with with variable: {}", result);
     }
 
     // ========================================================================
@@ -1490,66 +1424,42 @@ def main():
     fn test_w8_string_isdigit() {
         let code = "def f(s: str) -> bool:\n    return s.isdigit()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_numeric"),
-            "Expected is_numeric: {}",
-            result
-        );
+        assert!(result.contains("is_numeric"), "Expected is_numeric: {}", result);
     }
 
     #[test]
     fn test_w8_string_isalpha() {
         let code = "def f(s: str) -> bool:\n    return s.isalpha()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_alphabetic"),
-            "Expected is_alphabetic: {}",
-            result
-        );
+        assert!(result.contains("is_alphabetic"), "Expected is_alphabetic: {}", result);
     }
 
     #[test]
     fn test_w8_string_isalnum() {
         let code = "def f(s: str) -> bool:\n    return s.isalnum()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_alphanumeric"),
-            "Expected is_alphanumeric: {}",
-            result
-        );
+        assert!(result.contains("is_alphanumeric"), "Expected is_alphanumeric: {}", result);
     }
 
     #[test]
     fn test_w8_string_isspace() {
         let code = "def f(s: str) -> bool:\n    return s.isspace()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_whitespace"),
-            "Expected is_whitespace: {}",
-            result
-        );
+        assert!(result.contains("is_whitespace"), "Expected is_whitespace: {}", result);
     }
 
     #[test]
     fn test_w8_string_isupper() {
         let code = "def f(s: str) -> bool:\n    return s.isupper()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_uppercase"),
-            "Expected is_uppercase: {}",
-            result
-        );
+        assert!(result.contains("is_uppercase"), "Expected is_uppercase: {}", result);
     }
 
     #[test]
     fn test_w8_string_islower() {
         let code = "def f(s: str) -> bool:\n    return s.islower()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_lowercase"),
-            "Expected is_lowercase: {}",
-            result
-        );
+        assert!(result.contains("is_lowercase"), "Expected is_lowercase: {}", result);
     }
 
     #[test]
@@ -1557,7 +1467,9 @@ def main():
         let code = "def f(s: str) -> bool:\n    return s.istitle()\n";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("is_uppercase") || result.contains("is_lowercase") || result.contains("prev_is_cased"),
+            result.contains("is_uppercase")
+                || result.contains("is_lowercase")
+                || result.contains("prev_is_cased"),
             "Expected istitle logic: {}",
             result
         );
@@ -1567,33 +1479,21 @@ def main():
     fn test_w8_string_isnumeric() {
         let code = "def f(s: str) -> bool:\n    return s.isnumeric()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_numeric"),
-            "Expected is_numeric: {}",
-            result
-        );
+        assert!(result.contains("is_numeric"), "Expected is_numeric: {}", result);
     }
 
     #[test]
     fn test_w8_string_isascii() {
         let code = "def f(s: str) -> bool:\n    return s.isascii()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_ascii"),
-            "Expected is_ascii: {}",
-            result
-        );
+        assert!(result.contains("is_ascii"), "Expected is_ascii: {}", result);
     }
 
     #[test]
     fn test_w8_string_isdecimal() {
         let code = "def f(s: str) -> bool:\n    return s.isdecimal()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_ascii_digit"),
-            "Expected is_ascii_digit: {}",
-            result
-        );
+        assert!(result.contains("is_ascii_digit"), "Expected is_ascii_digit: {}", result);
     }
 
     #[test]
@@ -1601,7 +1501,9 @@ def main():
         let code = "def f(s: str) -> bool:\n    return s.isidentifier()\n";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("is_alphabetic") || result.contains("is_alphanumeric") || result.contains("is_empty"),
+            result.contains("is_alphabetic")
+                || result.contains("is_alphanumeric")
+                || result.contains("is_empty"),
             "Expected isidentifier logic: {}",
             result
         );
@@ -1611,11 +1513,7 @@ def main():
     fn test_w8_string_isprintable() {
         let code = "def f(s: str) -> bool:\n    return s.isprintable()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_control"),
-            "Expected is_control check: {}",
-            result
-        );
+        assert!(result.contains("is_control"), "Expected is_control check: {}", result);
     }
 
     // ========================================================================
@@ -1849,7 +1747,8 @@ def main():
 
     #[test]
     fn test_w8_string_split_and_join() {
-        let code = "def f(s: str) -> str:\n    parts = s.split(\",\")\n    return \";\".join(parts)\n";
+        let code =
+            "def f(s: str) -> str:\n    parts = s.split(\",\")\n    return \";\".join(parts)\n";
         let result = transpile(code).expect("transpile");
         assert!(
             result.contains("split") && result.contains("join"),
@@ -1912,7 +1811,9 @@ def f(s: str) -> int:
         let code = "def f(s: str) -> bool:\n    return s.strip().lower().startswith(\"http\")\n";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("trim") || result.contains("to_lowercase") || result.contains("starts_with"),
+            result.contains("trim")
+                || result.contains("to_lowercase")
+                || result.contains("starts_with"),
             "Expected strip+lower+startswith: {}",
             result
         );
@@ -1932,7 +1833,9 @@ def f(s: str) -> str:
 ";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("is_uppercase") || result.contains("to_lowercase") || result.contains("to_uppercase"),
+            result.contains("is_uppercase")
+                || result.contains("to_lowercase")
+                || result.contains("to_uppercase"),
             "Expected isupper+lower+upper: {}",
             result
         );
@@ -1946,11 +1849,7 @@ def f(s: str) -> bool:
     return result
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_numeric"),
-            "Expected is_numeric in filter: {}",
-            result
-        );
+        assert!(result.contains("is_numeric"), "Expected is_numeric in filter: {}", result);
     }
 
     #[test]
@@ -1975,11 +1874,7 @@ def f(items: list) -> list:
     fn test_w8_string_replace_empty_string() {
         let code = "def f(s: str) -> str:\n    return s.replace(\"x\", \"\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains(".replace("),
-            "Expected replace with empty: {}",
-            result
-        );
+        assert!(result.contains(".replace("), "Expected replace with empty: {}", result);
     }
 
     #[test]
@@ -2018,11 +1913,7 @@ def f(filename: str) -> bool:
     return filename.endswith(\".py\")
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("ends_with"),
-            "Expected ends_with .py: {}",
-            result
-        );
+        assert!(result.contains("ends_with"), "Expected ends_with .py: {}", result);
     }
 
     #[test]
@@ -2034,11 +1925,7 @@ def f(line: str) -> bool:
     return False
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("starts_with"),
-            "Expected starts_with in condition: {}",
-            result
-        );
+        assert!(result.contains("starts_with"), "Expected starts_with in condition: {}", result);
     }
 
     #[test]
@@ -2049,22 +1936,14 @@ def f(path: str) -> str:
     return parts[0]
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("split"),
-            "Expected split+index: {}",
-            result
-        );
+        assert!(result.contains("split"), "Expected split+index: {}", result);
     }
 
     #[test]
     fn test_w8_string_join_with_newlines() {
         let code = "def f(lines: list) -> str:\n    return \"\\n\".join(lines)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("join"),
-            "Expected join with newline: {}",
-            result
-        );
+        assert!(result.contains("join"), "Expected join with newline: {}", result);
     }
 
     #[test]
@@ -2086,11 +1965,7 @@ def f(s: str) -> int:
     fn test_w8_string_method_on_literal() {
         let code = "def f() -> str:\n    return \"hello world\".upper()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_uppercase"),
-            "Expected to_uppercase on literal: {}",
-            result
-        );
+        assert!(result.contains("to_uppercase"), "Expected to_uppercase on literal: {}", result);
     }
 
     #[test]
@@ -2103,11 +1978,7 @@ def f() -> str:
     return get_name().lower()
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_lowercase"),
-            "Expected to_lowercase on return: {}",
-            result
-        );
+        assert!(result.contains("to_lowercase"), "Expected to_lowercase on return: {}", result);
     }
 
     #[test]
@@ -2119,11 +1990,7 @@ def f(s: str) -> str:
     return result
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("replace"),
-            "Expected multiple replaces: {}",
-            result
-        );
+        assert!(result.contains("replace"), "Expected multiple replaces: {}", result);
     }
 
     #[test]
@@ -2147,11 +2014,7 @@ def f(s: str) -> bool:
     return s.lower() == \"hello\"
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_lowercase"),
-            "Expected to_lowercase comparison: {}",
-            result
-        );
+        assert!(result.contains("to_lowercase"), "Expected to_lowercase comparison: {}", result);
     }
 
     #[test]
@@ -2178,11 +2041,7 @@ def f(s: str) -> list:
     return first
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("split"),
-            "Expected split with period: {}",
-            result
-        );
+        assert!(result.contains("split"), "Expected split with period: {}", result);
     }
 
     #[test]
@@ -2253,10 +2112,7 @@ def main():
     print(greeting)
 ";
         if let Ok(result) = transpile(code) {
-            assert!(
-                result.contains("name") || result.contains("greeting"),
-                "Expected args usage"
-            );
+            assert!(result.contains("name") || result.contains("greeting"), "Expected args usage");
         }
     }
 
@@ -2314,10 +2170,7 @@ def main():
     print(args.port)
 ";
         if let Ok(result) = transpile(code) {
-            assert!(
-                result.contains("i32") || result.contains("port"),
-                "Expected required int arg"
-            );
+            assert!(result.contains("i32") || result.contains("port"), "Expected required int arg");
         }
     }
 
@@ -2400,8 +2253,10 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Migrate") || result.contains("Seed")
-                    || result.contains("migrate") || result.contains("seed"),
+                result.contains("Migrate")
+                    || result.contains("Seed")
+                    || result.contains("migrate")
+                    || result.contains("seed"),
                 "Expected subparser help text"
             );
         }
@@ -2450,7 +2305,9 @@ def f(s: str) -> str:
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("partition") || result.contains("find") || result.contains("before"),
+                result.contains("partition")
+                    || result.contains("find")
+                    || result.contains("before"),
                 "Expected partition unpack: {}",
                 result
             );
@@ -2524,7 +2381,9 @@ def f(s: str) -> bool:
 ";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("trim") || result.contains("to_lowercase") || result.contains("ends_with"),
+            result.contains("trim")
+                || result.contains("to_lowercase")
+                || result.contains("ends_with"),
             "Expected chain: {}",
             result
         );
@@ -2534,11 +2393,7 @@ def f(s: str) -> bool:
     fn test_w8_string_replace_newlines() {
         let code = "def f(s: str) -> str:\n    return s.replace(\"\\n\", \" \")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("replace"),
-            "Expected replace newlines: {}",
-            result
-        );
+        assert!(result.contains("replace"), "Expected replace newlines: {}", result);
     }
 
     #[test]
@@ -2549,11 +2404,7 @@ def f(s: str) -> str:
     return result
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_uppercase"),
-            "Expected upper assignment: {}",
-            result
-        );
+        assert!(result.contains("to_uppercase"), "Expected upper assignment: {}", result);
     }
 
     #[test]
@@ -2563,33 +2414,21 @@ def f(a: str, b: str) -> bool:
     return a.lower() == b.lower()
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_lowercase"),
-            "Expected lower comparison: {}",
-            result
-        );
+        assert!(result.contains("to_lowercase"), "Expected lower comparison: {}", result);
     }
 
     #[test]
     fn test_w8_string_split_limit_two() {
         let code = "def f(s: str) -> list:\n    return s.split(\":\", 2)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("splitn"),
-            "Expected splitn with limit 2: {}",
-            result
-        );
+        assert!(result.contains("splitn"), "Expected splitn with limit 2: {}", result);
     }
 
     #[test]
     fn test_w8_string_rsplit_single_sep() {
         let code = "def f(s: str) -> list:\n    return s.rsplit(\"/\", 1)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("rsplitn"),
-            "Expected rsplitn: {}",
-            result
-        );
+        assert!(result.contains("rsplitn"), "Expected rsplitn: {}", result);
     }
 
     #[test]
@@ -2622,11 +2461,7 @@ def f(s: str) -> bytes:
     fn test_w8_string_join_with_pipe_sep() {
         let code = "def f(items: list) -> str:\n    return \"|\".join(items)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("join"),
-            "Expected join with pipe: {}",
-            result
-        );
+        assert!(result.contains("join"), "Expected join with pipe: {}", result);
     }
 
     // ========================================================================
@@ -2704,8 +2539,11 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("Init") || result.contains("Update") || result.contains("Delete")
-                    || result.contains("enum") || result.contains("action"),
+                result.contains("Init")
+                    || result.contains("Update")
+                    || result.contains("Delete")
+                    || result.contains("enum")
+                    || result.contains("action"),
                 "Expected parser with only subparsers"
             );
         }
@@ -2723,7 +2561,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("input") || result.contains("FILE") || result.contains("Input file"),
+                result.contains("input")
+                    || result.contains("FILE")
+                    || result.contains("Input file"),
                 "Expected metavar+help"
             );
         }
@@ -2741,7 +2581,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("log_level") || result.contains("debug") || result.contains("value_parser"),
+                result.contains("log_level")
+                    || result.contains("debug")
+                    || result.contains("value_parser"),
                 "Expected choices with four values"
             );
         }
@@ -2755,22 +2597,14 @@ def main():
     fn test_w8_string_upper_on_empty() {
         let code = "def f() -> str:\n    return \"\".upper()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("to_uppercase"),
-            "Expected to_uppercase on empty: {}",
-            result
-        );
+        assert!(result.contains("to_uppercase"), "Expected to_uppercase on empty: {}", result);
     }
 
     #[test]
     fn test_w8_string_isspace_on_whitespace() {
         let code = "def f() -> bool:\n    return \"  \".isspace()\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("is_whitespace"),
-            "Expected is_whitespace: {}",
-            result
-        );
+        assert!(result.contains("is_whitespace"), "Expected is_whitespace: {}", result);
     }
 
     #[test]
@@ -2788,16 +2622,13 @@ def main():
     fn test_w8_string_replace_all_occurrences() {
         let code = "def f(s: str) -> str:\n    return s.replace(\".\", \",\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains(".replace("),
-            "Expected replace all: {}",
-            result
-        );
+        assert!(result.contains(".replace("), "Expected replace all: {}", result);
     }
 
     #[test]
     fn test_w8_string_format_three_args() {
-        let code = "def f(a: str, b: str, c: str) -> str:\n    return \"{}-{}-{}\".format(a, b, c)\n";
+        let code =
+            "def f(a: str, b: str, c: str) -> str:\n    return \"{}-{}-{}\".format(a, b, c)\n";
         if let Ok(result) = transpile(code) {
             assert!(
                 result.contains("replacen") || result.contains("format"),
@@ -2853,7 +2684,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("color") || result.contains("size") || result.contains("value_parser"),
+                result.contains("color")
+                    || result.contains("size")
+                    || result.contains("value_parser"),
                 "Expected multiple choices flags"
             );
         }
@@ -2910,7 +2743,9 @@ def main():
 ";
         if let Ok(result) = transpile(code) {
             assert!(
-                result.contains("output_format") || result.contains("json") || result.contains("String"),
+                result.contains("output_format")
+                    || result.contains("json")
+                    || result.contains("String"),
                 "Expected double-hyphen flag"
             );
         }
@@ -2953,22 +2788,14 @@ def main():
     fn test_w8_string_split_pipe_separator() {
         let code = "def f(s: str) -> list:\n    return s.split(\"|\")\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("split"),
-            "Expected split with pipe: {}",
-            result
-        );
+        assert!(result.contains("split"), "Expected split with pipe: {}", result);
     }
 
     #[test]
     fn test_w8_string_join_with_space() {
         let code = "def f(words: list) -> str:\n    return \" \".join(words)\n";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("join"),
-            "Expected join with space: {}",
-            result
-        );
+        assert!(result.contains("join"), "Expected join with space: {}", result);
     }
 
     #[test]
@@ -2980,11 +2807,7 @@ def f(s: str) -> str:
     return result
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("replace"),
-            "Expected HTML escape replace: {}",
-            result
-        );
+        assert!(result.contains("replace"), "Expected HTML escape replace: {}", result);
     }
 
     #[test]
@@ -3024,11 +2847,7 @@ def f(name: str) -> bool:
     return name.endswith(\".py\") or name.endswith(\".pyi\")
 ";
         let result = transpile(code).expect("transpile");
-        assert!(
-            result.contains("ends_with"),
-            "Expected ends_with double check: {}",
-            result
-        );
+        assert!(result.contains("ends_with"), "Expected ends_with double check: {}", result);
     }
 
     #[test]
@@ -3039,7 +2858,9 @@ def f(s: str) -> str:
 ";
         let result = transpile(code).expect("transpile");
         assert!(
-            result.contains("to_lowercase") || result.contains("trim") || result.contains("replace"),
+            result.contains("to_lowercase")
+                || result.contains("trim")
+                || result.contains("replace"),
             "Expected lower+strip+replace chain: {}",
             result
         );

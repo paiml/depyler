@@ -31,10 +31,7 @@ fn make_bool(b: bool) -> RuchyExpr {
 }
 
 fn make_call(func: &str, args: Vec<RuchyExpr>) -> RuchyExpr {
-    RuchyExpr::Call {
-        func: Box::new(make_ident(func)),
-        args,
-    }
+    RuchyExpr::Call { func: Box::new(make_ident(func)), args }
 }
 
 fn make_binary(left: RuchyExpr, _op: &str, right: RuchyExpr) -> RuchyExpr {
@@ -51,11 +48,7 @@ fn make_lambda(params: Vec<&str>, body: RuchyExpr) -> RuchyExpr {
     RuchyExpr::Lambda {
         params: params
             .into_iter()
-            .map(|s| Param {
-                name: s.to_string(),
-                typ: None,
-                default: None,
-            })
+            .map(|s| Param { name: s.to_string(), typ: None, default: None })
             .collect(),
         body: Box::new(body),
     }
@@ -138,10 +131,7 @@ fn test_transform_int_literal() {
     let expr = make_int(42);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
-    assert!(matches!(
-        result.unwrap(),
-        RuchyExpr::Literal(Literal::Integer(42))
-    ));
+    assert!(matches!(result.unwrap(), RuchyExpr::Literal(Literal::Integer(42))));
 }
 
 #[test]
@@ -379,10 +369,7 @@ fn test_transform_if_complex_condition() {
 #[test]
 fn test_transform_lambda_no_params() {
     let transformer = PatternTransformer::new();
-    let expr = RuchyExpr::Lambda {
-        params: vec![],
-        body: Box::new(make_int(42)),
-    };
+    let expr = RuchyExpr::Lambda { params: vec![], body: Box::new(make_int(42)) };
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }
@@ -398,10 +385,7 @@ fn test_transform_lambda_single_param() {
 #[test]
 fn test_transform_lambda_multiple_params() {
     let transformer = PatternTransformer::new();
-    let expr = make_lambda(
-        vec!["a", "b"],
-        make_binary(make_ident("a"), "+", make_ident("b")),
-    );
+    let expr = make_lambda(vec!["a", "b"], make_binary(make_ident("a"), "+", make_ident("b")));
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }
@@ -409,10 +393,7 @@ fn test_transform_lambda_multiple_params() {
 #[test]
 fn test_transform_lambda_nested() {
     let transformer = PatternTransformer::new();
-    let inner = make_lambda(
-        vec!["y"],
-        make_binary(make_ident("x"), "+", make_ident("y")),
-    );
+    let inner = make_lambda(vec!["y"], make_binary(make_ident("x"), "+", make_ident("y")));
     let expr = make_lambda(vec!["x"], inner);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
@@ -454,10 +435,8 @@ fn test_transform_for_loop_with_list() {
 #[test]
 fn test_transform_while_loop() {
     let transformer = PatternTransformer::new();
-    let expr = RuchyExpr::While {
-        condition: Box::new(make_bool(true)),
-        body: Box::new(make_int(1)),
-    };
+    let expr =
+        RuchyExpr::While { condition: Box::new(make_bool(true)), body: Box::new(make_int(1)) };
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }
@@ -546,16 +525,8 @@ fn test_transform_function_with_params() {
     let expr = RuchyExpr::Function {
         name: "add".to_string(),
         params: vec![
-            Param {
-                name: "a".to_string(),
-                typ: Some(Type::I64),
-                default: None,
-            },
-            Param {
-                name: "b".to_string(),
-                typ: Some(Type::I64),
-                default: None,
-            },
+            Param { name: "a".to_string(), typ: Some(Type::I64), default: None },
+            Param { name: "b".to_string(), typ: Some(Type::I64), default: None },
         ],
         body: Box::new(make_binary(make_ident("a"), "+", make_ident("b"))),
         is_async: false,

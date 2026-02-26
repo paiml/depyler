@@ -149,10 +149,7 @@ impl QualityAnalyzer {
             },
         ];
 
-        Self {
-            gates,
-            annotation_validator: AnnotationValidator::new(),
-        }
+        Self { gates, annotation_validator: AnnotationValidator::new() }
     }
 
     pub fn analyze_quality(
@@ -185,10 +182,7 @@ impl QualityAnalyzer {
 
         let overall_status = if gates_failed.is_empty() {
             QualityStatus::Passed
-        } else if gates_failed
-            .iter()
-            .any(|r| matches!(r.severity, Severity::Error))
-        {
+        } else if gates_failed.iter().any(|r| matches!(r.severity, Severity::Error)) {
             QualityStatus::Failed
         } else {
             QualityStatus::Warning
@@ -212,10 +206,7 @@ impl QualityAnalyzer {
         let avg_complexity = if functions.is_empty() {
             0.0
         } else {
-            functions
-                .iter()
-                .map(|f| calculate_cyclomatic(&f.body) as f64)
-                .sum::<f64>()
+            functions.iter().map(|f| calculate_cyclomatic(&f.body) as f64).sum::<f64>()
                 / functions.len() as f64
         };
 
@@ -226,10 +217,7 @@ impl QualityAnalyzer {
         let avg_cognitive = if functions.is_empty() {
             0.0
         } else {
-            functions
-                .iter()
-                .map(|f| calculate_cognitive(&f.body) as f64)
-                .sum::<f64>()
+            functions.iter().map(|f| calculate_cognitive(&f.body) as f64).sum::<f64>()
                 / functions.len() as f64
         };
         let maintainability_score = (100.0_f64 / (avg_cognitive + 1.0)).min(100.0);
@@ -256,17 +244,11 @@ impl QualityAnalyzer {
     }
 
     fn calculate_complexity_metrics(&self, functions: &[HirFunction]) -> ComplexityMetrics {
-        let cyclomatic_complexity = functions
-            .iter()
-            .map(|f| calculate_cyclomatic(&f.body))
-            .max()
-            .unwrap_or(0);
+        let cyclomatic_complexity =
+            functions.iter().map(|f| calculate_cyclomatic(&f.body)).max().unwrap_or(0);
 
-        let cognitive_complexity = functions
-            .iter()
-            .map(|f| calculate_cognitive(&f.body))
-            .max()
-            .unwrap_or(0);
+        let cognitive_complexity =
+            functions.iter().map(|f| calculate_cognitive(&f.body)).max().unwrap_or(0);
 
         let max_nesting = functions
             .iter()
@@ -368,54 +350,24 @@ impl QualityAnalyzer {
         println!();
 
         println!("PMAT Metrics:");
-        println!(
-            "  Productivity: {:.1}",
-            report.pmat_metrics.productivity_score
-        );
-        println!(
-            "  Maintainability: {:.1}",
-            report.pmat_metrics.maintainability_score
-        );
-        println!(
-            "  Accessibility: {:.1}",
-            report.pmat_metrics.accessibility_score
-        );
-        println!(
-            "  Testability: {:.1}",
-            report.pmat_metrics.testability_score
-        );
+        println!("  Productivity: {:.1}", report.pmat_metrics.productivity_score);
+        println!("  Maintainability: {:.1}", report.pmat_metrics.maintainability_score);
+        println!("  Accessibility: {:.1}", report.pmat_metrics.accessibility_score);
+        println!("  Testability: {:.1}", report.pmat_metrics.testability_score);
         println!("  TDG Score: {:.2}", report.pmat_metrics.tdg);
         println!();
 
         println!("Complexity Metrics:");
-        println!(
-            "  Cyclomatic: {}",
-            report.complexity_metrics.cyclomatic_complexity
-        );
-        println!(
-            "  Cognitive: {}",
-            report.complexity_metrics.cognitive_complexity
-        );
+        println!("  Cyclomatic: {}", report.complexity_metrics.cyclomatic_complexity);
+        println!("  Cognitive: {}", report.complexity_metrics.cognitive_complexity);
         println!("  Max Nesting: {}", report.complexity_metrics.max_nesting);
-        println!(
-            "  Statements: {}",
-            report.complexity_metrics.statement_count
-        );
+        println!("  Statements: {}", report.complexity_metrics.statement_count);
         println!();
 
         println!("Coverage Metrics:");
-        println!(
-            "  Line: {:.1}%",
-            report.coverage_metrics.line_coverage * 100.0
-        );
-        println!(
-            "  Branch: {:.1}%",
-            report.coverage_metrics.branch_coverage * 100.0
-        );
-        println!(
-            "  Function: {:.1}%",
-            report.coverage_metrics.function_coverage * 100.0
-        );
+        println!("  Line: {:.1}%", report.coverage_metrics.line_coverage * 100.0);
+        println!("  Branch: {:.1}%", report.coverage_metrics.branch_coverage * 100.0);
+        println!("  Function: {:.1}%", report.coverage_metrics.function_coverage * 100.0);
         println!();
 
         println!("Quality Gates:");
@@ -428,10 +380,7 @@ impl QualityAnalyzer {
                 Severity::Warning => "⚠️",
                 Severity::Info => "ℹ️",
             };
-            println!(
-                "  {icon} {} ({})",
-                gate_result.gate_name, gate_result.actual_value
-            );
+            println!("  {icon} {} ({})", gate_result.gate_name, gate_result.actual_value);
         }
         println!();
 
@@ -440,10 +389,7 @@ impl QualityAnalyzer {
             QualityStatus::Failed => "❌",
             QualityStatus::Warning => "⚠️",
         };
-        println!(
-            "Overall Status: {} {:?}",
-            status_icon, report.overall_status
-        );
+        println!("Overall Status: {} {:?}", status_icon, report.overall_status);
     }
 
     pub fn verify_rustc_compilation(&self, rust_code: &str) -> Result<bool, QualityError> {
@@ -493,16 +439,12 @@ edition = "2021"
 [dependencies]
 "#;
         fs::write(project_dir.join("Cargo.toml"), cargo_toml).map_err(|_| {
-            QualityError::MetricCalculationFailed {
-                metric: "clippy setup".to_string(),
-            }
+            QualityError::MetricCalculationFailed { metric: "clippy setup".to_string() }
         })?;
 
         // Write the Rust code to lib.rs
         fs::write(src_dir.join("lib.rs"), rust_code).map_err(|_| {
-            QualityError::MetricCalculationFailed {
-                metric: "clippy setup".to_string(),
-            }
+            QualityError::MetricCalculationFailed { metric: "clippy setup".to_string() }
         })?;
 
         // Run clippy
@@ -559,9 +501,7 @@ mod tests {
         for i in 0..complexity.saturating_sub(1) {
             body.push(HirStmt::If {
                 condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
-                    i as i64,
-                ))))],
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(i as i64))))],
                 else_body: None,
             });
         }
@@ -676,22 +616,15 @@ mod tests {
         assert_eq!(analyzer.gates.len(), 5); // Should have 5 gate categories
 
         // Check that we have all the important requirements
-        let all_requirements: Vec<_> = analyzer
-            .gates
-            .iter()
-            .flat_map(|g| &g.requirements)
-            .collect();
+        let all_requirements: Vec<_> =
+            analyzer.gates.iter().flat_map(|g| &g.requirements).collect();
 
         // Verify we check complexity, coverage, PMAT, and quality
-        assert!(all_requirements
-            .iter()
-            .any(|r| matches!(r, QualityRequirement::MaxComplexity(_))));
+        assert!(all_requirements.iter().any(|r| matches!(r, QualityRequirement::MaxComplexity(_))));
         assert!(all_requirements
             .iter()
             .any(|r| matches!(r, QualityRequirement::MinTestCoverage(_))));
-        assert!(all_requirements
-            .iter()
-            .any(|r| matches!(r, QualityRequirement::MinPmatTdg(_))));
+        assert!(all_requirements.iter().any(|r| matches!(r, QualityRequirement::MinPmatTdg(_))));
         assert!(all_requirements
             .iter()
             .any(|r| matches!(r, QualityRequirement::CompilationSuccess)));
@@ -758,11 +691,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -790,11 +720,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -822,11 +749,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -854,11 +778,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -886,11 +807,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -918,11 +836,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -949,11 +864,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.80,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.80 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(!results[0].passed);
@@ -980,11 +892,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(!results[0].passed);
@@ -1011,11 +920,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(!results[0].passed);
@@ -1125,14 +1031,10 @@ mod tests {
 
     #[test]
     fn test_quality_error_display() {
-        let err = QualityError::GateFailed {
-            gate_name: "Test Gate".to_string(),
-        };
+        let err = QualityError::GateFailed { gate_name: "Test Gate".to_string() };
         assert!(err.to_string().contains("Test Gate"));
 
-        let err2 = QualityError::MetricCalculationFailed {
-            metric: "coverage".to_string(),
-        };
+        let err2 = QualityError::MetricCalculationFailed { metric: "coverage".to_string() };
         assert!(err2.to_string().contains("coverage"));
 
         let err3 = QualityError::CoverageUnavailable;
@@ -1154,11 +1056,8 @@ mod tests {
 
     #[test]
     fn test_coverage_metrics_clone_eq() {
-        let c = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let c =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let c2 = c.clone();
         assert_eq!(c, c2);
     }
@@ -1206,10 +1105,7 @@ mod tests {
                 branch_coverage: 0.85,
                 function_coverage: 0.95,
             },
-            gates_passed: vec![
-                "PMAT TDG Range".to_string(),
-                "Complexity Limits".to_string(),
-            ],
+            gates_passed: vec!["PMAT TDG Range".to_string(), "Complexity Limits".to_string()],
             gates_failed: vec![],
             overall_status: QualityStatus::Passed,
         };
@@ -1276,10 +1172,7 @@ mod tests {
         let functions = vec![create_test_function(1)];
         let report = analyzer.analyze_quality(&functions).unwrap();
         // Simple function should generally pass
-        assert!(matches!(
-            report.overall_status,
-            QualityStatus::Passed | QualityStatus::Warning
-        ));
+        assert!(matches!(report.overall_status, QualityStatus::Passed | QualityStatus::Warning));
     }
 
     #[test]
@@ -1303,11 +1196,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.80,
-            branch_coverage: 0.75,
-            function_coverage: 0.85,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.80, branch_coverage: 0.75, function_coverage: 0.85 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert!(!results[0].passed);
     }
@@ -1347,11 +1237,8 @@ mod tests {
 
     #[test]
     fn test_coverage_metrics_serde_roundtrip() {
-        let c = CoverageMetrics {
-            line_coverage: 0.86,
-            branch_coverage: 0.72,
-            function_coverage: 0.91,
-        };
+        let c =
+            CoverageMetrics { line_coverage: 0.86, branch_coverage: 0.72, function_coverage: 0.91 };
         let json = serde_json::to_string(&c).unwrap();
         let deserialized: CoverageMetrics = serde_json::from_str(&json).unwrap();
         assert_eq!(c, deserialized);
@@ -1388,11 +1275,7 @@ mod tests {
 
     #[test]
     fn test_quality_status_serde_roundtrip() {
-        for status in &[
-            QualityStatus::Passed,
-            QualityStatus::Failed,
-            QualityStatus::Warning,
-        ] {
+        for status in &[QualityStatus::Passed, QualityStatus::Failed, QualityStatus::Warning] {
             let json = serde_json::to_string(status).unwrap();
             let deserialized: QualityStatus = serde_json::from_str(&json).unwrap();
             assert_eq!(*status, deserialized);
@@ -1533,10 +1416,7 @@ mod tests {
         let cm1 = analyzer.calculate_complexity_metrics(&[f1.clone()]);
         let cm2 = analyzer.calculate_complexity_metrics(&[f2.clone()]);
         let cm_both = analyzer.calculate_complexity_metrics(&[f1, f2]);
-        assert_eq!(
-            cm_both.statement_count,
-            cm1.statement_count + cm2.statement_count
-        );
+        assert_eq!(cm_both.statement_count, cm1.statement_count + cm2.statement_count);
     }
 
     // --- analyze_quality integration tests ---
@@ -1564,10 +1444,7 @@ mod tests {
         let functions = vec![create_test_function(25)];
         let report = analyzer.analyze_quality(&functions).unwrap();
         assert_eq!(report.overall_status, QualityStatus::Failed);
-        assert!(report
-            .gates_failed
-            .iter()
-            .any(|r| matches!(r.severity, Severity::Error)));
+        assert!(report.gates_failed.iter().any(|r| matches!(r.severity, Severity::Error)));
     }
 
     // --- evaluate_gate with multiple requirements ---
@@ -1597,11 +1474,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 3);
         assert!(results.iter().all(|r| r.passed));
@@ -1631,11 +1505,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 2);
         // MaxComplexity(3) should fail because actual is 10
@@ -1667,11 +1538,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.80,
-            branch_coverage: 0.80,
-            function_coverage: 0.80,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.80, branch_coverage: 0.80, function_coverage: 0.80 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert!(results[0].passed);
         assert_eq!(results[0].actual_value, "80.0%");
@@ -1698,11 +1566,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert!(results[0].passed);
     }
@@ -1728,11 +1593,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert!(!results[0].passed);
     }
@@ -1776,9 +1638,7 @@ mod tests {
 
     #[test]
     fn test_quality_error_gate_failed_debug() {
-        let err = QualityError::GateFailed {
-            gate_name: "Complexity Limits".to_string(),
-        };
+        let err = QualityError::GateFailed { gate_name: "Complexity Limits".to_string() };
         let debug_str = format!("{err:?}");
         assert!(debug_str.contains("GateFailed"));
         assert!(debug_str.contains("Complexity Limits"));
@@ -1786,9 +1646,7 @@ mod tests {
 
     #[test]
     fn test_quality_error_metric_failed_debug() {
-        let err = QualityError::MetricCalculationFailed {
-            metric: "branch coverage".to_string(),
-        };
+        let err = QualityError::MetricCalculationFailed { metric: "branch coverage".to_string() };
         let debug_str = format!("{err:?}");
         assert!(debug_str.contains("MetricCalculationFailed"));
         assert!(debug_str.contains("branch coverage"));
@@ -1882,11 +1740,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results[0].actual_value, "1.88");
     }
@@ -1912,11 +1767,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results[0].actual_value, "15");
         assert!(results[0].passed);
@@ -1943,11 +1795,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.923,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.923 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results[0].actual_value, "92.3%");
     }
@@ -2180,11 +2029,8 @@ mod tests {
     #[test]
     fn test_s9b7_analyze_quality_multiple_simple_functions() {
         let analyzer = QualityAnalyzer::new();
-        let functions = vec![
-            create_test_function(1),
-            create_test_function(2),
-            create_test_function(3),
-        ];
+        let functions =
+            vec![create_test_function(1), create_test_function(2), create_test_function(3)];
         let report = analyzer.analyze_quality(&functions).unwrap();
         assert_eq!(report.overall_status, QualityStatus::Passed);
         assert!(report.complexity_metrics.cyclomatic_complexity >= 3);
@@ -2241,10 +2087,7 @@ mod tests {
     fn test_s9b7_quality_gate_serde_all_fields() {
         let gate = QualityGate {
             name: "TestGate".to_string(),
-            requirements: vec![
-                QualityRequirement::PanicFree,
-                QualityRequirement::ClippyClean,
-            ],
+            requirements: vec![QualityRequirement::PanicFree, QualityRequirement::ClippyClean],
             severity: Severity::Info,
         };
         let json = serde_json::to_string(&gate).unwrap();
@@ -2270,11 +2113,8 @@ mod tests {
 
     #[test]
     fn test_s9b7_coverage_metrics_debug() {
-        let c = CoverageMetrics {
-            line_coverage: 0.85,
-            branch_coverage: 0.80,
-            function_coverage: 0.90,
-        };
+        let c =
+            CoverageMetrics { line_coverage: 0.85, branch_coverage: 0.80, function_coverage: 0.90 };
         let debug = format!("{:?}", c);
         assert!(debug.contains("CoverageMetrics"));
     }
@@ -2319,11 +2159,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results_pass = analyzer.evaluate_gate(&gate, &pmat, &complexity_pass, &coverage);
         assert!(results_pass[0].passed);
         let results_fail = analyzer.evaluate_gate(&gate, &pmat, &complexity_fail, &coverage);
@@ -2370,15 +2207,9 @@ mod tests {
         let report = analyzer.analyze_quality(&functions).unwrap();
         assert_eq!(report.overall_status, QualityStatus::Warning);
         // Verify we have a Warning-severity failure
-        assert!(report
-            .gates_failed
-            .iter()
-            .any(|r| matches!(r.severity, Severity::Warning)));
+        assert!(report.gates_failed.iter().any(|r| matches!(r.severity, Severity::Warning)));
         // Verify no Error-severity failures
-        assert!(!report
-            .gates_failed
-            .iter()
-            .any(|r| matches!(r.severity, Severity::Error)));
+        assert!(!report.gates_failed.iter().any(|r| matches!(r.severity, Severity::Error)));
     }
 
     #[test]
@@ -2460,8 +2291,7 @@ mod tests {
         invalid_func2.annotations.string_strategy = depyler_annotations::StringStrategy::ZeroCopy;
         invalid_func2.annotations.ownership_model = depyler_annotations::OwnershipModel::Owned;
 
-        let result =
-            analyzer.validate_annotations(&[valid_func, invalid_func1, invalid_func2]);
+        let result = analyzer.validate_annotations(&[valid_func, invalid_func1, invalid_func2]);
         assert!(result.is_err());
         let errors = result.unwrap_err();
         assert!(errors.iter().any(|e| e.contains("broken_one")));
@@ -2544,11 +2374,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.95,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.95 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert!(results[0].passed);
         assert_eq!(results[0].actual_value, "10");
@@ -2576,19 +2403,13 @@ mod tests {
             statement_count: 10,
         };
         // Exactly at boundary
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.85,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.85 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert!(results[0].passed);
         // Just below boundary
-        let coverage_below = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.849,
-        };
+        let coverage_below =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.849 };
         let results_below = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage_below);
         assert!(!results_below[0].passed);
     }
@@ -2621,11 +2442,8 @@ mod tests {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.9,
-            branch_coverage: 0.85,
-            function_coverage: 0.90,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.9, branch_coverage: 0.85, function_coverage: 0.90 };
         let results_pass = analyzer.evaluate_gate(&gate, &pmat_pass, &complexity, &coverage);
         assert!(results_pass[0].passed);
         let results_fail = analyzer.evaluate_gate(&gate, &pmat_fail, &complexity, &coverage);
@@ -2639,14 +2457,10 @@ mod tests {
         let report = analyzer.analyze_quality(&functions).unwrap();
         // All default gates should pass for a simple function
         assert!(report.gates_passed.contains(&"PMAT TDG Range".to_string()));
-        assert!(report
-            .gates_passed
-            .contains(&"Complexity Limits".to_string()));
+        assert!(report.gates_passed.contains(&"Complexity Limits".to_string()));
         assert!(report.gates_passed.contains(&"Test Coverage".to_string()));
         assert!(report.gates_passed.contains(&"Code Quality".to_string()));
-        assert!(report
-            .gates_passed
-            .contains(&"Energy Efficiency".to_string()));
+        assert!(report.gates_passed.contains(&"Energy Efficiency".to_string()));
     }
 
     #[test]
@@ -2750,7 +2564,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
     #[test]
     fn test_s12_verify_rustc_compilation_valid_lib() {
         let analyzer = QualityAnalyzer::new();
-        let result = analyzer.verify_rustc_compilation("pub fn add(a: i32, b: i32) -> i32 { a + b }");
+        let result =
+            analyzer.verify_rustc_compilation("pub fn add(a: i32, b: i32) -> i32 { a + b }");
         assert!(result.is_ok());
     }
 
@@ -2791,11 +2606,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -2823,11 +2635,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -2855,11 +2664,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -2887,11 +2693,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(!results[0].passed);
@@ -2950,11 +2753,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 4,
             statement_count: 30,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(!results[0].passed);
@@ -2982,11 +2782,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -3014,11 +2811,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 1);
         assert!(results[0].passed);
@@ -3027,14 +2821,10 @@ pub fn check(x: Option<i32>) -> Option<i32> {
 
     #[test]
     fn test_s12_quality_error_display() {
-        let err = QualityError::GateFailed {
-            gate_name: "Test Gate".to_string(),
-        };
+        let err = QualityError::GateFailed { gate_name: "Test Gate".to_string() };
         assert!(err.to_string().contains("Test Gate"));
 
-        let err2 = QualityError::MetricCalculationFailed {
-            metric: "coverage".to_string(),
-        };
+        let err2 = QualityError::MetricCalculationFailed { metric: "coverage".to_string() };
         assert!(err2.to_string().contains("coverage"));
 
         let err3 = QualityError::CoverageUnavailable;
@@ -3133,11 +2923,8 @@ pub fn check(x: Option<i32>) -> Option<i32> {
             max_nesting: 2,
             statement_count: 10,
         };
-        let coverage = CoverageMetrics {
-            line_coverage: 0.90,
-            branch_coverage: 0.85,
-            function_coverage: 0.92,
-        };
+        let coverage =
+            CoverageMetrics { line_coverage: 0.90, branch_coverage: 0.85, function_coverage: 0.92 };
         let results = analyzer.evaluate_gate(&gate, &pmat, &complexity, &coverage);
         assert_eq!(results.len(), 4);
         assert!(results.iter().all(|r| r.passed));

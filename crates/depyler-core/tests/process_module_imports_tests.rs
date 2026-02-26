@@ -76,11 +76,7 @@ fn process_module_imports_wrapper(
 #[test]
 fn test_whole_module_import_math() {
     let mapper = create_test_module_mapper();
-    let imports = vec![Import {
-        module: "math".to_string(),
-        alias: None,
-        items: vec![],
-    }];
+    let imports = vec![Import { module: "math".to_string(), alias: None, items: vec![] }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
 
@@ -92,11 +88,7 @@ fn test_whole_module_import_math() {
 #[test]
 fn test_whole_module_import_typing() {
     let mapper = create_test_module_mapper();
-    let imports = vec![Import {
-        module: "typing".to_string(),
-        alias: None,
-        items: vec![],
-    }];
+    let imports = vec![Import { module: "typing".to_string(), alias: None, items: vec![] }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
 
@@ -108,11 +100,7 @@ fn test_whole_module_import_typing() {
 #[test]
 fn test_whole_module_import_unknown() {
     let mapper = create_test_module_mapper();
-    let imports = vec![Import {
-        module: "unknown_module".to_string(),
-        alias: None,
-        items: vec![],
-    }];
+    let imports = vec![Import { module: "unknown_module".to_string(), alias: None, items: vec![] }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
 
@@ -153,10 +141,7 @@ fn test_specific_named_import_from_math() {
 
     assert_eq!(imported_modules.len(), 0);
     assert_eq!(imported_items.len(), 1);
-    assert_eq!(
-        imported_items.get("sqrt"),
-        Some(&"std::f64::sqrt".to_string())
-    );
+    assert_eq!(imported_items.get("sqrt"), Some(&"std::f64::sqrt".to_string()));
 }
 
 #[test]
@@ -172,10 +157,7 @@ fn test_specific_named_import_from_collections() {
 
     assert_eq!(imported_modules.len(), 0);
     assert_eq!(imported_items.len(), 1);
-    assert_eq!(
-        imported_items.get("deque"),
-        Some(&"std::collections::VecDeque".to_string())
-    );
+    assert_eq!(imported_items.get("deque"), Some(&"std::collections::VecDeque".to_string()));
 }
 
 #[test]
@@ -218,10 +200,7 @@ fn test_specific_aliased_import_from_typing() {
     let imports = vec![Import {
         module: "typing".to_string(),
         alias: None,
-        items: vec![ImportItem::Aliased {
-            name: "List".to_string(),
-            alias: "L".to_string(),
-        }],
+        items: vec![ImportItem::Aliased { name: "List".to_string(), alias: "L".to_string() }],
     }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
@@ -248,10 +227,7 @@ fn test_specific_aliased_import_from_math() {
 
     assert_eq!(imported_modules.len(), 0);
     assert_eq!(imported_items.len(), 1);
-    assert_eq!(
-        imported_items.get("square_root"),
-        Some(&"std::f64::sqrt".to_string())
-    );
+    assert_eq!(imported_items.get("square_root"), Some(&"std::f64::sqrt".to_string()));
 }
 
 #[test]
@@ -260,20 +236,14 @@ fn test_specific_aliased_import_with_full_path() {
     let imports = vec![Import {
         module: "collections".to_string(),
         alias: None,
-        items: vec![ImportItem::Aliased {
-            name: "deque".to_string(),
-            alias: "DQ".to_string(),
-        }],
+        items: vec![ImportItem::Aliased { name: "deque".to_string(), alias: "DQ".to_string() }],
     }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
 
     assert_eq!(imported_modules.len(), 0);
     assert_eq!(imported_items.len(), 1);
-    assert_eq!(
-        imported_items.get("DQ"),
-        Some(&"std::collections::VecDeque".to_string())
-    );
+    assert_eq!(imported_items.get("DQ"), Some(&"std::collections::VecDeque".to_string()));
 }
 
 #[test]
@@ -282,10 +252,7 @@ fn test_specific_aliased_import_from_unknown_module() {
     let imports = vec![Import {
         module: "unknown".to_string(),
         alias: None,
-        items: vec![ImportItem::Aliased {
-            name: "something".to_string(),
-            alias: "S".to_string(),
-        }],
+        items: vec![ImportItem::Aliased { name: "something".to_string(), alias: "S".to_string() }],
     }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
@@ -300,10 +267,7 @@ fn test_specific_aliased_import_unknown_item() {
     let imports = vec![Import {
         module: "math".to_string(),
         alias: None,
-        items: vec![ImportItem::Aliased {
-            name: "unknown".to_string(),
-            alias: "U".to_string(),
-        }],
+        items: vec![ImportItem::Aliased { name: "unknown".to_string(), alias: "U".to_string() }],
     }];
 
     let (imported_modules, imported_items) = process_module_imports_wrapper(&imports, &mapper);
@@ -331,11 +295,7 @@ fn test_empty_imports_list() {
 fn test_mixed_whole_and_specific_imports() {
     let mapper = create_test_module_mapper();
     let imports = vec![
-        Import {
-            module: "math".to_string(),
-            alias: None,
-            items: vec![],
-        },
+        Import { module: "math".to_string(), alias: None, items: vec![] },
         Import {
             module: "typing".to_string(),
             alias: None,
@@ -360,10 +320,7 @@ fn test_multiple_items_from_same_module() {
         items: vec![
             ImportItem::Named("List".to_string()),
             ImportItem::Named("Dict".to_string()),
-            ImportItem::Aliased {
-                name: "Optional".to_string(),
-                alias: "Opt".to_string(),
-            },
+            ImportItem::Aliased { name: "Optional".to_string(), alias: "Opt".to_string() },
         ],
     }];
 
@@ -400,20 +357,13 @@ fn test_typing_module_no_full_path() {
 fn test_complex_import_scenario() {
     let mapper = create_test_module_mapper();
     let imports = vec![
-        Import {
-            module: "math".to_string(),
-            alias: None,
-            items: vec![],
-        },
+        Import { module: "math".to_string(), alias: None, items: vec![] },
         Import {
             module: "typing".to_string(),
             alias: None,
             items: vec![
                 ImportItem::Named("List".to_string()),
-                ImportItem::Aliased {
-                    name: "Dict".to_string(),
-                    alias: "D".to_string(),
-                },
+                ImportItem::Aliased { name: "Dict".to_string(), alias: "D".to_string() },
             ],
         },
         Import {
@@ -433,10 +383,7 @@ fn test_complex_import_scenario() {
     assert_eq!(imported_items.len(), 3);
     assert_eq!(imported_items.get("List"), Some(&"Vec".to_string()));
     assert_eq!(imported_items.get("D"), Some(&"HashMap".to_string()));
-    assert_eq!(
-        imported_items.get("deque"),
-        Some(&"std::collections::VecDeque".to_string())
-    );
+    assert_eq!(imported_items.get("deque"), Some(&"std::collections::VecDeque".to_string()));
 }
 
 #[test]

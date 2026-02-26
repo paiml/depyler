@@ -8,9 +8,7 @@ use depyler_core::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -46,9 +44,7 @@ fn test_optional_string_indexing() {
 
 #[test]
 fn test_string_attribute_indexing() {
-    assert!(transpile_ok(
-        "class C:\n    name: str\ndef f(c):\n    return c.name[0]"
-    ));
+    assert!(transpile_ok("class C:\n    name: str\ndef f(c):\n    return c.name[0]"));
 }
 
 // ============================================================================
@@ -72,37 +68,27 @@ fn test_arithmetic_index_multiplication() {
 
 #[test]
 fn test_idx_prefix_variable() {
-    assert!(transpile_ok(
-        "def f(arr):\n    idx_start = 0\n    return arr[idx_start]"
-    ));
+    assert!(transpile_ok("def f(arr):\n    idx_start = 0\n    return arr[idx_start]"));
 }
 
 #[test]
 fn test_idx_suffix_variable() {
-    assert!(transpile_ok(
-        "def f(arr):\n    loop_idx = 0\n    return arr[loop_idx]"
-    ));
+    assert!(transpile_ok("def f(arr):\n    loop_idx = 0\n    return arr[loop_idx]"));
 }
 
 #[test]
 fn test_index_suffix_variable() {
-    assert!(transpile_ok(
-        "def f(arr):\n    col_index = 1\n    return arr[col_index]"
-    ));
+    assert!(transpile_ok("def f(arr):\n    col_index = 1\n    return arr[col_index]"));
 }
 
 #[test]
 fn test_offset_variable() {
-    assert!(transpile_ok(
-        "def f(arr):\n    offset = 5\n    return arr[offset]"
-    ));
+    assert!(transpile_ok("def f(arr):\n    offset = 5\n    return arr[offset]"));
 }
 
 #[test]
 fn test_pos_variable() {
-    assert!(transpile_ok(
-        "def f(arr):\n    pos = 3\n    return arr[pos]"
-    ));
+    assert!(transpile_ok("def f(arr):\n    pos = 3\n    return arr[pos]"));
 }
 
 // ============================================================================
@@ -111,44 +97,32 @@ fn test_pos_variable() {
 
 #[test]
 fn test_string_suffix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    error_string = 'failed'\n    return error_string[0]"
-    ));
+    assert!(transpile_ok("def f():\n    error_string = 'failed'\n    return error_string[0]"));
 }
 
 #[test]
 fn test_word_suffix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    search_word = 'find'\n    return search_word[0]"
-    ));
+    assert!(transpile_ok("def f():\n    search_word = 'find'\n    return search_word[0]"));
 }
 
 #[test]
 fn test_text_suffix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    log_text = 'message'\n    return log_text[0]"
-    ));
+    assert!(transpile_ok("def f():\n    log_text = 'message'\n    return log_text[0]"));
 }
 
 #[test]
 fn test_key_variable_name() {
-    assert!(transpile_ok(
-        "def f():\n    key = 'some_key'\n    return key[0]"
-    ));
+    assert!(transpile_ok("def f():\n    key = 'some_key'\n    return key[0]"));
 }
 
 #[test]
 fn test_msg_variable_name() {
-    assert!(transpile_ok(
-        "def f():\n    msg = 'hello'\n    return msg[0]"
-    ));
+    assert!(transpile_ok("def f():\n    msg = 'hello'\n    return msg[0]"));
 }
 
 #[test]
 fn test_name_variable_name() {
-    assert!(transpile_ok(
-        "def f():\n    name = 'test'\n    return name[0]"
-    ));
+    assert!(transpile_ok("def f():\n    name = 'test'\n    return name[0]"));
 }
 
 // ============================================================================
@@ -157,9 +131,7 @@ fn test_name_variable_name() {
 
 #[test]
 fn test_pair_variable() {
-    assert!(transpile_ok(
-        "def f():\n    pair = (10, 20)\n    return pair[0]"
-    ));
+    assert!(transpile_ok("def f():\n    pair = (10, 20)\n    return pair[0]"));
 }
 
 #[test]
@@ -169,30 +141,22 @@ fn test_tuple_variable() {
 
 #[test]
 fn test_entry_variable() {
-    assert!(transpile_ok(
-        "def f():\n    entry = ('key', 'value')\n    return entry[0]"
-    ));
+    assert!(transpile_ok("def f():\n    entry = ('key', 'value')\n    return entry[0]"));
 }
 
 #[test]
 fn test_item_variable() {
-    assert!(transpile_ok(
-        "def f():\n    item = (1, 'a')\n    return item[1]"
-    ));
+    assert!(transpile_ok("def f():\n    item = (1, 'a')\n    return item[1]"));
 }
 
 #[test]
 fn test_enumerate_tuple_indexing() {
-    assert!(transpile_ok(
-        "def f(items):\n    for t in enumerate(items):\n        print(t[0])"
-    ));
+    assert!(transpile_ok("def f(items):\n    for t in enumerate(items):\n        print(t[0])"));
 }
 
 #[test]
 fn test_dict_items_tuple() {
-    assert!(transpile_ok(
-        "def f(d):\n    for kv in d.items():\n        print(kv[0])"
-    ));
+    assert!(transpile_ok("def f(d):\n    for kv in d.items():\n        print(kv[0])"));
 }
 
 // ============================================================================
@@ -201,30 +165,22 @@ fn test_dict_items_tuple() {
 
 #[test]
 fn test_path_prefix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    path_to_file = 'home'\n    return path_to_file + '/file'"
-    ));
+    assert!(transpile_ok("def f():\n    path_to_file = 'home'\n    return path_to_file + '/file'"));
 }
 
 #[test]
 fn test_dir_suffix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    script_dir = '/home/user'\n    return script_dir"
-    ));
+    assert!(transpile_ok("def f():\n    script_dir = '/home/user'\n    return script_dir"));
 }
 
 #[test]
 fn test_directory_suffix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    output_directory = '/tmp'\n    return output_directory"
-    ));
+    assert!(transpile_ok("def f():\n    output_directory = '/tmp'\n    return output_directory"));
 }
 
 #[test]
 fn test_folder_suffix_variable() {
-    assert!(transpile_ok(
-        "def f():\n    data_folder = '/data'\n    return data_folder"
-    ));
+    assert!(transpile_ok("def f():\n    data_folder = '/data'\n    return data_folder"));
 }
 
 // ============================================================================
@@ -322,9 +278,7 @@ fn test_match_or_pattern() {
 
 #[test]
 fn test_function_with_docstring() {
-    assert!(transpile_ok(
-        "def f():\n    '''This is a docstring.'''\n    return 1"
-    ));
+    assert!(transpile_ok("def f():\n    '''This is a docstring.'''\n    return 1"));
 }
 
 #[test]
@@ -348,23 +302,17 @@ fn test_async_with() {
 
 #[test]
 fn test_async_for() {
-    assert!(transpile_ok(
-        "async def f(items):\n    async for item in items:\n        print(item)"
-    ));
+    assert!(transpile_ok("async def f(items):\n    async for item in items:\n        print(item)"));
 }
 
 #[test]
 fn test_generator_function() {
-    assert!(transpile_ok(
-        "def f():\n    yield 1\n    yield 2\n    yield 3"
-    ));
+    assert!(transpile_ok("def f():\n    yield 1\n    yield 2\n    yield 3"));
 }
 
 #[test]
 fn test_generator_with_return() {
-    assert!(transpile_ok(
-        "def f():\n    yield 1\n    yield 2\n    return 'done'"
-    ));
+    assert!(transpile_ok("def f():\n    yield 1\n    yield 2\n    return 'done'"));
 }
 
 #[test]
@@ -374,9 +322,7 @@ fn test_generator_yield_from() {
 
 #[test]
 fn test_function_multiple_decorators() {
-    assert!(transpile_ok(
-        "@staticmethod\n@cache\ndef f():\n    return 1"
-    ));
+    assert!(transpile_ok("@staticmethod\n@cache\ndef f():\n    return 1"));
 }
 
 #[test]
@@ -386,9 +332,7 @@ fn test_function_decorator_with_args() {
 
 #[test]
 fn test_nested_function() {
-    assert!(transpile_ok(
-        "def outer():\n    def inner():\n        return 1\n    return inner()"
-    ));
+    assert!(transpile_ok("def outer():\n    def inner():\n        return 1\n    return inner()"));
 }
 
 #[test]
@@ -421,9 +365,7 @@ fn test_class_with_slots() {
 
 #[test]
 fn test_class_multiple_inheritance() {
-    assert!(transpile_ok(
-        "class A:\n    pass\nclass B:\n    pass\nclass C(A, B):\n    pass"
-    ));
+    assert!(transpile_ok("class A:\n    pass\nclass B:\n    pass\nclass C(A, B):\n    pass"));
 }
 
 #[test]
@@ -492,9 +434,7 @@ fn test_call_with_double_starred_kwargs() {
 
 #[test]
 fn test_call_with_mixed_args() {
-    assert!(transpile_ok(
-        "def f(a, *args, b=1, **kwargs): return a + sum(args) + b"
-    ));
+    assert!(transpile_ok("def f(a, *args, b=1, **kwargs): return a + sum(args) + b"));
 }
 
 #[test]
@@ -511,9 +451,7 @@ fn test_nested_comprehensions() {
 
 #[test]
 fn test_comprehension_with_walrus() {
-    assert!(transpile_ok(
-        "def f(items): return [y for x in items if (y := x * 2) > 10]"
-    ));
+    assert!(transpile_ok("def f(items): return [y for x in items if (y := x * 2) > 10]"));
 }
 
 // ============================================================================
@@ -544,9 +482,7 @@ fn test_mutually_recursive() {
 
 #[test]
 fn test_very_long_parameter_list() {
-    assert!(transpile_ok(
-        "def f(a, b, c, d, e, f, g, h, i, j): return a+b+c+d+e+f+g+h+i+j"
-    ));
+    assert!(transpile_ok("def f(a, b, c, d, e, f, g, h, i, j): return a+b+c+d+e+f+g+h+i+j"));
 }
 
 #[test]

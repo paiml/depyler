@@ -22,18 +22,9 @@ fn prop_type_mapping_is_deterministic() {
 fn prop_primitives_map_to_primitives() {
     let mapper = TypeMapper::default();
 
-    assert!(matches!(
-        mapper.map_type(&PythonType::Int),
-        RustType::Primitive(_)
-    ));
-    assert!(matches!(
-        mapper.map_type(&PythonType::Float),
-        RustType::Primitive(_)
-    ));
-    assert!(matches!(
-        mapper.map_type(&PythonType::Bool),
-        RustType::Primitive(PrimitiveType::Bool)
-    ));
+    assert!(matches!(mapper.map_type(&PythonType::Int), RustType::Primitive(_)));
+    assert!(matches!(mapper.map_type(&PythonType::Float), RustType::Primitive(_)));
+    assert!(matches!(mapper.map_type(&PythonType::Bool), RustType::Primitive(PrimitiveType::Bool)));
 }
 
 // Property 3: List[T] should map to Vec<T>
@@ -132,14 +123,8 @@ fn test_int_width_preference() {
     let mapper_i32 = TypeMapper::new();
     let mapper_i64 = TypeMapper::new().with_i64();
 
-    assert_eq!(
-        mapper_i32.map_type(&PythonType::Int),
-        RustType::Primitive(PrimitiveType::I32)
-    );
-    assert_eq!(
-        mapper_i64.map_type(&PythonType::Int),
-        RustType::Primitive(PrimitiveType::I64)
-    );
+    assert_eq!(mapper_i32.map_type(&PythonType::Int), RustType::Primitive(PrimitiveType::I32));
+    assert_eq!(mapper_i64.map_type(&PythonType::Int), RustType::Primitive(PrimitiveType::I64));
 }
 
 // Property 9: String strategy should be respected
@@ -156,10 +141,7 @@ fn test_type_param_preservation() {
     let mapper = TypeMapper::default();
     let py_typevar = PythonType::TypeVar("T".to_string());
 
-    assert_eq!(
-        mapper.map_type(&py_typevar),
-        RustType::TypeParam("T".to_string())
-    );
+    assert_eq!(mapper.map_type(&py_typevar), RustType::TypeParam("T".to_string()));
 }
 
 // Helper: Arbitrary Python types for property testing

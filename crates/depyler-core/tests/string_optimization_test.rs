@@ -39,14 +39,8 @@ def get_greeting() -> str:
     // DEPYLER-0357: Returns String for string literals
     // Note: Python source updated to include return type annotation (-> str)
     // to ensure proper Rust type generation
-    assert!(
-        rust_code.contains("-> String"),
-        "Should have String return type"
-    );
-    assert!(
-        rust_code.contains("to_string()"),
-        "String literal should be converted to String"
-    );
+    assert!(rust_code.contains("-> String"), "Should have String return type");
+    assert!(rust_code.contains("to_string()"), "String literal should be converted to String");
 }
 
 #[test]
@@ -66,10 +60,7 @@ def concat_strings(a: str, b: str) -> str:
         rust_code.contains("format!") || rust_code.contains("+"),
         "Should contain concatenation via format! or +"
     );
-    assert!(
-        rust_code.contains("-> String"),
-        "Concatenation should return String"
-    );
+    assert!(rust_code.contains("-> String"), "Concatenation should return String");
 }
 
 #[test]
@@ -89,10 +80,7 @@ def use_repeated_string():
     println!("Generated code for use_repeated_string:\n{}", rust_code);
 
     // Should generate a constant for repeated string literals
-    assert!(
-        rust_code.contains("const STR_"),
-        "Should intern repeated string literal"
-    );
+    assert!(rust_code.contains("const STR_"), "Should intern repeated string literal");
 }
 
 #[test]

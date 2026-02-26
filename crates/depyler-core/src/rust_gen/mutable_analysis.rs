@@ -29,12 +29,7 @@ pub(super) fn analyze_expr_for_mutations(
     function_param_muts: &HashMap<String, Vec<bool>>,
 ) {
     match expr {
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            ..
-        } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
             // Check if this is a mutating method call
             let is_mut = if mutation_helpers::is_mutating_method(method) {
                 // Built-in mutating method
@@ -267,27 +262,26 @@ pub(super) fn analyze_stmt(
                         || name == "writer"
                         || name.contains("reader")
                         || name.contains("writer");
-                    let pattern_match =
-                        if let HirExpr::MethodCall { object, method, .. } = value {
-                            // csv.DictReader() or csv.reader()
-                            if let HirExpr::Var(module) = object.as_ref() {
-                                module == "csv"
-                                    && (method.contains("Reader")
-                                        || method.contains("reader")
-                                        || method.contains("Writer")
-                                        || method.contains("writer"))
-                            } else {
-                                false
-                            }
-                        } else if let HirExpr::Call { func, .. } = value {
-                            // DictReader(f) or csv.ReaderBuilder...
-                            func.contains("Reader")
-                                || func.contains("Writer")
-                                || func.contains("reader")
-                                || func.contains("writer")
+                    let pattern_match = if let HirExpr::MethodCall { object, method, .. } = value {
+                        // csv.DictReader() or csv.reader()
+                        if let HirExpr::Var(module) = object.as_ref() {
+                            module == "csv"
+                                && (method.contains("Reader")
+                                    || method.contains("reader")
+                                    || method.contains("Writer")
+                                    || method.contains("writer"))
                         } else {
                             false
-                        };
+                        }
+                    } else if let HirExpr::Call { func, .. } = value {
+                        // DictReader(f) or csv.ReaderBuilder...
+                        func.contains("Reader")
+                            || func.contains("Writer")
+                            || func.contains("reader")
+                            || func.contains("writer")
+                    } else {
+                        false
+                    };
                     let needs_csv_mut = name_heuristic || pattern_match;
 
                     if needs_csv_mut {
@@ -396,12 +390,7 @@ pub(super) fn analyze_stmt(
                 function_param_muts,
             );
         }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-            ..
-        } => {
+        HirStmt::If { condition, then_body, else_body, .. } => {
             analyze_expr_for_mutations(
                 condition,
                 mutable,
@@ -432,9 +421,7 @@ pub(super) fn analyze_stmt(
                 }
             }
         }
-        HirStmt::While {
-            condition, body, ..
-        } => {
+        HirStmt::While { condition, body, .. } => {
             analyze_expr_for_mutations(
                 condition,
                 mutable,
@@ -479,13 +466,7 @@ pub(super) fn analyze_stmt(
             }
         }
         // DEPYLER-0549: Handle Try - analyze all branches
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-            ..
-        } => {
+        HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
             for stmt in body {
                 analyze_stmt(
                     stmt,

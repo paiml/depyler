@@ -163,11 +163,7 @@ def print_value(x):
 
     let rust = result.unwrap();
     // Should use Display-compatible formatting
-    assert!(
-        rust.contains("println!") || rust.contains("print!"),
-        "Should use println!: {}",
-        rust
-    );
+    assert!(rust.contains("println!") || rust.contains("print!"), "Should use println!: {}", rust);
 }
 
 #[test]

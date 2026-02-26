@@ -125,11 +125,7 @@ pub fn type_to_rust_string(ty: &Type) -> String {
         Type::Unknown => "T".to_string(),
         Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
         Type::Dict(key, value) => {
-            format!(
-                "HashMap<{}, {}>",
-                type_to_rust_string(key),
-                type_to_rust_string(value)
-            )
+            format!("HashMap<{}, {}>", type_to_rust_string(key), type_to_rust_string(value))
         }
         Type::Set(inner) => format!("HashSet<{}>", type_to_rust_string(inner)),
         Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
@@ -140,11 +136,7 @@ pub fn type_to_rust_string(ty: &Type) -> String {
         Type::Custom(name) => name.clone(),
         Type::Function { params, ret } => {
             let param_strs: Vec<_> = params.iter().map(type_to_rust_string).collect();
-            format!(
-                "fn({}) -> {}",
-                param_strs.join(", "),
-                type_to_rust_string(ret)
-            )
+            format!("fn({}) -> {}", param_strs.join(", "), type_to_rust_string(ret))
         }
         Type::TypeVar(name) => name.clone(),
         Type::UnificationVar(id) => format!("?T{}", id),
@@ -255,10 +247,7 @@ mod tests {
     fn test_is_copyable_non_primitives() {
         assert!(!is_copyable(&Type::String));
         assert!(!is_copyable(&Type::List(Box::new(Type::Int))));
-        assert!(!is_copyable(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(!is_copyable(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -292,10 +281,7 @@ mod tests {
     fn test_should_pass_by_ref() {
         assert!(should_pass_by_ref(&Type::String));
         assert!(should_pass_by_ref(&Type::List(Box::new(Type::Int))));
-        assert!(should_pass_by_ref(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(should_pass_by_ref(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
         assert!(should_pass_by_ref(&Type::Set(Box::new(Type::Int))));
         assert!(!should_pass_by_ref(&Type::Int));
         assert!(!should_pass_by_ref(&Type::Bool));
@@ -304,9 +290,7 @@ mod tests {
     #[test]
     fn test_should_pass_by_ref_custom() {
         assert!(should_pass_by_ref(&Type::Custom("Vec<i32>".to_string())));
-        assert!(should_pass_by_ref(&Type::Custom(
-            "HashMap<String, i32>".to_string()
-        )));
+        assert!(should_pass_by_ref(&Type::Custom("HashMap<String, i32>".to_string())));
         assert!(should_pass_by_ref(&Type::Custom("String".to_string())));
         assert!(!should_pass_by_ref(&Type::Custom("i32".to_string())));
     }
@@ -362,26 +346,17 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_containers() {
-        assert_eq!(
-            type_to_rust_string(&Type::List(Box::new(Type::Int))),
-            "Vec<i64>"
-        );
+        assert_eq!(type_to_rust_string(&Type::List(Box::new(Type::Int))), "Vec<i64>");
         assert_eq!(
             type_to_rust_string(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
             "HashMap<String, i64>"
         );
-        assert_eq!(
-            type_to_rust_string(&Type::Set(Box::new(Type::Int))),
-            "HashSet<i64>"
-        );
+        assert_eq!(type_to_rust_string(&Type::Set(Box::new(Type::Int))), "HashSet<i64>");
     }
 
     #[test]
     fn test_type_to_rust_string_optional() {
-        assert_eq!(
-            type_to_rust_string(&Type::Optional(Box::new(Type::Int))),
-            "Option<i64>"
-        );
+        assert_eq!(type_to_rust_string(&Type::Optional(Box::new(Type::Int))), "Option<i64>");
     }
 
     #[test]
@@ -392,10 +367,8 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_function() {
-        let func = Type::Function {
-            params: vec![Type::Int, Type::String],
-            ret: Box::new(Type::Bool),
-        };
+        let func =
+            Type::Function { params: vec![Type::Int, Type::String], ret: Box::new(Type::Bool) };
         assert_eq!(type_to_rust_string(&func), "fn(i64, String) -> bool");
     }
 
@@ -413,10 +386,8 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_generic() {
-        let generic = Type::Generic {
-            base: "Result".to_string(),
-            params: vec![Type::Int, Type::String],
-        };
+        let generic =
+            Type::Generic { base: "Result".to_string(), params: vec![Type::Int, Type::String] };
         assert_eq!(type_to_rust_string(&generic), "Result<i64, String>");
     }
 
@@ -428,10 +399,8 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_array() {
-        let array = Type::Array {
-            element_type: Box::new(Type::Int),
-            size: ConstGeneric::Literal(10),
-        };
+        let array =
+            Type::Array { element_type: Box::new(Type::Int), size: ConstGeneric::Literal(10) };
         assert_eq!(type_to_rust_string(&array), "[i64; 10]");
 
         let array_param = Type::Array {
@@ -455,10 +424,7 @@ mod tests {
 
     #[test]
     fn test_generate_param_signature() {
-        assert_eq!(
-            generate_param_signature("x", &Type::Int, &BorrowingPattern::Owned),
-            "x: i64"
-        );
+        assert_eq!(generate_param_signature("x", &Type::Int, &BorrowingPattern::Owned), "x: i64");
         assert_eq!(
             generate_param_signature("s", &Type::String, &BorrowingPattern::Borrowed),
             "s: &String"
@@ -516,17 +482,11 @@ mod tests {
         assert_eq!(usage.get_pattern(&Type::String), BorrowingPattern::Borrowed);
 
         usage.mark_mutated();
-        assert_eq!(
-            usage.get_pattern(&Type::String),
-            BorrowingPattern::MutableBorrow
-        );
+        assert_eq!(usage.get_pattern(&Type::String), BorrowingPattern::MutableBorrow);
 
         let mut escaping_usage = ParamUsage::new();
         escaping_usage.mark_escaping();
-        assert_eq!(
-            escaping_usage.get_pattern(&Type::String),
-            BorrowingPattern::Owned
-        );
+        assert_eq!(escaping_usage.get_pattern(&Type::String), BorrowingPattern::Owned);
     }
 
     #[test]

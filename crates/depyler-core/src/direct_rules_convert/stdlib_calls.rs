@@ -93,7 +93,11 @@ impl<'a> ExprConverter<'a> {
     /// DEPYLER-0200: Convert Python open() to Rust file operations
     /// open(path) → std::fs::File::open(path) (read mode)
     /// open(path, "w") → std::fs::File::create(path) (write mode)
-    pub(super) fn convert_open_call(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+    pub(super) fn convert_open_call(
+        &self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if args.is_empty() || args.len() > 2 {
             bail!("open() requires 1 or 2 arguments");
         }
@@ -265,12 +269,7 @@ impl<'a> ExprConverter<'a> {
         }
 
         // Check if this might be a constructor call (capitalized name)
-        if func
-            .chars()
-            .next()
-            .map(|c| c.is_uppercase())
-            .unwrap_or(false)
-        {
+        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
             // DEPYLER-0900: Rename constructor if it shadows stdlib type (e.g., Box -> PyBox)
             // Treat as constructor call - ClassName::new(args)
             let safe_name = safe_class_name(func);
@@ -315,6 +314,4 @@ impl<'a> ExprConverter<'a> {
             }
         }
     }
-
-
 }

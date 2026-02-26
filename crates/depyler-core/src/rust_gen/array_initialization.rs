@@ -309,12 +309,8 @@ mod tests {
         let args: Vec<syn::Expr> = vec![];
         assert!(convert_range_call(&args).is_err());
 
-        let too_many: Vec<syn::Expr> = vec![
-            parse_quote! { 0 },
-            parse_quote! { 10 },
-            parse_quote! { 2 },
-            parse_quote! { 3 },
-        ];
+        let too_many: Vec<syn::Expr> =
+            vec![parse_quote! { 0 }, parse_quote! { 10 }, parse_quote! { 2 }, parse_quote! { 3 }];
         assert!(convert_range_call(&too_many).is_err());
     }
 
@@ -394,11 +390,8 @@ mod tests {
     /// Test range with binary operation step
     #[test]
     fn test_range_binary_step() {
-        let args: Vec<syn::Expr> = vec![
-            parse_quote! { 0 },
-            parse_quote! { 100 },
-            parse_quote! { n * 2 },
-        ];
+        let args: Vec<syn::Expr> =
+            vec![parse_quote! { 0 }, parse_quote! { 100 }, parse_quote! { n * 2 }];
         let result = convert_range_call(&args).unwrap();
         let result_str = quote::quote!(#result).to_string();
         // Variable step uses step_by

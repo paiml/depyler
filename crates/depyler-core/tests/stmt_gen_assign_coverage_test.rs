@@ -304,13 +304,7 @@ def accumulate(items: list[int]) -> int:
 /// without borrow-after-move errors
 #[test]
 fn test_property_all_aug_assign_operators() {
-    let operators = vec![
-        ("+=", "Add"),
-        ("-=", "Sub"),
-        ("*=", "Mul"),
-        ("/=", "Div"),
-        ("%=", "Mod"),
-    ];
+    let operators = vec![("+=", "Add"), ("-=", "Sub"), ("*=", "Mul"), ("/=", "Div"), ("%=", "Mod")];
 
     let pipeline = DepylerPipeline::new();
 
@@ -329,12 +323,7 @@ def test_{name}():
         let rust_code = pipeline.transpile(&python_code);
 
         // All operators should transpile successfully
-        assert!(
-            rust_code.is_ok(),
-            "Failed to transpile {}: {:?}",
-            op,
-            rust_code.err()
-        );
+        assert!(rust_code.is_ok(), "Failed to transpile {}: {:?}", op, rust_code.err());
     }
 }
 

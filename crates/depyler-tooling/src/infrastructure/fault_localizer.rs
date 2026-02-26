@@ -27,24 +27,15 @@ pub struct SourceLocation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DecisionType {
     /// Type inference decision
-    TypeInference {
-        inferred: String,
-        constraints: Vec<String>,
-    },
+    TypeInference { inferred: String, constraints: Vec<String> },
     /// Ownership/borrowing strategy
     OwnershipChoice { strategy: String, reason: String },
     /// Library mapping (Python API → Rust API)
-    LibraryMapping {
-        python_api: String,
-        rust_api: String,
-    },
+    LibraryMapping { python_api: String, rust_api: String },
     /// Lifetime elision/annotation
     LifetimeElision { pattern: String },
     /// Trait bound selection
-    TraitBoundSelection {
-        trait_name: String,
-        impl_strategy: String,
-    },
+    TraitBoundSelection { trait_name: String, impl_strategy: String },
 }
 
 /// A single transpiler decision captured during code generation
@@ -125,30 +116,20 @@ impl FaultLocalizer {
         let total_passed = self.total_passed as f64;
 
         let fail_ratio = failed / total_failed;
-        let pass_ratio = if total_passed > 0.0 {
-            passed / total_passed
-        } else {
-            0.0
-        };
+        let pass_ratio = if total_passed > 0.0 { passed / total_passed } else { 0.0 };
 
         fail_ratio / (fail_ratio + pass_ratio + f64::EPSILON)
     }
 
     /// Rank all recorded decisions by suspiciousness
     pub fn rank_decisions(&self) -> Vec<(u64, f64)> {
-        let mut all_ids: Vec<u64> = self
-            .fail_count
-            .keys()
-            .chain(self.pass_count.keys())
-            .copied()
-            .collect();
+        let mut all_ids: Vec<u64> =
+            self.fail_count.keys().chain(self.pass_count.keys()).copied().collect();
         all_ids.sort();
         all_ids.dedup();
 
-        let mut ranked: Vec<_> = all_ids
-            .into_iter()
-            .map(|id| (id, self.suspiciousness(id)))
-            .collect();
+        let mut ranked: Vec<_> =
+            all_ids.into_iter().map(|id| (id, self.suspiciousness(id))).collect();
 
         ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         ranked
@@ -166,11 +147,7 @@ mod tests {
     use super::*;
 
     fn make_location(line: u32) -> SourceLocation {
-        SourceLocation {
-            file: "test.py".to_string(),
-            line,
-            column: 0,
-        }
+        SourceLocation { file: "test.py".to_string(), line, column: 0 }
     }
 
     fn make_decision(id: u64, line: u32) -> TranspilerDecision {
@@ -194,11 +171,7 @@ mod tests {
 
     #[test]
     fn test_source_location_new() {
-        let loc = SourceLocation {
-            file: "main.py".to_string(),
-            line: 42,
-            column: 10,
-        };
+        let loc = SourceLocation { file: "main.py".to_string(), line: 42, column: 10 };
         assert_eq!(loc.file, "main.py");
         assert_eq!(loc.line, 42);
         assert_eq!(loc.column, 10);
@@ -260,9 +233,7 @@ mod tests {
 
     #[test]
     fn test_decision_type_lifetime_elision() {
-        let dt = DecisionType::LifetimeElision {
-            pattern: "input-output".to_string(),
-        };
+        let dt = DecisionType::LifetimeElision { pattern: "input-output".to_string() };
         assert!(matches!(dt, DecisionType::LifetimeElision { .. }));
     }
 
@@ -277,10 +248,7 @@ mod tests {
 
     #[test]
     fn test_decision_type_clone() {
-        let dt = DecisionType::TypeInference {
-            inferred: "f64".to_string(),
-            constraints: vec![],
-        };
+        let dt = DecisionType::TypeInference { inferred: "f64".to_string(), constraints: vec![] };
         let cloned = dt.clone();
         assert!(matches!(cloned, DecisionType::TypeInference { .. }));
     }

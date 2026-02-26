@@ -22,20 +22,12 @@ def process(arr):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // The comparison should work without E0308 error
     // Either threshold should be f32 or mean_val comparison should coerce
-    assert!(
-        !code.contains("E0308"),
-        "Should not have type mismatch errors: {}",
-        code
-    );
+    assert!(!code.contains("E0308"), "Should not have type mismatch errors: {}", code);
 }
 
 /// Test String to &str coercion in function calls
@@ -50,19 +42,11 @@ def greet(name: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Verify the code compiles (no E0308)
-    assert!(
-        code.contains("fn greet"),
-        "Should generate greet function: {}",
-        code
-    );
+    assert!(code.contains("fn greet"), "Should generate greet function: {}", code);
 }
 
 /// Test &str to String coercion when returning from function
@@ -76,11 +60,7 @@ def get_message() -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should have .to_string() or String::from() for the return
@@ -102,11 +82,7 @@ def calculate(x: int, y: float) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should have coercion: x as f64 or similar
@@ -129,20 +105,12 @@ def get_value(flag: bool) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // The else branch should coerce 0 to float
     let has_int_else = code.contains("else { 0 }") && !code.contains("else { 0.0");
-    assert!(
-        !has_int_else,
-        "Else branch should use float literal, not int: {}",
-        code
-    );
+    assert!(!has_int_else, "Else branch should use float literal, not int: {}", code);
 }
 
 /// Test list of strings (Vec<String> vs Vec<&str>)
@@ -156,11 +124,7 @@ def get_names() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
 
     let code = result.unwrap();
     // Should properly handle Vec<String> or Vec<&str>

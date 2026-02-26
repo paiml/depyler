@@ -216,10 +216,7 @@ def nested_test() -> list:
     let rust = pipeline.transpile(python).expect("Should transpile");
     // Should have two range expressions
     let range_count = rust.matches("..").count();
-    assert!(
-        range_count >= 2,
-        "Nested ranges should generate multiple .. operators. Got:\n{rust}"
-    );
+    assert!(range_count >= 2, "Nested ranges should generate multiple .. operators. Got:\n{rust}");
 }
 
 // ============================================================================
@@ -362,10 +359,7 @@ def zip_ranges() -> list:
     return list(zip(r1, r2))
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains(".zip("),
-        "zip(range, range) should work. Got:\n{rust}"
-    );
+    assert!(rust.contains(".zip("), "zip(range, range) should work. Got:\n{rust}");
 }
 
 #[test]

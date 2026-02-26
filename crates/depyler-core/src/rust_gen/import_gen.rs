@@ -59,10 +59,8 @@ fn process_import_item(
             // DEPYLER-0825: Don't insert items with empty rust_name
             // Empty rust_name indicates no direct Rust equivalent (e.g., functools.partial)
             // This prevents "std::" paths that cause syn::Ident::new("") to panic
-            imported_items.insert(
-                import_key.to_string(),
-                format!("{}::{}", mapping.rust_path, rust_name),
-            );
+            imported_items
+                .insert(import_key.to_string(), format!("{}::{}", mapping.rust_path, rust_name));
         }
     }
 }
@@ -144,22 +142,15 @@ pub fn process_module_imports(
                         ImportItem::Named(name) => name.clone(),
                         ImportItem::Aliased { name, .. } => name.clone(),
                     };
-                    unresolved_imports.push(UnresolvedImport {
-                        module: import.module.clone(),
-                        item_name,
-                    });
+                    unresolved_imports
+                        .push(UnresolvedImport { module: import.module.clone(), item_name });
                 }
             }
             process_specific_items_import(import, module_mapper, &mut imported_items);
         }
     }
 
-    (
-        imported_modules,
-        imported_items,
-        unresolved_imports,
-        module_aliases,
-    )
+    (imported_modules, imported_items, unresolved_imports, module_aliases)
 }
 
 #[cfg(test)]
@@ -200,11 +191,7 @@ mod tests {
     #[test]
     fn test_math_whole_module_import() {
         let mapper = create_test_mapper();
-        let imports = vec![Import {
-            module: "math".to_string(),
-            alias: None,
-            items: vec![],
-        }];
+        let imports = vec![Import { module: "math".to_string(), alias: None, items: vec![] }];
         let (modules, items, unresolved, _) = process_module_imports(&imports, &mapper);
         // math is a known module, should be in imported_modules if mapped
         assert!(items.is_empty());
@@ -267,10 +254,7 @@ mod tests {
             items: vec![
                 ImportItem::Named("helper1".to_string()),
                 ImportItem::Named("helper2".to_string()),
-                ImportItem::Aliased {
-                    name: "helper3".to_string(),
-                    alias: "h3".to_string(),
-                },
+                ImportItem::Aliased { name: "helper3".to_string(), alias: "h3".to_string() },
             ],
         }];
         let (_, _, unresolved, _) = process_module_imports(&imports, &mapper);
@@ -310,10 +294,7 @@ mod tests {
 
     #[test]
     fn test_unresolved_import_clone() {
-        let import = UnresolvedImport {
-            module: "mod".to_string(),
-            item_name: "func".to_string(),
-        };
+        let import = UnresolvedImport { module: "mod".to_string(), item_name: "func".to_string() };
         let cloned = import.clone();
         assert_eq!(cloned.module, import.module);
         assert_eq!(cloned.item_name, import.item_name);
@@ -321,10 +302,7 @@ mod tests {
 
     #[test]
     fn test_unresolved_import_debug() {
-        let import = UnresolvedImport {
-            module: "m".to_string(),
-            item_name: "f".to_string(),
-        };
+        let import = UnresolvedImport { module: "m".to_string(), item_name: "f".to_string() };
         let debug = format!("{:?}", import);
         assert!(debug.contains("UnresolvedImport"));
         assert!(debug.contains("module"));
@@ -334,11 +312,7 @@ mod tests {
     #[test]
     fn test_whole_module_import_no_items() {
         let mapper = create_test_mapper();
-        let imports = vec![Import {
-            module: "json".to_string(),
-            alias: None,
-            items: vec![],
-        }];
+        let imports = vec![Import { module: "json".to_string(), alias: None, items: vec![] }];
         let (modules, items, unresolved, _) = process_module_imports(&imports, &mapper);
         // No specific items imported, no unresolved for whole module imports
         assert!(items.is_empty());
@@ -350,16 +324,8 @@ mod tests {
     fn test_multiple_whole_module_imports() {
         let mapper = create_test_mapper();
         let imports = vec![
-            Import {
-                module: "json".to_string(),
-                alias: None,
-                items: vec![],
-            },
-            Import {
-                module: "os".to_string(),
-                alias: None,
-                items: vec![],
-            },
+            Import { module: "json".to_string(), alias: None, items: vec![] },
+            Import { module: "os".to_string(), alias: None, items: vec![] },
         ];
         let (_, _, unresolved, _) = process_module_imports(&imports, &mapper);
         // Whole module imports don't create unresolved entries
@@ -390,9 +356,6 @@ mod tests {
             items: vec![],
         }];
         let (_, _, _, aliases) = process_module_imports(&imports, &mapper);
-        assert_eq!(
-            aliases.get("ET"),
-            Some(&"xml.etree.ElementTree".to_string())
-        );
+        assert_eq!(aliases.get("ET"), Some(&"xml.etree.ElementTree".to_string()));
     }
 }

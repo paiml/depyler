@@ -72,12 +72,7 @@ fn test_depyler_0356_conservative_string_borrowed() {
     };
 
     let rust_type = mapper.map_type_with_annotations(&PythonType::String, &annotations);
-    assert_eq!(
-        rust_type,
-        RustType::Str {
-            lifetime: Some("'a".to_string())
-        }
-    );
+    assert_eq!(rust_type, RustType::Str { lifetime: Some("'a".to_string()) });
 }
 
 #[test]
@@ -150,18 +145,11 @@ fn test_depyler_0356_dict_borrowed() {
     let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
 
     match rust_type {
-        RustType::Reference {
-            lifetime,
-            mutable,
-            inner,
-        } => {
+        RustType::Reference { lifetime, mutable, inner } => {
             assert_eq!(lifetime, Some("'a".to_string()));
             assert!(!mutable);
             // Annotations apply recursively to nested types - String keys become &'a str
-            assert_eq!(
-                *inner,
-                RustType::Custom("HashMap<&'a str, i32>".to_string())
-            );
+            assert_eq!(*inner, RustType::Custom("HashMap<&'a str, i32>".to_string()));
         }
         _ => panic!("Expected reference type, got {:?}", rust_type),
     }
@@ -179,10 +167,7 @@ fn test_depyler_0356_dict_shared_thread_safe() {
     let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Bool));
     let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
 
-    assert_eq!(
-        rust_type,
-        RustType::Custom("Arc<HashMap<String, bool>>".to_string())
-    );
+    assert_eq!(rust_type, RustType::Custom("Arc<HashMap<String, bool>>".to_string()));
 }
 
 #[test]
@@ -195,10 +180,7 @@ fn test_depyler_0356_dict_shared_not_thread_safe() {
     let dict_type = PythonType::Dict(Box::new(PythonType::Int), Box::new(PythonType::String));
     let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
 
-    assert_eq!(
-        rust_type,
-        RustType::Custom("Rc<HashMap<i32, String>>".to_string())
-    );
+    assert_eq!(rust_type, RustType::Custom("Rc<HashMap<i32, String>>".to_string()));
 }
 
 // ============================================================================
@@ -267,10 +249,7 @@ fn test_depyler_0356_return_type_none_result_strategy() {
     let rust_type = mapper.map_return_type_with_annotations(&PythonType::None, &annotations);
     assert_eq!(
         rust_type,
-        RustType::Result(
-            Box::new(RustType::Unit),
-            Box::new(RustType::Custom("Error".to_string()))
-        )
+        RustType::Result(Box::new(RustType::Unit), Box::new(RustType::Custom("Error".to_string())))
     );
 }
 
@@ -356,9 +335,7 @@ fn test_depyler_0356_nested_list_of_lists() {
 
     assert_eq!(
         rust_type,
-        RustType::Vec(Box::new(RustType::Vec(Box::new(RustType::Primitive(
-            PrimitiveType::I32
-        )))))
+        RustType::Vec(Box::new(RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)))))
     );
 }
 
@@ -373,10 +350,7 @@ fn test_depyler_0356_nested_dict_with_list_values() {
     );
     let rust_type = mapper.map_type_with_annotations(&complex_type, &annotations);
 
-    assert_eq!(
-        rust_type,
-        RustType::Custom("HashMap<String, Vec<i32>>".to_string())
-    );
+    assert_eq!(rust_type, RustType::Custom("HashMap<String, Vec<i32>>".to_string()));
 }
 
 #[test]
@@ -388,10 +362,7 @@ fn test_depyler_0356_nested_optional_list() {
         PythonType::Optional(Box::new(PythonType::List(Box::new(PythonType::String))));
     let rust_type = mapper.map_type_with_annotations(&optional_list, &annotations);
 
-    assert_eq!(
-        rust_type,
-        RustType::Option(Box::new(RustType::Vec(Box::new(RustType::String))))
-    );
+    assert_eq!(rust_type, RustType::Option(Box::new(RustType::Vec(Box::new(RustType::String)))));
 }
 
 #[test]
@@ -428,11 +399,7 @@ fn test_depyler_0356_zero_copy_borrowed_list() {
     let rust_type = mapper.map_type_with_annotations(&list_of_strings, &annotations);
 
     match rust_type {
-        RustType::Reference {
-            lifetime,
-            mutable,
-            inner,
-        } => {
+        RustType::Reference { lifetime, mutable, inner } => {
             assert_eq!(lifetime, Some("'a".to_string()));
             assert!(!mutable);
             // Inner should be Vec<&str>
@@ -479,10 +446,7 @@ fn test_depyler_0356_shared_thread_safe_nested_dict() {
 
     let nested_dict = PythonType::Dict(
         Box::new(PythonType::String),
-        Box::new(PythonType::Dict(
-            Box::new(PythonType::Int),
-            Box::new(PythonType::String),
-        )),
+        Box::new(PythonType::Dict(Box::new(PythonType::Int), Box::new(PythonType::String))),
     );
     let rust_type = mapper.map_type_with_annotations(&nested_dict, &annotations);
 
@@ -738,9 +702,7 @@ fn test_depyler_0356_integration_thread_safe_cache() {
     // Simulate thread-safe cache: Dict<String, Optional<List<Int>>>
     let cache_type = PythonType::Dict(
         Box::new(PythonType::String),
-        Box::new(PythonType::Optional(Box::new(PythonType::List(Box::new(
-            PythonType::Int,
-        ))))),
+        Box::new(PythonType::Optional(Box::new(PythonType::List(Box::new(PythonType::Int))))),
     );
 
     let rust_type = mapper.map_type_with_annotations(&cache_type, &annotations);

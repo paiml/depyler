@@ -19,27 +19,11 @@ fn main() -> anyhow::Result<()> {
 
     // Add some training errors
     let errors = vec![
-        (
-            "E0308",
-            "mismatched types: expected i32, found String",
-            "type_conversion.py",
-        ),
+        ("E0308", "mismatched types: expected i32, found String", "type_conversion.py"),
         ("E0382", "use of moved value: `x`", "ownership.py"),
-        (
-            "E0433",
-            "failed to resolve: use of undeclared crate or module",
-            "imports.py",
-        ),
-        (
-            "E0308",
-            "mismatched types: expected i32, found String",
-            "another_file.py",
-        ), // Duplicate!
-        (
-            "E0599",
-            "no method named `foo` found for type `Bar`",
-            "methods.py",
-        ),
+        ("E0433", "failed to resolve: use of undeclared crate or module", "imports.py"),
+        ("E0308", "mismatched types: expected i32, found String", "another_file.py"), // Duplicate!
+        ("E0599", "no method named `foo` found for type `Bar`", "methods.py"),
     ];
 
     println!("\nAdding {} errors...", errors.len());
@@ -50,11 +34,7 @@ fn main() -> anyhow::Result<()> {
             "  {} {} - {}",
             if inserted { "✅" } else { "⏭️ " },
             code,
-            if inserted {
-                "added"
-            } else {
-                "duplicate, skipped"
-            }
+            if inserted { "added" } else { "duplicate, skipped" }
         );
     }
 
@@ -97,13 +77,7 @@ fn main() -> anyhow::Result<()> {
     // Demonstrate merge
     println!("\n--- Merge Demo ---");
     let mut corpus2 = TrainingCorpus::new();
-    corpus2.insert(TrainingError::new(
-        "E0277",
-        "trait bound not satisfied",
-        "",
-        "traits.py",
-        1,
-    ));
+    corpus2.insert(TrainingError::new("E0277", "trait bound not satisfied", "", "traits.py", 1));
     corpus2.insert(TrainingError::new(
         "E0308",
         "mismatched types: expected i32, found String",

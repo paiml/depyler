@@ -7,10 +7,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -27,7 +25,8 @@ mod tests {
 
     #[test]
     fn test_w13fg_params_002_six_typed_params() {
-        let rs = transpile("def func(a: int, b: str, c: float, d: bool, e: int, f: str):\n    return a");
+        let rs =
+            transpile("def func(a: int, b: str, c: float, d: bool, e: int, f: str):\n    return a");
         assert!(rs.contains("fn func"), "should generate function");
         assert!(rs.contains("i64") || rs.contains("i32"), "should have int type");
     }
@@ -50,7 +49,10 @@ mod tests {
     fn test_w13fg_params_005_default_string_value() {
         let rs = transpile("def func(name='default'):\n    return name");
         assert!(rs.contains("fn func"), "should generate function");
-        assert!(rs.contains("default") || rs.contains("String") || rs.contains("str"), "should handle string default");
+        assert!(
+            rs.contains("default") || rs.contains("String") || rs.contains("str"),
+            "should handle string default"
+        );
     }
 
     #[test]
@@ -183,7 +185,10 @@ mod tests {
     fn test_w13fg_params_024_typed_dict_param() {
         let rs = transpile("def func(mapping: dict):\n    return mapping");
         assert!(rs.contains("fn func"), "should generate function");
-        assert!(rs.contains("HashMap") || rs.contains("BTreeMap") || rs.contains("dict"), "should have dict type");
+        assert!(
+            rs.contains("HashMap") || rs.contains("BTreeMap") || rs.contains("dict"),
+            "should have dict type"
+        );
     }
 
     #[test]
@@ -230,7 +235,10 @@ mod tests {
     fn test_w13fg_params_031_typed_with_default() {
         let rs = transpile("def func(x: int = 10):\n    return x");
         assert!(rs.contains("fn func"), "should generate function");
-        assert!(rs.contains("10") || rs.contains("i64") || rs.contains("i32"), "should handle typed default");
+        assert!(
+            rs.contains("10") || rs.contains("i64") || rs.contains("i32"),
+            "should handle typed default"
+        );
     }
 
     #[test]
@@ -278,7 +286,8 @@ mod tests {
 
     #[test]
     fn test_w13fg_params_039_eight_mixed_params() {
-        let rs = transpile("def func(a, b: int, c, d: str, e=5, f='x', g=None, h=True):\n    return a");
+        let rs =
+            transpile("def func(a, b: int, c, d: str, e=5, f='x', g=None, h=True):\n    return a");
         assert!(rs.contains("fn func"), "should generate function");
     }
 
@@ -329,14 +338,20 @@ mod tests {
     fn test_w13fg_return_006_explicit_int_annotation() {
         let rs = transpile("def func() -> int:\n    return 42");
         assert!(rs.contains("fn func"), "should generate function");
-        assert!(rs.contains("i64") || rs.contains("i32") || rs.contains("->"), "should have return type");
+        assert!(
+            rs.contains("i64") || rs.contains("i32") || rs.contains("->"),
+            "should have return type"
+        );
     }
 
     #[test]
     fn test_w13fg_return_007_explicit_str_annotation() {
         let rs = transpile("def func() -> str:\n    return 'test'");
         assert!(rs.contains("fn func"), "should generate function");
-        assert!(rs.contains("String") || rs.contains("&str") || rs.contains("->"), "should have return type");
+        assert!(
+            rs.contains("String") || rs.contains("&str") || rs.contains("->"),
+            "should have return type"
+        );
     }
 
     #[test]
@@ -389,7 +404,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_return_015_conditional_return_if_else() {
-        let rs = transpile("def func(x):\n    if x > 5:\n        return 'big'\n    else:\n        return 'small'");
+        let rs = transpile(
+            "def func(x):\n    if x > 5:\n        return 'big'\n    else:\n        return 'small'",
+        );
         assert!(rs.contains("fn func"), "should generate function");
         assert!(rs.contains("if"), "should have conditional");
     }
@@ -430,7 +447,10 @@ mod tests {
     #[test]
     fn test_w13fg_return_021_nested_function_call() {
         let rs = transpile("def outer():\n    def inner():\n        return 42\n    return inner()");
-        assert!(rs.contains("fn outer") || rs.contains("fn inner"), "should generate nested functions");
+        assert!(
+            rs.contains("fn outer") || rs.contains("fn inner"),
+            "should generate nested functions"
+        );
     }
 
     #[test]
@@ -584,7 +604,10 @@ mod tests {
     #[test]
     fn test_w13fg_body_004_calling_other_function() {
         let rs = transpile("def helper():\n    return 1\ndef func():\n    return helper()");
-        assert!(rs.contains("fn func") && rs.contains("fn helper"), "should generate both functions");
+        assert!(
+            rs.contains("fn func") && rs.contains("fn helper"),
+            "should generate both functions"
+        );
         assert!(rs.contains("helper"), "should call helper");
     }
 
@@ -604,14 +627,17 @@ mod tests {
 
     #[test]
     fn test_w13fg_body_007_while_loop_in_body() {
-        let rs = transpile("def func():\n    x = 0\n    while x < 10:\n        x += 1\n    return x");
+        let rs =
+            transpile("def func():\n    x = 0\n    while x < 10:\n        x += 1\n    return x");
         assert!(rs.contains("fn func"), "should generate function");
         assert!(rs.contains("while"), "should have while loop");
     }
 
     #[test]
     fn test_w13fg_body_008_try_except_in_body() {
-        let rs = transpile("def func():\n    try:\n        x = 1\n    except:\n        x = 0\n    return x");
+        let rs = transpile(
+            "def func():\n    try:\n        x = 1\n    except:\n        x = 0\n    return x",
+        );
         assert!(rs.contains("fn func"), "should generate function");
     }
 
@@ -624,7 +650,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_body_010_recursive_function() {
-        let rs = transpile("def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)");
+        let rs = transpile(
+            "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)",
+        );
         assert!(rs.contains("fn factorial"), "should generate function");
         assert!(rs.contains("factorial"), "should have recursive call");
     }
@@ -657,7 +685,8 @@ mod tests {
 
     #[test]
     fn test_w13fg_body_015_list_operations() {
-        let rs = transpile("def func():\n    items = [1, 2, 3]\n    items.append(4)\n    return items");
+        let rs =
+            transpile("def func():\n    items = [1, 2, 3]\n    items.append(4)\n    return items");
         assert!(rs.contains("fn func"), "should generate function");
         assert!(rs.contains("append") || rs.contains("push"), "should have list method");
     }
@@ -696,7 +725,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_body_021_multiple_function_calls() {
-        let rs = transpile("def func():\n    x = len([1, 2, 3])\n    y = sum([4, 5, 6])\n    return x + y");
+        let rs = transpile(
+            "def func():\n    x = len([1, 2, 3])\n    y = sum([4, 5, 6])\n    return x + y",
+        );
         assert!(rs.contains("fn func"), "should generate function");
     }
 
@@ -794,13 +825,16 @@ mod tests {
 
     #[test]
     fn test_w13fg_body_037_enumerate_loop() {
-        let rs = transpile("def func(items):\n    for i, item in enumerate(items):\n        pass\n    return i");
+        let rs = transpile(
+            "def func(items):\n    for i, item in enumerate(items):\n        pass\n    return i",
+        );
         assert!(rs.contains("fn func"), "should generate function");
     }
 
     #[test]
     fn test_w13fg_body_038_zip_loop() {
-        let rs = transpile("def func(a, b):\n    for x, y in zip(a, b):\n        pass\n    return 0");
+        let rs =
+            transpile("def func(a, b):\n    for x, y in zip(a, b):\n        pass\n    return 0");
         assert!(rs.contains("fn func"), "should generate function");
     }
 
@@ -812,7 +846,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_body_040_map_function() {
-        let rs = transpile("def func(items):\n    result = list(map(lambda x: x * 2, items))\n    return result");
+        let rs = transpile(
+            "def func(items):\n    result = list(map(lambda x: x * 2, items))\n    return result",
+        );
         assert!(rs.contains("fn func"), "should generate function");
     }
 
@@ -866,7 +902,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_method_008_init_with_params() {
-        let rs = transpile("class C:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y");
+        let rs = transpile(
+            "class C:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y",
+        );
         assert!(rs.contains("__init__") || rs.contains("new"), "should generate init");
     }
 
@@ -879,7 +917,10 @@ mod tests {
     #[test]
     fn test_w13fg_method_010_repr_method() {
         let rs = transpile("class C:\n    def __repr__(self):\n        return 'C()'");
-        assert!(rs.contains("fn __repr__") || rs.contains("fn repr") || rs.contains("struct C"), "should generate __repr__");
+        assert!(
+            rs.contains("fn __repr__") || rs.contains("fn repr") || rs.contains("struct C"),
+            "should generate __repr__"
+        );
     }
 
     #[test]
@@ -902,7 +943,8 @@ mod tests {
 
     #[test]
     fn test_w13fg_method_014_property_getter() {
-        let rs = transpile("class C:\n    @property\n    def value(self):\n        return self._value");
+        let rs =
+            transpile("class C:\n    @property\n    def value(self):\n        return self._value");
         assert!(rs.contains("value"), "should generate property");
     }
 
@@ -945,18 +987,24 @@ mod tests {
     #[test]
     fn test_w13fg_method_021_multiple_methods() {
         let rs = transpile("class C:\n    def m1(self):\n        return 1\n    def m2(self):\n        return 2\n    def m3(self):\n        return 3");
-        assert!(rs.contains("m1") && rs.contains("m2") && rs.contains("m3"), "should have all methods");
+        assert!(
+            rs.contains("m1") && rs.contains("m2") && rs.contains("m3"),
+            "should have all methods"
+        );
     }
 
     #[test]
     fn test_w13fg_method_022_method_accessing_class_var() {
-        let rs = transpile("class C:\n    value = 10\n    def method(self):\n        return C.value");
+        let rs =
+            transpile("class C:\n    value = 10\n    def method(self):\n        return C.value");
         assert!(rs.contains("value"), "should access class variable");
     }
 
     #[test]
     fn test_w13fg_method_023_method_modifying_self() {
-        let rs = transpile("class C:\n    def method(self):\n        self.x = 10\n        return self.x");
+        let rs = transpile(
+            "class C:\n    def method(self):\n        self.x = 10\n        return self.x",
+        );
         assert!(rs.contains("self"), "should modify self");
     }
 
@@ -968,14 +1016,18 @@ mod tests {
 
     #[test]
     fn test_w13fg_method_025_classmethod_create_instance() {
-        let rs = transpile("class C:\n    @classmethod\n    def create(cls):\n        return cls()");
+        let rs =
+            transpile("class C:\n    @classmethod\n    def create(cls):\n        return cls()");
         assert!(rs.contains("create"), "should generate factory method");
     }
 
     #[test]
     fn test_w13fg_method_026_method_with_type_hints() {
         let rs = transpile("class C:\n    def method(self, x: int) -> int:\n        return x * 2");
-        assert!(rs.contains("i64") || rs.contains("i32") || rs.contains("method"), "should have type hints");
+        assert!(
+            rs.contains("i64") || rs.contains("i32") || rs.contains("method"),
+            "should have type hints"
+        );
     }
 
     #[test]
@@ -987,25 +1039,37 @@ mod tests {
     #[test]
     fn test_w13fg_method_028_init_calling_super() {
         let rs = transpile("class C:\n    def __init__(self):\n        super().__init__()");
-        assert!(rs.contains("fn __init__") || rs.contains("fn new") || rs.contains("struct C"), "should generate init");
+        assert!(
+            rs.contains("fn __init__") || rs.contains("fn new") || rs.contains("struct C"),
+            "should generate init"
+        );
     }
 
     #[test]
     fn test_w13fg_method_029_getitem_method() {
         let rs = transpile("class C:\n    def __getitem__(self, key):\n        return 0");
-        assert!(rs.contains("fn __getitem__") || rs.contains("fn getitem") || rs.contains("struct C"), "should generate __getitem__");
+        assert!(
+            rs.contains("fn __getitem__") || rs.contains("fn getitem") || rs.contains("struct C"),
+            "should generate __getitem__"
+        );
     }
 
     #[test]
     fn test_w13fg_method_030_setitem_method() {
         let rs = transpile("class C:\n    def __setitem__(self, key, value):\n        pass");
-        assert!(rs.contains("fn __setitem__") || rs.contains("fn setitem") || rs.contains("struct C"), "should generate __setitem__");
+        assert!(
+            rs.contains("fn __setitem__") || rs.contains("fn setitem") || rs.contains("struct C"),
+            "should generate __setitem__"
+        );
     }
 
     #[test]
     fn test_w13fg_method_031_call_method() {
         let rs = transpile("class C:\n    def __call__(self):\n        return 0");
-        assert!(rs.contains("fn __call__") || rs.contains("fn call") || rs.contains("struct C"), "should generate __call__");
+        assert!(
+            rs.contains("fn __call__") || rs.contains("fn call") || rs.contains("struct C"),
+            "should generate __call__"
+        );
     }
 
     #[test]
@@ -1016,7 +1080,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_method_033_method_with_docstring() {
-        let rs = transpile("class C:\n    def method(self):\n        '''Method docstring'''\n        return 42");
+        let rs = transpile(
+            "class C:\n    def method(self):\n        '''Method docstring'''\n        return 42",
+        );
         assert!(rs.contains("fn method") || rs.contains("method"), "should generate method");
     }
 
@@ -1047,13 +1113,19 @@ mod tests {
     #[test]
     fn test_w13fg_method_038_private_method() {
         let rs = transpile("class C:\n    def _private(self):\n        return 42");
-        assert!(rs.contains("_private") || rs.contains("private"), "should generate private method");
+        assert!(
+            rs.contains("_private") || rs.contains("private"),
+            "should generate private method"
+        );
     }
 
     #[test]
     fn test_w13fg_method_039_dunder_method() {
         let rs = transpile("class C:\n    def __custom__(self):\n        return 0");
-        assert!(rs.contains("__custom__") || rs.contains("custom"), "should generate dunder method");
+        assert!(
+            rs.contains("__custom__") || rs.contains("custom"),
+            "should generate dunder method"
+        );
     }
 
     #[test]
@@ -1116,7 +1188,10 @@ mod tests {
     fn test_w13fg_complex_009_function_raising_exception() {
         let rs = transpile("def func():\n    raise ValueError('error')");
         assert!(rs.contains("fn func") || rs.contains("func"), "should generate function");
-        assert!(rs.contains("ValueError") || rs.contains("panic") || rs.contains("raise"), "should raise");
+        assert!(
+            rs.contains("ValueError") || rs.contains("panic") || rs.contains("raise"),
+            "should raise"
+        );
     }
 
     #[test]
@@ -1134,14 +1209,19 @@ mod tests {
 
     #[test]
     fn test_w13fg_complex_012_function_with_finally() {
-        let rs = transpile("def func():\n    try:\n        x = 1\n    finally:\n        pass\n    return x");
+        let rs = transpile(
+            "def func():\n    try:\n        x = 1\n    finally:\n        pass\n    return x",
+        );
         assert!(rs.contains("fn func") || rs.contains("func"), "should generate function");
     }
 
     #[test]
     fn test_w13fg_complex_013_async_function() {
         let rs = transpile("async def func():\n    return 42");
-        assert!(rs.contains("fn func") || rs.contains("func") || rs.contains("async"), "should generate async function");
+        assert!(
+            rs.contains("fn func") || rs.contains("func") || rs.contains("async"),
+            "should generate async function"
+        );
     }
 
     #[test]
@@ -1194,7 +1274,9 @@ mod tests {
 
     #[test]
     fn test_w13fg_complex_022_recursive_fibonacci() {
-        let rs = transpile("def fib(n):\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)");
+        let rs = transpile(
+            "def fib(n):\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)",
+        );
         assert!(rs.contains("fn fib") || rs.contains("fib"), "should generate fibonacci");
     }
 
@@ -1323,7 +1405,10 @@ mod tests {
     #[test]
     fn test_w13fg_coverage_003_function_with_underscore_name() {
         let rs = transpile("def _private_func():\n    return 1");
-        assert!(rs.contains("_private_func") || rs.contains("private_func"), "should handle underscore");
+        assert!(
+            rs.contains("_private_func") || rs.contains("private_func"),
+            "should handle underscore"
+        );
     }
 
     #[test]
@@ -1455,7 +1540,10 @@ mod tests {
     #[test]
     fn test_w13fg_coverage_025_binary_all_ops() {
         let rs = transpile("def func(a, b):\n    return a + b - a * b / a % b");
-        assert!(rs.contains("+") && rs.contains("-") && rs.contains("*"), "should handle all binary ops");
+        assert!(
+            rs.contains("+") && rs.contains("-") && rs.contains("*"),
+            "should handle all binary ops"
+        );
     }
 
     #[test]
@@ -1508,7 +1596,8 @@ mod tests {
 
     #[test]
     fn test_w13fg_coverage_034_augmented_all_ops() {
-        let rs = transpile("def func(x):\n    x += 1\n    x -= 1\n    x *= 2\n    x /= 2\n    return x");
+        let rs =
+            transpile("def func(x):\n    x += 1\n    x -= 1\n    x *= 2\n    x /= 2\n    return x");
         assert!(rs.contains("fn func"), "should handle all augmented assignments");
     }
 
@@ -1571,7 +1660,10 @@ mod tests {
     #[test]
     fn test_w13fg_edge_004_chained_method_calls() {
         let rs = transpile("def func(s):\n    return s.strip().lower().split()");
-        assert!(rs.contains("strip") || rs.contains("lower") || rs.contains("split"), "should chain methods");
+        assert!(
+            rs.contains("strip") || rs.contains("lower") || rs.contains("split"),
+            "should chain methods"
+        );
     }
 
     #[test]
@@ -1666,13 +1758,16 @@ mod tests {
 
     #[test]
     fn test_w13fg_edge_020_default_list_copy() {
-        let rs = transpile("def func(items=None):\n    if items is None:\n        items = []\n    return items");
+        let rs = transpile(
+            "def func(items=None):\n    if items is None:\n        items = []\n    return items",
+        );
         assert!(rs.contains("fn func"), "should handle mutable default workaround");
     }
 
     #[test]
     fn test_w13fg_edge_021_isinstance_check() {
-        let rs = transpile("def func(x):\n    if isinstance(x, int):\n        return x\n    return 0");
+        let rs =
+            transpile("def func(x):\n    if isinstance(x, int):\n        return x\n    return 0");
         assert!(rs.contains("isinstance") || rs.contains("fn func"), "should handle isinstance");
     }
 
@@ -1690,7 +1785,8 @@ mod tests {
 
     #[test]
     fn test_w13fg_edge_024_setattr_call() {
-        let rs = transpile("def func(obj, name, value):\n    setattr(obj, name, value)\n    return obj");
+        let rs =
+            transpile("def func(obj, name, value):\n    setattr(obj, name, value)\n    return obj");
         assert!(rs.contains("setattr") || rs.contains("fn func"), "should handle setattr");
     }
 

@@ -81,10 +81,7 @@ fn test_nested_scopes() {
 #[test]
 fn test_exception_scope_default_is_unhandled() {
     let ctx = CodeGenContext::default();
-    assert!(matches!(
-        ctx.current_exception_scope(),
-        ExceptionScope::Unhandled
-    ));
+    assert!(matches!(ctx.current_exception_scope(), ExceptionScope::Unhandled));
 }
 
 #[test]
@@ -127,10 +124,7 @@ fn test_exception_not_handled_outside_try() {
 fn test_enter_handler_scope() {
     let mut ctx = CodeGenContext::default();
     ctx.enter_handler_scope();
-    assert!(matches!(
-        ctx.current_exception_scope(),
-        ExceptionScope::Handler
-    ));
+    assert!(matches!(ctx.current_exception_scope(), ExceptionScope::Handler));
     assert!(!ctx.is_in_try_block());
 }
 
@@ -166,11 +160,7 @@ fn test_fallback_type_annotation_nasa_mode() {
     // Default TypeMapper has nasa_mode = true
     let tokens = ctx.fallback_type_annotation();
     let s = tokens.to_string();
-    assert!(
-        s.contains("String"),
-        "NASA mode should return `: String`, got: {}",
-        s
-    );
+    assert!(s.contains("String"), "NASA mode should return `: String`, got: {}", s);
 }
 
 #[test]
@@ -178,11 +168,7 @@ fn test_fallback_type_nasa_mode() {
     let mut ctx = CodeGenContext::default();
     let tokens = ctx.fallback_type();
     let s = tokens.to_string();
-    assert!(
-        s.contains("String"),
-        "NASA mode should return `String`, got: {}",
-        s
-    );
+    assert!(s.contains("String"), "NASA mode should return `String`, got: {}", s);
 }
 
 #[test]
@@ -289,8 +275,7 @@ fn test_mutable_vars_tracking() {
 #[test]
 fn test_var_types_tracking() {
     let mut ctx = CodeGenContext::default();
-    ctx.var_types
-        .insert("count".to_string(), crate::hir::Type::Int);
+    ctx.var_types.insert("count".to_string(), crate::hir::Type::Int);
     assert_eq!(ctx.var_types.get("count"), Some(&crate::hir::Type::Int));
 }
 
@@ -313,12 +298,8 @@ fn test_generator_state_vars() {
 #[test]
 fn test_function_return_types_tracking() {
     let mut ctx = CodeGenContext::default();
-    ctx.function_return_types
-        .insert("compute".to_string(), crate::hir::Type::Float);
-    assert_eq!(
-        ctx.function_return_types.get("compute"),
-        Some(&crate::hir::Type::Float)
-    );
+    ctx.function_return_types.insert("compute".to_string(), crate::hir::Type::Float);
+    assert_eq!(ctx.function_return_types.get("compute"), Some(&crate::hir::Type::Float));
 }
 
 #[test]
@@ -331,8 +312,7 @@ fn test_ref_params_tracking() {
 #[test]
 fn test_result_returning_functions() {
     let mut ctx = CodeGenContext::default();
-    ctx.result_returning_functions
-        .insert("open_file".to_string());
+    ctx.result_returning_functions.insert("open_file".to_string());
     assert!(ctx.result_returning_functions.contains("open_file"));
 }
 
@@ -353,24 +333,17 @@ fn test_char_iter_vars_tracking() {
 #[test]
 fn test_module_constant_types() {
     let mut ctx = CodeGenContext::default();
-    let dict_type = crate::hir::Type::Dict(
-        Box::new(crate::hir::Type::String),
-        Box::new(crate::hir::Type::Int),
-    );
-    ctx.module_constant_types
-        .insert("CONFIG".to_string(), dict_type.clone());
+    let dict_type =
+        crate::hir::Type::Dict(Box::new(crate::hir::Type::String), Box::new(crate::hir::Type::Int));
+    ctx.module_constant_types.insert("CONFIG".to_string(), dict_type.clone());
     assert_eq!(ctx.module_constant_types.get("CONFIG"), Some(&dict_type));
 }
 
 #[test]
 fn test_type_overrides() {
     let mut ctx = CodeGenContext::default();
-    ctx.type_overrides
-        .insert("result".to_string(), crate::hir::Type::String);
-    assert_eq!(
-        ctx.type_overrides.get("result"),
-        Some(&crate::hir::Type::String)
-    );
+    ctx.type_overrides.insert("result".to_string(), crate::hir::Type::String);
+    assert_eq!(ctx.type_overrides.get("result"), Some(&crate::hir::Type::String));
 }
 
 #[test]
@@ -386,12 +359,8 @@ fn test_all_imported_modules() {
 #[test]
 fn test_module_aliases() {
     let mut ctx = CodeGenContext::default();
-    ctx.module_aliases
-        .insert("ET".to_string(), "xml.etree.ElementTree".to_string());
-    assert_eq!(
-        ctx.module_aliases.get("ET"),
-        Some(&"xml.etree.ElementTree".to_string())
-    );
+    ctx.module_aliases.insert("ET".to_string(), "xml.etree.ElementTree".to_string());
+    assert_eq!(ctx.module_aliases.get("ET"), Some(&"xml.etree.ElementTree".to_string()));
 }
 
 #[test]
@@ -462,10 +431,7 @@ fn test_current_error_type_setting() {
     assert_eq!(ctx.current_error_type, Some(ErrorType::DynBox));
 
     ctx.current_error_type = Some(ErrorType::Concrete("IOError".to_string()));
-    assert_eq!(
-        ctx.current_error_type,
-        Some(ErrorType::Concrete("IOError".to_string()))
-    );
+    assert_eq!(ctx.current_error_type, Some(ErrorType::Concrete("IOError".to_string())));
 }
 
 #[test]

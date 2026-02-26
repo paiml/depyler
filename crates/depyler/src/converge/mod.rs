@@ -75,11 +75,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     }
 
     // DEPYLER-1305: Initialize fix applicator if auto_fix is enabled
-    let fix_applicator = if config.auto_fix {
-        Some(CompositeFixApplicator::new())
-    } else {
-        None
-    };
+    let fix_applicator = if config.auto_fix { Some(CompositeFixApplicator::new()) } else { None };
 
     // DEPYLER-1308: Initialize transpiler patcher if enabled
     let mut transpiler_patcher = if config.patch_transpiler {
@@ -141,9 +137,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
                 .filter(|r| !r.success)
                 .filter_map(|r| {
                     let rust_file = r.source_file.with_extension("rs");
-                    std::fs::read_to_string(&rust_file)
-                        .ok()
-                        .map(|content| (rust_file, content))
+                    std::fs::read_to_string(&rust_file).ok().map(|content| (rust_file, content))
                 })
                 .collect();
 
@@ -202,9 +196,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
             // Find applicable patches based on highest-impact error cluster
             // DEPYLER-1312: Sort by impact_score instead of using arbitrary first()
             if let Some(top_cluster) = state.error_clusters.iter().max_by(|a, b| {
-                a.impact_score()
-                    .partial_cmp(&b.impact_score())
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                a.impact_score().partial_cmp(&b.impact_score()).unwrap_or(std::cmp::Ordering::Equal)
             }) {
                 let error_code = top_cluster.error_code.clone();
                 let sample_error = top_cluster.sample_errors.first();
@@ -295,9 +287,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         }
 
         if let Some(cluster) = state.error_clusters.iter().max_by(|a, b| {
-            a.impact_score()
-                .partial_cmp(&b.impact_score())
-                .unwrap_or(std::cmp::Ordering::Equal)
+            a.impact_score().partial_cmp(&b.impact_score()).unwrap_or(std::cmp::Ordering::Equal)
         }) {
             reporter.report_iteration(&state, cluster);
         }
@@ -316,11 +306,8 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         );
 
         // Analyze patterns to identify common fixes
-        let file_constraints: Vec<TypeConstraint> = constraint_store
-            .variable_constraints
-            .values()
-            .cloned()
-            .collect();
+        let file_constraints: Vec<TypeConstraint> =
+            constraint_store.variable_constraints.values().cloned().collect();
         let patterns = type_constraint_learner::analyze_constraint_patterns(&file_constraints);
         for (pattern, count) in patterns.iter().filter(|(_, c)| **c >= 5) {
             tracing::info!("  Common pattern: {} ({} occurrences)", pattern, count);

@@ -230,11 +230,7 @@ fn test_argparser_argument_with_metavar() {
 #[test]
 fn test_argparser_argument_with_choices() {
     let mut arg = ArgParserArgument::new("--format".to_string());
-    arg.choices = Some(vec![
-        "json".to_string(),
-        "yaml".to_string(),
-        "toml".to_string(),
-    ]);
+    arg.choices = Some(vec!["json".to_string(), "yaml".to_string(), "toml".to_string()]);
     assert_eq!(arg.choices.as_ref().unwrap().len(), 3);
 }
 
@@ -280,10 +276,7 @@ fn test_argparser_tracker_get_parser_mut() {
     let parser = tracker.get_parser_mut("parser").unwrap();
     parser.description = Some("Modified".to_string());
 
-    assert_eq!(
-        tracker.get_parser("parser").unwrap().description,
-        Some("Modified".to_string())
-    );
+    assert_eq!(tracker.get_parser("parser").unwrap().description, Some("Modified".to_string()));
 }
 
 #[test]

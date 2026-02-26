@@ -9,10 +9,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -50,10 +48,7 @@ fn test_s10_not_on_string() {
 #[test]
 fn test_s10_not_on_list() {
     let code = transpile("def is_empty(items: list) -> bool:\n    return not items\n");
-    assert!(
-        code.contains("fn is_empty"),
-        "Should handle not on list: {code}"
-    );
+    assert!(code.contains("fn is_empty"), "Should handle not on list: {code}");
 }
 
 #[test]
@@ -69,39 +64,27 @@ fn test_s10_none_check_with_option_param() {
     let code = transpile(
         "def process(val: int = None) -> int:\n    if val is None:\n        return 0\n    return val\n",
     );
-    assert!(
-        code.contains("fn process"),
-        "Should transpile None check: {code}"
-    );
+    assert!(code.contains("fn process"), "Should transpile None check: {code}");
 }
 
 #[test]
 fn test_s10_none_comparison() {
-    let code = transpile(
-        "def check(x: int) -> bool:\n    return x is None\n",
-    );
-    assert!(
-        code.contains("fn check"),
-        "Should handle is None comparison: {code}"
-    );
+    let code = transpile("def check(x: int) -> bool:\n    return x is None\n");
+    assert!(code.contains("fn check"), "Should handle is None comparison: {code}");
 }
 
 // ============ HashMap / dict generation coverage ============
 
 #[test]
 fn test_s10_dict_creation_empty() {
-    let code = transpile("def make_dict() -> dict:\n    d = {}\n    d['key'] = 'value'\n    return d\n");
-    assert!(
-        code.contains("HashMap") || code.contains("dict"),
-        "Should generate HashMap: {code}"
-    );
+    let code =
+        transpile("def make_dict() -> dict:\n    d = {}\n    d['key'] = 'value'\n    return d\n");
+    assert!(code.contains("HashMap") || code.contains("dict"), "Should generate HashMap: {code}");
 }
 
 #[test]
 fn test_s10_dict_literal() {
-    let code = transpile(
-        "def make_dict() -> dict:\n    return {'a': 1, 'b': 2, 'c': 3}\n",
-    );
+    let code = transpile("def make_dict() -> dict:\n    return {'a': 1, 'b': 2, 'c': 3}\n");
     assert!(
         code.contains("HashMap") || code.contains("insert"),
         "Should generate dict literal: {code}"
@@ -113,10 +96,7 @@ fn test_s10_dict_iteration_items() {
     let code = transpile(
         "def iter_dict(d: dict) -> None:\n    for k, v in d.items():\n        print(k, v)\n",
     );
-    assert!(
-        code.contains("iter()") || code.contains("items"),
-        "Should handle dict items: {code}"
-    );
+    assert!(code.contains("iter()") || code.contains("items"), "Should handle dict items: {code}");
 }
 
 // ============ Class / struct generation coverage ============
@@ -137,10 +117,7 @@ fn test_s10_class_with_str_repr() {
         "class Person:\n    def __init__(self, name: str, age: int):\n        self.name = name\n        self.age = age\n    def __str__(self) -> str:\n        return f'{self.name} ({self.age})'\n",
     );
     assert!(code.contains("struct Person"), "Should have struct: {code}");
-    assert!(
-        code.contains("Display") || code.contains("fmt"),
-        "Should have Display impl: {code}"
-    );
+    assert!(code.contains("Display") || code.contains("fmt"), "Should have Display impl: {code}");
 }
 
 #[test]
@@ -188,9 +165,7 @@ fn test_s10_dict_constant() {
 
 #[test]
 fn test_s10_string_constant() {
-    let code = transpile(
-        "VERSION = '1.0.0'\ndef get_version() -> str:\n    return VERSION\n",
-    );
+    let code = transpile("VERSION = '1.0.0'\ndef get_version() -> str:\n    return VERSION\n");
     assert!(
         code.contains("VERSION") || code.contains("version"),
         "Should generate string constant: {code}"
@@ -201,9 +176,7 @@ fn test_s10_string_constant() {
 
 #[test]
 fn test_s10_import_os() {
-    let code = transpile(
-        "import os\ndef get_cwd() -> str:\n    return os.getcwd()\n",
-    );
+    let code = transpile("import os\ndef get_cwd() -> str:\n    return os.getcwd()\n");
     assert!(code.contains("fn get_cwd"), "Should transpile os import: {code}");
 }
 
@@ -225,9 +198,8 @@ fn test_s10_from_import() {
 
 #[test]
 fn test_s10_stub_function_import() {
-    let code = transpile(
-        "from mylib import helper\ndef run(x: int) -> int:\n    return helper(x) + 1\n",
-    );
+    let code =
+        transpile("from mylib import helper\ndef run(x: int) -> int:\n    return helper(x) + 1\n");
     assert!(code.contains("fn run"), "Should generate stub: {code}");
 }
 
@@ -236,10 +208,7 @@ fn test_s10_stub_function_import() {
 #[test]
 fn test_s10_power_operator() {
     let code = transpile("def square(x: int) -> int:\n    return x ** 2\n");
-    assert!(
-        code.contains("pow") || code.contains("powi"),
-        "Should handle power: {code}"
-    );
+    assert!(code.contains("pow") || code.contains("powi"), "Should handle power: {code}");
 }
 
 #[test]
@@ -262,9 +231,7 @@ fn test_s10_list_comprehension_join() {
 
 #[test]
 fn test_s10_sorted_list() {
-    let code = transpile(
-        "def sort_items(items: list) -> list:\n    return sorted(items)\n",
-    );
+    let code = transpile("def sort_items(items: list) -> list:\n    return sorted(items)\n");
     assert!(code.contains("sort"), "Should handle sorted: {code}");
 }
 
@@ -285,10 +252,7 @@ fn test_s10_generator_function() {
     let code = transpile(
         "def count_up(n: int) -> int:\n    i = 0\n    while i < n:\n        yield i\n        i += 1\n",
     );
-    assert!(
-        code.contains("count_up") || code.contains("yield"),
-        "Should handle generator: {code}"
-    );
+    assert!(code.contains("count_up") || code.contains("yield"), "Should handle generator: {code}");
 }
 
 // ============ Context manager coverage ============
@@ -408,18 +372,9 @@ fn test_s10_augmented_assign_all() {
     );
     assert!(code.contains("fn ops"), "Should handle augmented assigns: {code}");
     // Augmented assigns may use py_add/py_mul or direct ops
-    assert!(
-        code.contains("py_add") || code.contains("+="),
-        "Should have add: {code}"
-    );
-    assert!(
-        code.contains("- (2") || code.contains("-="),
-        "Should have sub: {code}"
-    );
-    assert!(
-        code.contains("py_mul") || code.contains("*="),
-        "Should have mul: {code}"
-    );
+    assert!(code.contains("py_add") || code.contains("+="), "Should have add: {code}");
+    assert!(code.contains("- (2") || code.contains("-="), "Should have sub: {code}");
+    assert!(code.contains("py_mul") || code.contains("*="), "Should have mul: {code}");
 }
 
 // ============ Bitwise operations coverage ============
@@ -454,25 +409,21 @@ fn test_s10_lambda_in_filter() {
 
 #[test]
 fn test_s10_list_comp_with_condition() {
-    let code = transpile(
-        "def evens(n: int) -> list:\n    return [x for x in range(n) if x % 2 == 0]\n",
-    );
+    let code =
+        transpile("def evens(n: int) -> list:\n    return [x for x in range(n) if x % 2 == 0]\n");
     assert!(code.contains("fn evens"), "Should handle list comp: {code}");
 }
 
 #[test]
 fn test_s10_dict_comprehension() {
-    let code = transpile(
-        "def squares(n: int) -> dict:\n    return {x: x**2 for x in range(n)}\n",
-    );
+    let code = transpile("def squares(n: int) -> dict:\n    return {x: x**2 for x in range(n)}\n");
     assert!(code.contains("fn squares"), "Should handle dict comp: {code}");
 }
 
 #[test]
 fn test_s10_set_comprehension() {
-    let code = transpile(
-        "def unique_squares(items: list) -> set:\n    return {x**2 for x in items}\n",
-    );
+    let code =
+        transpile("def unique_squares(items: list) -> set:\n    return {x**2 for x in items}\n");
     assert!(code.contains("fn unique_squares"), "Should handle set comp: {code}");
 }
 
@@ -484,10 +435,7 @@ fn test_s10_type_inference_complex() {
         "from typing import Dict, List\ndef lookup(data: Dict[str, List[int]], key: str) -> List[int]:\n    return data[key]\n",
     );
     assert!(code.contains("fn lookup"), "Should handle complex types: {code}");
-    assert!(
-        code.contains("HashMap") || code.contains("Dict"),
-        "Should have HashMap: {code}"
-    );
+    assert!(code.contains("HashMap") || code.contains("Dict"), "Should have HashMap: {code}");
 }
 
 // ============ Decorator coverage ============
@@ -548,9 +496,7 @@ fn test_s10_walrus_operator() {
 
 #[test]
 fn test_s10_isinstance_check() {
-    let code = transpile(
-        "def check_type(x: int) -> bool:\n    return isinstance(x, int)\n",
-    );
+    let code = transpile("def check_type(x: int) -> bool:\n    return isinstance(x, int)\n");
     assert!(code.contains("fn check_type"), "Should handle isinstance: {code}");
 }
 
@@ -558,9 +504,7 @@ fn test_s10_isinstance_check() {
 
 #[test]
 fn test_s10_del_statement() {
-    let code = transpile(
-        "def remove_key(d: dict, key: str) -> None:\n    del d[key]\n",
-    );
+    let code = transpile("def remove_key(d: dict, key: str) -> None:\n    del d[key]\n");
     assert!(code.contains("fn remove_key"), "Should handle del: {code}");
 }
 
@@ -582,19 +526,14 @@ fn test_s10_recursive_factorial() {
         "def factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n",
     );
     assert!(code.contains("fn factorial"), "Should handle recursion: {code}");
-    assert!(
-        code.contains("factorial("),
-        "Should have recursive call: {code}"
-    );
+    assert!(code.contains("factorial("), "Should have recursive call: {code}");
 }
 
 // ============ Ternary expression coverage ============
 
 #[test]
 fn test_s10_ternary_expression() {
-    let code = transpile(
-        "def abs_val(x: int) -> int:\n    return x if x >= 0 else -x\n",
-    );
+    let code = transpile("def abs_val(x: int) -> int:\n    return x if x >= 0 else -x\n");
     assert!(code.contains("fn abs_val"), "Should handle ternary: {code}");
 }
 

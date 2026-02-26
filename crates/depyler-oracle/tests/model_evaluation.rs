@@ -45,10 +45,7 @@ fn test_ngram_predictor_on_depyler_corpus() {
         3,
     );
 
-    assert!(
-        !suggestions.is_empty(),
-        "Should find suggestions for type mismatch"
-    );
+    assert!(!suggestions.is_empty(), "Should find suggestions for type mismatch");
     assert_eq!(
         suggestions[0].category,
         ErrorCategory::TypeMismatch,
@@ -91,19 +88,10 @@ fn test_leave_one_out_accuracy() {
     }
 
     let accuracy = correct as f32 / total as f32;
-    println!(
-        "Leave-one-out accuracy: {:.2}% ({}/{})",
-        accuracy * 100.0,
-        correct,
-        total
-    );
+    println!("Leave-one-out accuracy: {:.2}% ({}/{})", accuracy * 100.0, correct, total);
 
     // Expect at least 50% accuracy on small corpus
-    assert!(
-        accuracy >= 0.4,
-        "Accuracy should be at least 40%, got {:.2}%",
-        accuracy * 100.0
-    );
+    assert!(accuracy >= 0.4, "Accuracy should be at least 40%, got {:.2}%", accuracy * 100.0);
 }
 
 /// Test category-specific precision.
@@ -135,11 +123,7 @@ fn test_category_precision() {
         }
     }
 
-    println!(
-        "TypeMismatch precision: {}/{}",
-        type_mismatch_correct,
-        type_mismatch_errors.len()
-    );
+    println!("TypeMismatch precision: {}/{}", type_mismatch_correct, type_mismatch_errors.len());
 }
 
 /// Test corpus statistics.
@@ -157,11 +141,8 @@ fn test_corpus_statistics() {
     // Verify we have samples in key categories
     assert!(total >= 20, "Should have at least 20 total samples");
 
-    let type_mismatch = stats
-        .iter()
-        .find(|(c, _)| *c == ErrorCategory::TypeMismatch)
-        .map(|(_, n)| *n)
-        .unwrap_or(0);
+    let type_mismatch =
+        stats.iter().find(|(c, _)| *c == ErrorCategory::TypeMismatch).map(|(_, n)| *n).unwrap_or(0);
     assert!(type_mismatch >= 5, "TypeMismatch should have >= 5 samples");
 }
 
@@ -193,10 +174,7 @@ fn test_similarity_threshold() {
     println!("Low threshold (0.1): {} matches", low_matches.len());
 
     // Low threshold should return more matches
-    assert!(
-        low_matches.len() >= high_matches.len(),
-        "Lower threshold should return more matches"
-    );
+    assert!(low_matches.len() >= high_matches.len(), "Lower threshold should return more matches");
 }
 
 /// Benchmark prediction latency.
@@ -228,10 +206,7 @@ fn test_prediction_latency() {
     let elapsed = start.elapsed();
 
     let predictions_per_sec = (100 * test_errors.len()) as f64 / elapsed.as_secs_f64();
-    println!(
-        "Prediction throughput: {:.0} predictions/sec",
-        predictions_per_sec
-    );
+    println!("Prediction throughput: {:.0} predictions/sec", predictions_per_sec);
 
     // Should be fast enough for interactive use (>100/sec)
     assert!(
@@ -288,11 +263,7 @@ fn test_random_forest_accuracy() {
 
         for fold in 0..k {
             let test_start = fold * fold_size;
-            let test_end = if fold == k - 1 {
-                n
-            } else {
-                test_start + fold_size
-            };
+            let test_end = if fold == k - 1 { n } else { test_start + fold_size };
 
             // Split data
             let mut train_features = Vec::new();
@@ -389,9 +360,7 @@ fn test_random_forest_tfidf_accuracy() {
     // Create TF-IDF + hand-crafted feature extractor
     let mut extractor = CombinedFeatureExtractor::new();
     extractor.fit(&messages).expect("Fit should succeed");
-    let features = extractor
-        .transform(&messages)
-        .expect("Transform should succeed");
+    let features = extractor.transform(&messages).expect("Transform should succeed");
 
     // Use fewer folds and configs in fast test mode (DEPYLER_FAST_TESTS=1)
     let fast_mode = std::env::var("DEPYLER_FAST_TESTS").is_ok();
@@ -421,11 +390,7 @@ fn test_random_forest_tfidf_accuracy() {
 
         for fold in 0..k {
             let test_start = fold * fold_size;
-            let test_end = if fold == k - 1 {
-                n
-            } else {
-                test_start + fold_size
-            };
+            let test_end = if fold == k - 1 { n } else { test_start + fold_size };
 
             // Split data
             let mut train_features = Vec::new();
@@ -434,9 +399,8 @@ fn test_random_forest_tfidf_accuracy() {
             let mut test_labels = Vec::new();
 
             for i in 0..n {
-                let row: Vec<f32> = (0..features.n_cols())
-                    .map(|j| features.get(i, j) as f32)
-                    .collect();
+                let row: Vec<f32> =
+                    (0..features.n_cols()).map(|j| features.get(i, j) as f32).collect();
 
                 if i >= test_start && i < test_end {
                     test_features.extend(row);
@@ -548,12 +512,9 @@ fn test_full_corpus_aprender_metrics() {
     eprintln!("Test samples: {}", x_test.shape().0);
 
     // Train RandomForest (smaller for test speed)
-    let mut rf = RandomForestClassifier::new(100)
-        .with_max_depth(10)
-        .with_random_state(42);
+    let mut rf = RandomForestClassifier::new(100).with_max_depth(10).with_random_state(42);
 
-    rf.fit(&x_train, &train_labels)
-        .expect("Training should succeed");
+    rf.fit(&x_train, &train_labels).expect("Training should succeed");
 
     // Predict
     let predictions = rf.predict(&x_test);
@@ -574,16 +535,8 @@ fn test_full_corpus_aprender_metrics() {
     eprintln!("==========================================\n");
 
     // Assertions
-    assert!(
-        acc >= 0.80,
-        "Accuracy should be >=80%, got {:.2}%",
-        acc * 100.0
-    );
-    assert!(
-        f1_macro >= 0.70,
-        "F1 (macro) should be >=0.70, got {:.4}",
-        f1_macro
-    );
+    assert!(acc >= 0.80, "Accuracy should be >=80%, got {:.2}%", acc * 100.0);
+    assert!(f1_macro >= 0.70, "F1 (macro) should be >=0.70, got {:.4}", f1_macro);
 }
 
 /// Test 5-fold cross-validation with full corpus.
@@ -643,9 +596,7 @@ fn test_kfold_cv_full_corpus() {
         let x_test = Matrix::from_vec(test_idx.len(), n_features, test_data).expect("Valid matrix");
 
         // Train
-        let mut rf = RandomForestClassifier::new(50)
-            .with_max_depth(8)
-            .with_random_state(42);
+        let mut rf = RandomForestClassifier::new(50).with_max_depth(8).with_random_state(42);
 
         if rf.fit(&x_train, &train_labels_vec).is_ok() {
             let predictions = rf.predict(&x_test);
@@ -657,12 +608,7 @@ fn test_kfold_cv_full_corpus() {
             fold_accuracies.push(acc);
             fold_f1s.push(f1);
 
-            eprintln!(
-                "Fold {}: Accuracy={:.2}%, F1={:.4}",
-                fold_idx + 1,
-                acc * 100.0,
-                f1
-            );
+            eprintln!("Fold {}: Accuracy={:.2}%, F1={:.4}", fold_idx + 1, acc * 100.0, f1);
         }
     }
 
@@ -674,9 +620,5 @@ fn test_kfold_cv_full_corpus() {
     eprintln!("Mean F1 (macro): {:.4}", mean_f1);
     eprintln!("==========================================\n");
 
-    assert!(
-        mean_acc >= 0.75,
-        "Mean accuracy should be >=75%, got {:.2}%",
-        mean_acc * 100.0
-    );
+    assert!(mean_acc >= 0.75, "Mean accuracy should be >=75%, got {:.2}%", mean_acc * 100.0);
 }

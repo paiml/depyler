@@ -168,11 +168,8 @@ impl ErrorExpert {
 
     /// Score how well this expert can handle the given error
     pub fn score(&self, error_code: &str, context: &str) -> f32 {
-        let domain_match = if ExpertDomain::from_error_code(error_code) == self.domain {
-            0.5
-        } else {
-            0.0
-        };
+        let domain_match =
+            if ExpertDomain::from_error_code(error_code) == self.domain { 0.5 } else { 0.0 };
 
         let pattern_match = self
             .fix_patterns
@@ -232,11 +229,7 @@ pub struct MoeOracleConfig {
 
 impl Default for MoeOracleConfig {
     fn default() -> Self {
-        Self {
-            top_k: 2,
-            temperature: 1.0,
-            load_balance_weight: 0.01,
-        }
+        Self { top_k: 2, temperature: 1.0, load_balance_weight: 0.01 }
     }
 }
 
@@ -288,12 +281,7 @@ impl MoeOracle {
 
         let gating = SoftmaxGating::new(Self::FEATURE_DIM, 4).with_temperature(config.temperature);
 
-        Self {
-            experts,
-            gating,
-            config,
-            feature_dim: Self::FEATURE_DIM,
-        }
+        Self { experts, gating, config, feature_dim: Self::FEATURE_DIM }
     }
 
     /// Encode error into feature vector
@@ -361,9 +349,8 @@ impl MoeOracle {
         let confidence = primary_expert.score(error_code, context);
 
         // Get fix suggestion from primary expert
-        let suggested_fix = primary_expert
-            .suggest_fix(error_code, context)
-            .map(|p| p.fix_description.clone());
+        let suggested_fix =
+            primary_expert.suggest_fix(error_code, context).map(|p| p.fix_description.clone());
 
         // Map to error category
         let category = match primary_domain {
@@ -398,10 +385,7 @@ impl MoeOracle {
                 _ => 0.0,
             };
 
-            domain_samples
-                .entry(domain)
-                .or_default()
-                .push((features, label));
+            domain_samples.entry(domain).or_default().push((features, label));
         }
 
         // Train each expert on its domain samples
@@ -587,21 +571,9 @@ mod tests {
         let mut oracle = MoeOracle::new();
 
         let samples = vec![
-            (
-                "E0308".to_string(),
-                "type mismatch".to_string(),
-                ErrorCategory::TypeMismatch,
-            ),
-            (
-                "E0425".to_string(),
-                "cannot find value".to_string(),
-                ErrorCategory::MissingImport,
-            ),
-            (
-                "E0599".to_string(),
-                "method not found".to_string(),
-                ErrorCategory::TraitBound,
-            ),
+            ("E0308".to_string(), "type mismatch".to_string(), ErrorCategory::TypeMismatch),
+            ("E0425".to_string(), "cannot find value".to_string(), ErrorCategory::MissingImport),
+            ("E0599".to_string(), "method not found".to_string(), ErrorCategory::TraitBound),
         ];
 
         let result = oracle.train(&samples);
@@ -610,10 +582,7 @@ mod tests {
 
     #[test]
     fn test_moe_config_top_k() {
-        let config = MoeOracleConfig {
-            top_k: 1,
-            ..Default::default()
-        };
+        let config = MoeOracleConfig { top_k: 1, ..Default::default() };
         let oracle = MoeOracle::with_config(config);
 
         // With top_k=1, primary expert should be correctly routed

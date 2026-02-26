@@ -38,11 +38,7 @@ def use_count():
 
     let rust = result.unwrap();
     // The return type of get_count should propagate to use_count
-    assert!(
-        rust.contains("i64") || rust.contains("i32"),
-        "Should infer integer types: {}",
-        rust
-    );
+    assert!(rust.contains("i64") || rust.contains("i32"), "Should infer integer types: {}", rust);
 }
 
 #[test]
@@ -81,11 +77,7 @@ def untyped_caller():
 
     let rust = result.unwrap();
     // typed_getter's int return type should influence untyped_caller
-    assert!(
-        rust.contains("i64") || rust.contains("i32"),
-        "Should propagate int type: {}",
-        rust
-    );
+    assert!(rust.contains("i64") || rust.contains("i32"), "Should propagate int type: {}", rust);
 }
 
 #[test]
@@ -127,11 +119,7 @@ def process_items():
     assert!(result.is_ok(), "Should transpile: {:?}", result.err());
 
     let rust = result.unwrap();
-    assert!(
-        rust.contains("Vec<") || rust.contains("vec!"),
-        "Should handle list types: {}",
-        rust
-    );
+    assert!(rust.contains("Vec<") || rust.contains("vec!"), "Should handle list types: {}", rust);
 }
 
 // ========================================================================
@@ -155,11 +143,7 @@ def main():
 
     // x should be inferred as int from call site
     let rust = result.unwrap();
-    assert!(
-        rust.contains("i64") || rust.contains("i32"),
-        "Should infer int parameter: {}",
-        rust
-    );
+    assert!(rust.contains("i64") || rust.contains("i32"), "Should infer int parameter: {}", rust);
 }
 
 #[test]
@@ -372,9 +356,5 @@ def double_number() -> int:
     let rust = result.unwrap();
     // With explicit type annotations, we should see concrete types, not DepylerValue
     let has_concrete_types = rust.contains("i64") || rust.contains("i32") || rust.contains("-> i");
-    assert!(
-        has_concrete_types,
-        "Should use concrete types when annotated: {}",
-        rust
-    );
+    assert!(has_concrete_types, "Should use concrete types when annotated: {}", rust);
 }

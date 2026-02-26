@@ -180,10 +180,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         kwargs: &[(String, HirExpr)],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         // Mark that we need csv crate
         self.ctx.needs_csv = true;
@@ -287,10 +285,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        let arg_exprs: Vec<syn::Expr> =
+            args.iter().map(|arg| arg.to_rust_expr(self.ctx)).collect::<Result<Vec<_>>>()?;
 
         let result = match method {
             "get" => {
@@ -353,11 +349,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-
     // DEPYLER-REFACTOR: try_convert_numpy_call, try_convert_numpy_call_nasa_mode moved to stdlib_numpy
 
     // DEPYLER-REFACTOR: try_convert_os_path_method moved to stdlib_os
-
 
     // DEPYLER-REFACTOR: bisect, heapq, copy methods moved to stdlib_misc
     // DEPYLER-COVERAGE-95: try_convert_itertools_method moved to stdlib_method_gen::itertools
@@ -368,7 +362,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // DEPYLER-COVERAGE-95: try_convert_pathlib_method moved to stdlib_method_gen::pathlib
 
     // DEPYLER-REFACTOR: convert_pathlib_instance_method moved to stdlib_pathlib
-
 
     // DEPYLER-REFACTOR: decimal, statistics methods moved to stdlib_misc
     // DEPYLER-COVERAGE-95: try_convert_random_method moved to stdlib_method_gen::random
@@ -667,7 +660,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1069: Handle datetime.time class attributes (min, max)
             // These are only valid for datetime.time class, not the time module
             // time.min → (0, 0, 0, 0), time.max → (23, 59, 59, 999999)
-            if is_actually_imported && module_name == "time" && (method == "min" || method == "max") {
+            if is_actually_imported && module_name == "time" && (method == "min" || method == "max")
+            {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
                 if nasa_mode {
                     // Return tuple (hour, minute, second, microsecond)
@@ -688,7 +682,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0595: Handle bytes class methods
             // bytes.fromhex("aabbcc") → hex string to byte array
-            if is_actually_imported && module_name == "bytes" && method == "fromhex" && args.len() == 1 {
+            if is_actually_imported
+                && module_name == "bytes"
+                && method == "fromhex"
+                && args.len() == 1
+            {
                 let hex_str = args[0].to_rust_expr(self.ctx)?;
                 // Convert hex string to Vec<u8> using inline parsing
                 return Ok(Some(parse_quote! {
@@ -865,16 +863,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0335 FIX #2: Get rust_path and rust_name before converting args (avoid borrow conflict)
-            let module_info = self
-                .ctx
-                .imported_modules
-                .get(module_name)
-                .and_then(|mapping| {
-                    mapping
-                        .item_map
-                        .get(method)
-                        .map(|rust_name| (mapping.rust_path.clone(), rust_name.clone()))
-                });
+            let module_info = self.ctx.imported_modules.get(module_name).and_then(|mapping| {
+                mapping
+                    .item_map
+                    .get(method)
+                    .map(|rust_name| (mapping.rust_path.clone(), rust_name.clone()))
+            });
 
             if let Some((rust_path, rust_name)) = module_info {
                 // Convert args
@@ -946,5 +940,4 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         Ok(None)
     }
-
 }

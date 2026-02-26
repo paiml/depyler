@@ -21,10 +21,8 @@ mod tests {
 
     fn transpile(python_code: &str) -> String {
         let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-        let (module, _) = AstBridge::new()
-            .with_source(python_code.to_string())
-            .python_to_hir(ast)
-            .expect("hir");
+        let (module, _) =
+            AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
         let tm = TypeMapper::default();
         let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
         result
@@ -573,7 +571,11 @@ def check_title(s: str) -> bool:
     return s.istitle()
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("is_lowercase") || result.contains("prev_is_cased"));
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("is_lowercase")
+                || result.contains("prev_is_cased")
+        );
     }
 
     #[test]
@@ -1033,7 +1035,11 @@ def check_title_assigned(s: str) -> bool:
     return result
 "#;
         let result = transpile(code);
-        assert!(result.contains("is_uppercase") || result.contains("is_lowercase") || result.contains("prev_is_cased"));
+        assert!(
+            result.contains("is_uppercase")
+                || result.contains("is_lowercase")
+                || result.contains("prev_is_cased")
+        );
     }
 
     #[test]
@@ -1281,7 +1287,11 @@ def show_help(parser):
     parser.print_help()
 "#;
         let result = transpile(code);
-        assert!(result.contains("print_help") || result.contains("CommandFactory") || !result.is_empty());
+        assert!(
+            result.contains("print_help")
+                || result.contains("CommandFactory")
+                || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1492,7 +1502,11 @@ def set_default(data: dict, key: str, val: int):
     data.setdefault(key, val)
 "#;
         let result = transpile(code);
-        assert!(result.contains("entry") || result.contains("setdefault") || result.contains("or_insert"));
+        assert!(
+            result.contains("entry")
+                || result.contains("setdefault")
+                || result.contains("or_insert")
+        );
     }
 
     #[test]

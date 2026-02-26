@@ -455,10 +455,7 @@ fn test_array_length_subtraction_safety() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "safe_last_index".to_string(),
-            params: smallvec![HirParam::new(
-                "arr".to_string(),
-                Type::List(Box::new(Type::Int))
-            )],
+            params: smallvec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,

@@ -126,11 +126,7 @@ fn main() -> anyhow::Result<()> {
         real_errors_path: None,
         graph_corpus_path: Some(args.vectors.to_string_lossy().to_string()),
         balance_classes: args.balance,
-        max_per_class: if args.balance {
-            Some(args.max_per_class)
-        } else {
-            None
-        },
+        max_per_class: if args.balance { Some(args.max_per_class) } else { None },
     };
 
     // Build unified corpus
@@ -141,19 +137,10 @@ fn main() -> anyhow::Result<()> {
     println!();
     println!("═══ Training Data Statistics ═══");
     println!("Sources:");
-    println!(
-        "  Graph corpus: {:>6} samples (ambiguity vectors)",
-        result.stats.graph_corpus_count
-    );
-    println!(
-        "  Synthetic:    {:>6} samples (background data)",
-        result.stats.synthetic_count
-    );
+    println!("  Graph corpus: {:>6} samples (ambiguity vectors)", result.stats.graph_corpus_count);
+    println!("  Synthetic:    {:>6} samples (background data)", result.stats.synthetic_count);
     println!("  Depyler:      {:>6} samples", result.stats.depyler_count);
-    println!(
-        "  Verificar:    {:>6} samples",
-        result.stats.verificar_count
-    );
+    println!("  Verificar:    {:>6} samples", result.stats.verificar_count);
     println!("  ────────────────────────────");
     println!("  Before dedup: {:>6}", result.stats.total_before_dedupe);
     println!("  Duplicates:   {:>6}", result.stats.duplicates_removed);
@@ -192,11 +179,8 @@ fn main() -> anyhow::Result<()> {
 
     // Calculate and report metrics
     let total = result.stats.final_count as f64;
-    let type_mismatch_ratio = if total > 0.0 {
-        (type_mismatch_count as f64 / total) * 100.0
-    } else {
-        0.0
-    };
+    let type_mismatch_ratio =
+        if total > 0.0 { (type_mismatch_count as f64 / total) * 100.0 } else { 0.0 };
 
     println!();
     println!("═══ Training Complete ═══");
@@ -207,16 +191,10 @@ fn main() -> anyhow::Result<()> {
     // Success criteria check
     if type_mismatch_count >= 1500 {
         println!();
-        println!(
-            "✓ Success: TypeMismatch samples ({}) >= 1500 threshold",
-            type_mismatch_count
-        );
+        println!("✓ Success: TypeMismatch samples ({}) >= 1500 threshold", type_mismatch_count);
     } else {
         println!();
-        println!(
-            "⚠ Warning: TypeMismatch samples ({}) < 1500 threshold",
-            type_mismatch_count
-        );
+        println!("⚠ Warning: TypeMismatch samples ({}) < 1500 threshold", type_mismatch_count);
         println!("  Consider generating more hostile patterns in the corpus");
     }
 

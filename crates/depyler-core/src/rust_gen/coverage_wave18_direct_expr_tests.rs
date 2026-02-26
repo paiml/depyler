@@ -29,10 +29,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python_code: &str) -> String {
     let ast = parse(python_code, Mode::Module, "<test>").expect("parse");
-    let (module, _) = AstBridge::new()
-        .with_source(python_code.to_string())
-        .python_to_hir(ast)
-        .expect("hir");
+    let (module, _) =
+        AstBridge::new().with_source(python_code.to_string()).python_to_hir(ast).expect("hir");
     let tm = TypeMapper::default();
     let (result, _) = generate_rust_file(&module, &tm).expect("codegen");
     result
@@ -182,7 +180,10 @@ mod tests {
         let code = "import re\ndef f():\n    m = re.search(\"abc\", \"xabcx\")";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("Regex") || result.contains("regex") || result.contains("find"), "re.search literals: {result}");
+        assert!(
+            result.contains("Regex") || result.contains("regex") || result.contains("find"),
+            "re.search literals: {result}"
+        );
     }
 
     #[test]
@@ -215,7 +216,8 @@ mod tests {
 
     #[test]
     fn test_w18de_021_re_fullmatch_variables() {
-        let code = "import re\ndef f(pattern: str, text: str):\n    m = re.fullmatch(pattern, text)";
+        let code =
+            "import re\ndef f(pattern: str, text: str):\n    m = re.fullmatch(pattern, text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -229,7 +231,8 @@ mod tests {
 
     #[test]
     fn test_w18de_023_re_findall_variables() {
-        let code = "import re\ndef f(pattern: str, text: str):\n    results = re.findall(pattern, text)";
+        let code =
+            "import re\ndef f(pattern: str, text: str):\n    results = re.findall(pattern, text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -243,7 +246,8 @@ mod tests {
 
     #[test]
     fn test_w18de_025_re_finditer_variables() {
-        let code = "import re\ndef f(pattern: str, text: str):\n    it = re.finditer(pattern, text)";
+        let code =
+            "import re\ndef f(pattern: str, text: str):\n    it = re.finditer(pattern, text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -285,7 +289,8 @@ mod tests {
 
     #[test]
     fn test_w18de_031_re_split_variables() {
-        let code = "import re\ndef f(pattern: str, text: str):\n    parts = re.split(pattern, text)";
+        let code =
+            "import re\ndef f(pattern: str, text: str):\n    parts = re.split(pattern, text)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -448,7 +453,8 @@ mod tests {
 
     #[test]
     fn test_w18de_053_base64_urlsafe_b64encode() {
-        let code = "import base64\ndef f(data: bytes):\n    result = base64.urlsafe_b64encode(data)";
+        let code =
+            "import base64\ndef f(data: bytes):\n    result = base64.urlsafe_b64encode(data)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -936,7 +942,8 @@ mod tests {
 
     #[test]
     fn test_w18de_118_random_randint_vars() {
-        let code = "import random\ndef f(lo: int, hi: int) -> int:\n    return random.randint(lo, hi)";
+        let code =
+            "import random\ndef f(lo: int, hi: int) -> int:\n    return random.randint(lo, hi)";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1132,7 +1139,8 @@ mod tests {
 
     #[test]
     fn test_w18de_144_int_from_bytes_literal_big() {
-        let code = "def f() -> int:\n    data = [0, 0, 0, 1]\n    return int.from_bytes(data, \"big\")";
+        let code =
+            "def f() -> int:\n    data = [0, 0, 0, 1]\n    return int.from_bytes(data, \"big\")";
         let result = transpile(code);
         assert!(!result.is_empty());
     }
@@ -1274,7 +1282,10 @@ mod tests {
         let code = "def f(s: str) -> bool:\n    return s.isdigit()";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("is_ascii_digit") || result.contains("digit"), "str.isdigit: {result}");
+        assert!(
+            result.contains("is_ascii_digit") || result.contains("digit"),
+            "str.isdigit: {result}"
+        );
     }
 
     #[test]
@@ -1282,7 +1293,10 @@ mod tests {
         let code = "def f(s: str) -> bool:\n    return s.isalpha()";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("is_alphabetic") || result.contains("alpha"), "str.isalpha: {result}");
+        assert!(
+            result.contains("is_alphabetic") || result.contains("alpha"),
+            "str.isalpha: {result}"
+        );
     }
 
     #[test]
@@ -1290,7 +1304,10 @@ mod tests {
         let code = "def f(s: str) -> bool:\n    return s.isalnum()";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("is_alphanumeric") || result.contains("alnum"), "str.isalnum: {result}");
+        assert!(
+            result.contains("is_alphanumeric") || result.contains("alnum"),
+            "str.isalnum: {result}"
+        );
     }
 
     #[test]
@@ -1491,7 +1508,10 @@ mod tests {
         let code = "def f() -> int:\n    return Counter.create_with_value(5)";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("Counter") && result.contains("create_with_value"), "static method call: {result}");
+        assert!(
+            result.contains("Counter") && result.contains("create_with_value"),
+            "static method call: {result}"
+        );
     }
 
     #[test]
@@ -1587,6 +1607,9 @@ mod tests {
         let code = "def f(s: str) -> str:\n    return s.strip().upper()";
         let result = transpile(code);
         assert!(!result.is_empty());
-        assert!(result.contains("trim") || result.contains("to_uppercase"), "chained methods: {result}");
+        assert!(
+            result.contains("trim") || result.contains("to_uppercase"),
+            "chained methods: {result}"
+        );
     }
 }

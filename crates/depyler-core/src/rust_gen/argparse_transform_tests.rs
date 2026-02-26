@@ -317,10 +317,7 @@ fn test_tracker_get_parser_mut() {
     let parser = tracker.get_parser_mut("parser").unwrap();
     parser.description = Some("Updated".to_string());
 
-    assert_eq!(
-        tracker.get_parser("parser").unwrap().description,
-        Some("Updated".to_string())
-    );
+    assert_eq!(tracker.get_parser("parser").unwrap().description, Some("Updated".to_string()));
 }
 
 #[test]
@@ -336,10 +333,7 @@ fn test_tracker_get_first_parser() {
 #[test]
 fn test_tracker_clear() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_parser(
-        "parser".to_string(),
-        ArgParserInfo::new("parser".to_string()),
-    );
+    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
     tracker.register_group("group".to_string(), "parser".to_string());
     tracker.struct_generated = true;
 
@@ -357,32 +351,20 @@ fn test_tracker_clear() {
 #[test]
 fn test_tracker_register_group() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_parser(
-        "parser".to_string(),
-        ArgParserInfo::new("parser".to_string()),
-    );
+    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
     tracker.register_group("io_group".to_string(), "parser".to_string());
 
-    assert_eq!(
-        tracker.get_parser_for_group("io_group"),
-        Some("parser".to_string())
-    );
+    assert_eq!(tracker.get_parser_for_group("io_group"), Some("parser".to_string()));
 }
 
 #[test]
 fn test_tracker_nested_groups() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_parser(
-        "parser".to_string(),
-        ArgParserInfo::new("parser".to_string()),
-    );
+    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
     tracker.register_group("parent_group".to_string(), "parser".to_string());
     tracker.register_group("child_group".to_string(), "parent_group".to_string());
 
-    assert_eq!(
-        tracker.get_parser_for_group("child_group"),
-        Some("parser".to_string())
-    );
+    assert_eq!(tracker.get_parser_for_group("child_group"), Some("parser".to_string()));
 }
 
 #[test]
@@ -488,10 +470,8 @@ fn test_tracker_subcommand_with_arguments() {
         subparsers_var: "subparsers".to_string(),
     };
 
-    info.arguments
-        .push(ArgParserArgument::new("files".to_string()));
-    info.arguments
-        .push(ArgParserArgument::new("--force".to_string()));
+    info.arguments.push(ArgParserArgument::new("files".to_string()));
+    info.arguments.push(ArgParserArgument::new("--force".to_string()));
 
     tracker.register_subcommand("add_parser".to_string(), info);
 
@@ -507,9 +487,7 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline
-        .transpile(code)
-        .expect("transpilation should succeed")
+    pipeline.transpile(code).expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -815,10 +793,7 @@ fn test_subcommand_enum_generation() {
     let mut tracker = ArgParserTracker::new();
 
     // Register main parser
-    tracker.register_parser(
-        "parser".to_string(),
-        ArgParserInfo::new("parser".to_string()),
-    );
+    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
 
     // Register subparsers
     tracker.register_subparsers(
@@ -982,14 +957,9 @@ fn test_subcommand_with_empty_name_filtered() {
 #[test]
 fn test_subcommand_var_mapping() {
     let mut tracker = ArgParserTracker::new();
-    tracker
-        .subcommand_var_to_cmd
-        .insert("top_parser".to_string(), "top".to_string());
+    tracker.subcommand_var_to_cmd.insert("top_parser".to_string(), "top".to_string());
 
-    assert_eq!(
-        tracker.subcommand_var_to_cmd.get("top_parser"),
-        Some(&"top".to_string())
-    );
+    assert_eq!(tracker.subcommand_var_to_cmd.get("top_parser"), Some(&"top".to_string()));
 }
 
 #[test]
@@ -1445,9 +1415,7 @@ fn test_generate_commands_enum_with_fields() {
     };
 
     // Add arguments to subcommand
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("package".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("package".to_string()));
     let mut version_arg = ArgParserArgument::new("--version".to_string());
     version_arg.help = Some("Version to install".to_string());
     subcommand.arguments.push(version_arg);
@@ -1515,12 +1483,8 @@ fn test_generate_commands_enum_deduplicates_fields() {
     };
 
     // Add duplicate argument names
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("file".to_string()));
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("file".to_string())); // Duplicate
+    subcommand.arguments.push(ArgParserArgument::new("file".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("file".to_string())); // Duplicate
 
     tracker.register_subcommand("test_parser".to_string(), subcommand);
 
@@ -1621,9 +1585,7 @@ fn test_analyze_subcommand_field_access_with_attribute() {
         arguments: vec![],
         subparsers_var: "subparsers".to_string(),
     };
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("url".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("url".to_string()));
     tracker.register_subcommand("clone".to_string(), subcommand);
 
     let result =
@@ -1740,9 +1702,7 @@ fn test_analyze_subcommand_field_access_while_stmt() {
         arguments: vec![],
         subparsers_var: "subparsers".to_string(),
     };
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("running".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("running".to_string()));
     tracker.register_subcommand("loop".to_string(), subcommand);
 
     let result =
@@ -1775,9 +1735,7 @@ fn test_analyze_subcommand_field_access_return_stmt() {
         arguments: vec![],
         subparsers_var: "subparsers".to_string(),
     };
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("result".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("result".to_string()));
     tracker.register_subcommand("get".to_string(), subcommand);
 
     let result =
@@ -1814,9 +1772,7 @@ fn test_analyze_subcommand_field_access_assign_stmt() {
         arguments: vec![],
         subparsers_var: "subparsers".to_string(),
     };
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("value".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("value".to_string()));
     tracker.register_subcommand("set".to_string(), subcommand);
 
     let result =
@@ -1864,9 +1820,7 @@ fn test_analyze_subcommand_field_access_non_args_param_false_positive() {
         arguments: vec![],
         subparsers_var: "subparsers".to_string(),
     };
-    subcommand
-        .arguments
-        .push(ArgParserArgument::new("year".to_string()));
+    subcommand.arguments.push(ArgParserArgument::new("year".to_string()));
     tracker.register_subcommand("days".to_string(), subcommand);
 
     let result =
@@ -2210,9 +2164,7 @@ fn test_rust_type_nested_list() {
 #[test]
 fn test_rust_type_nested_optional() {
     let mut arg = ArgParserArgument::new("maybe".to_string());
-    arg.arg_type = Some(Type::Optional(Box::new(Type::Optional(Box::new(
-        Type::String,
-    )))));
+    arg.arg_type = Some(Type::Optional(Box::new(Type::Optional(Box::new(Type::String)))));
     assert_eq!(arg.rust_type(), "Option<Option<String>>");
 }
 
@@ -2242,13 +2194,7 @@ fn test_rust_type_any_lowercase() {
 fn wrap_in_main(body: &str) -> String {
     let indented: String = body
         .lines()
-        .map(|line| {
-            if line.trim().is_empty() {
-                String::new()
-            } else {
-                format!("    {}", line)
-            }
-        })
+        .map(|line| if line.trim().is_empty() { String::new() } else { format!("    {}", line) })
         .collect::<Vec<_>>()
         .join("\n");
     format!("import argparse\n\ndef main():\n{}", indented)
@@ -2270,10 +2216,7 @@ fn test_transpile_main_positional_arg_appears_in_struct() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nparser.add_argument('filename')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("filename"),
-        "Expected 'filename' field in output"
-    );
+    assert!(code.contains("filename"), "Expected 'filename' field in output");
 }
 
 #[test]
@@ -2338,10 +2281,7 @@ fn test_transpile_main_default_int_value() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nparser.add_argument('--count', type=int, default=10)\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("10") || code.contains("default"),
-        "Expected default value of 10"
-    );
+    assert!(code.contains("10") || code.contains("default"), "Expected default value of 10");
 }
 
 #[test]
@@ -2412,10 +2352,7 @@ fn test_transpile_main_action_append_produces_vec() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nparser.add_argument('--include', action='append')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("Vec") || code.contains("include"),
-        "Expected Vec for action='append'"
-    );
+    assert!(code.contains("Vec") || code.contains("include"), "Expected Vec for action='append'");
 }
 
 #[test]
@@ -2423,10 +2360,7 @@ fn test_transpile_main_short_flag_only() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nparser.add_argument('-q', action='store_true')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("q") && code.contains("bool"),
-        "Expected short flag 'q' with bool type"
-    );
+    assert!(code.contains("q") && code.contains("bool"), "Expected short flag 'q' with bool type");
 }
 
 #[test]
@@ -2435,10 +2369,7 @@ fn test_transpile_main_long_flag_only() {
         "parser = argparse.ArgumentParser()\nparser.add_argument('--silent', action='store_true')\nargs = parser.parse_args()",
     ));
     assert!(code.contains("silent"), "Expected 'silent' field");
-    assert!(
-        code.contains("long") || code.contains("bool"),
-        "Expected long attr or bool type"
-    );
+    assert!(code.contains("long") || code.contains("bool"), "Expected long attr or bool type");
 }
 
 #[test]
@@ -2458,7 +2389,10 @@ fn test_transpile_main_epilog_produces_after_help() {
         "parser = argparse.ArgumentParser(description='Tool', epilog='Example: tool --help')\nparser.add_argument('file')\nargs = parser.parse_args()",
     ));
     assert!(
-        code.contains("Example") || code.contains("after_help") || code.contains("epilog") || code.contains("Args"),
+        code.contains("Example")
+            || code.contains("after_help")
+            || code.contains("epilog")
+            || code.contains("Args"),
         "Expected epilog content or Args struct"
     );
 }
@@ -2501,10 +2435,7 @@ fn test_transpile_main_mutually_exclusive_group() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\ngroup = parser.add_mutually_exclusive_group()\ngroup.add_argument('--verbose', action='store_true')\ngroup.add_argument('--quiet', action='store_true')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("verbose") || code.contains("quiet"),
-        "Expected mutex group fields"
-    );
+    assert!(code.contains("verbose") || code.contains("quiet"), "Expected mutex group fields");
 }
 
 #[test]
@@ -2545,14 +2476,8 @@ fn test_transpile_main_int_default_with_type() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nparser.add_argument('--port', type=int, default=8080)\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("i32") || code.contains("port"),
-        "Expected i32 type or port field"
-    );
-    assert!(
-        code.contains("8080") || code.contains("default"),
-        "Expected default 8080"
-    );
+    assert!(code.contains("i32") || code.contains("port"), "Expected i32 type or port field");
+    assert!(code.contains("8080") || code.contains("default"), "Expected default 8080");
 }
 
 #[test]
@@ -2593,10 +2518,7 @@ fn test_transpile_main_bool_default_false_store_true() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nparser.add_argument('--dry-run', action='store_true')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("dry_run") || code.contains("dry"),
-        "Expected dry_run field"
-    );
+    assert!(code.contains("dry_run") || code.contains("dry"), "Expected dry_run field");
     assert!(code.contains("bool"), "Expected bool for store_true");
 }
 
@@ -2605,10 +2527,7 @@ fn test_transpile_main_complex_cli_tool() {
     let code = transpile(
         "import argparse\nfrom pathlib import Path\n\ndef main():\n    parser = argparse.ArgumentParser(description='File processor')\n    parser.add_argument('input_file', type=Path, help='Input file')\n    parser.add_argument('-o', '--output', type=Path, help='Output file')\n    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')\n    parser.add_argument('--threads', type=int, default=4, help='Number of threads')\n    parser.add_argument('--format', choices=['json', 'csv', 'xml'], default='json')\n    args = parser.parse_args()",
     );
-    assert!(
-        code.contains("input_file") || code.contains("input"),
-        "Expected input_file field"
-    );
+    assert!(code.contains("input_file") || code.contains("input"), "Expected input_file field");
     assert!(code.contains("verbose"), "Expected verbose field");
     assert!(code.contains("threads"), "Expected threads field");
 }
@@ -2629,10 +2548,7 @@ fn test_transpile_main_subcommand_with_typed_arg() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\ntop_parser = subparsers.add_parser('top')\ntop_parser.add_argument('n', type=int)\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("Top") || code.contains("top"),
-        "Expected Top subcommand"
-    );
+    assert!(code.contains("Top") || code.contains("top"), "Expected Top subcommand");
 }
 
 #[test]
@@ -2651,7 +2567,10 @@ fn test_transpile_main_args_struct_has_derive_parser() {
     ));
     // The transpiler generates either clap::Parser derive or Args struct or file field
     assert!(
-        code.contains("Parser") || code.contains("clap") || code.contains("Args") || code.contains("file"),
+        code.contains("Parser")
+            || code.contains("clap")
+            || code.contains("Args")
+            || code.contains("file"),
         "Expected derive(Parser), clap, Args struct, or file field"
     );
 }
@@ -2661,10 +2580,7 @@ fn test_transpile_main_subparser_with_help_text() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\npush_parser = subparsers.add_parser('push', help='Push changes')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("Push") || code.contains("push"),
-        "Expected Push subcommand"
-    );
+    assert!(code.contains("Push") || code.contains("push"), "Expected Push subcommand");
 }
 
 #[test]
@@ -2672,14 +2588,8 @@ fn test_transpile_main_subparser_multiple_commands() {
     let code = transpile(&wrap_in_main(
         "parser = argparse.ArgumentParser()\nsubparsers = parser.add_subparsers(dest='command')\nclone_parser = subparsers.add_parser('clone')\nclone_parser.add_argument('url')\npush_parser = subparsers.add_parser('push')\npush_parser.add_argument('--force', action='store_true')\nargs = parser.parse_args()",
     ));
-    assert!(
-        code.contains("Clone") || code.contains("clone"),
-        "Expected Clone subcommand"
-    );
-    assert!(
-        code.contains("Push") || code.contains("push"),
-        "Expected Push subcommand"
-    );
+    assert!(code.contains("Clone") || code.contains("clone"), "Expected Clone subcommand");
+    assert!(code.contains("Push") || code.contains("push"), "Expected Push subcommand");
 }
 
 #[test]
@@ -2695,19 +2605,12 @@ fn test_transpile_main_path_type() {
     let code = transpile(
         "import argparse\nfrom pathlib import Path\n\ndef main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument('file', type=Path)\n    args = parser.parse_args()",
     );
-    assert!(
-        code.contains("PathBuf") || code.contains("file"),
-        "Expected PathBuf or file field"
-    );
+    assert!(code.contains("PathBuf") || code.contains("file"), "Expected PathBuf or file field");
 }
 
 #[test]
 fn test_transpile_main_generates_parse_call() {
-    let code = transpile(&wrap_in_main(
-        "parser = argparse.ArgumentParser()\nargs = parser.parse_args()",
-    ));
-    assert!(
-        code.contains("parse") || code.contains("Args"),
-        "Expected parse call or Args struct"
-    );
+    let code =
+        transpile(&wrap_in_main("parser = argparse.ArgumentParser()\nargs = parser.parse_args()"));
+    assert!(code.contains("parse") || code.contains("Args"), "Expected parse call or Args struct");
 }
