@@ -153,3 +153,6 @@ opt-level = "z"
 opt-level = 1
 
 # No patches - using crates.io versions for all dependencies
+
+[package.metadata.release]
+shared-version = true

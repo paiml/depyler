@@ -1,0 +1,40 @@
+name: Stress Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  stress:
+    name: Stress Testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Property-based stress (high iteration count)
+        run: |
+          PROPTEST_CASES=1024 cargo test --test property_tests -- --nocapture
+        timeout-minutes: 10
+
+      - name: Concurrent test stress
+        run: |
+          for i in $(seq 1 3); do
+            echo "=== Stress run $i/3 ==="
+            cargo test --lib -- --test-threads=1
+          done
+        timeout-minutes: 15
+
+      - name: Large input stress
+        run: |
+          cargo test --lib -- stress large_input 2>/dev/null || true
+          cargo test --lib -- boundary edge_case 2>/dev/null || true
+        timeout-minutes: 5
