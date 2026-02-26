@@ -1,0 +1,21 @@
+name: Post Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: Post-Release Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify published crate
+        run: cargo check
+      - name: Run smoke tests
+        run: cargo test --lib -- --test-threads=1
