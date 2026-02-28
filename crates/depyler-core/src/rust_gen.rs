@@ -565,6 +565,16 @@ fn generate_rust_file_internal(
     // Phase 3: Populate function/class metadata into context
     pre_analysis::populate_context_metadata(module, &mut ctx);
 
+    // DEPYLER-1103: Enable DepylerValue enum when functions use Dict/Unknown types
+    if !ctx.needs_depyler_value_enum {
+        for func in &module.functions {
+            if matches!(&func.ret_type, Type::Dict(_, v) if matches!(v.as_ref(), Type::Unknown)) {
+                ctx.needs_depyler_value_enum = true;
+                break;
+            }
+        }
+    }
+
     // Phase 4: Convert module-level constants type registration
     // DEPYLER-1060: Pre-register module-level constant types BEFORE function conversion
     for constant in &module.constants {
