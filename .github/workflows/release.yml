@@ -29,7 +29,7 @@ concurrency:
 jobs:
   # ── Gate: clean-room must pass before publish ───────────
   gate:
-    uses: paiml/infra/.github/workflows/clean-room-gate.yml@d7a1f46d1d9624d9b5ac618d0de01dbdcf643007
+    uses: paiml/infra/.github/workflows/clean-room-gate.yml@main
     with:
       repo: ${{ github.event.repository.name }}
       pr_sha: ${{ github.sha }}
@@ -105,7 +105,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Authenticate to crates.io (OIDC)
-        uses: rust-lang/crates-io-auth-action@v1
+        uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec  # v1.0.3
 
       - name: Publish
         run: |
