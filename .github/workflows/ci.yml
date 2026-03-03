@@ -22,7 +22,7 @@ jobs:
   clean-room:
     # PINNED_SHA is replaced by deploy-workflows.sh with the current
     # commit SHA of the clean-room-gate.yml in paiml/infra
-    uses: paiml/infra/.github/workflows/clean-room-gate.yml@d7a1f46d1d9624d9b5ac618d0de01dbdcf643007
+    uses: paiml/infra/.github/workflows/clean-room-gate.yml@main
     with:
       repo: ${{ github.event.repository.name }}
       pr_sha: ${{ github.event.pull_request.head.sha || github.sha }}
