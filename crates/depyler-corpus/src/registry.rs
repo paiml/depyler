@@ -102,10 +102,14 @@ impl CorpusRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
+        let src_dir = std::env::var_os("HOME")
+            .map(|h| PathBuf::from(h).join("src"))
+            .unwrap_or_else(|| PathBuf::from(".."));
+
         // Corpus 1: reprorusted-python-cli (Original)
         let mut entry1 = CorpusEntry::new(
             "reprorusted-python-cli",
-            PathBuf::from("/home/noah/src/reprorusted-python-cli"),
+            src_dir.join("reprorusted-python-cli"),
         )
         .with_description("Original Python CLI examples - mixed type annotations")
         .with_github("https://github.com/paiml/reprorusted-python-cli");
@@ -116,7 +120,7 @@ impl CorpusRegistry {
         // Corpus 2: reprorusted-std-only (Stdlib)
         let mut entry2 = CorpusEntry::new(
             "reprorusted-std-only",
-            PathBuf::from("/home/noah/src/reprorusted-std-only"),
+            src_dir.join("reprorusted-std-only"),
         )
         .with_description("Python stdlib examples - std-only transpilation targets")
         .with_github("https://github.com/paiml/reprorusted-std-only")
@@ -128,7 +132,7 @@ impl CorpusRegistry {
         // Corpus 3: fully-typed-reprorusted-python-cli (Typed CLI)
         let mut entry3 = CorpusEntry::new(
             "fully-typed-reprorusted-python-cli",
-            PathBuf::from("/home/noah/src/fully-typed-reprorusted-python-cli"),
+            src_dir.join("fully-typed-reprorusted-python-cli"),
         )
         .with_description("Fully typed Python CLI utilities - strict type annotations")
         .with_github("https://github.com/paiml/fully-typed-reprorusted-python-cli")

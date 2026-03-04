@@ -63,11 +63,15 @@ pub fn handle_report_command(args: ReportArgs) -> Result<()> {
 
 /// Find default corpus path
 pub fn default_corpus_path() -> PathBuf {
-    let candidates = [
-        PathBuf::from("/home/noah/src/reprorusted-python-cli/examples"),
+    let mut candidates = vec![
         PathBuf::from("../reprorusted-python-cli/examples"),
         PathBuf::from("./examples"),
     ];
+    if let Some(home) = std::env::var_os("HOME") {
+        let mut home_path = PathBuf::from(home);
+        home_path.push("src/reprorusted-python-cli/examples");
+        candidates.insert(0, home_path);
+    }
 
     for path in &candidates {
         if path.exists() {

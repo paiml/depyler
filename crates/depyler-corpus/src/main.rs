@@ -214,11 +214,15 @@ fn main() -> anyhow::Result<()> {
 /// Default corpus path (reprorusted-python-cli)
 fn default_corpus_path() -> PathBuf {
     // Check common locations
-    let candidates = [
+    let mut candidates = vec![
         PathBuf::from("../reprorusted-python-cli/examples"),
-        PathBuf::from("/home/noah/src/reprorusted-python-cli/examples"),
         PathBuf::from("examples"),
     ];
+    if let Some(home) = std::env::var_os("HOME") {
+        let mut home_path = PathBuf::from(home);
+        home_path.push("src/reprorusted-python-cli/examples");
+        candidates.push(home_path);
+    }
 
     for path in &candidates {
         if path.exists() {
