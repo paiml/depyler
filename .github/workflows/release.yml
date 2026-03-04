@@ -3,6 +3,7 @@
 # Spec: docs/specifications/sovereign-stack-protected-branch-strategy.md
 #
 # Flow: tag push → clean-room gate → package verify → trusted publish → GitHub Release
+#       → cross-compiled binaries (4 Linux targets) → SHA256SUMS
 #
 # Tag formats:
 #   v1.0.0              — single-crate repos
@@ -18,7 +19,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write    # create GitHub Release
+  contents: write    # create GitHub Release + upload assets
   id-token: write    # OIDC for crates.io Trusted Publishing
 
 # One release at a time per repo
@@ -42,6 +43,7 @@ jobs:
     outputs:
       crate_name: ${{ steps.parse.outputs.crate_name }}
       version: ${{ steps.parse.outputs.version }}
+      has_binaries: ${{ steps.bincheck.outputs.has_binaries }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -87,6 +89,14 @@ jobs:
           echo "version=$TAG_VER" >> "$GITHUB_OUTPUT"
           echo "Version verified: $TAG_VER"
 
+      - name: Detect binary targets
+        id: bincheck
+        run: |
+          HAS_BINS=$(cargo metadata --format-version 1 --no-deps \
+            | jq '[.packages[].targets[] | select(.kind[] == "bin")] | length')
+          echo "has_binaries=$( [ "$HAS_BINS" -gt 0 ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "Binary targets found: $HAS_BINS"
+
       - name: Verify package tarball
         run: |
           CRATE="${{ steps.parse.outputs.crate_name }}"
@@ -123,3 +133,110 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
+
+  # ── Build cross-compiled binaries (4 Linux targets) ────
+  build-binaries:
+    needs: [verify, publish]
+    if: needs.verify.outputs.has_binaries == 'true'
+    runs-on: [self-hosted, clean-room]
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install target prerequisites
+        run: |
+          case "${{ matrix.target }}" in
+            *-musl)
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq musl-tools >/dev/null
+              ;;
+          esac
+          case "${{ matrix.target }}" in
+            aarch64-*)
+              # cross handles the toolchain via Docker; ensure it's installed
+              if ! command -v cross &>/dev/null; then
+                cargo install cross --locked
+              fi
+              ;;
+            *-musl)
+              rustup target add "${{ matrix.target }}"
+              ;;
+          esac
+
+      - name: Discover binary names
+        id: bins
+        run: |
+          BINS=$(cargo metadata --format-version 1 --no-deps \
+            | jq -r '[.packages[].targets[] | select(.kind[] == "bin") | .name] | join(" ")')
+          echo "names=$BINS" >> "$GITHUB_OUTPUT"
+          echo "Binaries to build: $BINS"
+
+      - name: Build release binaries
+        run: |
+          case "${{ matrix.target }}" in
+            aarch64-*)
+              cross build --release --target "${{ matrix.target }}"
+              ;;
+            *)
+              cargo build --release --target "${{ matrix.target }}"
+              ;;
+          esac
+
+      - name: Package binaries
+        run: |
+          VERSION="${{ needs.verify.outputs.version }}"
+          TARGET="${{ matrix.target }}"
+          STAGING="/tmp/release-staging"
+          mkdir -p "$STAGING"
+
+          for BIN in ${{ steps.bins.outputs.names }}; do
+            ARCHIVE="${BIN}-${VERSION}-${TARGET}.tar.gz"
+            tar -czf "${STAGING}/${ARCHIVE}" \
+              -C "target/${TARGET}/release" "$BIN"
+            echo "Packaged: $ARCHIVE"
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.0
+        with:
+          name: binaries-${{ matrix.target }}
+          path: /tmp/release-staging/*.tar.gz
+          retention-days: 5
+
+  # ── Generate checksums and upload to GitHub Release ─────
+  checksums:
+    needs: [verify, publish, build-binaries]
+    if: needs.verify.outputs.has_binaries == 'true'
+    runs-on: [self-hosted, clean-room]
+    steps:
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          pattern: binaries-*
+          merge-multiple: true
+          path: /tmp/release-assets
+
+      - name: Generate SHA256SUMS
+        working-directory: /tmp/release-assets
+        run: |
+          sha256sum *.tar.gz > SHA256SUMS
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: /tmp/release-assets
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            *.tar.gz SHA256SUMS \
+            --repo "${{ github.repository }}" \
+            --clobber
