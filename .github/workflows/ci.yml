@@ -12,6 +12,7 @@ on:
     branches: [main, master]
   push:
     branches: [main, master]
+  workflow_dispatch:  # manual trigger for testing
 
 # One CI run per PR; cancel stale runs
 concurrency:
@@ -20,8 +21,6 @@ concurrency:
 
 jobs:
   clean-room:
-    # PINNED_SHA is replaced by deploy-workflows.sh with the current
-    # commit SHA of the clean-room-gate.yml in paiml/infra
     uses: paiml/infra/.github/workflows/clean-room-gate.yml@main
     with:
       repo: ${{ github.event.repository.name }}
