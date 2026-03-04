@@ -413,9 +413,10 @@ mod tests {
     #[test]
     fn test_load_real_oip_data_if_exists() {
         // Try to load real OIP training data if available
-        let oip_path = std::path::Path::new(
-            "/home/noah/src/organizational-intelligence-plugin/training-data.json",
-        );
+        let oip_path_buf = std::env::var_os("HOME")
+            .map(|h| std::path::PathBuf::from(h).join("src/organizational-intelligence-plugin/training-data.json"))
+            .unwrap_or_else(|| std::path::PathBuf::from("../organizational-intelligence-plugin/training-data.json"));
+        let oip_path = oip_path_buf.as_path();
 
         if oip_path.exists() {
             let oip_data = load_oip_training_data(oip_path).expect("Should load OIP data");
