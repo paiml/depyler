@@ -8,10 +8,6 @@ all-features = false
 no-default-features = false
 
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
-yanked = "deny"
-notice = "warn"
 ignore = []
 
 [licenses]
