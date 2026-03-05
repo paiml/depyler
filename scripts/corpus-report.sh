@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-CORPUS="${1:-/home/noah/src/reprorusted-python-cli/examples}"
+CORPUS="${1:-${REPRORUSTED_DIR:-reprorusted-python-cli}/examples}"
 REPORT_FILE="/tmp/corpus-report-$(date +%Y%m%d-%H%M%S).md"
 
 echo "=== DEPYLER CORPUS ANALYSIS ==="

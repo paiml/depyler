@@ -8,7 +8,7 @@
 [corpora.reprorusted-python-cli]
 name = "reprorusted-python-cli"
 description = "Original Python CLI examples - mixed type annotations"
-path = "/home/noah/src/reprorusted-python-cli"
+path = "${REPRORUSTED_DIR:-reprorusted-python-cli}"
 include = ["examples/**/*.py"]
 exclude = ["**/__pycache__/**", "**/test_*.py", "**/__init__.py"]
 github = "https://github.com/paiml/reprorusted-python-cli"
@@ -18,7 +18,7 @@ target_rate = 80.0
 [corpora.reprorusted-std-only]
 name = "reprorusted-std-only"
 description = "Python stdlib examples - std-only transpilation targets"
-path = "/home/noah/src/reprorusted-std-only"
+path = "${REPRORUSTED_STD_DIR:-reprorusted-std-only}"
 include = ["src/**/*.py"]
 exclude = ["**/__pycache__/**", "**/test_*.py", "**/__init__.py"]
 github = "https://github.com/paiml/reprorusted-std-only"
@@ -32,7 +32,7 @@ coverage = 100.0
 [corpora.fully-typed-reprorusted-python-cli]
 name = "fully-typed-reprorusted-python-cli"
 description = "Fully typed Python CLI utilities - strict type annotations"
-path = "/home/noah/src/fully-typed-reprorusted-python-cli"
+path = "${FULLY_TYPED_DIR:-fully-typed-reprorusted-python-cli}"
 include = ["src/**/*.py"]
 exclude = ["**/__pycache__/**", "**/test_*.py", "**/__init__.py", "**/tests/**"]
 github = "https://github.com/paiml/fully-typed-reprorusted-python-cli"

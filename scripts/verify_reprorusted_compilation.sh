@@ -5,7 +5,7 @@
 
 set -e
 
-EXAMPLES_DIR="/home/noah/src/reprorusted-python-cli/examples"
+EXAMPLES_DIR="${REPRORUSTED_DIR:-reprorusted-python-cli}/examples"
 REPORT_FILE="/tmp/reprorusted_qa_report_$(date +%Y%m%d_%H%M%S).txt"
 
 echo "=============================================="
@@ -97,7 +97,7 @@ echo ""
 
 # Test oracle can classify borrow checker errors
 echo "Testing oracle E0382 classification..."
-cd /home/noah/src/depyler
+cd ${DEPYLER_DIR:-.}
 
 # Quick oracle test via cargo test
 if cargo test --package depyler-oracle test_corpus_statistics -- --nocapture 2>&1 | grep -q "ok"; then

@@ -6,8 +6,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_DIR="${REPO_ROOT}/training_corpus"
 OIP_OUTPUT="${OUTPUT_DIR}/oip_data.json"
-REPRORUSTED_DIR="${REPRORUSTED_DIR:-/home/noah/src/reprorusted-python-cli}"
-OIP_BINARY="/home/noah/src/organizational-intelligence-plugin/target/release/oip"
+REPRORUSTED_DIR="${REPRORUSTED_DIR:-${REPRORUSTED_DIR:-reprorusted-python-cli}}"
+OIP_BINARY="${OIP_DIR:-organizational-intelligence-plugin}/target/release/oip"
 
 # Validate paths don't contain path traversal
 if [[ "${OUTPUT_DIR}" == *".."* ]]; then
@@ -27,7 +27,7 @@ echo ""
 if [ ! -f "${OIP_BINARY}" ]; then
     echo "Warning: OIP binary not found at ${OIP_BINARY}"
     echo "Building OIP..."
-    (cd /home/noah/src/organizational-intelligence-plugin && cargo build --release --quiet 2>/dev/null) || {
+    (cd ${OIP_DIR:-organizational-intelligence-plugin} && cargo build --release --quiet 2>/dev/null) || {
         echo "OIP build failed, skipping OIP extraction"
         echo "[]" > "${OIP_OUTPUT}"
         exit 0

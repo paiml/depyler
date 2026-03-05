@@ -18,7 +18,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Renacer binary location (fallback to system PATH)
-RENACER="${RENACER:-/home/noah/src/renacer/target/release/renacer}"
+RENACER="${RENACER:-${RENACER_DIR:-renacer}/target/release/renacer}"
 if [[ ! -f "$RENACER" ]]; then
     RENACER='renacer'
 fi
@@ -27,9 +27,9 @@ fi
 check_renacer() {
     if ! command -v "$RENACER" >/dev/null 2>&1; then
         echo -e "${YELLOW}⚠️  Renacer not found. Building...${NC}"
-        if [[ -d '/home/noah/src/renacer' ]]; then
-            (cd /home/noah/src/renacer && cargo build --release --quiet)
-            RENACER='/home/noah/src/renacer/target/release/renacer'
+        if [[ -d '${RENACER_DIR:-renacer}' ]]; then
+            (cd ${RENACER_DIR:-renacer} && cargo build --release --quiet)
+            RENACER='${RENACER_DIR:-renacer}/target/release/renacer'
         else
             echo -e "${RED}❌ Cannot find renacer source. Install with: cargo install renacer${NC}"
             exit 1

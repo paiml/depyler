@@ -8,7 +8,7 @@ set -euo pipefail
 # Configuration - with safe defaults
 TRACE_DIR="${DEPYLER_DECISION_DIR:-/tmp/depyler_decisions}"
 readonly TRACE_FILE="${TRACE_DIR}/decisions.msgpack"
-readonly DEPYLER_BIN="${DEPYLER_BIN:-/home/noah/src/depyler/target/release/depyler}"
+readonly DEPYLER_BIN="${DEPYLER_BIN:-${DEPYLER_DIR:-.}/target/release/depyler}"
 
 # Validate path doesn't contain traversal
 validate_path() {

@@ -24,7 +24,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Renacer path (prefer local install, then cargo install)
-RENACER="${RENACER:-$(which renacer 2>/dev/null || echo '/home/noah/src/renacer/target/debug/renacer')}"
+RENACER="${RENACER:-$(which renacer 2>/dev/null || echo '${RENACER_DIR:-renacer}/target/debug/renacer')}"
 
 # Check if renacer is available
 check_renacer() {

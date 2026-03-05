@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_DIR="${REPO_ROOT}/training_corpus"
 ERRORS_FILE="${OUTPUT_DIR}/errors.jsonl"
-REPRORUSTED_DIR="${REPRORUSTED_DIR:-/home/noah/src/reprorusted-python-cli}"
+REPRORUSTED_DIR="${REPRORUSTED_DIR:-${REPRORUSTED_DIR:-reprorusted-python-cli}}"
 
 # Grep pattern for extracting compiler messages
 readonly COMPILER_MSG_PATTERN='{"reason":"compiler-message"[^}]*}'

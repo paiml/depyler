@@ -4,8 +4,8 @@
 
 set -e
 
-DEPYLER=/home/noah/src/depyler/target/release/depyler
-EXAMPLES_DIR=/home/noah/src/reprorusted-python-cli/examples
+DEPYLER=${DEPYLER_DIR:-.}/target/release/depyler
+EXAMPLES_DIR=${REPRORUSTED_DIR:-reprorusted-python-cli}/examples
 MAX_ITERATIONS=20
 ERROR_CORPUS=/tmp/error_corpus.jsonl
 
