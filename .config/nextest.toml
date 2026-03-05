@@ -1,26 +1,14 @@
-# Nextest configuration for Depyler
-# See: https://nexte.st/docs/configuration/
-
-[profile.default]
-slow-timeout = { period = "60s", grace-period = "10s" }
-retries = 0
-
-[profile.fast]
-# Fast profile - excludes slow/benchmark/tuning/differential tests
-# differential tests require depyler binary which llvm-cov doesn't build
-default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(~find_best_config) and not test(~differential)"
-slow-timeout = { period = "30s", grace-period = "5s" }
-retries = 0
-test-threads = "num-cpus"
-
-[profile.coverage]
-# Coverage profile - excludes tests requiring external binary
-default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(~find_best_config) and not test(~differential)"
-slow-timeout = { period = "60s", grace-period = "10s", terminate-after = 1 }
-retries = 0
-test-threads = "num-cpus"
+# cargo-nextest CI profile
+# Deployed from paiml/infra — do not edit manually.
+# Spec: docs/specifications/unified-ci-pipeline.md
 
 [profile.ci]
-slow-timeout = { period = "120s", grace-period = "15s" }
-retries = 2
-test-threads = "num-cpus"
+retries = 0
+fail-fast = true
+slow-warning = "60s"
+status-level = "fail"
+
+[profile.ci.junit]
+path = "target/nextest/ci/junit.xml"
+store-success-output = false
+store-failure-output = true
