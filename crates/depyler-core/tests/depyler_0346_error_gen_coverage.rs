@@ -247,65 +247,66 @@ def validate_positive(n: int) -> int:
 // ============================================================================
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod property_tests {
     use super::*;
     use proptest::prelude::*;
 
     proptest! {
-                    #[test]
-                    fn prop_zero_division_always_transpiles(
-                        a in 1i32..100,
-                    ) {
-                        let pipeline = DepylerPipeline::new();
-                        let python_code = format!(r"
+        #[test]
+        fn prop_zero_division_always_transpiles(
+            a in 1i32..100,
+        ) {
+            let pipeline = DepylerPipeline::new();
+            let python_code = format!(r"
 def divide_by_zero() -> int:
     return {a} // 0
 ");
 
-                        // Should always transpile (even if it would panic at runtime)
-                        let result = pipeline.transpile(&python_code);
-                        prop_assert!(result.is_ok(), "Division by zero should transpile");
-                    }
+            // Should always transpile (even if it would panic at runtime)
+            let result = pipeline.transpile(&python_code);
+            prop_assert!(result.is_ok(), "Division by zero should transpile");
+        }
 
-                    #[test]
-                    fn prop_value_error_messages_preserved(
-                        threshold in 1i32..1000,
-                    ) {
-                        let pipeline = DepylerPipeline::new();
-                        let python_code = format!(r#"
+        #[test]
+        fn prop_value_error_messages_preserved(
+            threshold in 1i32..1000,
+        ) {
+            let pipeline = DepylerPipeline::new();
+            let python_code = format!(r#"
 def check_threshold(x: int) -> int:
     if x > {threshold}:
         raise ValueError("exceeds threshold")
     return x
 "#);
 
-                        let rust_code = pipeline.transpile(&python_code).unwrap();
-                        // Message content should be preserved
-                        prop_assert!(
-                            rust_code.contains("threshold") || rust_code.contains("exceeds"),
-                            "ValueError message should be preserved in generated code"
-                        );
-                    }
+            let rust_code = pipeline.transpile(&python_code).unwrap();
+            // Message content should be preserved
+            prop_assert!(
+                rust_code.contains("threshold") || rust_code.contains("exceeds"),
+                "ValueError message should be preserved in generated code"
+            );
+        }
 
-                    #[test]
-                    fn prop_index_error_with_various_collections(
-                        index in 0usize..100,
-                    ) {
-                        let pipeline = DepylerPipeline::new();
-                        let python_code = format!(r#"
+        #[test]
+        fn prop_index_error_with_various_collections(
+            index in 0usize..100,
+        ) {
+            let pipeline = DepylerPipeline::new();
+            let python_code = format!(r#"
 def access_at_index(items: list) -> int:
     if len(items) <= {index}:
         raise IndexError("index too large")
     return items[{index}]
 "#);
 
-                        let result = pipeline.transpile(&python_code);
-                        prop_assert!(
-                            result.is_ok(),
-                            "IndexError code should always transpile"
-                        );
-                    }
-                }
+            let result = pipeline.transpile(&python_code);
+            prop_assert!(
+                result.is_ok(),
+                "IndexError code should always transpile"
+            );
+        }
+    }
 }
 
 // ============================================================================
