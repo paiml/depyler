@@ -3,14 +3,14 @@
 //! Recipe for learning from Git history:
 //! 1. Use OIP to extract training data: `oip extract-training-data --repo <path>`
 //! 2. Import JSON into depyler-oracle training pipeline
-//! 3. Map OIP's DefectCategory to depyler's ErrorCategory
+//! 3. Map OIP's `DefectCategory` to depyler's `ErrorCategory`
 //!
-//! OIP DefectCategory → depyler ErrorCategory mapping:
-//! - OwnershipBorrow, TraitBounds → BorrowChecker, TraitBound
-//! - TypeErrors, TypeAnnotationGaps → TypeMismatch
-//! - StdlibMapping, ASTTransform, ConfigurationErrors → MissingImport
-//! - MemorySafety → LifetimeError
-//! - IteratorChain, ComprehensionBugs → Other
+//! OIP `DefectCategory` → depyler `ErrorCategory` mapping:
+//! - `OwnershipBorrow`, `TraitBounds` → `BorrowChecker`, `TraitBound`
+//! - `TypeErrors`, `TypeAnnotationGaps` → `TypeMismatch`
+//! - `StdlibMapping`, `ASTTransform`, `ConfigurationErrors` → `MissingImport`
+//! - `MemorySafety` → `LifetimeError`
+//! - `IteratorChain`, `ComprehensionBugs` → Other
 
 use crate::classifier::ErrorCategory;
 use crate::moe_oracle::ExpertDomain;
@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-/// OIP DefectCategory (18 categories from organizational-intelligence-plugin)
+/// OIP `DefectCategory` (18 categories from organizational-intelligence-plugin)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OipDefectCategory {
     // General defect categories (10)
@@ -46,7 +46,7 @@ pub enum OipDefectCategory {
 }
 
 impl OipDefectCategory {
-    /// Map OIP category to depyler ErrorCategory
+    /// Map OIP category to depyler `ErrorCategory`
     #[must_use]
     pub fn to_error_category(self) -> ErrorCategory {
         match self {
@@ -80,7 +80,7 @@ impl OipDefectCategory {
         }
     }
 
-    /// Map OIP category to MoE ExpertDomain
+    /// Map OIP category to `MoE` `ExpertDomain`
     #[must_use]
     pub fn to_expert_domain(self) -> ExpertDomain {
         match self {
@@ -113,7 +113,7 @@ impl OipDefectCategory {
     }
 }
 
-/// OIP TrainingExample format (from organizational-intelligence-plugin)
+/// OIP `TrainingExample` format (from organizational-intelligence-plugin)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OipTrainingExample {
     /// Commit message text
@@ -136,7 +136,7 @@ pub struct OipTrainingExample {
     pub files_changed: usize,
 }
 
-/// OIP TrainingDataset format
+/// OIP `TrainingDataset` format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OipTrainingDataset {
     /// Training examples
@@ -157,7 +157,7 @@ pub fn load_oip_training_data(path: &Path) -> Result<OipTrainingDataset, std::io
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
-/// Convert OIP training data to depyler TrainingDataset
+/// Convert OIP training data to depyler `TrainingDataset`
 #[must_use]
 pub fn convert_oip_to_depyler(oip_data: &OipTrainingDataset) -> TrainingDataset {
     let mut dataset = TrainingDataset::new();
@@ -191,7 +191,7 @@ fn extract_error_pattern(message: &str) -> String {
     // Look for error code patterns like error[E0308]
     if let Some(start) = message.find("error[E") {
         if let Some(end) = message[start..].find(']') {
-            let error_code = &message[start..start + end + 1];
+            let error_code = &message[start..=(start + end)];
             // Find the error description after the code
             let rest = &message[start + end + 1..];
             if let Some(desc_end) = rest.find('\n') {
@@ -232,9 +232,7 @@ fn extract_fix_from_commit(message: &str) -> String {
     // Extract from commit title
     message
         .lines()
-        .next()
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "See commit for fix details".to_string())
+        .next().map_or_else(|| "See commit for fix details".to_string(), |s| s.trim().to_string())
 }
 
 /// Build corpus from OIP training data file
@@ -246,9 +244,9 @@ pub fn build_github_corpus(oip_json_path: &Path) -> Result<TrainingDataset, std:
     Ok(convert_oip_to_depyler(&oip_data))
 }
 
-/// Get MoE training samples from OIP data
+/// Get `MoE` training samples from OIP data
 ///
-/// Returns (error_code, context, domain) tuples for MoE training
+/// Returns (`error_code`, context, domain) tuples for `MoE` training
 #[must_use]
 pub fn get_moe_samples_from_oip(
     oip_data: &OipTrainingDataset,

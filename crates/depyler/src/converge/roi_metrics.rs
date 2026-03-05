@@ -10,16 +10,16 @@ use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// DEPYLER-1321 (Popper): Global escape rate tracker
-/// Tracks DepylerValue usage vs concrete type usage during codegen
+/// Tracks `DepylerValue` usage vs concrete type usage during codegen
 ///
 /// This implements Popper's "falsification criterion" for the type system:
-/// If escape_rate > 20%, the type inference is immunizing against falsification
+/// If `escape_rate` > 20%, the type inference is immunizing against falsification
 /// rather than genuinely solving the type inference problem.
 #[derive(Debug, Default)]
 pub struct EscapeRateTracker {
-    /// Number of concrete type annotations (i32, String, Vec<T>, HashMap<K,V>, etc.)
+    /// Number of concrete type annotations (i32, String, Vec<T>, `HashMap`<K,V>, etc.)
     pub concrete_usages: AtomicUsize,
-    /// Number of DepylerValue fallback usages
+    /// Number of `DepylerValue` fallback usages
     pub depyler_value_usages: AtomicUsize,
 }
 
@@ -29,13 +29,13 @@ impl EscapeRateTracker {
         Self::default()
     }
 
-    /// Record a concrete type usage (not DepylerValue)
+    /// Record a concrete type usage (not `DepylerValue`)
     #[inline]
     pub fn record_concrete(&self) {
         self.concrete_usages.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Record a DepylerValue fallback usage
+    /// Record a `DepylerValue` fallback usage
     #[inline]
     pub fn record_depyler_value(&self) {
         self.depyler_value_usages.fetch_add(1, Ordering::Relaxed);
@@ -131,16 +131,16 @@ pub struct RoiMetrics {
     #[serde(default)]
     pub fix_availability_rate: f64,
     /// DEPYLER-1321 (Popper): Total concrete type annotations generated
-    /// (native Rust types like i32, String, Vec<T>, HashMap<K,V>)
+    /// (native Rust types like i32, String, Vec<T>, `HashMap`<K,V>)
     #[serde(default)]
     pub concrete_type_usages: usize,
-    /// DEPYLER-1321 (Popper): Number of DepylerValue fallback usages
+    /// DEPYLER-1321 (Popper): Number of `DepylerValue` fallback usages
     /// (the universal type that absorbs type mismatches)
     #[serde(default)]
     pub depyler_value_usages: usize,
-    /// DEPYLER-1321 (Popper): Escape rate = depyler_value_usages / total_type_usages
-    /// Per Popper's critique: if escape_rate > 0.20 (20%), type inference is failing
-    /// The DepylerValue is a "protective belt" that immunizes against falsification
+    /// DEPYLER-1321 (Popper): Escape rate = `depyler_value_usages` / `total_type_usages`
+    /// Per Popper's critique: if `escape_rate` > 0.20 (20%), type inference is failing
+    /// The `DepylerValue` is a "protective belt" that immunizes against falsification
     #[serde(default)]
     pub escape_rate: f64,
     /// DEPYLER-1321 (Popper): Whether escape rate exceeds falsification threshold (20%)
@@ -150,7 +150,7 @@ pub struct RoiMetrics {
 }
 
 /// DEPYLER-1321 (Popper): Threshold for escape rate falsification
-/// If escape_rate exceeds this, type inference is failing (immunizing against falsification)
+/// If `escape_rate` exceeds this, type inference is failing (immunizing against falsification)
 pub const ESCAPE_RATE_FALSIFICATION_THRESHOLD: f64 = 0.20;
 
 impl Default for RoiMetrics {
@@ -227,10 +227,10 @@ impl OracleRoiMetrics {
 
         // DEPYLER-1304: Count errors with suggested fixes available
         let fixes_available = classifications.iter().filter(|c| c.suggested_fix.is_some()).count();
-        let fix_availability_rate = if !classifications.is_empty() {
-            fixes_available as f64 / classifications.len() as f64
-        } else {
+        let fix_availability_rate = if classifications.is_empty() {
             0.0
+        } else {
+            fixes_available as f64 / classifications.len() as f64
         };
 
         // Calculate average confidence per category
@@ -244,8 +244,7 @@ impl OracleRoiMetrics {
         let avg_confidence = |key: &str| -> f64 {
             category_confidences
                 .get(key)
-                .map(|(sum, count)| if *count > 0 { sum / *count as f64 } else { 0.0 })
-                .unwrap_or(0.0)
+                .map_or(0.0, |(sum, count)| if *count > 0 { sum / *count as f64 } else { 0.0 })
         };
 
         Self {
@@ -272,10 +271,10 @@ impl OracleRoiMetrics {
                 high_confidence_errors: high_conf,
                 medium_confidence_errors: medium_conf,
                 total_classifiable,
-                classifiable_rate: if !classifications.is_empty() {
-                    total_classifiable as f64 / classifications.len() as f64
-                } else {
+                classifiable_rate: if classifications.is_empty() {
                     0.0
+                } else {
+                    total_classifiable as f64 / classifications.len() as f64
                 },
                 estimated_savings_cents: estimated_savings,
                 fixes_available,

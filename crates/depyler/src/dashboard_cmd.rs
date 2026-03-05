@@ -432,7 +432,7 @@ pub fn generate_dashboard() -> DashboardReport {
     }
 }
 
-/// Load corpus metrics from oracle_roi_metrics.json if available
+/// Load corpus metrics from `oracle_roi_metrics.json` if available
 fn load_corpus_metrics() -> (Option<f64>, Option<usize>) {
     let metrics_path = std::path::Path::new("docs/oracle_roi_metrics.json");
     if !metrics_path.exists() {
@@ -469,15 +469,15 @@ pub fn display_text(report: &DashboardReport) {
     // Compile rate if available
     if let Some(rate) = report.compile_rate {
         let rate_color = if rate >= 80.0 {
-            format!("{:.1}%", rate).green()
+            format!("{rate:.1}%").green()
         } else if rate >= 50.0 {
-            format!("{:.1}%", rate).yellow()
+            format!("{rate:.1}%").yellow()
         } else {
-            format!("{:.1}%", rate).red()
+            format!("{rate:.1}%").red()
         };
         print!("{} {}", "Compile Rate:".bold(), rate_color);
         if let Some(files) = report.corpus_files {
-            print!(" ({} files)", files);
+            print!(" ({files} files)");
         }
         println!();
         println!();
@@ -598,7 +598,7 @@ pub fn dashboard_command(format: &str, component: Option<&str>) -> Result<()> {
             } else {
                 serde_json::to_string_pretty(&report)?
             };
-            println!("{}", json);
+            println!("{json}");
         }
         _ => {
             display_text(&report);

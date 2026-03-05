@@ -1,15 +1,15 @@
 //! Curriculum Learning for Error Processing (Strategy #3 - DEPYLER-0633)
 //!
 //! Applies progressive difficulty ordering to fix easy errors first, building momentum.
-//! Based on the StepCoder paper's curriculum learning approach.
+//! Based on the `StepCoder` paper's curriculum learning approach.
 //!
 //! # Difficulty Levels
 //!
 //! | Level | Score | Error Categories | Fix Approach |
 //! |-------|-------|------------------|--------------|
-//! | EASY | 0.25 | SyntaxError, MissingImport | Rule-based |
-//! | MEDIUM | 0.50 | TypeMismatch, MethodNotFound | Oracle lookup |
-//! | HARD | 0.75 | TraitBound, Ownership | Oracle + LLM |
+//! | EASY | 0.25 | `SyntaxError`, `MissingImport` | Rule-based |
+//! | MEDIUM | 0.50 | `TypeMismatch`, `MethodNotFound` | Oracle lookup |
+//! | HARD | 0.75 | `TraitBound`, Ownership | Oracle + LLM |
 //! | EXPERT | 1.00 | Lifetime, Async, Complex Borrow | Human review |
 //!
 //! # References
@@ -342,7 +342,7 @@ impl CurriculumScheduler {
     #[must_use]
     pub fn count_by_level(&self) -> HashMap<DifficultyLevel, usize> {
         let mut counts = HashMap::new();
-        for entry in self.queue.iter() {
+        for entry in &self.queue {
             *counts.entry(entry.entry.difficulty).or_insert(0) += 1;
         }
         counts
@@ -475,7 +475,7 @@ pub fn classify_error_difficulty(error_code: &str, error_message: &str) -> Diffi
     DifficultyLevel::Medium
 }
 
-/// Classify using ErrorCategory from the classifier module
+/// Classify using `ErrorCategory` from the classifier module
 #[must_use]
 pub fn classify_from_category(category: ErrorCategory) -> DifficultyLevel {
     match category {

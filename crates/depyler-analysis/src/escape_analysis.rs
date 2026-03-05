@@ -161,7 +161,7 @@ impl UseAfterMoveAnalysis {
             "drain",
         ]
         .iter()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect()
     }
 
@@ -205,7 +205,7 @@ impl UseAfterMoveAnalysis {
             "sorted",
         ]
         .iter()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect()
     }
 
@@ -639,7 +639,7 @@ impl UseAfterMoveAnalysis {
 
         for (var, state) in &current {
             if let MoveState::Moved(span) = state {
-                if before.get(var).map(|s| s == &MoveState::Available).unwrap_or(false) {
+                if before.get(var).is_some_and(|s| s == &MoveState::Available) {
                     self.move_states
                         .insert(var.clone(), MoveState::ConditionallyMoved(span.clone()));
                 }
@@ -759,13 +759,11 @@ impl StrategicCloneAnalysis {
         for (target, source, alias_idx, var_type) in aliases {
             let source_used_after = var_uses
                 .get(&source)
-                .map(|uses| uses.iter().any(|&u| u > alias_idx))
-                .unwrap_or(false);
+                .is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
 
             let alias_used_after = var_uses
                 .get(&target)
-                .map(|uses| uses.iter().any(|&u| u > alias_idx))
-                .unwrap_or(false);
+                .is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
 
             if source_used_after && alias_used_after {
                 self.aliases.push(AliasingPattern {

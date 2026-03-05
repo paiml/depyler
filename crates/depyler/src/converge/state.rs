@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// Display mode for convergence output (DEPYLER-CONVERGE-RICH)
-/// Mirrors UTOL's DisplayMode for consistency
+/// Mirrors UTOL's `DisplayMode` for consistency
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum DisplayMode {

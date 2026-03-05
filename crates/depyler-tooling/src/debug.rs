@@ -149,13 +149,13 @@ impl DebugInfoGenerator {
             DebugLevel::None => String::new(),
             DebugLevel::Basic | DebugLevel::Full => match var_type {
                 Type::Int | Type::Float | Type::Bool => {
-                    format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
+                    format!("eprintln!(\"DEBUG: {var_name} = {{}}\", {var_name});")
                 }
                 Type::String => {
-                    format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
+                    format!("eprintln!(\"DEBUG: {var_name} = {{}}\", {var_name});")
                 }
                 _ => {
-                    format!("eprintln!(\"DEBUG: {} = {{:?}}\", {});", var_name, var_name)
+                    format!("eprintln!(\"DEBUG: {var_name} = {{:?}}\", {var_name});")
                 }
             },
         }
@@ -173,12 +173,12 @@ impl DebugRuntime {
 
     /// Generate an assertion with debug info
     pub fn debug_assert(condition: &str, message: &str) -> String {
-        format!("debug_assert!({}, \"{}\");", condition, message)
+        format!("debug_assert!({condition}, \"{message}\");")
     }
 
     /// Generate a trace point
     pub fn trace_point(location: &str) -> String {
-        format!("depyler_trace!(\"{}\");", location)
+        format!("depyler_trace!(\"{location}\");")
     }
 }
 

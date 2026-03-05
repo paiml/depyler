@@ -1,6 +1,6 @@
 //! Lifetime Analysis Shim - pure logic separated from I/O
 //!
-//! Extracts testable logic from lifetime_analysis.rs
+//! Extracts testable logic from `lifetime_analysis.rs`
 
 use std::collections::{HashMap, HashSet};
 
@@ -147,7 +147,7 @@ impl MoveTracker {
     pub fn with_copy_types(types: &[&str]) -> Self {
         Self {
             moved_vars: HashSet::new(),
-            copy_types: types.iter().map(|s| s.to_string()).collect(),
+            copy_types: types.iter().map(std::string::ToString::to_string).collect(),
         }
     }
 

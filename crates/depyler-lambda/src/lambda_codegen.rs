@@ -268,7 +268,7 @@ impl LambdaCodeGenerator {
 
     fn generate_readme(&self, context: &LambdaGenerationContext) -> Result<String> {
         Ok(format!(
-            r#"# {} Lambda Function
+            r"# {} Lambda Function
 
 Generated Rust Lambda function from Python source.
 
@@ -296,7 +296,7 @@ cargo lambda deploy
 - Timeout: {}s
 - Architecture: {:?}
 - Event Type: {:?}
-"#,
+",
             context.function_name,
             context.annotations.memory_size,
             context.annotations.timeout.unwrap_or(15),
@@ -328,8 +328,8 @@ cargo lambda deploy
                 ("cloudwatch_events".to_string(), "CloudWatchEvent".to_string())
             }
             LambdaEventType::KinesisEvent => ("kinesis".to_string(), "KinesisEvent".to_string()),
-            LambdaEventType::Custom(name) => ("".to_string(), name.clone()),
-            LambdaEventType::Auto => ("".to_string(), "serde_json::Value".to_string()),
+            LambdaEventType::Custom(name) => (String::new(), name.clone()),
+            LambdaEventType::Auto => (String::new(), "serde_json::Value".to_string()),
         }
     }
 
@@ -539,7 +539,7 @@ cp target/lambda/${HANDLER_NAME}/bootstrap.zip ${HANDLER_NAME}.zip
 echo "Lambda package: ${HANDLER_NAME}.zip ($(du -h ${HANDLER_NAME}.zip | cut -f1))"
 "#;
 
-const SAM_TEMPLATE: &str = r#"AWSTemplateFormatVersion: '2010-09-09'
+const SAM_TEMPLATE: &str = r"AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Globals:
@@ -565,9 +565,9 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: ANY
-"#;
+";
 
-const CDK_CONSTRUCT_TEMPLATE: &str = r#"import * as lambda from 'aws-cdk-lib/aws-lambda';
+const CDK_CONSTRUCT_TEMPLATE: &str = r"import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cdk from 'aws-cdk-lib';
 
 export class {{function_name}}Lambda extends cdk.Construct {
@@ -589,7 +589,7 @@ export class {{function_name}}Lambda extends cdk.Construct {
     });
   }
 }
-"#;
+";
 
 #[cfg(test)]
 mod tests {

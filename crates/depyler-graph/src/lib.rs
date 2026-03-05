@@ -1,3 +1,11 @@
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::disallowed_methods)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::unwrap_used)]
+
 //! DEPYLER-1300: Dependency Graph Analysis for Error Reasoning
 //!
 //! This crate transforms the transpiler from a "compiler" into a "reasoning engine"

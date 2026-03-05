@@ -298,7 +298,7 @@ fn error_description(code: &str) -> String {
         "E0106" => "Missing lifetime specifier".to_string(),
         "TRANSPILE" => "Transpiler limitation".to_string(),
         "UNKNOWN" => "Unknown error".to_string(),
-        _ => format!("Rust error {}", code),
+        _ => format!("Rust error {code}"),
     }
 }
 

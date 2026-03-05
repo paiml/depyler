@@ -44,9 +44,9 @@ pub struct PatientZero {
 pub struct ImpactScorer<'a> {
     graph: &'a DependencyGraph,
     errors: &'a [OverlaidError],
-    /// Damping factor for PageRank (typically 0.85)
+    /// Damping factor for `PageRank` (typically 0.85)
     damping: f64,
-    /// Number of iterations for PageRank convergence
+    /// Number of iterations for `PageRank` convergence
     iterations: usize,
 }
 
@@ -119,7 +119,7 @@ impl<'a> ImpactScorer<'a> {
         counts
     }
 
-    /// Calculate PageRank scores
+    /// Calculate `PageRank` scores
     fn calculate_pagerank(&self, node_ids: &[String]) -> HashMap<String, f64> {
         let n = node_ids.len();
         if n == 0 {

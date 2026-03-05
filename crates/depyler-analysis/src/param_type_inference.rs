@@ -1,7 +1,7 @@
 //! Parameter type inference from usage patterns in function body
 //!
-//! Extracted from rust_gen::func_gen to break cross-crate dependency.
-//! Used by both lifetime_analysis (depyler-analysis) and func_gen (depyler-core).
+//! Extracted from `rust_gen::func_gen` to break cross-crate dependency.
+//! Used by both `lifetime_analysis` (depyler-analysis) and `func_gen` (depyler-core).
 
 use depyler_hir::hir::{
     AssignTarget, BinOp, FStringPart, HirComprehension, HirExpr, HirStmt, Literal, Symbol, Type,

@@ -158,7 +158,7 @@ pub fn extract_element_type(iter_type: &Type) -> Type {
     }
 }
 
-/// DEPYLER-0587: Add target variable(s) to var_types map
+/// DEPYLER-0587: Add target variable(s) to `var_types` map
 pub fn add_target_to_var_types(
     target: &AssignTarget,
     elem_type: &Type,

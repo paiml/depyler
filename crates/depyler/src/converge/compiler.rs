@@ -62,7 +62,7 @@ impl BatchCompiler {
     pub fn new(input_dir: &Path) -> Self {
         Self {
             input_dir: input_dir.to_path_buf(),
-            parallel_jobs: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
+            parallel_jobs: std::thread::available_parallelism().map(std::num::NonZero::get).unwrap_or(4),
             display_mode: DisplayMode::default(),
         }
     }
@@ -86,7 +86,7 @@ impl BatchCompiler {
         let mut results = Vec::with_capacity(total);
 
         if matches!(self.display_mode, DisplayMode::Rich) {
-            println!("Compiling {} files...", total);
+            println!("Compiling {total} files...");
         }
 
         use std::sync::Arc;
@@ -109,7 +109,7 @@ impl BatchCompiler {
             match res {
                 Ok(Ok(result)) => results.push(result),
                 Ok(Err(e)) => return Err(e),
-                Err(e) => return Err(anyhow::anyhow!("Task join error: {}", e)),
+                Err(e) => return Err(anyhow::anyhow!("Task join error: {e}")),
             }
         }
 
@@ -133,9 +133,9 @@ impl BatchCompiler {
 
 /// Truncate filename for display
 #[allow(dead_code)]
-pub fn truncate_filename(s: &str, max_len: usize) -> String {
+pub(super) fn truncate_filename(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
-        format!("{:width$}", s, width = max_len)
+        format!("{s:max_len$}")
     } else {
         format!("...{}", &s[s.len() - max_len + 3..])
     }
@@ -143,7 +143,7 @@ pub fn truncate_filename(s: &str, max_len: usize) -> String {
 
 /// Parse rustc error output into structured errors
 /// DEPYLER-1310: Enhanced to extract source context and keywords
-pub fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
+pub(super) fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
     let mut errors = Vec::new();
     let lines: Vec<&str> = stderr.lines().collect();
     let mut i = 0;
@@ -201,7 +201,7 @@ pub fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
     errors
 }
 
-/// Parse location from " --> file:line:col" format
+/// Parse location from " --> <file:line:col>" format
 fn parse_location(line: &str) -> Option<(usize, usize)> {
     let trimmed = line.trim();
     if !trimmed.starts_with("-->") {
@@ -218,7 +218,7 @@ fn parse_location(line: &str) -> Option<(usize, usize)> {
     None
 }
 
-/// Extract source code from line like "123 |     source_code_here"
+/// Extract source code from line like "123 |     `source_code_here`"
 fn extract_source_line(line: &str) -> Option<String> {
     // Match pattern: "digits | code" or just "| code"
     let trimmed = line.trim();
@@ -321,7 +321,7 @@ fn extract_keywords(source: &str) -> Vec<String> {
     }
 
     // Tuple patterns
-    if source.contains("(") && source.contains(",") && source.contains(")") {
+    if source.contains('(') && source.contains(',') && source.contains(')') {
         // Simple heuristic for tuple-like patterns
         let paren_count = source.matches('(').count();
         let comma_count = source.matches(',').count();
@@ -334,7 +334,7 @@ fn extract_keywords(source: &str) -> Vec<String> {
 }
 
 /// Parse a single error line
-pub fn parse_error_line(line: &str, file: &Path) -> Option<CompilationError> {
+pub(super) fn parse_error_line(line: &str, file: &Path) -> Option<CompilationError> {
     if let Some(start) = line.find("error[E") {
         let code_start = start + 6;
         if let Some(code_end) = line[code_start..].find(']') {
@@ -356,7 +356,7 @@ pub fn parse_error_line(line: &str, file: &Path) -> Option<CompilationError> {
 }
 
 /// Find all Python files in a directory
-pub fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
+pub(super) fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     if dir.is_file() {
@@ -388,7 +388,7 @@ fn find_python_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(
 }
 
 /// Create a compilation result for a transpilation failure
-pub fn make_transpile_failure(py_file: &Path, error_message: &str) -> CompilationResult {
+pub(super) fn make_transpile_failure(py_file: &Path, error_message: &str) -> CompilationResult {
     CompilationResult {
         source_file: py_file.to_path_buf(),
         success: false,
@@ -406,7 +406,7 @@ pub fn make_transpile_failure(py_file: &Path, error_message: &str) -> Compilatio
 }
 
 /// Create a successful compilation result
-pub fn make_success_result(py_file: &Path, rust_file: PathBuf) -> CompilationResult {
+pub(super) fn make_success_result(py_file: &Path, rust_file: PathBuf) -> CompilationResult {
     CompilationResult {
         source_file: py_file.to_path_buf(),
         success: true,
@@ -416,7 +416,7 @@ pub fn make_success_result(py_file: &Path, rust_file: PathBuf) -> CompilationRes
 }
 
 /// Create a compilation failure result
-pub fn make_compile_failure(
+pub(super) fn make_compile_failure(
     py_file: &Path,
     rust_file: PathBuf,
     errors: Vec<CompilationError>,
@@ -429,8 +429,8 @@ pub fn make_compile_failure(
     }
 }
 
-/// Convert cargo-first errors to CompilationErrors
-pub fn convert_cargo_errors(
+/// Convert cargo-first errors to `CompilationErrors`
+pub(super) fn convert_cargo_errors(
     cargo_errors: Vec<depyler_core::cargo_first::CompilerError>,
     rust_file: &Path,
 ) -> Vec<CompilationError> {
@@ -472,7 +472,7 @@ pub fn convert_cargo_errors(
 }
 
 /// Compile a single file using cargo-first
-pub async fn compile_single_file(py_file: &Path) -> Result<CompilationResult> {
+pub(super) async fn compile_single_file(py_file: &Path) -> Result<CompilationResult> {
     use std::process::Command;
 
     let output_file = py_file.with_extension("rs");

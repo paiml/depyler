@@ -1,4 +1,4 @@
-//! MoE (Mixture of Experts) Oracle for Error Classification (DEPYLER-0580)
+//! `MoE` (Mixture of Experts) Oracle for Error Classification (DEPYLER-0580)
 //!
 //! Uses specialized experts for different error categories:
 //! - Expert 1: Type System (E0308, E0277, E0606)
@@ -216,7 +216,7 @@ impl Estimator for ErrorExpert {
     }
 }
 
-/// MoE Oracle configuration
+/// `MoE` Oracle configuration
 #[derive(Debug, Clone)]
 pub struct MoeOracleConfig {
     /// Number of top experts to use (sparse routing)
@@ -233,7 +233,7 @@ impl Default for MoeOracleConfig {
     }
 }
 
-/// MoE Oracle result
+/// `MoE` Oracle result
 #[derive(Debug, Clone)]
 pub struct MoeClassificationResult {
     /// Primary expert that handled the error
@@ -265,7 +265,7 @@ impl MoeOracle {
     /// Feature dimension for error encoding
     pub const FEATURE_DIM: usize = 16;
 
-    /// Create a new MoE Oracle with default configuration
+    /// Create a new `MoE` Oracle with default configuration
     pub fn new() -> Self {
         Self::with_config(MoeOracleConfig::default())
     }
@@ -369,7 +369,7 @@ impl MoeOracle {
         }
     }
 
-    /// Train the MoE oracle on error samples
+    /// Train the `MoE` oracle on error samples
     pub fn train(&mut self, samples: &[(String, String, ErrorCategory)]) -> Result<()> {
         // Group samples by domain
         let mut domain_samples: HashMap<ExpertDomain, Vec<(Vec<f32>, f32)>> = HashMap::new();
@@ -419,7 +419,7 @@ impl MoeOracle {
                 }
                 Err(e) => {
                     // This should rarely happen with Ridge regression
-                    eprintln!("Warning: Expert {:?} training failed: {}", domain, e);
+                    eprintln!("Warning: Expert {domain:?} training failed: {e}");
                 }
             }
         }
@@ -427,13 +427,13 @@ impl MoeOracle {
         Ok(())
     }
 
-    /// Save the MoE oracle to file
+    /// Save the `MoE` oracle to file
     pub fn save(&self, _path: &Path) -> Result<()> {
         // Note: Implement proper serialization
         Ok(())
     }
 
-    /// Load MoE oracle from file
+    /// Load `MoE` oracle from file
     pub fn load(_path: &Path) -> Result<Self> {
         // Note: Implement proper deserialization
         Ok(Self::new())

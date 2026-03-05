@@ -55,20 +55,20 @@ impl KnowledgeDistiller {
 
     /// Generate Rust code for a hardcoded rule
     ///
-    /// Returns a function definition that can be added to direct_rules.rs
+    /// Returns a function definition that can be added to `direct_rules.rs`
     pub fn generate_rule(&self, pattern: &TranspilationPattern) -> String {
         // Convert ID to valid Rust identifier (snake_case)
         let fn_name = pattern.id.replace(['-', '.'], "_");
 
         format!(
-            r#"
+            r"
 // Auto-generated from pattern {} (confidence: {:.2}, uses: {})
 // Original Python: {}
 fn handle_pattern_{}(ctx: &mut CodegenContext, expr: &HirExpr) -> TokenStream {{
     // Generated output: {}
     quote! {{ {} }}
 }}
-"#,
+",
             pattern.id,
             pattern.confidence,
             pattern.usage_count,

@@ -32,7 +32,7 @@ pub struct ErrorFeatures {
     pub code: String,
     /// Frequency count.
     pub count: usize,
-    /// Category index (0-8 for ErrorCategory variants).
+    /// Category index (0-8 for `ErrorCategory` variants).
     pub category_idx: usize,
     /// Is type-related error (E03xx).
     pub is_type_error: bool,
@@ -149,7 +149,7 @@ impl ClusterAnalyzer {
             .map(|(code, &count)| ErrorFeatures::from_error(code, count, total_errors))
             .collect();
 
-        let data: Vec<Vec<f64>> = features.iter().map(|f| f.to_vector()).collect();
+        let data: Vec<Vec<f64>> = features.iter().map(ErrorFeatures::to_vector).collect();
 
         // Determine optimal K using elbow method
         let optimal_k = self.find_optimal_k(&data);
@@ -274,8 +274,7 @@ impl ClusterAnalyzer {
                 (i, dist)
             })
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap_or(0)
+            .map_or(0, |(i, _)| i)
     }
 
     fn calculate_inertia(
@@ -329,7 +328,9 @@ impl ClusterAnalyzer {
                 // Calculate variance
                 let centroid = if id < centroids.len() { centroids[id].clone() } else { vec![] };
 
-                let variance = if !centroid.is_empty() {
+                let variance = if centroid.is_empty() {
+                    0.0
+                } else {
                     members
                         .iter()
                         .map(|f| {
@@ -341,8 +342,6 @@ impl ClusterAnalyzer {
                         })
                         .sum::<f64>()
                         / members.len() as f64
-                } else {
-                    0.0
                 };
 
                 // Generate label
@@ -373,7 +372,7 @@ impl ClusterAnalyzer {
         } else if borrow_count > members.len() / 2 {
             "Ownership Errors".to_string()
         } else {
-            format!("Mixed Errors (dominant: {})", dominant)
+            format!("Mixed Errors (dominant: {dominant})")
         }
     }
 

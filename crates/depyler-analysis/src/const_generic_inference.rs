@@ -157,7 +157,7 @@ impl ConstGenericInferencer {
     /// 2. We add a `array[int, 5]` syntax for explicit fixed-size arrays
     /// 3. We have strong evidence (beyond literal inference) that arrays are needed
     ///
-    /// See: https://github.com/depyler/depyler/issues/XXXX
+    /// See: <https://github.com/depyler/depyler/issues/XXXX>
     fn transform_function_types(&mut self, _function: &mut HirFunction) -> Result<()> {
         // DISABLED: This transformation was causing list[int] -> [i32; 5]
         // which breaks semantics (dynamic list becomes fixed array)

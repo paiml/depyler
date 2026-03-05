@@ -232,10 +232,10 @@ pub fn print_terminal_report(
 ) {
     println!();
     println!("{}", "Summary".bold().underline());
-    println!("  Total: {}", total);
+    println!("  Total: {total}");
     println!("  Pass:  {}", pass.to_string().green());
     println!("  Fail:  {}", fail.to_string().red());
-    println!("  Rate:  {}", format!("{:.1}%", rate).cyan().bold());
+    println!("  Rate:  {}", format!("{rate:.1}%").cyan().bold());
 
     let andon = if rate >= 80.0 {
         "GREEN".green().bold()
@@ -244,7 +244,7 @@ pub fn print_terminal_report(
     } else {
         "RED".red().bold()
     };
-    println!("  Status: {}", andon);
+    println!("  Status: {andon}");
 
     if !taxonomy.is_empty() {
         println!();

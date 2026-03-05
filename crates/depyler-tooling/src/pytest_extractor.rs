@@ -48,7 +48,7 @@ pub struct PytestExtractor {
 }
 
 impl PytestExtractor {
-    /// Creates a new PytestExtractor with default settings
+    /// Creates a new `PytestExtractor` with default settings
     pub fn new() -> Self {
         Self { strict_test_files: true }
     }

@@ -1,4 +1,4 @@
-//! TranspilerPatcher - DEPYLER-1308
+//! `TranspilerPatcher` - DEPYLER-1308
 //!
 //! Self-modifying compiler infrastructure that applies patches to depyler-core
 //! source code based on Oracle-identified error patterns.
@@ -114,7 +114,7 @@ impl Default for AprFile {
     }
 }
 
-/// TranspilerPatcher - modifies depyler-core source based on Oracle patterns
+/// `TranspilerPatcher` - modifies depyler-core source based on Oracle patterns
 pub struct TranspilerPatcher {
     /// Path to depyler-core crate
     core_path: PathBuf,
@@ -176,10 +176,10 @@ impl TranspilerPatcher {
                     "iterator".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1308: Hint - list element type from first element
         let _element_count = elts.len();
-"#
+"
                 .to_string(),
                 confidence: 0.85,
                 enabled: true,
@@ -198,10 +198,10 @@ impl TranspilerPatcher {
                     "get".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1308: Hint - dict value type from first entry
         let _entry_count = items.len();
-"#
+"
                 .to_string(),
                 confidence: 0.80,
                 enabled: true,
@@ -222,10 +222,10 @@ impl TranspilerPatcher {
                     "float".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
     // DEPYLER-1308: Hint - propagate return type to body expressions
     let _return_type_hint = func.ret_type.clone();
-"#
+"
                 .to_string(),
                 confidence: 0.75,
                 enabled: true,
@@ -244,10 +244,10 @@ impl TranspilerPatcher {
                     "float".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1308: Preserve tuple element types during conversion
         let _element_count = elts.len();
-"#
+"
                 .to_string(),
                 confidence: 0.75,
                 enabled: true,
@@ -309,10 +309,10 @@ impl TranspilerPatcher {
                     "constructor".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1311: Handle Option method calls
         let _is_option_type = false; // Placeholder for Option detection
-"#
+"
                 .to_string(),
                 confidence: 0.78,
                 enabled: true,
@@ -331,10 +331,10 @@ impl TranspilerPatcher {
                     "list".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1311: Handle iterator method chains
         let _is_iterator_chain = false; // Placeholder for iterator detection
-"#
+"
                 .to_string(),
                 confidence: 0.77,
                 enabled: true,
@@ -376,10 +376,10 @@ impl TranspilerPatcher {
                     "insert".to_string(),
                 ],
                 patch_type: PatchType::InjectAtStart,
-                code_template: r#"
+                code_template: r"
         // DEPYLER-1311: Ensure HashMap keys implement Hash + Eq
         let _key_hashable = true; // Placeholder for hashability check
-"#
+"
                 .to_string(),
                 confidence: 0.72,
                 enabled: true,
@@ -392,7 +392,7 @@ impl TranspilerPatcher {
     }
 
     /// Find patches matching an error
-    /// DEPYLER-1310: Enhanced to check context_keywords from source lines
+    /// DEPYLER-1310: Enhanced to check `context_keywords` from source lines
     pub fn find_patches(
         &self,
         error_code: &str,
@@ -641,7 +641,7 @@ impl TranspilerPatcher {
             return Ok(result);
         }
 
-        Err(anyhow::anyhow!("Could not find pattern '{}' to insert match arm", before_pattern))
+        Err(anyhow::anyhow!("Could not find pattern '{before_pattern}' to insert match arm"))
     }
 
     /// Replace a match arm
@@ -756,7 +756,7 @@ impl TranspilerPatcher {
 
     /// Get total loaded patches
     pub fn patch_count(&self) -> usize {
-        self.patches.values().map(|v| v.len()).sum()
+        self.patches.values().map(std::vec::Vec::len).sum()
     }
 }
 

@@ -14,7 +14,7 @@ use super::verifier::VerifyResult;
 /// A lesson learned from a Hunt Mode cycle
 #[derive(Debug, Clone)]
 pub struct Lesson {
-    /// Category of lesson (e.g., "type_system", "imports", "borrowing")
+    /// Category of lesson (e.g., "`type_system`", "imports", "borrowing")
     pub category: String,
     /// What was observed
     pub observation: String,
@@ -189,7 +189,7 @@ impl HanseiReflector {
 
         vec![Lesson::new(
             "failure_analysis",
-            &format!("Fix attempt failed: {}", reason),
+            &format!("Fix attempt failed: {reason}"),
             "Review fix strategy; may need different approach or manual intervention",
         )]
     }
@@ -244,7 +244,7 @@ impl HanseiReflector {
         }
 
         for (category, lessons) in categories {
-            md.push_str(&format!("## {}\n\n", category));
+            md.push_str(&format!("## {category}\n\n"));
 
             for lesson in lessons {
                 md.push_str(&format!(

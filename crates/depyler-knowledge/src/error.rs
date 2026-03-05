@@ -24,7 +24,7 @@ pub enum KnowledgeError {
     #[error("database error: {0}")]
     DatabaseError(String),
 
-    /// Invalid TypeFactKind string
+    /// Invalid `TypeFactKind` string
     #[error("invalid type fact kind: {0}")]
     InvalidKind(String),
 

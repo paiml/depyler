@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 /// Tracks type variables and their constraints for generic inference
 #[derive(Debug, Default)]
 pub struct TypeVarRegistry {
-    /// Map from TypeVar names to their constraints
+    /// Map from `TypeVar` names to their constraints
     type_vars: HashMap<String, TypeVarConstraints>,
     /// Type parameters inferred for functions
     function_type_params: HashMap<String, Vec<TypeParameter>>,
@@ -279,7 +279,7 @@ impl TypeVarCollector {
     /// (like List[Unknown], Dict[str, Unknown]) but NOT for bare Unknown (function return type)
     fn collect_from_type_internal(&mut self, ty: &Type, _nested: bool) {
         match ty {
-            Type::Custom(name) if name.chars().next().is_some_and(|c| c.is_uppercase()) => {
+            Type::Custom(name) if name.chars().next().is_some_and(char::is_uppercase) => {
                 // Assume single uppercase letters are type variables
                 if name.len() == 1 {
                     self.type_vars.insert(name.clone());

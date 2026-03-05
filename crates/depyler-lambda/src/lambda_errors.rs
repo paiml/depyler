@@ -478,7 +478,7 @@ impl From<LambdaError> for aws_lambda_events::apigw::ApiGatewayV2httpResponse {{
 
     /// Generate helper traits for error handling
     fn generate_helper_traits(&self) -> String {
-        r#"// Helper traits for error handling
+        r"// Helper traits for error handling
 pub trait LambdaErrorExt {
     fn with_context(self, context: &str) -> LambdaError;
     fn with_parameter(self, parameter: &str) -> LambdaError;
@@ -553,7 +553,7 @@ macro_rules! require_param {{
     }};
 }}
 
-"#
+"
         .to_string()
     }
 
@@ -622,7 +622,7 @@ async fn {handler_name}_with_error_handling(
             }
             ErrorHandlingStrategy::CustomHandler(custom_code) => {
                 format!(
-                    r#"// Custom error handling wrapper for {handler_name}
+                    r"// Custom error handling wrapper for {handler_name}
 async fn {handler_name}_with_error_handling(
     event: LambdaEvent<serde_json::Value>
 ) -> Result<serde_json::Value, LambdaError> {{
@@ -633,7 +633,7 @@ async fn {handler_name}_with_error_handling(
         }}
     }}
 }}
-"#
+"
                 )
             }
         }

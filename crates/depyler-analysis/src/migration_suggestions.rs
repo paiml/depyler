@@ -145,14 +145,14 @@ impl MigrationAnalyzer {
                 severity: Severity::Warning,
                 title: format!("Consider using iterator methods in '{}'", func.name),
                 description: "This function uses an accumulator pattern that could be replaced with iterator methods".to_string(),
-                python_example: r#"result = []
+                python_example: r"result = []
 for item in items:
     if condition(item):
-        result.append(transform(item))"#.to_string(),
-                rust_suggestion: r#"let result: Vec<_> = items.iter()
+        result.append(transform(item))".to_string(),
+                rust_suggestion: r"let result: Vec<_> = items.iter()
     .filter(|item| condition(item))
     .map(|item| transform(item))
-    .collect();"#.to_string(),
+    .collect();".to_string(),
                 notes: vec![
                     "Iterator chains are more idiomatic and often more efficient".to_string(),
                     "They avoid intermediate allocations".to_string(),
@@ -174,17 +174,17 @@ for item in items:
                     func.name
                 ),
                 description: "Returning None for errors loses error information".to_string(),
-                python_example: r#"def process(data):
+                python_example: r"def process(data):
     if not valid(data):
         return None
-    return result"#
+    return result"
                     .to_string(),
-                rust_suggestion: r#"fn process(data: &Data) -> Result<T, ProcessError> {
+                rust_suggestion: r"fn process(data: &Data) -> Result<T, ProcessError> {
     if !valid(data) {
         return Err(ProcessError::InvalidData);
     }
     Ok(result)
-}"#
+}"
                 .to_string(),
                 notes: vec![
                     "Result provides rich error information".to_string(),
@@ -204,11 +204,11 @@ for item in items:
                     func.name
                 ),
                 description: "This function appears to modify its parameters".to_string(),
-                python_example: r#"def modify_list(lst):
+                python_example: r"def modify_list(lst):
     lst.append(42)
-    return lst"#
+    return lst"
                     .to_string(),
-                rust_suggestion: r#"// Option 1: Take mutable reference
+                rust_suggestion: r"// Option 1: Take mutable reference
 fn modify_list(lst: &mut Vec<i32>) {
     lst.push(42);
 }
@@ -217,7 +217,7 @@ fn modify_list(lst: &mut Vec<i32>) {
 fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
     lst.push(42);
     lst
-}"#
+}"
                 .to_string(),
                 notes: vec![
                     "Rust's ownership system requires explicit mutability".to_string(),
@@ -279,12 +279,12 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
                 title: "Consider filter_map() for conditional transformation".to_string(),
                 description: "Combining filter and map operations can be more efficient"
                     .to_string(),
-                python_example: r#"result = []
+                python_example: r"result = []
 for item in items:
     if condition(item):
-        result.append(transform(item))"#
+        result.append(transform(item))"
                     .to_string(),
-                rust_suggestion: r#"let result: Vec<_> = items.iter()
+                rust_suggestion: r"let result: Vec<_> = items.iter()
     .filter_map(|item| {
         if condition(item) {
             Some(transform(item))
@@ -292,7 +292,7 @@ for item in items:
             None
         }
     })
-    .collect();"#
+    .collect();"
                     .to_string(),
                 notes: vec!["filter_map avoids intermediate Option wrapping".to_string()],
                 location: Some(SourceLocation { function: func.name.clone(), line }),
@@ -341,12 +341,12 @@ for item in items:
                 title: "Use Rust's type system instead of runtime type checks".to_string(),
                 description: "Rust's static typing eliminates the need for runtime type checks"
                     .to_string(),
-                python_example: r#"if isinstance(value, str):
+                python_example: r"if isinstance(value, str):
     process_string(value)
 elif isinstance(value, int):
-    process_number(value)"#
+    process_number(value)"
                     .to_string(),
-                rust_suggestion: r#"// Use enums for sum types
+                rust_suggestion: r"// Use enums for sum types
 enum Value {
     String(String),
     Number(i32),
@@ -355,7 +355,7 @@ enum Value {
 match value {
     Value::String(s) => process_string(s),
     Value::Number(n) => process_number(n),
-}"#
+}"
                 .to_string(),
                 notes: vec![
                     "Enums provide compile-time guarantees".to_string(),
@@ -372,12 +372,12 @@ match value {
                 severity: Severity::Warning,
                 title: "Use pattern matching or if-let for Option handling".to_string(),
                 description: "Rust provides ergonomic ways to handle Option values".to_string(),
-                python_example: r#"if value is not None:
+                python_example: r"if value is not None:
     process(value)
 else:
-    handle_none()"#
+    handle_none()"
                     .to_string(),
-                rust_suggestion: r#"// Option 1: if let
+                rust_suggestion: r"// Option 1: if let
 if let Some(v) = value {
     process(v);
 } else {
@@ -388,7 +388,7 @@ if let Some(v) = value {
 match value {
     Some(v) => process(v),
     None => handle_none(),
-}"#
+}"
                 .to_string(),
                 notes: vec!["Pattern matching is more idiomatic and safer".to_string()],
                 location: Some(SourceLocation { function: func.name.clone(), line }),
@@ -659,12 +659,12 @@ for item in items {
 
         output.push_str(&format!("\n   {}:\n", "Python pattern".yellow()));
         for line in suggestion.python_example.lines() {
-            output.push_str(&format!("   │ {}\n", line));
+            output.push_str(&format!("   │ {line}\n"));
         }
 
         output.push_str(&format!("\n   {}:\n", "Rust idiom".green()));
         for line in suggestion.rust_suggestion.lines() {
-            output.push_str(&format!("   │ {}\n", line));
+            output.push_str(&format!("   │ {line}\n"));
         }
 
         output

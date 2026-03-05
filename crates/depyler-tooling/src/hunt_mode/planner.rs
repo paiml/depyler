@@ -34,7 +34,7 @@ pub struct FailurePattern {
     pub error_code: String,
     /// Description of the pattern
     pub description: String,
-    /// Category (e.g., "type_inference", "external_deps", "borrowing")
+    /// Category (e.g., "`type_inference`", "`external_deps`", "borrowing")
     pub category: PatternCategory,
     /// How many files exhibit this pattern
     pub affected_count: u32,
@@ -164,8 +164,8 @@ impl HuntPlanner {
     /// Formula: (frequency × severity) / complexity
     /// Higher score = higher priority
     fn calculate_priority(&self, pattern: &FailurePattern) -> f64 {
-        let frequency = pattern.affected_count as f64;
-        let complexity = pattern.fix_complexity as f64;
+        let frequency = f64::from(pattern.affected_count);
+        let complexity = f64::from(pattern.fix_complexity);
 
         // Avoid division by zero
         let complexity = complexity.max(1.0);

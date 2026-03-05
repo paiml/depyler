@@ -274,7 +274,7 @@ impl LambdaTestHarness {
     }
 
     fn generate_test_imports(&self) -> String {
-        r#"#[cfg(test)]
+        r"#[cfg(test)]
 mod tests {{
     use super::*;
     use lambda_runtime::{{Context, LambdaEvent}};
@@ -282,7 +282,7 @@ mod tests {{
     use std::time::Instant;
     // use tokio::time::timeout;
 
-"#
+"
         .to_string()
     }
 

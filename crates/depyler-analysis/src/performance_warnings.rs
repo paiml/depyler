@@ -371,7 +371,7 @@ impl PerformanceAnalyzer {
         self.add_warning(PerformanceWarning {
             category: WarningCategory::RedundantComputation,
             severity: WarningSeverity::Medium,
-            message: format!("Expensive function '{}' called in loop", fname),
+            message: format!("Expensive function '{fname}' called in loop"),
             explanation: "Calling expensive functions repeatedly can impact performance"
                 .to_string(),
             suggestion: "Cache the result if the inputs don't change".to_string(),
@@ -481,7 +481,7 @@ impl PerformanceAnalyzer {
                 self.add_warning(PerformanceWarning {
                     category: WarningCategory::RedundantComputation,
                     severity: WarningSeverity::Medium,
-                    message: format!("Aggregate function '{}' in nested loop", fname),
+                    message: format!("Aggregate function '{fname}' in nested loop"),
                     explanation: "Computing aggregates repeatedly is inefficient".to_string(),
                     suggestion: "Compute once and cache the result".to_string(),
                     impact: PerformanceImpact {
@@ -566,7 +566,7 @@ impl PerformanceAnalyzer {
         self.add_warning(PerformanceWarning {
             category: WarningCategory::AlgorithmComplexity,
             severity: WarningSeverity::Medium,
-            message: format!("Linear search method '{}' in loop", method),
+            message: format!("Linear search method '{method}' in loop"),
             explanation: "Linear search in loops can lead to quadratic complexity".to_string(),
             suggestion: "Consider using a HashMap/HashSet for O(1) lookups".to_string(),
             impact: PerformanceImpact {

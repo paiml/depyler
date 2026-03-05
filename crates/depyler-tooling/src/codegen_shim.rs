@@ -5,7 +5,7 @@
 use depyler_hir::hir::{AssignTarget, HirExpr, HirStmt, Type};
 use std::collections::HashSet;
 
-/// Check if a type uses HashMap
+/// Check if a type uses `HashMap`
 pub fn uses_hashmap(ty: &Type) -> bool {
     match ty {
         Type::Dict(_, _) => true,
@@ -16,7 +16,7 @@ pub fn uses_hashmap(ty: &Type) -> bool {
     }
 }
 
-/// Check if statement uses HashMap
+/// Check if statement uses `HashMap`
 pub fn stmt_uses_hashmap(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => expr_uses_hashmap(value),
@@ -35,12 +35,12 @@ pub fn stmt_uses_hashmap(stmt: &HirStmt) -> bool {
     }
 }
 
-/// Check if function body uses HashMap
+/// Check if function body uses `HashMap`
 pub fn body_uses_hashmap(body: &[HirStmt]) -> bool {
     body.iter().any(stmt_uses_hashmap)
 }
 
-/// Check if expression uses HashMap
+/// Check if expression uses `HashMap`
 pub fn expr_uses_hashmap(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Dict(_) => true,
@@ -171,7 +171,7 @@ pub fn is_reference_type(ty: &Type) -> bool {
             name.starts_with("Vec<")
                 || name.starts_with("HashMap<")
                 || name.starts_with("String")
-                || name.starts_with("&")
+                || name.starts_with('&')
         }
         _ => false,
     }

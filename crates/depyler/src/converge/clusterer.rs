@@ -14,7 +14,7 @@ use super::compiler::CompilationError;
 pub enum RootCause {
     /// Gap in transpiler implementation
     TranspilerGap {
-        /// Type of gap (missing_method, type_inference, etc.)
+        /// Type of gap (`missing_method`, `type_inference`, etc.)
         gap_type: String,
         /// Location in transpiler code
         location: String,

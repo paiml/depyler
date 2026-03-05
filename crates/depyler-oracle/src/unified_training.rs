@@ -1,16 +1,16 @@
 //! Unified training pipeline for merging all data sources deterministically.
 //!
-//! Issue #213: Aligned with aprender::online::corpus::CorpusMerger patterns.
+//! Issue #213: Aligned with `aprender::online::corpus::CorpusMerger` patterns.
 //! Uses similar deduplication, weighting, and provenance tracking.
 //!
 //! Data sources (mapped to SampleSource-like enum):
-//! 1. **Synthetic corpus**: Generated error patterns (SampleSource::Synthetic)
-//! 2. **Depyler corpus**: Hand-crafted samples (SampleSource::HandCrafted)
-//! 3. **Verificar corpus**: Extracted from verificar (SampleSource::External)
-//! 4. **OIP GitHub corpus**: Mined from Git history (SampleSource::Production)
-//! 5. **Real errors**: Actual compilation failures (SampleSource::Production)
+//! 1. **Synthetic corpus**: Generated error patterns (`SampleSource::Synthetic`)
+//! 2. **Depyler corpus**: Hand-crafted samples (`SampleSource::HandCrafted`)
+//! 3. **Verificar corpus**: Extracted from verificar (`SampleSource::External`)
+//! 4. **OIP GitHub corpus**: Mined from Git history (`SampleSource::Production`)
+//! 5. **Real errors**: Actual compilation failures (`SampleSource::Production`)
 //!
-//! Pipeline (mirrors CorpusMerger flow):
+//! Pipeline (mirrors `CorpusMerger` flow):
 //! ```text
 //! ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
 //! │  Synthetic  │  │   Depyler   │  │  Verificar  │  │ OIP GitHub  │
@@ -48,7 +48,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-/// Sample source for provenance tracking (mirrors aprender::online::corpus::SampleSource).
+/// Sample source for provenance tracking (mirrors `aprender::online::corpus::SampleSource`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TextSampleSource {
     /// Synthetic generated data
@@ -62,7 +62,7 @@ pub enum TextSampleSource {
     Production,
 }
 
-/// A corpus source with weight and priority (mirrors aprender::online::corpus::CorpusSource).
+/// A corpus source with weight and priority (mirrors `aprender::online::corpus::CorpusSource`).
 #[derive(Debug, Clone)]
 pub struct TextCorpusSource {
     /// Source name for provenance
@@ -135,10 +135,10 @@ impl Default for UnifiedTrainingConfig {
     }
 }
 
-/// Provenance tracking for merged corpus (mirrors aprender::online::corpus::CorpusProvenance).
+/// Provenance tracking for merged corpus (mirrors `aprender::online::corpus::CorpusProvenance`).
 #[derive(Debug, Clone, Default)]
 pub struct CorpusProvenance {
-    /// Sources and their contributions: (original_count, effective_count)
+    /// Sources and their contributions: (`original_count`, `effective_count`)
     pub sources: HashMap<String, (usize, usize)>,
     /// Final merged size
     pub final_size: usize,
@@ -166,7 +166,7 @@ pub struct MergeStats {
     pub provenance: CorpusProvenance,
 }
 
-/// Text corpus merger (mirrors aprender::online::corpus::CorpusMerger API).
+/// Text corpus merger (mirrors `aprender::online::corpus::CorpusMerger` API).
 ///
 /// Merges multiple text-based training sources with configurable weighting,
 /// priority-based deduplication, and deterministic shuffling.
@@ -281,7 +281,7 @@ pub struct UnifiedTrainingResult {
 
 /// Build a unified corpus from all available data sources.
 ///
-/// Issue #213: Now uses TextCorpusMerger (aligned with aprender::online::corpus::CorpusMerger).
+/// Issue #213: Now uses `TextCorpusMerger` (aligned with `aprender::online::corpus::CorpusMerger`).
 ///
 /// # Arguments
 /// * `config` - Configuration for the training pipeline
@@ -462,7 +462,7 @@ fn load_real_errors_file(path: &Path) -> Vec<TrainingSample> {
             if parts.len() >= 3 {
                 let error_msg = format!("error[{}]: {}", parts[0], parts[1]);
                 let category = parse_category(parts[2]);
-                let fix = parts.get(3).map(|s| s.to_string());
+                let fix = parts.get(3).map(std::string::ToString::to_string);
 
                 if let Some(fix) = fix {
                     samples.push(TrainingSample::with_fix(&error_msg, category, &fix));
@@ -522,7 +522,7 @@ pub fn print_merge_stats(stats: &MergeStats) {
     println!("│  By Source Type (Provenance):                       │");
     for (source_type, count) in &stats.provenance.by_source_type {
         let pct = (*count as f64 / stats.final_count.max(1) as f64) * 100.0;
-        println!("│    {:?}: {} ({:.1}%)                    │", source_type, count, pct);
+        println!("│    {source_type:?}: {count} ({pct:.1}%)                    │");
     }
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  By Category:                                       │");
@@ -530,7 +530,7 @@ pub fn print_merge_stats(stats: &MergeStats) {
     categories.sort_by(|a, b| b.1.cmp(a.1));
     for (category, count) in categories {
         let pct = (*count as f64 / stats.final_count.max(1) as f64) * 100.0;
-        println!("│    {:?}: {} ({:.1}%)             │", category, count, pct);
+        println!("│    {category:?}: {count} ({pct:.1}%)             │");
     }
     println!("╰─────────────────────────────────────────────────────╯");
 }

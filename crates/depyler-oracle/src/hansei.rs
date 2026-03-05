@@ -21,7 +21,7 @@
 //! # References
 //!
 //! - Liker, J.K. (2004). The Toyota Way: 14 Management Principles
-//! - entrenar `monitor/report.rs` - HanseiAnalyzer pattern
+//! - entrenar `monitor/report.rs` - `HanseiAnalyzer` pattern
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ impl std::fmt::Display for Trend {
 pub struct TranspileIssue {
     /// Severity level
     pub severity: IssueSeverity,
-    /// Issue category (e.g., "async_await", "type_inference")
+    /// Issue category (e.g., "`async_await`", "`type_inference`")
     pub category: String,
     /// Human-readable description
     pub description: String,
@@ -271,7 +271,7 @@ impl TranspileHanseiAnalyzer {
     ///
     /// # Returns
     ///
-    /// A comprehensive HanseiReport with issues and recommendations.
+    /// A comprehensive `HanseiReport` with issues and recommendations.
     pub fn analyze(
         &self,
         report_id: &str,
@@ -481,8 +481,8 @@ impl TranspileHanseiAnalyzer {
             issues.push(TranspileIssue {
                 severity,
                 category: feature.clone(),
-                description: format!("Python feature '{}' appears in {} failures", feature, count),
-                recommendation: format!("Implement or improve support for '{}'", feature),
+                description: format!("Python feature '{feature}' appears in {count} failures"),
+                recommendation: format!("Implement or improve support for '{feature}'"),
                 occurrences: count,
                 suspiciousness,
             });
@@ -537,10 +537,10 @@ impl TranspileHanseiAnalyzer {
         // Default recommendation based on trend
         match summary.trend {
             Trend::Degrading => {
-                format!("URGENT: {} is regressing. Review recent changes.", category)
+                format!("URGENT: {category} is regressing. Review recent changes.")
             }
             Trend::Oscillating => {
-                format!("Stabilize {} implementation to reduce variance.", category)
+                format!("Stabilize {category} implementation to reduce variance.")
             }
             _ => format!(
                 "Improve {} support (current success rate: {:.1}%)",
@@ -575,8 +575,7 @@ impl TranspileHanseiAnalyzer {
 
         if critical_count > 0 {
             recommendations.push(format!(
-                "Address {} critical issues before adding new features.",
-                critical_count
+                "Address {critical_count} critical issues before adding new features."
             ));
         }
 

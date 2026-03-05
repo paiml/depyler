@@ -107,7 +107,7 @@ impl TestGenerator {
         }))
     }
 
-    /// Generate tests for a function if applicable (DEPRECATED - use generate_tests_module instead)
+    /// Generate tests for a function if applicable (DEPRECATED - use `generate_tests_module` instead)
     ///
     /// DEPYLER-0280: This function is deprecated because it creates duplicate `mod tests {}` blocks.
     /// Use `generate_tests_module()` for module-level test generation instead.
@@ -344,7 +344,7 @@ impl TestGenerator {
 
     /// Convert a property test argument to match function signature
     ///
-    /// DEPYLER-0281 FIX: Property tests use simple QuickCheck types (String, Vec<T>),
+    /// DEPYLER-0281 FIX: Property tests use simple `QuickCheck` types (String, Vec<T>),
     /// but functions may have complex signatures (Cow<'static, str>, &Vec<T>).
     /// This function generates conversion code to bridge the gap.
     fn convert_arg_for_property_test(
@@ -378,7 +378,7 @@ impl TestGenerator {
 
     /// Convert property to assertion code
     ///
-    /// DEPYLER-0281: Now accepts func_params to enable type-aware argument conversions.
+    /// DEPYLER-0281: Now accepts `func_params` to enable type-aware argument conversions.
     /// This ensures property tests work with complex types like Cow<'static, str>.
     fn property_to_assertion(
         &self,

@@ -32,9 +32,9 @@ pub struct TypeConstraint {
 /// Type constraint store for learning from E0308 errors
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TypeConstraintStore {
-    /// Variable-to-type constraints keyed by (file, variable_name)
+    /// Variable-to-type constraints keyed by (file, `variable_name`)
     pub variable_constraints: HashMap<(String, String), TypeConstraint>,
-    /// Expression pattern constraints (pattern -> expected_type)
+    /// Expression pattern constraints (pattern -> `expected_type`)
     pub pattern_constraints: HashMap<String, String>,
     /// Statistics
     pub stats: ConstraintStats,
