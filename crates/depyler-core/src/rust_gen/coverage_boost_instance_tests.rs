@@ -18,6 +18,7 @@ fn transpile(code: &str) -> String {
     pipeline.transpile(code).expect("transpilation should succeed")
 }
 
+#[allow(dead_code)]
 fn transpile_ok(code: &str) -> bool {
     let pipeline = DepylerPipeline::new();
     pipeline.transpile(code).is_ok()

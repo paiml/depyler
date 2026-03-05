@@ -8,8 +8,6 @@
 //!
 //! 200 tests total: 100 call tests + 100 assign tests
 
-#![cfg(test)]
-
 use crate::ast_bridge::AstBridge;
 use crate::rust_gen::generate_rust_file;
 use crate::type_mapper::TypeMapper;

@@ -259,7 +259,7 @@ def process(data, flag):
 // ====================================================================================
 
 #[test]
-#[ignore] // DEPYLER-0451: Phase 3 - Context-aware stdlib API inference
+#[ignore = "DEPYLER-0451: Phase 3 - Context-aware stdlib API inference"]
 fn test_DEPYLER_0451_08_csv_reader_inference() {
     let python = r"
 import csv

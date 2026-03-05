@@ -125,7 +125,7 @@ def read_file(filepath):
 // ====================================================================================
 
 #[test]
-#[ignore] // DEPYLER-0432: Binary mode requires mode parameter detection (separate feature)
+#[ignore = "DEPYLER-0432: Binary mode requires mode parameter detection (separate feature)"]
 fn test_DEPYLER_0432_04_file_read_binary() {
     let python = r#"
 def read_binary(filepath):
@@ -326,7 +326,7 @@ def main():
 // ====================================================================================
 
 #[test]
-#[ignore] // DEPYLER-0432: Hex encoding requires separate implementation (binascii/hex module)
+#[ignore = "DEPYLER-0432: Hex encoding requires separate implementation (binascii/hex module)"]
 fn test_DEPYLER_0432_09_hex_encoding() {
     let python = r"
 def show_hex(data):
@@ -387,7 +387,7 @@ def create_temp():
 // ====================================================================================
 
 #[test]
-#[ignore] // Run separately due to large file
+#[ignore = "Run separately due to large file"]
 fn test_DEPYLER_0432_11_stream_processor_integration() {
     // Read the actual stream_processor.py from reprorusted-python-cli
     let python_file =

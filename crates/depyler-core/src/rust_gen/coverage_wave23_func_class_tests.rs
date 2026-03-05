@@ -2,8 +2,6 @@
 // Target: Function generation, class generation, and error handling code paths
 // Wave 23: Comprehensive coverage of function signatures, class definitions, error handling, with statements, and special patterns
 
-#![cfg(test)]
-
 use crate::ast_bridge::AstBridge;
 use crate::rust_gen::generate_rust_file;
 use crate::type_mapper::TypeMapper;

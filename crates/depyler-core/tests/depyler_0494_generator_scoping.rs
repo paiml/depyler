@@ -152,7 +152,7 @@ def range_gen(start, end):
 }
 
 #[test]
-#[ignore] // DEPYLER-0494: Scoping FIXED, but type inference issues remain (separate ticket needed)
+#[ignore = "DEPYLER-0494: Scoping FIXED, but type inference issues remain (separate ticket needed)"]
 fn test_generator_compiles() {
     // CRITICAL: Generated code MUST compile
     let python = r"

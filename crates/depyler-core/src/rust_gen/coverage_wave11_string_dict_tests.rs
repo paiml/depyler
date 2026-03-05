@@ -2,8 +2,6 @@
 // Target: string_methods.rs + dict_methods.rs uncovered branches
 // Wave 11: Comprehensive coverage of string method edge cases and dict method branches
 
-#![cfg(test)]
-
 use crate::ast_bridge::AstBridge;
 use crate::rust_gen::generate_rust_file;
 use crate::type_mapper::TypeMapper;

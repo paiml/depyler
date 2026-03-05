@@ -141,7 +141,7 @@ def test_func():
 ///
 /// NOTE: Ignored due to unrelated tuple return type inference issue
 #[test]
-#[ignore]
+#[ignore = "not yet implemented"]
 fn test_depyler_0440_multiple_variables_with_none() {
     let source = r#"
 def test_func():
@@ -200,7 +200,7 @@ def test_func():
 /// NOTE: Ignored - current implementation skips all None for mutable vars
 /// This is acceptable as it's an edge case (None without reassignment is rare)
 #[test]
-#[ignore]
+#[ignore = "not yet implemented"]
 fn test_depyler_0440_keep_none_when_not_reassigned() {
     let source = r#"
 def test_func():

@@ -684,7 +684,7 @@ mod tests {
     // ========================================================================
 
     #[test]
-    #[ignore] // Run with: cargo test --ignored corpus_citl
+    #[ignore = "Run with: cargo test --ignored corpus_citl"]
     fn test_ingest_reprorusted_corpus() {
         use std::path::PathBuf;
 

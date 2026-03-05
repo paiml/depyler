@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_convert_literal_float() {
-        let result = convert_literal(&Literal::Float(3.14));
+        let result = convert_literal(&Literal::Float(3.25));
         assert!(!result.to_token_stream().is_empty());
     }
 

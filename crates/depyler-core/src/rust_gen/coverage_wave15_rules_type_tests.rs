@@ -10,8 +10,6 @@
 //!
 //! 200 tests total across 3 categories
 
-#![cfg(test)]
-
 use crate::ast_bridge::AstBridge;
 use crate::rust_gen::generate_rust_file;
 use crate::type_mapper::TypeMapper;

@@ -44,7 +44,7 @@ fn compile_rust_as_bin(rust_code: &str) -> Result<(), String> {
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_argparse_basic_import() {
     let python = r"
 import argparse
@@ -66,7 +66,7 @@ def main():
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_argparse_argument_parser() {
     let python = r#"
 import argparse
@@ -95,7 +95,7 @@ def main():
 }
 
 #[test]
-#[ignore] // RED phase - Requires DEPYLER-0364 (HIR kwargs support)
+#[ignore = "RED phase - Requires DEPYLER-0364 (HIR kwargs support)"]
 fn test_depyler_0363_argparse_positional_argument() {
     // NOTE: This test requires HIR enhancement to preserve keyword arguments.
     // Current HIR MethodCall only has args: Vec<HirExpr>, so nargs/type/help are lost.
@@ -136,7 +136,7 @@ def main() -> int:
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_argparse_optional_flags() {
     let python = r#"
 import argparse
@@ -164,7 +164,7 @@ def main():
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_path_read_text_method() {
     let python = r"
 from pathlib import Path
@@ -197,7 +197,7 @@ def read_file(filepath: Path) -> str:
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_string_splitlines_method() {
     let python = r"
 def count_lines(text: str) -> int:
@@ -219,7 +219,7 @@ def count_lines(text: str) -> int:
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_string_split_whitespace() {
     let python = r"
 def count_words(text: str) -> int:
@@ -238,7 +238,7 @@ def count_words(text: str) -> int:
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_try_except_with_ioerror() {
     let python = r#"
 from pathlib import Path
@@ -269,7 +269,7 @@ def safe_read(filepath: Path) -> str:
 }
 
 #[test]
-#[ignore] // RED phase - expected to fail
+#[ignore = "RED phase - expected to fail"]
 fn test_depyler_0363_wordcount_full_integration() {
     let python = r#"
 #!/usr/bin/env python3
@@ -325,7 +325,7 @@ if __name__ == "__main__":
 
 // Property test: any valid argparse code should transpile to compiling Rust
 #[test]
-#[ignore] // RED phase
+#[ignore = "RED phase"]
 fn test_depyler_0363_property_argparse_always_compiles() {
     // Simple smoke test - full property test would use proptest crate
     let test_cases = [

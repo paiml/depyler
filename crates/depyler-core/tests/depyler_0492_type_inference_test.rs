@@ -14,7 +14,7 @@ use depyler_core::DepylerPipeline;
 /// Test that function parameter `cmd` is inferred as Vec<String>
 /// from list construction and indexing operations
 #[test]
-#[ignore] // RED: Will fail until type inference integrated
+#[ignore = "RED: Will fail until type inference integrated"]
 fn test_subprocess_cmd_type_inference() {
     let python = r"
 def run_command(cmd, capture=False):
@@ -49,7 +49,7 @@ def run_command(cmd, capture=False):
 
 /// Test that list indexing (cmd[0]) generates Index trait constraint
 #[test]
-#[ignore] // RED: Will fail until constraint collection implemented
+#[ignore = "RED: Will fail until constraint collection implemented"]
 fn test_list_indexing_constraint() {
     let python = r"
 def get_first(items):
@@ -73,7 +73,7 @@ def get_first(items):
 
 /// Test that list slicing (cmd[1..]) generates slicing constraint
 #[test]
-#[ignore] // RED: Will fail until constraint collection implemented
+#[ignore = "RED: Will fail until constraint collection implemented"]
 fn test_list_slicing_constraint() {
     let python = r"
 def get_rest(items):
@@ -92,7 +92,7 @@ def get_rest(items):
 
 /// Test that function call propagates type constraints from stdlib signature
 #[test]
-#[ignore] // RED: Will fail until stdlib constraint propagation implemented
+#[ignore = "RED: Will fail until stdlib constraint propagation implemented"]
 fn test_stdlib_constraint_propagation() {
     let python = r"
 def run_echo(args):
@@ -112,7 +112,7 @@ def run_echo(args):
 
 /// Test that list construction propagates element type constraints
 #[test]
-#[ignore] // RED: Will fail until list construction constraint implemented
+#[ignore = "RED: Will fail until list construction constraint implemented"]
 fn test_list_construction_constraint() {
     let python = r"
 def build_command(prog, args):
@@ -133,7 +133,7 @@ def build_command(prog, args):
 
 /// Test that default value False infers bool type
 #[test]
-#[ignore] // RED: Will fail until default value inference implemented
+#[ignore = "RED: Will fail until default value inference implemented"]
 fn test_bool_default_inference() {
     let python = r#"
 def process(flag=False):
@@ -158,7 +158,7 @@ def process(flag=False):
 
 /// Integration test: Full subprocess example should compile
 #[test]
-#[ignore] // RED: Will fail until full integration complete
+#[ignore = "RED: Will fail until full integration complete"]
 fn test_full_subprocess_example() {
     let python = r#"
 import subprocess

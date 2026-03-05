@@ -1,4 +1,3 @@
-#![cfg(test)]
 //! Coverage Wave 10: Assignment & Control Flow Tests
 //! Targets codegen_assign_stmt() and control flow codegen branches
 

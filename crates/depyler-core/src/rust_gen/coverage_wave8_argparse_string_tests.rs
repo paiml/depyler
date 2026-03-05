@@ -2359,7 +2359,7 @@ def f(title: str) -> str:
     }
 
     #[test]
-    fn test_w8_string_multiple_isX_checks() {
+    fn test_w8_string_multiple_is_x_checks() {
         let code = "\
 def f(s: str) -> bool:
     return s.isalpha() and not s.isupper()

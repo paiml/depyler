@@ -282,7 +282,7 @@ def dicts_equal(a, b):
 // =============================================================================
 
 #[test]
-#[ignore] // Ignore until GREEN phase is complete
+#[ignore = "Ignore until GREEN phase is complete"]
 fn test_depyler_0449_config_manager_compiles() {
     // This test requires the actual config_manager.py file
     // Will be enabled when we verify the fix works on real examples

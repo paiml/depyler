@@ -670,7 +670,7 @@ fn test_call_builtin_hasattr() {
 }
 
 #[test]
-#[ignore] // getattr not yet supported
+#[ignore = "getattr not yet supported"]
 fn test_call_builtin_getattr() {
     // getattr with 2 args (simpler pattern)
     assert!(transpiles("def f(obj):\n    return getattr(obj, 'name')"));

@@ -103,7 +103,7 @@ serde_json = "1.0"
 
 /// Test: Custom context manager with __enter__ returning self
 #[test]
-#[ignore] // Flaky under coverage instrumentation - cargo check from instrumented test causes issues
+#[ignore = "Flaky under coverage instrumentation - cargo check from instrumented test causes issues"]
 fn test_custom_context_manager_enter_returns_self() {
     let python = r#"
 class Connection:
@@ -142,7 +142,7 @@ def main():
 
 /// Test: Context manager without target variable
 #[test]
-#[ignore] // Flaky under coverage instrumentation - cargo check from instrumented test causes issues
+#[ignore = "Flaky under coverage instrumentation - cargo check from instrumented test causes issues"]
 fn test_context_manager_no_target() {
     let python = r#"
 class Logger:
