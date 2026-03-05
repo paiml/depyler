@@ -16,12 +16,7 @@ use depyler_hir::hir::{
 pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
         // Pattern 1: Tuple unpacking - `a, b, c = param`
-        if let HirStmt::Assign {
-            target,
-            value: HirExpr::Var(var),
-            type_annotation: _,
-        } = stmt
-        {
+        if let HirStmt::Assign { target, value: HirExpr::Var(var), type_annotation: _ } = stmt {
             if var == param_name {
                 if let AssignTarget::Tuple(elements) = target {
                     let elem_types = vec![Type::String; elements.len()];
@@ -52,12 +47,7 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
         }
 
         // Pattern 4: If statement - check condition and body
-        if let HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } = stmt
-        {
+        if let HirStmt::If { condition, then_body, else_body } = stmt {
             if let Some(ty) = infer_type_from_expr_usage(param_name, condition) {
                 return Some(ty);
             }
@@ -86,10 +76,7 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
         }
 
         // Pattern 7: While loop - check condition and body
-        if let HirStmt::While {
-            condition, body, ..
-        } = stmt
-        {
+        if let HirStmt::While { condition, body, .. } = stmt {
             if let Some(ty) = infer_type_from_expr_usage(param_name, condition) {
                 return Some(ty);
             }
@@ -99,13 +86,7 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
         }
 
         // Pattern 8: Try/except - check all bodies
-        if let HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } = stmt
-        {
+        if let HirStmt::Try { body, handlers, orelse, finalbody } = stmt {
             if let Some(ty) = infer_param_type_from_body(param_name, body) {
                 return Some(ty);
             }
@@ -131,28 +112,25 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
 
 fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> {
     match expr {
-        HirExpr::Call { func, args, kwargs } => infer_from_call_expr(param_name, func, args, kwargs),
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            kwargs,
-        } => infer_from_method_call(param_name, object, method, args, kwargs),
+        HirExpr::Call { func, args, kwargs } => {
+            infer_from_call_expr(param_name, func, args, kwargs)
+        }
+        HirExpr::MethodCall { object, method, args, kwargs } => {
+            infer_from_method_call(param_name, object, method, args, kwargs)
+        }
         HirExpr::FString { parts } => infer_from_fstring(param_name, parts),
         HirExpr::Index { base, index } => infer_from_index_expr(param_name, base, index),
         HirExpr::Slice { base, .. } => infer_from_slice_expr(param_name, base),
-        HirExpr::Binary {
-            left, right, op, ..
-        } => infer_from_binary_expr(param_name, op, left, right),
+        HirExpr::Binary { left, right, op, .. } => {
+            infer_from_binary_expr(param_name, op, left, right)
+        }
         HirExpr::Unary { operand, .. } => infer_type_from_expr_usage(param_name, operand),
-        HirExpr::ListComp {
-            element,
-            generators,
-        } => infer_from_list_comp(param_name, element, generators),
-        HirExpr::GeneratorExp {
-            element,
-            generators,
-        } => infer_from_generator_exp(param_name, element, generators),
+        HirExpr::ListComp { element, generators } => {
+            infer_from_list_comp(param_name, element, generators)
+        }
+        HirExpr::GeneratorExp { element, generators } => {
+            infer_from_generator_exp(param_name, element, generators)
+        }
         _ => None,
     }
 }
@@ -248,11 +226,7 @@ fn infer_from_method_call(
     infer_type_from_expr_usage(param_name, object)
 }
 
-fn infer_from_object_method(
-    param_name: &str,
-    object: &HirExpr,
-    method: &str,
-) -> Option<Type> {
+fn infer_from_object_method(param_name: &str, object: &HirExpr, method: &str) -> Option<Type> {
     let HirExpr::Var(var_name) = object else {
         return None;
     };
@@ -261,28 +235,73 @@ fn infer_from_object_method(
     }
 
     const FILE_METHODS: &[&str] = &[
-        "write", "writelines", "read", "readline", "readlines",
-        "flush", "close", "seek", "tell", "truncate",
+        "write",
+        "writelines",
+        "read",
+        "readline",
+        "readlines",
+        "flush",
+        "close",
+        "seek",
+        "tell",
+        "truncate",
     ];
     if FILE_METHODS.contains(&method) {
         return Some(Type::Custom("File".to_string()));
     }
 
     const STRING_METHODS: &[&str] = &[
-        "strip", "lstrip", "rstrip", "startswith", "endswith", "split",
-        "splitlines", "join", "upper", "lower", "title", "capitalize",
-        "replace", "find", "rfind", "index", "rindex", "count",
-        "isalpha", "isdigit", "isalnum", "isspace", "isupper", "islower",
-        "encode", "format", "center", "ljust", "rjust", "zfill",
-        "partition", "rpartition", "expandtabs", "swapcase", "casefold",
+        "strip",
+        "lstrip",
+        "rstrip",
+        "startswith",
+        "endswith",
+        "split",
+        "splitlines",
+        "join",
+        "upper",
+        "lower",
+        "title",
+        "capitalize",
+        "replace",
+        "find",
+        "rfind",
+        "index",
+        "rindex",
+        "count",
+        "isalpha",
+        "isdigit",
+        "isalnum",
+        "isspace",
+        "isupper",
+        "islower",
+        "encode",
+        "format",
+        "center",
+        "ljust",
+        "rjust",
+        "zfill",
+        "partition",
+        "rpartition",
+        "expandtabs",
+        "swapcase",
+        "casefold",
     ];
     if STRING_METHODS.contains(&method) {
         return Some(Type::String);
     }
 
     const DICT_METHODS: &[&str] = &[
-        "get", "items", "keys", "values", "pop", "popitem",
-        "update", "setdefault", "clear", "copy",
+        "get",
+        "items",
+        "keys",
+        "values",
+        "pop",
+        "popitem",
+        "update",
+        "setdefault",
+        "clear",
+        "copy",
     ];
     if DICT_METHODS.contains(&method) {
         return Some(Type::Dict(Box::new(Type::String), Box::new(Type::String)));
@@ -332,9 +351,8 @@ fn infer_from_regex_module(
     args: &[HirExpr],
 ) -> Option<Type> {
     const REGEX_MODULES: &[&str] = &["re", "regex"];
-    const REGEX_METHODS: &[&str] = &[
-        "match", "search", "findall", "sub", "subn", "split", "compile",
-    ];
+    const REGEX_METHODS: &[&str] =
+        &["match", "search", "findall", "sub", "subn", "split", "compile"];
 
     if !REGEX_MODULES.contains(&module_name) || !REGEX_METHODS.contains(&method) {
         return None;
@@ -387,16 +405,26 @@ fn infer_from_subprocess_module(
     None
 }
 
-fn infer_from_string_arg_method(
-    param_name: &str,
-    method: &str,
-    args: &[HirExpr],
-) -> Option<Type> {
+fn infer_from_string_arg_method(param_name: &str, method: &str, args: &[HirExpr]) -> Option<Type> {
     const STRING_ARG_METHODS: &[&str] = &[
-        "find", "search", "match", "sub", "replace", "replace_all",
-        "is_match", "captures", "find_iter", "split", "strip",
-        "lstrip", "rstrip", "startswith", "endswith", "contains",
-        "encode", "decode",
+        "find",
+        "search",
+        "match",
+        "sub",
+        "replace",
+        "replace_all",
+        "is_match",
+        "captures",
+        "find_iter",
+        "split",
+        "strip",
+        "lstrip",
+        "rstrip",
+        "startswith",
+        "endswith",
+        "contains",
+        "encode",
+        "decode",
     ];
     if !STRING_ARG_METHODS.contains(&method) {
         return None;
@@ -424,17 +452,11 @@ fn infer_from_fstring(param_name: &str, parts: &[FStringPart]) -> Option<Type> {
     None
 }
 
-fn infer_from_index_expr(
-    param_name: &str,
-    base: &HirExpr,
-    index: &HirExpr,
-) -> Option<Type> {
+fn infer_from_index_expr(param_name: &str, base: &HirExpr, index: &HirExpr) -> Option<Type> {
     if let HirExpr::Var(var_name) = base {
         if var_name == param_name {
-            let is_string_key = matches!(
-                index,
-                HirExpr::Literal(Literal::String(_)) | HirExpr::FString { .. }
-            );
+            let is_string_key =
+                matches!(index, HirExpr::Literal(Literal::String(_)) | HirExpr::FString { .. });
             let is_likely_string_key = if let HirExpr::Var(idx_name) = index {
                 idx_name == "key" || idx_name == "k" || idx_name.ends_with("_key")
             } else {
@@ -494,16 +516,12 @@ fn infer_from_equality_op(
         return None;
     }
     if let HirExpr::Var(var_name) = left {
-        if var_name == param_name
-            && matches!(right, HirExpr::Literal(Literal::String(_)))
-        {
+        if var_name == param_name && matches!(right, HirExpr::Literal(Literal::String(_))) {
             return Some(Type::String);
         }
     }
     if let HirExpr::Var(var_name) = right {
-        if var_name == param_name
-            && matches!(left, HirExpr::Literal(Literal::String(_)))
-        {
+        if var_name == param_name && matches!(left, HirExpr::Literal(Literal::String(_))) {
             return Some(Type::String);
         }
     }
@@ -544,10 +562,7 @@ fn infer_from_membership_op(
     if let HirExpr::Var(var_name) = left {
         if var_name == param_name {
             if let HirExpr::List(elements) = right {
-                if elements
-                    .iter()
-                    .all(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
-                {
+                if elements.iter().all(|e| matches!(e, HirExpr::Literal(Literal::String(_)))) {
                     return Some(Type::String);
                 }
             }

@@ -97,11 +97,7 @@ impl Optimizer {
 
         for stmt in body {
             match stmt {
-                HirStmt::If {
-                    condition,
-                    then_body,
-                    else_body,
-                } => {
+                HirStmt::If { condition, then_body, else_body } => {
                     // Extract walrus operators from condition
                     let (walrus_assigns, simplified_condition) =
                         self.extract_walrus_from_expr(condition);
@@ -117,9 +113,7 @@ impl Optimizer {
 
                     // Recursively process then/else bodies
                     let new_then = self.hoist_walrus_in_body(then_body);
-                    let new_else = else_body
-                        .as_ref()
-                        .map(|stmts| self.hoist_walrus_in_body(stmts));
+                    let new_else = else_body.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
 
                     new_body.push(HirStmt::If {
                         condition: simplified_condition,
@@ -127,10 +121,7 @@ impl Optimizer {
                         else_body: new_else,
                     });
                 }
-                HirStmt::While {
-                    condition,
-                    body: while_body,
-                } => {
+                HirStmt::While { condition, body: while_body } => {
                     // Extract walrus from while condition
                     let (walrus_assigns, simplified_condition) =
                         self.extract_walrus_from_expr(condition);
@@ -150,11 +141,7 @@ impl Optimizer {
                         body: new_while_body,
                     });
                 }
-                HirStmt::For {
-                    target,
-                    iter,
-                    body: for_body,
-                } => {
+                HirStmt::For { target, iter, body: for_body } => {
                     // Recursively process for body
                     let new_for_body = self.hoist_walrus_in_body(for_body);
                     new_body.push(HirStmt::For {
@@ -163,12 +150,7 @@ impl Optimizer {
                         body: new_for_body,
                     });
                 }
-                HirStmt::Try {
-                    body: try_body,
-                    handlers,
-                    orelse,
-                    finalbody,
-                } => {
+                HirStmt::Try { body: try_body, handlers, orelse, finalbody } => {
                     // Recursively process try/except blocks
                     let new_try_body = self.hoist_walrus_in_body(try_body);
                     let new_handlers: Vec<_> = handlers
@@ -179,12 +161,9 @@ impl Optimizer {
                             body: self.hoist_walrus_in_body(&h.body),
                         })
                         .collect();
-                    let new_orelse = orelse
-                        .as_ref()
-                        .map(|stmts| self.hoist_walrus_in_body(stmts));
-                    let new_finalbody = finalbody
-                        .as_ref()
-                        .map(|stmts| self.hoist_walrus_in_body(stmts));
+                    let new_orelse = orelse.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
+                    let new_finalbody =
+                        finalbody.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
                     new_body.push(HirStmt::Try {
                         body: new_try_body,
                         handlers: new_handlers,
@@ -192,12 +171,7 @@ impl Optimizer {
                         finalbody: new_finalbody,
                     });
                 }
-                HirStmt::With {
-                    context,
-                    target,
-                    body: with_body,
-                    is_async,
-                } => {
+                HirStmt::With { context, target, body: with_body, is_async } => {
                     let new_with_body = self.hoist_walrus_in_body(with_body);
                     new_body.push(HirStmt::With {
                         context: context.clone(),
@@ -245,27 +219,16 @@ impl Optimizer {
             },
             HirExpr::Call { func, args, kwargs } => HirExpr::Call {
                 func: func.clone(),
-                args: args
-                    .iter()
-                    .map(|a| self.extract_walrus_recursive(a, assigns))
-                    .collect(),
+                args: args.iter().map(|a| self.extract_walrus_recursive(a, assigns)).collect(),
                 kwargs: kwargs
                     .iter()
                     .map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns)))
                     .collect(),
             },
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-                kwargs,
-            } => HirExpr::MethodCall {
+            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
                 object: Box::new(self.extract_walrus_recursive(object, assigns)),
                 method: method.clone(),
-                args: args
-                    .iter()
-                    .map(|a| self.extract_walrus_recursive(a, assigns))
-                    .collect(),
+                args: args.iter().map(|a| self.extract_walrus_recursive(a, assigns)).collect(),
                 kwargs: kwargs
                     .iter()
                     .map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns)))
@@ -344,11 +307,7 @@ impl Optimizer {
             HirStmt::Expr(expr) => {
                 Self::collect_read_vars_expr(expr, read_vars);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 Self::collect_read_vars_expr(condition, read_vars);
                 for s in then_body {
                     Self::collect_read_vars_stmt(s, read_vars);
@@ -433,17 +392,10 @@ impl Optimizer {
         assignments: &mut HashMap<String, usize>,
     ) {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
                 *assignments.entry(name.clone()).or_insert(0) += 1;
             }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 self.count_assignments_stmt(then_body, assignments);
                 if let Some(else_stmts) = else_body {
                     self.count_assignments_stmt(else_stmts, assignments);
@@ -476,11 +428,7 @@ impl Optimizer {
         used_vars: &HashSet<String>,
     ) {
         match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                value,
-                ..
-            } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), value, .. } => {
                 // DEPYLER-0269 Fix: Only propagate constants for dead code
                 // Skip variables that are:
                 // 1. Mutated (assigned more than once) - already checked
@@ -494,11 +442,7 @@ impl Optimizer {
                 }
             }
             HirStmt::Assign { .. } => {}
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
+            HirStmt::If { then_body, else_body, .. } => {
                 for s in then_body {
                     self.collect_constants_stmt(s, constants, mutated_vars, used_vars);
                 }
@@ -539,11 +483,7 @@ impl Optimizer {
             HirStmt::Return(Some(expr)) => {
                 self.propagate_constants_expr(expr, constants);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.propagate_constants_expr(condition, constants);
                 for s in then_body {
                     self.propagate_constants_stmt(s, constants);
@@ -739,11 +679,7 @@ impl Optimizer {
 
             // Remove truly dead assignments (not used and no side effects)
             func.body.retain(|stmt| {
-                if let HirStmt::Assign {
-                    target: AssignTarget::Symbol(name),
-                    ..
-                } = stmt
-                {
+                if let HirStmt::Assign { target: AssignTarget::Symbol(name), .. } = stmt {
                     // Keep if: truly used OR has side effects
                     // DEPYLER-0934: Removed .trim_start_matches('_') since we no longer rename
                     used_vars.contains_key(name) || side_effect_vars.contains(name)
@@ -775,11 +711,7 @@ impl Optimizer {
             HirStmt::Return(Some(expr)) => {
                 self.collect_used_vars_expr(expr, used);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
+            HirStmt::If { condition, then_body, else_body } => {
                 self.collect_used_vars_expr(condition, used);
                 for s in then_body {
                     self.collect_truly_used_vars_stmt(s, used);
@@ -806,12 +738,7 @@ impl Optimizer {
                 self.collect_used_vars_expr(expr, used);
             }
             // DEPYLER-0514: Handle Try statements - recurse into all blocks
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
                 // Recurse into try body
                 for s in body {
                     self.collect_truly_used_vars_stmt(s, used);
@@ -908,22 +835,11 @@ impl Optimizer {
                 .any(|(k, v)| Self::expr_has_side_effects(k) || Self::expr_has_side_effects(v)),
             HirExpr::Set(items) => items.iter().any(Self::expr_has_side_effects),
             HirExpr::Attribute { value, .. } => Self::expr_has_side_effects(value),
-            HirExpr::Slice {
-                base,
-                start,
-                stop,
-                step,
-            } => {
+            HirExpr::Slice { base, start, stop, step } => {
                 Self::expr_has_side_effects(base)
-                    || start
-                        .as_ref()
-                        .is_some_and(|e| Self::expr_has_side_effects(e))
-                    || stop
-                        .as_ref()
-                        .is_some_and(|e| Self::expr_has_side_effects(e))
-                    || step
-                        .as_ref()
-                        .is_some_and(|e| Self::expr_has_side_effects(e))
+                    || start.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
+                    || stop.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
+                    || step.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
             }
             _ => false,
         }
@@ -1018,11 +934,7 @@ impl Optimizer {
             let is_final_stmt = idx == body.len() - 1;
 
             match stmt {
-                HirStmt::Assign {
-                    target,
-                    value,
-                    type_annotation,
-                } => {
+                HirStmt::Assign { target, value, type_annotation } => {
                     let (new_value, extra_stmts) =
                         self.process_expr_for_cse(value, cse_map, temp_counter);
                     new_body.extend(extra_stmts);
@@ -1045,11 +957,7 @@ impl Optimizer {
                         new_body.push(HirStmt::Return(Some(new_expr)));
                     }
                 }
-                HirStmt::If {
-                    condition,
-                    then_body,
-                    else_body,
-                } => {
+                HirStmt::If { condition, then_body, else_body } => {
                     let (new_condition, extra_stmts) =
                         self.process_expr_for_cse(condition, cse_map, temp_counter);
                     new_body.extend(extra_stmts);
@@ -1136,11 +1044,7 @@ impl Optimizer {
                     new_args.push(new_arg);
                 }
 
-                let new_expr = HirExpr::Call {
-                    func: func.clone(),
-                    args: new_args,
-                    kwargs: vec![],
-                };
+                let new_expr = HirExpr::Call { func: func.clone(), args: new_args, kwargs: vec![] };
 
                 let hash = self.hash_expr(&new_expr);
 
@@ -1308,12 +1212,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(v, used);
             }
         }
-        HirExpr::MethodCall {
-            object,
-            args,
-            kwargs,
-            ..
-        } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             collect_used_vars_expr_inner(object, used);
             for arg in args {
                 collect_used_vars_expr_inner(arg, used);
@@ -1326,10 +1225,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         HirExpr::Lambda { body, .. } => {
             collect_used_vars_expr_inner(body, used);
         }
-        HirExpr::ListComp {
-            element,
-            generators,
-        } => {
+        HirExpr::ListComp { element, generators } => {
             // DEPYLER-0504: Support multiple generators
             collect_used_vars_expr_inner(element, used);
             for gen in generators {
@@ -1339,10 +1235,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 }
             }
         }
-        HirExpr::SetComp {
-            element,
-            generators,
-        } => {
+        HirExpr::SetComp { element, generators } => {
             // DEPYLER-0504: Support multiple generators
             collect_used_vars_expr_inner(element, used);
             for gen in generators {
@@ -1355,11 +1248,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         // DEPYLER-0600 #5: DictComp was missing from DCE analysis
         // This caused variables used only in dict comprehension iterators to be
         // incorrectly removed. Example: `d = {str(n): n*n for n in nums}` lost `nums`
-        HirExpr::DictComp {
-            key,
-            value,
-            generators,
-        } => {
+        HirExpr::DictComp { key, value, generators } => {
             // Collect used vars from key and value expressions
             collect_used_vars_expr_inner(key, used);
             collect_used_vars_expr_inner(value, used);
@@ -1374,12 +1263,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         HirExpr::Await { value } => {
             collect_used_vars_expr_inner(value, used);
         }
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => {
+        HirExpr::Slice { base, start, stop, step } => {
             // DEPYLER-0209 FIX: Collect variables from slice expressions
             // This was causing dead code elimination to remove assignments
             // for variables used in slice operations like: numbers[2:7]
@@ -1429,12 +1313,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         // DEPYLER-0935: Collect variables from SortByKey expression
         // sorted(data, key=lambda r: r[0]) is converted to HirExpr::SortByKey
         // We must collect variables from iterable, key_body, and reverse_expr
-        HirExpr::SortByKey {
-            iterable,
-            key_body,
-            reverse_expr,
-            ..
-        } => {
+        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
             collect_used_vars_expr_inner(iterable, used);
             collect_used_vars_expr_inner(key_body, used);
             if let Some(rev) = reverse_expr {
@@ -1448,10 +1327,10 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use depyler_annotations::TranspilationAnnotations;
     use depyler_hir::hir::{
         AssignTarget, FunctionProperties, HirExpr, HirFunction, HirProgram, HirStmt, Literal, Type,
     };
-    use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
     #[test]
@@ -1557,10 +1436,7 @@ mod tests {
     #[test]
     fn test_dead_code_elimination_when_enabled() {
         // Test what happens when dead code elimination IS explicitly enabled
-        let config = OptimizerConfig {
-            eliminate_dead_code: true,
-            ..Default::default()
-        };
+        let config = OptimizerConfig { eliminate_dead_code: true, ..Default::default() };
         let mut optimizer = Optimizer::new(config);
 
         let program = HirProgram {
@@ -1595,16 +1471,10 @@ mod tests {
 
         // When enabled, unused assignment should be removed
         // "used" assignment is kept because it's read in return
-        assert!(
-            func.body.len() <= 3,
-            "Dead code elimination should remove or preserve statements"
-        );
+        assert!(func.body.len() <= 3, "Dead code elimination should remove or preserve statements");
 
         // At minimum, the return statement should exist
-        let has_return = func
-            .body
-            .iter()
-            .any(|stmt| matches!(stmt, HirStmt::Return(_)));
+        let has_return = func.body.iter().any(|stmt| matches!(stmt, HirStmt::Return(_)));
         assert!(has_return, "Return statement should be preserved");
     }
 
@@ -1664,19 +1534,12 @@ mod tests {
 
         // Verify the unused variable was removed, not just renamed
         let has_unused = func.body.iter().any(|stmt| {
-            if let HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } = stmt
-            {
+            if let HirStmt::Assign { target: AssignTarget::Symbol(name), .. } = stmt {
                 return name == "unused" || name == "_unused";
             }
             false
         });
-        assert!(
-            !has_unused,
-            "DEPYLER-0508: 'unused' variable should be completely eliminated"
-        );
+        assert!(!has_unused, "DEPYLER-0508: 'unused' variable should be completely eliminated");
     }
 
     // ==========================================================================
@@ -1892,11 +1755,7 @@ mod tests {
     #[test]
     fn test_expr_has_side_effects_call() {
         // Function calls have side effects
-        let expr = HirExpr::Call {
-            func: "print".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr = HirExpr::Call { func: "print".to_string(), args: vec![], kwargs: vec![] };
         assert!(Optimizer::expr_has_side_effects(&expr));
     }
 
@@ -2144,15 +2003,9 @@ mod tests {
     #[test]
     fn test_is_constant_expr_inner_literals() {
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Int(42))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(
-            3.15
-        ))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Bool(
-            true
-        ))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::String(
-            "hi".into()
-        ))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(3.15))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Bool(true))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::String("hi".into()))));
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::None)));
     }
 
@@ -2182,11 +2035,7 @@ mod tests {
     #[test]
     fn test_optimizer_with_empty_program() {
         let mut optimizer = Optimizer::new(OptimizerConfig::default());
-        let program = HirProgram {
-            functions: vec![],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
         let result = optimizer.optimize_program(program);
         assert!(result.functions.is_empty());
     }
@@ -2236,10 +2085,8 @@ mod tests {
     #[test]
     fn test_evaluate_constant_unaryop_non_constant() {
         let optimizer = Optimizer::new(OptimizerConfig::default());
-        let expr = HirExpr::Unary {
-            op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Var("x".to_string())),
-        };
+        let expr =
+            HirExpr::Unary { op: UnaryOp::Not, operand: Box::new(HirExpr::Var("x".to_string())) };
         let result = optimizer.evaluate_constant_unaryop(&expr);
         assert!(result.is_none());
     }
@@ -2345,10 +2192,8 @@ mod tests {
     #[test]
     fn test_collect_used_vars_tuple() {
         let mut used = HashMap::new();
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Var("a".to_string()),
-            HirExpr::Var("b".to_string()),
-        ]);
+        let expr =
+            HirExpr::Tuple(vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())]);
         collect_used_vars_expr_inner(&expr, &mut used);
         assert!(used.contains_key("a"));
         assert!(used.contains_key("b"));
@@ -2357,10 +2202,8 @@ mod tests {
     #[test]
     fn test_collect_used_vars_list() {
         let mut used = HashMap::new();
-        let expr = HirExpr::List(vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ]);
+        let expr =
+            HirExpr::List(vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())]);
         collect_used_vars_expr_inner(&expr, &mut used);
         assert!(used.contains_key("x"));
         assert!(used.contains_key("y"));
@@ -2369,10 +2212,8 @@ mod tests {
     #[test]
     fn test_collect_used_vars_dict() {
         let mut used = HashMap::new();
-        let expr = HirExpr::Dict(vec![(
-            HirExpr::Var("key".to_string()),
-            HirExpr::Var("val".to_string()),
-        )]);
+        let expr =
+            HirExpr::Dict(vec![(HirExpr::Var("key".to_string()), HirExpr::Var("val".to_string()))]);
         collect_used_vars_expr_inner(&expr, &mut used);
         assert!(used.contains_key("key"));
         assert!(used.contains_key("val"));
@@ -2499,9 +2340,7 @@ mod tests {
     #[test]
     fn test_collect_used_vars_await() {
         let mut used = HashMap::new();
-        let expr = HirExpr::Await {
-            value: Box::new(HirExpr::Var("future".to_string())),
-        };
+        let expr = HirExpr::Await { value: Box::new(HirExpr::Var("future".to_string())) };
         collect_used_vars_expr_inner(&expr, &mut used);
         assert!(used.contains_key("future"));
     }
@@ -2678,16 +2517,8 @@ mod tests {
 
     #[test]
     fn test_hash_expr_call_different_func() {
-        let expr1 = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
-        let expr2 = HirExpr::Call {
-            func: "abs".to_string(),
-            args: vec![],
-            kwargs: vec![],
-        };
+        let expr1 = HirExpr::Call { func: "len".to_string(), args: vec![], kwargs: vec![] };
+        let expr2 = HirExpr::Call { func: "abs".to_string(), args: vec![], kwargs: vec![] };
         let optimizer = Optimizer::new(OptimizerConfig::default());
         assert_ne!(optimizer.hash_expr(&expr1), optimizer.hash_expr(&expr2));
     }
@@ -2796,10 +2627,7 @@ mod tests {
 
     #[test]
     fn test_eliminate_dead_code_preserves_side_effects() {
-        let config = OptimizerConfig {
-            eliminate_dead_code: true,
-            ..Default::default()
-        };
+        let config = OptimizerConfig { eliminate_dead_code: true, ..Default::default() };
         let mut optimizer = Optimizer::new(config);
 
         let program = HirProgram {
@@ -2827,10 +2655,7 @@ mod tests {
 
         // print() has side effects, should be preserved
         let func = &optimized.functions[0];
-        assert!(
-            !func.body.is_empty(),
-            "Side effect statement should be preserved"
-        );
+        assert!(!func.body.is_empty(), "Side effect statement should be preserved");
     }
 
     // === Additional tests for expr_has_side_effects ===
@@ -3009,11 +2834,7 @@ mod tests {
         // Both should behave identically
         let mut opt1 = Optimizer::new(config);
         let mut opt2 = Optimizer::new(cloned);
-        let program = HirProgram {
-            functions: vec![],
-            classes: vec![],
-            imports: vec![],
-        };
+        let program = HirProgram { functions: vec![], classes: vec![], imports: vec![] };
         let result1 = opt1.optimize_program(program.clone());
         let result2 = opt2.optimize_program(program);
         assert_eq!(result1.functions.len(), result2.functions.len());
