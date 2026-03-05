@@ -326,10 +326,7 @@ impl PythonStringOps for str {
     }
 
     fn find(&self, sub: &str) -> i64 {
-        std::str::from_utf8(self.as_bytes())
-            .ok()
-            .and_then(|s| s.find(sub))
-            .map_or(-1, |i| i as i64)
+        std::str::from_utf8(self.as_bytes()).ok().and_then(|s| s.find(sub)).map_or(-1, |i| i as i64)
     }
 
     fn count_py(&self, sub: &str) -> usize {

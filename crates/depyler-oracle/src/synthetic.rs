@@ -215,9 +215,8 @@ impl SyntheticGenerator {
             let (pattern, fix) =
                 patterns[(idx / (lifetimes.len() * error_codes.len())) % patterns.len()];
 
-            let msg = format!(
-                "error[{code}]: {pattern}\n  expected named lifetime parameter `{lt}`"
-            );
+            let msg =
+                format!("error[{code}]: {pattern}\n  expected named lifetime parameter `{lt}`");
 
             samples.push(TrainingSample::with_fix(&msg, ErrorCategory::LifetimeError, fix));
             idx += 1;

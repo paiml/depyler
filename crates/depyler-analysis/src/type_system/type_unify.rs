@@ -298,7 +298,7 @@ pub enum UnifyError {
 
 /// Find common type for two numeric types (widening)
 pub fn coerce_types(a: &ConcreteType, b: &ConcreteType) -> Option<ConcreteType> {
-    use ConcreteType::{I32, I64, F32, F64, String, StrRef, Unknown};
+    use ConcreteType::{StrRef, String, Unknown, F32, F64, I32, I64};
 
     // Same type - no coercion needed
     if a == b {
@@ -651,9 +651,7 @@ impl TypeUnifier {
             sig.param_vars
                 .iter()
                 .map(|var| {
-                    self.uf
-                        .get_type(var.0 as usize)
-                        .map_or(Type::Unknown, |t| t.to_hir_type())
+                    self.uf.get_type(var.0 as usize).map_or(Type::Unknown, |t| t.to_hir_type())
                 })
                 .collect()
         } else {
@@ -664,9 +662,7 @@ impl TypeUnifier {
     /// Get resolved return type for a function
     pub fn get_return_type(&mut self, func_name: &str) -> Type {
         if let Some(sig) = self.signatures.get(func_name) {
-            self.uf
-                .get_type(sig.ret_var.0 as usize)
-                .map_or(Type::Unknown, |t| t.to_hir_type())
+            self.uf.get_type(sig.ret_var.0 as usize).map_or(Type::Unknown, |t| t.to_hir_type())
         } else {
             Type::Unknown
         }

@@ -192,9 +192,7 @@ impl WorklistSolver {
             }
 
             // Both concrete: check subtyping relation
-            (t1, t2) => {
-                self.checker.check_subtype(t1, t2).map_err(|e| format!("{e} ({reason})"))
-            }
+            (t1, t2) => self.checker.check_subtype(t1, t2).map_err(|e| format!("{e} ({reason})")),
         }
     }
 }

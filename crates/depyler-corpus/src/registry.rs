@@ -102,27 +102,24 @@ impl CorpusRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
-        let src_dir = std::env::var_os("HOME").map_or_else(|| PathBuf::from(".."), |h| PathBuf::from(h).join("src"));
+        let src_dir = std::env::var_os("HOME")
+            .map_or_else(|| PathBuf::from(".."), |h| PathBuf::from(h).join("src"));
 
         // Corpus 1: reprorusted-python-cli (Original)
-        let mut entry1 = CorpusEntry::new(
-            "reprorusted-python-cli",
-            src_dir.join("reprorusted-python-cli"),
-        )
-        .with_description("Original Python CLI examples - mixed type annotations")
-        .with_github("https://github.com/paiml/reprorusted-python-cli");
+        let mut entry1 =
+            CorpusEntry::new("reprorusted-python-cli", src_dir.join("reprorusted-python-cli"))
+                .with_description("Original Python CLI examples - mixed type annotations")
+                .with_github("https://github.com/paiml/reprorusted-python-cli");
         entry1.file_count = Some(601);
         entry1.include = vec!["examples/**/*.py".to_string()];
         registry.register(entry1);
 
         // Corpus 2: reprorusted-std-only (Stdlib)
-        let mut entry2 = CorpusEntry::new(
-            "reprorusted-std-only",
-            src_dir.join("reprorusted-std-only"),
-        )
-        .with_description("Python stdlib examples - std-only transpilation targets")
-        .with_github("https://github.com/paiml/reprorusted-std-only")
-        .with_quality(91.9, "A", 182, 100.0);
+        let mut entry2 =
+            CorpusEntry::new("reprorusted-std-only", src_dir.join("reprorusted-std-only"))
+                .with_description("Python stdlib examples - std-only transpilation targets")
+                .with_github("https://github.com/paiml/reprorusted-std-only")
+                .with_quality(91.9, "A", 182, 100.0);
         entry2.file_count = Some(1382);
         entry2.include = vec!["src/**/*.py".to_string()];
         registry.register(entry2);
@@ -247,7 +244,8 @@ fn parse_corpus_entry(name: &str, value: &toml::Value) -> anyhow::Result<CorpusE
 
     let path = table
         .get("path")
-        .and_then(|v| v.as_str()).map_or_else(|| PathBuf::from("."), PathBuf::from);
+        .and_then(|v| v.as_str())
+        .map_or_else(|| PathBuf::from("."), PathBuf::from);
 
     let mut entry = CorpusEntry::new(name, path);
 

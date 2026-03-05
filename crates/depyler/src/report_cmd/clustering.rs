@@ -199,7 +199,8 @@ impl ErrorClusterAnalyzer {
         let features: Vec<ErrorFeatureVector> =
             failed.iter().map(|(_, r)| ErrorFeatureVector::from_result(r)).collect();
 
-        let feature_matrix: Vec<Vec<f64>> = features.iter().map(ErrorFeatureVector::to_flat_vector).collect();
+        let feature_matrix: Vec<Vec<f64>> =
+            features.iter().map(ErrorFeatureVector::to_flat_vector).collect();
 
         // Determine optimal k (simple heuristic: sqrt(n) / 2, min 2, max 10)
         let n = failed.len();
@@ -361,7 +362,8 @@ fn find_dominant_error_code(indices: &[usize], results: &[ExtendedAnalysisResult
 
     counts
         .into_iter()
-        .max_by_key(|(_, count)| *count).map_or_else(|| "UNKNOWN".to_string(), |(code, _)| code)
+        .max_by_key(|(_, count)| *count)
+        .map_or_else(|| "UNKNOWN".to_string(), |(code, _)| code)
 }
 
 /// Find most common semantic domain in cluster

@@ -757,13 +757,11 @@ impl StrategicCloneAnalysis {
         }
 
         for (target, source, alias_idx, var_type) in aliases {
-            let source_used_after = var_uses
-                .get(&source)
-                .is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
+            let source_used_after =
+                var_uses.get(&source).is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
 
-            let alias_used_after = var_uses
-                .get(&target)
-                .is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
+            let alias_used_after =
+                var_uses.get(&target).is_some_and(|uses| uses.iter().any(|&u| u > alias_idx));
 
             if source_used_after && alias_used_after {
                 self.aliases.push(AliasingPattern {

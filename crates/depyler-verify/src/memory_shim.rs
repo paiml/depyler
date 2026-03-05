@@ -230,10 +230,7 @@ impl InitializationTracker {
 
     pub fn is_field_initialized(&self, var: &str, field: &str) -> bool {
         self.initialized.contains(var)
-            || self
-                .partially_initialized
-                .get(var)
-                .is_some_and(|fields| fields.contains(field))
+            || self.partially_initialized.get(var).is_some_and(|fields| fields.contains(field))
     }
 
     pub fn check_access(&self, var: &str) -> Option<MemoryViolation> {

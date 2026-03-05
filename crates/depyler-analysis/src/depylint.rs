@@ -629,9 +629,7 @@ fn detect_hir_mutation_while_iterating(
                 if hir_stmt_mutates_var(body_stmt, &iter_var) {
                     return Some(PokaYokeViolation {
                         code: "DPL100".to_string(),
-                        description: format!(
-                            "Cannot mutate '{iter_var}' while iterating over it"
-                        ),
+                        description: format!("Cannot mutate '{iter_var}' while iterating over it"),
                         offset: 0,
                         suggestion: "Collect modifications and apply after loop".to_string(),
                     });

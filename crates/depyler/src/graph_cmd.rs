@@ -91,10 +91,12 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
     println!("Analyzing corpus: {}", corpus_dir.display());
 
     // Find all Python files
-    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(std::result::Result::ok).filter(|e| {
-        e.path().extension().is_some_and(|ext| ext == "py")
-            && !e.path().to_string_lossy().contains("__pycache__")
-    }) {
+    for entry in
+        WalkDir::new(corpus_dir).into_iter().filter_map(std::result::Result::ok).filter(|e| {
+            e.path().extension().is_some_and(|ext| ext == "py")
+                && !e.path().to_string_lossy().contains("__pycache__")
+        })
+    {
         let path = entry.path();
         files_analyzed += 1;
 
@@ -105,7 +107,9 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
         };
 
         // Transpile to Rust (in isolated thread to catch panics)
-        let rust_code = if let Some(code) = transpile_isolated(&python_source) { code } else {
+        let rust_code = if let Some(code) = transpile_isolated(&python_source) {
+            code
+        } else {
             files_panicked += 1;
             continue;
         };
@@ -213,10 +217,12 @@ pub fn vectorize_corpus(
     eprintln!("Vectorizing failures from: {}", corpus_dir.display());
 
     // Find all Python files
-    for entry in WalkDir::new(corpus_dir).into_iter().filter_map(std::result::Result::ok).filter(|e| {
-        e.path().extension().is_some_and(|ext| ext == "py")
-            && !e.path().to_string_lossy().contains("__pycache__")
-    }) {
+    for entry in
+        WalkDir::new(corpus_dir).into_iter().filter_map(std::result::Result::ok).filter(|e| {
+            e.path().extension().is_some_and(|ext| ext == "py")
+                && !e.path().to_string_lossy().contains("__pycache__")
+        })
+    {
         let path = entry.path();
         files_processed += 1;
 
@@ -227,7 +233,9 @@ pub fn vectorize_corpus(
         };
 
         // Transpile to Rust (in isolated thread)
-        let rust_code = if let Some(code) = transpile_isolated(&python_source) { code } else {
+        let rust_code = if let Some(code) = transpile_isolated(&python_source) {
+            code
+        } else {
             files_panicked += 1;
             continue;
         };
