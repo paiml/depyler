@@ -274,7 +274,7 @@ mod tests {
             gap_type: "test".to_string(),
             location: "test.rs".to_string(),
         };
-        let debug = format!("{:?}", root);
+        let debug = format!("{root:?}");
         assert!(debug.contains("TranspilerGap"));
         assert!(debug.contains("test"));
     }

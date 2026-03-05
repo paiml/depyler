@@ -5,7 +5,7 @@
 //! Expected gain: +0.05% overall coverage
 //!
 //! Test Strategy:
-//! - Unit tests for scope management (enter_scope, exit_scope, is_declared, declare_var)
+//! - Unit tests for scope management (`enter_scope`, `exit_scope`, `is_declared`, `declare_var`)
 //! - Unit tests for Union type processing
 //! - Property tests for scope invariants
 
@@ -13,19 +13,19 @@ use depyler_core::DepylerPipeline;
 
 /// Unit Test: Nested scopes with variable declarations
 ///
-/// Verifies: enter_scope, exit_scope, declare_var functionality
+/// Verifies: `enter_scope`, `exit_scope`, `declare_var` functionality
 /// Coverage: Lines 55-65, 81-85 in context.rs
 #[test]
 fn test_nested_scope_management() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def outer():
     x = 1
     if True:
         y = 2
         z = x + y
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle nested scopes correctly
@@ -35,19 +35,19 @@ def outer():
 
 /// Unit Test: Variable shadowing across scopes
 ///
-/// Verifies: is_declared checks across all scopes
+/// Verifies: `is_declared` checks across all scopes
 /// Coverage: Lines 71-75 in context.rs
 #[test]
 fn test_variable_shadowing() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def shadow_test():
     x = 1
     if True:
         x = 2  # Shadow outer x
         y = x + 1
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle variable shadowing
@@ -56,12 +56,12 @@ def shadow_test():
 
 /// Unit Test: Multiple scope levels
 ///
-/// Verifies: Multiple enter_scope/exit_scope calls
+/// Verifies: Multiple `enter_scope/exit_scope` calls
 /// Coverage: Lines 55-65 (multiple times)
 #[test]
 fn test_multiple_scope_levels() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def deep_scopes():
     a = 1
     if True:
@@ -72,7 +72,7 @@ def deep_scopes():
                 d = 4
                 result = a + b + c + d
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle deep nesting
@@ -86,14 +86,14 @@ def deep_scopes():
 #[test]
 fn test_loop_scoping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def loop_scope():
     total = 0
     for i in [1, 2, 3]:
         temp = i * 2
         total = total + temp
     return total
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Loop variables should be scoped correctly
@@ -108,11 +108,11 @@ def loop_scope():
 #[test]
 fn test_parameter_scoping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def with_params(x: int, y: int) -> int:
     result = x + y
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Parameters should be in function scope
@@ -122,17 +122,17 @@ def with_params(x: int, y: int) -> int:
 
 /// Unit Test: Union type processing
 ///
-/// Verifies: process_union_type functionality
+/// Verifies: `process_union_type` functionality
 /// Coverage: Lines 94-100 in context.rs
 #[test]
 fn test_union_type_processing() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Union
 
 def union_func(value: Union[int, str]) -> Union[int, str]:
     return value
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Union should generate enum or use enum
@@ -146,12 +146,12 @@ def union_func(value: Union[int, str]) -> Union[int, str]:
 #[test]
 fn test_union_multiple_types() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Union
 
 def multi_union(value: Union[int, str, bool]) -> int:
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle 3+ type unions
@@ -160,12 +160,12 @@ def multi_union(value: Union[int, str, bool]) -> int:
 
 /// Unit Test: Nested Union types
 ///
-/// Verifies: Multiple process_union_type calls
+/// Verifies: Multiple `process_union_type` calls
 /// Coverage: Lines 94-100 (multiple invocations)
 #[test]
 fn test_nested_union_types() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Union
 
 def nested_unions(
@@ -173,7 +173,7 @@ def nested_unions(
     b: Union[float, bool]
 ) -> Union[int, str]:
     return a
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle multiple unions in same function
@@ -182,12 +182,12 @@ def nested_unions(
 
 /// Property Test: Scope management invariants
 ///
-/// Property: Variables declared in scope should be found by is_declared
+/// Property: Variables declared in scope should be found by `is_declared`
 ///
 /// Mutation Targets:
-/// 1. is_declared returns wrong result
-/// 2. declare_var doesn't add to current scope
-/// 3. enter_scope/exit_scope don't maintain stack properly
+/// 1. `is_declared` returns wrong result
+/// 2. `declare_var` doesn't add to current scope
+/// 3. `enter_scope/exit_scope` don't maintain stack properly
 #[test]
 fn test_mutation_scope_invariants() {
     // Target Mutations:
@@ -196,7 +196,7 @@ fn test_mutation_scope_invariants() {
     // 3. Scope stack corruption
 
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def scope_invariant():
     x = 1
     y = x + 1
@@ -204,7 +204,7 @@ def scope_invariant():
         z = y + 1
         w = z + 1
     return x + y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // MUTATION KILL: All variables should be properly scoped
@@ -220,7 +220,7 @@ def scope_invariant():
 #[test]
 fn test_union_enum_reuse() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Union
 
 def func1(value: Union[int, str]) -> Union[int, str]:
@@ -228,7 +228,7 @@ def func1(value: Union[int, str]) -> Union[int, str]:
 
 def func2(value: Union[int, str]) -> Union[int, str]:
     return value
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Same union should reuse enum definition
@@ -238,15 +238,15 @@ def func2(value: Union[int, str]) -> Union[int, str]:
 
 /// Edge Case: Empty scope stack
 ///
-/// Verifies: Handling when declared_vars is empty
-/// Coverage: Lines 82-84 (None case from last_mut)
+/// Verifies: Handling when `declared_vars` is empty
+/// Coverage: Lines 82-84 (None case from `last_mut`)
 #[test]
 fn test_empty_scope_stack() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def simple():
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle minimal scope setup
@@ -256,17 +256,17 @@ def simple():
 
 /// Edge Case: Variable used before declaration check
 ///
-/// Verifies: is_declared returns false for undeclared vars
+/// Verifies: `is_declared` returns false for undeclared vars
 /// Coverage: Lines 71-75
 #[test]
 fn test_undeclared_variable_check() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def forward_ref():
     x = y if False else 1
     y = 2
     return x
-"#;
+";
     // Note: This may fail transpilation, which is correct behavior
     let result = pipeline.transpile(python_code);
 
@@ -280,7 +280,7 @@ def forward_ref():
 #[test]
 fn test_complex_context_scenario() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Union
 
 def complex_context(value: Union[int, str]) -> int:
@@ -292,7 +292,7 @@ def complex_context(value: Union[int, str]) -> int:
         temp = 42
         result = temp
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // All context features should work together
@@ -301,17 +301,17 @@ def complex_context(value: Union[int, str]) -> int:
 
 /// Unit Test: Mutable variables tracking
 ///
-/// Verifies: mutable_vars HashSet usage
+/// Verifies: `mutable_vars` `HashSet` usage
 #[test]
 fn test_mutable_variable_tracking() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def mutable_tracking():
     x = 0
     x = x + 1
     x = x + 2
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should track x as mutable
@@ -321,15 +321,15 @@ def mutable_tracking():
 
 /// Unit Test: Generator state variables
 ///
-/// Verifies: in_generator and generator_state_vars
+/// Verifies: `in_generator` and `generator_state_vars`
 #[test]
 fn test_generator_state() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def generator_func():
     for i in [1, 2, 3]:
         yield i
-"#;
+";
     // Note: Generators may not be fully supported yet
     let result = pipeline.transpile(python_code);
 
@@ -339,16 +339,16 @@ def generator_func():
 
 /// Unit Test: Class method context
 ///
-/// Verifies: is_classmethod flag
+/// Verifies: `is_classmethod` flag
 #[test]
 fn test_classmethod_context() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 class MyClass:
     @classmethod
     def class_method(cls):
         return 42
-"#;
+";
     // Note: Classes may not be fully supported yet
     let result = pipeline.transpile(python_code);
 
@@ -369,14 +369,14 @@ class MyClass:
 #[test]
 fn test_exception_scope_bare_except() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def try_bare_except():
     try:
         x = 1 / 0
     except:
         x = 0
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should generate Result-based error handling
@@ -385,8 +385,8 @@ def try_bare_except():
 
 /// Unit Test: DEPYLER-0333 - Try/except with specific exception type
 ///
-/// Verifies: Specific exception handling (ValueError)
-/// Coverage: Lines 204-211 (is_exception_handled)
+/// Verifies: Specific exception handling (`ValueError`)
+/// Coverage: Lines 204-211 (`is_exception_handled`)
 #[test]
 fn test_exception_scope_specific_type() {
     let pipeline = DepylerPipeline::new();
@@ -407,7 +407,7 @@ def try_specific():
 /// Unit Test: DEPYLER-0333 - Try/except with multiple exception types
 ///
 /// Verifies: Multiple handled types in exception scope
-/// Coverage: Lines 217-220 (enter_try_scope with vec)
+/// Coverage: Lines 217-220 (`enter_try_scope` with vec)
 #[test]
 fn test_exception_scope_multiple_types() {
     let pipeline = DepylerPipeline::new();
@@ -433,7 +433,7 @@ def try_multiple():
 #[test]
 fn test_exception_scope_nested_try() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def nested_try():
     try:
         x = 1
@@ -444,7 +444,7 @@ def nested_try():
     except ValueError:
         x = 0
     return x + y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle nested try blocks
@@ -454,11 +454,11 @@ def nested_try():
 /// Unit Test: DEPYLER-0333 - Try/except/finally
 ///
 /// Verifies: Finally block handling
-/// Coverage: Lines 226-228 (enter_handler_scope)
+/// Coverage: Lines 226-228 (`enter_handler_scope`)
 #[test]
 fn test_exception_scope_with_finally() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def try_finally():
     x = 0
     try:
@@ -468,7 +468,7 @@ def try_finally():
     finally:
         x = x + 1
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle finally block
@@ -482,7 +482,7 @@ def try_finally():
 #[test]
 fn test_exception_scope_with_else() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def try_else():
     try:
         x = 1
@@ -491,7 +491,7 @@ def try_else():
     else:
         x = x + 1
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle else clause
@@ -501,15 +501,15 @@ def try_else():
 /// Unit Test: DEPYLER-0333 - Function without try/except (unhandled)
 ///
 /// Verifies: Unhandled exception scope (empty stack)
-/// Coverage: Lines 179-183 (current_exception_scope unwrap_or)
+/// Coverage: Lines 179-183 (`current_exception_scope` `unwrap_or`)
 #[test]
 fn test_exception_scope_unhandled() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def unhandled_exception():
     x = 1 / 0
     return x
-"#;
+";
     let result = pipeline.transpile(python_code);
 
     // May succeed with Result return type or fail
@@ -519,7 +519,7 @@ def unhandled_exception():
 /// Unit Test: DEPYLER-0333 - Raise inside try block
 ///
 /// Verifies: Raise statement inside try block
-/// Coverage: Lines 189-194 (is_in_try_block)
+/// Coverage: Lines 189-194 (`is_in_try_block`)
 #[test]
 fn test_exception_scope_raise_in_try() {
     let pipeline = DepylerPipeline::new();
@@ -593,14 +593,14 @@ def sequential_try():
 #[test]
 fn test_exception_scope_return_in_except() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def return_in_except(x: int):
     try:
         result = 10 / x
     except ZeroDivisionError:
         return 0
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle return in except
@@ -614,7 +614,7 @@ def return_in_except(x: int):
 #[test]
 fn test_exception_scope_in_loop() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def try_in_loop():
     result = 0
     for i in [1, 2, 0, 3]:
@@ -623,7 +623,7 @@ def try_in_loop():
         except ZeroDivisionError:
             result = result + 0
     return result
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle try inside loop
@@ -637,14 +637,14 @@ def try_in_loop():
 #[test]
 fn test_exception_scope_empty_except() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def empty_except():
     try:
         x = 1 / 0
     except:
         pass
     return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle empty except block
@@ -654,11 +654,11 @@ def empty_except():
 /// Unit Test: DEPYLER-0333 - Try with multiple except clauses
 ///
 /// Verifies: Multiple except clauses (different exception types)
-/// Coverage: Lines 204-211 (multiple is_exception_handled calls)
+/// Coverage: Lines 204-211 (multiple `is_exception_handled` calls)
 #[test]
 fn test_exception_scope_multiple_except() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def multiple_except():
     try:
         x = 1 / 0
@@ -669,7 +669,7 @@ def multiple_except():
     except:
         x = 3
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Should handle multiple except clauses
@@ -681,9 +681,9 @@ def multiple_except():
 /// Property: Scope stack should maintain LIFO invariant
 ///
 /// Mutation Targets:
-/// 1. enter_try_scope doesn't push to stack
-/// 2. exit_exception_scope doesn't pop from stack
-/// 3. current_exception_scope returns wrong scope
+/// 1. `enter_try_scope` doesn't push to stack
+/// 2. `exit_exception_scope` doesn't pop from stack
+/// 3. `current_exception_scope` returns wrong scope
 #[test]
 fn test_mutation_exception_scope_stack() {
     // Target Mutations:
@@ -692,7 +692,7 @@ fn test_mutation_exception_scope_stack() {
     // 3. Scope types get mixed up
 
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def nested_scopes():
     try:
         try:
@@ -705,7 +705,7 @@ def nested_scopes():
     except:
         x = 3
     return x
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // MUTATION KILL: Deeply nested try blocks should work

@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/type_gen.rs
+//! Coverage tests for `rust_gen/type_gen.rs`
 //!
-//! DEPYLER-99MODE-001: Targets type_gen.rs (1,407 lines)
+//! DEPYLER-99MODE-001: Targets `type_gen.rs` (1,407 lines)
 //! Covers: Python→Rust type conversion, binary operator mapping,
 //! collection types, primitive types, import dependency tracking.
 
@@ -21,37 +21,37 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_type_gen_int() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return x + 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_float() {
-    let code = r#"
+    let code = r"
 def f(x: float) -> float:
     return x * 2.0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_bool() {
-    let code = r#"
+    let code = r"
 def f(x: bool) -> bool:
     return not x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_str() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -61,10 +61,10 @@ def f(s: str) -> str:
 
 #[test]
 fn test_type_gen_list() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [1, 2, 3]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -79,10 +79,10 @@ def f() -> dict:
 
 #[test]
 fn test_type_gen_set() {
-    let code = r#"
+    let code = r"
 def f() -> set:
     return {1, 2, 3}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -101,64 +101,64 @@ def f() -> tuple:
 
 #[test]
 fn test_type_gen_add() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a + b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_sub() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a - b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_mul() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a * b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_div() {
-    let code = r#"
+    let code = r"
 def f(a: float, b: float) -> float:
     return a / b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_modulo() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a % b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_floor_div() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a // b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_power() {
-    let code = r#"
+    let code = r"
 def f(x: int, n: int) -> int:
     return x ** n
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -168,55 +168,55 @@ def f(x: int, n: int) -> int:
 
 #[test]
 fn test_type_gen_eq() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a == b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_ne() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a != b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_lt() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a < b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_le() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a <= b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_gt() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a > b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_ge() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a >= b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -226,64 +226,64 @@ def f(a: int, b: int) -> bool:
 
 #[test]
 fn test_type_gen_and() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool) -> bool:
     return a and b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_or() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool) -> bool:
     return a or b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_bitwise_and() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a & b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_bitwise_or() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a | b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_bitwise_xor() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a ^ b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_left_shift() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a << b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_right_shift() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a >> b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -293,36 +293,36 @@ def f(a: int, b: int) -> int:
 
 #[test]
 fn test_type_gen_nested_collection() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [[1, 2], [3, 4]]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_mixed_arithmetic() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return (a + b) * c - a % b + (a >> 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_optional_return() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     if len(items) > 0:
         return items[0]
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_type_gen_class_fields() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -330,6 +330,6 @@ class Point:
 
     def magnitude(self) -> float:
         return (self.x * self.x + self.y * self.y) ** 0.5
-"#;
+";
     assert!(transpile_ok(code));
 }

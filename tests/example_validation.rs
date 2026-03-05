@@ -34,16 +34,15 @@ mod example_validation_tests {
                         // Examples should either transpile successfully or fail gracefully
                         assert!(
                             result.is_ok() || result.is_err(),
-                            "Example {} should be handled",
-                            example_file
+                            "Example {example_file} should be handled"
                         );
                     }
                     Err(e) => {
-                        println!("{}: ✗ READ ERROR: {}", example_file, e);
+                        println!("{example_file}: ✗ READ ERROR: {e}");
                     }
                 }
             } else {
-                println!("{}: ⚠ FILE NOT FOUND", example_file);
+                println!("{example_file}: ⚠ FILE NOT FOUND");
             }
         }
     }
@@ -57,33 +56,33 @@ mod example_validation_tests {
             ("Simple Function", "def add(a: int, b: int) -> int: return a + b"),
             (
                 "Control Flow",
-                r#"
+                r"
 def max_value(a: int, b: int) -> int:
     if a > b:
         return a
     else:
         return b
-"#,
+",
             ),
             (
                 "Loop Example",
-                r#"
+                r"
 def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#,
+",
             ),
             (
                 "Multiple Functions",
-                r#"
+                r"
 def helper(x: int) -> int:
     return x * 2
 
 def main_func(y: int) -> int:
     return helper(y) + 1
-"#,
+",
             ),
         ];
 
@@ -103,7 +102,7 @@ def main_func(y: int) -> int:
                     }
                 }
                 Err(e) => {
-                    println!("{}: ✗ FAIL: {}", name, e);
+                    println!("{name}: ✗ FAIL: {e}");
                     // Some complex examples might fail, which is acceptable for testing
                 }
             }
@@ -172,7 +171,7 @@ def string_func(s: str) -> str:
         for (name, code) in quality_test_examples {
             match pipeline.transpile(code) {
                 Ok(rust_code) => {
-                    println!("{}: ✓ GENERATED", name);
+                    println!("{name}: ✓ GENERATED");
 
                     // Basic quality checks
                     assert!(rust_code.contains("pub fn"), "Should generate public function");
@@ -188,7 +187,7 @@ def string_func(s: str) -> str:
                     println!("  Contains Rust types: {}", if has_types { "✓" } else { "✗" });
                 }
                 Err(e) => {
-                    println!("{}: ✗ GENERATION FAILED: {}", name, e);
+                    println!("{name}: ✗ GENERATION FAILED: {e}");
                 }
             }
         }
@@ -211,14 +210,14 @@ def string_func(s: str) -> str:
         for (name, code) in compilation_examples {
             match pipeline.transpile(code) {
                 Ok(rust_code) => {
-                    println!("{}: ✓ TRANSPILED", name);
+                    println!("{name}: ✓ TRANSPILED");
 
                     // Check for compilation-ready patterns
                     let checks = vec![
                         ("Has function definition", rust_code.contains("pub fn")),
                         ("Has return type", rust_code.contains("->")),
                         ("Has return statement", rust_code.contains("return")),
-                        ("Has proper braces", rust_code.contains("{") && rust_code.contains("}")),
+                        ("Has proper braces", rust_code.contains('{') && rust_code.contains('}')),
                     ];
 
                     for (check_name, passed) in checks {
@@ -226,7 +225,7 @@ def string_func(s: str) -> str:
                     }
                 }
                 Err(e) => {
-                    println!("{}: ✗ TRANSPILATION FAILED: {}", name, e);
+                    println!("{name}: ✗ TRANSPILATION FAILED: {e}");
                 }
             }
         }
@@ -311,8 +310,7 @@ def complex_function(a: int, b: int, c: int) -> int:
             // Edge cases should either succeed or fail gracefully
             assert!(
                 result.is_ok() || result.is_err(),
-                "Edge case '{}' should be handled gracefully",
-                name
+                "Edge case '{name}' should be handled gracefully"
             );
         }
     }

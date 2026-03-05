@@ -1,20 +1,20 @@
-//! DEPYLER-0516 / GH-103: Missing Args::parse() call in argparse-generated CLI code
+//! DEPYLER-0516 / GH-103: Missing `Args::parse()` call in argparse-generated CLI code
 //!
-//! **ROOT CAUSE**: Args struct generated at module level, but Args::parse() not injected into main()
+//! **ROOT CAUSE**: Args struct generated at module level, but `Args::parse()` not injected into `main()`
 //!
 //! **Five Whys**:
-//! 1. Why is `args` not defined in main()? The `let args = Args::parse();` statement is not generated
-//! 2. Why is the statement not generated? The stmt_gen code should generate it but isn't being called
-//! 3. Why isn't that code path hit? The parse_args() assignment is inside main(), but struct is at module level
+//! 1. Why is `args` not defined in `main()`? The `let args = Args::parse();` statement is not generated
+//! 2. Why is the statement not generated? The `stmt_gen` code should generate it but isn't being called
+//! 3. Why isn't that code path hit? The `parse_args()` assignment is inside `main()`, but struct is at module level
 //! 4. Why does that matter? The assignment transformation happens but the result is lost
-//! 5. ROOT: Argparse transformation generates struct at module level but doesn't properly inject Args::parse() into main() function body
+//! 5. ROOT: Argparse transformation generates struct at module level but doesn't properly inject `Args::parse()` into `main()` function body
 //!
 //! **Problem**: The transpiler correctly generates:
 //! - `use clap::Parser;`
 //! - `#[derive(clap::Parser)] struct Args { ... }`
 //!
 //! But FAILS to generate:
-//! - `let args = Args::parse();` inside main()
+//! - `let args = Args::parse();` inside `main()`
 //!
 //! This causes references to `args.field` to fail with E0425: cannot find value `args`
 //!
@@ -93,23 +93,20 @@ if __name__ == "__main__":
     // Should generate Args struct
     assert!(
         rust_code.contains("struct Args") || rust_code.contains("Args"),
-        "DEPYLER-0516: Should generate Args struct.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0516: Should generate Args struct.\nGenerated:\n{rust_code}"
     );
 
     // Should generate Args::parse() call
     assert!(
         rust_code.contains("Args::parse()"),
-        "DEPYLER-0516: Should generate Args::parse() call.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0516: Should generate Args::parse() call.\nGenerated:\n{rust_code}"
     );
 
     // Should NOT reference args without defining it
     if rust_code.contains("args.name") || rust_code.contains("args.") {
         assert!(
             rust_code.contains("let args") || rust_code.contains("args ="),
-            "DEPYLER-0516: If args is used, it must be defined first.\nGenerated:\n{}",
-            rust_code
+            "DEPYLER-0516: If args is used, it must be defined first.\nGenerated:\n{rust_code}"
         );
     }
 }
@@ -143,8 +140,7 @@ if __name__ == "__main__":
     // Must have Args::parse()
     assert!(
         rust_code.contains("Args::parse()"),
-        "DEPYLER-0516: Must generate Args::parse().\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0516: Must generate Args::parse().\nGenerated:\n{rust_code}"
     );
 }
 
@@ -175,8 +171,7 @@ if __name__ == "__main__":
 
     assert!(
         rust_code.contains("Args::parse()"),
-        "DEPYLER-0516: Positional args need Args::parse().\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0516: Positional args need Args::parse().\nGenerated:\n{rust_code}"
     );
 }
 
@@ -213,8 +208,7 @@ if __name__ == "__main__":
     // All uses of args must come after Args::parse()
     assert!(
         rust_code.contains("Args::parse()"),
-        "DEPYLER-0516: Args::parse() required for args usage.\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0516: Args::parse() required for args usage.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -250,8 +244,7 @@ if __name__ == "__main__":
     if uses_args {
         assert!(
             has_parse,
-            "DEPYLER-0516: If code uses args, must call Args::parse().\nGenerated:\n{}",
-            rust_code
+            "DEPYLER-0516: If code uses args, must call Args::parse().\nGenerated:\n{rust_code}"
         );
     }
 }
@@ -287,16 +280,14 @@ if __name__ == "__main__":
     // CRITICAL: Must have Args::parse() call
     assert!(
         rust_code.contains("Args::parse()"),
-        "DEPYLER-0516: main() with -> int return type MUST have Args::parse().\nGenerated:\n{}",
-        rust_code
+        "DEPYLER-0516: main() with -> int return type MUST have Args::parse().\nGenerated:\n{rust_code}"
     );
 
     // Must not reference args without defining it
     if rust_code.contains("args.") {
         assert!(
             rust_code.contains("let args") || rust_code.contains("args ="),
-            "DEPYLER-0516: args must be defined before use.\nGenerated:\n{}",
-            rust_code
+            "DEPYLER-0516: args must be defined before use.\nGenerated:\n{rust_code}"
         );
     }
 }

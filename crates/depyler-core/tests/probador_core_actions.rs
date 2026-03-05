@@ -3,7 +3,7 @@
 //! EXTREME TDD: Systematic validation of all Python→Rust transpilation paths
 //! against baseline behavior.
 //!
-//! Run with: cargo test --test probador_core_actions -- --nocapture
+//! Run with: cargo test --test `probador_core_actions` -- --nocapture
 
 use depyler_core::DepylerPipeline;
 
@@ -13,7 +13,7 @@ use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {e}"))
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -975,22 +975,22 @@ fn test_filter_simple() {
 
 #[test]
 fn test_struct_pack() {
-    let code = r#"
+    let code = r"
 import struct
 def f(x: int) -> bytes:
     return struct.pack('i', x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_struct_unpack() {
-    let code = r#"
+    let code = r"
 import struct
 def f(data: bytes) -> int:
     result = struct.unpack('i', data)
     return result[0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1000,21 +1000,21 @@ def f(data: bytes) -> int:
 
 #[test]
 fn test_json_dumps() {
-    let code = r#"
+    let code = r"
 import json
 def f(obj) -> str:
     return json.dumps(obj)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_json_loads() {
-    let code = r#"
+    let code = r"
 import json
 def f(s: str):
     return json.loads(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1024,31 +1024,31 @@ def f(s: str):
 
 #[test]
 fn test_os_path_join() {
-    let code = r#"
+    let code = r"
 import os
 def f(a: str, b: str) -> str:
     return os.path.join(a, b)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_os_path_exists() {
-    let code = r#"
+    let code = r"
 import os
 def f(path: str) -> bool:
     return os.path.exists(path)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_os_getcwd() {
-    let code = r#"
+    let code = r"
 import os
 def f() -> str:
     return os.getcwd()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1058,31 +1058,31 @@ def f() -> str:
 
 #[test]
 fn test_math_sqrt() {
-    let code = r#"
+    let code = r"
 import math
 def f(x: float) -> float:
     return math.sqrt(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_floor() {
-    let code = r#"
+    let code = r"
 import math
 def f(x: float) -> int:
     return math.floor(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_math_ceil() {
-    let code = r#"
+    let code = r"
 import math
 def f(x: float) -> int:
     return math.ceil(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1171,18 +1171,18 @@ fn test_walrus_in_list_comp() {
 
 #[test]
 fn test_global_declaration() {
-    let code = r#"
+    let code = r"
 counter = 0
 def increment():
     global counter
     counter += 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_nonlocal_declaration() {
-    let code = r#"
+    let code = r"
 def outer():
     x = 0
     def inner():
@@ -1190,7 +1190,7 @@ def outer():
         x += 1
     inner()
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1200,38 +1200,38 @@ def outer():
 
 #[test]
 fn test_staticmethod_decorator() {
-    let code = r#"
+    let code = r"
 class MyClass:
     @staticmethod
     def static_func(x: int) -> int:
         return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_classmethod_decorator() {
-    let code = r#"
+    let code = r"
 class MyClass:
     count: int = 0
 
     @classmethod
     def get_count(cls) -> int:
         return cls.count
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_property_decorator() {
-    let code = r#"
+    let code = r"
 class Circle:
     _radius: float
 
     @property
     def radius(self) -> float:
         return self._radius
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1281,36 +1281,36 @@ fn test_pep604_optional() {
 
 #[test]
 fn test_collections_defaultdict() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 def f():
     d = defaultdict(int)
     d['a'] += 1
     return d
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_collections_counter() {
-    let code = r#"
+    let code = r"
 from collections import Counter
 def f(items):
     return Counter(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_collections_deque() {
-    let code = r#"
+    let code = r"
 from collections import deque
 def f():
     d = deque([1, 2, 3])
     d.append(4)
     d.appendleft(0)
     return list(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1320,41 +1320,41 @@ def f():
 
 #[test]
 fn test_itertools_chain() {
-    let code = r#"
+    let code = r"
 import itertools
 def f(a, b):
     return list(itertools.chain(a, b))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_itertools_product() {
-    let code = r#"
+    let code = r"
 import itertools
 def f(a, b):
     return list(itertools.product(a, b))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_itertools_combinations() {
-    let code = r#"
+    let code = r"
 import itertools
 def f(items, n):
     return list(itertools.combinations(items, n))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_itertools_permutations() {
-    let code = r#"
+    let code = r"
 import itertools
 def f(items):
     return list(itertools.permutations(items))
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1364,7 +1364,7 @@ def f(items):
 
 #[test]
 fn test_heapq_push_pop() {
-    let code = r#"
+    let code = r"
 import heapq
 def f():
     heap = []
@@ -1372,27 +1372,27 @@ def f():
     heapq.heappush(heap, 1)
     heapq.heappush(heap, 2)
     return heapq.heappop(heap)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_heapq_nsmallest() {
-    let code = r#"
+    let code = r"
 import heapq
 def f(items, n):
     return heapq.nsmallest(n, items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_heapq_nlargest() {
-    let code = r#"
+    let code = r"
 import heapq
 def f(items, n):
     return heapq.nlargest(n, items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1402,31 +1402,31 @@ def f(items, n):
 
 #[test]
 fn test_datetime_now() {
-    let code = r#"
+    let code = r"
 from datetime import datetime
 def f():
     return datetime.now()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_date() {
-    let code = r#"
+    let code = r"
 from datetime import date
 def f():
     return date.today()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_datetime_timedelta() {
-    let code = r#"
+    let code = r"
 from datetime import timedelta
 def f(days: int):
     return timedelta(days=days)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1436,41 +1436,41 @@ def f(days: int):
 
 #[test]
 fn test_re_match() {
-    let code = r#"
+    let code = r"
 import re
 def f(pattern: str, text: str):
     return re.match(pattern, text)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_re_search() {
-    let code = r#"
+    let code = r"
 import re
 def f(pattern: str, text: str):
     return re.search(pattern, text)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_re_findall() {
-    let code = r#"
+    let code = r"
 import re
 def f(pattern: str, text: str):
     return re.findall(pattern, text)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_re_sub() {
-    let code = r#"
+    let code = r"
 import re
 def f(pattern: str, repl: str, text: str):
     return re.sub(pattern, repl, text)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -1480,11 +1480,11 @@ def f(pattern: str, repl: str, text: str):
 
 #[test]
 fn test_functools_reduce() {
-    let code = r#"
+    let code = r"
 from functools import reduce
 def f(items):
     return reduce(lambda x, y: x + y, items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 

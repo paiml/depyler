@@ -16,7 +16,7 @@ use std::process::Command;
 
 /// Helper function to verify generated Rust code compiles
 fn assert_compiles(rust_code: &str, test_name: &str) {
-    let temp_file = format!("/tmp/depyler_0269_{}.rs", test_name);
+    let temp_file = format!("/tmp/depyler_0269_{test_name}.rs");
     fs::write(&temp_file, rust_code).expect("Failed to write temp file");
 
     let output = Command::new("rustc")
@@ -29,7 +29,7 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
             "warnings",
             &temp_file,
             "-o",
-            &format!("/tmp/depyler_0269_{}.rlib", test_name),
+            &format!("/tmp/depyler_0269_{test_name}.rlib"),
         ])
         .output()
         .expect("Failed to run rustc");
@@ -37,14 +37,13 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Generated Rust code failed to compile for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Generated Rust code failed to compile for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 
     // Cleanup
     let _ = fs::remove_file(&temp_file);
-    let _ = fs::remove_file(format!("/tmp/depyler_0269_{}.rlib", test_name));
+    let _ = fs::remove_file(format!("/tmp/depyler_0269_{test_name}.rlib"));
 }
 
 /// Helper to check if error message contains expected borrow suggestion
@@ -92,7 +91,7 @@ def main() -> None:
     // Verify the generated code includes & in the function call
     // Should generate: process(&nums)
     // Not: process(nums)
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Before fix: This will fail with "expected &Vec<i32>, found Vec<i32>"
     // After fix: This will compile successfully
@@ -126,7 +125,7 @@ def main() -> None:
 
     // Should generate: merge(&a, &b)
     // Not: merge(a, b)
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Before fix: Fails with 2 borrow errors (one for each parameter)
     // After fix: Compiles successfully
@@ -157,7 +156,7 @@ def main() -> None:
 
     // Should generate: process_text(&message)
     // Not: process_text(message)
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Before fix: Fails with "expected &String, found String" or similar
     // After fix: Compiles successfully
@@ -188,7 +187,7 @@ def main() -> None:
 
     // Should generate: count_keys(&info)
     // Not: count_keys(info)
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Before fix: Fails with "expected &HashMap<String, i32>, found HashMap<String, i32>"
     // After fix: Compiles successfully
@@ -200,21 +199,21 @@ def main() -> None:
 fn test_DEPYLER_0269_verify_current_bug() {
     // This test verifies the bug exists by checking for borrow error messages
     // Run with: cargo test test_DEPYLER_0269_verify_current_bug -- --ignored --nocapture
-    let python = r#"
+    let python = r"
 def process(data: list[int]) -> int:
     return len(data)
 
 def main() -> None:
     nums = [1, 2, 3]
     result = process(nums)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Transpilation should succeed");
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Check if current code produces borrow error
     if contains_borrow_error(&rust_code) {
@@ -233,13 +232,13 @@ fn test_DEPYLER_0269_reference_parameter_types() {
     let test_cases = vec![
         (
             "list[int]",
-            r#"
+            r"
 def f(x: list[int]) -> int:
     return len(x)
 def main() -> None:
     v = [1, 2]
     f(v)
-"#,
+",
         ),
         (
             "list[str]",
@@ -263,18 +262,18 @@ def main() -> None:
         ),
         (
             "set[int]",
-            r#"
+            r"
 def f(x: set[int]) -> int:
     return len(x)
 def main() -> None:
     v = {1, 2, 3}
     f(v)
-"#,
+",
         ),
     ];
 
     for (type_name, python) in test_cases {
-        println!("\nTesting type: {}", type_name);
+        println!("\nTesting type: {type_name}");
         let pipeline = DepylerPipeline::new();
         let result = pipeline.transpile(python);
         assert!(result.is_ok(), "Transpilation failed for {}: {:?}", type_name, result.err());

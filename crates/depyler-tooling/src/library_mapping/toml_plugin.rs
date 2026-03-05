@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn test_toml_parse_error_display_with_line() {
         let err = TomlParseError { message: "unexpected token".to_string(), line: Some(42) };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("line 42"));
         assert!(display.contains("unexpected token"));
     }
@@ -412,7 +412,7 @@ mod tests {
     #[test]
     fn test_toml_parse_error_display_without_line() {
         let err = TomlParseError { message: "invalid syntax".to_string(), line: None };
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(!display.contains("line"));
         assert!(display.contains("invalid syntax"));
     }

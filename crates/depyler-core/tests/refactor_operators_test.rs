@@ -33,24 +33,24 @@ fn test_operators_module_exists() {
 #[test]
 fn test_binary_add_integers() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def add_ints(a: int, b: int) -> int:
     return a + b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("+"), "Integer addition should use +. Got:\n{rust}");
+    assert!(rust.contains('+'), "Integer addition should use +. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_add_strings() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def concat_strings(a: str, b: str) -> str:
     return a + b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
-        rust.contains("format!") || rust.contains("+"),
+        rust.contains("format!") || rust.contains('+'),
         "String concatenation should work. Got:\n{rust}"
     );
 }
@@ -58,47 +58,47 @@ def concat_strings(a: str, b: str) -> str:
 #[test]
 fn test_binary_sub() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def subtract(a: int, b: int) -> int:
     return a - b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("-"), "Subtraction should use -. Got:\n{rust}");
+    assert!(rust.contains('-'), "Subtraction should use -. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_mul() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def multiply(a: int, b: int) -> int:
     return a * b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("*"), "Multiplication should use *. Got:\n{rust}");
+    assert!(rust.contains('*'), "Multiplication should use *. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_div() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def divide(a: float, b: float) -> float:
     return a / b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("/"), "Division should use /. Got:\n{rust}");
+    assert!(rust.contains('/'), "Division should use /. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_floor_div() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def floor_divide(a: int, b: int) -> int:
     return a // b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     // Floor division is complex in Rust
     assert!(
-        rust.contains("/") || rust.contains("floor"),
+        rust.contains('/') || rust.contains("floor"),
         "Floor division should be handled. Got:\n{rust}"
     );
 }
@@ -106,21 +106,21 @@ def floor_divide(a: int, b: int) -> int:
 #[test]
 fn test_binary_mod() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def modulo(a: int, b: int) -> int:
     return a % b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("%"), "Modulo should use %. Got:\n{rust}");
+    assert!(rust.contains('%'), "Modulo should use %. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_pow() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def power(base: int, exp: int) -> int:
     return base ** exp
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
         rust.contains("pow") || rust.contains("powf"),
@@ -135,32 +135,32 @@ def power(base: int, exp: int) -> int:
 #[test]
 fn test_binary_lt() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def less_than(a: int, b: int) -> bool:
     return a < b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("<"), "Less than should use <. Got:\n{rust}");
+    assert!(rust.contains('<'), "Less than should use <. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_gt() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def greater_than(a: int, b: int) -> bool:
     return a > b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains(">"), "Greater than should use >. Got:\n{rust}");
+    assert!(rust.contains('>'), "Greater than should use >. Got:\n{rust}");
 }
 
 #[test]
 fn test_binary_eq() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def equals(a: int, b: int) -> bool:
     return a == b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("=="), "Equality should use ==. Got:\n{rust}");
 }
@@ -168,10 +168,10 @@ def equals(a: int, b: int) -> bool:
 #[test]
 fn test_binary_ne() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def not_equals(a: int, b: int) -> bool:
     return a != b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("!="), "Not equal should use !=. Got:\n{rust}");
 }
@@ -183,10 +183,10 @@ def not_equals(a: int, b: int) -> bool:
 #[test]
 fn test_binary_and() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def logical_and(a: bool, b: bool) -> bool:
     return a and b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("&&"), "Logical and should use &&. Got:\n{rust}");
 }
@@ -194,10 +194,10 @@ def logical_and(a: bool, b: bool) -> bool:
 #[test]
 fn test_binary_or() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def logical_or(a: bool, b: bool) -> bool:
     return a or b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("||"), "Logical or should use ||. Got:\n{rust}");
 }
@@ -209,10 +209,10 @@ def logical_or(a: bool, b: bool) -> bool:
 #[test]
 fn test_binary_in_list() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def item_in_list(item: int, items: list) -> bool:
     return item in items
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     // DEPYLER-0449: Uses .get().is_some() for compatibility with HashMap and Value
     assert!(
@@ -224,10 +224,10 @@ def item_in_list(item: int, items: list) -> bool:
 #[test]
 fn test_binary_in_string() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def substring_in_string(sub: str, s: str) -> bool:
     return sub in s
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("contains"), "in operator for string should use contains. Got:\n{rust}");
 }
@@ -235,15 +235,15 @@ def substring_in_string(sub: str, s: str) -> bool:
 #[test]
 fn test_binary_not_in() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def item_not_in_list(item: int, items: list) -> bool:
     return item not in items
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     // DEPYLER-0449: Uses !.get().is_some() for compatibility with HashMap and Value
     assert!(
-        (rust.contains("!") && rust.contains("contains"))
-            || (rust.contains("!") && rust.contains(".get(") && rust.contains(".is_some()")),
+        (rust.contains('!') && rust.contains("contains"))
+            || (rust.contains('!') && rust.contains(".get(") && rust.contains(".is_some()")),
         "not in operator should use !contains or !get().is_some(). Got:\n{rust}"
     );
 }
@@ -255,21 +255,21 @@ def item_not_in_list(item: int, items: list) -> bool:
 #[test]
 fn test_unary_not_bool() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def negate_bool(x: bool) -> bool:
     return not x
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("!"), "not should use !. Got:\n{rust}");
+    assert!(rust.contains('!'), "not should use !. Got:\n{rust}");
 }
 
 #[test]
 fn test_unary_not_collection() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def is_empty_list(items: list) -> bool:
     return not items
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("is_empty"), "not on collection should use is_empty. Got:\n{rust}");
 }
@@ -277,12 +277,12 @@ def is_empty_list(items: list) -> bool:
 #[test]
 fn test_unary_neg() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def negate_int(x: int) -> int:
     return -x
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(rust.contains("-"), "Negation should use -. Got:\n{rust}");
+    assert!(rust.contains('-'), "Negation should use -. Got:\n{rust}");
 }
 
 // ============================================================================
@@ -292,13 +292,13 @@ def negate_int(x: int) -> int:
 #[test]
 fn test_arithmetic_compiles() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def arithmetic_ops(a: int, b: int) -> int:
     sum_val = a + b
     diff = a - b
     prod = a * b
     return sum_val + diff + prod
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
 
     let temp_file = std::env::temp_dir().join("test_arithmetic_ops.rs");
@@ -325,7 +325,7 @@ def arithmetic_ops(a: int, b: int) -> int:
 #[test]
 fn test_comparison_compiles() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def comparison_ops(a: int, b: int) -> bool:
     lt = a < b
     gt = a > b
@@ -334,7 +334,7 @@ def comparison_ops(a: int, b: int) -> bool:
     le = a <= b
     ge = a >= b
     return lt or gt or eq or ne or le or ge
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
 
     let temp_file = std::env::temp_dir().join("test_comparison_ops.rs");
@@ -361,13 +361,13 @@ def comparison_ops(a: int, b: int) -> bool:
 #[test]
 fn test_logical_compiles() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def logical_ops(a: bool, b: bool) -> bool:
     and_result = a and b
     or_result = a or b
     not_result = not a
     return and_result or or_result or not_result
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
 
     let temp_file = std::env::temp_dir().join("test_logical_ops.rs");
@@ -398,10 +398,10 @@ def logical_ops(a: bool, b: bool) -> bool:
 #[test]
 fn test_string_multiplication() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def repeat_string(s: str, n: int) -> str:
     return s * n
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(rust.contains("repeat"), "String * int should use repeat. Got:\n{rust}");
 }
@@ -409,10 +409,10 @@ def repeat_string(s: str, n: int) -> str:
 #[test]
 fn test_list_concatenation() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def concat_lists(a: list, b: list) -> list:
     return a + b
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
         rust.contains("chain") || rust.contains("extend") || rust.contains("iter"),
@@ -428,10 +428,10 @@ proptest! {
     #[test]
     fn prop_transpilation_is_deterministic(a in -100i32..100, b in -100i32..100) {
         let pipeline = DepylerPipeline::new();
-        let python = format!(r#"
+        let python = format!(r"
 def test_ops():
-    return {} + {}
-"#, a, b);
+    return {a} + {b}
+");
         let result1 = pipeline.transpile(&python);
         let result2 = pipeline.transpile(&python);
         match (result1, result2) {
@@ -446,10 +446,10 @@ def test_ops():
         op in prop::sample::select(vec!["+", "-", "*", "%"])
     ) {
         let pipeline = DepylerPipeline::new();
-        let python = format!(r#"
+        let python = format!(r"
 def test_op(a: int, b: int) -> int:
-    return a {} b
-"#, op);
+    return a {op} b
+");
 
         if let Ok(rust) = pipeline.transpile(&python) {
             prop_assert!(
@@ -464,10 +464,10 @@ def test_op(a: int, b: int) -> int:
         op in prop::sample::select(vec!["<", ">", "==", "!=", "<=", ">="])
     ) {
         let pipeline = DepylerPipeline::new();
-        let python = format!(r#"
+        let python = format!(r"
 def test_cmp(a: int, b: int) -> bool:
-    return a {} b
-"#, op);
+    return a {op} b
+");
 
         if let Ok(rust) = pipeline.transpile(&python) {
             prop_assert!(
@@ -486,10 +486,10 @@ def test_cmp(a: int, b: int) -> bool:
 fn test_chained_comparisons() {
     let pipeline = DepylerPipeline::new();
     // Python allows a < b < c
-    let python = r#"
+    let python = r"
 def in_range(x: int) -> bool:
     return 0 < x < 10
-"#;
+";
     // Should transpile to (0 < x) && (x < 10) or similar
     let result = pipeline.transpile(python);
     // This may or may not be supported - just ensure it doesn't crash
@@ -499,13 +499,13 @@ def in_range(x: int) -> bool:
 #[test]
 fn test_bitwise_operations() {
     let pipeline = DepylerPipeline::new();
-    let python = r#"
+    let python = r"
 def bitwise_ops(a: int, b: int) -> int:
     return (a & b) | (a ^ b)
-"#;
+";
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
-        rust.contains("&") && rust.contains("|") && rust.contains("^"),
+        rust.contains('&') && rust.contains('|') && rust.contains('^'),
         "Bitwise operators should be preserved. Got:\n{rust}"
     );
 }

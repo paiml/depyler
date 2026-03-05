@@ -37,7 +37,7 @@ def sum_list(numbers: list) -> int:
 
     // Debugging: Print generated code before compilation
     eprintln!("=== DEPYLER-0264: Generated Rust Code ===");
-    eprintln!("{}", rust_code);
+    eprintln!("{rust_code}");
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0264_untyped_list.rs";
@@ -59,7 +59,7 @@ def sum_list(numbers: list) -> int:
     let stderr = String::from_utf8_lossy(&output.stderr);
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0264: rustc stderr ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         // Primary assertion: Should NOT have DynamicType error
         assert!(
@@ -70,11 +70,9 @@ def sum_list(numbers: list) -> int:
              \n\
              See docs/bugs/DEPYLER-0264.md for details.\n\
              \n\
-             Generated Rust code:\n{}\n\
+             Generated Rust code:\n{rust_code}\n\
              \n\
-             rustc error:\n{}",
-            rust_code,
-            stderr
+             rustc error:\n{stderr}"
         );
 
         // If compilation fails, it should only be due to missing serde_json crate
@@ -92,8 +90,7 @@ def sum_list(numbers: list) -> int:
         !rust_code.contains("DynamicType"),
         "DEPYLER-0264: Generated code should not reference DynamicType\n\
          Expected: serde_json::Value or concrete type\n\
-         Generated code:\n{}",
-        rust_code
+         Generated code:\n{rust_code}"
     );
 }
 

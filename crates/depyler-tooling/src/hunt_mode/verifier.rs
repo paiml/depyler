@@ -347,7 +347,7 @@ mod tests {
     #[test]
     fn test_andon_status_display() {
         let green = AndonStatus::Green { compilation_rate: 0.85, message: "All good".to_string() };
-        let display = format!("{}", green);
+        let display = format!("{green}");
         assert!(display.contains("GREEN"));
         assert!(display.contains("85.0%"));
     }
@@ -395,20 +395,20 @@ mod tests {
     #[test]
     fn test_verify_result_debug() {
         let success = VerifyResult::Success;
-        assert!(format!("{:?}", success).contains("Success"));
+        assert!(format!("{success:?}").contains("Success"));
 
         let no_fix = VerifyResult::NoFixAvailable;
-        assert!(format!("{:?}", no_fix).contains("NoFixAvailable"));
+        assert!(format!("{no_fix:?}").contains("NoFixAvailable"));
 
         let failed = VerifyResult::FixFailed("error".to_string());
-        assert!(format!("{:?}", failed).contains("FixFailed"));
+        assert!(format!("{failed:?}").contains("FixFailed"));
 
         let needs_review = VerifyResult::NeedsReview {
             fix: create_test_fix(),
             confidence: 0.5,
             reason: "low confidence".to_string(),
         };
-        assert!(format!("{:?}", needs_review).contains("NeedsReview"));
+        assert!(format!("{needs_review:?}").contains("NeedsReview"));
     }
 
     #[test]
@@ -461,7 +461,7 @@ mod tests {
             warnings: vec!["warn1".to_string(), "warn2".to_string()],
             needs_attention: true,
         };
-        let display = format!("{}", yellow);
+        let display = format!("{yellow}");
         assert!(display.contains("YELLOW"));
         assert!(display.contains("2 warning(s)"));
     }
@@ -469,7 +469,7 @@ mod tests {
     #[test]
     fn test_andon_status_display_red() {
         let red = AndonStatus::Red { error: "Critical failure".to_string(), cycle_halted: true };
-        let display = format!("{}", red);
+        let display = format!("{red}");
         assert!(display.contains("RED"));
         assert!(display.contains("Critical failure"));
     }
@@ -477,14 +477,14 @@ mod tests {
     #[test]
     fn test_andon_status_display_idle() {
         let idle = AndonStatus::Idle;
-        let display = format!("{}", idle);
+        let display = format!("{idle}");
         assert!(display.contains("IDLE"));
     }
 
     #[test]
     fn test_andon_status_debug() {
         let green = AndonStatus::Green { compilation_rate: 0.85, message: "ok".to_string() };
-        let debug_str = format!("{:?}", green);
+        let debug_str = format!("{green:?}");
         assert!(debug_str.contains("Green"));
         assert!(debug_str.contains("0.85"));
     }
@@ -512,7 +512,7 @@ mod tests {
     #[test]
     fn test_andon_verifier_debug() {
         let verifier = AndonVerifier::new();
-        let debug_str = format!("{:?}", verifier);
+        let debug_str = format!("{verifier:?}");
         assert!(debug_str.contains("AndonVerifier"));
         assert!(debug_str.contains("status"));
     }

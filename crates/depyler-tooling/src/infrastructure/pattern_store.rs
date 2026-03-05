@@ -143,8 +143,8 @@ mod tests {
     fn make_pattern(id: &str, confidence: f32, embedding: Vec<f32>) -> TranspilationPattern {
         TranspilationPattern {
             id: id.to_string(),
-            python_pattern: format!("def {}(): pass", id),
-            rust_output: format!("fn {}() {{}}", id),
+            python_pattern: format!("def {id}(): pass"),
+            rust_output: format!("fn {id}() {{}}"),
             error_prevented: "E0001".to_string(),
             confidence,
             usage_count: 0,
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_transpilation_pattern_debug() {
         let pattern = make_pattern("debug_test", 0.5, vec![]);
-        let debug_str = format!("{:?}", pattern);
+        let debug_str = format!("{pattern:?}");
         assert!(debug_str.contains("debug_test"));
         assert!(debug_str.contains("TranspilationPattern"));
     }
@@ -382,7 +382,7 @@ mod tests {
     fn test_find_similar_respects_k() {
         let mut store = PatternStore::new();
         for i in 0..10 {
-            store.add_pattern(make_pattern(&format!("p{}", i), 0.5, vec![i as f32, 0.0, 0.0]));
+            store.add_pattern(make_pattern(&format!("p{i}"), 0.5, vec![i as f32, 0.0, 0.0]));
         }
 
         let query = vec![5.0, 0.0, 0.0];

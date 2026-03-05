@@ -36,7 +36,7 @@ def get_last(items: list[str]) -> str:
 
     // Debugging: Print generated code
     eprintln!("=== DEPYLER-0268: Generated Rust Code (negative index -1) ===");
-    eprintln!("{}", rust_code);
+    eprintln!("{rust_code}");
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0268_negative_last.rs";
@@ -58,7 +58,7 @@ def get_last(items: list[str]) -> str:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0268: rustc stderr (negative index -1) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         // ASSERT: Must NOT have "cannot apply unary operator `-`" error
         assert!(
@@ -73,21 +73,17 @@ def get_last(items: list[str]) -> str:
              \n\
              See docs/bugs/DEPYLER-0268.md for details.\n\
              \n\
-             Generated Rust code:\n{}\n\
+             Generated Rust code:\n{rust_code}\n\
              \n\
-             rustc error:\n{}",
-            rust_code,
-            stderr
+             rustc error:\n{stderr}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0268: Negative index -1 should compile\n\
-         Generated code:\n{}\n\
-         Errors:\n{}",
-        rust_code,
-        stderr
+         Generated code:\n{rust_code}\n\
+         Errors:\n{stderr}"
     );
 }
 
@@ -128,24 +124,20 @@ def get_second_last(nums: list[int]) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0268: rustc stderr (negative index -2) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268: Cannot negate usize!\n\
-             Error: {}\n\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\n\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0268: Negative index -2 should compile\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }
 
@@ -186,24 +178,20 @@ def get_by_index(items: list[str], idx: int) -> str:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0268: rustc stderr (runtime index) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268: Runtime index negation error!\n\
-             Error: {}\n\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\n\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0268: Runtime index should compile\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }
 
@@ -244,24 +232,20 @@ def get_last_row(matrix: list[list[int]]) -> list[int]:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0268: rustc stderr (nested negative) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268: Nested collection negative index error!\n\
-             Error: {}\n\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\n\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0268: Nested negative index should compile\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }
 
@@ -302,14 +286,12 @@ def get_first(items: list[int]) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0268: rustc stderr (positive index) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0268: Positive index should still work (regression test)\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }

@@ -46,9 +46,9 @@ fn main() -> anyhow::Result<()> {
     let hash2 = TrainingError::compute_hash("E0308", "mismatched types");
     let hash3 = TrainingError::compute_hash("E0308", "different message");
 
-    println!("Hash('E0308', 'mismatched types'): {}", hash1);
-    println!("Hash('E0308', 'mismatched types'): {} (same)", hash2);
-    println!("Hash('E0308', 'different message'): {} (different)", hash3);
+    println!("Hash('E0308', 'mismatched types'): {hash1}");
+    println!("Hash('E0308', 'mismatched types'): {hash2} (same)");
+    println!("Hash('E0308', 'different message'): {hash3} (different)");
     println!("Hashes match: {}", hash1 == hash2);
 
     // Save to temp file
@@ -90,9 +90,9 @@ fn main() -> anyhow::Result<()> {
     let before = merged.len();
     let new_count = merged.merge(corpus2);
 
-    println!("Before merge: {} errors", before);
+    println!("Before merge: {before} errors");
     println!("After merge: {} errors", merged.len());
-    println!("New unique: {} errors", new_count);
+    println!("New unique: {new_count} errors");
 
     // Cleanup
     std::fs::remove_file(&corpus_path)?;

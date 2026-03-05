@@ -1997,8 +1997,10 @@ mod tests {
             .filter(|c| {
                 matches!(
                     c,
-                    Constraint::Instance(_,
-Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                    Constraint::Instance(
+                        _,
+                        Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_)
+                    )
                 )
             })
             .count();

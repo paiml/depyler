@@ -4,7 +4,7 @@ use std::process::Command;
 use tempfile::NamedTempFile;
 
 /// Execute Rust code and return the result
-pub fn execute_rust_code(rust_code: &str, function_name: &str, args: &[i32]) -> Result<i32> {
+pub(crate) fn execute_rust_code(rust_code: &str, function_name: &str, args: &[i32]) -> Result<i32> {
     // Create a temporary Rust file with a main function that calls our test function
     let wrapper_code = format!(
         r#"
@@ -17,7 +17,7 @@ fn main() {{
 "#,
         rust_code,
         function_name,
-        args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", ")
+        args.iter().map(std::string::ToString::to_string).collect::<Vec<_>>().join(", ")
     );
 
     // Write to temporary file with .rs extension
@@ -38,7 +38,7 @@ fn main() {{
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Rust compilation failed: {}", stderr);
+        anyhow::bail!("Rust compilation failed: {stderr}");
     }
 
     // Execute the compiled binary
@@ -48,7 +48,7 @@ fn main() {{
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Rust execution failed: {}", stderr);
+        anyhow::bail!("Rust execution failed: {stderr}");
     }
 
     // Parse the output
@@ -59,7 +59,11 @@ fn main() {{
 }
 
 /// Execute Python code and return the result
-pub fn execute_python_code(python_code: &str, function_name: &str, args: &[i32]) -> Result<i32> {
+pub(crate) fn execute_python_code(
+    python_code: &str,
+    function_name: &str,
+    args: &[i32],
+) -> Result<i32> {
     // Create a wrapper that calls the function and prints the result
     let wrapper_code = format!(
         r#"
@@ -71,7 +75,7 @@ if __name__ == "__main__":
 "#,
         python_code,
         function_name,
-        args.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(", ")
+        args.iter().map(std::string::ToString::to_string).collect::<Vec<_>>().join(", ")
     );
 
     // Write to temporary file
@@ -86,7 +90,7 @@ if __name__ == "__main__":
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Python execution failed: {}", stderr);
+        anyhow::bail!("Python execution failed: {stderr}");
     }
 
     // Parse the output
@@ -102,11 +106,11 @@ mod tests {
 
     #[test]
     fn test_rust_execution() {
-        let code = r#"
+        let code = r"
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
-"#;
+";
 
         let result = execute_rust_code(code, "add", &[2, 3]).unwrap();
         assert_eq!(result, 5);
@@ -114,10 +118,10 @@ pub fn add(a: i32, b: i32) -> i32 {
 
     #[test]
     fn test_python_execution() {
-        let code = r#"
+        let code = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
         let result = execute_python_code(code, "add", &[2, 3]).unwrap();
         assert_eq!(result, 5);

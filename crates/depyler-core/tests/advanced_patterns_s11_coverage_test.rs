@@ -1,7 +1,7 @@
 //! Session 11: Advanced Python pattern tests for deep code path coverage
 //!
 //! These tests exercise complex, multi-feature Python patterns that trigger
-//! deeper code generation paths in stmt_gen, expr_gen, and instance methods.
+//! deeper code generation paths in `stmt_gen`, `expr_gen`, and instance methods.
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::rust_gen::generate_rust_file;
@@ -23,29 +23,27 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s11_dict_from_list_indices() {
-    let code = r#"
+    let code = r"
 def index_map(items: list) -> dict:
     return {item: idx for idx, item in enumerate(items)}
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn index_map"),
-        "Should transpile dict comp with enumerate. Got: {}",
-        result
+        "Should transpile dict comp with enumerate. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_dict_with_condition() {
-    let code = r#"
+    let code = r"
 def filtered_dict(items: list) -> dict:
     return {x: x * x for x in items if x > 0}
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn filtered_dict"),
-        "Should transpile dict comp with filter. Got: {}",
-        result
+        "Should transpile dict comp with filter. Got: {result}"
     );
 }
 
@@ -55,25 +53,24 @@ def filtered_dict(items: list) -> dict:
 
 #[test]
 fn test_s11_set_from_list() {
-    let code = r#"
+    let code = r"
 def unique_vals(items: list) -> set:
     return {x for x in items}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn unique_vals"), "Should transpile set comp. Got: {}", result);
+    assert!(result.contains("fn unique_vals"), "Should transpile set comp. Got: {result}");
 }
 
 #[test]
 fn test_s11_set_comp_with_transform() {
-    let code = r#"
+    let code = r"
 def abs_set(items: list) -> set:
     return {abs(x) for x in items}
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn abs_set"),
-        "Should transpile set comp with transform. Got: {}",
-        result
+        "Should transpile set comp with transform. Got: {result}"
     );
 }
 
@@ -83,25 +80,24 @@ def abs_set(items: list) -> set:
 
 #[test]
 fn test_s11_nested_list_comp() {
-    let code = r#"
+    let code = r"
 def flatten(matrix: list) -> list:
     return [x for row in matrix for x in row]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn flatten"), "Should transpile nested list comp. Got: {}", result);
+    assert!(result.contains("fn flatten"), "Should transpile nested list comp. Got: {result}");
 }
 
 #[test]
 fn test_s11_list_comp_with_method() {
-    let code = r#"
+    let code = r"
 def upper_words(words: list) -> list:
     return [w.upper() for w in words]
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("to_uppercase") || result.contains("fn upper_words"),
-        "Should transpile list comp with method. Got: {}",
-        result
+        "Should transpile list comp with method. Got: {result}"
     );
 }
 
@@ -111,23 +107,19 @@ def upper_words(words: list) -> list:
 
 #[test]
 fn test_s11_early_return_guard() {
-    let code = r#"
+    let code = r"
 def safe_sqrt(x: float) -> float:
     if x < 0:
         return 0.0
     return x ** 0.5
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn safe_sqrt"),
-        "Should transpile early return guard. Got: {}",
-        result
-    );
+    assert!(result.contains("fn safe_sqrt"), "Should transpile early return guard. Got: {result}");
 }
 
 #[test]
 fn test_s11_return_in_loop() {
-    let code = r#"
+    let code = r"
 def find_max(items: list) -> int:
     if len(items) == 0:
         return 0
@@ -136,9 +128,9 @@ def find_max(items: list) -> int:
         if item > best:
             best = item
     return best
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_max"), "Should transpile return after loop. Got: {}", result);
+    assert!(result.contains("fn find_max"), "Should transpile return after loop. Got: {result}");
 }
 
 // ============================================================================
@@ -147,7 +139,7 @@ def find_max(items: list) -> int:
 
 #[test]
 fn test_s11_class_with_multiple_methods() {
-    let code = r#"
+    let code = r"
 class Stack:
     def __init__(self) -> None:
         self.items: list = []
@@ -163,18 +155,17 @@ class Stack:
 
     def size(self) -> int:
         return len(self.items)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Stack") || result.contains("struct"),
-        "Should transpile Stack class. Got: {}",
-        result
+        "Should transpile Stack class. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_class_with_property() {
-    let code = r#"
+    let code = r"
 class Rectangle:
     def __init__(self, width: float, height: float) -> None:
         self.width = width
@@ -185,12 +176,11 @@ class Rectangle:
 
     def perimeter(self) -> float:
         return 2 * (self.width + self.height)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("Rectangle") || result.contains("struct"),
-        "Should transpile Rectangle class. Got: {}",
-        result
+        "Should transpile Rectangle class. Got: {result}"
     );
 }
 
@@ -200,39 +190,37 @@ class Rectangle:
 
 #[test]
 fn test_s11_generator_sum() {
-    let code = r#"
+    let code = r"
 def sum_even(n: int) -> int:
     return sum(x for x in range(n) if x % 2 == 0)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_even"), "Should transpile generator with sum. Got: {}", result);
+    assert!(result.contains("fn sum_even"), "Should transpile generator with sum. Got: {result}");
 }
 
 #[test]
 fn test_s11_any_with_condition() {
-    let code = r#"
+    let code = r"
 def has_negative(items: list) -> bool:
     return any(x < 0 for x in items)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("any") || result.contains("fn has_negative"),
-        "Should transpile any() with generator. Got: {}",
-        result
+        "Should transpile any() with generator. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_all_with_condition() {
-    let code = r#"
+    let code = r"
 def all_positive(items: list) -> bool:
     return all(x > 0 for x in items)
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("all") || result.contains("fn all_positive"),
-        "Should transpile all() with generator. Got: {}",
-        result
+        "Should transpile all() with generator. Got: {result}"
     );
 }
 
@@ -250,8 +238,7 @@ def parse_csv_line(line: str) -> list:
     let result = transpile(code);
     assert!(
         result.contains("split") || result.contains("fn parse_csv_line"),
-        "Should transpile split+strip. Got: {}",
-        result
+        "Should transpile split+strip. Got: {result}"
     );
 }
 
@@ -265,7 +252,7 @@ def clean_text(text: str) -> str:
     return result.strip()
 "#;
     let result = transpile(code);
-    assert!(result.contains("replace"), "Should transpile multiple replace. Got: {}", result);
+    assert!(result.contains("replace"), "Should transpile multiple replace. Got: {result}");
 }
 
 #[test]
@@ -275,7 +262,7 @@ def to_csv(items: list) -> str:
     return ",".join(str(x) for x in items)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn to_csv"), "Should transpile join with generator. Got: {}", result);
+    assert!(result.contains("fn to_csv"), "Should transpile join with generator. Got: {result}");
 }
 
 // ============================================================================
@@ -284,14 +271,14 @@ def to_csv(items: list) -> str:
 
 #[test]
 fn test_s11_recursive_factorial() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("factorial"), "Should transpile recursive factorial. Got: {}", result);
+    assert!(result.contains("factorial"), "Should transpile recursive factorial. Got: {result}");
 }
 
 #[test]
@@ -307,8 +294,7 @@ def max_depth(node: dict) -> int:
     let result = transpile(code);
     assert!(
         result.contains("fn max_depth"),
-        "Should transpile recursive tree depth. Got: {}",
-        result
+        "Should transpile recursive tree depth. Got: {result}"
     );
 }
 
@@ -318,7 +304,7 @@ def max_depth(node: dict) -> int:
 
 #[test]
 fn test_s11_try_with_return() {
-    let code = r#"
+    let code = r"
 def safe_parse(data: str) -> int:
     try:
         return int(data)
@@ -326,9 +312,9 @@ def safe_parse(data: str) -> int:
         return -1
     except TypeError:
         return -2
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_parse"), "Should transpile try with returns. Got: {}", result);
+    assert!(result.contains("fn safe_parse"), "Should transpile try with returns. Got: {result}");
 }
 
 #[test]
@@ -346,7 +332,7 @@ def robust_process(data: str) -> str:
         return ""
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn robust_process"), "Should transpile nested try. Got: {}", result);
+    assert!(result.contains("fn robust_process"), "Should transpile nested try. Got: {result}");
 }
 
 // ============================================================================
@@ -355,27 +341,26 @@ def robust_process(data: str) -> str:
 
 #[test]
 fn test_s11_map_filter_reduce() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> int:
     evens = [x for x in items if x % 2 == 0]
     doubled = [x * 2 for x in evens]
     return sum(doubled)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Should transpile map/filter/reduce. Got: {}", result);
+    assert!(result.contains("fn process"), "Should transpile map/filter/reduce. Got: {result}");
 }
 
 #[test]
 fn test_s11_sorted_with_key() {
-    let code = r#"
+    let code = r"
 def sort_by_length(words: list) -> list:
     return sorted(words, key=lambda w: len(w))
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn sort_by_length"),
-        "Should transpile sorted with key. Got: {}",
-        result
+        "Should transpile sorted with key. Got: {result}"
     );
 }
 
@@ -385,7 +370,7 @@ def sort_by_length(words: list) -> list:
 
 #[test]
 fn test_s11_group_by() {
-    let code = r#"
+    let code = r"
 def group_by_first_char(words: list) -> dict:
     groups: dict = {}
     for word in words:
@@ -394,18 +379,17 @@ def group_by_first_char(words: list) -> dict:
             groups[key] = []
         groups[key].append(word)
     return groups
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn group_by_first_char"),
-        "Should transpile group by pattern. Got: {}",
-        result
+        "Should transpile group by pattern. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_matrix_transpose() {
-    let code = r#"
+    let code = r"
 def transpose(matrix: list) -> list:
     if not matrix:
         return []
@@ -418,14 +402,14 @@ def transpose(matrix: list) -> list:
             row.append(matrix[i][j])
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn transpose"), "Should transpile matrix transpose. Got: {}", result);
+    assert!(result.contains("fn transpose"), "Should transpile matrix transpose. Got: {result}");
 }
 
 #[test]
 fn test_s11_sliding_window() {
-    let code = r#"
+    let code = r"
 def moving_average(items: list, window: int) -> list:
     result: list = []
     for i in range(len(items) - window + 1):
@@ -434,13 +418,9 @@ def moving_average(items: list, window: int) -> list:
             total = total + items[i + j]
         result.append(total // window)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(
-        result.contains("fn moving_average"),
-        "Should transpile sliding window. Got: {}",
-        result
-    );
+    assert!(result.contains("fn moving_average"), "Should transpile sliding window. Got: {result}");
 }
 
 // ============================================================================
@@ -449,19 +429,19 @@ def moving_average(items: list, window: int) -> list:
 
 #[test]
 fn test_s11_swap_variables() {
-    let code = r#"
+    let code = r"
 def sort_pair(a: int, b: int) -> tuple:
     if a > b:
         a, b = b, a
     return (a, b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sort_pair"), "Should transpile variable swap. Got: {}", result);
+    assert!(result.contains("fn sort_pair"), "Should transpile variable swap. Got: {result}");
 }
 
 #[test]
 fn test_s11_unpack_from_function() {
-    let code = r#"
+    let code = r"
 from typing import Tuple
 
 def get_pair() -> Tuple[int, int]:
@@ -470,12 +450,11 @@ def get_pair() -> Tuple[int, int]:
 def use_pair() -> int:
     a, b = get_pair()
     return a + b
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn use_pair"),
-        "Should transpile tuple unpacking from function. Got: {}",
-        result
+        "Should transpile tuple unpacking from function. Got: {result}"
     );
 }
 
@@ -485,25 +464,24 @@ def use_pair() -> int:
 
 #[test]
 fn test_s11_nested_ternary() {
-    let code = r#"
+    let code = r"
 def sign(x: int) -> int:
     return 1 if x > 0 else (-1 if x < 0 else 0)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sign"), "Should transpile nested ternary. Got: {}", result);
+    assert!(result.contains("fn sign"), "Should transpile nested ternary. Got: {result}");
 }
 
 #[test]
 fn test_s11_ternary_with_function() {
-    let code = r#"
+    let code = r"
 def safe_divide(a: float, b: float) -> float:
     return a / b if b != 0 else 0.0
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn safe_divide"),
-        "Should transpile ternary with division. Got: {}",
-        result
+        "Should transpile ternary with division. Got: {result}"
     );
 }
 
@@ -513,7 +491,7 @@ def safe_divide(a: float, b: float) -> float:
 
 #[test]
 fn test_s11_list_dedup() {
-    let code = r#"
+    let code = r"
 def dedup(items: list) -> list:
     seen: set = set()
     result: list = []
@@ -522,14 +500,14 @@ def dedup(items: list) -> list:
             seen.add(item)
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn dedup"), "Should transpile dedup pattern. Got: {}", result);
+    assert!(result.contains("fn dedup"), "Should transpile dedup pattern. Got: {result}");
 }
 
 #[test]
 fn test_s11_merge_dicts() {
-    let code = r#"
+    let code = r"
 def merge(a: dict, b: dict) -> dict:
     result: dict = {}
     for key in a:
@@ -537,9 +515,9 @@ def merge(a: dict, b: dict) -> dict:
     for key in b:
         result[key] = b[key]
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn merge"), "Should transpile dict merge. Got: {}", result);
+    assert!(result.contains("fn merge"), "Should transpile dict merge. Got: {result}");
 }
 
 // ============================================================================
@@ -548,30 +526,29 @@ def merge(a: dict, b: dict) -> dict:
 
 #[test]
 fn test_s11_float_comparison() {
-    let code = r#"
+    let code = r"
 def approximately_equal(a: float, b: float) -> bool:
     return abs(a - b) < 0.0001
-"#;
+";
     let result = transpile(code);
     assert!(
         result.contains("fn approximately_equal"),
-        "Should transpile float comparison. Got: {}",
-        result
+        "Should transpile float comparison. Got: {result}"
     );
 }
 
 #[test]
 fn test_s11_integer_bounds() {
-    let code = r#"
+    let code = r"
 def clamp_byte(x: int) -> int:
     if x < 0:
         return 0
     if x > 255:
         return 255
     return x
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("255"), "Should transpile integer bounds. Got: {}", result);
+    assert!(result.contains("255"), "Should transpile integer bounds. Got: {result}");
 }
 
 // ============================================================================
@@ -580,7 +557,7 @@ def clamp_byte(x: int) -> int:
 
 #[test]
 fn test_s11_run_length_encode() {
-    let code = r#"
+    let code = r"
 def rle(text: str) -> list:
     result: list = []
     if len(text) == 0:
@@ -596,14 +573,14 @@ def rle(text: str) -> list:
             count = 1
     result.append((current, count))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn rle"), "Should transpile run-length encoding. Got: {}", result);
+    assert!(result.contains("fn rle"), "Should transpile run-length encoding. Got: {result}");
 }
 
 #[test]
 fn test_s11_two_sum() {
-    let code = r#"
+    let code = r"
 from typing import Tuple, Optional
 
 def two_sum(nums: list, target: int) -> Optional[Tuple[int, int]]:
@@ -614,7 +591,7 @@ def two_sum(nums: list, target: int) -> Optional[Tuple[int, int]]:
             return (seen[complement], i)
         seen[nums[i]] = i
     return None
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn two_sum"), "Should transpile two-sum. Got: {}", result);
+    assert!(result.contains("fn two_sum"), "Should transpile two-sum. Got: {result}");
 }

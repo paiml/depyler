@@ -408,7 +408,7 @@ async def fetch_data():
 
     #[test]
     fn test_extract_tags_multiple() {
-        let source = r#"
+        let source = r"
 import json
 
 class DataProcessor:
@@ -417,7 +417,7 @@ class DataProcessor:
 
     def process(self, items: list):
         return [x * 2 for x in items]
-"#;
+";
         let tags = extract_tags(source);
         assert!(tags.contains(&SemanticTag::Class));
         assert!(tags.contains(&SemanticTag::Json));
@@ -444,7 +444,7 @@ class DataProcessor:
 
     #[test]
     fn test_bisection_state_new() {
-        let files: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("{}.py", i))).collect();
+        let files: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("{i}.py"))).collect();
         let state = BisectionState::new(files.clone());
 
         assert_eq!(state.low, 0);
@@ -456,7 +456,7 @@ class DataProcessor:
     #[test]
     fn test_bisection_isolate_single_failure() {
         // Simulate bisection to find file at index 7
-        let files: Vec<PathBuf> = (0..16).map(|i| PathBuf::from(format!("{}.py", i))).collect();
+        let files: Vec<PathBuf> = (0..16).map(|i| PathBuf::from(format!("{i}.py"))).collect();
         let mut state = BisectionState::new(files);
 
         // Iteration 1: mid=7, failure NOT in first half (0-7), so go to second half
@@ -487,7 +487,7 @@ class DataProcessor:
 
     #[test]
     fn test_bisection_max_iterations_safety() {
-        let files: Vec<PathBuf> = (0..1000).map(|i| PathBuf::from(format!("{}.py", i))).collect();
+        let files: Vec<PathBuf> = (0..1000).map(|i| PathBuf::from(format!("{i}.py"))).collect();
         let mut state = BisectionState::new(files);
         state.max_iterations = 5;
 
@@ -505,7 +505,7 @@ class DataProcessor:
     #[test]
     fn test_bisection_log_n_complexity() {
         // For 1671 files, should take ~11 iterations (log2(1671) ≈ 10.7)
-        let files: Vec<PathBuf> = (0..1671).map(|i| PathBuf::from(format!("{}.py", i))).collect();
+        let files: Vec<PathBuf> = (0..1671).map(|i| PathBuf::from(format!("{i}.py"))).collect();
         let mut state = BisectionState::new(files);
 
         // Simulate always finding in first half (worst case for iteration count)
@@ -542,10 +542,10 @@ class DataProcessor:
 
         // Create 5 dict files and 5 list files
         for i in 0..5 {
-            let dict_file = temp.path().join(format!("dict_{}.py", i));
+            let dict_file = temp.path().join(format!("dict_{i}.py"));
             std::fs::write(&dict_file, "data = {\"k\": \"v\"}").unwrap();
 
-            let list_file = temp.path().join(format!("list_{}.py", i));
+            let list_file = temp.path().join(format!("list_{i}.py"));
             std::fs::write(&list_file, "items = [1, 2, 3]").unwrap();
         }
 
@@ -573,7 +573,7 @@ class DataProcessor:
             .map(|name| {
                 let path = temp.path().join(name);
                 let mut file = std::fs::File::create(&path).unwrap();
-                writeln!(file, "# Python file: {}", name).unwrap();
+                writeln!(file, "# Python file: {name}").unwrap();
                 path
             })
             .collect()

@@ -16,11 +16,11 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_depyler_0023_match_keyword_panic() {
     // DEPYLER-0023: 'match' is a Rust keyword, causes panic
-    let python_code = r#"
+    let python_code = r"
 def test_match_keyword() -> int:
     match = 42  # 'match' is a Rust keyword!
     return match
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
@@ -33,19 +33,18 @@ def test_match_keyword() -> int:
     // Should use raw identifier r#match
     assert!(
         rust_code.contains("r#match") || !rust_code.contains(" match "),
-        "Should handle 'match' keyword properly (use r#match or rename)\nGenerated code:\n{}",
-        rust_code
+        "Should handle 'match' keyword properly (use r#match or rename)\nGenerated code:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_depyler_0023_type_keyword_panic() {
     // DEPYLER-0023: 'type' is a Rust keyword
-    let python_code = r#"
+    let python_code = r"
 def test_type_keyword() -> int:
     type = 123
     return type
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
@@ -55,19 +54,18 @@ def test_type_keyword() -> int:
     let rust_code = result.unwrap();
     assert!(
         rust_code.contains("r#type") || !rust_code.contains(" type "),
-        "Should handle 'type' keyword properly\nGenerated code:\n{}",
-        rust_code
+        "Should handle 'type' keyword properly\nGenerated code:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_depyler_0023_impl_keyword_panic() {
     // DEPYLER-0023: 'impl' is a Rust keyword
-    let python_code = r#"
+    let python_code = r"
 def test_impl_keyword() -> int:
     impl = 456
     return impl
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
@@ -77,8 +75,7 @@ def test_impl_keyword() -> int:
     let rust_code = result.unwrap();
     assert!(
         rust_code.contains("r#impl") || !rust_code.contains(" impl "),
-        "Should handle 'impl' keyword properly\nGenerated code:\n{}",
-        rust_code
+        "Should handle 'impl' keyword properly\nGenerated code:\n{rust_code}"
     );
 }
 

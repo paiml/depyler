@@ -819,7 +819,7 @@ mod tests {
             confidence: 0.0,
             fix_type: FixType::None,
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("debug test"));
     }
 
@@ -833,7 +833,7 @@ mod tests {
     #[test]
     fn test_fix_type_debug() {
         let ft = FixType::TranspilerPatch;
-        let debug = format!("{:?}", ft);
+        let debug = format!("{ft:?}");
         assert!(debug.contains("TranspilerPatch"));
     }
 

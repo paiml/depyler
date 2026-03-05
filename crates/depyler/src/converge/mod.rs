@@ -755,7 +755,7 @@ mod tests {
                     continue;
                 }
                 state.examples = (0..total)
-                    .map(|i| ExampleState::new(PathBuf::from(format!("{}.py", i)), i < passing))
+                    .map(|i| ExampleState::new(PathBuf::from(format!("{i}.py")), i < passing))
                     .collect();
 
                 state.update_compilation_rate();

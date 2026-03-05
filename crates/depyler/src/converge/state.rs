@@ -445,7 +445,7 @@ mod tests {
     #[test]
     fn test_example_state_debug() {
         let state = ExampleState::new(PathBuf::from("test.py"), true);
-        let debug = format!("{:?}", state);
+        let debug = format!("{state:?}");
         assert!(debug.contains("test.py"));
         assert!(debug.contains("compiles"));
     }
@@ -505,7 +505,7 @@ mod tests {
     fn test_convergence_state_debug() {
         let config = test_config();
         let state = ConvergenceState::new(config);
-        let debug = format!("{:?}", state);
+        let debug = format!("{state:?}");
         assert!(debug.contains("iteration"));
         assert!(debug.contains("compilation_rate"));
     }
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn test_convergence_config_debug() {
         let config = test_config();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("target_rate"));
         assert!(debug.contains("max_iterations"));
     }
@@ -699,7 +699,7 @@ mod tests {
             commit_hash: Some("abc".to_string()),
             verified: true,
         };
-        let debug = format!("{:?}", fix);
+        let debug = format!("{fix:?}");
         assert!(debug.contains("iteration"));
         assert!(debug.contains("E0599"));
     }

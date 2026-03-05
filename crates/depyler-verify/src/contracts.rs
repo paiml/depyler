@@ -965,7 +965,7 @@ mod tests {
 
     #[test]
     fn test_extract_docstring_contracts() {
-        let docstring = r#"
+        let docstring = r"
         Binary search implementation.
         
         @requires items is not None
@@ -974,7 +974,7 @@ mod tests {
         @ensures result >= -1
         @ensures result < len(items)
         @invariant low <= high
-        "#;
+        ";
 
         let contract = ContractChecker::extract_docstring_contracts(docstring);
 

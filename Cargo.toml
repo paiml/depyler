@@ -129,6 +129,11 @@ module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+default_trait_access = "allow"
+similar_names = "allow"
+float_cmp = "allow"
+large_stack_arrays = "allow"
+too_many_lines = "allow"
 
 [profile.release]
 opt-level = 3

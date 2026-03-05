@@ -778,9 +778,9 @@ mod tests {
             variable: "x".to_string(),
             location: "test".to_string(),
         };
-        let debug_str = format!("{:?}", violation);
+        let debug_str = format!("{violation:?}");
         assert!(debug_str.contains("UseAfterMove"));
-        assert!(debug_str.contains("x"));
+        assert!(debug_str.contains('x'));
     }
 
     #[test]
@@ -811,7 +811,7 @@ mod tests {
         ];
 
         for violation in violations {
-            let debug_str = format!("{:?}", violation);
+            let debug_str = format!("{violation:?}");
             assert!(!debug_str.is_empty());
         }
     }

@@ -113,7 +113,7 @@ async fn handle_train_command(
     // Load and display the saved model stats
     let mut predictor = NgramFixPredictor::new();
     if let Err(e) = predictor.load(&model_path) {
-        println!("Warning: Could not load saved model: {}", e);
+        println!("Warning: Could not load saved model: {e}");
     } else {
         println!("\nTraining complete!");
         println!("  Patterns learned: {}", predictor.pattern_count());
@@ -190,7 +190,7 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
             let cache_path = get_cache_dir();
             let config = CacheConfig {
                 cache_dir: cache_path.clone(),
-                max_age_secs: (max_age_days as u64) * 24 * 3600,
+                max_age_secs: u64::from(max_age_days) * 24 * 3600,
                 ..Default::default()
             };
 
@@ -211,7 +211,7 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
                     Ok(())
                 }
                 Err(e) => {
-                    anyhow::bail!("Failed to open cache: {}", e)
+                    anyhow::bail!("Failed to open cache: {e}")
                 }
             }
         }
@@ -414,12 +414,12 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
 
                     if let Some(tdg) = corpus.tdg_score {
                         let grade = corpus.grade.as_deref().unwrap_or("-");
-                        println!("   Quality: TDG {:.1}, Grade {}", tdg, grade);
+                        println!("   Quality: TDG {tdg:.1}, Grade {grade}");
                     }
 
                     if let Some(tests) = corpus.tests {
                         let coverage = corpus.coverage.unwrap_or(0.0);
-                        println!("   Tests: {}, Coverage: {:.0}%", tests, coverage);
+                        println!("   Tests: {tests}, Coverage: {coverage:.0}%");
                     }
 
                     println!();
@@ -453,7 +453,7 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
                     println!();
                     println!("Quality Metrics:");
                     if let Some(tdg) = corpus.tdg_score {
-                        println!("  TDG Score: {:.1}", tdg);
+                        println!("  TDG Score: {tdg:.1}");
                     }
                     if let Some(ref grade) = corpus.grade {
                         println!("  Grade: {grade}");
@@ -462,7 +462,7 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
                         println!("  Tests: {tests}");
                     }
                     if let Some(coverage) = corpus.coverage {
-                        println!("  Coverage: {:.0}%", coverage);
+                        println!("  Coverage: {coverage:.0}%");
                     }
                 }
 
@@ -481,11 +481,11 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
 
                 Ok(())
             } else {
-                anyhow::bail!("Corpus '{}' not found in registry", name)
+                anyhow::bail!("Corpus '{name}' not found in registry")
             }
         }
         CorpusCommands::Add { name, path, description, github } => {
-            println!("Adding corpus '{}' to registry...", name);
+            println!("Adding corpus '{name}' to registry...");
 
             let mut entry = depyler_corpus::CorpusEntry::new(&name, path.clone());
             if let Some(desc) = description {
@@ -498,8 +498,8 @@ fn handle_corpus_command(cmd: CorpusCommands) -> Result<()> {
             // For now, just print the entry that would be added
             // In the future, this could modify corpora.toml
             println!();
-            println!("[corpora.{}]", name);
-            println!("name = \"{}\"", name);
+            println!("[corpora.{name}]");
+            println!("name = \"{name}\"");
             println!("description = \"{}\"", entry.description);
             println!("path = \"{}\"", path.display());
             println!("include = {:?}", entry.include);

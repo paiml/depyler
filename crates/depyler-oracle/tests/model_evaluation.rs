@@ -1,9 +1,9 @@
 //! Model evaluation tests using aprender's cross-validation.
 //!
 //! Tests the depyler-specific training corpus with:
-//! - NgramFixPredictor accuracy
-//! - RandomForest accuracy (Issue #106)
-//! - Cross-validation with StratifiedKFold
+//! - `NgramFixPredictor` accuracy
+//! - `RandomForest` accuracy (Issue #106)
+//! - Cross-validation with `StratifiedKFold`
 //! - F1 score evaluation
 //! - Full synthetic corpus evaluation
 
@@ -135,14 +135,14 @@ fn test_corpus_statistics() {
     println!("Corpus statistics:");
     for (category, count) in &stats {
         let pct = (*count as f32 / total as f32) * 100.0;
-        println!("  {:?}: {} ({:.1}%)", category, count, pct);
+        println!("  {category:?}: {count} ({pct:.1}%)");
     }
 
     // Verify we have samples in key categories
     assert!(total >= 20, "Should have at least 20 total samples");
 
     let type_mismatch =
-        stats.iter().find(|(c, _)| *c == ErrorCategory::TypeMismatch).map(|(_, n)| *n).unwrap_or(0);
+        stats.iter().find(|(c, _)| *c == ErrorCategory::TypeMismatch).map_or(0, |(_, n)| *n);
     assert!(type_mismatch >= 5, "TypeMismatch should have >= 5 samples");
 }
 
@@ -206,17 +206,16 @@ fn test_prediction_latency() {
     let elapsed = start.elapsed();
 
     let predictions_per_sec = (100 * test_errors.len()) as f64 / elapsed.as_secs_f64();
-    println!("Prediction throughput: {:.0} predictions/sec", predictions_per_sec);
+    println!("Prediction throughput: {predictions_per_sec:.0} predictions/sec");
 
     // Should be fast enough for interactive use (>100/sec)
     assert!(
         predictions_per_sec > 100.0,
-        "Prediction should be >100/sec, got {:.0}",
-        predictions_per_sec
+        "Prediction should be >100/sec, got {predictions_per_sec:.0}"
     );
 }
 
-/// Test RandomForest classifier accuracy (Issue #106).
+/// Test `RandomForest` classifier accuracy (Issue #106).
 ///
 /// Acceptance criteria: >80% accuracy on held-out test set.
 #[test]
@@ -344,9 +343,9 @@ fn test_random_forest_accuracy() {
     );
 }
 
-/// Test RandomForest with TF-IDF + hand-crafted features (Issue #106).
+/// Test `RandomForest` with TF-IDF + hand-crafted features (Issue #106).
 ///
-/// Uses CombinedFeatureExtractor for high-dimensional features.
+/// Uses `CombinedFeatureExtractor` for high-dimensional features.
 #[test]
 #[ignore] // SLOW: TF-IDF feature extraction + RF takes >120s
 fn test_random_forest_tfidf_accuracy() {
@@ -471,11 +470,11 @@ fn test_random_forest_tfidf_accuracy() {
     );
 }
 
-/// Test RandomForest with full synthetic corpus using aprender metrics.
+/// Test `RandomForest` with full synthetic corpus using aprender metrics.
 ///
 /// This test evaluates model accuracy using:
 /// - 80/20 train/test split
-/// - aprender's accuracy, f1_score, and classification_report
+/// - aprender's accuracy, `f1_score`, and `classification_report`
 /// - 600 synthetic samples (100 per category)
 #[test]
 fn test_full_corpus_aprender_metrics() {
@@ -528,15 +527,15 @@ fn test_full_corpus_aprender_metrics() {
 
     eprintln!("\n=== Classification Results ===");
     eprintln!("Accuracy: {:.2}%", acc * 100.0);
-    eprintln!("F1 (macro): {:.4}", f1_macro);
-    eprintln!("F1 (weighted): {:.4}", f1_weighted);
+    eprintln!("F1 (macro): {f1_macro:.4}");
+    eprintln!("F1 (weighted): {f1_weighted:.4}");
     eprintln!("\nClassification Report:");
-    eprintln!("{}", report);
+    eprintln!("{report}");
     eprintln!("==========================================\n");
 
     // Assertions
     assert!(acc >= 0.80, "Accuracy should be >=80%, got {:.2}%", acc * 100.0);
-    assert!(f1_macro >= 0.70, "F1 (macro) should be >=0.70, got {:.4}", f1_macro);
+    assert!(f1_macro >= 0.70, "F1 (macro) should be >=0.70, got {f1_macro:.4}");
 }
 
 /// Test 5-fold cross-validation with full corpus.
@@ -556,7 +555,7 @@ fn test_kfold_cv_full_corpus() {
 
     let n = dataset.len();
     eprintln!("\n=== 5-Fold Cross-Validation ===");
-    eprintln!("Total samples: {}", n);
+    eprintln!("Total samples: {n}");
 
     // Extract features and labels
     let (features, labels_vec) = samples_to_features(dataset.samples());
@@ -617,7 +616,7 @@ fn test_kfold_cv_full_corpus() {
 
     eprintln!("\n=== Summary ===");
     eprintln!("Mean Accuracy: {:.2}%", mean_acc * 100.0);
-    eprintln!("Mean F1 (macro): {:.4}", mean_f1);
+    eprintln!("Mean F1 (macro): {mean_f1:.4}");
     eprintln!("==========================================\n");
 
     assert!(mean_acc >= 0.75, "Mean accuracy should be >=75%, got {:.2}%", mean_acc * 100.0);

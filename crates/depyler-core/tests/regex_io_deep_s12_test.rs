@@ -1,9 +1,9 @@
 //! Session 12 Batch 26: Regex compiled methods, sys I/O, and match object cold paths
 //!
-//! Targets expr_gen_instance_methods.rs cold paths:
+//! Targets `expr_gen_instance_methods.rs` cold paths:
 //! - Compiled regex methods: findall, match, search, group, groups, start, end, span
-//! - sys.stdout.write(), sys.stdout.flush()
-//! - sys.stdin.readline(), sys.stdin.readlines()
+//! - `sys.stdout.write()`, `sys.stdout.flush()`
+//! - `sys.stdin.readline()`, `sys.stdin.readlines()`
 //! - os.path methods in class context
 //! - Hasher hexdigest/update in various patterns
 
@@ -25,44 +25,44 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_compiled_regex_findall() {
-    let code = r#"
+    let code = r"
 class RegexMatcher:
     def __init__(self, pattern: str):
         self.pattern = re.compile(pattern)
 
     def find_all(self, text: str) -> list:
         return self.pattern.findall(text)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("RegexMatcher"), "Got: {}", result);
+    assert!(result.contains("RegexMatcher"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_compiled_regex_match() {
-    let code = r#"
+    let code = r"
 class RegexMatcher:
     def __init__(self, pattern: str):
         self.pattern = re.compile(pattern)
 
     def check(self, text: str):
         return self.pattern.match(text)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("RegexMatcher"), "Got: {}", result);
+    assert!(result.contains("RegexMatcher"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_compiled_regex_search() {
-    let code = r#"
+    let code = r"
 class RegexMatcher:
     def __init__(self, pattern: str):
         self.pattern = re.compile(pattern)
 
     def search(self, text: str):
         return self.pattern.search(text)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("RegexMatcher"), "Got: {}", result);
+    assert!(result.contains("RegexMatcher"), "Got: {result}");
 }
 
 #[test]
@@ -75,7 +75,7 @@ def extract_match(text: str, pattern: str) -> str:
     return ""
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn extract_match"), "Got: {}", result);
+    assert!(result.contains("fn extract_match"), "Got: {result}");
 }
 
 #[test]
@@ -88,176 +88,176 @@ def extract_match_zero(text: str, pattern: str) -> str:
     return ""
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn extract_match_zero"), "Got: {}", result);
+    assert!(result.contains("fn extract_match_zero"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_match_start_end() {
-    let code = r#"
+    let code = r"
 def match_position(text: str, pattern: str) -> tuple:
     m = re.search(pattern, text)
     if m is not None:
         return (m.start(), m.end())
     return (0, 0)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn match_position"), "Got: {}", result);
+    assert!(result.contains("fn match_position"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_match_span() {
-    let code = r#"
+    let code = r"
 def match_span(text: str, pattern: str) -> tuple:
     m = re.search(pattern, text)
     if m is not None:
         return m.span()
     return (0, 0)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn match_span"), "Got: {}", result);
+    assert!(result.contains("fn match_span"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_match_groups() {
-    let code = r#"
+    let code = r"
 def match_groups(text: str, pattern: str) -> list:
     m = re.search(pattern, text)
     if m is not None:
         return m.groups()
     return []
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn match_groups"), "Got: {}", result);
+    assert!(result.contains("fn match_groups"), "Got: {result}");
 }
 
 // ===== sys.stdout/stderr write and flush =====
 
 #[test]
 fn test_s12_stdout_write() {
-    let code = r#"
+    let code = r"
 class Logger:
     def log(self, msg: str):
         sys.stdout.write(msg)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Logger"), "Got: {}", result);
+    assert!(result.contains("Logger"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_stderr_write() {
-    let code = r#"
+    let code = r"
 class ErrorLogger:
     def error(self, msg: str):
         sys.stderr.write(msg)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("ErrorLogger"), "Got: {}", result);
+    assert!(result.contains("ErrorLogger"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_stdout_flush() {
-    let code = r#"
+    let code = r"
 class Flusher:
     def flush(self):
         sys.stdout.flush()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Flusher"), "Got: {}", result);
+    assert!(result.contains("Flusher"), "Got: {result}");
 }
 
 // ===== sys.stdin read methods =====
 
 #[test]
 fn test_s12_stdin_readline() {
-    let code = r#"
+    let code = r"
 class Reader:
     def read_line(self) -> str:
         return sys.stdin.readline()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Reader"), "Got: {}", result);
+    assert!(result.contains("Reader"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_stdin_readlines() {
-    let code = r#"
+    let code = r"
 class BatchReader:
     def read_all(self) -> list:
         return sys.stdin.readlines()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("BatchReader"), "Got: {}", result);
+    assert!(result.contains("BatchReader"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_stdin_read() {
-    let code = r#"
+    let code = r"
 class FullReader:
     def read_all(self) -> str:
         return sys.stdin.read()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("FullReader"), "Got: {}", result);
+    assert!(result.contains("FullReader"), "Got: {result}");
 }
 
 // ===== os.path methods in class context =====
 
 #[test]
 fn test_s12_os_path_join_in_method() {
-    let code = r#"
+    let code = r"
 class PathHelper:
     def __init__(self, base: str):
         self.base = base
 
     def join(self, name: str) -> str:
         return os.path.join(self.base, name)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("PathHelper"), "Got: {}", result);
+    assert!(result.contains("PathHelper"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_exists_in_method() {
-    let code = r#"
+    let code = r"
 class FileChecker:
     def exists(self, path: str) -> bool:
         return os.path.exists(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("FileChecker"), "Got: {}", result);
+    assert!(result.contains("FileChecker"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_basename_in_method() {
-    let code = r#"
+    let code = r"
 class PathParser:
     def basename(self, path: str) -> str:
         return os.path.basename(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("PathParser"), "Got: {}", result);
+    assert!(result.contains("PathParser"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_dirname_in_method() {
-    let code = r#"
+    let code = r"
 class PathParser:
     def dirname(self, path: str) -> str:
         return os.path.dirname(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("PathParser"), "Got: {}", result);
+    assert!(result.contains("PathParser"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_os_path_expanduser_in_method() {
-    let code = r#"
+    let code = r"
 class PathExpander:
     def expand(self, path: str) -> str:
         return os.path.expanduser(path)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("PathExpander"), "Got: {}", result);
+    assert!(result.contains("PathExpander"), "Got: {result}");
 }
 
 // ===== Complex regex patterns =====
@@ -270,7 +270,7 @@ def find_email(text: str) -> bool:
     return m is not None
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn find_email"), "Got: {}", result);
+    assert!(result.contains("fn find_email"), "Got: {result}");
 }
 
 #[test]
@@ -284,7 +284,7 @@ def count_words(text: str) -> int:
     return count
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn count_words"), "Got: {}", result);
+    assert!(result.contains("fn count_words"), "Got: {result}");
 }
 
 #[test]
@@ -294,24 +294,24 @@ def replace_and_count(text: str) -> tuple:
     return re.subn("[0-9]+", "NUM", text)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn replace_and_count"), "Got: {}", result);
+    assert!(result.contains("fn replace_and_count"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_regex_escape() {
-    let code = r#"
+    let code = r"
 def escape_pattern(text: str) -> str:
     return re.escape(text)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn escape_pattern"), "Got: {}", result);
+    assert!(result.contains("fn escape_pattern"), "Got: {result}");
 }
 
 // ===== Complex class combining IO and regex =====
 
 #[test]
 fn test_s12_log_analyzer() {
-    let code = r##"
+    let code = r"
 class LogAnalyzer:
     def __init__(self, pattern: str):
         self.pattern = re.compile(pattern)
@@ -326,16 +326,16 @@ class LogAnalyzer:
 
     def get_count(self) -> int:
         return len(self.matches)
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("LogAnalyzer"), "Got: {}", result);
+    assert!(result.contains("LogAnalyzer"), "Got: {result}");
 }
 
 // ===== File I/O patterns =====
 
 #[test]
 fn test_s12_file_reader_class() {
-    let code = r##"
+    let code = r#"
 class FileReader:
     def __init__(self, path: str):
         self.path = path
@@ -346,20 +346,20 @@ class FileReader:
 
     def write(self, data: str):
         f = open(self.path, "w")
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("FileReader"), "Got: {}", result);
+    assert!(result.contains("FileReader"), "Got: {result}");
 }
 
 // ===== parse_args stub =====
 
 #[test]
 fn test_s12_parse_args_stub() {
-    let code = r#"
+    let code = r"
 class CLI:
     def run(self):
         args = self.parser.parse_args()
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("CLI"), "Got: {}", result);
+    assert!(result.contains("CLI"), "Got: {result}");
 }

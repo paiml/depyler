@@ -31,7 +31,7 @@ fn transpile(python: &str) -> Result<String, String> {
 
 fn assert_compiles(rust_code: &str, test_name: &str) {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-    let file_path = temp_dir.path().join(format!("{}.rs", test_name));
+    let file_path = temp_dir.path().join(format!("{test_name}.rs"));
     std::fs::write(&file_path, rust_code).expect("Failed to write file");
 
     let output = std::process::Command::new("rustc")
@@ -44,8 +44,7 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }

@@ -511,7 +511,7 @@ mod tests {
             fix_priority: 1,
             estimated_fix_impact: 0,
         };
-        let debug = format!("{:?}", summary);
+        let debug = format!("{summary:?}");
         assert!(debug.contains("PatientZeroSummary"));
         assert!(debug.contains("test"));
     }
@@ -525,7 +525,7 @@ mod tests {
             patient_zeros: vec![],
             error_distribution: std::collections::HashMap::new(),
         };
-        let debug = format!("{:?}", analysis);
+        let debug = format!("{analysis:?}");
         assert!(debug.contains("CorpusAnalysis"));
     }
 
@@ -549,11 +549,11 @@ mod tests {
 
     #[test]
     fn test_s11_check_compilation_multiple_functions() {
-        let code = r#"
+        let code = r"
             pub fn add(a: i32, b: i32) -> i32 { a + b }
             pub fn sub(a: i32, b: i32) -> i32 { a - b }
             pub fn mul(a: i32, b: i32) -> i32 { a * b }
-        "#;
+        ";
         let errors = check_rust_compilation(code);
         assert!(errors.is_empty());
     }
@@ -567,7 +567,7 @@ mod tests {
 
     #[test]
     fn test_s11_check_compilation_mismatched_return() {
-        let code = r#"pub fn foo() -> String { 42 }"#;
+        let code = r"pub fn foo() -> String { 42 }";
         let errors = check_rust_compilation(code);
         assert!(!errors.is_empty());
         assert!(errors.iter().any(|(code, _, _)| code == "E0308"));
@@ -593,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_s11_transpile_isolated_complex_function() {
-        let code = r#"
+        let code = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
@@ -602,7 +602,7 @@ def fibonacci(n: int) -> int:
     for i in range(2, n + 1):
         a, b = b, a + b
     return b
-"#;
+";
         let result = transpile_isolated(code);
         assert!(result.is_some());
     }

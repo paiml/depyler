@@ -14,7 +14,7 @@ use std::process::Command;
 
 /// Helper function to verify generated Rust code compiles
 fn assert_compiles(rust_code: &str, test_name: &str) {
-    let temp_file = format!("/tmp/depyler_0271_{}.rs", test_name);
+    let temp_file = format!("/tmp/depyler_0271_{test_name}.rs");
     fs::write(&temp_file, rust_code).expect("Failed to write temp file");
 
     let output = Command::new("rustc")
@@ -27,7 +27,7 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
             "warnings",
             &temp_file,
             "-o",
-            &format!("/tmp/depyler_0271_{}.rlib", test_name),
+            &format!("/tmp/depyler_0271_{test_name}.rlib"),
         ])
         .output()
         .expect("Failed to run rustc");
@@ -35,14 +35,13 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Generated Rust code failed to compile for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Generated Rust code failed to compile for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 
     // Cleanup
     let _ = fs::remove_file(&temp_file);
-    let _ = fs::remove_file(format!("/tmp/depyler_0271_{}.rlib", test_name));
+    let _ = fs::remove_file(format!("/tmp/depyler_0271_{test_name}.rlib"));
 }
 
 #[test]
@@ -61,7 +60,7 @@ def main():
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Verify generated code has correct signature
     // Should generate: pub fn main() {
@@ -90,7 +89,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: pub fn main() {
     // Not: pub fn main() -> serde_json::Value {
@@ -116,7 +115,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Both functions should have no return type annotation
     // Should generate:
@@ -145,7 +144,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Both functions have -> None, should generate no return type
     // pub fn process() { ... }
@@ -182,7 +181,7 @@ def main():
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate:
     // pub fn get_value() -> i32 { ... }  // Has return type
@@ -210,7 +209,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: pub fn main() { ... return; ... }
     // Not: pub fn main() -> serde_json::Value { ... }
@@ -247,7 +246,7 @@ def main():
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate:
     // pub fn fibonacci_iterative(n: i32) -> i32 { ... }  // Has return type
@@ -291,7 +290,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate:
     // pub fn add(x: i32, y: i32) -> i32 { ... }

@@ -409,11 +409,11 @@ mod tests {
             });
         }
 
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             "requests"
         }
 
-        fn version(&self) -> &str {
+        fn version(&self) -> &'static str {
             "1.0.0"
         }
     }
@@ -450,7 +450,7 @@ mod tests {
             });
         }
 
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             "numpy"
         }
     }
@@ -489,7 +489,7 @@ mod tests {
                     },
                 });
             }
-            fn name(&self) -> &str {
+            fn name(&self) -> &'static str {
                 "csv_override"
             }
         }
@@ -535,7 +535,7 @@ mod tests {
             python_attr: "test",
             rust_pattern: RustPattern::PropertyToMethod { method: "test", propagate_error: false },
         };
-        let debug = format!("{:?}", mapping);
+        let debug = format!("{mapping:?}");
         assert!(debug.contains("csv"));
         assert!(debug.contains("Reader"));
     }
@@ -544,7 +544,7 @@ mod tests {
     fn test_rust_pattern_debug() {
         let pattern =
             RustPattern::MethodCall { method: "test", extra_args: vec![], propagate_error: false };
-        let debug = format!("{:?}", pattern);
+        let debug = format!("{pattern:?}");
         assert!(debug.contains("MethodCall"));
     }
 
@@ -724,7 +724,7 @@ mod tests {
         struct MinimalPlugin;
         impl StdlibPlugin for MinimalPlugin {
             fn register_mappings(&self, _registry: &mut StdlibMappings) {}
-            fn name(&self) -> &str {
+            fn name(&self) -> &'static str {
                 "minimal"
             }
         }

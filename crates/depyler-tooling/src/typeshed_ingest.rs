@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn test_ingest_json_stub() {
         // Mock json.pyi content (simplified from actual typeshed)
-        let json_pyi = r#"
+        let json_pyi = r"
 from typing import Any, IO, Optional
 
 def loads(
@@ -458,7 +458,7 @@ def dump(
     default: Optional[Any] = None,
     sort_keys: bool = False,
 ) -> None: ...
-"#;
+";
 
         let mapping = parse_pyi(json_pyi, "json");
 
@@ -508,11 +508,11 @@ def dump(
 
     #[test]
     fn test_extract_multiple_functions() {
-        let content = r#"
+        let content = r"
 def func_a(x: int) -> int: ...
 def func_b(s: str) -> str: ...
 def _private() -> None: ...
-"#;
+";
 
         let funcs = extract_function_signatures(content);
 
@@ -524,7 +524,7 @@ def _private() -> None: ...
 
     #[test]
     fn test_ingest_math_stub() {
-        let math_pyi = r#"
+        let math_pyi = r"
 def sqrt(x: float) -> float: ...
 def sin(x: float) -> float: ...
 def cos(x: float) -> float: ...
@@ -533,7 +533,7 @@ def ceil(x: float) -> int: ...
 def pow(x: float, y: float) -> float: ...
 pi: float
 e: float
-"#;
+";
 
         let mapping = parse_pyi(math_pyi, "math");
 
@@ -567,9 +567,9 @@ def listdir(path: str = ".") -> list[str]: ...
 
     #[test]
     fn test_unknown_module_fallback() {
-        let unknown_pyi = r#"
+        let unknown_pyi = r"
 def custom_func(x: int) -> int: ...
-"#;
+";
 
         let mapping = parse_pyi(unknown_pyi, "unknown_module");
 
@@ -973,10 +973,10 @@ def custom_func(x: int) -> int: ...
 
     #[test]
     fn test_normalize_multiline_actual_multiline() {
-        let content = r#"def foo(
+        let content = r"def foo(
     x: int,
     y: str
-) -> int: ..."#;
+) -> int: ...";
         let normalized = normalize_multiline_functions(content);
         assert!(normalized.contains("def foo("));
         assert!(normalized.contains("x: int,"));
@@ -992,11 +992,11 @@ def custom_func(x: int) -> int: ...
 
     #[test]
     fn test_extract_function_signatures_skip_private() {
-        let content = r#"
+        let content = r"
 def public_func() -> None: ...
 def _private_func() -> None: ...
 def __dunder_func() -> None: ...
-"#;
+";
         let funcs = extract_function_signatures(content);
         // Should only have public_func
         assert_eq!(funcs.len(), 1);
@@ -1005,9 +1005,9 @@ def __dunder_func() -> None: ...
 
     #[test]
     fn test_extract_function_signatures_include_init() {
-        let content = r#"
+        let content = r"
 def __init__(self, x: int) -> None: ...
-"#;
+";
         let funcs = extract_function_signatures(content);
         assert_eq!(funcs.len(), 1);
         assert_eq!(funcs[0].name, "__init__");
@@ -1061,13 +1061,13 @@ def __init__(self, x: int) -> None: ...
 
     #[test]
     fn test_ingest_re_stub() {
-        let re_pyi = r#"
+        let re_pyi = r"
 def compile(pattern: str) -> Pattern: ...
 def match(pattern: str, string: str) -> Match: ...
 def search(pattern: str, string: str) -> Match: ...
 def findall(pattern: str, string: str) -> list[str]: ...
 def sub(pattern: str, repl: str, string: str) -> str: ...
-"#;
+";
 
         let mapping = parse_pyi(re_pyi, "re");
 

@@ -37,8 +37,8 @@ pub fn weighted_python_function() -> impl Strategy<Value = PythonFunctionPattern
     )
         .prop_map(
             |(name, params, return_type, complexity, docstring, collections, control_flow)| {
-                let typed_params = params.into_iter().map(|(n, t)| (n, t.to_string())).collect();
-                let typed_return = return_type.map(|s| s.to_string());
+                let typed_params = params.into_iter().map(|(n, t)| (n, t.clone())).collect();
+                let typed_return = return_type;
 
                 PythonFunctionPattern {
                     name,
@@ -102,14 +102,11 @@ fn generate_function_code(pattern: &PythonFunctionPattern) -> String {
     let mut code = String::new();
 
     // Function signature
-    let params: Vec<String> = pattern
-        .parameters
-        .iter()
-        .map(|(name, type_hint)| format!("{}: {}", name, type_hint))
-        .collect();
+    let params: Vec<String> =
+        pattern.parameters.iter().map(|(name, type_hint)| format!("{name}: {type_hint}")).collect();
 
     let return_annotation =
-        pattern.return_type.as_ref().map(|t| format!(" -> {}", t)).unwrap_or_default();
+        pattern.return_type.as_ref().map(|t| format!(" -> {t}")).unwrap_or_default();
 
     code.push_str(&format!("def {}({}){}: ", pattern.name, params.join(", "), return_annotation));
 
@@ -182,7 +179,7 @@ pub fn generate_mutated_code(base_code: &str) -> String {
         0 => base_code.replace("def ", "def test_函数_"), // Unicode
         1 => base_code.replace("42", "9223372036854775807"), // Large numbers
         2 => base_code.replace("\"result\"", "\"\\n\\t\\r special\""), // Special chars
-        3 => format!("{}\n# Extra comment with 测试", base_code), // Unicode comments
+        3 => format!("{base_code}\n# Extra comment with 测试"), // Unicode comments
         _ => base_code.to_string(),                       // No mutation
     }
 }
@@ -270,8 +267,7 @@ mod tests {
             // Performance check - realistic modules should transpile quickly
             assert!(
                 duration.as_millis() < 1000,
-                "Module transpilation took too long: {:?}",
-                duration
+                "Module transpilation took too long: {duration:?}"
             );
         }
     }
@@ -288,7 +284,7 @@ mod tests {
         ];
 
         for base_code in base_functions {
-            println!("Base: {}", base_code);
+            println!("Base: {base_code}");
 
             for _ in 0..5 {
                 let mutated_code = generate_mutated_code(base_code);
@@ -303,7 +299,7 @@ mod tests {
                     Ok(_) => println!("    ✓ Mutation transpiled successfully"),
                     Err(e) => {
                         let error_preview = e.to_string().chars().take(100).collect::<String>();
-                        println!("    - Mutation failed gracefully: {}", error_preview);
+                        println!("    - Mutation failed gracefully: {error_preview}");
 
                         // Error messages should be reasonable
                         assert!(error_preview.len() > 5, "Error message too short");
@@ -358,8 +354,7 @@ mod tests {
             let perf_budget_ms = 100 * functions.len() as u128;
             if duration.as_millis() > perf_budget_ms {
                 println!(
-                    "  ⚠️  {} exceeded soft budget: {:?} > {}ms (non-fatal)",
-                    pattern_name, duration, perf_budget_ms
+                    "  ⚠️  {pattern_name} exceeded soft budget: {duration:?} > {perf_budget_ms}ms (non-fatal)"
                 );
             }
         }
@@ -404,11 +399,11 @@ mod tests {
 
         // Should achieve some cache hits with duplicates
         assert!(hit_rate >= 0.0, "Cache hit rate should be non-negative: {:.2}%", hit_rate * 100.0);
-        assert!(duration.as_millis() < 1000, "Generation took too long: {:?}", duration);
+        assert!(duration.as_millis() < 1000, "Generation took too long: {duration:?}");
 
         // Performance should improve with caching
         let cache_size = generator.cache.len();
-        println!("Final cache size: {} entries", cache_size);
+        println!("Final cache size: {cache_size} entries");
         assert!(cache_size <= patterns.len(), "Cache size should not exceed unique patterns");
     }
 
@@ -435,16 +430,13 @@ mod tests {
             let per_generation = duration.as_micros() / count as u128;
 
             println!(
-                "{}: {} generations in {:?} ({} μs/generation)",
-                scenario_name, count, duration, per_generation
+                "{scenario_name}: {count} generations in {duration:?} ({per_generation} μs/generation)"
             );
 
             // Generators should be fast
             assert!(
                 per_generation < 10000, // Less than 10ms per generation
-                "{} generator too slow: {} μs/generation",
-                scenario_name,
-                per_generation
+                "{scenario_name} generator too slow: {per_generation} μs/generation"
             );
         }
 
@@ -473,7 +465,7 @@ mod tests {
             start.elapsed()
         };
 
-        println!("Cache test: first {:?}, second {:?}", time1, time2);
+        println!("Cache test: first {time1:?}, second {time2:?}");
 
         // Second execution should be faster due to caching
         assert!(time2 <= time1 * 5, "Caching should not significantly slow down execution");

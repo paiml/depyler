@@ -33,60 +33,60 @@ def process_empty(s: str) -> str:
     return s.upper()
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn process_empty"), "Got: {}", result);
+    assert!(result.contains("fn process_empty"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b45_empty_list_ops() {
-    let code = r#"
+    let code = r"
 def safe_first(items: list, default: int) -> int:
     if not items:
         return default
     return items[0]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_first"), "Got: {}", result);
+    assert!(result.contains("fn safe_first"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b45_empty_dict_ops() {
-    let code = r#"
+    let code = r"
 def safe_lookup(d: dict, key: str, default: str) -> str:
     if not d:
         return default
     return d.get(key, default)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn safe_lookup"), "Got: {}", result);
+    assert!(result.contains("fn safe_lookup"), "Got: {result}");
 }
 
 // ===== Single element collections =====
 
 #[test]
 fn test_s12_b45_single_element_list() {
-    let code = r#"
+    let code = r"
 def wrap(x: int) -> list:
     return [x]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn wrap"), "Got: {}", result);
+    assert!(result.contains("fn wrap"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b45_single_pair_dict() {
-    let code = r#"
+    let code = r"
 def single_entry(k: str, v: int) -> dict:
     return {k: v}
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn single_entry"), "Got: {}", result);
+    assert!(result.contains("fn single_entry"), "Got: {result}");
 }
 
 // ===== Complex multi-function programs =====
 
 #[test]
 fn test_s12_b45_multi_func_program() {
-    let code = r##"
+    let code = r"
 def is_prime(n: int) -> bool:
     if n < 2:
         return False
@@ -121,13 +121,13 @@ def gcd(a: int, b: int) -> int:
 
 def lcm(a: int, b: int) -> int:
     return a * b // gcd(a, b)
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("fn is_prime"), "Got: {}", result);
-    assert!(result.contains("fn primes_up_to"), "Got: {}", result);
-    assert!(result.contains("fn prime_factors"), "Got: {}", result);
-    assert!(result.contains("fn gcd"), "Got: {}", result);
-    assert!(result.contains("fn lcm"), "Got: {}", result);
+    assert!(result.contains("fn is_prime"), "Got: {result}");
+    assert!(result.contains("fn primes_up_to"), "Got: {result}");
+    assert!(result.contains("fn prime_factors"), "Got: {result}");
+    assert!(result.contains("fn gcd"), "Got: {result}");
+    assert!(result.contains("fn lcm"), "Got: {result}");
 }
 
 // ===== String builder patterns =====
@@ -143,12 +143,12 @@ def indent_lines(text: str, spaces: int) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn indent_lines"), "Got: {}", result);
+    assert!(result.contains("fn indent_lines"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b45_url_builder() {
-    let code = r##"
+    let code = r#"
 def build_url(host: str, path: str, params: dict) -> str:
     url = f"https://{host}/{path}"
     if params:
@@ -157,9 +157,9 @@ def build_url(host: str, path: str, params: dict) -> str:
             parts.append(f"{k}={v}")
         url += "?" + "&".join(parts)
     return url
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn build_url"), "Got: {}", result);
+    assert!(result.contains("fn build_url"), "Got: {result}");
 }
 
 // ===== Complex conditional chains =====
@@ -192,14 +192,14 @@ def status_text(code: int) -> str:
         return "Unknown"
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn status_text"), "Got: {}", result);
+    assert!(result.contains("fn status_text"), "Got: {result}");
 }
 
 // ===== Complex class with many methods =====
 
 #[test]
 fn test_s12_b45_string_buffer_class() {
-    let code = r##"
+    let code = r#"
 class StringBuilder:
     def __init__(self):
         self.parts = []
@@ -231,16 +231,16 @@ class StringBuilder:
             if "\n" in part:
                 count += 1
         return count
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("StringBuilder"), "Got: {}", result);
+    assert!(result.contains("StringBuilder"), "Got: {result}");
 }
 
 // ===== Complex dict operations =====
 
 #[test]
 fn test_s12_b45_nested_dict_builder() {
-    let code = r#"
+    let code = r"
 def group_by_type(items: list) -> dict:
     groups = {}
     for item in items:
@@ -249,14 +249,14 @@ def group_by_type(items: list) -> dict:
             groups[t] = []
         groups[t].append(item)
     return groups
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn group_by_type"), "Got: {}", result);
+    assert!(result.contains("fn group_by_type"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b45_dict_diff() {
-    let code = r#"
+    let code = r"
 def dict_diff(d1: dict, d2: dict) -> dict:
     result = {}
     for key in d1:
@@ -265,9 +265,9 @@ def dict_diff(d1: dict, d2: dict) -> dict:
         elif d1[key] != d2[key]:
             result[key] = d1[key]
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn dict_diff"), "Got: {}", result);
+    assert!(result.contains("fn dict_diff"), "Got: {result}");
 }
 
 // ===== Numeric algorithms =====
@@ -286,12 +286,12 @@ def sqrt_approx(n: float) -> float:
     return guess
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn sqrt_approx"), "Got: {}", result);
+    assert!(result.contains("fn sqrt_approx"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b45_matrix_identity() {
-    let code = r#"
+    let code = r"
 def identity(n: int) -> list:
     result = []
     for i in range(n):
@@ -303,16 +303,16 @@ def identity(n: int) -> list:
                 row.append(0)
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn identity"), "Got: {}", result);
+    assert!(result.contains("fn identity"), "Got: {result}");
 }
 
 // ===== Boolean truth table =====
 
 #[test]
 fn test_s12_b45_truth_ops() {
-    let code = r#"
+    let code = r"
 def xor(a: bool, b: bool) -> bool:
     return (a or b) and not (a and b)
 
@@ -321,25 +321,25 @@ def nand(a: bool, b: bool) -> bool:
 
 def implies(a: bool, b: bool) -> bool:
     return not a or b
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn xor"), "Got: {}", result);
-    assert!(result.contains("fn nand"), "Got: {}", result);
-    assert!(result.contains("fn implies"), "Got: {}", result);
+    assert!(result.contains("fn xor"), "Got: {result}");
+    assert!(result.contains("fn nand"), "Got: {result}");
+    assert!(result.contains("fn implies"), "Got: {result}");
 }
 
 // ===== Complex set operations =====
 
 #[test]
 fn test_s12_b45_jaccard() {
-    let code = r#"
+    let code = r"
 def jaccard(a: set, b: set) -> float:
     if not a and not b:
         return 1.0
     inter = len(a.intersection(b))
     union = len(a.union(b))
     return inter / union
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn jaccard"), "Got: {}", result);
+    assert!(result.contains("fn jaccard"), "Got: {result}");
 }

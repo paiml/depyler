@@ -15,20 +15,20 @@ mod property_tests {
         prop_oneof![
             // Literals
             any::<i32>().prop_map(|n| n.to_string()),
-            "\"[a-zA-Z0-9 ]*\"".prop_map(|s| format!("\"{}\"", s)),
+            "\"[a-zA-Z0-9 ]*\"".prop_map(|s| format!("\"{s}\"")),
             prop::bool::ANY.prop_map(|b| b.to_string()),
             // Variables
             "[a-z][a-z0-9_]*".prop_map(|var| var),
             // Binary operations
             (arb_simple_literal(), arb_simple_literal(), arb_binary_op())
-                .prop_map(|(l, r, op)| format!("{} {} {}", l, op, r)),
+                .prop_map(|(l, r, op)| format!("{l} {op} {r}")),
         ]
     }
 
     fn arb_simple_literal() -> impl Strategy<Value = String> {
         prop_oneof![
             any::<i32>().prop_map(|n| n.to_string()),
-            "\"[a-zA-Z0-9]*\"".prop_map(|s| format!("\"{}\"", s)),
+            "\"[a-zA-Z0-9]*\"".prop_map(|s| format!("\"{s}\"")),
         ]
     }
 
@@ -56,12 +56,12 @@ mod property_tests {
         )
             .prop_map(|(name, params, body)| {
                 let param_list =
-                    params.join(": int, ") + if !params.is_empty() { ": int" } else { "" };
+                    params.join(": int, ") + if params.is_empty() { "" } else { ": int" };
                 format!(
                     "def {}({}) -> int:\n{}",
                     name,
                     param_list,
-                    body.lines().map(|line| format!("    {}", line)).collect::<Vec<_>>().join("\n")
+                    body.lines().map(|line| format!("    {line}")).collect::<Vec<_>>().join("\n")
                 )
             })
     }
@@ -69,17 +69,14 @@ mod property_tests {
     fn arb_function_body() -> impl Strategy<Value = String> {
         prop_oneof![
             // Simple return
-            arb_simple_expr().prop_map(|expr| format!("return {}", expr)),
+            arb_simple_expr().prop_map(|expr| format!("return {expr}")),
             // Assignment + return
             (arb_simple_expr(), "[a-z][a-z0-9_]*")
-                .prop_map(|(expr, var)| format!("{} = {}\nreturn {}", var, expr, var)),
+                .prop_map(|(expr, var)| format!("{var} = {expr}\nreturn {var}")),
             // Conditional
             (arb_simple_expr(), arb_simple_expr(), arb_simple_expr()).prop_map(
                 |(cond, then_expr, else_expr)| {
-                    format!(
-                        "if {} > 0:\n    return {}\nelse:\n    return {}",
-                        cond, then_expr, else_expr
-                    )
+                    format!("if {cond} > 0:\n    return {then_expr}\nelse:\n    return {else_expr}")
                 }
             ),
         ]
@@ -92,7 +89,7 @@ mod property_tests {
             b in -1000i32..1000,
             op in arb_binary_op()
         ) {
-            let python_code = format!("def test_func(a: int, b: int) -> int:\n    return a {} b", op);
+            let python_code = format!("def test_func(a: int, b: int) -> int:\n    return a {op} b");
 
             let pipeline = DepylerPipeline::new();
 
@@ -142,8 +139,7 @@ mod property_tests {
         ) {
             // Create a more complex example that won't be optimized away
             let python_code = format!(
-                "def test_func() -> int:\n    {} = {}\n    {} = {} + 1\n    return {}",
-                var_name, value, var_name, var_name, var_name
+                "def test_func() -> int:\n    {var_name} = {value}\n    {var_name} = {var_name} + 1\n    return {var_name}"
             );
 
             let pipeline = DepylerPipeline::new();
@@ -167,8 +163,7 @@ mod property_tests {
             else_value in any::<i32>()
         ) {
             let python_code = format!(
-                "def test_func(x: int) -> int:\n    if x > 0:\n        return {}\n    else:\n        return {}",
-                then_value, else_value
+                "def test_func(x: int) -> int:\n    if x > 0:\n        return {then_value}\n    else:\n        return {else_value}"
             );
 
             let pipeline = DepylerPipeline::new();
@@ -192,7 +187,7 @@ mod property_tests {
 // Helper functions for semantic evaluation
 fn verify_rust_syntax(rust_code: &str) -> bool {
     // For now, just check for basic Rust syntax markers
-    rust_code.contains("fn ") && rust_code.contains("{") && rust_code.contains("}")
+    rust_code.contains("fn ") && rust_code.contains('{') && rust_code.contains('}')
 }
 
 fn eval_python_arithmetic(a: i32, b: i32, op: &str) -> Option<i32> {
@@ -214,12 +209,12 @@ fn eval_python_arithmetic(a: i32, b: i32, op: &str) -> Option<i32> {
                 None
             }
         }
-        "==" => Some(if a == b { 1 } else { 0 }),
-        "!=" => Some(if a != b { 1 } else { 0 }),
-        "<" => Some(if a < b { 1 } else { 0 }),
-        ">" => Some(if a > b { 1 } else { 0 }),
-        "<=" => Some(if a <= b { 1 } else { 0 }),
-        ">=" => Some(if a >= b { 1 } else { 0 }),
+        "==" => Some(i32::from(a == b)),
+        "!=" => Some(i32::from(a != b)),
+        "<" => Some(i32::from(a < b)),
+        ">" => Some(i32::from(a > b)),
+        "<=" => Some(i32::from(a <= b)),
+        ">=" => Some(i32::from(a >= b)),
         _ => None,
     }
 }
@@ -251,21 +246,16 @@ mod integration_tests {
         for (python_code, description) in test_cases {
             let rust_code = pipeline
                 .transpile(python_code)
-                .unwrap_or_else(|_| panic!("Failed to transpile {}", description));
+                .unwrap_or_else(|_| panic!("Failed to transpile {description}"));
 
             assert!(
                 verify_rust_syntax(&rust_code),
-                "Generated Rust syntax invalid for {}",
-                description
+                "Generated Rust syntax invalid for {description}"
             );
 
-            assert!(
-                rust_code.contains("pub fn"),
-                "Missing function declaration for {}",
-                description
-            );
+            assert!(rust_code.contains("pub fn"), "Missing function declaration for {description}");
 
-            assert!(rust_code.contains("i32"), "Missing type annotations for {}", description);
+            assert!(rust_code.contains("i32"), "Missing type annotations for {description}");
         }
     }
 
@@ -282,7 +272,7 @@ mod integration_tests {
         for (python_type, expected_rust) in type_cases {
             // This would test the actual type mapping logic
             // For now, we verify the mapping exists
-            assert!(!expected_rust.is_empty(), "No Rust mapping for Python type {}", python_type);
+            assert!(!expected_rust.is_empty(), "No Rust mapping for Python type {python_type}");
         }
     }
 }

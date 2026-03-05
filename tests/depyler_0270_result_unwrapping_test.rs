@@ -16,7 +16,7 @@ use std::process::Command;
 
 /// Helper function to verify generated Rust code compiles
 fn assert_compiles(rust_code: &str, test_name: &str) {
-    let temp_file = format!("/tmp/depyler_0270_{}.rs", test_name);
+    let temp_file = format!("/tmp/depyler_0270_{test_name}.rs");
     fs::write(&temp_file, rust_code).expect("Failed to write temp file");
 
     let output = Command::new("rustc")
@@ -29,7 +29,7 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
             "warnings",
             &temp_file,
             "-o",
-            &format!("/tmp/depyler_0270_{}.rlib", test_name),
+            &format!("/tmp/depyler_0270_{test_name}.rlib"),
         ])
         .output()
         .expect("Failed to run rustc");
@@ -37,14 +37,13 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Generated Rust code failed to compile for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Generated Rust code failed to compile for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 
     // Cleanup
     let _ = fs::remove_file(&temp_file);
-    let _ = fs::remove_file(format!("/tmp/depyler_0270_{}.rlib", test_name));
+    let _ = fs::remove_file(format!("/tmp/depyler_0270_{test_name}.rlib"));
 }
 
 /// Helper to check if error message contains expected Result method error
@@ -96,7 +95,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Verify generated code includes Result unwrapping
     // Should generate: let stats = calculate_stats(&data).unwrap();
@@ -135,7 +134,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: let values = get_data(&items).unwrap();
     // Then all dict accesses work: values.get("a"), values.get("b"), etc.
@@ -167,7 +166,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: let numbers = process_list(...)?.unwrap();
     // Then iteration works: for num in numbers.iter()
@@ -198,7 +197,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: let name = get_config().unwrap().get("name")...
     // Not: let name = get_config().get("name")...  // ERROR
@@ -239,7 +238,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: let stats = calculate_statistics(&data).unwrap();
     // Then: stats.get("count").cloned()... and stats.get("max").cloned()...
@@ -271,7 +270,7 @@ def main() -> None:
     assert!(result.is_ok(), "Transpilation should succeed");
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Check if current code produces Result method error
     if contains_result_method_error(&rust_code) {
@@ -331,7 +330,7 @@ def main() -> None:
     ];
 
     for (type_name, python) in test_cases {
-        println!("\nTesting pattern: {}", type_name);
+        println!("\nTesting pattern: {type_name}");
         let pipeline = DepylerPipeline::new();
         let result = pipeline.transpile(python);
         assert!(result.is_ok(), "Transpilation failed for {}: {:?}", type_name, result.err());

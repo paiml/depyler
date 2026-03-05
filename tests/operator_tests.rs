@@ -95,8 +95,7 @@ fn test_in_operator() {
     // HashMap and HashSet, preventing false positives from name-based heuristics
     assert!(
         code.contains("contains_key") || code.contains("is_some"),
-        "Should use contains_key or get().is_some() for dict 'in': {}",
-        code
+        "Should use contains_key or get().is_some() for dict 'in': {code}"
     );
     assert!(code.contains("HashMap"));
 }
@@ -139,8 +138,7 @@ fn test_not_in_operator() {
     // DEPYLER-99MODE-S9: Dict 'not in' now uses .get().is_none()
     assert!(
         code.contains("contains_key") || code.contains("is_none"),
-        "Should use !contains_key or get().is_none() for dict 'not in': {}",
-        code
+        "Should use !contains_key or get().is_none() for dict 'not in': {code}"
     );
 }
 
@@ -485,8 +483,7 @@ fn test_array_length_subtraction_safety() {
     // Accepts either saturating_sub (legacy) or py_sub (PyOps trait approach)
     assert!(
         result.contains("saturating_sub") || result.contains("py_sub"),
-        "Expected safe subtraction (saturating_sub or py_sub) for array length subtraction, got: {}",
-        result
+        "Expected safe subtraction (saturating_sub or py_sub) for array length subtraction, got: {result}"
     );
 }
 
@@ -524,8 +521,7 @@ fn test_regular_subtraction_unchanged() {
     // Verify regular subtraction doesn't use saturating_sub
     assert!(
         !result.contains("saturating_sub"),
-        "Regular subtraction should not use saturating_sub, got: {}",
-        result
+        "Regular subtraction should not use saturating_sub, got: {result}"
     );
 }
 
@@ -568,7 +564,6 @@ fn test_len_variable_subtraction_safety() {
     // Accepts either saturating_sub (legacy) or py_sub (PyOps trait approach)
     assert!(
         result.contains("saturating_sub") || result.contains("py_sub"),
-        "Expected safe subtraction (saturating_sub or py_sub) for len() - variable, got: {}",
-        result
+        "Expected safe subtraction (saturating_sub or py_sub) for len() - variable, got: {result}"
     );
 }

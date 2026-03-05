@@ -1,8 +1,8 @@
-//! Session 8 deep coverage: escape_analysis.rs
+//! Session 8 deep coverage: `escape_analysis.rs`
 //!
-//! Direct API tests for UseAfterMoveAnalysis, StrategicCloneAnalysis,
-//! and analyze_ownership. Targets uncovered branches in merge_branch_states,
-//! merge_loop_state, analyze_nested_captures, and expression analysis paths.
+//! Direct API tests for `UseAfterMoveAnalysis`, `StrategicCloneAnalysis`,
+//! and `analyze_ownership`. Targets uncovered branches in `merge_branch_states`,
+//! `merge_loop_state`, `analyze_nested_captures`, and expression analysis paths.
 
 use depyler_core::escape_analysis::{
     analyze_ownership, OwnershipFix, StrategicCloneAnalysis, UseAfterMoveAnalysis,

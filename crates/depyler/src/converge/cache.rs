@@ -911,7 +911,7 @@ mod tests {
 
         // Store multiple entries
         for i in 0..5 {
-            let key = TranspilationCacheKey::compute(&format!("test{}", i), &config);
+            let key = TranspilationCacheKey::compute(&format!("test{i}"), &config);
             let entry = CacheEntry {
                 rust_code_blob: String::new(),
                 cargo_toml_blob: String::new(),
@@ -922,7 +922,7 @@ mod tests {
                 last_accessed_at: 0,
                 transpilation_time_ms: 10,
             };
-            cache.store(&key, &format!("fn test{}() {{}}", i), "", entry).unwrap();
+            cache.store(&key, &format!("fn test{i}() {{}}"), "", entry).unwrap();
         }
 
         // Run GC
@@ -962,21 +962,21 @@ mod tests {
         let cache = SqliteCache::open(config.clone()).unwrap();
 
         // Simulate transpilation workflow
-        let python_source = r#"
+        let python_source = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
-"#;
+";
 
-        let rust_code = r#"
+        let rust_code = r"
 fn fibonacci(n: i64) -> i64 {
     if n <= 1 {
         return n;
     }
     fibonacci(n - 1) + fibonacci(n - 2)
 }
-"#;
+";
 
         let cargo_toml = r#"
 [package]

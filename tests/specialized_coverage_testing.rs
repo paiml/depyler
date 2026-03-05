@@ -198,13 +198,13 @@ impl CodePathCoverageAnalyzer {
 
         for (i, line) in code.lines().enumerate() {
             if line.trim().starts_with("if ") {
-                branches.push(format!("if_branch_{}", i));
+                branches.push(format!("if_branch_{i}"));
             }
             if line.trim().starts_with("elif ") {
-                branches.push(format!("elif_branch_{}", i));
+                branches.push(format!("elif_branch_{i}"));
             }
             if line.trim().starts_with("else") {
-                branches.push(format!("else_branch_{}", i));
+                branches.push(format!("else_branch_{i}"));
             }
         }
 
@@ -216,9 +216,9 @@ impl CodePathCoverageAnalyzer {
 
         for (i, line) in code.lines().enumerate() {
             if let Some(condition_start) = line.find("if ") {
-                if let Some(condition_end) = line.find(":") {
+                if let Some(condition_end) = line.find(':') {
                     let condition = line[condition_start + 3..condition_end].trim().to_string();
-                    conditions.insert(format!("if_branch_{}", i), vec![condition]);
+                    conditions.insert(format!("if_branch_{i}"), vec![condition]);
                 }
             }
         }
@@ -368,10 +368,10 @@ impl MutationCoverageIntegration {
             // Check if mutation was "killed" (detected)
             match (&original_result, &mutation_result) {
                 (Ok(orig), Ok(mut_code)) => {
-                    if orig != mut_code {
-                        killed += 1; // Different output = mutation detected
-                    } else {
+                    if orig == mut_code {
                         survived += 1; // Same output = mutation survived
+                    } else {
+                        killed += 1; // Different output = mutation detected
                     }
                 }
                 (Ok(_), Err(_)) => killed += 1, // Original worked, mutation failed
@@ -467,15 +467,12 @@ impl ConcurrencyTester {
 
             let handle = thread::spawn(move || {
                 for _ in 0..executions_per_thread {
-                    match pipeline_clone.transpile(&code_clone) {
-                        Ok(_) => {
-                            let mut count = success_clone.lock().unwrap();
-                            *count += 1;
-                        }
-                        Err(_) => {
-                            let mut count = failure_clone.lock().unwrap();
-                            *count += 1;
-                        }
+                    if let Ok(_) = pipeline_clone.transpile(&code_clone) {
+                        let mut count = success_clone.lock().unwrap();
+                        *count += 1;
+                    } else {
+                        let mut count = failure_clone.lock().unwrap();
+                        *count += 1;
                     }
                 }
             });
@@ -624,25 +621,22 @@ impl ResourceExhaustionTester {
 
         // Test with increasing memory pressure
         for size in (100..=max_size).step_by(max_size / 10) {
-            let memory_code = python_code.replace("n", &size.to_string());
+            let memory_code = python_code.replace('n', &size.to_string());
 
             let start = Instant::now();
             let result = self.pipeline.transpile(&memory_code);
             let duration = start.elapsed();
 
-            match result {
-                Ok(_) => {
-                    // Check if execution time increases significantly (indicating stress)
-                    if duration > Duration::from_millis(1000) {
-                        graceful_degradation = false;
-                        failure_threshold = Some(size);
-                        break;
-                    }
-                }
-                Err(_) => {
+            if let Ok(_) = result {
+                // Check if execution time increases significantly (indicating stress)
+                if duration > Duration::from_millis(1000) {
+                    graceful_degradation = false;
                     failure_threshold = Some(size);
                     break;
                 }
+            } else {
+                failure_threshold = Some(size);
+                break;
             }
         }
 
@@ -754,7 +748,7 @@ impl ResourceExhaustionTester {
 
         // Add nested complexity
         for i in 0..complexity {
-            code = code.replace("return", &format!("if True: return ({})", i));
+            code = code.replace("return", &format!("if True: return ({i})"));
         }
 
         code

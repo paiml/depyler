@@ -1,6 +1,6 @@
 //! DEPYLER-0424: Test argparse handler function parameter types
 //!
-//! Verifies that functions receiving parse_args() result are typed as `&Args`
+//! Verifies that functions receiving `parse_args()` result are typed as `&Args`
 //! instead of `&serde_json::Value`.
 
 #![allow(non_snake_case)] // Test naming convention
@@ -9,7 +9,7 @@ use depyler_core::DepylerPipeline;
 
 fn transpile_str(python: &str) -> Result<String, Box<dyn std::error::Error>> {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(python).map_err(|e| e.into())
+    pipeline.transpile(python).map_err(std::convert::Into::into)
 }
 
 #[test]
@@ -37,8 +37,7 @@ def handle_command(args):
     // Handler should use &Args, not &serde_json::Value
     assert!(
         rust.contains("fn handle_command(args: &Args)"),
-        "Handler function should have parameter type &Args, got:\n{}",
-        rust
+        "Handler function should have parameter type &Args, got:\n{rust}"
     );
     assert!(
         !rust.contains("serde_json::Value"),
@@ -78,8 +77,7 @@ def handle_clone(args):
     // Handler should use &Args
     assert!(
         rust.contains("fn handle_clone(args: &Args)"),
-        "Subcommand handler should have parameter type &Args, got:\n{}",
-        rust
+        "Subcommand handler should have parameter type &Args, got:\n{rust}"
     );
 
     // Should not use serde_json::Value
@@ -153,7 +151,6 @@ def process(parsed_args):
     // Handler should use &Args even with different variable name
     assert!(
         rust.contains("fn process(parsed_args: &Args)"),
-        "Handler should have parameter type &Args regardless of variable name, got:\n{}",
-        rust
+        "Handler should have parameter type &Args regardless of variable name, got:\n{rust}"
     );
 }

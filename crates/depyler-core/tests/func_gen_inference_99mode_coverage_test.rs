@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/func_gen_inference.rs
+//! Coverage tests for `rust_gen/func_gen_inference.rs`
 //!
-//! DEPYLER-99MODE-001: Targets func_gen_inference.rs (1,315 lines)
+//! DEPYLER-99MODE-001: Targets `func_gen_inference.rs` (1,315 lines)
 //! Covers: return type inference, nested function detection,
 //! IO detection, parameter type inference, async patterns.
 
@@ -16,10 +16,10 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_func_infer_return_int() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -34,28 +34,28 @@ def f() -> str:
 
 #[test]
 fn test_func_infer_return_float() {
-    let code = r#"
+    let code = r"
 def f() -> float:
     return 3.14
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_func_infer_return_bool() {
-    let code = r#"
+    let code = r"
 def f() -> bool:
     return True
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_func_infer_return_list() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [1, 2, 3]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -74,34 +74,34 @@ def f() -> dict:
 
 #[test]
 fn test_func_infer_nested_simple() {
-    let code = r#"
+    let code = r"
 def outer() -> int:
     def inner(x: int) -> int:
         return x * 2
     return inner(5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_func_infer_nested_closure() {
-    let code = r#"
+    let code = r"
 def make_adder(n: int):
     def add(x: int) -> int:
         return x + n
     return add
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_func_infer_nested_with_default() {
-    let code = r#"
+    let code = r"
 def create() -> int:
     def helper(x: int, y: int = 10) -> int:
         return x + y
     return helper(5)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -111,19 +111,19 @@ def create() -> int:
 
 #[test]
 fn test_func_infer_param_typed() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: str) -> str:
     return str(x) + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_func_infer_param_untyped() {
-    let code = r#"
+    let code = r"
 def f(x, y):
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -142,11 +142,11 @@ def f(x: int = 0, y: str = "default") -> str:
 
 #[test]
 fn test_func_infer_file_open() {
-    let code = r#"
+    let code = r"
 def f(path: str) -> str:
     with open(path) as file:
         return file.read()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -169,13 +169,13 @@ def f(x: int) -> str:
 
 #[test]
 fn test_func_infer_return_in_loop() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     for item in items:
         if item > 100:
             return item
     return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -185,18 +185,18 @@ def f(items: list) -> int:
 
 #[test]
 fn test_func_infer_recursive() {
-    let code = r#"
+    let code = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_func_infer_multi_function() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
@@ -205,7 +205,7 @@ def process(items: list) -> int:
     for item in items:
         total += helper(item)
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -215,10 +215,10 @@ def process(items: list) -> int:
 
 #[test]
 fn test_func_infer_async() {
-    let code = r#"
+    let code = r"
 async def f() -> int:
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 

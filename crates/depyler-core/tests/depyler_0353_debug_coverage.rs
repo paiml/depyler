@@ -6,10 +6,10 @@
 //! TDG Score: 95.45 (A+) - Excellent quality debug infrastructure
 //!
 //! This test suite validates debug information generation functionality:
-//! - DebugInfoGenerator: Source mapping and debug info generation
-//! - DebugRuntime: Breakpoints, assertions, and trace points
-//! - DebuggerIntegration: GDB/LLDB/RustGdb script generation
-//! - generate_debug_macros: Debug macro generation
+//! - `DebugInfoGenerator`: Source mapping and debug info generation
+//! - `DebugRuntime`: Breakpoints, assertions, and trace points
+//! - `DebuggerIntegration`: GDB/LLDB/RustGdb script generation
+//! - `generate_debug_macros`: Debug macro generation
 //! - Edge cases and property-based tests
 
 #![allow(non_snake_case)]
@@ -786,7 +786,7 @@ fn test_depyler_0353_source_map_large_file() {
 
     // Simulate large file with many mappings
     for i in 0..1000 {
-        generator.add_mapping(i, i % 100, Some(format!("symbol_{}", i)));
+        generator.add_mapping(i, i % 100, Some(format!("symbol_{i}")));
     }
 
     let source_map = generator.source_map();

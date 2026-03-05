@@ -1,13 +1,13 @@
 //! Property tests for try/except transpilation (DEPYLER-0257)
 //!
 //! This module implements property-based testing for try/except functionality
-//! using QuickCheck with 10,000+ iterations per property.
+//! using `QuickCheck` with 10,000+ iterations per property.
 //!
 //! Test Strategy:
 //! - Determinism: Same Python code always produces same Rust code
 //! - Compilability: All generated Rust code compiles successfully
 //! - Pattern matching: Generated code contains "match", "Result", or "?"
-//! - Panic-freedom: No unwrap()/expect() in generated code
+//! - Panic-freedom: No `unwrap()/expect()` in generated code
 //!
 //! EXTREME TDD Protocol:
 //! - 10,000 iterations per property test
@@ -80,7 +80,7 @@ fn prop_try_except_contains_error_handling_pattern(code: ArbitraryTryExcept) -> 
             // Generated code must contain at least one error handling pattern
             let has_match = rust_code.contains("match");
             let has_result = rust_code.contains("Result");
-            let has_question = rust_code.contains("?");
+            let has_question = rust_code.contains('?');
 
             TestResult::from_bool(has_match || has_result || has_question)
         }
@@ -118,7 +118,7 @@ fn prop_try_block_code_preserved(code: ArbitraryTryExcept) -> TestResult {
             // Instead, verify that the transpiled code contains the core operation (100 // x)
             // which demonstrates that the try block code is being transpiled.
             let has_division =
-                rust_code.contains("100") && (rust_code.contains("/ ") || rust_code.contains("/"));
+                rust_code.contains("100") && (rust_code.contains("/ ") || rust_code.contains('/'));
             TestResult::from_bool(has_division)
         }
         Err(_) => TestResult::discard(),
@@ -188,14 +188,14 @@ impl Arbitrary for ArbitraryTryExcept {
 
 fn generate_simple_try_except(func_name: &str, id: u32) -> String {
     format!(
-        r#"
+        r"
 def {func_name}(x: int) -> int:
     try:
         # marker_{id}
         return 10 // x
     except:
         return -1
-"#
+"
     )
 }
 
@@ -203,7 +203,7 @@ fn generate_try_except_with_division(func_name: &str, id: u32) -> String {
     let a = (id % 100) as i32;
     let b_param = "x";
     format!(
-        r#"
+        r"
 def {func_name}({b_param}: int) -> int:
     try:
         # marker_{id}
@@ -211,13 +211,13 @@ def {func_name}({b_param}: int) -> int:
         return result
     except:
         return 0
-"#
+"
     )
 }
 
 fn generate_try_except_with_return(func_name: &str, id: u32) -> String {
     format!(
-        r#"
+        r"
 def {func_name}(value: int) -> int:
     try:
         # marker_{id}
@@ -227,13 +227,13 @@ def {func_name}(value: int) -> int:
             return value // 2
     except:
         return -999
-"#
+"
     )
 }
 
 fn generate_try_except_nested(func_name: &str, id: u32) -> String {
     format!(
-        r#"
+        r"
 def {func_name}(x: int) -> int:
     try:
         # marker_{id}
@@ -243,13 +243,13 @@ def {func_name}(x: int) -> int:
             return x * 3
     except:
         return 0
-"#
+"
     )
 }
 
 fn generate_try_except_with_finally(func_name: &str, id: u32) -> String {
     format!(
-        r#"
+        r"
 def {func_name}(x: int) -> int:
     result = 0
     try:
@@ -260,13 +260,13 @@ def {func_name}(x: int) -> int:
     finally:
         result = result + 1
     return result
-"#
+"
     )
 }
 
 fn generate_try_except_multiple_statements(func_name: &str, id: u32) -> String {
     format!(
-        r#"
+        r"
 def {func_name}(x: int, y: int) -> int:
     try:
         # marker_{id}
@@ -276,13 +276,13 @@ def {func_name}(x: int, y: int) -> int:
         return c
     except:
         return -1
-"#
+"
     )
 }
 
 fn generate_try_except_with_variables(func_name: &str, id: u32) -> String {
     format!(
-        r#"
+        r"
 def {func_name}(dividend: int, divisor: int) -> int:
     try:
         # marker_{id}
@@ -291,14 +291,14 @@ def {func_name}(dividend: int, divisor: int) -> int:
         return quotient + remainder
     except:
         return 0
-"#
+"
     )
 }
 
 fn generate_try_except_with_arithmetic(func_name: &str, id: u32) -> String {
     let const_val = ((id % 50) + 1) as i32; // Avoid 0
     format!(
-        r#"
+        r"
 def {func_name}(x: int) -> int:
     try:
         # marker_{id}
@@ -307,7 +307,7 @@ def {func_name}(x: int) -> int:
         return b
     except:
         return {const_val}
-"#
+"
     )
 }
 
@@ -344,9 +344,9 @@ mod tests {
                 _ => generate_try_except_with_arithmetic(func_name, id),
             };
 
-            assert!(code.contains("try:"), "Generator {} failed", i);
-            assert!(code.contains("except:"), "Generator {} failed", i);
-            assert!(code.contains(&format!("marker_{}", id)), "Generator {} failed", i);
+            assert!(code.contains("try:"), "Generator {i} failed");
+            assert!(code.contains("except:"), "Generator {i} failed");
+            assert!(code.contains(&format!("marker_{id}")), "Generator {i} failed");
         }
     }
 }

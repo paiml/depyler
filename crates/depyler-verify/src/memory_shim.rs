@@ -426,11 +426,11 @@ mod tests {
     #[test]
     fn test_memory_violation_description() {
         let uaf = MemoryViolation::UseAfterFree("x".to_string());
-        assert!(uaf.description().contains("x"));
+        assert!(uaf.description().contains('x'));
 
         let overflow = MemoryViolation::BufferOverflow { index: 10, size: 5 };
         assert!(overflow.description().contains("10"));
-        assert!(overflow.description().contains("5"));
+        assert!(overflow.description().contains('5'));
     }
 
     // BoundsChecker tests

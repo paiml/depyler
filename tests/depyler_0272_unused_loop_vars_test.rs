@@ -16,7 +16,7 @@ use std::process::Command;
 
 /// Helper function to verify generated Rust code compiles with --deny warnings
 fn assert_compiles(rust_code: &str, test_name: &str) {
-    let temp_file = format!("/tmp/depyler_0272_{}.rs", test_name);
+    let temp_file = format!("/tmp/depyler_0272_{test_name}.rs");
     fs::write(&temp_file, rust_code).expect("Failed to write temp file");
 
     let output = Command::new("rustc")
@@ -29,7 +29,7 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
             "warnings",
             &temp_file,
             "-o",
-            &format!("/tmp/depyler_0272_{}.rlib", test_name),
+            &format!("/tmp/depyler_0272_{test_name}.rlib"),
         ])
         .output()
         .expect("Failed to run rustc");
@@ -37,14 +37,13 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Generated Rust code failed to compile for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Generated Rust code failed to compile for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 
     // Cleanup
     let _ = fs::remove_file(&temp_file);
-    let _ = fs::remove_file(format!("/tmp/depyler_0272_{}.rlib", test_name));
+    let _ = fs::remove_file(format!("/tmp/depyler_0272_{test_name}.rlib"));
 }
 
 /// Helper to check if error contains unused variable warning
@@ -59,7 +58,7 @@ fn contains_unused_variable_warning(rust_code: &str, var_name: &str) -> bool {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let has_warning =
-        stderr.contains("unused variable") && stderr.contains(&format!("`{}`", var_name));
+        stderr.contains("unused variable") && stderr.contains(&format!("`{var_name}`"));
 
     let _ = fs::remove_file(temp_file);
     has_warning
@@ -90,7 +89,7 @@ def fibonacci(n: int) -> int:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Verify generated code uses _i instead of i
     // Should generate: for _i in 2..n + 1 {
@@ -119,7 +118,7 @@ def count_iterations(items: list[int]) -> int:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: for _item in items.iter().cloned() {
     // Not: for item in items.iter().cloned() {
@@ -145,7 +144,7 @@ def sum_list(numbers: list[int]) -> int:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Should generate: for num in numbers.iter().cloned() {
     // NOT: for _num in numbers.iter().cloned() {
@@ -182,7 +181,7 @@ def repeat_operations(n: int) -> int:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Both loops should have underscored variables
     // for _i in 0..n { ... }
@@ -209,7 +208,7 @@ def nested_count(outer: list[int], inner: list[int]) -> int:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Outer loop: for _x in outer.iter().cloned() {
     // Inner loop: for y in inner.iter().cloned() {
@@ -239,7 +238,7 @@ def process_values(items: list[str]) -> int:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Tuple unpacking: for (_i, val) in items.iter().enumerate() {
     // i is unused, val is used
@@ -252,20 +251,20 @@ def process_values(items: list[str]) -> int:
 fn test_DEPYLER_0272_verify_current_bug() {
     // This test verifies the bug exists by checking for unused variable warning
     // Run with: cargo test test_DEPYLER_0272_verify_current_bug -- --ignored --nocapture
-    let python = r#"
+    let python = r"
 def simple_loop(n: int) -> int:
     result = 0
     for i in range(n):  # i is not used in body
         result = result + 1
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Transpilation should succeed");
 
     let rust_code = result.unwrap();
-    println!("Generated code:\n{}", rust_code);
+    println!("Generated code:\n{rust_code}");
 
     // Check if current code produces unused variable warning
     if contains_unused_variable_warning(&rust_code, "i") {
@@ -284,38 +283,38 @@ fn test_DEPYLER_0272_various_unused_patterns() {
     let test_cases = vec![
         (
             "simple range",
-            r#"
+            r"
 def f(n: int) -> int:
     x = 0
     for i in range(n):
         x = x + 1
     return x
-"#,
+",
         ),
         (
             "list iteration",
-            r#"
+            r"
 def f(items: list[int]) -> int:
     count = 0
     for item in items:
         count = count + 1
     return count
-"#,
+",
         ),
         (
             "complex range",
-            r#"
+            r"
 def f(start: int, end: int) -> int:
     result = 0
     for i in range(start, end):
         result = result + 1
     return result
-"#,
+",
         ),
     ];
 
     for (name, python) in test_cases {
-        println!("\nTesting pattern: {}", name);
+        println!("\nTesting pattern: {name}");
         let pipeline = DepylerPipeline::new();
         let result = pipeline.transpile(python);
         assert!(result.is_ok(), "Transpilation failed for {}: {:?}", name, result.err());

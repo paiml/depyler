@@ -509,7 +509,9 @@ mod tests {
         for i in 0..complexity.saturating_sub(1) {
             body.push(HirStmt::If {
                 condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(i as i64))))],
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(i64::from(
+                    i,
+                )))))],
                 else_body: None,
             });
         }
@@ -2087,7 +2089,7 @@ mod tests {
             gates_failed: vec![],
             overall_status: QualityStatus::Passed,
         };
-        let debug = format!("{:?}", report);
+        let debug = format!("{report:?}");
         assert!(debug.contains("QualityReport"));
     }
 
@@ -2114,7 +2116,7 @@ mod tests {
             testability_score: 90.0,
             tdg: 1.65,
         };
-        let debug = format!("{:?}", m);
+        let debug = format!("{m:?}");
         assert!(debug.contains("PmatMetrics"));
         assert!(debug.contains("80"));
     }
@@ -2123,7 +2125,7 @@ mod tests {
     fn test_s9b7_coverage_metrics_debug() {
         let c =
             CoverageMetrics { line_coverage: 0.85, branch_coverage: 0.80, function_coverage: 0.90 };
-        let debug = format!("{:?}", c);
+        let debug = format!("{c:?}");
         assert!(debug.contains("CoverageMetrics"));
     }
 
@@ -2136,7 +2138,7 @@ mod tests {
             passed: true,
             severity: Severity::Error,
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("QualityGateResult"));
     }
 
@@ -2554,14 +2556,14 @@ mod tests {
     fn test_s12_verify_clippy_with_clippy_warning_code() {
         let analyzer = QualityAnalyzer::new();
         // Code that triggers clippy warnings (e.g., manual map)
-        let code = r#"
+        let code = r"
 pub fn check(x: Option<i32>) -> Option<i32> {
     match x {
         Some(v) => Some(v + 1),
         None => None,
     }
 }
-"#;
+";
         let result = analyzer.verify_clippy(code);
         // clippy should flag this as map-able, so result should be false
         assert!(result.is_ok());

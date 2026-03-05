@@ -343,7 +343,7 @@ mod tests {
         let stderr = "error[E0308]: \x1b[31mmismatched types\x1b[0m";
         let (code, msg) = extract_error(stderr);
         assert_eq!(code, "E0308");
-        assert!(!msg.contains("\x1b"));
+        assert!(!msg.contains('\x1b'));
     }
 
     #[test]
@@ -419,10 +419,10 @@ mod tests {
     fn test_analyze_results_samples_limited() {
         let results: Vec<_> = (0..10)
             .map(|i| CompileResult {
-                name: format!("file{}", i),
+                name: format!("file{i}"),
                 success: false,
                 error_code: Some("E0425".into()),
-                error_message: Some(format!("error {}", i)),
+                error_message: Some(format!("error {i}")),
             })
             .collect();
         let (_, _, taxonomy) = analyze_results(&results);
@@ -570,7 +570,7 @@ mod tests {
             error_code: None,
             error_message: None,
         };
-        let debug_str = format!("{:?}", result);
+        let debug_str = format!("{result:?}");
         assert!(debug_str.contains("test"));
     }
 

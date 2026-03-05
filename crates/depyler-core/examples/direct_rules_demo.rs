@@ -1,7 +1,10 @@
 //! Example demonstrating direct rules conversion from HIR to Rust
 
 use depyler_core::direct_rules::apply_rules;
-use depyler_core::hir::*;
+use depyler_core::hir::{
+    AssignTarget, BinOp, FunctionProperties, HirClass, HirExpr, HirField, HirFunction, HirMethod,
+    HirModule, HirParam, HirStmt, Import, ImportItem, Literal, Type, TypeAlias,
+};
 use depyler_core::type_mapper::TypeMapper;
 use smallvec::smallvec;
 
@@ -18,10 +21,10 @@ fn main() {
             // Convert to string using quote
             println!("Generated Rust code:");
             let tokens = quote::quote!(#rust_file);
-            println!("{}", tokens);
+            println!("{tokens}");
         }
         Err(e) => {
-            eprintln!("Error converting module: {}", e);
+            eprintln!("Error converting module: {e}");
         }
     }
 }

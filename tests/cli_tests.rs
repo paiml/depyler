@@ -128,7 +128,7 @@ fn test_json_output_format() {
     if output.status.success() {
         let stdout_str = String::from_utf8_lossy(&output.stdout);
         // Should contain valid JSON structure
-        assert!(stdout_str.contains("{") && stdout_str.contains("}"));
+        assert!(stdout_str.contains('{') && stdout_str.contains('}'));
     }
 }
 
@@ -140,7 +140,7 @@ fn test_multiple_quality_gates() {
     // Create a more complex function that might fail some quality gates
     fs::write(
         &input_file,
-        r#"
+        r"
 def complex_function(a: int, b: int, c: int, d: int) -> int:
     if a > 0:
         if b > 0:
@@ -155,7 +155,7 @@ def complex_function(a: int, b: int, c: int, d: int) -> int:
             return a
     else:
         return 0
-"#,
+",
     )
     .unwrap();
 

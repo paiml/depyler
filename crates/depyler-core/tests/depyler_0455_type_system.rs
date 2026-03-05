@@ -23,9 +23,7 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 fn assert_contains(rust_code: &str, pattern: &str) {
     assert!(
         rust_code.contains(pattern),
-        "Expected pattern not found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Expected pattern not found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -33,9 +31,7 @@ fn assert_contains(rust_code: &str, pattern: &str) {
 fn assert_not_contains(rust_code: &str, pattern: &str) {
     assert!(
         !rust_code.contains(pattern),
-        "Unexpected pattern found:\n  Pattern: {}\n  Code:\n{}",
-        pattern,
-        rust_code
+        "Unexpected pattern found:\n  Pattern: {pattern}\n  Code:\n{rust_code}"
     );
 }
 
@@ -82,8 +78,7 @@ def validate_int(value):
 
     assert!(
         has_result_type,
-        "Expected Result<_, ArgumentTypeError> signature. Got:\n{}",
-        rust_code
+        "Expected Result<_, ArgumentTypeError> signature. Got:\n{rust_code}"
     );
 }
 
@@ -123,7 +118,7 @@ def process_format(use_json, format_str):
         (rust_code.contains(r#""json".to_string()"#)
          && rust_code.contains(".to_lowercase()"));
 
-    assert!(has_consistent_types, "Expected consistent String type handling. Got:\n{}", rust_code);
+    assert!(has_consistent_types, "Expected consistent String type handling. Got:\n{rust_code}");
 
     // Should handle .to_lowercase() correctly
     assert_contains(&rust_code, ".to_lowercase()");
@@ -136,8 +131,7 @@ def process_format(use_json, format_str):
 
     assert!(
         !has_type_mismatch,
-        "Type mismatch detected between &str and String. Got:\n{}",
-        rust_code
+        "Type mismatch detected between &str and String. Got:\n{rust_code}"
     );
 }
 
@@ -177,8 +171,7 @@ def check_config():
 
     assert!(
         has_proper_option_check,
-        "Expected .is_some() or if let Some for Option check. Got:\n{}",
-        rust_code
+        "Expected .is_some() or if let Some for Option check. Got:\n{rust_code}"
     );
 
     // Should NOT directly use Option<String> as bool
@@ -189,8 +182,7 @@ def check_config():
 
     assert!(
         !has_direct_option_if,
-        "Direct Option as bool detected (type error). Got:\n{}",
-        rust_code
+        "Direct Option as bool detected (type error). Got:\n{rust_code}"
     );
 }
 
@@ -236,8 +228,7 @@ def show_config():
 
     assert!(
         has_proper_handling,
-        "Expected if let Some, .unwrap(), or .unwrap_or() for Option value access. Got:\n{}",
-        rust_code
+        "Expected if let Some, .unwrap(), or .unwrap_or() for Option value access. Got:\n{rust_code}"
     );
 
     // Should NOT format Option<String> directly without extracting value
@@ -267,8 +258,7 @@ def show_config():
 
     assert!(
         !has_bad_format,
-        "Direct Option formatting detected (Display not implemented). Got:\n{}",
-        rust_code
+        "Direct Option formatting detected (Display not implemented). Got:\n{rust_code}"
     );
 }
 
@@ -377,7 +367,6 @@ def check_multiple_env():
 
     assert!(
         proper_checks >= option_checks,
-        "Expected all if statements to properly check Options. Got:\n{}",
-        rust_code
+        "Expected all if statements to properly check Options. Got:\n{rust_code}"
     );
 }

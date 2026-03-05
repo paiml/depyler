@@ -1,6 +1,6 @@
-//! Targeted coverage tests for codegen_try_stmt function
+//! Targeted coverage tests for `codegen_try_stmt` function
 //!
-//! Target: codegen_try_stmt (lines 1181-1283, complexity 22)
+//! Target: `codegen_try_stmt` (lines 1181-1283, complexity 22)
 //! Coverage focus: try/except/finally patterns, exception scope tracking
 //!
 //! Test Strategy:
@@ -20,13 +20,13 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_basic_try_except() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def divide(a: int, b: int) -> int:
     try:
         return a / b
     except:
         return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn divide"));
@@ -38,14 +38,14 @@ def divide(a: int, b: int) -> int:
 #[test]
 fn test_try_except_specific_exception() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         result = a / b
         return result
     except ZeroDivisionError:
         return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn safe_divide"));
@@ -144,13 +144,13 @@ def multi_except(x: int) -> str:
 #[test]
 fn test_bare_except() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def catch_all() -> int:
     try:
         return 42 / 0
     except:
         return -1
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn catch_all"));
@@ -162,7 +162,7 @@ def catch_all() -> int:
 #[test]
 fn test_nested_try_blocks() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def nested_try() -> int:
     try:
         try:
@@ -171,7 +171,7 @@ def nested_try() -> int:
             return -1
     except:
         return -2
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn nested_try"));
@@ -183,7 +183,7 @@ def nested_try() -> int:
 #[test]
 fn test_try_multiple_statements() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def multi_stmt_try(x: int, y: int) -> int:
     try:
         a = x * 2
@@ -192,7 +192,7 @@ def multi_stmt_try(x: int, y: int) -> int:
         return result
     except:
         return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn multi_stmt_try"));
@@ -286,13 +286,13 @@ def return_in_finally() -> int:
 #[test]
 fn test_empty_try_block() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def empty_try():
     try:
         pass
     except:
         pass
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn empty_try"));
@@ -304,13 +304,13 @@ def empty_try():
 #[test]
 fn test_empty_except_block() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def empty_except():
     try:
         x = 42
     except:
         pass
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn empty_except"));
@@ -322,13 +322,13 @@ def empty_except():
 #[test]
 fn test_empty_finally_block() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def empty_finally():
     try:
         x = 42
     finally:
         pass
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn empty_finally"));
@@ -344,27 +344,27 @@ fn test_property_try_combinations() {
     let test_cases = vec![
         (
             "try_except",
-            r#"
+            r"
 def test_try_except():
     try:
         x = 42
     except:
         x = 0
-"#,
+",
         ),
         (
             "try_finally",
-            r#"
+            r"
 def test_try_finally():
     try:
         x = 42
     finally:
         pass
-"#,
+",
         ),
         (
             "try_except_finally",
-            r#"
+            r"
 def test_try_except_finally():
     try:
         x = 42
@@ -372,7 +372,7 @@ def test_try_except_finally():
         x = 0
     finally:
         pass
-"#,
+",
         ),
     ];
 
@@ -416,7 +416,7 @@ def complex_exception_handling(items: list[int]) -> int:
 /// Mutation Test: Exception scope tracking
 ///
 /// Targets mutations in:
-/// 1. enter_try_scope / exit_exception_scope calls
+/// 1. `enter_try_scope` / `exit_exception_scope` calls
 /// 2. Exception type list building
 /// 3. Name binding in except handlers
 #[test]
@@ -424,13 +424,13 @@ fn test_mutation_exception_scope() {
     let pipeline = DepylerPipeline::new();
 
     // Test Case 1: Scope tracking must work
-    let scoped = r#"
+    let scoped = r"
 def test1(x: int) -> int:
     try:
         return x / 0
     except ZeroDivisionError:
         return 0
-"#;
+";
     let rust1 = pipeline.transpile(scoped).unwrap();
     assert!(rust1.contains("fn test1"));
 

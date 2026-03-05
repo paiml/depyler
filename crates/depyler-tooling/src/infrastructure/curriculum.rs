@@ -179,7 +179,7 @@ mod tests {
     fn test_compilation_error_debug() {
         let err =
             CompilationError { code: "E0599".to_string(), message: "no method named".to_string() };
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("E0599"));
         assert!(debug.contains("no method named"));
     }

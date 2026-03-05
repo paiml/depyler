@@ -38,7 +38,7 @@ def is_empty_list(items: list[int]) -> bool:
 
     // Debugging: Print generated code
     eprintln!("=== DEPYLER-0266: Generated Rust Code (list) ===");
-    eprintln!("{}", rust_code);
+    eprintln!("{rust_code}");
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0266_list.rs";
@@ -60,7 +60,7 @@ def is_empty_list(items: list[int]) -> bool:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0266: rustc stderr (list) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         // ASSERT: Must NOT have "cannot apply unary operator `!`" error
         assert!(
@@ -73,21 +73,17 @@ def is_empty_list(items: list[int]) -> bool:
              \\n\\\
              See docs/bugs/DEPYLER-0266.md for details.\\n\\\
              \\n\\\
-             Generated Rust code:\\n{}\\n\\\
+             Generated Rust code:\\n{rust_code}\\n\\\
              \\n\\\
-             rustc error:\\n{}",
-            rust_code,
-            stderr
+             rustc error:\\n{stderr}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0266: Compilation should succeed\\n\\\
-         Generated code:\\n{}\\n\\\
-         Errors:\\n{}",
-        rust_code,
-        stderr
+         Generated code:\\n{rust_code}\\n\\\
+         Errors:\\n{stderr}"
     );
 }
 
@@ -130,24 +126,20 @@ def is_empty_string(text: str) -> bool:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0266: rustc stderr (string) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("cannot apply unary operator"),
             "DEPYLER-0266: Boolean conversion failed for string!\\n\\\
-             Error: {}\\n\\\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\\n\\\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0266: String empty check should compile\\n\\\
-         Code: {}\\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\\nErrors: {stderr}"
     );
 }
 
@@ -190,24 +182,20 @@ def is_empty_dict(mapping: dict[str, int]) -> bool:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0266: rustc stderr (dict) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("cannot apply unary operator"),
             "DEPYLER-0266: Boolean conversion failed for dict!\\n\\\
-             Error: {}\\n\\\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\\n\\\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0266: Dict empty check should compile\\n\\\
-         Code: {}\\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\\nErrors: {stderr}"
     );
 }
 
@@ -253,24 +241,20 @@ def process_items(items: list[int]) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0266: rustc stderr (guard) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("cannot apply unary operator"),
             "DEPYLER-0266: Guard clause pattern failed!\\n\\\
-             Error: {}\\n\\\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\\n\\\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0266: Guard clause should compile\\n\\\
-         Code: {}\\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\\nErrors: {stderr}"
     );
 }
 
@@ -313,14 +297,12 @@ def negate_bool(flag: bool) -> bool:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0266: rustc stderr (bool) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0266: Boolean not should still work\\n\\\
-         Code: {}\\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\\nErrors: {stderr}"
     );
 }

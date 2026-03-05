@@ -1,13 +1,13 @@
 //! DEPYLER-0957: Custom Exception Field Type Inference Test
 //!
 //! Root Cause: Exception classes with unannotated __init__ parameters
-//! get Type::Unknown → serde_json::Value instead of String.
+//! get `Type::Unknown` → `serde_json::Value` instead of String.
 //!
 //! Fix: For Exception subclasses, default Unknown field types to String.
 
 use std::process::Command;
 
-/// Test that custom exceptions get String typed fields (not serde_json::Value)
+/// Test that custom exceptions get String typed fields (not `serde_json::Value`)
 /// SLOW: Requires full cargo compilation - use `cargo test -- --ignored` to run
 #[test]
 #[ignore = "slow: requires cargo build (200+ seconds)"]
@@ -42,8 +42,7 @@ def test():
     // CRITICAL: Field should be String, NOT serde_json::Value
     assert!(
         rust_code.contains("message: String") || rust_code.contains("pub message: String"),
-        "Exception field 'message' should be String, not serde_json::Value.\nGenerated:\n{}",
-        rust_code
+        "Exception field 'message' should be String, not serde_json::Value.\nGenerated:\n{rust_code}"
     );
 
     // CRITICAL: new() should take String, NOT serde_json::Value
@@ -51,15 +50,13 @@ def test():
         rust_code.contains("message: String")
             || rust_code.contains("message: impl Into<String>")
             || rust_code.contains("fn new(message: String)"),
-        "Exception constructor should take String.\nGenerated:\n{}",
-        rust_code
+        "Exception constructor should take String.\nGenerated:\n{rust_code}"
     );
 
     // Should NOT contain serde_json::Value for message field
     assert!(
         !rust_code.contains("message: serde_json::Value"),
-        "Exception field 'message' should NOT be serde_json::Value.\nGenerated:\n{}",
-        rust_code
+        "Exception field 'message' should NOT be serde_json::Value.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -68,11 +65,11 @@ def test():
 #[test]
 #[ignore = "slow: requires cargo build (200+ seconds)"]
 fn test_depyler_0957_exception_explicit_str_annotation() {
-    let python_source = r#"
+    let python_source = r"
 class ValidationError(Exception):
     def __init__(self, message: str):
         self.message = message
-"#;
+";
 
     let output = Command::new("cargo")
         .args(["run", "--bin", "depyler", "--", "transpile", "--code", python_source])
@@ -94,8 +91,7 @@ class ValidationError(Exception):
     // Explicit annotation should definitely produce String
     assert!(
         rust_code.contains("message: String") || rust_code.contains("pub message: String"),
-        "Exception with str annotation should have String field.\nGenerated:\n{}",
-        rust_code
+        "Exception with str annotation should have String field.\nGenerated:\n{rust_code}"
     );
 }
 
@@ -104,13 +100,13 @@ class ValidationError(Exception):
 #[test]
 #[ignore = "slow: requires cargo build (200+ seconds)"]
 fn test_depyler_0957_exception_multiple_fields() {
-    let python_source = r#"
+    let python_source = r"
 class APIError(Exception):
     def __init__(self, code, message, details):
         self.code = code
         self.message = message
         self.details = details
-"#;
+";
 
     let output = Command::new("cargo")
         .args(["run", "--bin", "depyler", "--", "transpile", "--code", python_source])
@@ -133,7 +129,6 @@ class APIError(Exception):
     // At minimum, message should NOT be serde_json::Value
     assert!(
         !rust_code.contains("message: serde_json::Value"),
-        "Exception 'message' field should NOT be serde_json::Value.\nGenerated:\n{}",
-        rust_code
+        "Exception 'message' field should NOT be serde_json::Value.\nGenerated:\n{rust_code}"
     );
 }

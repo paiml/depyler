@@ -13,7 +13,7 @@ use depyler_core::DepylerPipeline;
 #[test]
 fn test_depyler_0024_copy_copy_list_invalid_codegen() {
     // DEPYLER-0024: copy.copy() for lists generates invalid Rust code
-    let python_code = r#"
+    let python_code = r"
 import copy
 
 def test_shallow_copy() -> int:
@@ -21,7 +21,7 @@ def test_shallow_copy() -> int:
     copied = copy.copy(original)
     copied.append(4)
     return len(original)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
@@ -32,22 +32,19 @@ def test_shallow_copy() -> int:
     // CRITICAL: Should NOT generate `.copy()` method (doesn't exist in Rust)
     assert!(
         !rust_code.contains(".copy()"),
-        "BUG CONFIRMED: Generated invalid `.copy()` method!\nGenerated code:\n{}",
-        rust_code
+        "BUG CONFIRMED: Generated invalid `.copy()` method!\nGenerated code:\n{rust_code}"
     );
 
     // Should generate valid Rust code with .clone() or proper copy semantics
     assert!(
         rust_code.contains(".clone()") || rust_code.contains("copy::copy"),
-        "Should generate valid Rust copy operation (.clone() or copy::copy)\nGenerated code:\n{}",
-        rust_code
+        "Should generate valid Rust copy operation (.clone() or copy::copy)\nGenerated code:\n{rust_code}"
     );
 
     // Verify the copy semantics are correct (shallow copy behavior)
     assert!(
         rust_code.contains("copied") || rust_code.contains("let"),
-        "Should have proper variable assignment for copied list\nGenerated code:\n{}",
-        rust_code
+        "Should have proper variable assignment for copied list\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -73,15 +70,14 @@ def test_dict_copy() -> int:
     // Should generate valid Rust code for dict copy
     assert!(
         rust_code.contains(".clone()") || rust_code.contains("copy"),
-        "Should generate valid dict copy operation\nGenerated code:\n{}",
-        rust_code
+        "Should generate valid dict copy operation\nGenerated code:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_depyler_0024_copy_deepcopy_list_works() {
     // DEPYLER-0024: Verify copy.deepcopy() still works (regression check)
-    let python_code = r#"
+    let python_code = r"
 import copy
 
 def test_deep_copy() -> int:
@@ -89,7 +85,7 @@ def test_deep_copy() -> int:
     copied = copy.deepcopy(original)
     copied[0].append(5)
     return len(original[0])
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
@@ -100,7 +96,6 @@ def test_deep_copy() -> int:
     // Should generate valid deep copy operation
     assert!(
         rust_code.contains("clone") || rust_code.contains("deep"),
-        "Should generate valid deep copy operation\nGenerated code:\n{}",
-        rust_code
+        "Should generate valid deep copy operation\nGenerated code:\n{rust_code}"
     );
 }

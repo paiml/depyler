@@ -14,7 +14,7 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_dir() -> String {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    format!("/tmp/depyler_0932_{}_{}", pid, id)
+    format!("/tmp/depyler_0932_{pid}_{id}")
 }
 
 /// Helper to check if generated Rust code compiles
@@ -22,9 +22,9 @@ fn unique_temp_dir() -> String {
 fn compiles_with_cargo(code: &str, _test_id: &str) -> bool {
     let temp_dir = unique_temp_dir();
     let _ = std::fs::remove_dir_all(&temp_dir);
-    std::fs::create_dir_all(format!("{}/src", temp_dir)).unwrap();
+    std::fs::create_dir_all(format!("{temp_dir}/src")).unwrap();
     std::fs::write(
-        format!("{}/Cargo.toml", temp_dir),
+        format!("{temp_dir}/Cargo.toml"),
         r#"[package]
 name = "test_0932"
 version = "0.1.0"
@@ -32,7 +32,7 @@ edition = "2021"
 "#,
     )
     .unwrap();
-    std::fs::write(format!("{}/src/lib.rs", temp_dir), code).unwrap();
+    std::fs::write(format!("{temp_dir}/src/lib.rs"), code).unwrap();
 
     let output = Command::new("cargo")
         .args(["build"])
@@ -59,9 +59,9 @@ edition = "2021"
 fn compile_errors_cargo(code: &str, _test_id: &str) -> String {
     let temp_dir = unique_temp_dir();
     let _ = std::fs::remove_dir_all(&temp_dir);
-    std::fs::create_dir_all(format!("{}/src", temp_dir)).unwrap();
+    std::fs::create_dir_all(format!("{temp_dir}/src")).unwrap();
     std::fs::write(
-        format!("{}/Cargo.toml", temp_dir),
+        format!("{temp_dir}/Cargo.toml"),
         r#"[package]
 name = "test_0932"
 version = "0.1.0"
@@ -69,7 +69,7 @@ edition = "2021"
 "#,
     )
     .unwrap();
-    std::fs::write(format!("{}/src/lib.rs", temp_dir), code).unwrap();
+    std::fs::write(format!("{temp_dir}/src/lib.rs"), code).unwrap();
 
     let output = Command::new("cargo")
         .args(["build"])
@@ -92,7 +92,7 @@ edition = "2021"
     String::from_utf8_lossy(&output.stderr).to_string()
 }
 
-/// Test basic dataclass with multiple fields - new() should preserve order
+/// Test basic dataclass with multiple fields - `new()` should preserve order
 #[test]
 fn test_depyler_0932_basic_dataclass_field_order() {
     let python = r#"
@@ -115,12 +115,12 @@ def create_person() -> Person:
     let code = result.unwrap();
 
     // Verify struct has fields in correct order
-    assert!(code.contains("pub struct Person"), "Should generate Person struct: {}", code);
+    assert!(code.contains("pub struct Person"), "Should generate Person struct: {code}");
 
     // Verify new() has parameters in correct order (name, age, email)
     // The signature should be: new(name: String, age: i32, email: String)
     let new_pos = code.find("fn new(");
-    assert!(new_pos.is_some(), "Should have new() method: {}", code);
+    assert!(new_pos.is_some(), "Should have new() method: {code}");
 
     // Extract the new() signature
     let new_start = new_pos.unwrap();
@@ -135,19 +135,17 @@ def create_person() -> Person:
 
     assert!(
         name_pos.is_some() && age_pos.is_some() && email_pos.is_some(),
-        "new() should have all parameters: {}",
-        new_sig
+        "new() should have all parameters: {new_sig}"
     );
     assert!(
         name_pos.unwrap() < age_pos.unwrap() && age_pos.unwrap() < email_pos.unwrap(),
-        "Parameters should be in order (name, age, email): {}",
-        new_sig
+        "Parameters should be in order (name, age, email): {new_sig}"
     );
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "basic") {
         let errors = compile_errors_cargo(&code, "basic");
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -174,19 +172,19 @@ def create_config() -> Config:
     let code = result.unwrap();
 
     // Verify struct exists
-    assert!(code.contains("pub struct Config"), "Should generate Config struct: {}", code);
+    assert!(code.contains("pub struct Config"), "Should generate Config struct: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "defaults") {
         let errors = compile_errors_cargo(&code, "defaults");
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test dataclass instantiation with positional arguments
 #[test]
 fn test_depyler_0932_dataclass_call_site_order() {
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -201,7 +199,7 @@ def create_point() -> Point:
 def use_point() -> int:
     p = Point(10, 20, 30)
     return p.x + p.y + p.z
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -211,19 +209,19 @@ def use_point() -> int:
 
     // Verify Point::new() calls have arguments in correct order
     // Should generate: Point::new(1, 2, 3) not Point::new(3, 2, 1)
-    assert!(code.contains("Point::new(1"), "Should call Point::new with first arg 1: {}", code);
+    assert!(code.contains("Point::new(1"), "Should call Point::new with first arg 1: {code}");
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "callsite") {
         let errors = compile_errors_cargo(&code, "callsite");
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
 /// Test dataclass with keyword arguments at call site
 #[test]
 fn test_depyler_0932_dataclass_keyword_args() {
-    let python = r#"
+    let python = r"
 from dataclasses import dataclass
 
 @dataclass
@@ -233,7 +231,7 @@ class Rectangle:
 
 def create_rect() -> Rectangle:
     return Rectangle(width=100, height=50)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -242,7 +240,7 @@ def create_rect() -> Rectangle:
     let code = result.unwrap();
 
     // Verify struct exists
-    assert!(code.contains("pub struct Rectangle"), "Should generate Rectangle struct: {}", code);
+    assert!(code.contains("pub struct Rectangle"), "Should generate Rectangle struct: {code}");
 
     // Even with keyword args, the call should work correctly
     // Generated: Rectangle::new(100, 50) - width=100 first, height=50 second
@@ -250,7 +248,7 @@ def create_rect() -> Rectangle:
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "kwargs") {
         let errors = compile_errors_cargo(&code, "kwargs");
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -279,7 +277,7 @@ def create_user() -> User:
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "mixed") {
         let errors = compile_errors_cargo(&code, "mixed");
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }
 
@@ -309,11 +307,11 @@ def hire_employee() -> Employee:
     // Verify struct field order matches Python definition
     // Fields should appear in order: department, employee_id, salary, is_manager
     let struct_pos = code.find("pub struct Employee");
-    assert!(struct_pos.is_some(), "Should generate Employee struct: {}", code);
+    assert!(struct_pos.is_some(), "Should generate Employee struct: {code}");
 
     let struct_start = struct_pos.unwrap();
     let struct_end =
-        code[struct_start..].find('}').map(|p| struct_start + p + 1).unwrap_or(code.len());
+        code[struct_start..].find('}').map_or(code.len(), |p| struct_start + p + 1);
     let struct_def = &code[struct_start..struct_end];
 
     let dept_pos = struct_def.find("department");
@@ -323,8 +321,7 @@ def hire_employee() -> Employee:
 
     assert!(
         dept_pos.is_some() && id_pos.is_some() && salary_pos.is_some() && manager_pos.is_some(),
-        "Struct should have all fields: {}",
-        struct_def
+        "Struct should have all fields: {struct_def}"
     );
 
     // Verify order
@@ -332,13 +329,12 @@ def hire_employee() -> Employee:
         dept_pos.unwrap() < id_pos.unwrap()
             && id_pos.unwrap() < salary_pos.unwrap()
             && salary_pos.unwrap() < manager_pos.unwrap(),
-        "Struct fields should be in Python definition order: {}",
-        struct_def
+        "Struct fields should be in Python definition order: {struct_def}"
     );
 
     // CRITICAL: Generated code must compile
     if !compiles_with_cargo(&code, "employee") {
         let errors = compile_errors_cargo(&code, "employee");
-        panic!("Generated code should compile. Errors:\n{}\n\nGenerated code:\n{}", errors, code);
+        panic!("Generated code should compile. Errors:\n{errors}\n\nGenerated code:\n{code}");
     }
 }

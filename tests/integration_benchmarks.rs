@@ -43,17 +43,17 @@ mod integration_benchmarks {
             ("Simple", "def add(a: int, b: int) -> int: return a + b", Duration::from_millis(100)),
             (
                 "Medium",
-                r#"
+                r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#,
+",
                 Duration::from_millis(200),
             ),
             (
                 "Complex",
-                r#"
+                r"
 def fibonacci_memo(n: int, memo: dict = None) -> int:
     if memo is None:
         memo = {}
@@ -65,7 +65,7 @@ def fibonacci_memo(n: int, memo: dict = None) -> int:
         result = fibonacci_memo(n-1, memo) + fibonacci_memo(n-2, memo)
     memo[n] = result
     return result
-"#,
+",
                 Duration::from_millis(500),
             ),
         ];
@@ -87,10 +87,7 @@ def fibonacci_memo(n: int, memo: dict = None) -> int:
 
             assert!(
                 duration <= max_duration,
-                "{} scenario exceeded time limit: {:?} > {:?}",
-                scenario_name,
-                duration,
-                max_duration
+                "{scenario_name} scenario exceeded time limit: {duration:?} > {max_duration:?}"
             );
 
             // Test verified pipeline
@@ -109,9 +106,7 @@ def fibonacci_memo(n: int, memo: dict = None) -> int:
             // Verified pipeline may take longer but should still be reasonable
             assert!(
                 verified_duration <= max_duration * 2,
-                "{} verified scenario took too long: {:?}",
-                scenario_name,
-                verified_duration
+                "{scenario_name} verified scenario took too long: {verified_duration:?}"
             );
         }
     }
@@ -136,25 +131,22 @@ def fibonacci_memo(n: int, memo: dict = None) -> int:
             test_function();
             let category_duration = category_start.elapsed();
 
-            println!("{}: {:?}", category_name, category_duration);
+            println!("{category_name}: {category_duration:?}");
 
             // Individual category should complete reasonably quickly
             assert!(
                 category_duration < Duration::from_secs(30),
-                "{} took too long: {:?}",
-                category_name,
-                category_duration
+                "{category_name} took too long: {category_duration:?}"
             );
         }
 
         let total_duration = start.elapsed();
-        println!("Total Test Suite: {:?}", total_duration);
+        println!("Total Test Suite: {total_duration:?}");
 
         // Full suite should complete within target time
         assert!(
             total_duration < Duration::from_secs(120),
-            "Full test suite should complete within 2 minutes, took {:?}",
-            total_duration
+            "Full test suite should complete within 2 minutes, took {total_duration:?}"
         );
     }
 
@@ -163,7 +155,7 @@ def fibonacci_memo(n: int, memo: dict = None) -> int:
     fn pipeline_configuration_benchmark() {
         println!("=== Pipeline Configuration Benchmark ===");
 
-        let test_code = r#"
+        let test_code = r"
 def sample_function(x: int, y: int) -> int:
     result = 0
     for i in range(x):
@@ -172,7 +164,7 @@ def sample_function(x: int, y: int) -> int:
         else:
             result -= i // 2
     return result
-"#;
+";
 
         let configurations = vec![
             ("Default", DepylerPipeline::new()),
@@ -195,9 +187,7 @@ def sample_function(x: int, y: int) -> int:
             // Threshold set to 5s to accommodate debug builds and CI environments
             assert!(
                 duration < Duration::from_secs(5),
-                "{} configuration took too long: {:?}",
-                config_name,
-                duration
+                "{config_name} configuration took too long: {duration:?}"
             );
         }
     }
@@ -212,11 +202,11 @@ def sample_function(x: int, y: int) -> int:
 
         // Test with increasing code complexity
         let code_5_funcs = (0..5)
-            .map(|i| format!("def f{}(x: int) -> int: return x + {}", i, i))
+            .map(|i| format!("def f{i}(x: int) -> int: return x + {i}"))
             .collect::<Vec<_>>()
             .join("\n");
         let code_10_funcs = (0..10)
-            .map(|i| format!("def f{}(x: int) -> int: return x * {}", i, i))
+            .map(|i| format!("def f{i}(x: int) -> int: return x * {i}"))
             .collect::<Vec<_>>()
             .join("\n");
         let complexity_tests = vec![
@@ -241,10 +231,7 @@ def sample_function(x: int, y: int) -> int:
             let expected_max = Duration::from_millis(50 * function_count as u64);
             assert!(
                 duration <= expected_max,
-                "{} functions took {:?}, expected <= {:?}",
-                function_count,
-                duration,
-                expected_max
+                "{function_count} functions took {duration:?}, expected <= {expected_max:?}"
             );
         }
     }
@@ -279,9 +266,7 @@ def sample_function(x: int, y: int) -> int:
             // Error handling should be fast
             assert!(
                 duration < Duration::from_millis(100),
-                "Error handling for '{}' took too long: {:?}",
-                error_type,
-                duration
+                "Error handling for '{error_type}' took too long: {duration:?}"
             );
         }
     }
@@ -318,18 +303,14 @@ def sample_function(x: int, y: int) -> int:
             let success_count = results.iter().filter(|r| r.is_ok()).count();
 
             println!(
-                "{} threads: {:?} ({}/{} succeeded)",
-                thread_count, duration, success_count, thread_count
+                "{thread_count} threads: {duration:?} ({success_count}/{thread_count} succeeded)"
             );
 
             // Concurrent access should not degrade performance too much
             let expected_max = Duration::from_millis(200 * thread_count as u64);
             assert!(
                 duration <= expected_max,
-                "{} threads took {:?}, expected <= {:?}",
-                thread_count,
-                duration,
-                expected_max
+                "{thread_count} threads took {duration:?}, expected <= {expected_max:?}"
             );
         }
     }

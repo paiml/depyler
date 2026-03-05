@@ -45,7 +45,7 @@ def find_min(numbers: list[int]) -> int:
 
     // Debugging: Print generated code
     eprintln!("=== DEPYLER-0265: Generated Rust Code (comparison) ===");
-    eprintln!("{}", rust_code);
+    eprintln!("{rust_code}");
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0265_comparison.rs";
@@ -67,7 +67,7 @@ def find_min(numbers: list[int]) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0265: rustc stderr ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         // ASSERT: Must NOT have type mismatch errors
         assert!(
@@ -82,21 +82,17 @@ def find_min(numbers: list[int]) -> int:
              \n\
              See docs/bugs/DEPYLER-0265.md for details.\n\
              \n\
-             Generated Rust code:\n{}\n\
+             Generated Rust code:\n{rust_code}\n\
              \n\
-             rustc error:\n{}",
-            rust_code,
-            stderr
+             rustc error:\n{stderr}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0265: Compilation should succeed\n\
-         Generated code:\n{}\n\
-         Errors:\n{}",
-        rust_code,
-        stderr
+         Generated code:\n{rust_code}\n\
+         Errors:\n{stderr}"
     );
 }
 
@@ -140,24 +136,20 @@ def sum_list(numbers: list[int]) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0265: rustc stderr (arithmetic) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("mismatched types"),
             "DEPYLER-0265: Type mismatch in for loop arithmetic!\n\
-             Error: {}\n\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\n\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0265: Arithmetic in for loop should compile\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }
 
@@ -204,24 +196,20 @@ def find_max(numbers: list[int]) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0265: rustc stderr (assignment) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("mismatched types"),
             "DEPYLER-0265: Type mismatch in for loop assignment!\n\
-             Error: {}\n\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\n\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0265: Assignment in for loop should compile\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }
 
@@ -268,23 +256,19 @@ def find_longest(words: list[str]) -> str:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0265: rustc stderr (string) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("mismatched types"),
             "DEPYLER-0265: Type mismatch in for loop over strings!\n\
-             Error: {}\n\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\n\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0265: For loop over strings should compile\n\
-         Code: {}\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\nErrors: {stderr}"
     );
 }

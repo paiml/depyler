@@ -37,7 +37,7 @@ fn prop_transpiled_functions_are_valid_rust(func: ArbitraryFunction) -> TestResu
             let code = tokens.to_string();
 
             // Basic syntax checks
-            TestResult::from_bool(code.contains("fn") && code.contains("{") && code.contains("}"))
+            TestResult::from_bool(code.contains("fn") && code.contains('{') && code.contains('}'))
         }
         Err(_) => TestResult::discard(), // Some functions may not be supported yet
     }
@@ -242,13 +242,13 @@ fn arbitrary_expr_of_type(g: &mut Gen, ty: &Type) -> HirExpr {
             // Limit the range to avoid overflow issues
             let base: u32 = Arbitrary::arbitrary(g);
             let n: i32 = (base % 1000) as i32;
-            HirExpr::Literal(Literal::Int(n as i64))
+            HirExpr::Literal(Literal::Int(i64::from(n)))
         }
         Type::Float => {
             // Use simple float values to avoid NaN/infinity issues
             let base: u32 = Arbitrary::arbitrary(g);
             let f: f32 = (base % 100) as f32 / 10.0;
-            HirExpr::Literal(Literal::Float(f as f64))
+            HirExpr::Literal(Literal::Float(f64::from(f)))
         }
         Type::String => {
             // Use simple, short strings to avoid memory issues
@@ -272,14 +272,14 @@ fn arbitrary_pure_expr(g: &mut Gen) -> HirExpr {
     // Limit recursion depth to prevent stack overflow
     if g.size() < 2 {
         let n: i32 = Arbitrary::arbitrary(g);
-        return HirExpr::Literal(Literal::Int(n as i64));
+        return HirExpr::Literal(Literal::Int(i64::from(n)));
     }
 
     match g.size() % 3 {
         0 => {
             // Literal
             let n: i32 = Arbitrary::arbitrary(g);
-            HirExpr::Literal(Literal::Int(n as i64))
+            HirExpr::Literal(Literal::Int(i64::from(n)))
         }
         1 => {
             // Binary arithmetic operation - reduce depth to avoid infinite recursion
@@ -307,7 +307,7 @@ fn arbitrary_safe_expr(g: &mut Gen) -> HirExpr {
         0 => {
             let base: u32 = Arbitrary::arbitrary(g);
             let n: i32 = (base % 100) as i32; // Small safe range
-            HirExpr::Literal(Literal::Int(n as i64))
+            HirExpr::Literal(Literal::Int(i64::from(n)))
         }
         1 => {
             let options = ["safe", "test", "ok"];

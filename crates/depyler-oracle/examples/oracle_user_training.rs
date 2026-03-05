@@ -6,7 +6,7 @@
 //! 3. Save updated model for future runs
 //!
 //! Usage:
-//!   cargo run --example oracle_user_training -p depyler-oracle
+//!   cargo run --example `oracle_user_training` -p depyler-oracle
 
 use depyler_oracle::ngram::NgramFixPredictor;
 use depyler_oracle::ErrorCategory;
@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
 
     match predictor.load(&model_path) {
         Ok(()) => println!("Loaded existing model ({} patterns)", predictor.pattern_count()),
-        Err(e) => println!("No existing model: {}", e),
+        Err(e) => println!("No existing model: {e}"),
     }
 
     let initial_count = predictor.pattern_count();

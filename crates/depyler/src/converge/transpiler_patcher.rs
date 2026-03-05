@@ -1050,11 +1050,11 @@ mod tests {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("test.rs");
 
-        let source = r#"
+        let source = r"
 pub fn test_function(x: i32) -> i32 {
     x + 1
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1088,7 +1088,7 @@ pub fn test_function(x: i32) -> i32 {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("impl_test.rs");
 
-        let source = r#"
+        let source = r"
 pub struct TestStruct;
 
 impl TestStruct {
@@ -1096,7 +1096,7 @@ impl TestStruct {
         42
     }
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1129,12 +1129,12 @@ impl TestStruct {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("return_test.rs");
 
-        let source = r#"
+        let source = r"
 pub fn calculate(x: i32) -> i32 {
     let result = x * 2;
     return result;
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1167,14 +1167,14 @@ pub fn calculate(x: i32) -> i32 {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("match_test.rs");
 
-        let source = r#"
+        let source = r"
 pub fn match_test(val: &str) -> i32 {
     match val {
         existing => 1,
         _ => 0,
     }
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1207,14 +1207,14 @@ pub fn match_test(val: &str) -> i32 {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("replace_match.rs");
 
-        let source = r#"
+        let source = r"
 pub fn replace_test(val: i32) -> i32 {
     match val {
         42 => { 1 },
         _ => { 0 },
     }
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1247,11 +1247,11 @@ pub fn replace_test(val: i32) -> i32 {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("wrap_test.rs");
 
-        let source = r#"
+        let source = r"
 pub fn wrap_me() -> i32 {
     42
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1285,10 +1285,10 @@ pub fn wrap_me() -> i32 {
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("import_test.rs");
 
-        let source = r#"use std::collections::HashMap;
+        let source = r"use std::collections::HashMap;
 
 pub fn test() {}
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1321,8 +1321,8 @@ pub fn test() {}
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("no_import.rs");
 
-        let source = r#"pub fn test() {}
-"#;
+        let source = r"pub fn test() {}
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1355,11 +1355,11 @@ pub fn test() {}
         std::fs::create_dir(&src_dir)?;
         let test_file = src_dir.join("type_test.rs");
 
-        let source = r#"
+        let source = r"
 pub fn old_type(x: OldType) -> OldType {
     x
 }
-"#;
+";
         std::fs::write(&test_file, source)?;
 
         let mut patcher = TranspilerPatcher::new(temp_dir.path());
@@ -1374,7 +1374,7 @@ pub fn old_type(x: OldType) -> OldType {
                 from: "OldType".to_string(),
                 to: "NewType".to_string(),
             },
-            code_template: "".to_string(),
+            code_template: String::new(),
             confidence: 0.8,
             enabled: true,
         };

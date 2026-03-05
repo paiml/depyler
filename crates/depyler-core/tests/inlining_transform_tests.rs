@@ -1,5 +1,5 @@
 //! EXTREME TDD: Tests for inlining.rs transformation functions
-//! Coverage: apply_inlining, transform_expr, transform_stmt, inline_function_call
+//! Coverage: `apply_inlining`, `transform_expr`, `transform_stmt`, `inline_function_call`
 
 use depyler_core::hir::{
     AssignTarget, BinOp, FunctionProperties, HirExpr, HirFunction, HirParam, HirProgram, HirStmt,

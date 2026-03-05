@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn test_debugger_type_gdb() {
         let dt = DebuggerType::Gdb;
-        let debug = format!("{:?}", dt);
+        let debug = format!("{dt:?}");
         assert!(debug.contains("Gdb"));
     }
 
@@ -680,7 +680,7 @@ mod tests {
     #[test]
     fn test_debugger_type_rust_gdb() {
         let dt = DebuggerType::RustGdb;
-        let debug = format!("{:?}", dt);
+        let debug = format!("{dt:?}");
         assert!(debug.contains("RustGdb"));
     }
 

@@ -530,7 +530,7 @@ mod tests {
     #[test]
     fn test_code_action_debug() {
         let action = CodeAction::new("add_struct", "struct");
-        let debug_str = format!("{:?}", action);
+        let debug_str = format!("{action:?}");
         assert!(debug_str.contains("CodeAction"));
         assert!(debug_str.contains("add_struct"));
         assert!(debug_str.contains("struct"));
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn test_generative_repair_config_debug() {
         let config = GenerativeRepairConfig::default();
-        let debug_str = format!("{:?}", config);
+        let debug_str = format!("{config:?}");
         assert!(debug_str.contains("GenerativeRepairConfig"));
         assert!(debug_str.contains("max_iterations"));
         assert!(debug_str.contains("exploration_constant"));
@@ -582,7 +582,7 @@ mod tests {
     fn test_synthesis_result_debug() {
         let result =
             SynthesisResult { success: false, code: None, iterations: 50, expected_reward: 0.25 };
-        let debug_str = format!("{:?}", result);
+        let debug_str = format!("{result:?}");
         assert!(debug_str.contains("SynthesisResult"));
         assert!(debug_str.contains("success"));
         assert!(debug_str.contains("false"));
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn test_code_state_debug() {
         let state = CodeState::new(vec!["let".to_string(), "mut".to_string()]);
-        let debug_str = format!("{:?}", state);
+        let debug_str = format!("{state:?}");
         assert!(debug_str.contains("CodeState"));
         assert!(debug_str.contains("tokens"));
     }

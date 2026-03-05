@@ -1,6 +1,6 @@
-//! Train MoE Oracle on real compilation errors from reprorusted-python-cli
+//! Train `MoE` Oracle on real compilation errors from reprorusted-python-cli
 //!
-//! Usage: cargo run --example train_moe_on_real_corpus
+//! Usage: cargo run --example `train_moe_on_real_corpus`
 
 use depyler_oracle::{load_real_corpus, moe_oracle::ExpertDomain, train_moe_on_real_corpus};
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     codes.sort_by(|a, b| b.1.cmp(a.1));
     for (code, count) in codes.iter().take(10) {
         let domain = ExpertDomain::from_error_code(code);
-        println!("   {}: {} occurrences -> {:?}", code, count, domain);
+        println!("   {code}: {count} occurrences -> {domain:?}");
     }
 
     println!("\n   DISTRIBUTION BY EXPERT DOMAIN:");
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     domains.sort_by(|a, b| b.1.cmp(a.1));
     for (domain, count) in &domains {
         let pct = (**count as f64 / samples.len() as f64) * 100.0;
-        println!("   {:?}: {} ({:.1}%)", domain, count, pct);
+        println!("   {domain:?}: {count} ({pct:.1}%)");
     }
 
     // Step 2: Train MoE Oracle
@@ -79,11 +79,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             status, code, result.primary_expert, result.confidence
         );
         if let Some(fix) = &result.suggested_fix {
-            println!("        Fix: {}", fix);
+            println!("        Fix: {fix}");
         }
     }
 
-    let accuracy = (correct as f64 / test_cases.len() as f64) * 100.0;
+    let accuracy = (f64::from(correct) / test_cases.len() as f64) * 100.0;
     println!("\n{}", "=".repeat(60));
     println!("   ACCURACY: {}/{} ({:.1}%)", correct, test_cases.len(), accuracy);
     println!("{}", "=".repeat(60));

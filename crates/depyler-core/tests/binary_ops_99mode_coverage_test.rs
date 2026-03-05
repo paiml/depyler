@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/binary_ops.rs
+//! Coverage tests for `rust_gen/binary_ops.rs`
 //!
-//! DEPYLER-99MODE-001: Targets binary_ops.rs (974 lines)
+//! DEPYLER-99MODE-001: Targets `binary_ops.rs` (974 lines)
 //! Covers: operator precedence, parenthesization, arithmetic,
 //! comparison, logical, bitwise, membership operations.
 
@@ -67,37 +67,37 @@ fn test_binop_power() {
 
 #[test]
 fn test_binop_precedence_add_mul() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return a + b * c
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_precedence_parens() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return (a + b) * c
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_precedence_complex() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int, d: int) -> int:
     return a + b * c - d % 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_precedence_nested_parens() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int, c: int) -> int:
     return ((a + b) * (c - a)) % b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -147,37 +147,37 @@ fn test_binop_ne() {
 
 #[test]
 fn test_binop_and() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool) -> bool:
     return a and b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_or() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool) -> bool:
     return a or b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_not() {
-    let code = r#"
+    let code = r"
 def f(a: bool) -> bool:
     return not a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_logical_complex() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool, c: bool) -> bool:
     return (a and b) or (not c)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -221,10 +221,10 @@ fn test_binop_rshift() {
 
 #[test]
 fn test_binop_in_list() {
-    let code = r#"
+    let code = r"
 def f(x: int, items: list) -> bool:
     return x in items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -234,19 +234,19 @@ def f(x: int, items: list) -> bool:
 
 #[test]
 fn test_binop_mixed_types() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: float) -> float:
     return float(x) + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_binop_chained_comparison() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> bool:
     return x > 0 and x < 100
-"#;
+";
     assert!(transpile_ok(code));
 }
 
