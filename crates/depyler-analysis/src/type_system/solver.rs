@@ -142,8 +142,7 @@ impl WorklistSolver {
                     // Variable already assigned, check consistency
                     if existing != ty {
                         return Err(format!(
-                            "Type mismatch: variable {} has type {:?}, expected {:?} ({})",
-                            var_id, existing, ty, reason
+                            "Type mismatch: variable {var_id} has type {existing:?}, expected {ty:?} ({reason})"
                         ));
                     }
                 } else {
@@ -156,7 +155,7 @@ impl WorklistSolver {
             // Concrete types must match exactly
             (t1, t2) if t1 == t2 => Ok(()),
 
-            _ => Err(format!("Equality constraint failed: {:?} != {:?} ({})", lhs, rhs, reason)),
+            _ => Err(format!("Equality constraint failed: {lhs:?} != {rhs:?} ({reason})")),
         }
     }
 
@@ -169,7 +168,7 @@ impl WorklistSolver {
                     // Check if existing type is subtype of new bound
                     self.checker
                         .check_subtype(existing, ty)
-                        .map_err(|e| format!("{} ({})", e, reason))?;
+                        .map_err(|e| format!("{e} ({reason})"))?;
                 } else {
                     // No assignment yet - for now, assign the upper bound
                     // Note: Track upper/lower bounds separately for more precise inference
@@ -184,7 +183,7 @@ impl WorklistSolver {
                     // Check if new type is subtype of existing
                     self.checker
                         .check_subtype(ty, existing)
-                        .map_err(|e| format!("{} ({})", e, reason))?;
+                        .map_err(|e| format!("{e} ({reason})"))?;
                 } else {
                     // No assignment yet - assign the lower bound
                     self.assignments.insert(*var_id, ty.clone());
@@ -194,7 +193,7 @@ impl WorklistSolver {
 
             // Both concrete: check subtyping relation
             (t1, t2) => {
-                self.checker.check_subtype(t1, t2).map_err(|e| format!("{} ({})", e, reason))
+                self.checker.check_subtype(t1, t2).map_err(|e| format!("{e} ({reason})"))
             }
         }
     }

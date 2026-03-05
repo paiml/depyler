@@ -88,22 +88,22 @@ pub struct TomlItemMapping {
     /// Transform pattern type
     #[serde(default)]
     pub pattern: TomlPattern,
-    /// Extra args for MethodCall
+    /// Extra args for `MethodCall`
     #[serde(default)]
     pub extra_args: Vec<String>,
     /// Method name for Constructor
     #[serde(default)]
     pub method: Option<String>,
-    /// Indices for ReorderArgs
+    /// Indices for `ReorderArgs`
     #[serde(default)]
     pub indices: Vec<usize>,
-    /// Pattern string for TypedTemplate
+    /// Pattern string for `TypedTemplate`
     #[serde(default)]
     pub pattern_str: Option<String>,
-    /// Params for TypedTemplate
+    /// Params for `TypedTemplate`
     #[serde(default)]
     pub params: Vec<String>,
-    /// Param types for TypedTemplate
+    /// Param types for `TypedTemplate`
     #[serde(default)]
     pub param_types: Vec<String>,
     /// Type transform
@@ -162,13 +162,13 @@ impl TomlPlugin {
     /// Load plugin from file path
     pub fn from_file(path: &Path) -> Result<Self, TomlParseError> {
         let content = std::fs::read_to_string(path).map_err(|e| TomlParseError {
-            message: format!("Failed to read file: {}", e),
+            message: format!("Failed to read file: {e}"),
             line: None,
         })?;
         Self::parse(&content)
     }
 
-    /// Convert TOML mapping to LibraryMapping
+    /// Convert TOML mapping to `LibraryMapping`
     fn convert_mapping(toml_mapping: &TomlLibraryMapping) -> LibraryMapping {
         let items = toml_mapping
             .items
@@ -225,7 +225,7 @@ impl TomlPlugin {
         ItemMapping { rust_name: toml_item.rust_name.clone(), pattern, type_transform }
     }
 
-    /// Parse ParamType from string
+    /// Parse `ParamType` from string
     fn parse_param_type(s: &str) -> ParamType {
         match s.to_lowercase().as_str() {
             "expr" => ParamType::Expr,

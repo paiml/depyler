@@ -37,7 +37,7 @@ pub struct YieldAnalysis {
     pub yield_points: Vec<YieldPoint>,
     /// Variables that need to be in state struct (modified between yields)
     pub state_variables: Vec<String>,
-    /// Map from state_id to the next statement after the yield
+    /// Map from `state_id` to the next statement after the yield
     pub resume_points: HashMap<usize, usize>,
 }
 

@@ -1,3 +1,10 @@
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::match_wildcard_for_single_variants)]
+#![allow(clippy::trivially_copy_pass_by_ref)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unused_self)]
+
 pub mod complexity;
 pub mod metrics;
 pub mod type_flow;
@@ -102,7 +109,7 @@ impl Analyzer {
         let total_lines: usize = functions.iter().map(|f| f.lines_of_code).sum();
 
         let avg_cyclomatic = if total_functions > 0 {
-            functions.iter().map(|f| f.cyclomatic_complexity as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(f.cyclomatic_complexity)).sum::<f64>()
                 / total_functions as f64
         } else {
             0.0
@@ -111,7 +118,7 @@ impl Analyzer {
         let max_cyclomatic = functions.iter().map(|f| f.cyclomatic_complexity).max().unwrap_or(0);
 
         let avg_cognitive = if total_functions > 0 {
-            functions.iter().map(|f| f.cognitive_complexity as f64).sum::<f64>()
+            functions.iter().map(|f| f64::from(f.cognitive_complexity)).sum::<f64>()
                 / total_functions as f64
         } else {
             0.0

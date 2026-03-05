@@ -95,17 +95,17 @@ impl LifetimeAnalyzer {
     fn analyze_stmt(&mut self, stmt: &HirStmt, scope_depth: usize) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
-                self.analyze_assign_stmt(target, value, scope_depth)
+                self.analyze_assign_stmt(target, value, scope_depth);
             }
             HirStmt::Return(Some(expr)) => self.analyze_return_stmt(expr, scope_depth),
             HirStmt::If { condition, then_body, else_body } => {
-                self.analyze_if_stmt(condition, then_body, else_body, scope_depth)
+                self.analyze_if_stmt(condition, then_body, else_body, scope_depth);
             }
             HirStmt::While { condition, body } => {
-                self.analyze_while_stmt(condition, body, scope_depth)
+                self.analyze_while_stmt(condition, body, scope_depth);
             }
             HirStmt::For { target, iter, body } => {
-                self.analyze_for_stmt(target, iter, body, scope_depth)
+                self.analyze_for_stmt(target, iter, body, scope_depth);
             }
             _ => {}
         }
@@ -119,7 +119,7 @@ impl LifetimeAnalyzer {
                 self.violations.push(LifetimeViolation {
                     kind: ViolationKind::UseAfterMove,
                     variable: var_name.clone(),
-                    location: format!("assignment to {}", var_name),
+                    location: format!("assignment to {var_name}"),
                     suggestion: "Consider borrowing instead of moving".to_string(),
                 });
             }
@@ -198,15 +198,15 @@ impl LifetimeAnalyzer {
         match expr {
             HirExpr::Var(name) => self.check_var_borrow(name),
             HirExpr::Borrow { expr, mutable } => {
-                self.check_borrow_expr(expr, *mutable, scope_depth)
+                self.check_borrow_expr(expr, *mutable, scope_depth);
             }
             HirExpr::Binary { left, right, .. } => {
-                self.analyze_binary_expr(left, right, scope_depth)
+                self.analyze_binary_expr(left, right, scope_depth);
             }
             HirExpr::Call { func, args, .. } => self.analyze_call_expr(func, args, scope_depth),
             HirExpr::Index { base, index } => self.analyze_index_expr(base, index, scope_depth),
             HirExpr::MethodCall { object, method, args, .. } => {
-                self.analyze_method_call_expr(object, method, args, scope_depth)
+                self.analyze_method_call_expr(object, method, args, scope_depth);
             }
             HirExpr::Attribute { value, .. } => self.analyze_expr(value, scope_depth),
             _ => {}
@@ -232,15 +232,15 @@ impl LifetimeAnalyzer {
         if let HirExpr::Var(name) = expr {
             let borrow_kind = if mutable { BorrowKind::Mutable } else { BorrowKind::Shared };
 
-            if !self.can_borrow(name, &borrow_kind) {
+            if self.can_borrow(name, &borrow_kind) {
+                self.add_borrow(name, borrow_kind);
+            } else {
                 self.violations.push(LifetimeViolation {
                     kind: ViolationKind::ConflictingBorrows,
                     variable: name.clone(),
                     location: "borrow expression".to_string(),
                     suggestion: "Variable is already borrowed".to_string(),
                 });
-            } else {
-                self.add_borrow(name, borrow_kind);
             }
         }
         self.analyze_expr(expr, scope_depth);
@@ -272,7 +272,7 @@ impl LifetimeAnalyzer {
                 self.violations.push(LifetimeViolation {
                     kind: ViolationKind::ConflictingBorrows,
                     variable: obj.clone(),
-                    location: format!("method call: {}", func),
+                    location: format!("method call: {func}"),
                     suggestion: "Cannot mutate while borrowed".to_string(),
                 });
             }
@@ -310,7 +310,7 @@ impl LifetimeAnalyzer {
                     self.violations.push(LifetimeViolation {
                         kind: ViolationKind::ConflictingBorrows,
                         variable: name.clone(),
-                        location: format!("method call: {}", method),
+                        location: format!("method call: {method}"),
                         suggestion: "Cannot call mutable method while borrowed".to_string(),
                     });
                 }
@@ -351,7 +351,7 @@ impl LifetimeAnalyzer {
         self.lifetime_constraints.insert(
             name.to_string(),
             LifetimeConstraint {
-                lifetime: Lifetime { name: format!("'{}", name), scope_depth },
+                lifetime: Lifetime { name: format!("'{name}"), scope_depth },
                 must_outlive: Vec::new(),
                 valid_scopes: vec![scope_depth],
             },

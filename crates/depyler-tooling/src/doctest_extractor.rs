@@ -86,7 +86,7 @@ pub struct DoctestExtractor {
 }
 
 impl DoctestExtractor {
-    /// Creates a new DoctestExtractor with default settings
+    /// Creates a new `DoctestExtractor` with default settings
     pub fn new() -> Self {
         Self { include_module_doctests: true, include_class_methods: true }
     }
@@ -125,19 +125,7 @@ impl DoctestExtractor {
             }
 
             // Track docstring boundaries
-            if !in_docstring {
-                if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
-                    in_docstring = true;
-                    docstring_delim =
-                        Some(if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" });
-                    // Check if docstring ends on same line
-                    let rest = &trimmed[3..];
-                    if rest.contains(docstring_delim.unwrap()) {
-                        in_docstring = false;
-                        docstring_delim = None;
-                    }
-                }
-            } else {
+            if in_docstring {
                 // Inside docstring - look for >>> lines
                 if trimmed.starts_with(">>>") {
                     let (doctest, consumed) =
@@ -151,6 +139,18 @@ impl DoctestExtractor {
                 // Check for docstring end
                 if let Some(delim) = docstring_delim {
                     if trimmed.ends_with(delim) && trimmed.len() >= 3 {
+                        in_docstring = false;
+                        docstring_delim = None;
+                    }
+                }
+            } else {
+                if trimmed.starts_with("\"\"\"") || trimmed.starts_with("'''") {
+                    in_docstring = true;
+                    docstring_delim =
+                        Some(if trimmed.starts_with("\"\"\"") { "\"\"\"" } else { "'''" });
+                    // Check if docstring ends on same line
+                    let rest = &trimmed[3..];
+                    if rest.contains(docstring_delim.unwrap()) {
                         in_docstring = false;
                         docstring_delim = None;
                     }
@@ -180,7 +180,7 @@ impl DoctestExtractor {
     ) -> Result<(Option<Doctest>, usize)> {
         let first_line = lines
             .get(start_line)
-            .ok_or_else(|| anyhow::anyhow!("Invalid line index: {}", start_line))?;
+            .ok_or_else(|| anyhow::anyhow!("Invalid line index: {start_line}"))?;
 
         let trimmed = first_line.trim();
         if !trimmed.starts_with(">>>") {

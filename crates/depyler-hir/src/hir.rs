@@ -84,7 +84,7 @@ pub struct HirModule {
     pub constants: Vec<HirConstant>,
     /// DEPYLER-1216: Top-level statements for script-style Python files.
     /// These are non-declarative statements (expressions, loops, etc.) that
-    /// appear at module scope and should be wrapped into a synthetic main().
+    /// appear at module scope and should be wrapped into a synthetic `main()`.
     #[serde(default)]
     pub top_level_stmts: Vec<HirStmt>,
 }
@@ -412,7 +412,7 @@ pub enum HirExpr {
         func: Symbol,
         args: Vec<HirExpr>,
         /// DEPYLER-0364: Keyword arguments preserved from Python AST
-        /// Format: Vec<(arg_name, value_expr)>
+        /// Format: Vec<(`arg_name`, `value_expr`)>
         /// Empty for calls without kwargs
         kwargs: Vec<(Symbol, HirExpr)>,
     },
@@ -421,7 +421,7 @@ pub enum HirExpr {
         method: Symbol,
         args: Vec<HirExpr>,
         /// DEPYLER-0364: Keyword arguments preserved from Python AST
-        /// Format: Vec<(arg_name, value_expr)>
+        /// Format: Vec<(`arg_name`, `value_expr`)>
         /// Empty for calls without kwargs
         kwargs: Vec<(Symbol, HirExpr)>,
     },
@@ -598,7 +598,7 @@ pub enum ConstGeneric {
 /// Tracks whether code is executing inside a try/except block to determine
 /// appropriate error handling strategy:
 /// - Unhandled: Exceptions propagate to caller (use ? operator or Result return)
-/// - TryCaught: Exceptions are caught by handlers (use .unwrap_or() or control flow)
+/// - `TryCaught`: Exceptions are caught by handlers (use .`unwrap_or()` or control flow)
 /// - Handler: Inside except/finally block (exceptions may propagate)
 ///
 /// # Complexity
@@ -611,9 +611,9 @@ pub enum ExceptionScope {
 
     /// Code inside try block - exceptions are caught by handlers
     /// Contains list of exception types that are handled
-    /// e.g., `try: ... except ValueError: ...` → TryCaught { handled_types: ["ValueError"] }
+    /// e.g., `try: ... except ValueError: ...` → `TryCaught` { `handled_types`: ["`ValueError`"] }
     TryCaught {
-        /// Exception types caught by handlers (e.g., ["ValueError", "ZeroDivisionError"])
+        /// Exception types caught by handlers (e.g., ["`ValueError`", "`ZeroDivisionError`"])
         /// Empty list means bare except clause (catches all)
         handled_types: Vec<String>,
     },
@@ -698,7 +698,7 @@ impl Type {
             Type::Int | Type::Float | Type::Bool | Type::None => true,
 
             // Tuples are Copy if all elements are Copy
-            Type::Tuple(elems) => elems.iter().all(|t| t.is_copy()),
+            Type::Tuple(elems) => elems.iter().all(Type::is_copy),
 
             // String, collections are NOT Copy
             Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => false,
@@ -710,7 +710,7 @@ impl Type {
             Type::Array { element_type, .. } => element_type.is_copy(),
 
             // Union types are Copy only if ALL variants are Copy
-            Type::Union(types) => types.iter().all(|t| t.is_copy()),
+            Type::Union(types) => types.iter().all(Type::is_copy),
 
             // Custom types - assume not Copy unless we know otherwise
             Type::Custom(_) => false,

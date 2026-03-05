@@ -78,7 +78,7 @@ impl Optimizer {
         program
     }
 
-    /// DEPYLER-0188: Hoist walrus operator (NamedExpr) assignments to separate statements
+    /// DEPYLER-0188: Hoist walrus operator (`NamedExpr`) assignments to separate statements
     ///
     /// Transforms: if (n := len(text)) > 5: return n
     /// Into:       n = len(text); if n > 5: return n
@@ -187,14 +187,14 @@ impl Optimizer {
         new_body
     }
 
-    /// Extract NamedExpr from an expression, returning hoisted assignments and simplified expr
+    /// Extract `NamedExpr` from an expression, returning hoisted assignments and simplified expr
     fn extract_walrus_from_expr(&self, expr: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {
         let mut assigns = Vec::new();
         let simplified = self.extract_walrus_recursive(expr, &mut assigns);
         (assigns, simplified)
     }
 
-    /// Recursively extract NamedExpr from expression tree
+    /// Recursively extract `NamedExpr` from expression tree
     fn extract_walrus_recursive(
         &self,
         expr: &HirExpr,
@@ -697,7 +697,7 @@ impl Optimizer {
 
     /// DEPYLER-0270 Fix #1 (Updated): Collect truly used variables (referenced, not just assigned)
     /// This version does NOT mark side-effect assignments as used - that's handled separately
-    /// in eliminate_dead_code_function which preserves side-effect assignments.
+    /// in `eliminate_dead_code_function` which preserves side-effect assignments.
     fn collect_truly_used_vars_stmt(&self, stmt: &HirStmt, used: &mut HashMap<String, bool>) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
@@ -1018,7 +1018,7 @@ impl Optimizer {
                         (HirExpr::Var(var_name.clone()), extra_stmts)
                     } else {
                         // Create new temporary
-                        let temp_name = format!("_cse_temp_{}", temp_counter);
+                        let temp_name = format!("_cse_temp_{temp_counter}");
                         *temp_counter += 1;
 
                         extra_stmts.push(HirStmt::Assign {
@@ -1051,7 +1051,7 @@ impl Optimizer {
                 if let Some((_, var_name)) = cse_map.get(&hash) {
                     (HirExpr::Var(var_name.clone()), extra_stmts)
                 } else {
-                    let temp_name = format!("_cse_temp_{}", temp_counter);
+                    let temp_name = format!("_cse_temp_{temp_counter}");
                     *temp_counter += 1;
 
                     extra_stmts.push(HirStmt::Assign {
@@ -1138,7 +1138,7 @@ fn hash_expr_recursive_inner<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
         }
         HirExpr::Binary { op, left, right } => {
             "binary".hash(hasher);
-            format!("{:?}", op).hash(hasher);
+            format!("{op:?}").hash(hasher);
             hash_expr_recursive_inner(left, hasher);
             hash_expr_recursive_inner(right, hasher);
         }

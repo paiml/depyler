@@ -1,7 +1,7 @@
 //! Pure analysis functions for report command - extracted for EXTREME TDD
 //!
 //! This module contains pure, side-effect-free functions that can be
-//! thoroughly tested with unit tests. The main report_cmd/mod.rs becomes
+//! thoroughly tested with unit tests. The main `report_cmd/mod.rs` becomes
 //! a thin shim that calls these functions.
 //!
 //! DEPYLER-COVERAGE-95: Extracted for testability
@@ -485,9 +485,7 @@ pub fn extract_transpile_message(stderr: &str) -> String {
     if let Some(caused_by) = stderr.find("Caused by:") {
         let rest = &stderr[caused_by + 10..];
         rest.lines()
-            .find(|l| !l.trim().is_empty())
-            .map(|l| l.trim().to_string())
-            .unwrap_or_else(|| "Unknown transpiler error".to_string())
+            .find(|l| !l.trim().is_empty()).map_or_else(|| "Unknown transpiler error".to_string(), |l| l.trim().to_string())
     } else if let Some(unsupported) = stderr.find("Unsupported") {
         stderr[unsupported..].lines().next().unwrap_or("Unsupported syntax").to_string()
     } else if let Some(not_supported) = stderr.find("not yet supported") {
@@ -503,7 +501,7 @@ pub fn extract_transpile_message(stderr: &str) -> String {
 
 /// Analyze compilation results and build error taxonomy
 ///
-/// Returns (pass_count, fail_count, error_taxonomy)
+/// Returns (`pass_count`, `fail_count`, `error_taxonomy`)
 pub fn analyze_results(results: &[AnalysisResult]) -> (usize, usize, HashMap<String, ErrorEntry>) {
     let mut taxonomy: HashMap<String, ErrorEntry> = HashMap::new();
     let mut pass = 0;
@@ -648,7 +646,7 @@ pub fn sort_by_count(taxonomy: &HashMap<String, ErrorEntry>) -> Vec<(String, Err
 }
 
 /// Build co-occurrence map from results
-/// Maps (error_code_1, error_code_2) -> count
+/// Maps (`error_code_1`, `error_code_2`) -> count
 pub fn build_co_occurrence_map(results: &[AnalysisResult]) -> HashMap<(String, String), usize> {
     let mut map: HashMap<(String, String), usize> = HashMap::new();
 

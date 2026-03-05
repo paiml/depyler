@@ -14,8 +14,8 @@
 //!           (immediate wins)     (permanent fixes)
 //! ```
 //!
-//! The GeneratedRustFixer modifies the transpiled .rs files directly.
-//! The TranspilerPatcher (future) modifies depyler-core source.
+//! The `GeneratedRustFixer` modifies the transpiled .rs files directly.
+//! The `TranspilerPatcher` (future) modifies depyler-core source.
 
 use super::classifier::ErrorClassification;
 use super::clusterer::SuggestedFix;
@@ -198,8 +198,8 @@ impl GeneratedRustFixer {
                             let line_idx = error.line - 1;
                             let old_line = lines[line_idx];
                             // This is a placeholder - real impl needs context
-                            let new_line = format!("{}{}", old_line, repl);
-                            let mut result = lines.to_vec();
+                            let new_line = format!("{old_line}{repl}");
+                            let mut result = lines.clone();
                             result[line_idx] = &new_line;
                             Some(result.join("\n"))
                         } else {
@@ -274,14 +274,14 @@ impl FixApplicator for GeneratedRustFixer {
 // Transform Functions
 // ============================================================================
 
-/// Add .into() for type conversion
+/// Add .`into()` for type conversion
 fn add_into_conversion(source: &str, _caps: &regex::Captures) -> String {
     // This is a placeholder - real implementation needs more context
     // about where to insert .into()
     source.to_string()
 }
 
-/// Fix .keys() on serde_json::Value
+/// Fix .`keys()` on `serde_json::Value`
 fn fix_value_keys(source: &str, _caps: &regex::Captures) -> String {
     // Replace .keys() with .as_object().map(|o| o.keys()).unwrap_or_default()
     source.replace(
@@ -290,7 +290,7 @@ fn fix_value_keys(source: &str, _caps: &regex::Captures) -> String {
     )
 }
 
-/// Fix .items() on serde_json::Value
+/// Fix .`items()` on `serde_json::Value`
 fn fix_value_items(source: &str, _caps: &regex::Captures) -> String {
     // Replace .items() with .as_object().map(|o| o.iter()).unwrap_or_default()
     source.replace(
@@ -299,7 +299,7 @@ fn fix_value_items(source: &str, _caps: &regex::Captures) -> String {
     )
 }
 
-/// Pre-compute is_some() before value is moved
+/// Pre-compute `is_some()` before value is moved
 fn fix_precompute_is_some(source: &str, _caps: &regex::Captures) -> String {
     // This needs more sophisticated analysis to:
     // 1. Find the variable being moved
@@ -387,7 +387,7 @@ impl CompositeFixApplicator {
                                 results.push(FixApplicationResult {
                                     applied: false,
                                     modified_source: None,
-                                    description: format!("Error applying fix: {}", e),
+                                    description: format!("Error applying fix: {e}"),
                                     confidence: 0.0,
                                     fix_type: FixType::None,
                                 });

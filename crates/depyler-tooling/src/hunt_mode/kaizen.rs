@@ -118,7 +118,7 @@ impl KaizenMetrics {
 
         let first = self.rate_history.first().unwrap_or(&0.0);
         let last = self.rate_history.last().unwrap_or(&0.0);
-        (last - first) / self.total_cycles as f64
+        (last - first) / f64::from(self.total_cycles)
     }
 
     /// Estimate cycles needed to reach target rate
@@ -180,7 +180,7 @@ impl std::fmt::Display for TrendIndicator {
             TrendIndicator::Stable => "→",
             TrendIndicator::Regressing => "↓",
         };
-        write!(f, "{}", symbol)
+        write!(f, "{symbol}")
     }
 }
 

@@ -1,3 +1,15 @@
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::disallowed_methods)]
+#![allow(clippy::float_cmp)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::unwrap_used)]
+
 //! Depyler Corpus Analysis
 //!
 //! Deterministic scientific corpus analysis for measuring Python-to-Rust

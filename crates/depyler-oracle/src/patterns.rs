@@ -247,7 +247,7 @@ impl FixTemplateRegistry {
     /// Total template count.
     #[must_use]
     pub fn template_count(&self) -> usize {
-        self.templates.values().map(|v| v.len()).sum()
+        self.templates.values().map(std::vec::Vec::len).sum()
     }
 }
 
@@ -302,7 +302,7 @@ fn register_type_mismatch_templates(registry: &mut FixTemplateRegistry) {
             .with_transform(CodeTransform::new(
                 "Convert &str to String",
                 r#"(".*")"#,
-                r#"$1.to_string()"#,
+                r"$1.to_string()",
                 r#"let s: String = "hello";"#,
                 r#"let s: String = "hello".to_string();"#,
             ))

@@ -1,3 +1,14 @@
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::disallowed_methods)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::ref_option)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::self_only_used_in_recursion)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unused_self)]
+
 pub mod contract_verification;
 pub mod contracts;
 pub mod lifetime_analysis;

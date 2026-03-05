@@ -145,7 +145,7 @@ impl AndonVerifier {
                     return Ok(VerifyResult::NeedsReview {
                         fix: fix.clone(),
                         confidence: fix.confidence * 0.8, // Reduce confidence
-                        reason: format!("Property test failed: {}", prop_failure),
+                        reason: format!("Property test failed: {prop_failure}"),
                     });
                 }
 
@@ -237,7 +237,7 @@ impl AndonVerifier {
         if self.total_verified == 0 {
             return 0.0;
         }
-        self.successful_verifications as f64 / self.total_verified as f64
+        f64::from(self.successful_verifications) / f64::from(self.total_verified)
     }
 
     /// Commit a verified fix

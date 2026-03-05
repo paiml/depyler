@@ -251,7 +251,7 @@ impl PreconditionChecker {
             };
 
             Some(PreconditionRule {
-                name: format!("{}_constraint", var),
+                name: format!("{var}_constraint"),
                 predicate,
                 params: vec![var],
                 description: annotation.to_string(),
@@ -325,19 +325,18 @@ impl PreconditionChecker {
         match param_type {
             Type::List(_) | Type::Dict(_, _) => {
                 // Lists and dicts should not be null in safe code
-                if !self.has_null_check(param_name) {
+                if self.has_null_check(param_name) {
+                    None
+                } else {
                     Some(ContractViolation {
                         kind: ViolationKind::PreconditionFailed,
-                        condition: format!("{} is not None", param_name),
-                        location: format!("parameter '{}'", param_name),
+                        condition: format!("{param_name} is not None"),
+                        location: format!("parameter '{param_name}'"),
                         counterexample: None,
                         suggestion: format!(
-                            "Add null check: if {} is None: raise ValueError",
-                            param_name
+                            "Add null check: if {param_name} is None: raise ValueError"
                         ),
                     })
-                } else {
-                    None
                 }
             }
             _ => None,
@@ -373,13 +372,13 @@ impl PreconditionChecker {
     fn suggest_fix(&self, predicate: &Predicate) -> String {
         match predicate {
             Predicate::NotNull(var) => {
-                format!("Add null check at function start: if {} is None: raise ValueError('{}cannot be None')", var, var)
+                format!("Add null check at function start: if {var} is None: raise ValueError('{var}cannot be None')")
             }
             Predicate::Compare { var, op, value } => {
-                format!("Add validation: if not ({} {:?} {:?}): raise ValueError", var, op, value)
+                format!("Add validation: if not ({var} {op:?} {value:?}): raise ValueError")
             }
             Predicate::InBounds { array, index } => {
-                format!("Add bounds check: if {} >= len({}): raise IndexError", index, array)
+                format!("Add bounds check: if {index} >= len({array}): raise IndexError")
             }
             _ => "Add appropriate validation for this condition".to_string(),
         }
@@ -406,7 +405,7 @@ impl PreconditionChecker {
     #[allow(clippy::only_used_in_recursion)]
     fn predicate_to_assertion(&self, predicate: &Predicate) -> String {
         match predicate {
-            Predicate::NotNull(var) => format!("!{}.is_none()", var),
+            Predicate::NotNull(var) => format!("!{var}.is_none()"),
             Predicate::Compare { var, op, value } => {
                 let op_str = match op {
                     CompareOp::Eq => "==",
@@ -435,7 +434,7 @@ impl PreconditionChecker {
             }
             Predicate::Not(p) => format!("!({})", self.predicate_to_assertion(p)),
             Predicate::InBounds { array, index } => {
-                format!("{} < {}.len()", index, array)
+                format!("{index} < {array}.len()")
             }
             _ => "true".to_string(),
         }
@@ -688,12 +687,12 @@ impl ContractInheritance {
         let base_contract = self
             .base_contracts
             .get(base)
-            .ok_or_else(|| format!("Base contract '{}' not found", base))?;
+            .ok_or_else(|| format!("Base contract '{base}' not found"))?;
 
         let derived_contract = self
             .base_contracts
             .get(derived)
-            .ok_or_else(|| format!("Derived contract '{}' not found", derived))?;
+            .ok_or_else(|| format!("Derived contract '{derived}' not found"))?;
 
         // Check preconditions are not strengthened
         for base_pre in &base_contract.preconditions {
@@ -735,12 +734,12 @@ impl ContractInheritance {
         }
 
         // Check for >= being weaker than >
-        if pred1.contains(">=") && pred2.contains(">") && !pred2.contains("=") {
+        if pred1.contains(">=") && pred2.contains('>') && !pred2.contains('=') {
             return true;
         }
 
         // Check for <= being weaker than <
-        if pred1.contains("<=") && pred2.contains("<") && !pred2.contains("=") {
+        if pred1.contains("<=") && pred2.contains('<') && !pred2.contains('=') {
             return true;
         }
 
@@ -750,7 +749,7 @@ impl ContractInheritance {
     /// Check if one predicate is stronger than another
     fn is_stronger_than(&self, pred1: &str, pred2: &str) -> bool {
         // Simplified - would use SMT solver in real implementation
-        pred1 == pred2 || pred1.contains("<") && pred2.contains("<")
+        pred1 == pred2 || pred1.contains('<') && pred2.contains('<')
     }
 }
 
@@ -800,7 +799,7 @@ fn value_to_rust(value: &Value) -> String {
     match value {
         Value::Int(n) => n.to_string(),
         Value::Float(f) => f.to_string(),
-        Value::String(s) => format!("\"{}\"", s),
+        Value::String(s) => format!("\"{s}\""),
         Value::Bool(b) => b.to_string(),
         Value::Var(v) => v.clone(),
         Value::Null => "None".to_string(),

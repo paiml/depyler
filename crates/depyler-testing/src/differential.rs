@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// - Python output (stdout/stderr/exit code) vs Rust output
 /// - Deterministic 100% accuracy (vs ML-based regression detection)
 ///
-/// Based on McKeeman (1998) "Differential Testing for Software"
+/// Based on `McKeeman` (1998) "Differential Testing for Software"
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -68,7 +68,7 @@ impl DifferentialTester {
             } else {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    format!("depyler executable not found at {:?}", depyler_path),
+                    format!("depyler executable not found at {depyler_path:?}"),
                 ))
             }
         })?;
@@ -250,7 +250,7 @@ impl DifferentialTester {
     fn normalize_output(&self, output: &str) -> String {
         output
             .lines()
-            .map(|line| line.trim())
+            .map(str::trim)
             .filter(|line| !line.is_empty())
             .collect::<Vec<_>>()
             .join("\n")
@@ -323,7 +323,7 @@ impl ReprorustedTestSuite {
                     results.insert(name.to_string(), result);
                 }
                 Err(e) => {
-                    eprintln!("Failed to test {}: {}", name, e);
+                    eprintln!("Failed to test {name}: {e}");
                 }
             }
         }
@@ -337,7 +337,7 @@ impl ReprorustedTestSuite {
         let total_count = results.len();
 
         let mut html = format!(
-            r#"<!DOCTYPE html>
+            r"<!DOCTYPE html>
 <html>
 <head>
     <title>Depyler Differential Testing Report</title>
@@ -352,7 +352,7 @@ impl ReprorustedTestSuite {
     <h1>Depyler Differential Testing Report</h1>
     <p>Pass Rate: {}/{} ({:.1}%)</p>
     <hr>
-"#,
+",
             pass_count,
             total_count,
             (pass_count as f64 / total_count as f64) * 100.0
@@ -375,12 +375,11 @@ impl ReprorustedTestSuite {
                 for mismatch in &result.mismatches {
                     match mismatch {
                         Mismatch::StdoutDifference { diff, .. } => {
-                            html.push_str(&format!("<pre>{}</pre>", diff));
+                            html.push_str(&format!("<pre>{diff}</pre>"));
                         }
                         Mismatch::ExitCodeDifference { python, rust } => {
                             html.push_str(&format!(
-                                "<p>Exit code: Python={}, Rust={}</p>",
-                                python, rust
+                                "<p>Exit code: Python={python}, Rust={rust}</p>"
                             ));
                         }
                         _ => {}

@@ -16,11 +16,11 @@ pub struct ModuleMapper {
 /// DEPYLER-0493: Constructor pattern for Rust types
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstructorPattern {
-    /// Call as ::new() - most common pattern (BufReader, NamedTempFile, etc.)
+    /// Call as `::new()` - most common pattern (`BufReader`, `NamedTempFile`, etc.)
     New,
-    /// Call as regular function - not a struct (e.g., tempfile::tempfile())
+    /// Call as regular function - not a struct (e.g., `tempfile::tempfile()`)
     Function,
-    /// Custom method call (e.g., File::open(), Regex::compile())
+    /// Custom method call (e.g., <File::open()>, `Regex::compile()`)
     Method(String),
 }
 
@@ -222,17 +222,17 @@ impl ModuleMapper {
         module_map.insert(
             "typing".to_string(),
             ModuleMapping {
-                rust_path: "".to_string(), // No direct mapping, handled by type system
+                rust_path: String::new(), // No direct mapping, handled by type system
                 is_external: false,
                 version: None,
                 item_map: HashMap::from([
                     ("List".to_string(), "Vec".to_string()),
                     ("Dict".to_string(), "HashMap".to_string()),
                     ("Set".to_string(), "HashSet".to_string()),
-                    ("Tuple".to_string(), "".to_string()), // Tuples are built-in
+                    ("Tuple".to_string(), String::new()), // Tuples are built-in
                     ("Optional".to_string(), "Option".to_string()),
-                    ("Union".to_string(), "".to_string()), // Handled specially
-                    ("Any".to_string(), "".to_string()),   // No direct mapping
+                    ("Union".to_string(), String::new()), // Handled specially
+                    ("Any".to_string(), String::new()),   // No direct mapping
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -342,10 +342,10 @@ impl ModuleMapper {
                 is_external: false,
                 version: None,
                 item_map: HashMap::from([
-                    ("reduce".to_string(), "".to_string()), // fold is a method on Iterator, no import needed
-                    ("partial".to_string(), "".to_string()), // Closures in Rust
-                    ("lru_cache".to_string(), "".to_string()), // Would need external crate
-                    ("wraps".to_string(), "".to_string()),  // Not applicable in Rust
+                    ("reduce".to_string(), String::new()), // fold is a method on Iterator, no import needed
+                    ("partial".to_string(), String::new()), // Closures in Rust
+                    ("lru_cache".to_string(), String::new()), // Would need external crate
+                    ("wraps".to_string(), String::new()),  // Not applicable in Rust
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -1027,12 +1027,12 @@ impl ModuleMapper {
         module_map.insert(
             "unittest".to_string(),
             ModuleMapping {
-                rust_path: "".to_string(), // Uses #[test] attribute
+                rust_path: String::new(), // Uses #[test] attribute
                 is_external: false,
                 version: None,
                 item_map: HashMap::from([
                     // TestCase is handled via #[test] attribute
-                    ("TestCase".to_string(), "".to_string()),
+                    ("TestCase".to_string(), String::new()),
                     // Assertions map to assert! macros
                     ("assertEqual".to_string(), "assert_eq!".to_string()),
                     ("assertNotEqual".to_string(), "assert_ne!".to_string()),
@@ -1043,7 +1043,7 @@ impl ModuleMapper {
                     ("assertIn".to_string(), "assert!".to_string()),
                     ("assertNotIn".to_string(), "assert!".to_string()),
                     ("assertRaises".to_string(), "assert!".to_string()),
-                    ("main".to_string(), "".to_string()), // No-op, tests run via cargo test
+                    ("main".to_string(), String::new()), // No-op, tests run via cargo test
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -1073,15 +1073,15 @@ impl ModuleMapper {
         module_map.insert(
             "contextlib".to_string(),
             ModuleMapping {
-                rust_path: "".to_string(), // Handled via Drop trait
+                rust_path: String::new(), // Handled via Drop trait
                 is_external: false,
                 version: None,
                 item_map: HashMap::from([
                     // These are largely handled by Rust's RAII pattern
-                    ("contextmanager".to_string(), "".to_string()),
-                    ("closing".to_string(), "".to_string()),
-                    ("suppress".to_string(), "".to_string()),
-                    ("nullcontext".to_string(), "".to_string()),
+                    ("contextmanager".to_string(), String::new()),
+                    ("closing".to_string(), String::new()),
+                    ("suppress".to_string(), String::new()),
+                    ("nullcontext".to_string(), String::new()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -1116,7 +1116,14 @@ impl ModuleMapper {
             if import.items.is_empty() {
                 // DEPYLER-0363: For mapped modules, emit the Rust equivalent
                 // For argparse, this means `use clap::Parser;`
-                if !mapping.rust_path.is_empty() {
+                if mapping.rust_path.is_empty() {
+                    // Empty rust_path means no direct mapping (like typing module)
+                    rust_imports.push(RustImport {
+                        path: format!("// Python import: {} (no Rust equivalent)", import.module),
+                        alias: None,
+                        is_external: false,
+                    });
+                } else {
                     // For external crates like argparse->clap, import the main trait/type
                     if import.module == "argparse" {
                         // ArgumentParser needs the Parser derive trait
@@ -1133,13 +1140,6 @@ impl ModuleMapper {
                             is_external: mapping.is_external,
                         });
                     }
-                } else {
-                    // Empty rust_path means no direct mapping (like typing module)
-                    rust_imports.push(RustImport {
-                        path: format!("// Python import: {} (no Rust equivalent)", import.module),
-                        alias: None,
-                        is_external: false,
-                    });
                 }
             } else {
                 // Handle each imported item

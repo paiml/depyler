@@ -1,3 +1,30 @@
+#![allow(clippy::assigning_clones)]
+#![allow(clippy::case_sensitive_file_extension_comparisons)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::disallowed_methods)]
+#![allow(clippy::fn_params_excessive_bools)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::implicit_hasher)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::manual_let_else)]
+#![allow(clippy::map_unwrap_or)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::struct_field_names)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::unused_async)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::unwrap_used)]
+
 //! # Depyler - Python to Rust Transpiler
 //!
 //! Minimal CLI focused on transpilation and single-shot compilation.
@@ -161,7 +188,7 @@ pub enum Commands {
         #[arg(long)]
         corpus: PathBuf,
 
-        /// Output model path (default: ~/.depyler/oracle_user.bin)
+        /// Output model path (default: ~/.`depyler/oracle_user.bin`)
         #[arg(short, long)]
         output: Option<PathBuf>,
 
@@ -435,7 +462,7 @@ pub fn transpile_command(
                 Some(input.display().to_string()),
                 Some(&python_source),
             );
-            eprintln!("{}", diagnostic);
+            eprintln!("{diagnostic}");
             anyhow::bail!("transpilation failed");
         }
     };
@@ -510,7 +537,7 @@ pub fn analyze_command(input: PathBuf, format: String) -> Result<()> {
 
     match format.as_str() {
         "json" => println!("{}", serde_json::to_string_pretty(&report)?),
-        _ => println!("{:#?}", report),
+        _ => println!("{report:#?}"),
     }
 
     Ok(())
@@ -531,7 +558,7 @@ pub fn check_command(input: PathBuf) -> Result<()> {
                 Some(input.display().to_string()),
                 Some(&python_source),
             );
-            eprintln!("{}", diagnostic);
+            eprintln!("{diagnostic}");
             anyhow::bail!("check failed")
         }
     }
@@ -555,7 +582,7 @@ pub fn repair_command(
 
     if verbose {
         println!("{} Starting type repair for {}", "🔧".green(), input.display());
-        println!("   Max iterations: {}", max_iterations);
+        println!("   Max iterations: {max_iterations}");
     }
 
     let result = repair_file_types(&input, max_iterations)?;
@@ -600,8 +627,7 @@ pub fn repair_command(
         println!("   Final compile rate: {:.1}%", result.final_rate * 100.0);
 
         anyhow::bail!(
-            "Type repair failed after {} iterations. Consider manual fixes.",
-            max_iterations
+            "Type repair failed after {max_iterations} iterations. Consider manual fixes."
         )
     }
 }

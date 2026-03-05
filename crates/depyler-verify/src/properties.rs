@@ -184,7 +184,7 @@ fn generate_termination_test(func: &HirFunction) -> Result<String> {
             Type::List(_) => "&vec![1, 2, 3]",
             _ => "Default::default()",
         })
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     test.push_str(&args.join(", "));
     test.push_str(");\n");

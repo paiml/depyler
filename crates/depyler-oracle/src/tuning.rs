@@ -80,10 +80,10 @@ fn weight_error_codes(message: &str, weight: f32) -> String {
     // Extract error code if present
     if let Some(code_start) = message.find("error[E") {
         if let Some(code_end) = message[code_start..].find(']') {
-            let code = &message[code_start..code_start + code_end + 1];
+            let code = &message[code_start..=(code_start + code_end)];
             let repeat_count = weight.round() as usize;
             let repeated = std::iter::repeat_n(code, repeat_count).collect::<Vec<_>>().join(" ");
-            return format!("{} {}", repeated, message);
+            return format!("{repeated} {message}");
         }
     }
     message.to_string()

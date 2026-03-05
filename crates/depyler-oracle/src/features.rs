@@ -202,7 +202,7 @@ pub const KEYWORD_CATEGORIES: [(&str, &[&str]); 9] = [
 /// Combines base features (12) + error code one-hot (25) + keyword counts (36)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnhancedErrorFeatures {
-    /// Base 12 features from ErrorFeatures
+    /// Base 12 features from `ErrorFeatures`
     pub base: ErrorFeatures,
     /// One-hot encoding for top 25 error codes
     pub error_code_onehot: Vec<f32>,

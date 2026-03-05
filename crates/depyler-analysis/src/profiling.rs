@@ -331,8 +331,7 @@ impl Profiler {
                 confidence: 0.9,
                 speedup_factor: 1.0 + (type_checks_removed as f64 * 0.1),
                 explanation: format!(
-                    "Rust's type system eliminates {} runtime type checks",
-                    type_checks_removed
+                    "Rust's type system eliminates {type_checks_removed} runtime type checks"
                 ),
                 functions: vec![],
             });
@@ -420,7 +419,7 @@ impl Profiler {
                 annotations.push(ProfilingAnnotation {
                     kind: AnnotationKind::TimingProbe,
                     target: name.clone(),
-                    value: format!("hot_function_{}", name),
+                    value: format!("hot_function_{name}"),
                 });
             }
         }
@@ -550,7 +549,7 @@ impl ProfilingReport {
             output.push_str(&format!(
                 "{} Estimated overall speedup: {}x\n",
                 "🚀".green(),
-                format!("{:.1}", total_speedup).bold().green()
+                format!("{total_speedup:.1}").bold().green()
             ));
         }
     }
@@ -563,7 +562,7 @@ impl ProfilingReport {
             // Simple format: function_name sample_count
             let sample_count = (metrics.time_percentage * 100.0) as usize;
             if sample_count > 0 {
-                lines.push(format!("{} {}", func_name, sample_count));
+                lines.push(format!("{func_name} {sample_count}"));
             }
         }
 
@@ -591,19 +590,19 @@ impl ProfilingReport {
     }
 
     fn format_timing_probe(&self, target: &str) -> String {
-        format!("# @probe {}: timing probe", target)
+        format!("# @probe {target}: timing probe")
     }
 
     fn format_allocation_counter(&self, target: &str, value: &str) -> String {
-        format!("# @probe {}: allocation counter = {}", target, value)
+        format!("# @probe {target}: allocation counter = {value}")
     }
 
     fn format_hot_path_marker(&self, target: &str) -> String {
-        format!("# @hot {}: hot path marker", target)
+        format!("# @hot {target}: hot path marker")
     }
 
     fn format_performance_hint(&self, target: &str, value: &str) -> String {
-        format!("# @hint {}: {}", target, value)
+        format!("# @hint {target}: {value}")
     }
 }
 

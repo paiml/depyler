@@ -173,7 +173,7 @@ pub fn extract_subscript_pattern(
     // Extract the subscript key
     if let Expr::Constant(constant) = &*subscript.slice {
         if let Some(key) = constant.value.as_str() {
-            access_chain.insert(0, key.to_string());
+            access_chain.insert(0, key.clone());
         }
         // Skip numeric indices - they don't contribute to pattern matching
     }
@@ -184,7 +184,7 @@ pub fn extract_subscript_pattern(
             Expr::Subscript(inner_subscript) => {
                 if let Expr::Constant(constant) = &*inner_subscript.slice {
                     if let Some(key) = constant.value.as_str() {
-                        access_chain.insert(0, key.to_string());
+                        access_chain.insert(0, key.clone());
                     }
                 }
                 current_expr = &inner_subscript.value;
@@ -221,7 +221,7 @@ pub fn extract_attribute_pattern(attr: &ExprAttribute) -> Result<Option<Pattern>
             Expr::Subscript(subscript) => {
                 if let Expr::Constant(constant) = &*subscript.slice {
                     if let Some(key) = constant.value.as_str() {
-                        access_chain.insert(0, key.to_string());
+                        access_chain.insert(0, key.clone());
                     }
                 }
                 current_expr = &subscript.value;

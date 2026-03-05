@@ -85,33 +85,33 @@ impl SemanticTag {
     pub fn detection_patterns(&self) -> Vec<&'static str> {
         match self {
             Self::Dict => vec![
-                r#"dict\s*\("#,
-                r#"Dict\["#,
+                r"dict\s*\(",
+                r"Dict\[",
                 r#"\{\s*['\"]"#,
-                r#"\.get\("#,
-                r#"\.items\("#,
-                r#"\.keys\("#,
-                r#"\.values\("#,
+                r"\.get\(",
+                r"\.items\(",
+                r"\.keys\(",
+                r"\.values\(",
             ],
             Self::List => {
-                vec![r#"list\s*\("#, r#"List\["#, r#"\[\s*\d"#, r#"\.append\("#, r#"\.extend\("#]
+                vec![r"list\s*\(", r"List\[", r"\[\s*\d", r"\.append\(", r"\.extend\("]
             }
-            Self::Set => vec![r#"set\s*\("#, r#"Set\["#, r#"\{[^:]+\}"#],
+            Self::Set => vec![r"set\s*\(", r"Set\[", r"\{[^:]+\}"],
             Self::Argparse => {
-                vec![r#"import\s+argparse"#, r#"from\s+argparse"#, "ArgumentParser", "add_argument"]
+                vec![r"import\s+argparse", r"from\s+argparse", "ArgumentParser", "add_argument"]
             }
-            Self::Async => vec![r#"async\s+def"#, r#"await\s+"#, "asyncio"],
-            Self::Class => vec![r#"class\s+\w+"#],
-            Self::Dataclass => vec!["@dataclass", r#"from\s+dataclasses"#],
-            Self::Lambda => vec![r#"lambda\s+"#],
-            Self::Generator => vec![r#"yield\s+"#, r#"\(.*\s+for\s+.*\s+in\s+"#],
+            Self::Async => vec![r"async\s+def", r"await\s+", "asyncio"],
+            Self::Class => vec![r"class\s+\w+"],
+            Self::Dataclass => vec!["@dataclass", r"from\s+dataclasses"],
+            Self::Lambda => vec![r"lambda\s+"],
+            Self::Generator => vec![r"yield\s+", r"\(.*\s+for\s+.*\s+in\s+"],
             Self::Comprehension => {
-                vec![r#"\[.*\s+for\s+.*\s+in\s+.*\]"#, r#"\{.*\s+for\s+.*\s+in\s+.*\}"#]
+                vec![r"\[.*\s+for\s+.*\s+in\s+.*\]", r"\{.*\s+for\s+.*\s+in\s+.*\}"]
             }
-            Self::FileIO => vec![r#"open\s*\("#, r#"with\s+open"#, r#"\.read\("#, r#"\.write\("#],
-            Self::Json => vec![r#"import\s+json"#, r#"json\."#, r#"\.loads\("#, r#"\.dumps\("#],
-            Self::Regex => vec![r#"import\s+re"#, r#"re\."#, r#"\.match\("#, r#"\.search\("#],
-            Self::Datetime => vec![r#"import\s+datetime"#, r#"datetime\."#, "timedelta"],
+            Self::FileIO => vec![r"open\s*\(", r"with\s+open", r"\.read\(", r"\.write\("],
+            Self::Json => vec![r"import\s+json", r"json\.", r"\.loads\(", r"\.dumps\("],
+            Self::Regex => vec![r"import\s+re", r"re\.", r"\.match\(", r"\.search\("],
+            Self::Datetime => vec![r"import\s+datetime", r"datetime\.", "timedelta"],
             Self::Custom(_) => vec![],
         }
     }

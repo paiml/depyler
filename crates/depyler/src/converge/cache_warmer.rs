@@ -132,7 +132,7 @@ impl CacheWarmer {
     pub fn find_python_files(&self, dir: &Path) -> Vec<PathBuf> {
         walkdir::WalkDir::new(dir)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .filter(|e| {
                 e.path().extension().is_some_and(|ext| ext == "py")
                     && !e.path().to_string_lossy().contains("__pycache__")

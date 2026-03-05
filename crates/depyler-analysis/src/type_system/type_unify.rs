@@ -151,12 +151,12 @@ impl CallGraph {
 
     /// Get callees of a function
     pub fn callees(&self, node: NodeId) -> &[NodeId] {
-        self.edges.get(&node).map(|v| v.as_slice()).unwrap_or(&[])
+        self.edges.get(&node).map_or(&[], std::vec::Vec::as_slice)
     }
 
     /// Get callers of a function
     pub fn callers(&self, node: NodeId) -> &[NodeId] {
-        self.reverse_edges.get(&node).map(|v| v.as_slice()).unwrap_or(&[])
+        self.reverse_edges.get(&node).map_or(&[], std::vec::Vec::as_slice)
     }
 
     /// Topological sort (callees before callers)
@@ -298,7 +298,7 @@ pub enum UnifyError {
 
 /// Find common type for two numeric types (widening)
 pub fn coerce_types(a: &ConcreteType, b: &ConcreteType) -> Option<ConcreteType> {
-    use ConcreteType::*;
+    use ConcreteType::{I32, I64, F32, F64, String, StrRef, Unknown};
 
     // Same type - no coercion needed
     if a == b {
@@ -486,7 +486,7 @@ impl TypeUnifier {
         }
     }
 
-    /// Extract simple variable name from AssignTarget
+    /// Extract simple variable name from `AssignTarget`
     fn extract_assign_target_name(&self, target: &AssignTarget) -> Option<String> {
         match target {
             AssignTarget::Symbol(sym) => Some(sym.clone()),
@@ -653,8 +653,7 @@ impl TypeUnifier {
                 .map(|var| {
                     self.uf
                         .get_type(var.0 as usize)
-                        .map(|t| t.to_hir_type())
-                        .unwrap_or(Type::Unknown)
+                        .map_or(Type::Unknown, |t| t.to_hir_type())
                 })
                 .collect()
         } else {
@@ -667,8 +666,7 @@ impl TypeUnifier {
         if let Some(sig) = self.signatures.get(func_name) {
             self.uf
                 .get_type(sig.ret_var.0 as usize)
-                .map(|t| t.to_hir_type())
-                .unwrap_or(Type::Unknown)
+                .map_or(Type::Unknown, |t| t.to_hir_type())
         } else {
             Type::Unknown
         }
@@ -692,7 +690,7 @@ impl Default for TypeUnifier {
 /// 2. Going from Unknown to anything
 ///
 /// NOTE: String → Int/Float override was removed (caused DEPYLER-0302 regression).
-/// Call-site override for heuristic strings is handled in lib.rs propagate_call_site_types.
+/// Call-site override for heuristic strings is handled in lib.rs `propagate_call_site_types`.
 fn should_override_type(existing: &Type, new: &Type) -> bool {
     match (existing, new) {
         // Unknown should always be updated to concrete type

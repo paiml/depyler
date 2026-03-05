@@ -1,3 +1,9 @@
+#![allow(clippy::ref_option)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::self_only_used_in_recursion)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unused_self)]
+
 //! Sovereign Type Database for Python Library Type Extraction
 //!
 //! This crate provides a "Type Truth Database" for Python libraries, enabling
@@ -120,7 +126,7 @@ pub struct TypeFact {
 }
 
 impl TypeFact {
-    /// Create a new TypeFact for a function.
+    /// Create a new `TypeFact` for a function.
     pub fn function(module: &str, symbol: &str, signature: &str, return_type: &str) -> Self {
         Self {
             module: module.to_string(),
@@ -131,7 +137,7 @@ impl TypeFact {
         }
     }
 
-    /// Create a new TypeFact for a class.
+    /// Create a new `TypeFact` for a class.
     pub fn class(module: &str, symbol: &str) -> Self {
         Self {
             module: module.to_string(),
@@ -142,7 +148,7 @@ impl TypeFact {
         }
     }
 
-    /// Create a new TypeFact for a method.
+    /// Create a new `TypeFact` for a method.
     pub fn method(
         module: &str,
         class: &str,

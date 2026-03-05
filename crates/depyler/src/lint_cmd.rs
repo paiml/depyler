@@ -78,13 +78,13 @@ pub mod codes {
     pub const DP001: &str = "DP001";
     /// Missing parameter type annotation
     pub const DP002: &str = "DP002";
-    /// Prohibited: eval() call
+    /// Prohibited: `eval()` call
     pub const DP003: &str = "DP003";
-    /// Prohibited: exec() call
+    /// Prohibited: `exec()` call
     pub const DP004: &str = "DP004";
-    /// Prohibited: getattr() call
+    /// Prohibited: `getattr()` call
     pub const DP005: &str = "DP005";
-    /// Prohibited: setattr() call
+    /// Prohibited: `setattr()` call
     pub const DP006: &str = "DP006";
     /// Prohibited: metaclass usage
     pub const DP007: &str = "DP007";
@@ -98,9 +98,9 @@ pub mod codes {
     pub const DP011: &str = "DP011";
     /// Warning: untyped *args
     pub const DP012: &str = "DP012";
-    /// Prohibited: globals() call
+    /// Prohibited: `globals()` call
     pub const DP013: &str = "DP013";
-    /// Prohibited: locals() call
+    /// Prohibited: `locals()` call
     pub const DP014: &str = "DP014";
     /// Warning: dynamic import
     pub const DP015: &str = "DP015";
@@ -260,7 +260,7 @@ pub fn lint_file(path: &Path, strict: bool) -> Result<FileReport> {
 
 /// Check if a line contains a function call (not just the word)
 fn contains_function_call(line: &str, func: &str) -> bool {
-    let pattern = format!("{}(", func);
+    let pattern = format!("{func}(");
     // Avoid false positives like "evaluate" for "eval"
     if let Some(pos) = line.find(&pattern) {
         // Check it's not part of a larger identifier
@@ -278,7 +278,7 @@ fn contains_function_call(line: &str, func: &str) -> bool {
 
 /// Find column position of a pattern in a line
 fn find_pattern_column(line: &str, pattern: &str) -> usize {
-    line.find(pattern).map(|p| p + 1).unwrap_or(1)
+    line.find(pattern).map_or(1, |p| p + 1)
 }
 
 /// Check type annotations using AST
@@ -371,7 +371,7 @@ fn check_multiple_inheritance(source: &str, violations: &mut Vec<Violation>) -> 
 
 /// Find the line number of a function definition
 fn find_function_line(source: &str, func_name: &str) -> usize {
-    let pattern = format!("def {}(", func_name);
+    let pattern = format!("def {func_name}(");
     for (i, line) in source.lines().enumerate() {
         if line.contains(&pattern) {
             return i + 1;
@@ -393,8 +393,8 @@ pub fn lint_corpus(path: &Path, strict: bool) -> Result<CorpusReport> {
     // Collect Python files
     let py_files: Vec<PathBuf> = walkdir::WalkDir::new(path)
         .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map(|ext| ext == "py").unwrap_or(false))
+        .filter_map(std::result::Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "py"))
         .map(|e| e.path().to_path_buf())
         .collect();
 

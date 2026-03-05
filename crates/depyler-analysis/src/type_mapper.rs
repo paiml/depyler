@@ -26,7 +26,7 @@ pub struct TypeMapper {
     pub width_preference: IntWidth,
     pub string_type: StringStrategy,
     /// DEPYLER-1015: NASA single-shot compile mode - use std-only types
-    /// When true, uses String instead of serde_json::Value for unknown types
+    /// When true, uses String instead of `serde_json::Value` for unknown types
     #[serde(default = "default_nasa_mode")]
     pub nasa_mode: bool,
 }
@@ -143,7 +143,7 @@ impl TypeMapper {
 
     /// DEPYLER-1015: Get the fallback type for unknown values
     /// In NASA mode: String (std-only, always compiles with rustc)
-    /// In normal mode: serde_json::Value (requires cargo/external crate)
+    /// In normal mode: `serde_json::Value` (requires cargo/external crate)
     fn unknown_fallback(&self) -> RustType {
         if self.nasa_mode {
             RustType::Custom("DepylerValue".to_string())
@@ -508,7 +508,7 @@ impl TypeMapper {
                                     PythonType::String => "Text".to_string(),
                                     PythonType::Bool => "Boolean".to_string(),
                                     PythonType::None => "None".to_string(),
-                                    _ => format!("Variant{}", i),
+                                    _ => format!("Variant{i}"),
                                 };
                                 (variant_name, self.map_type(t))
                             })
@@ -634,7 +634,7 @@ impl RustType {
                 if types.is_empty() {
                     "()".to_string()
                 } else {
-                    let type_strs: Vec<String> = types.iter().map(|t| t.to_rust_string()).collect();
+                    let type_strs: Vec<String> = types.iter().map(RustType::to_rust_string).collect();
                     format!("({})", type_strs.join(", "))
                 }
             }
@@ -643,7 +643,7 @@ impl RustType {
             RustType::Unsupported(desc) => format!("/* unsupported: {desc} */"),
             RustType::TypeParam(name) => name.clone(),
             RustType::Generic { base, params } => {
-                let param_strs: Vec<String> = params.iter().map(|p| p.to_rust_string()).collect();
+                let param_strs: Vec<String> = params.iter().map(RustType::to_rust_string).collect();
                 format!("{}<{}>", base, param_strs.join(", "))
             }
             RustType::Enum { name, .. } => name.clone(),

@@ -292,7 +292,7 @@ impl Extractor {
         format!("({params_str}) -> {return_str}")
     }
 
-    /// Convert an ArgWithDefault to string.
+    /// Convert an `ArgWithDefault` to string.
     fn arg_with_default_to_string(&self, arg: &ast::ArgWithDefault) -> String {
         let name = &arg.def.arg;
         let type_str =

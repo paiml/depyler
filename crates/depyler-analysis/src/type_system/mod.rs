@@ -6,23 +6,23 @@
 //! - **SSA form** for flow-sensitive analysis
 //! - **Worklist solver** for transitive closure
 //!
-//! # DEPYLER-0499: TypeEnvironment with Subtyping Constraints
+//! # DEPYLER-0499: `TypeEnvironment` with Subtyping Constraints
 //!
-//! Replaces 7 fragmented HashMaps with unified TypeEnvironment.
+//! Replaces 7 fragmented `HashMaps` with unified `TypeEnvironment`.
 //!
 //! # DEPYLER-0202: Constraint Collection and HM Solver Integration
 //!
-//! The ConstraintCollector walks HIR and generates type equations for the
+//! The `ConstraintCollector` walks HIR and generates type equations for the
 //! Hindley-Milner solver, enabling automatic type inference for unannotated
 //! parameters and return types.
 //!
 //! # Architecture
 //!
-//! - **TypeEnvironment**: Single source of truth (O(1) lookups)
-//! - **SubtypeChecker**: Implements T1 <: T2 relation
-//! - **WorklistSolver**: Constraint solving with transitive closure
-//! - **TypeConstraint**: Supports equality and subtyping constraints
-//! - **ConstraintCollector**: HIR→Constraints bridge (DEPYLER-0202)
+//! - **`TypeEnvironment`**: Single source of truth (O(1) lookups)
+//! - **`SubtypeChecker`**: Implements T1 <: T2 relation
+//! - **`WorklistSolver`**: Constraint solving with transitive closure
+//! - **`TypeConstraint`**: Supports equality and subtyping constraints
+//! - **`ConstraintCollector`**: HIR→Constraints bridge (DEPYLER-0202)
 //!
 //! # References
 //!

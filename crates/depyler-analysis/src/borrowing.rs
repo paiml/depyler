@@ -74,9 +74,9 @@ impl BorrowingContext {
         let type_str = self.type_to_rust_string(param_type);
 
         match pattern {
-            BorrowingPattern::Owned => format!("{}: {}", param_name, type_str),
-            BorrowingPattern::Borrowed => format!("{}: &{}", param_name, type_str),
-            BorrowingPattern::MutableBorrow => format!("{}: &mut {}", param_name, type_str),
+            BorrowingPattern::Owned => format!("{param_name}: {type_str}"),
+            BorrowingPattern::Borrowed => format!("{param_name}: &{type_str}"),
+            BorrowingPattern::MutableBorrow => format!("{param_name}: &mut {type_str}"),
         }
     }
 
@@ -86,7 +86,7 @@ impl BorrowingContext {
             HirStmt::Return(Some(expr)) => self.analyze_return(expr),
             HirStmt::Expr(expr) => self.analyze_expr(expr),
             HirStmt::If { condition, then_body, else_body } => {
-                self.analyze_if(condition, then_body, else_body)
+                self.analyze_if(condition, then_body, else_body);
             }
             HirStmt::While { condition, body } => self.analyze_while(condition, body),
             HirStmt::For { target: _, iter, body } => self.analyze_for(iter, body),
@@ -286,7 +286,7 @@ impl BorrowingContext {
             Type::UnificationVar(id) => {
                 // UnificationVar should never appear in final code generation
                 // It should be resolved by the type inference system before codegen
-                panic!("BUG: UnificationVar({}) encountered during code generation. Type inference did not complete.", id)
+                panic!("BUG: UnificationVar({id}) encountered during code generation. Type inference did not complete.")
             }
         }
     }

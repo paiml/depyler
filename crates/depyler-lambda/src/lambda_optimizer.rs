@@ -259,20 +259,20 @@ impl LambdaOptimizer {
                 }
                 LambdaEventType::SqsEvent => {
                     pre_warm_code.push_str(
-                        r#"
+                        r"
     // Pre-warm SQS types
     let _ = std::hint::black_box(Vec::<String>::with_capacity(10));
     let _ = std::hint::black_box(String::with_capacity(1024));
-"#,
+",
                     );
                 }
                 LambdaEventType::S3Event => {
                     pre_warm_code.push_str(
-                        r#"
+                        r"
     // Pre-warm S3 types
     let _ = std::hint::black_box(std::path::PathBuf::new());
     let _ = std::hint::black_box(String::with_capacity(512));
-"#,
+",
                     );
                 }
                 _ => {}
@@ -281,7 +281,7 @@ impl LambdaOptimizer {
 
         // Global pre-warming
         pre_warm_code.push_str(
-            r#"
+            r"
     // Pre-warm common allocations
     let _ = std::hint::black_box(serde_json::Value::Null);
     
@@ -290,7 +290,7 @@ impl LambdaOptimizer {
         static BUFFER: std::cell::RefCell<Vec<u8>> = std::cell::RefCell::new(Vec::with_capacity(8192));
     }}
     BUFFER.with(|_| {{}});
-"#
+"
         );
 
         plan.pre_warm_code = pre_warm_code;
@@ -434,14 +434,14 @@ echo "Target: {} MB memory, {} architecture"
         };
 
         script.push_str(&format!(
-            r#"
+            r"
 # Build with cargo-lambda
 cargo lambda build \
     --profile lambda \
     {arch_flag} \
     --output-format zip
 
-"#
+"
         ));
 
         // Post-build optimizations

@@ -38,7 +38,7 @@ mod tests;
 
 /// A deterministic mapping from Python library to Rust equivalent.
 ///
-/// This is a pure function: f(python_module, python_item) → rust_equivalent
+/// This is a pure function: `f(python_module`, `python_item`) → `rust_equivalent`
 /// No randomness, no learning, no approximation.
 ///
 /// Design follows Parnas's information hiding principle [26].
@@ -47,7 +47,7 @@ pub struct LibraryMapping {
     /// Python module path (e.g., "pandas", "numpy.linalg")
     pub python_module: String,
 
-    /// Rust crate and module path (e.g., "polars", "ndarray::linalg")
+    /// Rust crate and module path (e.g., "polars", "`ndarray::linalg`")
     pub rust_crate: String,
 
     /// Python version requirement (e.g., ">=3.8" or "*")
@@ -96,7 +96,7 @@ pub enum TransformPattern {
     /// Property to method conversion
     PropertyToMethod,
 
-    /// Constructor pattern (e.g., DataFrame() → DataFrame::new())
+    /// Constructor pattern (e.g., `DataFrame()` → `DataFrame::new()`)
     Constructor { method: String },
 
     /// Argument reordering [31]
@@ -110,7 +110,7 @@ pub enum TransformPattern {
     Template { template: String },
 }
 
-/// Parameter types for TypedTemplate validation (Poka-Yoke)
+/// Parameter types for `TypedTemplate` validation (Poka-Yoke)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ParamType {
     Expr,
@@ -357,9 +357,9 @@ impl std::error::Error for ValidationError {}
 // ============================================================================
 
 impl TransformPattern {
-    /// Validate a ReorderArgs pattern
+    /// Validate a `ReorderArgs` pattern
     ///
-    /// Indices must be a valid permutation (0..n where n = indices.len())
+    /// Indices must be a valid permutation (0..n where n = `indices.len()`)
     pub fn validate_reorder_args(indices: &[usize]) -> Result<(), ValidationError> {
         let n = indices.len();
         let mut seen = vec![false; n];
@@ -367,13 +367,13 @@ impl TransformPattern {
         for &idx in indices {
             if idx >= n {
                 return Err(ValidationError {
-                    message: format!("Index {} out of bounds for {} args", idx, n),
+                    message: format!("Index {idx} out of bounds for {n} args"),
                     mapping: None,
                 });
             }
             if seen[idx] {
                 return Err(ValidationError {
-                    message: format!("Duplicate index {} in permutation", idx),
+                    message: format!("Duplicate index {idx} in permutation"),
                     mapping: None,
                 });
             }
@@ -383,7 +383,7 @@ impl TransformPattern {
         Ok(())
     }
 
-    /// Validate a TypedTemplate pattern
+    /// Validate a `TypedTemplate` pattern
     ///
     /// Params must match placeholders in pattern, and lengths must match
     pub fn validate_typed_template(
@@ -405,10 +405,10 @@ impl TransformPattern {
 
         // Check all params appear in pattern
         for param in params {
-            let placeholder = format!("{{{}}}", param);
+            let placeholder = format!("{{{param}}}");
             if !pattern.contains(&placeholder) {
                 return Err(ValidationError {
-                    message: format!("Param '{}' not found in pattern", param),
+                    message: format!("Param '{param}' not found in pattern"),
                     mapping: None,
                 });
             }

@@ -78,7 +78,7 @@ impl EnhancedError {
         enhanced
     }
 
-    /// Format location information (file:line:column)
+    /// Format location information (<file:line:column>)
     #[inline]
     fn format_location_info(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let (Some(file), Some(line), Some(column)) = (&self.file_path, self.line, self.column) {
@@ -94,7 +94,7 @@ impl EnhancedError {
             (&self.source_line, self.line, self.column)
         {
             writeln!(f, "   {} |", format!("{:4}", " ").dimmed())?;
-            writeln!(f, "   {} | {}", format!("{:4}", line_num).blue().bold(), line_text)?;
+            writeln!(f, "   {} | {}", format!("{line_num:4}").blue().bold(), line_text)?;
             writeln!(
                 f,
                 "   {} | {}{}",
@@ -299,7 +299,7 @@ fn suggest_string_mismatch(expected: &str, found: &str) -> Option<(String, Vec<S
 /// Suggest fix for division type mismatches (int vs float)
 #[inline]
 fn suggest_division_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
-    if expected.contains("f64") && found.contains("i") {
+    if expected.contains("f64") && found.contains('i') {
         Some((
             "Division result type mismatch - Python '/' always returns float".to_string(),
             vec![
@@ -429,7 +429,7 @@ impl ErrorReporter {
             if i > 0 {
                 println!();
             }
-            println!("{}", error);
+            println!("{error}");
         }
 
         if self.errors.len() > 1 {
@@ -441,9 +441,8 @@ impl ErrorReporter {
         if self.has_errors() {
             self.display_errors();
             anyhow::bail!("Transpilation failed with {} errors", self.errors.len())
-        } else {
-            Ok(value)
         }
+        Ok(value)
     }
 }
 
