@@ -1242,7 +1242,7 @@ pub fn apply_reweight_sampling(
 
 /// Extract error class from error message (e.g., "E0308" from "[error] E0308: ...")
 fn extract_error_class(error_msg: &str) -> String {
-    // Try to extract error code like E0308, ICE-0001, clippy::xxx
+    // Extract error code like E0308, ICE-0001, clippy::xxx
     if let Some(start) = error_msg.find("E0") {
         if let Some(end) = error_msg[start..].find(|c: char| !c.is_alphanumeric()) {
             return error_msg[start..start + end].to_string();

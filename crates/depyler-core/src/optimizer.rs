@@ -1036,7 +1036,7 @@ impl Optimizer {
                     // DEPYLER-0275 FIX: Skip CSE for final return with simple expressions
                     // This avoids unnecessary `let _cse_temp_0 = expr; _cse_temp_0` pattern
                     if is_final_stmt && self.is_simple_return_expr(expr) {
-                        // Don't create CSE temp for final simple returns
+                        // Don't create CSE intermediate for final simple returns
                         new_body.push(HirStmt::Return(Some(expr.clone())));
                     } else {
                         let (new_expr, extra_stmts) =

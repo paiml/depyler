@@ -399,7 +399,7 @@ mod tests {
     fn test_program_output_clone() {
         let output = ProgramOutput {
             stdout: "hello".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 100,
         };
@@ -412,13 +412,13 @@ mod tests {
     fn test_program_output_eq() {
         let output1 = ProgramOutput {
             stdout: "output".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 50,
         };
         let output2 = ProgramOutput {
             stdout: "output".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 50,
         };
@@ -429,11 +429,11 @@ mod tests {
     fn test_program_output_debug() {
         let output = ProgramOutput {
             stdout: "test".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
-        let debug = format!("{:?}", output);
+        let debug = format!("{output:?}");
         assert!(debug.contains("ProgramOutput"));
     }
 
@@ -465,7 +465,7 @@ mod tests {
             rust: "Hello".to_string(),
             diff: "case mismatch".to_string(),
         };
-        let debug = format!("{:?}", mismatch);
+        let debug = format!("{mismatch:?}");
         assert!(debug.contains("StdoutDifference"));
     }
 
@@ -493,13 +493,13 @@ mod tests {
             passed: true,
             python_output: ProgramOutput {
                 stdout: "OK".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 10,
             },
             rust_output: ProgramOutput {
                 stdout: "OK".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 5,
             },
@@ -516,13 +516,13 @@ mod tests {
             passed: false,
             python_output: ProgramOutput {
                 stdout: "42".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 20,
             },
             rust_output: ProgramOutput {
                 stdout: "43".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 10,
             },
@@ -542,14 +542,14 @@ mod tests {
             test_name: "serialize_test".to_string(),
             passed: true,
             python_output: ProgramOutput {
-                stdout: "".to_string(),
-                stderr: "".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 0,
             },
             rust_output: ProgramOutput {
-                stdout: "".to_string(),
-                stderr: "".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 0,
             },
@@ -566,13 +566,13 @@ mod tests {
             passed: true,
             python_output: ProgramOutput {
                 stdout: "out".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 1,
             },
             rust_output: ProgramOutput {
                 stdout: "out".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 1,
             },
@@ -625,13 +625,13 @@ mod tests {
     fn test_program_output_ne() {
         let out1 = ProgramOutput {
             stdout: "a".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
         let out2 = ProgramOutput {
             stdout: "b".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
@@ -641,14 +641,14 @@ mod tests {
     #[test]
     fn test_program_output_exit_code_ne() {
         let out1 = ProgramOutput {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 0,
         };
         let out2 = ProgramOutput {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
             exit_code: 1,
             runtime_ms: 0,
         };
@@ -668,7 +668,7 @@ mod tests {
             },
             rust_output: ProgramOutput {
                 stdout: "43\n".to_string(),
-                stderr: "".to_string(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 3,
             },
@@ -689,20 +689,20 @@ mod tests {
             test_name: "debug_test".to_string(),
             passed: true,
             python_output: ProgramOutput {
-                stdout: "".to_string(),
-                stderr: "".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 0,
             },
             rust_output: ProgramOutput {
-                stdout: "".to_string(),
-                stderr: "".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
                 exit_code: 0,
                 runtime_ms: 0,
             },
             mismatches: vec![],
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("debug_test"));
         assert!(debug.contains("DifferentialTestResult"));
     }
@@ -728,7 +728,7 @@ mod tests {
             Mismatch::ExitCodeDifference { python: 0, rust: 1 },
         ];
         for v in &variants {
-            let debug = format!("{:?}", v);
+            let debug = format!("{v:?}");
             assert!(!debug.is_empty());
         }
     }
@@ -738,7 +738,7 @@ mod tests {
         let large = "x".repeat(10000);
         let output = ProgramOutput {
             stdout: large.clone(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 100,
         };
@@ -782,7 +782,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Requires external tools
+    #[ignore = "Requires external tools"]
     fn test_normalize_output() {
         let tester = DifferentialTester::new().unwrap();
 
@@ -793,7 +793,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Requires external tools
+    #[ignore = "Requires external tools"]
     fn test_differential_simple() {
         // Create a simple Python script
         let temp_dir = tempfile::tempdir().unwrap();
@@ -825,7 +825,7 @@ if __name__ == "__main__":
     // DEPYLER-99MODE-S11: Coverage tests for logic methods
     // ========================================================================
 
-    /// Helper: construct a DifferentialTester with dummy paths for logic-only testing
+    /// Helper: construct a `DifferentialTester` with dummy paths for logic-only testing
     fn make_dummy_tester() -> DifferentialTester {
         DifferentialTester {
             python_exe: PathBuf::from("/usr/bin/python3"),
@@ -922,13 +922,13 @@ if __name__ == "__main__":
         let tester = make_dummy_tester();
         let python = ProgramOutput {
             stdout: "hello\n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
         let rust = ProgramOutput {
             stdout: "hello\n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 5,
         };
@@ -941,13 +941,13 @@ if __name__ == "__main__":
         let tester = make_dummy_tester();
         let python = ProgramOutput {
             stdout: "42\n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
         let rust = ProgramOutput {
             stdout: "43\n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 5,
         };
@@ -960,14 +960,14 @@ if __name__ == "__main__":
     fn test_s11_compare_outputs_exit_code_diff() {
         let tester = make_dummy_tester();
         let python = ProgramOutput {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
         let rust = ProgramOutput {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
             exit_code: 1,
             runtime_ms: 5,
         };
@@ -979,13 +979,13 @@ if __name__ == "__main__":
     fn test_s11_compare_outputs_stderr_with_nonzero_exit() {
         let tester = make_dummy_tester();
         let python = ProgramOutput {
-            stdout: "".to_string(),
+            stdout: String::new(),
             stderr: "error: division by zero".to_string(),
             exit_code: 1,
             runtime_ms: 10,
         };
         let rust = ProgramOutput {
-            stdout: "".to_string(),
+            stdout: String::new(),
             stderr: "panic: divided by zero".to_string(),
             exit_code: 1,
             runtime_ms: 5,
@@ -1005,7 +1005,7 @@ if __name__ == "__main__":
         };
         let rust = ProgramOutput {
             stdout: "ok\n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 5,
         };
@@ -1039,13 +1039,13 @@ if __name__ == "__main__":
         let tester = make_dummy_tester();
         let python = ProgramOutput {
             stdout: "  hello  \n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 10,
         };
         let rust = ProgramOutput {
             stdout: "hello\n".to_string(),
-            stderr: "".to_string(),
+            stderr: String::new(),
             exit_code: 0,
             runtime_ms: 5,
         };
@@ -1066,13 +1066,13 @@ if __name__ == "__main__":
                 passed: true,
                 python_output: ProgramOutput {
                     stdout: "ok".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 10,
                 },
                 rust_output: ProgramOutput {
                     stdout: "ok".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 5,
                 },
@@ -1098,13 +1098,13 @@ if __name__ == "__main__":
                 passed: false,
                 python_output: ProgramOutput {
                     stdout: "42".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 10,
                 },
                 rust_output: ProgramOutput {
                     stdout: "43".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 5,
                 },
@@ -1136,13 +1136,13 @@ if __name__ == "__main__":
                 passed: true,
                 python_output: ProgramOutput {
                     stdout: "ok".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 10,
                 },
                 rust_output: ProgramOutput {
                     stdout: "ok".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 5,
                 },
@@ -1156,13 +1156,13 @@ if __name__ == "__main__":
                 passed: false,
                 python_output: ProgramOutput {
                     stdout: "x".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 10,
                 },
                 rust_output: ProgramOutput {
                     stdout: "y".to_string(),
-                    stderr: "".to_string(),
+                    stderr: String::new(),
                     exit_code: 0,
                     runtime_ms: 5,
                 },
@@ -1176,7 +1176,7 @@ if __name__ == "__main__":
         let html = suite.generate_report(&results);
         assert!(html.contains("PASS"));
         assert!(html.contains("FAIL"));
-        assert!(html.contains("2")); // total count
+        assert!(html.contains('2')); // total count
     }
 
     #[test]
@@ -1201,13 +1201,13 @@ if __name__ == "__main__":
                 test_name: "stderr_test".to_string(),
                 passed: false,
                 python_output: ProgramOutput {
-                    stdout: "".to_string(),
+                    stdout: String::new(),
                     stderr: "err1".to_string(),
                     exit_code: 1,
                     runtime_ms: 10,
                 },
                 rust_output: ProgramOutput {
-                    stdout: "".to_string(),
+                    stdout: String::new(),
                     stderr: "err2".to_string(),
                     exit_code: 1,
                     runtime_ms: 5,

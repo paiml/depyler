@@ -165,7 +165,7 @@ mod tests {
             root: HirExpr::Literal(HirLiteral::Bool(true)),
             metadata: HirMetadata::default(),
         };
-        let debug_str = format!("{:?}", hir);
+        let debug_str = format!("{hir:?}");
         assert!(debug_str.contains("Hir"));
         assert!(debug_str.contains("Bool"));
     }

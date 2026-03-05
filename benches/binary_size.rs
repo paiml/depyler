@@ -1,12 +1,12 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::fs;
-use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 
-/// Binary size optimization benchmarks
-/// Tracks and optimizes for minimal distribution size
+// Binary size optimization benchmarks
+// Tracks and optimizes for minimal distribution size
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct SectionSizes {
     text: u64,
@@ -37,7 +37,7 @@ impl BinaryBuilder {
 
     fn execute_build(&self, profile: &str) -> Result<(), String> {
         let output = Command::new("cargo")
-            .args(&["build", "--profile", profile, "--bin", &self.target])
+            .args(["build", "--profile", profile, "--bin", &self.target])
             .output()
             .map_err(|e| format!("Failed to build {}: {}", self.target, e))?;
 
@@ -53,7 +53,7 @@ impl BinaryBuilder {
 
     fn execute_build_with_flags(&self, profile: &str, flags: &[&str]) -> Result<(), String> {
         let mut cmd = Command::new("cargo");
-        cmd.args(&["build", "--profile", profile, "--bin", &self.target]);
+        cmd.args(["build", "--profile", profile, "--bin", &self.target]);
 
         for flag in flags {
             cmd.arg(flag);
@@ -73,7 +73,7 @@ impl BinaryBuilder {
     fn measure_size(&self, profile: &str) -> Result<u64, String> {
         let binary_path = self.get_binary_path(profile);
         let metadata = fs::metadata(&binary_path)
-            .map_err(|e| format!("Failed to get size of {}: {}", binary_path, e))?;
+            .map_err(|e| format!("Failed to get size of {binary_path}: {e}"))?;
         Ok(metadata.len())
     }
 
@@ -89,12 +89,13 @@ impl BinaryBuilder {
 /// Size measurement utilities
 struct SizeMeasurer;
 
+#[allow(dead_code)]
 impl SizeMeasurer {
     fn get_section_sizes(binary_path: &str) -> Result<SectionSizes, String> {
         let output = Command::new("size")
             .arg(binary_path)
             .output()
-            .map_err(|e| format!("Failed to run size command: {}", e))?;
+            .map_err(|e| format!("Failed to run size command: {e}"))?;
 
         if !output.status.success() {
             return Err(format!(
@@ -129,9 +130,9 @@ impl SizeMeasurer {
 
     fn compress_binary(binary_path: &str) -> Result<u64, String> {
         let output = Command::new("gzip")
-            .args(&["-c", binary_path])
+            .args(["-c", binary_path])
             .output()
-            .map_err(|e| format!("Failed to compress: {}", e))?;
+            .map_err(|e| format!("Failed to compress: {e}"))?;
 
         Ok(output.stdout.len() as u64)
     }
@@ -182,7 +183,7 @@ where
 
         match operation() {
             Ok(size) => sizes.push(size),
-            Err(e) => eprintln!("Benchmark iteration failed: {}", e),
+            Err(e) => eprintln!("Benchmark iteration failed: {e}"),
         }
 
         total_duration += start.elapsed();
@@ -206,7 +207,7 @@ fn bench_binary_size_profiles(c: &mut Criterion) {
 
                 if !sizes.is_empty() {
                     let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                    eprintln!("Average {} size: {} bytes", description, avg_size);
+                    eprintln!("Average {description} size: {avg_size} bytes");
                     validate_size_limits(profile, avg_size);
                 }
 
@@ -240,7 +241,7 @@ fn bench_feature_size_impact(c: &mut Criterion) {
 
                 if !sizes.is_empty() {
                     let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                    eprintln!("Average '{}' features size: {} bytes", feature_name, avg_size);
+                    eprintln!("Average '{feature_name}' features size: {avg_size} bytes");
                 }
 
                 duration
@@ -267,8 +268,8 @@ fn bench_compilation_speed_vs_size(c: &mut Criterion) {
 
                     // Build with specific optimization level
                     let output = Command::new("cargo")
-                        .env("RUSTFLAGS", format!("-C opt-level={}", opt_level))
-                        .args(&["build", "--release", "--bin", "depyler"])
+                        .env("RUSTFLAGS", format!("-C opt-level={opt_level}"))
+                        .args(["build", "--release", "--bin", "depyler"])
                         .output()
                         .expect("Failed to build");
 
@@ -281,7 +282,7 @@ fn bench_compilation_speed_vs_size(c: &mut Criterion) {
 
                 if !sizes.is_empty() {
                     let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                    eprintln!("Opt-level {} ({}): avg {} bytes", opt_level, description, avg_size);
+                    eprintln!("Opt-level {opt_level} ({description}): avg {avg_size} bytes");
                 }
 
                 duration
@@ -343,7 +344,7 @@ fn bench_dependency_size_impact(c: &mut Criterion) {
 
                 if !sizes.is_empty() {
                     let avg_size = sizes.iter().sum::<u64>() / sizes.len() as u64;
-                    eprintln!("Dependency config '{}': avg {} bytes", config_name, avg_size);
+                    eprintln!("Dependency config '{config_name}': avg {avg_size} bytes");
                 }
 
                 duration
@@ -355,21 +356,18 @@ fn bench_dependency_size_impact(c: &mut Criterion) {
 }
 
 /// Helper functions
-
 fn validate_size_limits(profile: &str, size: u64) {
     match profile {
         "min-size" => {
             assert!(
                 size < 5_000_000, // 5MB limit for min-size
-                "Min-size build too large: {} bytes",
-                size
+                "Min-size build too large: {size} bytes"
             );
         }
         "release" => {
             assert!(
                 size < 10_000_000, // 10MB limit for release
-                "Release build too large: {} bytes",
-                size
+                "Release build too large: {size} bytes"
             );
         }
         _ => {} // No limits for dev builds
@@ -379,13 +377,13 @@ fn validate_size_limits(profile: &str, size: u64) {
 fn benchmark_strip_compress_variant(strip: bool, compress: bool) -> Result<u64, String> {
     // Build binary
     let mut cmd = Command::new("cargo");
-    cmd.args(&["build", "--release", "--bin", "depyler"]);
+    cmd.args(["build", "--release", "--bin", "depyler"]);
 
     if strip {
         cmd.env("RUSTFLAGS", "-C strip=symbols");
     }
 
-    let output = cmd.output().map_err(|e| format!("Failed to build: {}", e))?;
+    let output = cmd.output().map_err(|e| format!("Failed to build: {e}"))?;
 
     if !output.status.success() {
         return Err("Build failed".to_string());
@@ -393,12 +391,12 @@ fn benchmark_strip_compress_variant(strip: bool, compress: bool) -> Result<u64, 
 
     let binary_path = "target/release/depyler";
     let original_size =
-        fs::metadata(binary_path).map_err(|e| format!("Failed to get metadata: {}", e))?.len();
+        fs::metadata(binary_path).map_err(|e| format!("Failed to get metadata: {e}"))?.len();
 
     let final_size =
         if compress { SizeMeasurer::compress_binary(binary_path)? } else { original_size };
 
-    eprintln!("Strip: {}, Compress: {} -> {} bytes", strip, compress, final_size);
+    eprintln!("Strip: {strip}, Compress: {compress} -> {final_size} bytes");
     Ok(final_size)
 }
 

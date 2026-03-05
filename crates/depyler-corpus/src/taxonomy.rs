@@ -299,10 +299,10 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_errors() {
-        let output = r#"error[E0308]: mismatched types
+        let output = r"error[E0308]: mismatched types
 note: some note
 error[E0412]: cannot find type `T` in this scope
-warning: unused variable"#;
+warning: unused variable";
 
         let errors = RustError::parse_all(output);
         assert_eq!(errors.len(), 2);

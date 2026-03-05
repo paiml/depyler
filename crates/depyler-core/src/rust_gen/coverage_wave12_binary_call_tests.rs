@@ -755,7 +755,7 @@ mod tests {
     #[test]
     fn test_w12bc_call_101_getattr() {
         // getattr is not fully supported, use direct attribute access instead
-        let py = r#"result = obj.attr"#;
+        let py = r"result = obj.attr";
         let rs = transpile(py);
         assert!(rs.contains("obj") && rs.contains("attr"));
     }

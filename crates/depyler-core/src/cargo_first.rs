@@ -304,7 +304,7 @@ base64 = "0.22"
 # URL parsing (urllib module)
 url = "2.5"
 
-# Temporary file operations
+# Ephemeral file operations
 tempfile = "3.10"
 
 # Argument parsing (argparse module)
@@ -632,11 +632,11 @@ edition = "2021"
 
     #[test]
     fn test_valid_code_compiles() {
-        let rust_code = r#"
+        let rust_code = r"
             pub fn add(a: i32, b: i32) -> i32 {
                 a + b
             }
-        "#;
+        ";
         let cargo_toml = r#"
 [package]
 name = "test_valid"
@@ -676,7 +676,7 @@ edition = "2021"
 
     #[test]
     fn test_with_serde_dependency() {
-        let rust_code = r#"
+        let rust_code = r"
             use serde::{Serialize, Deserialize};
 
             #[derive(Serialize, Deserialize)]
@@ -684,7 +684,7 @@ edition = "2021"
                 pub x: f64,
                 pub y: f64,
             }
-        "#;
+        ";
         let cargo_toml = r#"
 [package]
 name = "test_serde"
@@ -779,11 +779,11 @@ serde = { version = "1.0", features = ["derive"] }
     #[test]
     #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_compile_with_cargo_default_toml() {
-        let rust_code = r#"
+        let rust_code = r"
             pub fn simple() -> i32 {
                 42
             }
-        "#;
+        ";
         let result = compile_with_cargo("test_default", rust_code, None).unwrap();
         assert!(result.success, "Simple code should compile with default toml");
     }
@@ -864,11 +864,11 @@ edition = "2021"
     #[test]
     #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_code_with_warnings() {
-        let rust_code = r#"
+        let rust_code = r"
             pub fn test() {
                 let unused_var = 42;
             }
-        "#;
+        ";
         let result = compile_with_cargo("with_warnings", rust_code, None).unwrap();
         // Should still succeed (warnings don't fail check by default)
         assert!(result.success);
@@ -879,11 +879,11 @@ edition = "2021"
     #[test]
     #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_multiple_functions() {
-        let rust_code = r#"
+        let rust_code = r"
             pub fn add(a: i32, b: i32) -> i32 { a + b }
             pub fn sub(a: i32, b: i32) -> i32 { a - b }
             pub fn mul(a: i32, b: i32) -> i32 { a * b }
-        "#;
+        ";
         let result = compile_with_cargo("multi_fn", rust_code, None).unwrap();
         assert!(result.success);
     }
@@ -891,7 +891,7 @@ edition = "2021"
     #[test]
     #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_with_struct() {
-        let rust_code = r#"
+        let rust_code = r"
             pub struct Point {
                 pub x: f64,
                 pub y: f64,
@@ -902,7 +902,7 @@ edition = "2021"
                     Self { x, y }
                 }
             }
-        "#;
+        ";
         let result = compile_with_cargo("with_struct", rust_code, None).unwrap();
         assert!(result.success);
     }
@@ -910,13 +910,13 @@ edition = "2021"
     #[test]
     #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_with_enum() {
-        let rust_code = r#"
+        let rust_code = r"
             pub enum Status {
                 Active,
                 Inactive,
                 Pending,
             }
-        "#;
+        ";
         let result = compile_with_cargo("with_enum", rust_code, None).unwrap();
         assert!(result.success);
     }
@@ -924,7 +924,7 @@ edition = "2021"
     #[test]
     #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_with_generics() {
-        let rust_code = r#"
+        let rust_code = r"
             pub fn identity<T>(x: T) -> T {
                 x
             }
@@ -932,7 +932,7 @@ edition = "2021"
             pub struct Container<T> {
                 pub value: T,
             }
-        "#;
+        ";
         let result = compile_with_cargo("with_generics", rust_code, None).unwrap();
         assert!(result.success);
     }

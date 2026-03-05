@@ -30,10 +30,10 @@ mod tests {
 
     #[test]
     fn test_wave18_string_zfill_positive_number() {
-        let code = r#"
+        let code = r"
 def pad_num(s: str) -> str:
     return s.zfill(5)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("width") && result.contains("starts_with"),
@@ -58,10 +58,10 @@ def pad_neg() -> str:
 
     #[test]
     fn test_wave18_string_zfill_no_pad_needed() {
-        let code = r#"
+        let code = r"
 def no_pad(s: str) -> str:
     return s.zfill(3)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") || result.contains("len"), "zfill no-pad: {}", result);
     }
@@ -112,20 +112,20 @@ def pad_exact() -> str:
 
     #[test]
     fn test_wave18_string_zfill_large_width() {
-        let code = r#"
+        let code = r"
 def pad_large(s: str) -> str:
     return s.zfill(100)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("100") || result.contains("width"), "zfill large: {}", result);
     }
 
     #[test]
     fn test_wave18_string_zfill_variable_width() {
-        let code = r#"
+        let code = r"
 def pad_var(s: str, w: int) -> str:
     return s.zfill(w)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("width") || result.contains("starts_with"),
@@ -136,11 +136,11 @@ def pad_var(s: str, w: int) -> str:
 
     #[test]
     fn test_wave18_string_zfill_in_expression() {
-        let code = r#"
+        let code = r"
 def pad_expr(n: int) -> str:
     s = str(n)
     return s.zfill(8)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("zfill") || result.contains("width") || result.contains("0"),
@@ -155,10 +155,10 @@ def pad_expr(n: int) -> str:
 
     #[test]
     fn test_wave18_string_capitalize_basic() {
-        let code = r#"
+        let code = r"
 def cap(s: str) -> str:
     return s.capitalize()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("to_uppercase") || result.contains("chars"),
@@ -273,11 +273,11 @@ def cap_noop() -> str:
 
     #[test]
     fn test_wave18_string_capitalize_assign() {
-        let code = r#"
+        let code = r"
 def cap_assign(s: str) -> str:
     result = s.capitalize()
     return result
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("to_uppercase") || result.contains("chars"),
@@ -292,10 +292,10 @@ def cap_assign(s: str) -> str:
 
     #[test]
     fn test_wave18_string_swapcase_basic() {
-        let code = r#"
+        let code = r"
 def swap(s: str) -> str:
     return s.swapcase()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("is_uppercase") || result.contains("to_lowercase"),
@@ -374,11 +374,11 @@ def swap_special() -> str:
 
     #[test]
     fn test_wave18_string_swapcase_assign() {
-        let code = r#"
+        let code = r"
 def swap_assign(s: str) -> str:
     swapped = s.swapcase()
     return swapped
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("is_uppercase") || result.contains("to_lowercase"),
@@ -389,10 +389,10 @@ def swap_assign(s: str) -> str:
 
     #[test]
     fn test_wave18_string_swapcase_chained() {
-        let code = r#"
+        let code = r"
 def swap_chain(s: str) -> str:
     return s.swapcase()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("collect::<String>") || result.contains("String"),
@@ -509,10 +509,10 @@ def swap_one() -> str:
 
     #[test]
     fn test_wave18_string_center_basic() {
-        let code = r#"
+        let code = r"
 def ctr(s: str) -> str:
     return s.center(10)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("width") && result.contains("total_pad"),
@@ -561,10 +561,10 @@ def ctr_star() -> str:
 
     #[test]
     fn test_wave18_string_center_wider_than_string() {
-        let code = r#"
+        let code = r"
 def ctr_wide(s: str) -> str:
     return s.center(20)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("left_pad") || result.contains("total_pad"),
@@ -609,11 +609,11 @@ def ctr_exact() -> str:
 
     #[test]
     fn test_wave18_string_center_assign() {
-        let code = r#"
+        let code = r"
 def ctr_assign(s: str) -> str:
     centered = s.center(30)
     return centered
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("width") || result.contains("total_pad"),
@@ -624,10 +624,10 @@ def ctr_assign(s: str) -> str:
 
     #[test]
     fn test_wave18_string_center_variable_width() {
-        let code = r#"
+        let code = r"
 def ctr_var(s: str, w: int) -> str:
     return s.center(w)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") || result.contains("total_pad"), "center var: {}", result);
     }
@@ -638,10 +638,10 @@ def ctr_var(s: str, w: int) -> str:
 
     #[test]
     fn test_wave18_string_ljust_basic() {
-        let code = r#"
+        let code = r"
 def lj(s: str) -> str:
     return s.ljust(10)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") && result.contains("fillchar"), "ljust basic: {}", result);
     }
@@ -710,21 +710,21 @@ def lj_zero(s: str) -> str:
 
     #[test]
     fn test_wave18_string_ljust_wide() {
-        let code = r#"
+        let code = r"
 def lj_wide(s: str) -> str:
     return s.ljust(50)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") || result.contains("50"), "ljust wide: {}", result);
     }
 
     #[test]
     fn test_wave18_string_ljust_assign() {
-        let code = r#"
+        let code = r"
 def lj_assign(s: str) -> str:
     padded = s.ljust(15)
     return padded
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("width") || result.contains("fillchar"),
@@ -735,10 +735,10 @@ def lj_assign(s: str) -> str:
 
     #[test]
     fn test_wave18_string_ljust_variable_width() {
-        let code = r#"
+        let code = r"
 def lj_var(s: str, w: int) -> str:
     return s.ljust(w)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") || result.contains("fillchar"), "ljust var: {}", result);
     }
@@ -759,10 +759,10 @@ def lj_exact() -> str:
 
     #[test]
     fn test_wave18_string_rjust_basic() {
-        let code = r#"
+        let code = r"
 def rj(s: str) -> str:
     return s.rjust(10)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") && result.contains("fillchar"), "rjust basic: {}", result);
     }
@@ -832,21 +832,21 @@ def rj_narrow() -> str:
 
     #[test]
     fn test_wave18_string_rjust_wide() {
-        let code = r#"
+        let code = r"
 def rj_wide(s: str) -> str:
     return s.rjust(80)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") || result.contains("80"), "rjust wide: {}", result);
     }
 
     #[test]
     fn test_wave18_string_rjust_assign() {
-        let code = r#"
+        let code = r"
 def rj_assign(s: str) -> str:
     padded = s.rjust(12)
     return padded
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("width") || result.contains("fillchar"),
@@ -857,10 +857,10 @@ def rj_assign(s: str) -> str:
 
     #[test]
     fn test_wave18_string_rjust_variable_width() {
-        let code = r#"
+        let code = r"
 def rj_var(s: str, w: int) -> str:
     return s.rjust(w)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("width") || result.contains("fillchar"), "rjust var: {}", result);
     }
@@ -1077,10 +1077,10 @@ def rpart_assign(s: str) -> tuple:
 
     #[test]
     fn test_wave18_string_isidentifier_valid() {
-        let code = r#"
+        let code = r"
 def check_id(s: str) -> bool:
     return s.isidentifier()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("is_alphabetic") || result.contains("is_alphanumeric"),
@@ -1157,11 +1157,11 @@ def check_spaces() -> bool:
 
     #[test]
     fn test_wave18_string_isidentifier_assign() {
-        let code = r#"
+        let code = r"
 def check_assign(s: str) -> bool:
     is_id = s.isidentifier()
     return is_id
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("is_alphabetic") || result.contains("is_alphanumeric"),
@@ -1248,10 +1248,10 @@ def rs_max2(s: str) -> list:
 
     #[test]
     fn test_wave18_string_rsplit_no_args() {
-        let code = r#"
+        let code = r"
 def rs_noargs(s: str) -> list:
     return s.rsplit()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("split_whitespace") && result.contains("rev"),
@@ -1420,10 +1420,10 @@ def fmt_assign(x: str) -> str:
 
     #[test]
     fn test_wave18_string_format_in_variable_template() {
-        let code = r#"
+        let code = r"
 def fmt_var_tmpl(tmpl: str, val: str) -> str:
     return tmpl.format(val)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("replacen") || result.contains("format!"),
@@ -1510,10 +1510,10 @@ def fmt_nl(a: str, b: str) -> str:
 
     #[test]
     fn test_wave18_string_title_basic() {
-        let code = r#"
+        let code = r"
 def titlecase(s: str) -> str:
     return s.title()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("split_whitespace") || result.contains("to_uppercase"),
@@ -1600,11 +1600,11 @@ def title_empty() -> str:
 
     #[test]
     fn test_wave18_string_title_assign() {
-        let code = r#"
+        let code = r"
 def title_assign(s: str) -> str:
     titled = s.title()
     return titled
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("split_whitespace") || result.contains("to_uppercase"),
@@ -1639,10 +1639,10 @@ def title_noop() -> str:
 
     #[test]
     fn test_wave18_string_isupper_basic() {
-        let code = r#"
+        let code = r"
 def check_upper(s: str) -> bool:
     return s.isupper()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("is_uppercase") || result.contains("is_alphabetic"),
@@ -1673,11 +1673,11 @@ def check_upper_false() -> bool:
 
     #[test]
     fn test_wave18_string_isupper_assign() {
-        let code = r#"
+        let code = r"
 def check_upper_assign(s: str) -> bool:
     is_up = s.isupper()
     return is_up
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_uppercase"), "isupper assign: {}", result);
     }
@@ -1698,10 +1698,10 @@ def check_upper_digits() -> bool:
 
     #[test]
     fn test_wave18_string_islower_basic() {
-        let code = r#"
+        let code = r"
 def check_lower(s: str) -> bool:
     return s.islower()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("is_lowercase") || result.contains("is_alphabetic"),
@@ -1732,11 +1732,11 @@ def check_lower_false() -> bool:
 
     #[test]
     fn test_wave18_string_islower_assign() {
-        let code = r#"
+        let code = r"
 def check_lower_assign(s: str) -> bool:
     is_low = s.islower()
     return is_low
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_lowercase"), "islower assign: {}", result);
     }
@@ -1753,10 +1753,10 @@ def check_lower_num() -> bool:
 
     #[test]
     fn test_wave18_string_isspace_basic() {
-        let code = r#"
+        let code = r"
 def check_space(s: str) -> bool:
     return s.isspace()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_whitespace"), "isspace basic: {}", result);
     }
@@ -1793,11 +1793,11 @@ def check_tab() -> bool:
 
     #[test]
     fn test_wave18_string_isspace_assign() {
-        let code = r#"
+        let code = r"
 def check_space_assign(s: str) -> bool:
     ws = s.isspace()
     return ws
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_whitespace"), "isspace assign: {}", result);
     }
@@ -1808,10 +1808,10 @@ def check_space_assign(s: str) -> bool:
 
     #[test]
     fn test_wave18_string_isnumeric_basic() {
-        let code = r#"
+        let code = r"
 def check_num(s: str) -> bool:
     return s.isnumeric()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_numeric"), "isnumeric basic: {}", result);
     }
@@ -1838,11 +1838,11 @@ def check_num_false() -> bool:
 
     #[test]
     fn test_wave18_string_isnumeric_assign() {
-        let code = r#"
+        let code = r"
 def check_num_assign(s: str) -> bool:
     is_num = s.isnumeric()
     return is_num
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_numeric"), "isnumeric assign: {}", result);
     }
@@ -1859,10 +1859,10 @@ def check_num_mixed() -> bool:
 
     #[test]
     fn test_wave18_string_isascii_basic() {
-        let code = r#"
+        let code = r"
 def check_ascii(s: str) -> bool:
     return s.isascii()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_ascii"), "isascii basic: {}", result);
     }
@@ -1889,11 +1889,11 @@ def check_ascii_mixed() -> bool:
 
     #[test]
     fn test_wave18_string_isascii_assign() {
-        let code = r#"
+        let code = r"
 def check_ascii_assign(s: str) -> bool:
     is_asc = s.isascii()
     return is_asc
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_ascii"), "isascii assign: {}", result);
     }
@@ -1910,10 +1910,10 @@ def check_ascii_empty() -> bool:
 
     #[test]
     fn test_wave18_string_isdecimal_basic() {
-        let code = r#"
+        let code = r"
 def check_dec(s: str) -> bool:
     return s.isdecimal()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_ascii_digit"), "isdecimal basic: {}", result);
     }
@@ -1940,11 +1940,11 @@ def check_dec_false() -> bool:
 
     #[test]
     fn test_wave18_string_isdecimal_assign() {
-        let code = r#"
+        let code = r"
 def check_dec_assign(s: str) -> bool:
     is_dec = s.isdecimal()
     return is_dec
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_ascii_digit"), "isdecimal assign: {}", result);
     }
@@ -1965,10 +1965,10 @@ def check_dec_empty() -> bool:
 
     #[test]
     fn test_wave18_string_splitlines_basic() {
-        let code = r#"
+        let code = r"
 def split_lines(s: str) -> list:
     return s.splitlines()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("lines()"), "splitlines basic: {}", result);
     }
@@ -1982,11 +1982,11 @@ def split_lines(s: str) -> list:
 
     #[test]
     fn test_wave18_string_splitlines_assign() {
-        let code = r#"
+        let code = r"
 def split_lines_assign(s: str) -> list:
     lines = s.splitlines()
     return lines
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("lines()"), "splitlines assign: {}", result);
     }
@@ -2182,10 +2182,10 @@ def cnt_miss() -> int:
 
     #[test]
     fn test_wave18_string_encode_default() {
-        let code = r#"
+        let code = r"
 def enc(s: str) -> bytes:
     return s.encode()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("as_bytes") && result.contains("to_vec"),
@@ -2224,11 +2224,11 @@ def enc_lit() -> bytes:
 
     #[test]
     fn test_wave18_string_encode_assign() {
-        let code = r#"
+        let code = r"
 def enc_assign(s: str) -> bytes:
     data = s.encode()
     return data
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("as_bytes") && result.contains("to_vec"),
@@ -2253,10 +2253,10 @@ def enc_empty() -> bytes:
 
     #[test]
     fn test_wave18_string_casefold_basic() {
-        let code = r#"
+        let code = r"
 def fold(s: str) -> str:
     return s.casefold()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("to_lowercase"), "casefold basic: {}", result);
     }
@@ -2273,11 +2273,11 @@ def fold_lit() -> str:
 
     #[test]
     fn test_wave18_string_casefold_assign() {
-        let code = r#"
+        let code = r"
 def fold_assign(s: str) -> str:
     folded = s.casefold()
     return folded
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("to_lowercase"), "casefold assign: {}", result);
     }
@@ -2288,10 +2288,10 @@ def fold_assign(s: str) -> str:
 
     #[test]
     fn test_wave18_string_hex_basic() {
-        let code = r#"
+        let code = r"
 def to_hex(s: str) -> str:
     return s.hex()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("bytes") || result.contains("02x"), "hex basic: {}", result);
     }
@@ -2312,10 +2312,10 @@ def hex_lit() -> str:
 
     #[test]
     fn test_wave18_string_isprintable_basic() {
-        let code = r#"
+        let code = r"
 def check_print(s: str) -> bool:
     return s.isprintable()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_control"), "isprintable basic: {}", result);
     }
@@ -2336,10 +2336,10 @@ def check_print_lit() -> bool:
 
     #[test]
     fn test_wave18_string_istitle_basic() {
-        let code = r#"
+        let code = r"
 def check_title(s: str) -> bool:
     return s.istitle()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("prev_is_cased") || result.contains("is_uppercase"),
@@ -2368,10 +2368,10 @@ def check_title_lit() -> bool:
 
     #[test]
     fn test_wave18_string_isalnum_basic() {
-        let code = r#"
+        let code = r"
 def check_alnum(s: str) -> bool:
     return s.isalnum()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("is_alphanumeric"), "isalnum basic: {}", result);
     }
@@ -2426,10 +2426,10 @@ def index_sub(s: str) -> int:
 
     #[test]
     fn test_wave18_string_decode_basic() {
-        let code = r#"
+        let code = r"
 def dec(s: str) -> str:
     return s.decode()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("from_utf8_lossy") || result.contains("to_string"),

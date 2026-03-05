@@ -455,7 +455,7 @@ mod tests {
 
     /// Unit Test: Assignment statement mutation tracking
     ///
-    /// Verifies: Lines 84-85, 103-111 - analyze_assign tracks param mutations
+    /// Verifies: Lines 84-85, 103-111 - `analyze_assign` tracks param mutations
     #[test]
     fn test_analyze_stmt_assign_mutation() {
         let mut ctx = BorrowingContext::new();
@@ -483,7 +483,7 @@ mod tests {
 
     /// Unit Test: Return statement escaping analysis
     ///
-    /// Verifies: Lines 86, 113-116, 193-209 - analyze_return marks escaping params
+    /// Verifies: Lines 86, 113-116, 193-209 - `analyze_return` marks escaping params
     #[test]
     fn test_analyze_stmt_return_escaping() {
         let mut ctx = BorrowingContext::new();
@@ -503,7 +503,7 @@ mod tests {
 
     /// Unit Test: Direct variable escaping detection
     ///
-    /// Verifies: Lines 195-197 - check_escaping_expr for direct var return
+    /// Verifies: Lines 195-197 - `check_escaping_expr` for direct var return
     #[test]
     fn test_check_escaping_direct_var() {
         let mut ctx = BorrowingContext::new();
@@ -519,7 +519,7 @@ mod tests {
 
     /// Unit Test: If statement branch analysis
     ///
-    /// Verifies: Lines 88-92, 118-133 - analyze_if processes both branches
+    /// Verifies: Lines 88-92, 118-133 - `analyze_if` processes both branches
     #[test]
     fn test_analyze_if_branches() {
         let mut ctx = BorrowingContext::new();
@@ -563,7 +563,7 @@ mod tests {
 
     /// Unit Test: While loop analysis with loop param tracking
     ///
-    /// Verifies: Lines 93, 135-141, 211-234 - analyze_while and mark_loop_params
+    /// Verifies: Lines 93, 135-141, 211-234 - `analyze_while` and `mark_loop_params`
     #[test]
     fn test_analyze_while_loop() {
         let mut ctx = BorrowingContext::new();
@@ -602,7 +602,7 @@ mod tests {
 
     /// Unit Test: For loop analysis
     ///
-    /// Verifies: Lines 94-98, 143-149, 211-234 - analyze_for and loop param tracking
+    /// Verifies: Lines 94-98, 143-149, 211-234 - `analyze_for` and loop param tracking
     #[test]
     fn test_analyze_for_loop() {
         let mut ctx = BorrowingContext::new();
@@ -642,7 +642,7 @@ mod tests {
 
     /// Unit Test: Primitive type copyability detection
     ///
-    /// Verifies: Line 237 - is_copyable returns true for Int/Float/Bool/None
+    /// Verifies: Line 237 - `is_copyable` returns true for Int/Float/Bool/None
     #[test]
     fn test_is_copyable_primitives() {
         let ctx = BorrowingContext::new();
@@ -668,7 +668,7 @@ mod tests {
 
     /// Unit Test: Binary expression analysis
     ///
-    /// Verifies: Lines 154, 164-167 - analyze_binary processes both operands
+    /// Verifies: Lines 154, 164-167 - `analyze_binary` processes both operands
     #[test]
     fn test_analyze_binary_expression() {
         let mut ctx = BorrowingContext::new();
@@ -691,7 +691,7 @@ mod tests {
 
     /// Unit Test: Unary expression analysis
     ///
-    /// Verifies: Line 155 - analyze_expr handles unary operations
+    /// Verifies: Line 155 - `analyze_expr` handles unary operations
     #[test]
     fn test_analyze_unary_expression() {
         let mut ctx = BorrowingContext::new();
@@ -710,7 +710,7 @@ mod tests {
 
     /// Unit Test: Function call argument analysis
     ///
-    /// Verifies: Lines 156, 169-173 - analyze_call processes all arguments
+    /// Verifies: Lines 156, 169-173 - `analyze_call` processes all arguments
     #[test]
     fn test_analyze_call_arguments() {
         let mut ctx = BorrowingContext::new();
@@ -732,7 +732,7 @@ mod tests {
 
     /// Unit Test: List collection analysis
     ///
-    /// Verifies: Lines 157, 175-179 - analyze_collection processes list elements
+    /// Verifies: Lines 157, 175-179 - `analyze_collection` processes list elements
     #[test]
     fn test_analyze_list_collection() {
         let mut ctx = BorrowingContext::new();
@@ -753,7 +753,7 @@ mod tests {
 
     /// Unit Test: Dict analysis with key-value pairs
     ///
-    /// Verifies: Lines 158, 181-186 - analyze_dict processes keys and values
+    /// Verifies: Lines 158, 181-186 - `analyze_dict` processes keys and values
     #[test]
     fn test_analyze_dict_items() {
         let mut ctx = BorrowingContext::new();
@@ -774,7 +774,7 @@ mod tests {
 
     /// Unit Test: Index expression analysis
     ///
-    /// Verifies: Lines 159, 188-191 - analyze_index processes base and index
+    /// Verifies: Lines 159, 188-191 - `analyze_index` processes base and index
     #[test]
     fn test_analyze_index_expression() {
         let mut ctx = BorrowingContext::new();
@@ -795,7 +795,7 @@ mod tests {
 
     /// Unit Test: Escaping parameters in tuple return
     ///
-    /// Verifies: Lines 199-206 - check_escaping_expr marks tuple elements as escaping
+    /// Verifies: Lines 199-206 - `check_escaping_expr` marks tuple elements as escaping
     #[test]
     fn test_check_escaping_tuple_elements() {
         let mut ctx = BorrowingContext::new();
@@ -812,7 +812,7 @@ mod tests {
 
     /// Unit Test: Loop parameter tracking
     ///
-    /// Verifies: Lines 211-234 - mark_loop_params and find_params_in_expr
+    /// Verifies: Lines 211-234 - `mark_loop_params` and `find_params_in_expr`
     #[test]
     fn test_mark_loop_params_tracking() {
         let mut ctx = BorrowingContext::new();
@@ -839,7 +839,7 @@ mod tests {
 
     /// Unit Test: Primitive type conversions
     ///
-    /// Verifies: Lines 294-304 - primitive_type_to_rust handles all primitives
+    /// Verifies: Lines 294-304 - `primitive_type_to_rust` handles all primitives
     #[test]
     fn test_primitive_type_conversions() {
         let ctx = BorrowingContext::new();
@@ -854,7 +854,7 @@ mod tests {
 
     /// Unit Test: List type conversion
     ///
-    /// Verifies: Lines 308, 316-318 - list_type_to_rust generates Vec<T>
+    /// Verifies: Lines 308, 316-318 - `list_type_to_rust` generates Vec<T>
     #[test]
     fn test_list_type_conversion() {
         let ctx = BorrowingContext::new();
@@ -867,7 +867,7 @@ mod tests {
 
     /// Unit Test: Dict type conversion
     ///
-    /// Verifies: Lines 309, 328-334 - dict_type_to_rust generates HashMap<K, V>
+    /// Verifies: Lines 309, 328-334 - `dict_type_to_rust` generates `HashMap`<K, V>
     #[test]
     fn test_dict_type_conversion() {
         let ctx = BorrowingContext::new();
@@ -883,7 +883,7 @@ mod tests {
 
     /// Unit Test: Set type conversion
     ///
-    /// Verifies: Lines 310, 320-322 - set_type_to_rust generates HashSet<T>
+    /// Verifies: Lines 310, 320-322 - `set_type_to_rust` generates `HashSet`<T>
     #[test]
     fn test_set_type_conversion() {
         let ctx = BorrowingContext::new();
@@ -896,7 +896,7 @@ mod tests {
 
     /// Unit Test: Array type conversion
     ///
-    /// Verifies: Lines 311, 324-326 - array_type_to_rust generates Array<T>
+    /// Verifies: Lines 311, 324-326 - `array_type_to_rust` generates Array<T>
     #[test]
     fn test_array_type_conversion() {
         let ctx = BorrowingContext::new();
@@ -912,7 +912,7 @@ mod tests {
 
     /// Unit Test: Tuple type conversion
     ///
-    /// Verifies: Lines 285, 336-344 - tuple_type_to_rust handles empty and non-empty tuples
+    /// Verifies: Lines 285, 336-344 - `tuple_type_to_rust` handles empty and non-empty tuples
     #[test]
     fn test_tuple_type_conversion() {
         let ctx = BorrowingContext::new();
@@ -937,7 +937,7 @@ mod tests {
 
     /// Unit Test: Optional type conversion
     ///
-    /// Verifies: Lines 286, 346-348 - optional_type_to_rust generates Option<T>
+    /// Verifies: Lines 286, 346-348 - `optional_type_to_rust` generates Option<T>
     #[test]
     fn test_optional_type_conversion() {
         let ctx = BorrowingContext::new();
@@ -948,9 +948,9 @@ mod tests {
         assert_eq!(result, "Option<i32>", "Optional[int] should map to Option<i32>");
     }
 
-    /// Unit Test: Complex type conversions (Custom, TypeVar, Generic, Function, Union)
+    /// Unit Test: Complex type conversions (Custom, `TypeVar`, Generic, Function, Union)
     ///
-    /// Verifies: Lines 287-290 - type_to_rust_string handles special types
+    /// Verifies: Lines 287-290 - `type_to_rust_string` handles special types
     #[test]
     fn test_complex_type_conversions() {
         let ctx = BorrowingContext::new();

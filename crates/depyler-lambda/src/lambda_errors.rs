@@ -752,7 +752,7 @@ mod tests {
             message_pattern: None,
             context: None,
         };
-        let debug = format!("{:?}", pattern);
+        let debug = format!("{pattern:?}");
         assert!(debug.contains("PythonErrorPattern"));
         assert!(debug.contains("TypeError"));
     }
@@ -792,7 +792,7 @@ mod tests {
             message_pattern: Some("missing key".to_string()),
             context: Some(ErrorContext::EventProcessing),
         };
-        let display = format!("{}", pattern);
+        let display = format!("{pattern}");
         assert!(display.contains("KeyError"));
         assert!(display.contains("missing key"));
         assert!(display.contains("EventProcessing"));
@@ -805,7 +805,7 @@ mod tests {
             message_pattern: None,
             context: None,
         };
-        let display = format!("{}", pattern);
+        let display = format!("{pattern}");
         assert_eq!(display, "RuntimeError");
     }
 
@@ -847,7 +847,7 @@ mod tests {
             include_stack_trace: false,
             retry_strategy: RetryStrategy::ExponentialBackoff,
         };
-        let debug = format!("{:?}", mapping);
+        let debug = format!("{mapping:?}");
         assert!(debug.contains("LambdaErrorMapping"));
     }
 
@@ -872,7 +872,7 @@ mod tests {
     #[test]
     fn test_error_context_debug() {
         let ctx = ErrorContext::Serialization;
-        let debug = format!("{:?}", ctx);
+        let debug = format!("{ctx:?}");
         assert!(debug.contains("Serialization"));
     }
 
@@ -920,7 +920,7 @@ mod tests {
     #[test]
     fn test_error_handling_strategy_debug() {
         let strategy = ErrorHandlingStrategy::LogAndContinue;
-        let debug = format!("{:?}", strategy);
+        let debug = format!("{strategy:?}");
         assert!(debug.contains("LogAndContinue"));
     }
 
@@ -963,7 +963,7 @@ mod tests {
     #[test]
     fn test_retry_strategy_debug() {
         let strategy = RetryStrategy::Immediate;
-        let debug = format!("{:?}", strategy);
+        let debug = format!("{strategy:?}");
         assert!(debug.contains("Immediate"));
     }
 
@@ -1201,7 +1201,7 @@ mod tests {
             error_enum: "enum".to_string(),
             helper_traits: "trait".to_string(),
         };
-        let debug = format!("{:?}", code);
+        let debug = format!("{code:?}");
         assert!(debug.contains("ErrorConversionCode"));
     }
 
@@ -1237,7 +1237,7 @@ mod tests {
     #[test]
     fn test_lambda_error_handler_debug() {
         let handler = LambdaErrorHandler::new();
-        let debug = format!("{:?}", handler);
+        let debug = format!("{handler:?}");
         assert!(debug.contains("LambdaErrorHandler"));
     }
 

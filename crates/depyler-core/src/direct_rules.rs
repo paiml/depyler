@@ -3688,7 +3688,7 @@ mod tests {
         let converter = ExprConverter::new(&type_mapper);
         let expr = HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("obj".to_string())),
-            method: "".to_string(), // Empty method name
+            method: String::new(), // Empty method name
             args: vec![],
             kwargs: vec![],
         };

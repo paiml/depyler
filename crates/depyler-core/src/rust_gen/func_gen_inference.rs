@@ -1311,7 +1311,7 @@ impl RustCodeGen for HirFunction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::*;
+    
 
     // === is_file_creating_return_expr tests ===
 
@@ -1741,7 +1741,7 @@ mod tests {
             target: Some("f".to_string()),
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("data".to_string()),
-                value: HirExpr::Literal(Literal::String("".to_string())),
+                value: HirExpr::Literal(Literal::String(String::new())),
                 type_annotation: Some(Type::String),
             }],
             is_async: false,
@@ -1824,12 +1824,12 @@ mod tests {
 
     #[test]
     fn test_transpile_nested_function_return() {
-        let code = r#"
+        let code = r"
 def make_adder(n: int) -> int:
     def adder(x: int) -> int:
         return n + x
     return adder
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_adder"));
     }
@@ -1848,10 +1848,10 @@ def greet(name: str) -> str:
 
     #[test]
     fn test_transpile_function_return_type_inferred() {
-        let code = r#"
+        let code = r"
 def double(x: int) -> int:
     return x * 2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn double"));
         assert!(rust.contains("i64") || rust.contains("i32"));
@@ -1859,10 +1859,10 @@ def double(x: int) -> int:
 
     #[test]
     fn test_transpile_async_function() {
-        let code = r#"
+        let code = r"
 async def fetch_data(url: str) -> str:
     return url
-"#;
+";
         let rust = transpile(code);
         // The transpiler currently generates synchronous functions for async Python defs.
         // Verify the function is emitted correctly (async support is not yet implemented).
@@ -2121,12 +2121,12 @@ async def fetch_data(url: str) -> str:
 
     #[test]
     fn test_transpile_closure_returning_function() {
-        let code = r#"
+        let code = r"
 def make_multiplier(factor: int):
     def multiply(x: int) -> int:
         return x * factor
     return multiply
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_multiplier"));
     }
@@ -2143,10 +2143,10 @@ def greet(name: str, greeting: str = "Hello") -> str:
 
     #[test]
     fn test_transpile_function_returning_bool() {
-        let code = r#"
+        let code = r"
 def is_even(n: int) -> bool:
     return n % 2 == 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn is_even"));
         assert!(rust.contains("bool"));
@@ -2154,13 +2154,13 @@ def is_even(n: int) -> bool:
 
     #[test]
     fn test_transpile_function_returning_list() {
-        let code = r#"
+        let code = r"
 def make_list(n: int) -> list:
     result = []
     for i in range(n):
         result.append(i)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_list"));
         assert!(rust.contains("Vec"));
@@ -2168,13 +2168,13 @@ def make_list(n: int) -> list:
 
     #[test]
     fn test_transpile_function_returning_optional() {
-        let code = r#"
+        let code = r"
 def find_item(items: list, target: int):
     for item in items:
         if item == target:
             return item
     return None
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn find_item"));
         assert!(rust.contains("Option") || rust.contains("None"));
@@ -2215,43 +2215,43 @@ def make_dict() -> dict:
 
     #[test]
     fn test_s9b6_infer_tuple_return() {
-        let code = r#"
+        let code = r"
 def pair(a: int, b: int) -> tuple:
     return a, b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn pair"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_set_return() {
-        let code = r#"
+        let code = r"
 def unique_chars(s: str) -> set:
     result = set()
     for c in s:
         result.add(c)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn unique_chars"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_binary_op() {
-        let code = r#"
+        let code = r"
 def compute(a: int, b: int):
     return a * b + a - b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn compute"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_comparison() {
-        let code = r#"
+        let code = r"
 def check(x: int, y: int):
     return x > y
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn check"), "output: {}", rust);
         assert!(rust.contains("bool"), "should infer bool: {}", rust);
@@ -2259,40 +2259,40 @@ def check(x: int, y: int):
 
     #[test]
     fn test_s9b6_infer_from_method_call() {
-        let code = r#"
+        let code = r"
 def upper(s: str):
     return s.upper()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn upper"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_len() {
-        let code = r#"
+        let code = r"
 def count(items: list):
     return len(items)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn count"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_sum() {
-        let code = r#"
+        let code = r"
 def total(nums: list):
     return sum(nums)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn total"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_min_max() {
-        let code = r#"
+        let code = r"
 def largest(nums: list):
     return max(nums)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn largest"), "output: {}", rust);
     }
@@ -2319,42 +2319,42 @@ def split_csv(line: str):
 
     #[test]
     fn test_s9b6_infer_void_function() {
-        let code = r#"
+        let code = r"
 def log(msg: str):
     print(msg)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn log"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_list_comprehension() {
-        let code = r#"
+        let code = r"
 def doubles(nums: list):
     return [x * 2 for x in nums]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn doubles"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_nested_return() {
-        let code = r#"
+        let code = r"
 def safe_div(a: int, b: int):
     if b == 0:
         return None
     return a // b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_div"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_infer_from_isinstance() {
-        let code = r#"
+        let code = r"
 def is_str(x) -> bool:
     return isinstance(x, str)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn is_str"), "output: {}", rust);
     }

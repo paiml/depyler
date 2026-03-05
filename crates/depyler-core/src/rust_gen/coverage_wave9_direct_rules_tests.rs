@@ -22,35 +22,35 @@ mod tests {
 
     #[test]
     fn test_w9dr_protocol_basic() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Drawable(Protocol):
     def draw(self) -> None:
         pass
-"#;
+";
         let result = transpile(code);
         // Protocol classes may be type-only, so just verify transpilation succeeds
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_with_method() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Comparable(Protocol):
     def compare(self, other) -> int:
         pass
-"#;
+";
         let result = transpile(code);
         // Protocol classes may be type-only, so just verify transpilation succeeds
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_with_generics() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, TypeVar
 
 T = TypeVar('T')
@@ -58,7 +58,7 @@ T = TypeVar('T')
 class Container(Protocol):
     def add(self, item: T) -> None:
         pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("add") || result.contains("Container"));
         }
@@ -66,7 +66,7 @@ class Container(Protocol):
 
     #[test]
     fn test_w9dr_protocol_with_typevar() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, TypeVar
 
 T = TypeVar('T')
@@ -74,7 +74,7 @@ T = TypeVar('T')
 class Getter(Protocol):
     def get(self) -> T:
         pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("get") || result.contains("Getter"));
         }
@@ -82,54 +82,54 @@ class Getter(Protocol):
 
     #[test]
     fn test_w9dr_protocol_iter() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Iterable(Protocol):
     def __iter__(self):
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_next() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Iterator(Protocol):
     def __next__(self):
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_len() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Sized(Protocol):
     def __len__(self) -> int:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_getitem() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Indexable(Protocol):
     def __getitem__(self, key):
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
@@ -142,51 +142,51 @@ class HasDefault(Protocol):
         return "default"
 "#;
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_self_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Chainable(Protocol):
     def chain(self):
         return self
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_typed_params() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Adder(Protocol):
     def add(self, x: int, y: int) -> int:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_return_type() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Formatter(Protocol):
     def format(self) -> str:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_multiple_methods() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Serializable(Protocol):
@@ -194,14 +194,14 @@ class Serializable(Protocol):
         pass
     def deserialize(self, data: str) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_multiple_typevars() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, TypeVar
 
 K = TypeVar('K')
@@ -210,7 +210,7 @@ V = TypeVar('V')
 class Mapper(Protocol):
     def map(self, key: K) -> V:
         pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("map") || result.contains("Mapper"));
         }
@@ -218,165 +218,165 @@ class Mapper(Protocol):
 
     #[test]
     fn test_w9dr_protocol_no_methods() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Marker(Protocol):
     pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Marker") || result.contains("struct"));
     }
 
     #[test]
     fn test_w9dr_protocol_class_method() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Factory(Protocol):
     @classmethod
     def create(cls):
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_static_method() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Util(Protocol):
     @staticmethod
     def helper():
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_property() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class HasProperty(Protocol):
     @property
     def value(self) -> int:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_nested_return() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, List
 
 class Provider(Protocol):
     def provide(self) -> List[int]:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_optional_return() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Optional
 
 class Finder(Protocol):
     def find(self) -> Optional[str]:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_callback() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Callable
 
 class EventHandler(Protocol):
     def handle(self, callback: Callable) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_varargs() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Logger(Protocol):
     def log(self, *args) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_kwargs() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class ConfigLoader(Protocol):
     def load(self, **kwargs) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_default_arg() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Configurable(Protocol):
     def configure(self, flag: bool = True) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_multiple_returns() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Tuple
 
 class Splitter(Protocol):
     def split(self) -> Tuple[int, int]:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_self_return() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Builder(Protocol):
     def build(self):
         return self
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_generic_method() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Generic, TypeVar
 
 T = TypeVar('T')
@@ -384,132 +384,132 @@ T = TypeVar('T')
 class Processor(Protocol, Generic[T]):
     def process(self, item: T) -> T:
         pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
-            assert!(result.len() > 0);
+            assert!(!result.is_empty());
         }
     }
 
     #[test]
     fn test_w9dr_protocol_dict_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Dict
 
 class DictHandler(Protocol):
     def handle(self, data: Dict[str, int]) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_list_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, List
 
 class ListHandler(Protocol):
     def handle(self, items: List[str]) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_set_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Set
 
 class SetHandler(Protocol):
     def handle(self, items: Set[int]) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_union_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Union
 
 class UnionHandler(Protocol):
     def handle(self, value: Union[int, str]) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_any_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol, Any
 
 class AnyHandler(Protocol):
     def handle(self, value: Any) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_bool_return() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Validator(Protocol):
     def validate(self) -> bool:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_float_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Calculator(Protocol):
     def calculate(self, x: float) -> float:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_bytes_param() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class ByteHandler(Protocol):
     def handle(self, data: bytes) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_none_return() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Executor(Protocol):
     def execute(self) -> None:
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     #[test]
     fn test_w9dr_protocol_multiple_inheritance() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class A(Protocol):
@@ -520,7 +520,7 @@ class B(Protocol):
 
 class C(A, B, Protocol):
     def c(self): pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("a") || result.contains("b") || result.contains("c"));
         }
@@ -543,29 +543,29 @@ class Documented(Protocol):
 
     #[test]
     fn test_w9dr_protocol_pass_only() {
-        let code = r#"
+        let code = r"
 from typing import Protocol
 
 class Empty(Protocol):
     def method(self):
         pass
-"#;
+";
         let result = transpile(code);
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
     }
 
     // Section 2: Enum class conversion (40 tests)
 
     #[test]
     fn test_w9dr_enum_int_valued() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Status(Enum):
     PENDING = 0
     ACTIVE = 1
     DONE = 2
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("enum") || result.contains("Status"));
     }
@@ -601,7 +601,7 @@ class Mixed(Enum):
 
     #[test]
     fn test_w9dr_enum_with_method() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Priority(Enum):
@@ -610,7 +610,7 @@ class Priority(Enum):
 
     def is_high(self) -> bool:
         return self == Priority.HIGH
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("Priority") && (result.contains("is_high") || result.contains("LOW"))
@@ -619,7 +619,7 @@ class Priority(Enum):
 
     #[test]
     fn test_w9dr_enum_str_method() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Level(Enum):
@@ -628,14 +628,14 @@ class Level(Enum):
 
     def __str__(self) -> str:
         return self.name
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Level") || result.contains("DEBUG"));
     }
 
     #[test]
     fn test_w9dr_enum_value_method() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Code(Enum):
@@ -644,14 +644,14 @@ class Code(Enum):
 
     def value(self) -> int:
         return self.value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Code") || result.contains("OK"));
     }
 
     #[test]
     fn test_w9dr_enum_comparison() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class State(Enum):
@@ -660,14 +660,14 @@ class State(Enum):
 
 def is_on(state: State) -> bool:
     return state == State.ON
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("State") && result.contains("is_on"));
     }
 
     #[test]
     fn test_w9dr_enum_as_param() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Mode(Enum):
@@ -676,14 +676,14 @@ class Mode(Enum):
 
 def open_file(mode: Mode) -> None:
     pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Mode") && result.contains("open_file"));
     }
 
     #[test]
     fn test_w9dr_enum_member_access() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Direction(Enum):
@@ -691,14 +691,14 @@ class Direction(Enum):
     SOUTH = 2
 
 x = Direction.NORTH
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Direction") && result.contains("NORTH"));
     }
 
     #[test]
     fn test_w9dr_enum_iteration() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Size(Enum):
@@ -708,20 +708,20 @@ class Size(Enum):
 
 for size in Size:
     print(size)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Size") || result.contains("SMALL"));
     }
 
     #[test]
     fn test_w9dr_enum_auto() {
-        let code = r#"
+        let code = r"
 from enum import Enum, auto
 
 class AutoEnum(Enum):
     FIRST = auto()
     SECOND = auto()
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("AutoEnum") || result.contains("FIRST"));
         }
@@ -729,14 +729,14 @@ class AutoEnum(Enum):
 
     #[test]
     fn test_w9dr_enum_flag() {
-        let code = r#"
+        let code = r"
 from enum import Flag
 
 class Permission(Flag):
     READ = 4
     WRITE = 2
     EXECUTE = 1
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Permission") || result.contains("READ"));
         }
@@ -744,13 +744,13 @@ class Permission(Flag):
 
     #[test]
     fn test_w9dr_enum_int_enum() {
-        let code = r#"
+        let code = r"
 from enum import IntEnum
 
 class HttpStatus(IntEnum):
     OK = 200
     NOT_FOUND = 404
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("HttpStatus") || result.contains("OK"));
         }
@@ -772,7 +772,7 @@ class StrEnum(str, Enum):
 
     #[test]
     fn test_w9dr_enum_name_property() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Animal(Enum):
@@ -780,14 +780,14 @@ class Animal(Enum):
     CAT = 2
 
 x = Animal.DOG.name
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Animal") && (result.contains("DOG") || result.contains("name")));
     }
 
     #[test]
     fn test_w9dr_enum_value_property() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Number(Enum):
@@ -795,7 +795,7 @@ class Number(Enum):
     TWO = 2
 
 x = Number.ONE.value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Number") && (result.contains("ONE") || result.contains("value")));
     }
@@ -821,7 +821,7 @@ def handle(t: Type) -> str:
 
     #[test]
     fn test_w9dr_enum_return_type() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Result(Enum):
@@ -830,20 +830,20 @@ class Result(Enum):
 
 def get_result() -> Result:
     return Result.SUCCESS
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Result") && result.contains("get_result"));
     }
 
     #[test]
     fn test_w9dr_enum_tuple_value() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Point(Enum):
     ORIGIN = (0, 0)
     UNIT = (1, 1)
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Point") || result.contains("ORIGIN"));
         }
@@ -851,14 +851,14 @@ class Point(Enum):
 
     #[test]
     fn test_w9dr_enum_nested_class() {
-        let code = r#"
+        let code = r"
 class Outer:
     from enum import Enum
 
     class Inner(Enum):
         X = 1
         Y = 2
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Outer") || result.contains("Inner"));
         }
@@ -866,7 +866,7 @@ class Outer:
 
     #[test]
     fn test_w9dr_enum_classmethod() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Kind(Enum):
@@ -876,14 +876,14 @@ class Kind(Enum):
     @classmethod
     def default(cls):
         return cls.A
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Kind") || result.contains("default"));
     }
 
     #[test]
     fn test_w9dr_enum_staticmethod() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Category(Enum):
@@ -893,14 +893,14 @@ class Category(Enum):
     @staticmethod
     def helper():
         return 42
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Category") || result.contains("helper"));
     }
 
     #[test]
     fn test_w9dr_enum_property() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Stage(Enum):
@@ -910,14 +910,14 @@ class Stage(Enum):
     @property
     def is_first(self) -> bool:
         return self == Stage.FIRST
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Stage") || result.contains("is_first"));
     }
 
     #[test]
     fn test_w9dr_enum_multiple_methods() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Op(Enum):
@@ -929,19 +929,19 @@ class Op(Enum):
 
     def is_sub(self) -> bool:
         return self == Op.SUB
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Op") || result.contains("is_add"));
     }
 
     #[test]
     fn test_w9dr_enum_empty() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Empty(Enum):
     pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Empty") || result.contains("enum"));
         }
@@ -949,40 +949,40 @@ class Empty(Enum):
 
     #[test]
     fn test_w9dr_enum_negative_values() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Temp(Enum):
     COLD = -10
     WARM = 0
     HOT = 10
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Temp") || result.contains("COLD"));
     }
 
     #[test]
     fn test_w9dr_enum_boolean_values() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Switch(Enum):
     ON = True
     OFF = False
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Switch") || result.contains("ON"));
     }
 
     #[test]
     fn test_w9dr_enum_none_value() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Maybe(Enum):
     SOME = 1
     NONE = None
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Maybe") || result.contains("SOME"));
         }
@@ -990,49 +990,49 @@ class Maybe(Enum):
 
     #[test]
     fn test_w9dr_enum_hex_values() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Flags(Enum):
     FLAG1 = 0x01
     FLAG2 = 0x02
     FLAG3 = 0x04
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Flags") || result.contains("FLAG1"));
     }
 
     #[test]
     fn test_w9dr_enum_binary_values() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Bits(Enum):
     BIT0 = 0b001
     BIT1 = 0b010
     BIT2 = 0b100
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Bits") || result.contains("BIT0"));
     }
 
     #[test]
     fn test_w9dr_enum_octal_values() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Perms(Enum):
     READ = 0o4
     WRITE = 0o2
     EXEC = 0o1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Perms") || result.contains("READ"));
     }
 
     #[test]
     fn test_w9dr_enum_multiple_enums() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class A(Enum):
@@ -1040,7 +1040,7 @@ class A(Enum):
 
 class B(Enum):
     Y = 2
-"#;
+";
         let result = transpile(code);
         assert!(
             (result.contains("A") || result.contains("X"))
@@ -1050,19 +1050,19 @@ class B(Enum):
 
     #[test]
     fn test_w9dr_enum_single_member() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Single(Enum):
     ONLY = 1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Single") || result.contains("ONLY"));
     }
 
     #[test]
     fn test_w9dr_enum_many_members() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Many(Enum):
@@ -1071,20 +1071,20 @@ class Many(Enum):
     C = 3
     D = 4
     E = 5
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Many") && result.contains("A"));
     }
 
     #[test]
     fn test_w9dr_enum_same_values() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Alias(Enum):
     PRIMARY = 1
     SECONDARY = 1
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Alias") || result.contains("PRIMARY"));
         }
@@ -1092,7 +1092,7 @@ class Alias(Enum):
 
     #[test]
     fn test_w9dr_enum_complex_method() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Complex(Enum):
@@ -1103,14 +1103,14 @@ class Complex(Enum):
         if self == Complex.A:
             return x * 2
         return x + 2
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Complex") || result.contains("process"));
     }
 
     #[test]
     fn test_w9dr_enum_with_init() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 class Custom(Enum):
@@ -1119,7 +1119,7 @@ class Custom(Enum):
 
     def __init__(self, value):
         self._value = value
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Custom") || result.contains("A"));
         }
@@ -1127,11 +1127,11 @@ class Custom(Enum):
 
     #[test]
     fn test_w9dr_enum_functional_api() {
-        let code = r#"
+        let code = r"
 from enum import Enum
 
 Animal = Enum('Animal', ['DOG', 'CAT', 'BIRD'])
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Animal") || result.contains("DOG") || result.contains("Enum"));
         }
@@ -1155,14 +1155,14 @@ class Documented(Enum):
 
     #[test]
     fn test_w9dr_class_dataclass_basic() {
-        let code = r#"
+        let code = r"
 from dataclasses import dataclass
 
 @dataclass
 class Point:
     x: int
     y: int
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Point") && result.contains("x") && result.contains("y"));
     }
@@ -1185,7 +1185,7 @@ class Config:
 
     #[test]
     fn test_w9dr_class_dataclass_annotations() {
-        let code = r#"
+        let code = r"
 from dataclasses import dataclass
 from typing import List
 
@@ -1193,26 +1193,26 @@ from typing import List
 class Container:
     items: List[str]
     count: int
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Container") && result.contains("items"));
     }
 
     #[test]
     fn test_w9dr_class_init_conversion() {
-        let code = r#"
+        let code = r"
 class Person:
     def __init__(self, name: str, age: int):
         self.name = name
         self.age = age
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Person") && result.contains("name") && result.contains("age"));
     }
 
     #[test]
     fn test_w9dr_class_property_decorator() {
-        let code = r#"
+        let code = r"
 class Circle:
     def __init__(self, radius: float):
         self._radius = radius
@@ -1220,7 +1220,7 @@ class Circle:
     @property
     def area(self) -> float:
         return 3.14159 * self._radius ** 2
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Circle") && result.contains("area"));
     }
@@ -1238,38 +1238,38 @@ class Greeter:
 
     #[test]
     fn test_w9dr_class_unused_init_params() {
-        let code = r#"
+        let code = r"
 class Logger:
     def __init__(self, _level: str):
         pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Logger") || result.contains("_level"));
     }
 
     #[test]
     fn test_w9dr_class_value_error() {
-        let code = r#"
+        let code = r"
 class InvalidInput(ValueError):
     pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("InvalidInput") || result.contains("ValueError"));
     }
 
     #[test]
     fn test_w9dr_class_exception() {
-        let code = r#"
+        let code = r"
 class CustomError(Exception):
     pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("CustomError") || result.contains("Exception"));
     }
 
     #[test]
     fn test_w9dr_class_multiple_properties() {
-        let code = r#"
+        let code = r"
 class Rectangle:
     def __init__(self, width: float, height: float):
         self._width = width
@@ -1282,7 +1282,7 @@ class Rectangle:
     @property
     def perimeter(self) -> float:
         return 2 * (self._width + self._height)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("Rectangle") && result.contains("area") && result.contains("perimeter")
@@ -1291,7 +1291,7 @@ class Rectangle:
 
     #[test]
     fn test_w9dr_class_property_setter() {
-        let code = r#"
+        let code = r"
 class Temperature:
     def __init__(self):
         self._celsius = 0.0
@@ -1303,45 +1303,45 @@ class Temperature:
     @celsius.setter
     def celsius(self, value: float):
         self._celsius = value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Temperature") && result.contains("celsius"));
     }
 
     #[test]
     fn test_w9dr_class_classmethod() {
-        let code = r#"
+        let code = r"
 class Factory:
     @classmethod
     def create(cls):
         return cls()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Factory") && result.contains("create"));
     }
 
     #[test]
     fn test_w9dr_class_staticmethod() {
-        let code = r#"
+        let code = r"
 class Utils:
     @staticmethod
     def helper(x: int) -> int:
         return x * 2
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Utils") && result.contains("helper"));
     }
 
     #[test]
     fn test_w9dr_class_multiple_methods() {
-        let code = r#"
+        let code = r"
 class Calculator:
     def add(self, a: int, b: int) -> int:
         return a + b
 
     def subtract(self, a: int, b: int) -> int:
         return a - b
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("Calculator") && result.contains("add") && result.contains("subtract")
@@ -1365,7 +1365,7 @@ class Dog(Animal):
 
     #[test]
     fn test_w9dr_class_multiple_inheritance() {
-        let code = r#"
+        let code = r"
 class A:
     def method_a(self): pass
 
@@ -1374,21 +1374,21 @@ class B:
 
 class C(A, B):
     def method_c(self): pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("A") && result.contains("B") && result.contains("C"));
     }
 
     #[test]
     fn test_w9dr_class_abstract() {
-        let code = r#"
+        let code = r"
 from abc import ABC, abstractmethod
 
 class Shape(ABC):
     @abstractmethod
     def area(self) -> float:
         pass
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Shape") || result.contains("area"));
         }
@@ -1396,7 +1396,7 @@ class Shape(ABC):
 
     #[test]
     fn test_w9dr_class_generic() {
-        let code = r#"
+        let code = r"
 from typing import Generic, TypeVar
 
 T = TypeVar('T')
@@ -1404,7 +1404,7 @@ T = TypeVar('T')
 class Box(Generic[T]):
     def __init__(self, value: T):
         self.value = value
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Box") || result.contains("value"));
         }
@@ -1412,14 +1412,14 @@ class Box(Generic[T]):
 
     #[test]
     fn test_w9dr_class_dunder_str() {
-        let code = r#"
+        let code = r"
 class Person:
     def __init__(self, name: str):
         self.name = name
 
     def __str__(self) -> str:
         return self.name
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Person") && result.contains("name"));
     }
@@ -1441,91 +1441,91 @@ class Point:
 
     #[test]
     fn test_w9dr_class_dunder_eq() {
-        let code = r#"
+        let code = r"
 class Value:
     def __init__(self, val: int):
         self.val = val
 
     def __eq__(self, other) -> bool:
         return self.val == other.val
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Value") && result.contains("val"));
     }
 
     #[test]
     fn test_w9dr_class_dunder_lt() {
-        let code = r#"
+        let code = r"
 class Number:
     def __init__(self, n: int):
         self.n = n
 
     def __lt__(self, other) -> bool:
         return self.n < other.n
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Number") && result.contains("n"));
     }
 
     #[test]
     fn test_w9dr_class_dunder_len() {
-        let code = r#"
+        let code = r"
 class Container:
     def __init__(self):
         self.items = []
 
     def __len__(self) -> int:
         return len(self.items)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Container") && result.contains("items"));
     }
 
     #[test]
     fn test_w9dr_class_dunder_getitem() {
-        let code = r#"
+        let code = r"
 class Sequence:
     def __init__(self):
         self.data = []
 
     def __getitem__(self, index: int):
         return self.data[index]
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Sequence") && result.contains("data"));
     }
 
     #[test]
     fn test_w9dr_class_dunder_setitem() {
-        let code = r#"
+        let code = r"
 class MutableSeq:
     def __init__(self):
         self.data = []
 
     def __setitem__(self, index: int, value):
         self.data[index] = value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("MutableSeq") && result.contains("data"));
     }
 
     #[test]
     fn test_w9dr_class_dunder_iter() {
-        let code = r#"
+        let code = r"
 class Iterable:
     def __init__(self):
         self.items = []
 
     def __iter__(self):
         return iter(self.items)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Iterable") && result.contains("items"));
     }
 
     #[test]
     fn test_w9dr_class_dunder_next() {
-        let code = r#"
+        let code = r"
 class Iterator:
     def __init__(self):
         self.index = 0
@@ -1533,59 +1533,59 @@ class Iterator:
     def __next__(self):
         self.index += 1
         return self.index
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Iterator") && result.contains("index"));
     }
 
     #[test]
     fn test_w9dr_class_nested_class() {
-        let code = r#"
+        let code = r"
 class Outer:
     class Inner:
         def method(self):
             pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Outer") || result.contains("Inner"));
     }
 
     #[test]
     fn test_w9dr_class_private_method() {
-        let code = r#"
+        let code = r"
 class Private:
     def __private_method(self):
         pass
 
     def public_method(self):
         self.__private_method()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Private") && result.contains("public_method"));
     }
 
     #[test]
     fn test_w9dr_class_class_variable() {
-        let code = r#"
+        let code = r"
 class Counter:
     count = 0
 
     def __init__(self):
         Counter.count += 1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Counter") && result.contains("count"));
     }
 
     #[test]
     fn test_w9dr_class_instance_vs_class_var() {
-        let code = r#"
+        let code = r"
 class Mixed:
     class_var = 10
 
     def __init__(self):
         self.instance_var = 20
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("Mixed")
@@ -1595,40 +1595,40 @@ class Mixed:
 
     #[test]
     fn test_w9dr_class_method_with_default() {
-        let code = r#"
+        let code = r"
 class Defaults:
     def method(self, x: int = 0, y: int = 1) -> int:
         return x + y
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Defaults") && result.contains("method"));
     }
 
     #[test]
     fn test_w9dr_class_varargs() {
-        let code = r#"
+        let code = r"
 class VarArgs:
     def method(self, *args) -> int:
         return len(args)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("VarArgs") && result.contains("method"));
     }
 
     #[test]
     fn test_w9dr_class_kwargs() {
-        let code = r#"
+        let code = r"
 class KwArgs:
     def method(self, **kwargs) -> int:
         return len(kwargs)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("KwArgs") && result.contains("method"));
     }
 
     #[test]
     fn test_w9dr_class_complex_init() {
-        let code = r#"
+        let code = r"
 from typing import Optional
 
 class Complex:
@@ -1636,17 +1636,17 @@ class Complex:
         self.a = a
         self.b = b
         self.c = c
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Complex") && result.contains("a"));
     }
 
     #[test]
     fn test_w9dr_class_empty() {
-        let code = r#"
+        let code = r"
 class Empty:
     pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Empty") || result.contains("struct"));
     }
@@ -1667,7 +1667,7 @@ class Documented:
 
     #[test]
     fn test_w9dr_class_super_call() {
-        let code = r#"
+        let code = r"
 class Parent:
     def __init__(self, x: int):
         self.x = x
@@ -1676,21 +1676,21 @@ class Child(Parent):
     def __init__(self, x: int, y: int):
         super().__init__(x)
         self.y = y
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Parent") && result.contains("Child"));
     }
 
     #[test]
     fn test_w9dr_class_context_manager() {
-        let code = r#"
+        let code = r"
 class Context:
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Context") || result.contains("__enter__"));
     }
@@ -1699,35 +1699,35 @@ class Context:
 
     #[test]
     fn test_w9dr_type_alias_simple() {
-        let code = r#"
+        let code = r"
 from typing import List
 
 Vector = List[float]
 
 def process(v: Vector) -> float:
     return sum(v)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Vector") || result.contains("process"));
     }
 
     #[test]
     fn test_w9dr_type_alias_complex() {
-        let code = r#"
+        let code = r"
 from typing import Dict, List
 
 Config = Dict[str, List[int]]
 
 def load_config() -> Config:
     return {}
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Config") || result.contains("load_config"));
     }
 
     #[test]
     fn test_w9dr_type_alias_nested() {
-        let code = r#"
+        let code = r"
 from typing import List, Tuple
 
 Matrix = List[List[float]]
@@ -1735,19 +1735,19 @@ Point = Tuple[float, float]
 
 def transform(m: Matrix, p: Point) -> Point:
     return (0.0, 0.0)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Matrix") || result.contains("Point"));
     }
 
     #[test]
     fn test_w9dr_type_union_int_none() {
-        let code = r#"
+        let code = r"
 from typing import Union
 
 def maybe_int(x: Union[int, None]) -> int:
     return x if x is not None else 0
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("maybe_int") && (result.contains("Option") || result.contains("Union"))
@@ -1756,12 +1756,12 @@ def maybe_int(x: Union[int, None]) -> int:
 
     #[test]
     fn test_w9dr_type_union_int_float() {
-        let code = r#"
+        let code = r"
 from typing import Union
 
 def number(x: Union[int, float]) -> float:
     return float(x)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("number") && result.contains("f64"));
     }
@@ -1783,14 +1783,14 @@ def maybe_str(x: Union[str, None]) -> str:
 
     #[test]
     fn test_w9dr_type_generic_typevar() {
-        let code = r#"
+        let code = r"
 from typing import TypeVar, List
 
 T = TypeVar('T')
 
 def first(items: List[T]) -> T:
     return items[0]
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("first") || result.contains("items"));
         }
@@ -1798,7 +1798,7 @@ def first(items: List[T]) -> T:
 
     #[test]
     fn test_w9dr_type_multiple_typevars() {
-        let code = r#"
+        let code = r"
 from typing import TypeVar, Tuple
 
 K = TypeVar('K')
@@ -1806,7 +1806,7 @@ V = TypeVar('V')
 
 def pair(k: K, v: V) -> Tuple[K, V]:
     return (k, v)
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("pair") || result.contains("Tuple"));
         }
@@ -1814,12 +1814,12 @@ def pair(k: K, v: V) -> Tuple[K, V]:
 
     #[test]
     fn test_w9dr_type_hashmap() {
-        let code = r#"
+        let code = r"
 from typing import Dict
 
 def create_map() -> Dict[str, int]:
     return {}
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("create_map")
@@ -1829,12 +1829,12 @@ def create_map() -> Dict[str, int]:
 
     #[test]
     fn test_w9dr_type_hashset() {
-        let code = r#"
+        let code = r"
 from typing import Set
 
 def create_set() -> Set[int]:
     return set()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("create_set") && (result.contains("HashSet") || result.contains("Set"))
@@ -1843,12 +1843,12 @@ def create_set() -> Set[int]:
 
     #[test]
     fn test_w9dr_type_qualified_hashmap() {
-        let code = r#"
+        let code = r"
 from typing import Dict
 
 def process(data: Dict[str, str]) -> None:
     pass
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("process") && (result.contains("HashMap") || result.contains("Dict"))
@@ -1857,57 +1857,57 @@ def process(data: Dict[str, str]) -> None:
 
     #[test]
     fn test_w9dr_type_lifetime() {
-        let code = r#"
+        let code = r"
 def borrow(data: str) -> str:
     return data
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("borrow") && result.contains("data"));
     }
 
     #[test]
     fn test_w9dr_type_box() {
-        let code = r#"
+        let code = r"
 from typing import Any
 
 def boxed(value: Any) -> Any:
     return value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("boxed") && result.contains("value"));
     }
 
     #[test]
     fn test_w9dr_type_stdlib_shadow_vec() {
-        let code = r#"
+        let code = r"
 class Vec:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Vec") && result.contains("x") && result.contains("y"));
     }
 
     #[test]
     fn test_w9dr_type_stdlib_shadow_hashmap() {
-        let code = r#"
+        let code = r"
 class HashMap:
     def __init__(self):
         self.data = {}
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("HashMap") && result.contains("data"));
     }
 
     #[test]
     fn test_w9dr_type_optional() {
-        let code = r#"
+        let code = r"
 from typing import Optional
 
 def maybe(x: Optional[int]) -> int:
     return x if x is not None else 0
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("maybe") && (result.contains("Option") || result.contains("Optional"))
@@ -1916,12 +1916,12 @@ def maybe(x: Optional[int]) -> int:
 
     #[test]
     fn test_w9dr_type_list() {
-        let code = r#"
+        let code = r"
 from typing import List
 
 def process_list(items: List[str]) -> int:
     return len(items)
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("process_list") && (result.contains("Vec") || result.contains("List"))
@@ -1942,24 +1942,24 @@ def make_pair() -> Tuple[int, str]:
 
     #[test]
     fn test_w9dr_type_callable() {
-        let code = r#"
+        let code = r"
 from typing import Callable
 
 def apply(f: Callable[[int], int], x: int) -> int:
     return f(x)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("apply") || result.contains("Callable"));
     }
 
     #[test]
     fn test_w9dr_type_any() {
-        let code = r#"
+        let code = r"
 from typing import Any
 
 def accept_any(x: Any) -> Any:
     return x
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("accept_any") && result.contains("x"));
     }
@@ -1979,14 +1979,14 @@ def process(mode: Literal["read", "write"]) -> str:
 
     #[test]
     fn test_w9dr_type_final() {
-        let code = r#"
+        let code = r"
 from typing import Final
 
 MAX_SIZE: Final[int] = 100
 
 def get_max() -> int:
     return MAX_SIZE
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("MAX_SIZE") || result.contains("get_max"));
         }
@@ -1994,12 +1994,12 @@ def get_max() -> int:
 
     #[test]
     fn test_w9dr_type_classvar() {
-        let code = r#"
+        let code = r"
 from typing import ClassVar
 
 class Counter:
     count: ClassVar[int] = 0
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("Counter") || result.contains("count"));
         }
@@ -2007,14 +2007,14 @@ class Counter:
 
     #[test]
     fn test_w9dr_type_newtype() {
-        let code = r#"
+        let code = r"
 from typing import NewType
 
 UserId = NewType('UserId', int)
 
 def process_user(id: UserId) -> int:
     return id
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("UserId") || result.contains("process_user"));
         }
@@ -2022,36 +2022,36 @@ def process_user(id: UserId) -> int:
 
     #[test]
     fn test_w9dr_type_union_three() {
-        let code = r#"
+        let code = r"
 from typing import Union
 
 def handle(x: Union[int, str, bool]) -> str:
     return str(x)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("handle") || result.contains("Union"));
     }
 
     #[test]
     fn test_w9dr_type_nested_list() {
-        let code = r#"
+        let code = r"
 from typing import List
 
 def matrix() -> List[List[int]]:
     return [[1, 2], [3, 4]]
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("matrix") && (result.contains("Vec") || result.contains("List")));
     }
 
     #[test]
     fn test_w9dr_type_nested_dict() {
-        let code = r#"
+        let code = r"
 from typing import Dict
 
 def nested() -> Dict[str, Dict[str, int]]:
     return {}
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("nested") && (result.contains("HashMap") || result.contains("Dict"))
@@ -2060,12 +2060,12 @@ def nested() -> Dict[str, Dict[str, int]]:
 
     #[test]
     fn test_w9dr_type_optional_list() {
-        let code = r#"
+        let code = r"
 from typing import Optional, List
 
 def maybe_list(x: Optional[List[int]]) -> List[int]:
     return x if x is not None else []
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("maybe_list") && (result.contains("Option") || result.contains("Vec"))
@@ -2086,12 +2086,12 @@ def pairs() -> List[Tuple[int, str]]:
 
     #[test]
     fn test_w9dr_type_dict_list() {
-        let code = r#"
+        let code = r"
 from typing import Dict, List
 
 def groups() -> Dict[str, List[int]]:
     return {}
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("groups") && (result.contains("HashMap") || result.contains("Vec"))
@@ -2100,12 +2100,12 @@ def groups() -> Dict[str, List[int]]:
 
     #[test]
     fn test_w9dr_type_set_str() {
-        let code = r#"
+        let code = r"
 from typing import Set
 
 def unique_words() -> Set[str]:
     return set()
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("unique_words")
@@ -2115,12 +2115,12 @@ def unique_words() -> Set[str]:
 
     #[test]
     fn test_w9dr_type_frozenset() {
-        let code = r#"
+        let code = r"
 from typing import FrozenSet
 
 def immutable_set() -> FrozenSet[int]:
     return frozenset()
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("immutable_set") || result.contains("FrozenSet"));
         }
@@ -2128,13 +2128,13 @@ def immutable_set() -> FrozenSet[int]:
 
     #[test]
     fn test_w9dr_type_deque() {
-        let code = r#"
+        let code = r"
 from typing import Deque
 
 def queue() -> Deque[int]:
     from collections import deque
     return deque()
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("queue") || result.contains("Deque"));
         }
@@ -2142,13 +2142,13 @@ def queue() -> Deque[int]:
 
     #[test]
     fn test_w9dr_type_counter() {
-        let code = r#"
+        let code = r"
 from typing import Counter
 
 def count() -> Counter[str]:
     from collections import Counter
     return Counter()
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("count") || result.contains("Counter"));
         }
@@ -2156,13 +2156,13 @@ def count() -> Counter[str]:
 
     #[test]
     fn test_w9dr_type_defaultdict() {
-        let code = r#"
+        let code = r"
 from typing import DefaultDict
 
 def default() -> DefaultDict[str, int]:
     from collections import defaultdict
     return defaultdict(int)
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("default") || result.contains("DefaultDict"));
         }
@@ -2170,13 +2170,13 @@ def default() -> DefaultDict[str, int]:
 
     #[test]
     fn test_w9dr_type_ordered_dict() {
-        let code = r#"
+        let code = r"
 from typing import OrderedDict
 
 def ordered() -> OrderedDict[str, int]:
     from collections import OrderedDict
     return OrderedDict()
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("ordered") || result.contains("OrderedDict"));
         }
@@ -2184,13 +2184,13 @@ def ordered() -> OrderedDict[str, int]:
 
     #[test]
     fn test_w9dr_type_chain_map() {
-        let code = r#"
+        let code = r"
 from typing import ChainMap
 
 def chain() -> ChainMap[str, int]:
     from collections import ChainMap
     return ChainMap()
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("chain") || result.contains("ChainMap"));
         }
@@ -2198,12 +2198,12 @@ def chain() -> ChainMap[str, int]:
 
     #[test]
     fn test_w9dr_type_sequence() {
-        let code = r#"
+        let code = r"
 from typing import Sequence
 
 def process_seq(items: Sequence[int]) -> int:
     return len(items)
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("process_seq") || result.contains("Sequence"));
         }
@@ -2211,12 +2211,12 @@ def process_seq(items: Sequence[int]) -> int:
 
     #[test]
     fn test_w9dr_type_mapping() {
-        let code = r#"
+        let code = r"
 from typing import Mapping
 
 def process_map(data: Mapping[str, int]) -> int:
     return len(data)
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("process_map") || result.contains("Mapping"));
         }
@@ -2224,12 +2224,12 @@ def process_map(data: Mapping[str, int]) -> int:
 
     #[test]
     fn test_w9dr_type_iterable() {
-        let code = r#"
+        let code = r"
 from typing import Iterable
 
 def sum_all(items: Iterable[int]) -> int:
     return sum(items)
-"#;
+";
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("sum_all") || result.contains("Iterable"));
         }
@@ -2239,63 +2239,63 @@ def sum_all(items: Iterable[int]) -> int:
 
     #[test]
     fn test_w9dr_mutation_field_add_assign() {
-        let code = r#"
+        let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
 
     def increment(self):
         self.count += 1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Counter") && result.contains("increment"));
     }
 
     #[test]
     fn test_w9dr_mutation_field_read_only() {
-        let code = r#"
+        let code = r"
 class Reader:
     def __init__(self):
         self.value = 0
 
     def get_value(self) -> int:
         return self.value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Reader") && result.contains("get_value"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_append() {
-        let code = r#"
+        let code = r"
 class Collection:
     def __init__(self):
         self.items = []
 
     def add(self, item):
         self.items.append(item)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Collection") && result.contains("add"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_sort() {
-        let code = r#"
+        let code = r"
 class Sorter:
     def __init__(self):
         self.items = []
 
     def sort(self):
         self.items.sort()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Sorter") && result.contains("sort"));
     }
 
     #[test]
     fn test_w9dr_mutation_nested_if() {
-        let code = r#"
+        let code = r"
 class Conditional:
     def __init__(self):
         self.value = 0
@@ -2303,14 +2303,14 @@ class Conditional:
     def update(self, flag: bool):
         if flag:
             self.value += 1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Conditional") && result.contains("update"));
     }
 
     #[test]
     fn test_w9dr_mutation_nested_for() {
-        let code = r#"
+        let code = r"
 class Accumulator:
     def __init__(self):
         self.total = 0
@@ -2318,39 +2318,39 @@ class Accumulator:
     def sum_list(self, items):
         for item in items:
             self.total += item
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Accumulator") && result.contains("sum_list"));
     }
 
     #[test]
     fn test_w9dr_mutation_no_self_access() {
-        let code = r#"
+        let code = r"
 class Static:
     def compute(self, x: int, y: int) -> int:
         return x + y
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Static") && result.contains("compute"));
     }
 
     #[test]
     fn test_w9dr_mutation_return_from_field() {
-        let code = r#"
+        let code = r"
 class Getter:
     def __init__(self):
         self.data = 42
 
     def get(self) -> int:
         return self.data
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Getter") && result.contains("get"));
     }
 
     #[test]
     fn test_w9dr_mutation_param_other_x() {
-        let code = r#"
+        let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -2360,14 +2360,14 @@ class Point:
         dx = self.x - other.x
         dy = self.y - other.y
         return (dx * dx + dy * dy) ** 0.5
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Point") && result.contains("distance"));
     }
 
     #[test]
     fn test_w9dr_mutation_multiple_fields() {
-        let code = r#"
+        let code = r"
 class Rectangle:
     def __init__(self):
         self.width = 0
@@ -2376,182 +2376,182 @@ class Rectangle:
     def resize(self, w: int, h: int):
         self.width = w
         self.height = h
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Rectangle") && result.contains("resize"));
     }
 
     #[test]
     fn test_w9dr_mutation_field_multiply() {
-        let code = r#"
+        let code = r"
 class Multiplier:
     def __init__(self):
         self.value = 1
 
     def multiply(self, factor: int):
         self.value *= factor
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Multiplier") && result.contains("multiply"));
     }
 
     #[test]
     fn test_w9dr_mutation_field_subtract() {
-        let code = r#"
+        let code = r"
 class Subtractor:
     def __init__(self):
         self.total = 100
 
     def subtract(self, amount: int):
         self.total -= amount
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Subtractor") && result.contains("subtract"));
     }
 
     #[test]
     fn test_w9dr_mutation_field_divide() {
-        let code = r#"
+        let code = r"
 class Divider:
     def __init__(self):
         self.value = 100.0
 
     def divide(self, divisor: float):
         self.value /= divisor
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Divider") && result.contains("divide"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_extend() {
-        let code = r#"
+        let code = r"
 class Builder:
     def __init__(self):
         self.items = []
 
     def extend(self, more):
         self.items.extend(more)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Builder") && result.contains("extend"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_remove() {
-        let code = r#"
+        let code = r"
 class Remover:
     def __init__(self):
         self.items = []
 
     def remove(self, item):
         self.items.remove(item)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Remover") && result.contains("remove"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_clear() {
-        let code = r#"
+        let code = r"
 class Clearer:
     def __init__(self):
         self.items = []
 
     def clear(self):
         self.items.clear()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Clearer") && result.contains("clear"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_pop() {
-        let code = r#"
+        let code = r"
 class Popper:
     def __init__(self):
         self.items = []
 
     def pop(self):
         return self.items.pop()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Popper") && result.contains("pop"));
     }
 
     #[test]
     fn test_w9dr_mutation_dict_set() {
-        let code = r#"
+        let code = r"
 class DictSetter:
     def __init__(self):
         self.data = {}
 
     def set(self, key, value):
         self.data[key] = value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("DictSetter") && result.contains("set"));
     }
 
     #[test]
     fn test_w9dr_mutation_dict_del() {
-        let code = r#"
+        let code = r"
 class DictDeleter:
     def __init__(self):
         self.data = {}
 
     def delete(self, key):
         del self.data[key]
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("DictDeleter") && result.contains("delete"));
     }
 
     #[test]
     fn test_w9dr_mutation_dict_update() {
-        let code = r#"
+        let code = r"
 class DictUpdater:
     def __init__(self):
         self.data = {}
 
     def update(self, other):
         self.data.update(other)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("DictUpdater") && result.contains("update"));
     }
 
     #[test]
     fn test_w9dr_mutation_set_add() {
-        let code = r#"
+        let code = r"
 class SetAdder:
     def __init__(self):
         self.items = set()
 
     def add(self, item):
         self.items.add(item)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("SetAdder") && result.contains("add"));
     }
 
     #[test]
     fn test_w9dr_mutation_set_remove() {
-        let code = r#"
+        let code = r"
 class SetRemover:
     def __init__(self):
         self.items = set()
 
     def remove(self, item):
         self.items.remove(item)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("SetRemover") && result.contains("remove"));
     }
 
     #[test]
     fn test_w9dr_mutation_multiple_fields_read() {
-        let code = r#"
+        let code = r"
 class MultiReader:
     def __init__(self):
         self.a = 1
@@ -2559,14 +2559,14 @@ class MultiReader:
 
     def sum(self) -> int:
         return self.a + self.b
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("MultiReader") && result.contains("sum"));
     }
 
     #[test]
     fn test_w9dr_mutation_conditional_write() {
-        let code = r#"
+        let code = r"
 class ConditionalWriter:
     def __init__(self):
         self.value = 0
@@ -2574,14 +2574,14 @@ class ConditionalWriter:
     def update_if(self, condition: bool, new_value: int):
         if condition:
             self.value = new_value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("ConditionalWriter") && result.contains("update_if"));
     }
 
     #[test]
     fn test_w9dr_mutation_loop_write() {
-        let code = r#"
+        let code = r"
 class LoopWriter:
     def __init__(self):
         self.count = 0
@@ -2589,14 +2589,14 @@ class LoopWriter:
     def count_items(self, items):
         for _ in items:
             self.count += 1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("LoopWriter") && result.contains("count_items"));
     }
 
     #[test]
     fn test_w9dr_mutation_nested_loops() {
-        let code = r#"
+        let code = r"
 class NestedLoops:
     def __init__(self):
         self.total = 0
@@ -2605,14 +2605,14 @@ class NestedLoops:
         for row in matrix:
             for val in row:
                 self.total += val
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("NestedLoops") && result.contains("sum_matrix"));
     }
 
     #[test]
     fn test_w9dr_mutation_property_read() {
-        let code = r#"
+        let code = r"
 class PropertyReader:
     def __init__(self):
         self._value = 0
@@ -2620,14 +2620,14 @@ class PropertyReader:
     @property
     def value(self) -> int:
         return self._value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("PropertyReader") && result.contains("value"));
     }
 
     #[test]
     fn test_w9dr_mutation_property_write() {
-        let code = r#"
+        let code = r"
 class PropertyWriter:
     def __init__(self):
         self._value = 0
@@ -2639,14 +2639,14 @@ class PropertyWriter:
     @value.setter
     def value(self, v: int):
         self._value = v
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("PropertyWriter") && result.contains("value"));
     }
 
     #[test]
     fn test_w9dr_mutation_method_chain() {
-        let code = r#"
+        let code = r"
 class Chainable:
     def __init__(self):
         self.value = 0
@@ -2658,7 +2658,7 @@ class Chainable:
     def multiply(self, x: int):
         self.value *= x
         return self
-"#;
+";
         let result = transpile(code);
         assert!(
             result.contains("Chainable") && (result.contains("add") || result.contains("multiply"))
@@ -2667,21 +2667,21 @@ class Chainable:
 
     #[test]
     fn test_w9dr_mutation_comparison_other() {
-        let code = r#"
+        let code = r"
 class Comparable:
     def __init__(self, value: int):
         self.value = value
 
     def equals(self, other) -> bool:
         return self.value == other.value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Comparable") && result.contains("equals"));
     }
 
     #[test]
     fn test_w9dr_mutation_multiple_other_fields() {
-        let code = r#"
+        let code = r"
 class Vector:
     def __init__(self, x: float, y: float, z: float):
         self.x = x
@@ -2690,14 +2690,14 @@ class Vector:
 
     def dot(self, other) -> float:
         return self.x * other.x + self.y * other.y + self.z * other.z
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Vector") && result.contains("dot"));
     }
 
     #[test]
     fn test_w9dr_mutation_modify_return() {
-        let code = r#"
+        let code = r"
 class ModifyReturn:
     def __init__(self):
         self.value = 0
@@ -2705,14 +2705,14 @@ class ModifyReturn:
     def increment_and_get(self) -> int:
         self.value += 1
         return self.value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("ModifyReturn") && result.contains("increment_and_get"));
     }
 
     #[test]
     fn test_w9dr_mutation_no_mutation() {
-        let code = r#"
+        let code = r"
 class Immutable:
     def __init__(self):
         self.value = 0
@@ -2720,7 +2720,7 @@ class Immutable:
     def get(self) -> int:
         x = self.value
         return x
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Immutable") && result.contains("get"));
     }
@@ -2741,7 +2741,7 @@ class StringBuilder:
 
     #[test]
     fn test_w9dr_mutation_complex_expr() {
-        let code = r#"
+        let code = r"
 class Complex:
     def __init__(self):
         self.a = 0
@@ -2750,14 +2750,14 @@ class Complex:
     def update(self, x: int):
         self.a = x * 2
         self.b = x + self.a
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Complex") && result.contains("update"));
     }
 
     #[test]
     fn test_w9dr_mutation_nested_field_access() {
-        let code = r#"
+        let code = r"
 class Outer:
     def __init__(self):
         self.inner = None
@@ -2765,14 +2765,14 @@ class Outer:
     def set_inner(self, value):
         if self.inner is not None:
             self.inner.value = value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Outer") && result.contains("set_inner"));
     }
 
     #[test]
     fn test_w9dr_mutation_while_loop() {
-        let code = r#"
+        let code = r"
 class WhileCounter:
     def __init__(self):
         self.count = 0
@@ -2780,28 +2780,28 @@ class WhileCounter:
     def count_to(self, n: int):
         while self.count < n:
             self.count += 1
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("WhileCounter") && result.contains("count_to"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_index_assign() {
-        let code = r#"
+        let code = r"
 class IndexAssigner:
     def __init__(self):
         self.items = [0, 0, 0]
 
     def set_at(self, index: int, value: int):
         self.items[index] = value
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("IndexAssigner") && result.contains("set_at"));
     }
 
     #[test]
     fn test_w9dr_mutation_field_swap() {
-        let code = r#"
+        let code = r"
 class Swapper:
     def __init__(self):
         self.a = 0
@@ -2811,14 +2811,14 @@ class Swapper:
         temp = self.a
         self.a = self.b
         self.b = temp
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Swapper") && result.contains("swap"));
     }
 
     #[test]
     fn test_w9dr_mutation_tuple_unpack() {
-        let code = r#"
+        let code = r"
 class TupleUnpacker:
     def __init__(self):
         self.x = 0
@@ -2826,7 +2826,7 @@ class TupleUnpacker:
 
     def set_both(self, pair):
         self.x, self.y = pair
-"#;
+";
         // Tuple unpacking may not be fully supported yet
         if let Ok(result) = std::panic::catch_unwind(|| transpile(code)) {
             assert!(result.contains("TupleUnpacker") || result.contains("set_both"));
@@ -2835,42 +2835,42 @@ class TupleUnpacker:
 
     #[test]
     fn test_w9dr_mutation_augmented_assign() {
-        let code = r#"
+        let code = r"
 class AugAssign:
     def __init__(self):
         self.value = 10
 
     def mod_assign(self, x: int):
         self.value %= x
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("AugAssign") && result.contains("mod_assign"));
     }
 
     #[test]
     fn test_w9dr_mutation_list_insert() {
-        let code = r#"
+        let code = r"
 class Inserter:
     def __init__(self):
         self.items = []
 
     def insert_at(self, index: int, value):
         self.items.insert(index, value)
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("Inserter") && result.contains("insert_at"));
     }
 
     #[test]
     fn test_w9dr_mutation_dict_clear() {
-        let code = r#"
+        let code = r"
 class DictClearer:
     def __init__(self):
         self.data = {}
 
     def clear_all(self):
         self.data.clear()
-"#;
+";
         let result = transpile(code);
         assert!(result.contains("DictClearer") && result.contains("clear_all"));
     }

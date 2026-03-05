@@ -121,7 +121,7 @@ pub(crate) fn codegen_try_stmt(
 
     // DEPYLER-0358: Detect simple try-except pattern for optimization
     // Pattern: try { return int(str_var) } except ValueError { return literal }
-    // We can optimize this to: s.parse::<i32>().unwrap_or(literal)
+    // We can simplify this to: s.parse::<i32>().unwrap_or(literal)
     // DEPYLER-0359: Exclude patterns with exception binding (except E as e:)
     // Those need proper match with Err(e) binding
     let simple_pattern_info = if body.len() == 1
@@ -952,7 +952,7 @@ pub(crate) fn try_generate_subcommand_match(
         .map(|sp| sp.dest_field.clone())
         .unwrap_or_else(|| "command".to_string()); // Default to "command" for backwards compatibility
 
-    // Check if condition matches: args.<dest_field> == "string" OR CSE temp variable
+    // Check if condition matches: args.<dest_field> == "string" OR CSE intermediate variable
     let command_name = match is_subcommand_check(condition, &dest_field, ctx) {
         Some(name) => name,
         None => return Ok(None),
@@ -2149,7 +2149,7 @@ pub(crate) fn captures_outer_scope(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::*;
+    
     use std::collections::HashSet;
 
     // === extract_fields_from_expr tests ===
@@ -2681,14 +2681,14 @@ mod tests {
 
     #[test]
     fn test_transpile_try_except_basic() {
-        let code = r#"
+        let code = r"
 def safe_div(a: int, b: int) -> int:
     try:
         result = a // b
         return result
     except ZeroDivisionError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_div"));
     }
@@ -2712,7 +2712,7 @@ def cleanup_action() -> str:
 
     #[test]
     fn test_transpile_try_except_multiple_handlers() {
-        let code = r#"
+        let code = r"
 def parse_value(s: str) -> int:
     try:
         return int(s)
@@ -2720,19 +2720,19 @@ def parse_value(s: str) -> int:
         return -1
     except TypeError:
         return -2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_value"));
     }
 
     #[test]
     fn test_transpile_nested_function_with_closure() {
-        let code = r#"
+        let code = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return x + y
     return inner(10)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"));
     }
@@ -2783,13 +2783,13 @@ def catch_named(s: str) -> str:
 
     #[test]
     fn test_transpile_try_reraise() {
-        let code = r#"
+        let code = r"
 def reraise(x: int) -> int:
     try:
         return x
     except ValueError:
         raise
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn reraise"));
     }
@@ -2827,40 +2827,40 @@ def finally_return() -> str:
 
     #[test]
     fn test_transpile_nested_function_no_capture() {
-        let code = r#"
+        let code = r"
 def outer() -> int:
     def inner(x: int) -> int:
         return x * 2
     return inner(5)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"));
     }
 
     #[test]
     fn test_transpile_nested_function_multiple() {
-        let code = r#"
+        let code = r"
 def parent() -> int:
     def add(a: int, b: int) -> int:
         return a + b
     def mul(a: int, b: int) -> int:
         return a * b
     return add(2, 3) + mul(4, 5)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parent"), "Should contain parent function: {}", rust);
     }
 
     #[test]
     fn test_transpile_try_with_assignment() {
-        let code = r#"
+        let code = r"
 def parse_int(s: str) -> int:
     try:
         n = int(s)
         return n
     except ValueError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_int"));
     }
@@ -3042,11 +3042,11 @@ def parse_int(s: str) -> int:
 
     #[test]
     fn test_transpile_with_open_file() {
-        let code = r#"
+        let code = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         return f.read()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn read_file"), "output: {}", rust);
     }
@@ -3101,13 +3101,13 @@ def fail_fast() -> None:
 
     #[test]
     fn test_transpile_raise_bare() {
-        let code = r#"
+        let code = r"
 def reraise_bare() -> int:
     try:
         return 1
     except ValueError:
         raise
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn reraise_bare"), "output: {}", rust);
     }
@@ -3118,10 +3118,10 @@ def reraise_bare() -> int:
 
     #[test]
     fn test_transpile_assert_simple() {
-        let code = r#"
+        let code = r"
 def check(x: int) -> None:
     assert x > 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("assert"), "output: {}", rust);
     }
@@ -3139,20 +3139,20 @@ def check_msg(x: int) -> None:
 
     #[test]
     fn test_transpile_assert_equality() {
-        let code = r#"
+        let code = r"
 def check_eq(a: int, b: int) -> None:
     assert a == b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn check_eq"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_assert_not_equal() {
-        let code = r#"
+        let code = r"
 def check_ne(a: int, b: int) -> None:
     assert a != b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn check_ne"), "output: {}", rust);
     }
@@ -3163,12 +3163,12 @@ def check_ne(a: int, b: int) -> None:
 
     #[test]
     fn test_transpile_augmented_add() {
-        let code = r#"
+        let code = r"
 def accumulate(n: int) -> int:
     total = 0
     total += n
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn accumulate"), "output: {}", rust);
         assert!(rust.contains("+="), "Should contain += operator: {}", rust);
@@ -3176,12 +3176,12 @@ def accumulate(n: int) -> int:
 
     #[test]
     fn test_transpile_augmented_sub() {
-        let code = r#"
+        let code = r"
 def decrement(n: int) -> int:
     value = 10
     value -= n
     return value
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn decrement"), "output: {}", rust);
         assert!(rust.contains("-="), "Should contain -= operator: {}", rust);
@@ -3189,12 +3189,12 @@ def decrement(n: int) -> int:
 
     #[test]
     fn test_transpile_augmented_mul() {
-        let code = r#"
+        let code = r"
 def scale(n: int) -> int:
     result = 1
     result *= n
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn scale"), "output: {}", rust);
         // Transpiler may use `*=`, expand to `result * n`, or use `py_mul` helper
@@ -3207,12 +3207,12 @@ def scale(n: int) -> int:
 
     #[test]
     fn test_transpile_augmented_mod() {
-        let code = r#"
+        let code = r"
 def modulo_assign(n: int) -> int:
     value = 100
     value %= n
     return value
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn modulo_assign"), "output: {}", rust);
         // Transpiler may use py_mod() helper for Python-compatible modulo
@@ -3229,7 +3229,7 @@ def modulo_assign(n: int) -> int:
 
     #[test]
     fn test_transpile_break_in_loop() {
-        let code = r#"
+        let code = r"
 def find_first(n: int) -> int:
     i = 0
     while i < n:
@@ -3237,7 +3237,7 @@ def find_first(n: int) -> int:
             break
         i += 1
     return i
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn find_first"), "output: {}", rust);
         assert!(rust.contains("break"), "Should contain break: {}", rust);
@@ -3245,7 +3245,7 @@ def find_first(n: int) -> int:
 
     #[test]
     fn test_transpile_continue_in_loop() {
-        let code = r#"
+        let code = r"
 def skip_evens(n: int) -> int:
     total = 0
     for i in range(n):
@@ -3253,7 +3253,7 @@ def skip_evens(n: int) -> int:
             continue
         total += i
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn skip_evens"), "output: {}", rust);
         assert!(rust.contains("continue"), "Should contain continue: {}", rust);
@@ -3265,24 +3265,24 @@ def skip_evens(n: int) -> int:
 
     #[test]
     fn test_transpile_pass_in_function() {
-        let code = r#"
+        let code = r"
 def noop() -> None:
     pass
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn noop"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_pass_in_if() {
-        let code = r#"
+        let code = r"
 def conditional(x: int) -> int:
     if x > 0:
         pass
     else:
         return -1
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn conditional"), "output: {}", rust);
     }
@@ -3293,11 +3293,11 @@ def conditional(x: int) -> int:
 
     #[test]
     fn test_transpile_chained_assignment() {
-        let code = r#"
+        let code = r"
 def chain() -> int:
     a = b = 0
     return a + b
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn chain"), "output: {}", rust);
     }
@@ -3308,12 +3308,12 @@ def chain() -> int:
 
     #[test]
     fn test_transpile_class_basic() {
-        let code = r#"
+        let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-"#;
+";
         let rust = transpile(code);
         // Should produce some struct or impl output
         assert!(
@@ -3325,14 +3325,14 @@ class Point:
 
     #[test]
     fn test_transpile_class_with_method() {
-        let code = r#"
+        let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
 
     def increment(self) -> None:
         self.count += 1
-"#;
+";
         let rust = transpile(code);
         assert!(
             rust.contains("Counter") || rust.contains("struct"),
@@ -3343,14 +3343,14 @@ class Counter:
 
     #[test]
     fn test_transpile_class_with_return_method() {
-        let code = r#"
+        let code = r"
 class Box:
     def __init__(self, value: int):
         self.value = value
 
     def get_value(self) -> int:
         return self.value
-"#;
+";
         let rust = transpile(code);
         assert!(
             rust.contains("Box") || rust.contains("struct") || rust.contains("fn get_value"),
@@ -3398,7 +3398,7 @@ def nested_cleanup() -> str:
 
     #[test]
     fn test_transpile_try_only_finally() {
-        let code = r#"
+        let code = r"
 def with_finally() -> int:
     x = 0
     try:
@@ -3406,7 +3406,7 @@ def with_finally() -> int:
     finally:
         x = x + 1
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn with_finally"), "output: {}", rust);
     }
@@ -3417,14 +3417,14 @@ def with_finally() -> int:
 
     #[test]
     fn test_transpile_nested_function_recursive() {
-        let code = r#"
+        let code = r"
 def outer() -> int:
     def factorial(n: int) -> int:
         if n <= 1:
             return 1
         return n * factorial(n - 1)
     return factorial(5)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
         assert!(rust.contains("factorial"), "Should contain factorial: {}", rust);
@@ -3432,12 +3432,12 @@ def outer() -> int:
 
     #[test]
     fn test_transpile_nested_function_unknown_return() {
-        let code = r#"
+        let code = r"
 def outer():
     def helper():
         return 42
     return helper()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("outer"), "output: {}", rust);
         assert!(rust.contains("helper"), "Should contain helper: {}", rust);
@@ -3462,20 +3462,20 @@ def build_str() -> str:
 
     #[test]
     fn test_transpile_for_with_break() {
-        let code = r#"
+        let code = r"
 def search(items: list, target: int) -> int:
     for i in range(len(items)):
         if items[i] == target:
             return i
     return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn search"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_while_true_break() {
-        let code = r#"
+        let code = r"
 def read_until_done() -> int:
     count = 0
     while True:
@@ -3483,7 +3483,7 @@ def read_until_done() -> int:
         if count >= 10:
             break
     return count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn read_until_done"), "output: {}", rust);
         assert!(rust.contains("loop") || rust.contains("while"), "output: {}", rust);
@@ -3753,13 +3753,13 @@ def read_until_done() -> int:
 
     #[test]
     fn test_transpile_try_parse_int_with_negative_fallback() {
-        let code = r#"
+        let code = r"
 def safe_parse(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_parse"), "output: {}", rust);
         assert!(
@@ -3771,13 +3771,13 @@ def safe_parse(s: str) -> int:
 
     #[test]
     fn test_transpile_try_parse_int_with_zero_fallback() {
-        let code = r#"
+        let code = r"
 def parse_or_zero(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_or_zero"), "output: {}", rust);
     }
@@ -3887,13 +3887,13 @@ def process(s: str) -> str:
 
     #[test]
     fn test_transpile_try_with_floor_div_zerodiv() {
-        let code = r#"
+        let code = r"
 def safe_floor_div(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_floor_div"), "output: {}", rust);
     }
@@ -3914,7 +3914,7 @@ def catch_with_msg(s: str) -> str:
 
     #[test]
     fn test_transpile_try_except_in_loop() {
-        let code = r#"
+        let code = r"
 def parse_all(items: list) -> int:
     count = 0
     for item in items:
@@ -3924,47 +3924,47 @@ def parse_all(items: list) -> int:
         except ValueError:
             pass
     return count
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_all"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_try_with_bool_return_handler() {
-        let code = r#"
+        let code = r"
 def is_valid(s: str) -> bool:
     try:
         n = int(s)
         return True
     except ValueError:
         return False
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn is_valid"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_try_negative_fallback() {
-        let code = r#"
+        let code = r"
 def parse_or_neg(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_or_neg"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_try_float_fallback() {
-        let code = r#"
+        let code = r"
 def parse_float_safe(s: str) -> float:
     try:
         return float(s)
     except ValueError:
         return 0.0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_float_safe"), "output: {}", rust);
     }
@@ -3984,13 +3984,13 @@ def safe_upper(s: str) -> str:
 
     #[test]
     fn test_transpile_nested_function_with_capture_list() {
-        let code = r#"
+        let code = r"
 def outer() -> list:
     items = [1, 2, 3]
     def inner() -> int:
         return len(items)
     return [inner()]
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
@@ -4009,25 +4009,25 @@ def make_greeter(name: str) -> str:
 
     #[test]
     fn test_transpile_nested_function_no_params_no_capture() {
-        let code = r#"
+        let code = r"
 def wrapper() -> int:
     def constant() -> int:
         return 42
     return constant()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn wrapper"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_nested_function_shadowed_param() {
-        let code = r#"
+        let code = r"
 def outer(x: int) -> int:
     y = 20
     def inner(x: int) -> int:
         return x + y
     return inner(5)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
@@ -4048,13 +4048,13 @@ def safe_read(path: str) -> str:
 
     #[test]
     fn test_transpile_try_except_index_error() {
-        let code = r#"
+        let code = r"
 def safe_first(items: list) -> int:
     try:
         return items[0]
     except IndexError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_first"), "output: {}", rust);
     }
@@ -4088,7 +4088,7 @@ def log_error(s: str) -> int:
 
     #[test]
     fn test_transpile_try_except_multiple_stmts_body() {
-        let code = r#"
+        let code = r"
 def multi_try(a: str, b: str) -> int:
     try:
         x = int(a)
@@ -4096,7 +4096,7 @@ def multi_try(a: str, b: str) -> int:
         return x + y
     except ValueError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn multi_try"), "output: {}", rust);
     }
@@ -4331,7 +4331,7 @@ def multi_try(a: str, b: str) -> int:
 
     #[test]
     fn test_transpile_try_with_variable_escape() {
-        let code = r#"
+        let code = r"
 def escape_var(s: str) -> str:
     try:
         result = s.strip()
@@ -4339,20 +4339,20 @@ def escape_var(s: str) -> str:
     except ValueError:
         n = 0
     return str(n)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn escape_var"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_nested_fn_recursive() {
-        let code = r#"
+        let code = r"
 def counter() -> int:
     count = 0
     def increment() -> int:
         return count + 1
     return increment()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn counter"), "output: {}", rust);
     }
@@ -4385,51 +4385,51 @@ def attr_safe(s: str) -> str:
 
     #[test]
     fn test_transpile_try_all_except_types() {
-        let code = r#"
+        let code = r"
 def robust(x: int) -> int:
     try:
         return x + 1
     except (ValueError, TypeError, IndexError):
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn robust"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_del_statement() {
-        let code = r#"
+        let code = r"
 def cleanup() -> None:
     x = 10
     del x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn cleanup"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_global_statement() {
-        let code = r#"
+        let code = r"
 counter = 0
 
 def increment() -> int:
     global counter
     counter += 1
     return counter
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn increment") || rust.contains("counter"), "output: {}", rust);
     }
 
     #[test]
     fn test_transpile_nested_fn_with_default_param() {
-        let code = r#"
+        let code = r"
 def outer() -> int:
     base = 10
     def inner(x: int = 5) -> int:
         return x + base
     return inner()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
@@ -4482,47 +4482,47 @@ def safe_parse(s: str) -> str:
 
     #[test]
     fn test_s9_try_except_with_float_fallback() {
-        let code = r#"
+        let code = r"
 def to_float(s: str) -> float:
     try:
         return float(s)
     except ValueError:
         return 0.0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn to_float"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_try_except_with_negative_int_fallback() {
-        let code = r#"
+        let code = r"
 def parse_or_neg(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_or_neg"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_try_except_with_exception_binding() {
-        let code = r#"
+        let code = r"
 def handle_error(s: str) -> str:
     try:
         x = int(s)
         return str(x)
     except ValueError as e:
         return str(e)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn handle_error"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_try_except_assignment_in_body_and_handler() {
-        let code = r#"
+        let code = r"
 def dual_assign(s: str) -> int:
     result = 0
     try:
@@ -4530,14 +4530,14 @@ def dual_assign(s: str) -> int:
     except ValueError:
         result = -1
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn dual_assign"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_try_except_with_loop_in_body() {
-        let code = r#"
+        let code = r"
 def sum_strings(items: list) -> int:
     total = 0
     try:
@@ -4546,40 +4546,40 @@ def sum_strings(items: list) -> int:
     except ValueError:
         total = -1
     return total
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn sum_strings"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_nested_function_recursive() {
-        let code = r#"
+        let code = r"
 def outer(n: int) -> int:
     def factorial(x: int) -> int:
         if x <= 1:
             return 1
         return x * factorial(x - 1)
     return factorial(n)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_nested_function_with_string_param() {
-        let code = r#"
+        let code = r"
 def process(text: str) -> str:
     def transform(s: str) -> str:
         return s.upper()
     return transform(text)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn process"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_nested_function_with_list_param() {
-        let code = r#"
+        let code = r"
 def filter_positive(nums: list) -> list:
     def is_positive(n: int) -> bool:
         return n > 0
@@ -4588,19 +4588,19 @@ def filter_positive(nums: list) -> list:
         if is_positive(n):
             result.append(n)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn filter_positive"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_nested_function_with_dict_param() {
-        let code = r#"
+        let code = r"
 def get_value(data: dict, key: str) -> int:
     def lookup(d: dict, k: str) -> int:
         return d.get(k, 0)
     return lookup(data, key)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn get_value"), "output: {}", rust);
     }
@@ -4634,20 +4634,20 @@ def multi_catch(s: str) -> str:
 
     #[test]
     fn test_s9_try_except_floor_div_zero_division() {
-        let code = r#"
+        let code = r"
 def safe_floor_div(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_floor_div"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9_nested_try_except() {
-        let code = r#"
+        let code = r"
 def nested_error_handling(s: str) -> int:
     try:
         try:
@@ -4656,7 +4656,7 @@ def nested_error_handling(s: str) -> int:
             return -1
     except TypeError:
         return -2
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn nested_error_handling"), "output: {}", rust);
     }
@@ -4678,7 +4678,7 @@ def always_cleanup() -> int:
 
     #[test]
     fn test_s9_nested_function_with_return_type_list() {
-        let code = r#"
+        let code = r"
 def make_list() -> list:
     def create() -> list:
         result = []
@@ -4686,7 +4686,7 @@ def make_list() -> list:
         result.append(2)
         return result
     return create()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_list"), "output: {}", rust);
     }
@@ -4706,14 +4706,14 @@ def parse_int(s: str) -> int:
 
     #[test]
     fn test_s9b6_parse_from_tokens_in_try() {
-        let code = r#"
+        let code = r"
 def safe_parse(s: str) -> int:
     try:
         x = int(s)
         return x
     except ValueError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn safe_parse"), "output: {}", rust);
     }
@@ -4735,20 +4735,20 @@ def try_else(s: str) -> str:
 
     #[test]
     fn test_s9b6_bare_except() {
-        let code = r#"
+        let code = r"
 def catch_all(s: str) -> int:
     try:
         return int(s)
     except:
         return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn catch_all"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_multiple_exception_types() {
-        let code = r#"
+        let code = r"
 def multi_handler(s: str) -> int:
     try:
         return int(s)
@@ -4758,7 +4758,7 @@ def multi_handler(s: str) -> int:
         return -2
     except KeyError:
         return -3
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn multi_handler"), "output: {}", rust);
     }
@@ -4780,7 +4780,7 @@ def string_transform(s: str) -> str:
 
     #[test]
     fn test_s9b6_list_ops_in_try() {
-        let code = r#"
+        let code = r"
 def list_builder(n: int) -> list:
     try:
         items = []
@@ -4789,14 +4789,14 @@ def list_builder(n: int) -> list:
         return items
     except:
         return []
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn list_builder"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_try_blocks() {
-        let code = r#"
+        let code = r"
 def nested_try(s: str) -> int:
     try:
         outer = int(s)
@@ -4807,21 +4807,21 @@ def nested_try(s: str) -> int:
             return outer
     except ValueError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn nested_try"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_assignment_in_try_no_annotation() {
-        let code = r#"
+        let code = r"
 def infer_type(s: str) -> int:
     try:
         result = int(s)
     except ValueError:
         result = 0
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn infer_type"), "output: {}", rust);
     }
@@ -4842,20 +4842,20 @@ def make_config() -> dict:
 
     #[test]
     fn test_s9b6_nested_function_with_capture_via_with() {
-        let code = r#"
+        let code = r"
 def with_context(filename: str) -> str:
     with open(filename) as f:
         def reader() -> str:
             return f.read()
         return reader()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn with_context"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_function_try_except_capture() {
-        let code = r#"
+        let code = r"
 def error_handler(s: str) -> int:
     try:
         base = int(s)
@@ -4864,7 +4864,7 @@ def error_handler(s: str) -> int:
         return multiply()
     except ValueError:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn error_handler"), "output: {}", rust);
     }
@@ -4888,21 +4888,21 @@ def full_try(s: str) -> int:
 
     #[test]
     fn test_s9b6_recursive_nested_function_no_captures() {
-        let code = r#"
+        let code = r"
 def outer() -> int:
     def fibonacci(n: int) -> int:
         if n <= 1:
             return n
         return fibonacci(n - 1) + fibonacci(n - 2)
     return fibonacci(5)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_try_else_with_list_return() {
-        let code = r#"
+        let code = r"
 def parse_list(items: list) -> list:
     result = []
     try:
@@ -4912,25 +4912,25 @@ def parse_list(items: list) -> list:
         return []
     else:
         return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn parse_list"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_with_stmt_args_field_access() {
-        let code = r#"
+        let code = r"
 def process_file(args) -> str:
     with open(args.filename) as f:
         return f.read()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn process_file"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_try_else_finally_args_access() {
-        let code = r#"
+        let code = r"
 def process_input(args) -> int:
     try:
         result = int(args.value)
@@ -4940,26 +4940,26 @@ def process_input(args) -> int:
         return result
     finally:
         print(args.verbose)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn process_input"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_function_returns_tuple() {
-        let code = r#"
+        let code = r"
 def make_pair(x: int, y: int) -> tuple:
     def pair() -> tuple:
         return (x, y)
     return pair()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn make_pair"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_try_with_break_continue() {
-        let code = r#"
+        let code = r"
 def find_valid(items: list) -> int:
     for item in items:
         try:
@@ -4970,28 +4970,28 @@ def find_valid(items: list) -> int:
         except ValueError:
             break
     return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn find_valid"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_multiple_nested_functions() {
-        let code = r#"
+        let code = r"
 def outer() -> int:
     def add(a: int, b: int) -> int:
         return a + b
     def multiply(a: int, b: int) -> int:
         return a * b
     return add(2, 3) + multiply(4, 5)
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_try_except_with_walrus() {
-        let code = r#"
+        let code = r"
 def walrus_try(s: str) -> int:
     try:
         if (x := int(s)) > 0:
@@ -4999,14 +4999,14 @@ def walrus_try(s: str) -> int:
     except ValueError:
         return 0
     return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn walrus_try"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_function_with_nested_loop() {
-        let code = r#"
+        let code = r"
 def matrix_sum(rows: list) -> int:
     def sum_row(row: list) -> int:
         total = 0
@@ -5017,14 +5017,14 @@ def matrix_sum(rows: list) -> int:
     for row in rows:
         result += sum_row(row)
     return result
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn matrix_sum"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_try_except_type_annotation_escape() {
-        let code = r#"
+        let code = r"
 def annotated_escape(s: str) -> int:
     x: int
     try:
@@ -5032,7 +5032,7 @@ def annotated_escape(s: str) -> int:
     except ValueError:
         x = 0
     return x
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn annotated_escape"), "output: {}", rust);
     }
@@ -5058,47 +5058,47 @@ def nested_else(s: str) -> str:
 
     #[test]
     fn test_s9b6_exception_tuple_handler() {
-        let code = r#"
+        let code = r"
 def tuple_catch(s: str) -> int:
     try:
         return int(s)
     except (ValueError, TypeError, AttributeError):
         return -1
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn tuple_catch"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_nested_function_bool_return() {
-        let code = r#"
+        let code = r"
 def outer() -> bool:
     x = 10
     def check() -> bool:
         return x > 5
     return check()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn outer"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_try_finally_with_return_in_finally() {
-        let code = r#"
+        let code = r"
 def finally_return(s: str) -> int:
     try:
         x = int(s)
         return x
     finally:
         return 0
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn finally_return"), "output: {}", rust);
     }
 
     #[test]
     fn test_s9b6_complex_nested_capture() {
-        let code = r#"
+        let code = r"
 def complex_capture(base: int) -> int:
     multiplier = 2
     def level1() -> int:
@@ -5106,7 +5106,7 @@ def complex_capture(base: int) -> int:
             return base * multiplier
         return level2() + base
     return level1()
-"#;
+";
         let rust = transpile(code);
         assert!(rust.contains("fn complex_capture"), "output: {}", rust);
     }

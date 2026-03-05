@@ -147,9 +147,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let other = &arg_exprs[0];
                 Ok(parse_quote! {
                     {
-                        let temp: std::collections::HashSet<_> = #object_expr.intersection(&#other).cloned().collect();
+                        let filtered: std::collections::HashSet<_> = #object_expr.intersection(&#other).cloned().collect();
                         #object_expr.clear();
-                        #object_expr.extend(temp);
+                        #object_expr.extend(filtered);
                     }
                 })
             }
@@ -162,9 +162,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let other = &arg_exprs[0];
                 Ok(parse_quote! {
                     {
-                        let temp: std::collections::HashSet<_> = #object_expr.difference(&#other).cloned().collect();
+                        let filtered: std::collections::HashSet<_> = #object_expr.difference(&#other).cloned().collect();
                         #object_expr.clear();
-                        #object_expr.extend(temp);
+                        #object_expr.extend(filtered);
                     }
                 })
             }

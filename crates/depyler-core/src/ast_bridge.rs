@@ -2218,13 +2218,13 @@ def check(x: int) -> str:
 
     #[test]
     fn test_function_properties_analysis() {
-        let source = r#"
+        let source = r"
 def pure_func(x: int) -> int:
     return x + 1
 
 def impure_func(x: int):
     print(x)
-"#;
+";
         let hir = parse_python_to_hir(source);
 
         assert_eq!(hir.functions.len(), 2);
@@ -2234,13 +2234,13 @@ def impure_func(x: int):
 
     #[test]
     fn test_for_loop_conversion() {
-        let source = r#"
+        let source = r"
 def iterate(items: list) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
@@ -2256,11 +2256,11 @@ def iterate(items: list) -> int:
 
     #[test]
     fn test_expression_types() {
-        let source = r#"
+        let source = r"
 def expressions():
     x = [1, 2, 3]
     z = (1, 2, 3)
-"#;
+";
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
@@ -2283,10 +2283,10 @@ def expressions():
 
     #[test]
     fn test_comparison_operators() {
-        let source = r#"
+        let source = r"
 def compare(a: int, b: int) -> bool:
     return a > b
-"#;
+";
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
@@ -2299,10 +2299,10 @@ def compare(a: int, b: int) -> bool:
 
     #[test]
     fn test_unary_operations() {
-        let source = r#"
+        let source = r"
 def unary_ops(x: int) -> int:
     return -x + +x
-"#;
+";
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
@@ -2318,10 +2318,10 @@ def unary_ops(x: int) -> int:
 
     #[test]
     fn test_function_calls() {
-        let source = r#"
+        let source = r"
 def call_functions() -> int:
     return len([1, 2, 3])
-"#;
+";
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
@@ -2604,14 +2604,14 @@ def function_without_docstring(y: int) -> int:
 
     #[test]
     fn test_class_with_methods() {
-        let source = r#"
+        let source = r"
 class Calculator:
     def add(self, a: int, b: int) -> int:
         return a + b
 
     def multiply(self, a: int, b: int) -> int:
         return a * b
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
         assert_eq!(hir.classes[0].name, "Calculator");
@@ -2668,10 +2668,10 @@ async def fetch_data(url: str) -> str:
 
     #[test]
     fn test_function_with_varargs() {
-        let source = r#"
+        let source = r"
 def variadic(*args) -> int:
     return len(args)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
         let func = &hir.functions[0];
@@ -2694,13 +2694,13 @@ def greet(name: str = "World") -> str:
 
     #[test]
     fn test_for_loop_with_assignment() {
-        let source = r#"
+        let source = r"
 def sum_list(items: List[int]) -> int:
     total = 0
     for x in items:
         total = total + x
     return total
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         // Should have: assignment, for loop, return
@@ -2710,12 +2710,12 @@ def sum_list(items: List[int]) -> int:
 
     #[test]
     fn test_while_loop_conversion() {
-        let source = r#"
+        let source = r"
 def countdown(n: int) -> int:
     while n > 0:
         n = n - 1
     return n
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         assert!(matches!(func.body[0], HirStmt::While { .. }));
@@ -2723,12 +2723,12 @@ def countdown(n: int) -> int:
 
     #[test]
     fn test_multiple_imports() {
-        let source = r#"
+        let source = r"
 import os
 import sys
 from typing import List, Dict, Optional
 from collections import defaultdict
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(hir.imports.len() >= 4);
     }
@@ -2764,10 +2764,10 @@ def make_dict() -> Dict[str, int]:
 
     #[test]
     fn test_list_comprehension() {
-        let source = r#"
+        let source = r"
 def squares(n: int) -> List[int]:
     return [x * x for x in range(n)]
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         if let HirStmt::Return(Some(HirExpr::ListComp { .. })) = &func.body[0] {
@@ -2779,10 +2779,10 @@ def squares(n: int) -> List[int]:
 
     #[test]
     fn test_lambda_expression() {
-        let source = r#"
+        let source = r"
 def make_adder(x: int):
     return lambda y: x + y
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         if let HirStmt::Return(Some(HirExpr::Lambda { .. })) = &func.body[0] {
@@ -2794,11 +2794,11 @@ def make_adder(x: int):
 
     #[test]
     fn test_tuple_unpacking() {
-        let source = r#"
+        let source = r"
 def swap(a: int, b: int) -> tuple:
     a, b = b, a
     return (a, b)
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         // First statement should be tuple unpacking assignment
@@ -2807,13 +2807,13 @@ def swap(a: int, b: int) -> tuple:
 
     #[test]
     fn test_try_except() {
-        let source = r#"
+        let source = r"
 def safe_divide(a: int, b: int) -> Optional[int]:
     try:
         return a / b
     except ZeroDivisionError:
         return None
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         assert!(matches!(func.body[0], HirStmt::Try { .. }));
@@ -2821,11 +2821,11 @@ def safe_divide(a: int, b: int) -> Optional[int]:
 
     #[test]
     fn test_with_statement() {
-        let source = r#"
+        let source = r"
 def read_file(path: str) -> str:
     with open(path) as f:
         return f.read()
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         assert!(matches!(func.body[0], HirStmt::With { .. }));
@@ -2833,10 +2833,10 @@ def read_file(path: str) -> str:
 
     #[test]
     fn test_ternary_expression() {
-        let source = r#"
+        let source = r"
 def abs_value(x: int) -> int:
     return x if x >= 0 else -x
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         // Ternary is represented as IfExpr in HIR
@@ -2849,10 +2849,10 @@ def abs_value(x: int) -> int:
 
     #[test]
     fn test_chained_comparison() {
-        let source = r#"
+        let source = r"
 def in_range(x: int) -> bool:
     return 0 <= x <= 10
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         // Chained comparisons should be parsed - check it's a return with expression
@@ -2880,10 +2880,10 @@ def greet(name: str) -> str:
 
     #[test]
     fn test_attribute_access() {
-        let source = r#"
+        let source = r"
 def get_length(s: str) -> int:
     return s.upper().lower()
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         if let HirStmt::Return(Some(HirExpr::MethodCall { .. })) = &func.body[0] {
@@ -2895,10 +2895,10 @@ def get_length(s: str) -> int:
 
     #[test]
     fn test_subscript_expression() {
-        let source = r#"
+        let source = r"
 def get_first(items: List[int]) -> int:
     return items[0]
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         if let HirStmt::Return(Some(HirExpr::Index { .. })) = &func.body[0] {
@@ -2910,10 +2910,10 @@ def get_first(items: List[int]) -> int:
 
     #[test]
     fn test_boolean_operations() {
-        let source = r#"
+        let source = r"
 def check(a: bool, b: bool, c: bool) -> bool:
     return a and b or not c
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         // Should have logical operations
@@ -2926,12 +2926,12 @@ def check(a: bool, b: bool, c: bool) -> bool:
 
     #[test]
     fn test_augmented_assignment() {
-        let source = r#"
+        let source = r"
 def increment(x: int) -> int:
     x += 1
     x *= 2
     return x
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         assert!(func.body.len() >= 3);
@@ -2942,10 +2942,10 @@ def increment(x: int) -> int:
 
     #[test]
     fn test_pass_statement() {
-        let source = r#"
+        let source = r"
 def noop() -> None:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         assert!(matches!(func.body[0], HirStmt::Pass));
@@ -2953,7 +2953,7 @@ def noop() -> None:
 
     #[test]
     fn test_break_continue() {
-        let source = r#"
+        let source = r"
 def loop_control(items: List[int]) -> int:
     for x in items:
         if x == 0:
@@ -2961,7 +2961,7 @@ def loop_control(items: List[int]) -> int:
         if x < 0:
             break
     return 0
-"#;
+";
         let hir = parse_python_to_hir(source);
         let func = &hir.functions[0];
         // Should parse without error and have for loop
@@ -2970,12 +2970,12 @@ def loop_control(items: List[int]) -> int:
 
     #[test]
     fn test_nested_function() {
-        let source = r#"
+        let source = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y * 2
     return inner(x)
-"#;
+";
         let hir = parse_python_to_hir(source);
         // Should have at least the outer function
         assert!(!hir.functions.is_empty());
@@ -3040,11 +3040,11 @@ def outer(x: int) -> int:
 
     #[test]
     fn test_class_with_base() {
-        let source = r#"
+        let source = r"
 class Child(Parent):
     def method(self) -> None:
         pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
         assert_eq!(hir.classes[0].name, "Child");
@@ -3052,12 +3052,12 @@ class Child(Parent):
 
     #[test]
     fn test_class_with_init_and_fields() {
-        let source = r#"
+        let source = r"
 class Point:
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
         assert_eq!(hir.classes[0].name, "Point");
@@ -3066,12 +3066,12 @@ class Point:
 
     #[test]
     fn test_class_with_staticmethod() {
-        let source = r#"
+        let source = r"
 class Utils:
     @staticmethod
     def helper(x: int) -> int:
         return x * 2
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
         assert!(!hir.classes[0].methods.is_empty());
@@ -3118,62 +3118,62 @@ def greet(name: str, **kwargs) -> str:
 
     #[test]
     fn test_function_with_args_and_kwargs() {
-        let source = r#"
+        let source = r"
 def flexible(*args, **kwargs) -> None:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_set_expression() {
-        let source = r#"
+        let source = r"
 def get_set() -> set:
     return {1, 2, 3}
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_set_comprehension() {
-        let source = r#"
+        let source = r"
 def squares() -> set:
     return {x * x for x in range(10)}
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_dict_comprehension() {
-        let source = r#"
+        let source = r"
 def make_dict() -> dict:
     return {k: v for k, v in items}
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_generator_expression() {
-        let source = r#"
+        let source = r"
 def gen() -> None:
     result = sum(x * x for x in range(10))
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_walrus_operator() {
-        let source = r#"
+        let source = r"
 def check(data: list) -> bool:
     if (n := len(data)) > 0:
         return True
     return False
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3196,30 +3196,30 @@ def process(cmd: str) -> int:
 
     #[test]
     fn test_slice_with_step() {
-        let source = r#"
+        let source = r"
 def reverse(data: list) -> list:
     return data[::-1]
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_multi_target_assignment() {
-        let source = r#"
+        let source = r"
 def swap() -> None:
     a, b = b, a
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_starred_expression() {
-        let source = r#"
+        let source = r"
 def unpack(data: list) -> None:
     first, *rest = data
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3238,11 +3238,11 @@ async def read_file() -> str:
 
     #[test]
     fn test_async_for_loop() {
-        let source = r#"
+        let source = r"
 async def process() -> None:
     async for item in stream:
         print(item)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
         assert!(hir.functions[0].properties.is_async);
@@ -3270,19 +3270,19 @@ def fail() -> None:
 
     #[test]
     fn test_global_statement() {
-        let source = r#"
+        let source = r"
 counter = 0
 def increment() -> None:
     global counter
     counter += 1
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.functions.is_empty());
     }
 
     #[test]
     fn test_nonlocal_statement() {
-        let source = r#"
+        let source = r"
 def outer() -> int:
     count = 0
     def inner() -> None:
@@ -3290,28 +3290,28 @@ def outer() -> int:
         count += 1
     inner()
     return count
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.functions.is_empty());
     }
 
     #[test]
     fn test_yield_statement() {
-        let source = r#"
+        let source = r"
 def generate() -> int:
     yield 1
     yield 2
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_yield_from() {
-        let source = r#"
+        let source = r"
 def delegate() -> int:
     yield from other_gen()
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3328,49 +3328,49 @@ def cleanup(data: dict) -> None:
 
     #[test]
     fn test_complex_type_annotation() {
-        let source = r#"
+        let source = r"
 def process(data: list[dict[str, int]]) -> dict[str, list[int]]:
     return {}
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_union_type_annotation() {
-        let source = r#"
+        let source = r"
 def maybe(x: int | str) -> int | None:
     return None
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_optional_type_annotation() {
-        let source = r#"
+        let source = r"
 from typing import Optional
 def maybe(x: Optional[int]) -> Optional[str]:
     return None
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.functions.is_empty());
     }
 
     #[test]
     fn test_callable_annotation() {
-        let source = r#"
+        let source = r"
 from typing import Callable
 def apply(f: Callable[[int], int], x: int) -> int:
     return f(x)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.functions.is_empty());
     }
 
     #[test]
     fn test_class_with_property() {
-        let source = r#"
+        let source = r"
 class Circle:
     def __init__(self, radius: float) -> None:
         self._radius = radius
@@ -3378,14 +3378,14 @@ class Circle:
     @property
     def radius(self) -> float:
         return self._radius
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
     }
 
     #[test]
     fn test_class_with_property_setter() {
-        let source = r#"
+        let source = r"
 class Circle:
     def __init__(self, radius: float) -> None:
         self._radius = radius
@@ -3397,50 +3397,50 @@ class Circle:
     @radius.setter
     def radius(self, value: float) -> None:
         self._radius = value
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
     }
 
     #[test]
     fn test_multiple_decorators() {
-        let source = r#"
+        let source = r"
 @decorator1
 @decorator2
 def func() -> None:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_decorator_with_args() {
-        let source = r#"
+        let source = r"
 @my_decorator(arg=True)
 def func() -> None:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_empty_function() {
-        let source = r#"
+        let source = r"
 def empty() -> None:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_ellipsis_body() {
-        let source = r#"
+        let source = r"
 def stub() -> int:
     ...
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3481,7 +3481,7 @@ def docstring() -> str:
 
     #[test]
     fn test_try_except_finally() {
-        let source = r#"
+        let source = r"
 def safe() -> None:
     try:
         risky()
@@ -3489,14 +3489,14 @@ def safe() -> None:
         handle()
     finally:
         cleanup()
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_try_except_else() {
-        let source = r#"
+        let source = r"
 def safe() -> None:
     try:
         risky()
@@ -3504,14 +3504,14 @@ def safe() -> None:
         handle()
     else:
         success()
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_multiple_except_handlers() {
-        let source = r#"
+        let source = r"
 def safe() -> None:
     try:
         risky()
@@ -3519,7 +3519,7 @@ def safe() -> None:
         handle_value(e)
     except TypeError as e:
         handle_type(e)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3548,24 +3548,24 @@ def copy_file() -> None:
 
     #[test]
     fn test_class_with_class_var() {
-        let source = r#"
+        let source = r"
 class Counter:
     count: int = 0
 
     def increment(self) -> None:
         Counter.count += 1
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
     }
 
     #[test]
     fn test_dataclass_style() {
-        let source = r#"
+        let source = r"
 class Point:
     x: float
     y: float
-"#;
+";
         let hir = parse_python_to_hir(source);
         // Should be converted even without decorator
         assert!(!hir.classes.is_empty() || !hir.protocols.is_empty());
@@ -3573,11 +3573,11 @@ class Point:
 
     #[test]
     fn test_await_expression() {
-        let source = r#"
+        let source = r"
 async def fetch() -> str:
     result = await get_data()
     return result
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
         assert!(hir.functions[0].properties.is_async);
@@ -3585,10 +3585,10 @@ async def fetch() -> str:
 
     #[test]
     fn test_lambda_in_call() {
-        let source = r#"
+        let source = r"
 def sort_items(items: list) -> list:
     return sorted(items, key=lambda x: x.value)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3605,60 +3605,60 @@ def classify(x: int) -> str:
 
     #[test]
     fn test_not_in_operator() {
-        let source = r#"
+        let source = r"
 def check(x: int, data: list) -> bool:
     return x not in data
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_is_not_operator() {
-        let source = r#"
+        let source = r"
 def check(x: int) -> bool:
     return x is not None
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_power_operator() {
-        let source = r#"
+        let source = r"
 def square(x: int) -> int:
     return x ** 2
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_floor_division() {
-        let source = r#"
+        let source = r"
 def divide(a: int, b: int) -> int:
     return a // b
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_bitwise_operations() {
-        let source = r#"
+        let source = r"
 def bits(a: int, b: int) -> int:
     return (a & b) | (a ^ b) | (a << 2) | (b >> 1)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_bitwise_not() {
-        let source = r#"
+        let source = r"
 def invert(x: int) -> int:
     return ~x
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3676,19 +3676,19 @@ def get_path() -> str:
 
     #[test]
     fn test_relative_import() {
-        let source = r#"
+        let source = r"
 from . import utils
 from ..helpers import helper
-"#;
+";
         let _hir = parse_python_to_hir(source);
         // Relative imports should be handled - test verifies no panic
     }
 
     #[test]
     fn test_star_import() {
-        let source = r#"
+        let source = r"
 from module import *
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.imports.is_empty());
     }
@@ -3708,23 +3708,23 @@ def func() -> None:
 
     #[test]
     fn test_class_with_multiple_inheritance() {
-        let source = r#"
+        let source = r"
 class MyClass(Base1, Base2):
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
     }
 
     #[test]
     fn test_generic_class() {
-        let source = r#"
+        let source = r"
 from typing import Generic, TypeVar
 T = TypeVar('T')
 class Container(Generic[T]):
     def __init__(self, value: T) -> None:
         self.value = value
-"#;
+";
         let hir = parse_python_to_hir(source);
         // Should handle generics
         assert!(!hir.classes.is_empty() || !hir.type_aliases.is_empty());
@@ -3732,41 +3732,41 @@ class Container(Generic[T]):
 
     #[test]
     fn test_type_alias_with_typevar() {
-        let source = r#"
+        let source = r"
 from typing import TypeVar, List
 T = TypeVar('T')
 MyList = List[T]
-"#;
+";
         let _hir = parse_python_to_hir(source);
         // TypeVar and alias should be handled - test verifies no panic
     }
 
     #[test]
     fn test_new_style_union() {
-        let source = r#"
+        let source = r"
 def process(x: int | str | None) -> int | str:
     return x if x else 0
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_convert_parameters_keyword_only() {
-        let source = r#"
+        let source = r"
 def func(*, name: str, value: int) -> None:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_convert_parameters_positional_only() {
-        let source = r#"
+        let source = r"
 def func(x: int, /, y: int) -> int:
     return x + y
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3804,14 +3804,14 @@ def classify(x: int) -> str:
 
     #[test]
     fn test_for_else() {
-        let source = r#"
+        let source = r"
 def search(data: list, target: int) -> int:
     for i, x in enumerate(data):
         if x == target:
             return i
     else:
         return -1
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -3928,20 +3928,20 @@ def greet(name: str = "world") -> str:
 
     #[test]
     fn test_function_many_params() {
-        let source = r#"
+        let source = r"
 def many(a: int, b: int, c: int, d: int, e: int) -> int:
     return a + b + c + d + e
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions[0].params.len(), 5);
     }
 
     #[test]
     fn test_function_returns_none_explicitly() {
-        let source = r#"
+        let source = r"
 def do_nothing() -> None:
     return None
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions[0].ret_type, Type::None);
     }
@@ -3950,7 +3950,7 @@ def do_nothing() -> None:
 
     #[test]
     fn test_multiple_functions() {
-        let source = r#"
+        let source = r"
 def add(a: int, b: int) -> int:
     return a + b
 
@@ -3959,7 +3959,7 @@ def sub(a: int, b: int) -> int:
 
 def mul(a: int, b: int) -> int:
     return a * b
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 3);
         assert_eq!(hir.functions[0].name, "add");
@@ -3971,14 +3971,14 @@ def mul(a: int, b: int) -> int:
 
     #[test]
     fn test_simple_class() {
-        let source = r#"
+        let source = r"
 class Animal:
     def __init__(self, name: str) -> None:
         self.name = name
 
     def speak(self) -> str:
         return self.name
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
         assert_eq!(hir.classes[0].name, "Animal");
@@ -3986,7 +3986,7 @@ class Animal:
 
     #[test]
     fn test_class_with_methods() {
-        let source = r#"
+        let source = r"
 class Calculator:
     def __init__(self) -> None:
         self.result = 0
@@ -3996,17 +3996,17 @@ class Calculator:
 
     def get_result(self) -> int:
         return self.result
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
     }
 
     #[test]
     fn test_empty_class() {
-        let source = r#"
+        let source = r"
 class Empty:
     pass
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.classes.len(), 1);
         assert_eq!(hir.classes[0].name, "Empty");
@@ -4057,40 +4057,40 @@ def nested(x: int, y: int) -> str:
 
     #[test]
     fn test_while_loop() {
-        let source = r#"
+        let source = r"
 def countdown(n: int) -> int:
     total = 0
     while n > 0:
         total += n
         n -= 1
     return total
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_for_loop_with_range() {
-        let source = r#"
+        let source = r"
 def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_break_in_loop() {
-        let source = r#"
+        let source = r"
 def find_first(data: list, target: int) -> int:
     for i in range(len(data)):
         if data[i] == target:
             return i
     return -1
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -4099,22 +4099,22 @@ def find_first(data: list, target: int) -> int:
 
     #[test]
     fn test_string_concatenation() {
-        let source = r#"
+        let source = r"
 def concat(a: str, b: str) -> str:
     return a + b
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_list_operations() {
-        let source = r#"
+        let source = r"
 def make_list() -> list:
     result = [1, 2, 3]
     result.append(4)
     return result
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -4269,10 +4269,10 @@ def simple() -> None:
 
     #[test]
     fn test_function_no_docstring() {
-        let source = r#"
+        let source = r"
 def no_doc(x: int) -> int:
     return x * 2
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(hir.functions[0].docstring.is_none());
     }
@@ -4292,10 +4292,10 @@ async def fetch_data() -> str:
 
     #[test]
     fn test_sync_function_not_async() {
-        let source = r#"
+        let source = r"
 def sync_func() -> int:
     return 42
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.functions[0].properties.is_async);
     }
@@ -4314,10 +4314,10 @@ def get_config() -> Dict[str, int]:
 
     #[test]
     fn test_set_type_annotation() {
-        let source = r#"
+        let source = r"
 def unique_items(items: Set[int]) -> Set[int]:
     return items
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(matches!(hir.functions[0].params[0].ty, Type::Set(_)));
     }
@@ -4351,13 +4351,13 @@ def pair() -> tuple[int, str]:
 
     #[test]
     fn test_module_constant_assignment() {
-        let source = r#"
+        let source = r"
 MAX_SIZE: int = 100
 PI: float = 3.14159
 
 def use_const() -> int:
     return MAX_SIZE
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert!(!hir.functions.is_empty());
     }
@@ -4366,20 +4366,20 @@ def use_const() -> int:
 
     #[test]
     fn test_try_except_basic() {
-        let source = r#"
+        let source = r"
 def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_try_except_finally() {
-        let source = r#"
+        let source = r"
 def with_cleanup() -> None:
     try:
         x = 1
@@ -4387,7 +4387,7 @@ def with_cleanup() -> None:
         x = 0
     finally:
         print(x)
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
@@ -4396,20 +4396,20 @@ def with_cleanup() -> None:
 
     #[test]
     fn test_list_comprehension() {
-        let source = r#"
+        let source = r"
 def squares(n: int) -> list:
     return [x * x for x in range(n)]
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }
 
     #[test]
     fn test_dict_comprehension() {
-        let source = r#"
+        let source = r"
 def index_map(items: list) -> dict:
     return {i: v for i, v in enumerate(items)}
-"#;
+";
         let hir = parse_python_to_hir(source);
         assert_eq!(hir.functions.len(), 1);
     }

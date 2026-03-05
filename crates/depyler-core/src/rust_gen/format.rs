@@ -430,7 +430,7 @@ mod tests {
     /// Verifies: Empty input handling (rustfmt adds newline)
     #[test]
     fn test_format_rust_code_empty_string() {
-        let input = "".to_string();
+        let input = String::new();
         let result = format_rust_code(input);
         // rustfmt adds a newline even to empty input
         assert!(result.trim().is_empty() || result == "\n", "Empty or newline only");

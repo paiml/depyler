@@ -87,11 +87,11 @@ fn test_if_in_check() {
 #[test]
 fn test_if_type_checking_elided() {
     let code = transpile(
-        r#"from typing import TYPE_CHECKING
+        r"from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     x = 1
 def foo() -> int:
-    return 42"#,
+    return 42",
     );
     // The TYPE_CHECKING block should NOT appear in the output
     assert!(!code.contains("TYPE_CHECKING"), "TYPE_CHECKING should be elided from output");
@@ -104,10 +104,10 @@ def foo() -> int:
 fn test_type_checking_no_undefined_variable() {
     // This pattern is common in typed Python codebases
     let code = transpile(
-        r#"from typing import TYPE_CHECKING
+        r"from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     y = 2
-x = 1"#,
+x = 1",
     );
     // Should not emit TYPE_CHECKING as a variable
     assert!(!code.contains("TYPE_CHECKING"));
@@ -1659,21 +1659,21 @@ fn test_return_in_while() {
 #[test]
 fn test_usize_to_i32_in_loop() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     lst = [1, 2, 3]
     n = len(lst)
     for i in range(n):
-        x = i"#
+        x = i"
     ));
 }
 
 #[test]
 fn test_float_coercion_in_comparison() {
     assert!(transpile_ok(
-        r#"def foo(x: float):
+        r"def foo(x: float):
     if x > 0:
         return x * 2
-    return 0.0"#
+    return 0.0"
     ));
 }
 
@@ -1854,11 +1854,11 @@ fn test_for_reassigned_loop_var() {
 fn test_for_range_loop_var_type() {
     // DEPYLER-0803: Track loop var as Int for range iteration
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     dx = 0.5
     for i in range(10):
         x = i * dx
-        print(x)"#
+        print(x)"
     ));
 }
 
@@ -1877,11 +1877,11 @@ fn test_for_dict_iteration() {
 fn test_for_iterator_var_no_iter() {
     // DEPYLER-0520: Iterator vars shouldn't get .iter().cloned()
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     items = [1, 2, 3]
     filtered = filter(lambda x: x > 1, items)
     for item in filtered:
-        print(item)"#
+        print(item)"
     ));
 }
 
@@ -1922,10 +1922,10 @@ def foo():
 #[test]
 fn test_for_csv_var_iteration() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     csv_reader = None
     for row in csv_reader:
-        pass"#
+        pass"
     ));
 }
 
@@ -1986,9 +1986,9 @@ fn test_assign_nested_dict_key() {
 #[test]
 fn test_assign_list_slice() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     lst = [1, 2, 3, 4]
-    lst[1:3] = [10, 20]"#
+    lst[1:3] = [10, 20]"
     ));
 }
 
@@ -1996,18 +1996,18 @@ fn test_assign_list_slice() {
 fn test_assign_from_walrus() {
     // DEPYLER-0188: Walrus operator in assignment
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     if (n := len([1, 2, 3])) > 2:
-        x = n"#
+        x = n"
     ));
 }
 
 #[test]
 fn test_assign_with_type_conversion() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x: float = 5
-    y = x + 1.5"#
+    y = x + 1.5"
     ));
 }
 
@@ -2019,10 +2019,10 @@ fn test_assign_with_type_conversion() {
 fn test_if_option_pattern() {
     // DEPYLER-2623: Option if-let pattern
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     result = get_optional()
     if result is not None:
-        print(result)"#
+        print(result)"
     ));
 }
 
@@ -2030,12 +2030,12 @@ fn test_if_option_pattern() {
 fn test_if_variable_hoisting() {
     // DEPYLER-0476: Variable hoisting in if/else
     assert!(transpile_ok(
-        r#"def foo(condition):
+        r"def foo(condition):
     if condition:
         value = get_a()
     else:
         value = get_b()
-    return value"#
+    return value"
     ));
 }
 
@@ -2043,9 +2043,9 @@ fn test_if_variable_hoisting() {
 fn test_if_nested_walrus() {
     // DEPYLER-0188: Nested walrus extraction
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     if (x := get_x()) and (y := get_y()):
-        print(x, y)"#
+        print(x, y)"
     ));
 }
 
@@ -2088,10 +2088,10 @@ fn test_while_file_readline() {
 #[test]
 fn test_while_iterator_next() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     items = iter([1, 2, 3])
     while (item := next(items, None)) is not None:
-        print(item)"#
+        print(item)"
     ));
 }
 
@@ -2102,13 +2102,13 @@ fn test_while_iterator_next() {
 #[test]
 fn test_try_variable_in_handler() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     try:
         x = risky_operation()
     except ValueError as e:
         x = default_value()
         log_error(e)
-    return x"#
+    return x"
     ));
 }
 
@@ -2177,10 +2177,10 @@ fn test_with_multiple_context() {
 #[test]
 fn test_expr_stmt_with_side_effect() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     lst = [1, 2, 3]
     lst.pop()
-    lst.append(4)"#
+    lst.append(4)"
     ));
 }
 
@@ -2200,16 +2200,16 @@ fn test_expr_stmt_method_chain() {
 #[test]
 fn test_return_none_explicit() {
     assert!(transpile_ok(
-        r#"def foo():
-    return None"#
+        r"def foo():
+    return None"
     ));
 }
 
 #[test]
 fn test_return_tuple_unpack() {
     assert!(transpile_ok(
-        r#"def foo():
-    return 1, 2, 3"#
+        r"def foo():
+    return 1, 2, 3"
     ));
 }
 
@@ -2228,34 +2228,34 @@ fn test_return_conditional_expr() {
 #[test]
 fn test_func_with_varargs() {
     assert!(transpile_ok(
-        r#"def foo(*args):
+        r"def foo(*args):
     for arg in args:
-        print(arg)"#
+        print(arg)"
     ));
 }
 
 #[test]
 fn test_func_with_kwargs() {
     assert!(transpile_ok(
-        r#"def foo(**kwargs):
+        r"def foo(**kwargs):
     for k, v in kwargs.items():
-        print(k, v)"#
+        print(k, v)"
     ));
 }
 
 #[test]
 fn test_func_positional_only_params() {
     assert!(transpile_ok(
-        r#"def foo(x, /, y):
-    return x + y"#
+        r"def foo(x, /, y):
+    return x + y"
     ));
 }
 
 #[test]
 fn test_func_keyword_only_params() {
     assert!(transpile_ok(
-        r#"def foo(*, x, y):
-    return x + y"#
+        r"def foo(*, x, y):
+    return x + y"
     ));
 }
 
@@ -2322,10 +2322,10 @@ def foo():
 fn test_expr_returns_usize_len() {
     // Tests the len() method returning usize path
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     items = [1, 2, 3]
     x: int = len(items)
-    return x"#
+    return x"
     ));
 }
 
@@ -2344,9 +2344,9 @@ fn test_expr_returns_usize_count() {
 fn test_expr_returns_usize_capacity() {
     // Tests capacity path
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     items = [1, 2, 3]
-    x = len(items) + len(items)"#
+    x = len(items) + len(items)"
     ));
 }
 
@@ -2354,9 +2354,9 @@ fn test_expr_returns_usize_capacity() {
 fn test_expr_returns_usize_binary() {
     // Tests binary operation with usize
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     items = [1, 2, 3]
-    x: int = len(items) + 1"#
+    x: int = len(items) + 1"
     ));
 }
 
@@ -2365,9 +2365,9 @@ fn test_expr_returns_usize_binary() {
 fn test_expr_infers_float_literal() {
     // Float literal path
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 3.14
-    return x"#
+    return x"
     ));
 }
 
@@ -2375,10 +2375,10 @@ fn test_expr_infers_float_literal() {
 fn test_expr_infers_float_variable() {
     // Float variable path
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x: float = 3.14
     y = x * 2
-    return y"#
+    return y"
     ));
 }
 
@@ -2386,12 +2386,12 @@ fn test_expr_infers_float_variable() {
 fn test_expr_infers_float_call() {
     // Function call returning float
     assert!(transpile_ok(
-        r#"def get_pi() -> float:
+        r"def get_pi() -> float:
     return 3.14
 
 def foo():
     x = get_pi()
-    return x"#
+    return x"
     ));
 }
 
@@ -2399,9 +2399,9 @@ def foo():
 fn test_expr_infers_float_binary() {
     // Binary operation with float
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 3.14 * 2
-    return x"#
+    return x"
     ));
 }
 
@@ -2409,9 +2409,9 @@ fn test_expr_infers_float_binary() {
 fn test_expr_infers_float_unary() {
     // Unary operation preserving float
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = -3.14
-    return x"#
+    return x"
     ));
 }
 
@@ -2419,9 +2419,9 @@ fn test_expr_infers_float_unary() {
 fn test_expr_infers_float_ifexpr() {
     // IfExpr with both branches float
     assert!(transpile_ok(
-        r#"def foo(cond):
+        r"def foo(cond):
     x = 3.14 if cond else 2.71
-    return x"#
+    return x"
     ));
 }
 
@@ -2430,10 +2430,10 @@ fn test_expr_infers_float_ifexpr() {
 fn test_is_iterator_generator_expr() {
     // Generator expression produces iterator
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     gen = (x * 2 for x in range(10))
     for item in gen:
-        print(item)"#
+        print(item)"
     ));
 }
 
@@ -2441,18 +2441,18 @@ fn test_is_iterator_generator_expr() {
 fn test_is_iterator_map_chain() {
     // Method chain ending in iterator adapter
     assert!(transpile_ok(
-        r#"def foo(items):
+        r"def foo(items):
     for item in items.iter().map(lambda x: x * 2):
-        print(item)"#
+        print(item)"
     ));
 }
 
 #[test]
 fn test_is_iterator_filter_chain() {
     assert!(transpile_ok(
-        r#"def foo(items):
+        r"def foo(items):
     for item in items.iter().filter(lambda x: x > 0):
-        print(item)"#
+        print(item)"
     ));
 }
 
@@ -2460,9 +2460,9 @@ fn test_is_iterator_filter_chain() {
 fn test_is_iterator_enumerate_builtin() {
     // enumerate() produces iterator
     assert!(transpile_ok(
-        r#"def foo(items):
+        r"def foo(items):
     for i, x in enumerate(items):
-        print(i, x)"#
+        print(i, x)"
     ));
 }
 
@@ -2470,9 +2470,9 @@ fn test_is_iterator_enumerate_builtin() {
 fn test_is_iterator_zip_builtin() {
     // zip() produces iterator
     assert!(transpile_ok(
-        r#"def foo(a, b):
+        r"def foo(a, b):
     for x, y in zip(a, b):
-        print(x, y)"#
+        print(x, y)"
     ));
 }
 
@@ -2480,9 +2480,9 @@ fn test_is_iterator_zip_builtin() {
 fn test_is_iterator_reversed_builtin() {
     // reversed() produces iterator
     assert!(transpile_ok(
-        r#"def foo(items):
+        r"def foo(items):
     for item in reversed(items):
-        print(item)"#
+        print(item)"
     ));
 }
 
@@ -2491,10 +2491,10 @@ fn test_is_iterator_reversed_builtin() {
 fn test_is_numpy_array_call() {
     // np.array() detection
     assert!(transpile_ok(
-        r#"import numpy as np
+        r"import numpy as np
 def foo():
     arr = np.array([1, 2, 3])
-    return arr"#
+    return arr"
     ));
 }
 
@@ -2502,10 +2502,10 @@ def foo():
 fn test_is_numpy_zeros() {
     // np.zeros() detection
     assert!(transpile_ok(
-        r#"import numpy as np
+        r"import numpy as np
 def foo():
     arr = np.zeros(10)
-    return arr"#
+    return arr"
     ));
 }
 
@@ -2513,12 +2513,12 @@ def foo():
 fn test_is_numpy_binary_op() {
     // Binary operation on numpy arrays
     assert!(transpile_ok(
-        r#"import numpy as np
+        r"import numpy as np
 def foo():
     a = np.array([1, 2, 3])
     b = np.array([4, 5, 6])
     c = a + b
-    return c"#
+    return c"
     ));
 }
 
@@ -2526,11 +2526,11 @@ def foo():
 fn test_is_numpy_method_call() {
     // numpy method call (abs, sqrt, etc.)
     assert!(transpile_ok(
-        r#"import numpy as np
+        r"import numpy as np
 def foo():
     arr = np.array([1, 2, 3])
     result = np.abs(arr)
-    return result"#
+    return result"
     ));
 }
 
@@ -2538,10 +2538,10 @@ def foo():
 fn test_is_numpy_ternary() {
     // Ternary with numpy branches
     assert!(transpile_ok(
-        r#"import numpy as np
+        r"import numpy as np
 def foo(cond):
     a = np.zeros(3) if cond else np.ones(3)
-    return a"#
+    return a"
     ));
 }
 
@@ -2550,9 +2550,9 @@ def foo(cond):
 fn test_needs_conversion_int_from_len() {
     // len() -> int requires conversion
     assert!(transpile_ok(
-        r#"def foo() -> int:
+        r"def foo() -> int:
     items = [1, 2, 3]
-    return len(items)"#
+    return len(items)"
     ));
 }
 
@@ -2560,8 +2560,8 @@ fn test_needs_conversion_int_from_len() {
 fn test_needs_conversion_string_from_var() {
     // Variable as String requires .to_string()
     assert!(transpile_ok(
-        r#"def foo(s: str) -> str:
-    return s"#
+        r"def foo(s: str) -> str:
+    return s"
     ));
 }
 
@@ -2569,10 +2569,10 @@ fn test_needs_conversion_string_from_var() {
 fn test_apply_conversion_i32_cast() {
     // Test as i32 cast application
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     items = [1, 2, 3]
     x: int = len(items) + len(items)
-    return x"#
+    return x"
     ));
 }
 
@@ -2601,9 +2601,9 @@ fn test_deep_nested_dict_access() {
 fn test_nested_list_access() {
     // Nested list access
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     m = [[1, 2], [3, 4]]
-    m[0][1] = 10"#
+    m[0][1] = 10"
     ));
 }
 
@@ -2694,18 +2694,18 @@ def main():
 fn test_callable_float_return() {
     // Callable with float return type inference
     assert!(transpile_ok(
-        r#"from typing import Callable
+        r"from typing import Callable
 def foo(f: Callable[[float], float], x: float) -> float:
-    return f(x)"#
+    return f(x)"
     ));
 }
 
 #[test]
 fn test_callable_int_return() {
     assert!(transpile_ok(
-        r#"from typing import Callable
+        r"from typing import Callable
 def foo(f: Callable[[int], int], x: int) -> int:
-    return f(x)"#
+    return f(x)"
     ));
 }
 
@@ -2714,12 +2714,12 @@ def foo(f: Callable[[int], int], x: int) -> int:
 fn test_global_statement_coverage() {
     // Additional coverage for global keyword
     assert!(transpile_ok(
-        r#"x = 0
+        r"x = 0
 y = 0
 def foo():
     global x, y
     x = 42
-    y = 100"#
+    y = 100"
     ));
 }
 
@@ -2727,7 +2727,7 @@ def foo():
 fn test_nonlocal_statement_coverage() {
     // Additional coverage for nonlocal in nested function
     assert!(transpile_ok(
-        r#"def outer():
+        r"def outer():
     x = 0
     y = 0
     def inner():
@@ -2735,7 +2735,7 @@ fn test_nonlocal_statement_coverage() {
         x = 42
         y = 100
     inner()
-    return x + y"#
+    return x + y"
     ));
 }
 
@@ -2743,11 +2743,11 @@ fn test_nonlocal_statement_coverage() {
 fn test_delete_statement_coverage() {
     // Additional coverage for del statement
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 42
     y = 10
     del x
-    del y"#
+    del y"
     ));
 }
 
@@ -2755,9 +2755,9 @@ fn test_delete_statement_coverage() {
 fn test_import_from_statement_coverage() {
     // Additional coverage for from import
     assert!(transpile_ok(
-        r#"from math import sqrt, pi, ceil
+        r"from math import sqrt, pi, ceil
 def foo():
-    return ceil(sqrt(pi))"#
+    return ceil(sqrt(pi))"
     ));
 }
 
@@ -2765,10 +2765,10 @@ def foo():
 fn test_import_as_statement_coverage() {
     // Additional coverage for import as
     assert!(transpile_ok(
-        r#"import math as m
+        r"import math as m
 import os as operating_system
 def foo():
-    return m.sqrt(2)"#
+    return m.sqrt(2)"
     ));
 }
 
@@ -2797,8 +2797,8 @@ fn test_exception_with_message() {
 fn test_float_comparison_zero() {
     // Float comparison with literal 0
     assert!(transpile_ok(
-        r#"def foo(x: float) -> bool:
-    return x > 0"#
+        r"def foo(x: float) -> bool:
+    return x > 0"
     ));
 }
 
@@ -2806,8 +2806,8 @@ fn test_float_comparison_zero() {
 fn test_float_binary_comparison() {
     // Complex float expression comparison
     assert!(transpile_ok(
-        r#"def foo(a: float, b: float) -> bool:
-    return a * b > 0"#
+        r"def foo(a: float, b: float) -> bool:
+    return a * b > 0"
     ));
 }
 
@@ -2824,9 +2824,9 @@ fn test_augmented_assign_dict_key() {
 #[test]
 fn test_augmented_assign_list_index() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     lst = [1, 2, 3]
-    lst[0] += 10"#
+    lst[0] += 10"
     ));
 }
 
@@ -2853,9 +2853,9 @@ fn transpile_err(code: &str) -> bool {
 fn test_for_complex_unpack_ok() {
     // Complex tuple unpacking in for loops is supported
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     for ((a, b), c) in [((1, 2), 3)]:
-        print(a)"#
+        print(a)"
     ));
 }
 
@@ -2863,17 +2863,17 @@ fn test_for_complex_unpack_ok() {
 #[test]
 fn test_pass_in_if_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     if True:
-        pass"#
+        pass"
     ));
 }
 
 #[test]
 fn test_pass_in_function_path() {
     assert!(transpile_ok(
-        r#"def foo():
-    pass"#
+        r"def foo():
+    pass"
     ));
 }
 
@@ -2881,22 +2881,22 @@ fn test_pass_in_function_path() {
 #[test]
 fn test_continue_in_for_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     for i in range(10):
         if i % 2 == 0:
             continue
-        print(i)"#
+        print(i)"
     ));
 }
 
 #[test]
 fn test_break_in_for_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     for i in range(10):
         if i > 5:
             break
-        print(i)"#
+        print(i)"
     ));
 }
 
@@ -2904,20 +2904,20 @@ fn test_break_in_for_path() {
 #[test]
 fn test_while_and_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     i = 0
     while i < 10 and i % 2 == 0:
-        i += 1"#
+        i += 1"
     ));
 }
 
 #[test]
 fn test_while_or_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     i = 0
     while i < 5 or i == 7:
-        i += 1"#
+        i += 1"
     ));
 }
 
@@ -2940,10 +2940,10 @@ fn test_if_elif_else_chain_path() {
 #[test]
 fn test_if_in_operator_path() {
     assert!(transpile_ok(
-        r#"def foo(x: int) -> bool:
+        r"def foo(x: int) -> bool:
     if x in [1, 2, 3]:
         return True
-    return False"#
+    return False"
     ));
 }
 
@@ -2976,8 +2976,8 @@ fn test_nested_with_path() {
 #[test]
 fn test_return_implicit_path() {
     assert!(transpile_ok(
-        r#"def foo():
-    x = 42"#
+        r"def foo():
+    x = 42"
     ));
 }
 
@@ -2986,8 +2986,8 @@ fn test_return_implicit_path() {
 fn test_tuple_unpack_nested_err() {
     // Nested tuple unpacking not fully supported yet
     assert!(transpile_err(
-        r#"def foo():
-    (a, b), c = (1, 2), 3"#
+        r"def foo():
+    (a, b), c = (1, 2), 3"
     ));
 }
 
@@ -2995,99 +2995,99 @@ fn test_tuple_unpack_nested_err() {
 #[test]
 fn test_aug_assign_sub_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 10
-    x -= 3"#
+    x -= 3"
     ));
 }
 
 #[test]
 fn test_aug_assign_mul_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 5
-    x *= 2"#
+    x *= 2"
     ));
 }
 
 #[test]
 fn test_aug_assign_div_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 10.0
-    x /= 2"#
+    x /= 2"
     ));
 }
 
 #[test]
 fn test_aug_assign_floor_div_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 10
-    x //= 3"#
+    x //= 3"
     ));
 }
 
 #[test]
 fn test_aug_assign_mod_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 10
-    x %= 3"#
+    x %= 3"
     ));
 }
 
 #[test]
 fn test_aug_assign_pow_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 2
-    x **= 3"#
+    x **= 3"
     ));
 }
 
 #[test]
 fn test_aug_assign_bitand_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 0xFF
-    x &= 0x0F"#
+    x &= 0x0F"
     ));
 }
 
 #[test]
 fn test_aug_assign_bitor_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 0x0F
-    x |= 0xF0"#
+    x |= 0xF0"
     ));
 }
 
 #[test]
 fn test_aug_assign_bitxor_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 0xFF
-    x ^= 0xAA"#
+    x ^= 0xAA"
     ));
 }
 
 #[test]
 fn test_aug_assign_lshift_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 1
-    x <<= 4"#
+    x <<= 4"
     ));
 }
 
 #[test]
 fn test_aug_assign_rshift_path() {
     assert!(transpile_ok(
-        r#"def foo():
+        r"def foo():
     x = 16
-    x >>= 2"#
+    x >>= 2"
     ));
 }
 
@@ -3126,10 +3126,10 @@ fn test_raise_cause_path() {
 #[test]
 fn test_stmt_ext_nested_function_basic() {
     let code = transpile(
-        r#"def outer(x: int) -> int:
+        r"def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y * 2
-    return inner(x)"#,
+    return inner(x)",
     );
     assert!(code.contains("fn inner") || code.contains("let inner"));
 }
@@ -3137,10 +3137,10 @@ fn test_stmt_ext_nested_function_basic() {
 #[test]
 fn test_stmt_ext_nested_function_closure() {
     let code = transpile(
-        r#"def outer(x: int) -> int:
+        r"def outer(x: int) -> int:
     def add_x(y: int) -> int:
         return x + y
-    return add_x(10)"#,
+    return add_x(10)",
     );
     assert!(!code.is_empty());
 }
@@ -3148,12 +3148,12 @@ fn test_stmt_ext_nested_function_closure() {
 #[test]
 fn test_stmt_ext_nested_function_multiple() {
     let code = transpile(
-        r#"def outer() -> int:
+        r"def outer() -> int:
     def first() -> int:
         return 1
     def second() -> int:
         return 2
-    return first() + second()"#,
+    return first() + second()",
     );
     assert!(code.contains("first") && code.contains("second"));
 }
@@ -3161,12 +3161,12 @@ fn test_stmt_ext_nested_function_multiple() {
 #[test]
 fn test_stmt_ext_nested_function_recursive() {
     let code = transpile(
-        r#"def outer(n: int) -> int:
+        r"def outer(n: int) -> int:
     def factorial(x: int) -> int:
         if x <= 1:
             return 1
         return x * factorial(x - 1)
-    return factorial(n)"#,
+    return factorial(n)",
     );
     assert!(code.contains("factorial"));
 }
@@ -3175,8 +3175,8 @@ fn test_stmt_ext_nested_function_recursive() {
 #[test]
 fn test_stmt_ext_assignment_tuple_unpack() {
     let code = transpile(
-        r#"def foo():
-    a, b = 1, 2"#,
+        r"def foo():
+    a, b = 1, 2",
     );
     assert!(!code.is_empty());
 }
@@ -3184,8 +3184,8 @@ fn test_stmt_ext_assignment_tuple_unpack() {
 #[test]
 fn test_stmt_ext_assignment_list_unpack() {
     let code = transpile(
-        r#"def foo():
-    a, b, c = [1, 2, 3]"#,
+        r"def foo():
+    a, b, c = [1, 2, 3]",
     );
     assert!(!code.is_empty());
 }
@@ -3194,8 +3194,8 @@ fn test_stmt_ext_assignment_list_unpack() {
 fn test_stmt_ext_assignment_nested_unpack() {
     // Complex tuple unpacking may not be supported yet
     let ok = transpile_ok(
-        r#"def foo():
-    a, (b, c) = 1, (2, 3)"#,
+        r"def foo():
+    a, (b, c) = 1, (2, 3)",
     );
     let _ = ok; // Silence unused variable, test just verifies no panic
 }
@@ -3203,9 +3203,9 @@ fn test_stmt_ext_assignment_nested_unpack() {
 #[test]
 fn test_stmt_ext_assignment_swap() {
     let code = transpile(
-        r#"def swap(a: int, b: int):
+        r"def swap(a: int, b: int):
     a, b = b, a
-    return a, b"#,
+    return a, b",
     );
     assert!(!code.is_empty());
 }
@@ -3213,8 +3213,8 @@ fn test_stmt_ext_assignment_swap() {
 #[test]
 fn test_stmt_ext_assignment_starred() {
     let code = transpile(
-        r#"def foo():
-    first, *rest = [1, 2, 3, 4]"#,
+        r"def foo():
+    first, *rest = [1, 2, 3, 4]",
     );
     assert!(!code.is_empty());
 }
@@ -3222,8 +3222,8 @@ fn test_stmt_ext_assignment_starred() {
 #[test]
 fn test_stmt_ext_assignment_starred_middle() {
     let code = transpile(
-        r#"def foo():
-    first, *middle, last = [1, 2, 3, 4, 5]"#,
+        r"def foo():
+    first, *middle, last = [1, 2, 3, 4, 5]",
     );
     assert!(!code.is_empty());
 }
@@ -3231,8 +3231,8 @@ fn test_stmt_ext_assignment_starred_middle() {
 #[test]
 fn test_stmt_ext_assignment_multi_target() {
     let code = transpile(
-        r#"def foo():
-    a = b = c = 0"#,
+        r"def foo():
+    a = b = c = 0",
     );
     assert!(!code.is_empty());
 }
@@ -3249,8 +3249,8 @@ fn test_stmt_ext_assignment_dict_index() {
 #[test]
 fn test_stmt_ext_assignment_list_index() {
     let code = transpile(
-        r#"def foo(lst: list):
-    lst[0] = 42"#,
+        r"def foo(lst: list):
+    lst[0] = 42",
     );
     assert!(!code.is_empty());
 }
@@ -3258,8 +3258,8 @@ fn test_stmt_ext_assignment_list_index() {
 #[test]
 fn test_stmt_ext_assignment_nested_index() {
     let code = transpile(
-        r#"def foo(matrix: list):
-    matrix[0][1] = 42"#,
+        r"def foo(matrix: list):
+    matrix[0][1] = 42",
     );
     assert!(!code.is_empty());
 }
@@ -3310,11 +3310,11 @@ fn test_stmt_ext_with_nested() {
 #[test]
 fn test_stmt_ext_try_except_basic() {
     let code = transpile(
-        r#"def safe_divide(a: int, b: int) -> int:
+        r"def safe_divide(a: int, b: int) -> int:
     try:
         return a // b
     except:
-        return 0"#,
+        return 0",
     );
     assert!(code.contains("match") || code.contains("Result") || code.contains("if"));
 }
@@ -3322,13 +3322,13 @@ fn test_stmt_ext_try_except_basic() {
 #[test]
 fn test_stmt_ext_try_except_multiple() {
     let code = transpile(
-        r#"def parse_num(s: str) -> int:
+        r"def parse_num(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
     except TypeError:
-        return -2"#,
+        return -2",
     );
     assert!(!code.is_empty());
 }
@@ -3336,13 +3336,13 @@ fn test_stmt_ext_try_except_multiple() {
 #[test]
 fn test_stmt_ext_try_except_finally() {
     let code = transpile(
-        r#"def cleanup():
+        r"def cleanup():
     try:
         risky_op()
     except:
         handle_error()
     finally:
-        cleanup_resources()"#,
+        cleanup_resources()",
     );
     assert!(!code.is_empty());
 }
@@ -3350,13 +3350,13 @@ fn test_stmt_ext_try_except_finally() {
 #[test]
 fn test_stmt_ext_try_except_else() {
     let code = transpile(
-        r#"def try_else():
+        r"def try_else():
     try:
         result = compute()
     except:
         result = None
     else:
-        process(result)"#,
+        process(result)",
     );
     assert!(!code.is_empty());
 }
@@ -3364,11 +3364,11 @@ fn test_stmt_ext_try_except_else() {
 #[test]
 fn test_stmt_ext_try_except_as() {
     let code = transpile(
-        r#"def log_error():
+        r"def log_error():
     try:
         risky()
     except Exception as e:
-        print(str(e))"#,
+        print(str(e))",
     );
     assert!(!code.is_empty());
 }
@@ -3377,8 +3377,8 @@ fn test_stmt_ext_try_except_as() {
 #[test]
 fn test_stmt_ext_assert_simple() {
     let code = transpile(
-        r#"def check(x: int):
-    assert x > 0"#,
+        r"def check(x: int):
+    assert x > 0",
     );
     assert!(code.contains("assert") || code.contains("debug_assert") || code.contains("panic"));
 }
@@ -3395,8 +3395,8 @@ fn test_stmt_ext_assert_with_message() {
 #[test]
 fn test_stmt_ext_assert_complex_condition() {
     let code = transpile(
-        r#"def validate(x: int, y: int):
-    assert 0 <= x < 100 and 0 <= y < 100"#,
+        r"def validate(x: int, y: int):
+    assert 0 <= x < 100 and 0 <= y < 100",
     );
     assert!(!code.is_empty());
 }
@@ -3405,11 +3405,11 @@ fn test_stmt_ext_assert_complex_condition() {
 #[test]
 fn test_stmt_ext_for_range() {
     let code = transpile(
-        r#"def sum_range(n: int) -> int:
+        r"def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
-    return total"#,
+    return total",
     );
     assert!(code.contains("for") || code.contains("iter"));
 }
@@ -3417,11 +3417,11 @@ fn test_stmt_ext_for_range() {
 #[test]
 fn test_stmt_ext_for_range_step() {
     let code = transpile(
-        r#"def evens(n: int) -> list:
+        r"def evens(n: int) -> list:
     result = []
     for i in range(0, n, 2):
         result.append(i)
-    return result"#,
+    return result",
     );
     assert!(!code.is_empty());
 }
@@ -3429,9 +3429,9 @@ fn test_stmt_ext_for_range_step() {
 #[test]
 fn test_stmt_ext_for_enumerate() {
     let code = transpile(
-        r#"def indexed(items: list):
+        r"def indexed(items: list):
     for i, item in enumerate(items):
-        print(i, item)"#,
+        print(i, item)",
     );
     assert!(code.contains("enumerate") || code.contains("iter"));
 }
@@ -3439,9 +3439,9 @@ fn test_stmt_ext_for_enumerate() {
 #[test]
 fn test_stmt_ext_for_zip() {
     let code = transpile(
-        r#"def pairs(a: list, b: list):
+        r"def pairs(a: list, b: list):
     for x, y in zip(a, b):
-        print(x, y)"#,
+        print(x, y)",
     );
     assert!(code.contains("zip") || code.contains("iter"));
 }
@@ -3449,9 +3449,9 @@ fn test_stmt_ext_for_zip() {
 #[test]
 fn test_stmt_ext_for_dict_items() {
     let code = transpile(
-        r#"def print_dict(d: dict):
+        r"def print_dict(d: dict):
     for key, value in d.items():
-        print(key, value)"#,
+        print(key, value)",
     );
     assert!(!code.is_empty());
 }
@@ -3459,10 +3459,10 @@ fn test_stmt_ext_for_dict_items() {
 #[test]
 fn test_stmt_ext_for_nested() {
     let code = transpile(
-        r#"def matrix_traverse(m: list):
+        r"def matrix_traverse(m: list):
     for row in m:
         for cell in row:
-            process(cell)"#,
+            process(cell)",
     );
     assert!(code.contains("for") && code.len() > 50);
 }
@@ -3470,12 +3470,12 @@ fn test_stmt_ext_for_nested() {
 #[test]
 fn test_stmt_ext_for_else() {
     let code = transpile(
-        r#"def find_target(items: list, target: int) -> bool:
+        r"def find_target(items: list, target: int) -> bool:
     for item in items:
         if item == target:
             return True
     else:
-        return False"#,
+        return False",
     );
     assert!(!code.is_empty());
 }
@@ -3484,10 +3484,10 @@ fn test_stmt_ext_for_else() {
 #[test]
 fn test_stmt_ext_while_basic() {
     let code = transpile(
-        r#"def countdown(n: int):
+        r"def countdown(n: int):
     while n > 0:
         print(n)
-        n -= 1"#,
+        n -= 1",
     );
     assert!(code.contains("while"));
 }
@@ -3495,13 +3495,13 @@ fn test_stmt_ext_while_basic() {
 #[test]
 fn test_stmt_ext_while_break() {
     let code = transpile(
-        r#"def find_first(items: list, target: int) -> int:
+        r"def find_first(items: list, target: int) -> int:
     i = 0
     while i < len(items):
         if items[i] == target:
             break
         i += 1
-    return i"#,
+    return i",
     );
     assert!(code.contains("break") || code.contains("while"));
 }
@@ -3509,7 +3509,7 @@ fn test_stmt_ext_while_break() {
 #[test]
 fn test_stmt_ext_while_skip_with_continue() {
     let code = transpile(
-        r#"def skip_evens(n: int) -> list:
+        r"def skip_evens(n: int) -> list:
     result = []
     i = 0
     while i < n:
@@ -3517,7 +3517,7 @@ fn test_stmt_ext_while_skip_with_continue() {
         if i % 2 == 0:
             continue
         result.append(i)
-    return result"#,
+    return result",
     );
     assert!(code.contains("continue") || code.contains("while"));
 }
@@ -3525,7 +3525,7 @@ fn test_stmt_ext_while_skip_with_continue() {
 #[test]
 fn test_stmt_ext_while_with_else_clause() {
     let code = transpile(
-        r#"def search(items: list, x: int) -> bool:
+        r"def search(items: list, x: int) -> bool:
     i = 0
     while i < len(items):
         if items[i] == x:
@@ -3533,7 +3533,7 @@ fn test_stmt_ext_while_with_else_clause() {
         i += 1
     else:
         return False
-    return True"#,
+    return True",
     );
     assert!(!code.is_empty());
 }
@@ -3592,10 +3592,10 @@ fn test_stmt_ext_if_deeply_nested() {
 #[test]
 fn test_stmt_ext_if_compound_and_condition() {
     let code = transpile(
-        r#"def in_range(x: int) -> bool:
+        r"def in_range(x: int) -> bool:
     if 0 <= x and x < 100:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("&&") || code.contains("and"));
 }
@@ -3603,10 +3603,10 @@ fn test_stmt_ext_if_compound_and_condition() {
 #[test]
 fn test_stmt_ext_if_walrus() {
     let code = transpile(
-        r#"def process(data: list) -> int:
+        r"def process(data: list) -> int:
     if (n := len(data)) > 0:
         return n
-    return 0"#,
+    return 0",
     );
     assert!(!code.is_empty());
 }
@@ -3615,8 +3615,8 @@ fn test_stmt_ext_if_walrus() {
 #[test]
 fn test_stmt_ext_return_none_implicit() {
     let code = transpile(
-        r#"def do_nothing():
-    return"#,
+        r"def do_nothing():
+    return",
     );
     assert!(!code.is_empty());
 }
@@ -3624,8 +3624,8 @@ fn test_stmt_ext_return_none_implicit() {
 #[test]
 fn test_stmt_ext_return_tuple_pair() {
     let code = transpile(
-        r#"def get_pair() -> tuple:
-    return 1, 2"#,
+        r"def get_pair() -> tuple:
+    return 1, 2",
     );
     assert!(!code.is_empty());
 }
@@ -3633,8 +3633,8 @@ fn test_stmt_ext_return_tuple_pair() {
 #[test]
 fn test_stmt_ext_return_ternary_conditional() {
     let code = transpile(
-        r#"def abs_val(x: int) -> int:
-    return x if x >= 0 else -x"#,
+        r"def abs_val(x: int) -> int:
+    return x if x >= 0 else -x",
     );
     assert!(!code.is_empty());
 }
@@ -3643,8 +3643,8 @@ fn test_stmt_ext_return_ternary_conditional() {
 #[test]
 fn test_stmt_ext_pass_in_function() {
     let code = transpile(
-        r#"def stub():
-    pass"#,
+        r"def stub():
+    pass",
     );
     assert!(!code.is_empty());
 }
@@ -3664,9 +3664,9 @@ fn test_stmt_ext_pass_in_if() {
 #[test]
 fn test_stmt_ext_pass_in_loop() {
     let code = transpile(
-        r#"def wait(n: int):
+        r"def wait(n: int):
     for _ in range(n):
-        pass"#,
+        pass",
     );
     assert!(!code.is_empty());
 }
@@ -3684,9 +3684,9 @@ fn test_stmt_ext_expr_stmt_print_call() {
 #[test]
 fn test_stmt_ext_expr_stmt_method() {
     let code = transpile(
-        r#"def update(lst: list):
+        r"def update(lst: list):
     lst.append(1)
-    lst.pop()"#,
+    lst.pop()",
     );
     assert!(!code.is_empty());
 }
@@ -3694,9 +3694,9 @@ fn test_stmt_ext_expr_stmt_method() {
 #[test]
 fn test_stmt_ext_expr_stmt_discard() {
     let code = transpile(
-        r#"def ignore_result():
+        r"def ignore_result():
     compute()
-    1 + 2"#,
+    1 + 2",
     );
     assert!(!code.is_empty());
 }
@@ -3705,9 +3705,9 @@ fn test_stmt_ext_expr_stmt_discard() {
 #[test]
 fn test_stmt_ext_global_read() {
     let code = transpile(
-        r#"CONST = 42
+        r"CONST = 42
 def get_const() -> int:
-    return CONST"#,
+    return CONST",
     );
     assert!(!code.is_empty());
 }
@@ -3716,11 +3716,11 @@ def get_const() -> int:
 #[test]
 fn test_stmt_ext_early_return() {
     let code = transpile(
-        r#"def find(items: list, target: int) -> int:
+        r"def find(items: list, target: int) -> int:
     for i, item in enumerate(items):
         if item == target:
             return i
-    return -1"#,
+    return -1",
     );
     assert!(code.contains("return"));
 }
@@ -3728,12 +3728,12 @@ fn test_stmt_ext_early_return() {
 #[test]
 fn test_stmt_ext_labeled_break() {
     let code = transpile(
-        r#"def search_matrix(m: list, target: int) -> tuple:
+        r"def search_matrix(m: list, target: int) -> tuple:
     for i, row in enumerate(m):
         for j, cell in enumerate(row):
             if cell == target:
                 return (i, j)
-    return (-1, -1)"#,
+    return (-1, -1)",
     );
     assert!(!code.is_empty());
 }
@@ -3753,9 +3753,9 @@ fn test_stmt_ext_typed_assignment() {
 #[test]
 fn test_stmt_ext_typed_optional() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def foo():
-    x: Optional[int] = None"#,
+    x: Optional[int] = None",
     );
     assert!(!code.is_empty());
 }
@@ -3763,9 +3763,9 @@ def foo():
 #[test]
 fn test_stmt_ext_typed_list() {
     let code = transpile(
-        r#"from typing import List
+        r"from typing import List
 def foo():
-    nums: List[int] = [1, 2, 3]"#,
+    nums: List[int] = [1, 2, 3]",
     );
     assert!(!code.is_empty());
 }
@@ -3773,9 +3773,9 @@ def foo():
 #[test]
 fn test_stmt_ext_typed_dict() {
     let code = transpile(
-        r#"from typing import Dict
+        r"from typing import Dict
 def foo():
-    cache: Dict[str, int] = {}"#,
+    cache: Dict[str, int] = {}",
     );
     assert!(code.contains("HashMap") || code.contains("{}"));
 }
@@ -3784,9 +3784,9 @@ def foo():
 #[test]
 fn test_stmt_ext_walrus_in_while() {
     let code = transpile(
-        r#"def read_lines(f):
+        r"def read_lines(f):
     while (line := f.readline()):
-        process(line)"#,
+        process(line)",
     );
     assert!(code.contains("while") || code.contains("loop"));
 }
@@ -3794,11 +3794,11 @@ fn test_stmt_ext_walrus_in_while() {
 #[test]
 fn test_stmt_ext_walrus_in_if_chain() {
     let code = transpile(
-        r#"def process(data):
+        r"def process(data):
     if (x := get_first(data)):
         if (y := get_second(x)):
             return y
-    return None"#,
+    return None",
     );
     assert!(!code.is_empty());
 }
@@ -3811,9 +3811,9 @@ fn test_stmt_ext_walrus_in_if_chain() {
 #[test]
 fn test_stmt_type_conversion_int_to_float() {
     let code = transpile(
-        r#"def convert(x: int) -> float:
+        r"def convert(x: int) -> float:
     y: float = x
-    return y"#,
+    return y",
     );
     assert!(!code.is_empty());
 }
@@ -3821,9 +3821,9 @@ fn test_stmt_type_conversion_int_to_float() {
 #[test]
 fn test_stmt_type_conversion_list_to_vec() {
     let code = transpile(
-        r#"def make_vec(items: list) -> list:
+        r"def make_vec(items: list) -> list:
     result: list = list(items)
-    return result"#,
+    return result",
     );
     assert!(!code.is_empty());
 }
@@ -3831,8 +3831,8 @@ fn test_stmt_type_conversion_list_to_vec() {
 #[test]
 fn test_stmt_type_conversion_str_to_bytes() {
     let code = transpile(
-        r#"def encode(s: str) -> bytes:
-    return s.encode()"#,
+        r"def encode(s: str) -> bytes:
+    return s.encode()",
     );
     assert!(!code.is_empty());
 }
@@ -3841,7 +3841,7 @@ fn test_stmt_type_conversion_str_to_bytes() {
 #[test]
 fn test_stmt_try_multiple_except() {
     let code = transpile(
-        r#"def multi_except():
+        r"def multi_except():
     try:
         risky()
     except ValueError:
@@ -3849,7 +3849,7 @@ fn test_stmt_try_multiple_except() {
     except TypeError:
         handle_type()
     except Exception:
-        handle_other()"#,
+        handle_other()",
     );
     assert!(!code.is_empty());
 }
@@ -3857,12 +3857,12 @@ fn test_stmt_try_multiple_except() {
 #[test]
 fn test_stmt_try_except_with_exit() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def fatal_error():
     try:
         dangerous()
     except Exception:
-        sys.exit(1)"#,
+        sys.exit(1)",
     );
     assert!(!code.is_empty());
 }
@@ -3870,11 +3870,11 @@ def fatal_error():
 #[test]
 fn test_stmt_try_except_with_raise() {
     let code = transpile(
-        r#"def reraise():
+        r"def reraise():
     try:
         risky()
     except Exception as e:
-        raise e"#,
+        raise e",
     );
     assert!(!code.is_empty());
 }
@@ -3882,11 +3882,11 @@ fn test_stmt_try_except_with_raise() {
 #[test]
 fn test_stmt_try_finally_no_except() {
     let code = transpile(
-        r#"def cleanup():
+        r"def cleanup():
     try:
         work()
     finally:
-        cleanup_resources()"#,
+        cleanup_resources()",
     );
     assert!(!code.is_empty());
 }
@@ -3895,9 +3895,9 @@ fn test_stmt_try_finally_no_except() {
 #[test]
 fn test_stmt_with_open_read() {
     let code = transpile(
-        r#"def read_file(path: str) -> str:
+        r"def read_file(path: str) -> str:
     with open(path, 'r') as f:
-        return f.read()"#,
+        return f.read()",
     );
     assert!(!code.is_empty());
 }
@@ -3905,9 +3905,9 @@ fn test_stmt_with_open_read() {
 #[test]
 fn test_stmt_with_open_write() {
     let code = transpile(
-        r#"def write_file(path: str, content: str):
+        r"def write_file(path: str, content: str):
     with open(path, 'w') as f:
-        f.write(content)"#,
+        f.write(content)",
     );
     assert!(!code.is_empty());
 }
@@ -3915,9 +3915,9 @@ fn test_stmt_with_open_write() {
 #[test]
 fn test_stmt_with_open_append() {
     let code = transpile(
-        r#"def append_file(path: str, line: str):
+        r"def append_file(path: str, line: str):
     with open(path, 'a') as f:
-        f.write(line + '\n')"#,
+        f.write(line + '\n')",
     );
     assert!(!code.is_empty());
 }
@@ -3925,9 +3925,9 @@ fn test_stmt_with_open_append() {
 #[test]
 fn test_stmt_with_open_binary() {
     let code = transpile(
-        r#"def read_binary(path: str) -> bytes:
+        r"def read_binary(path: str) -> bytes:
     with open(path, 'rb') as f:
-        return f.read()"#,
+        return f.read()",
     );
     assert!(!code.is_empty());
 }
@@ -3935,9 +3935,9 @@ fn test_stmt_with_open_binary() {
 #[test]
 fn test_stmt_sys_stdin() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def read_input() -> str:
-    return sys.stdin.read()"#,
+    return sys.stdin.read()",
     );
     assert!(!code.is_empty());
 }
@@ -3945,9 +3945,9 @@ def read_input() -> str:
 #[test]
 fn test_stmt_sys_stdout() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def write_output(s: str):
-    sys.stdout.write(s)"#,
+    sys.stdout.write(s)",
     );
     assert!(!code.is_empty());
 }
@@ -3955,9 +3955,9 @@ def write_output(s: str):
 #[test]
 fn test_stmt_sys_stderr() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def write_error(s: str):
-    sys.stderr.write(s)"#,
+    sys.stderr.write(s)",
     );
     assert!(!code.is_empty());
 }
@@ -3966,8 +3966,8 @@ def write_error(s: str):
 #[test]
 fn test_stmt_dict_get_default() {
     let code = transpile(
-        r#"def get_value(d: dict, key: str) -> int:
-    return d.get(key, 0)"#,
+        r"def get_value(d: dict, key: str) -> int:
+    return d.get(key, 0)",
     );
     assert!(!code.is_empty());
 }
@@ -3975,8 +3975,8 @@ fn test_stmt_dict_get_default() {
 #[test]
 fn test_stmt_dict_setdefault() {
     let code = transpile(
-        r#"def ensure_key(d: dict, key: str, val: int):
-    d.setdefault(key, val)"#,
+        r"def ensure_key(d: dict, key: str, val: int):
+    d.setdefault(key, val)",
     );
     assert!(!code.is_empty());
 }
@@ -3984,8 +3984,8 @@ fn test_stmt_dict_setdefault() {
 #[test]
 fn test_stmt_dict_update() {
     let code = transpile(
-        r#"def merge_dicts(a: dict, b: dict):
-    a.update(b)"#,
+        r"def merge_dicts(a: dict, b: dict):
+    a.update(b)",
     );
     assert!(!code.is_empty());
 }
@@ -3993,8 +3993,8 @@ fn test_stmt_dict_update() {
 #[test]
 fn test_stmt_dict_pop() {
     let code = transpile(
-        r#"def remove_key(d: dict, key: str) -> int:
-    return d.pop(key)"#,
+        r"def remove_key(d: dict, key: str) -> int:
+    return d.pop(key)",
     );
     assert!(!code.is_empty());
 }
@@ -4002,8 +4002,8 @@ fn test_stmt_dict_pop() {
 #[test]
 fn test_stmt_dict_augassign() {
     let code = transpile(
-        r#"def increment_count(counts: dict, key: str):
-    counts[key] += 1"#,
+        r"def increment_count(counts: dict, key: str):
+    counts[key] += 1",
     );
     assert!(!code.is_empty());
 }
@@ -4011,8 +4011,8 @@ fn test_stmt_dict_augassign() {
 #[test]
 fn test_stmt_dict_in_operator() {
     let code = transpile(
-        r#"def check_key(d: dict, key: str) -> bool:
-    return key in d"#,
+        r"def check_key(d: dict, key: str) -> bool:
+    return key in d",
     );
     assert!(!code.is_empty());
 }
@@ -4021,9 +4021,9 @@ fn test_stmt_dict_in_operator() {
 #[test]
 fn test_stmt_json_loads() {
     let code = transpile(
-        r#"import json
+        r"import json
 def parse(s: str) -> dict:
-    return json.loads(s)"#,
+    return json.loads(s)",
     );
     assert!(!code.is_empty());
 }
@@ -4031,9 +4031,9 @@ def parse(s: str) -> dict:
 #[test]
 fn test_stmt_json_dumps() {
     let code = transpile(
-        r#"import json
+        r"import json
 def serialize(d: dict) -> str:
-    return json.dumps(d)"#,
+    return json.dumps(d)",
     );
     assert!(!code.is_empty());
 }
@@ -4041,10 +4041,10 @@ def serialize(d: dict) -> str:
 #[test]
 fn test_stmt_json_load_file() {
     let code = transpile(
-        r#"import json
+        r"import json
 def load_json(path: str) -> dict:
     with open(path) as f:
-        return json.load(f)"#,
+        return json.load(f)",
     );
     assert!(!code.is_empty());
 }
@@ -4053,10 +4053,10 @@ def load_json(path: str) -> dict:
 #[test]
 fn test_stmt_option_match() {
     let code = transpile(
-        r#"def process_optional(x):
+        r"def process_optional(x):
     if x is not None:
         return x * 2
-    return 0"#,
+    return 0",
     );
     assert!(!code.is_empty());
 }
@@ -4064,11 +4064,11 @@ fn test_stmt_option_match() {
 #[test]
 fn test_stmt_option_chain() {
     let code = transpile(
-        r#"def get_nested(obj):
+        r"def get_nested(obj):
     if obj.attr is not None:
         if obj.attr.inner is not None:
             return obj.attr.inner.value
-    return None"#,
+    return None",
     );
     assert!(!code.is_empty());
 }
@@ -4076,8 +4076,8 @@ fn test_stmt_option_chain() {
 #[test]
 fn test_stmt_or_default() {
     let code = transpile(
-        r#"def get_or_default(x, default):
-    return x if x is not None else default"#,
+        r"def get_or_default(x, default):
+    return x if x is not None else default",
     );
     assert!(!code.is_empty());
 }
@@ -4086,10 +4086,10 @@ fn test_stmt_or_default() {
 #[test]
 fn test_stmt_var_shadow() {
     let code = transpile(
-        r#"def shadow(x: int) -> int:
+        r"def shadow(x: int) -> int:
     x = x + 1
     x = x * 2
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4097,11 +4097,11 @@ fn test_stmt_var_shadow() {
 #[test]
 fn test_stmt_var_reassign_in_loop() {
     let code = transpile(
-        r#"def accumulate(items: list) -> int:
+        r"def accumulate(items: list) -> int:
     total = 0
     for item in items:
         total = total + item
-    return total"#,
+    return total",
     );
     assert!(!code.is_empty());
 }
@@ -4109,11 +4109,11 @@ fn test_stmt_var_reassign_in_loop() {
 #[test]
 fn test_stmt_var_used_as_dict_key() {
     let code = transpile(
-        r#"def lookup(d: dict, keys: list) -> list:
+        r"def lookup(d: dict, keys: list) -> list:
     result = []
     for key in keys:
         result.append(d[key])
-    return result"#,
+    return result",
     );
     assert!(!code.is_empty());
 }
@@ -4122,8 +4122,8 @@ fn test_stmt_var_used_as_dict_key() {
 #[test]
 fn test_stmt_iter_map() {
     let code = transpile(
-        r#"def double_all(items: list) -> list:
-    return list(map(lambda x: x * 2, items))"#,
+        r"def double_all(items: list) -> list:
+    return list(map(lambda x: x * 2, items))",
     );
     assert!(!code.is_empty());
 }
@@ -4131,8 +4131,8 @@ fn test_stmt_iter_map() {
 #[test]
 fn test_stmt_iter_filter() {
     let code = transpile(
-        r#"def filter_positive(items: list) -> list:
-    return list(filter(lambda x: x > 0, items))"#,
+        r"def filter_positive(items: list) -> list:
+    return list(filter(lambda x: x > 0, items))",
     );
     assert!(!code.is_empty());
 }
@@ -4140,8 +4140,8 @@ fn test_stmt_iter_filter() {
 #[test]
 fn test_stmt_iter_zip() {
     let code = transpile(
-        r#"def zip_lists(a: list, b: list) -> list:
-    return list(zip(a, b))"#,
+        r"def zip_lists(a: list, b: list) -> list:
+    return list(zip(a, b))",
     );
     assert!(!code.is_empty());
 }
@@ -4149,9 +4149,9 @@ fn test_stmt_iter_zip() {
 #[test]
 fn test_stmt_iter_chain() {
     let code = transpile(
-        r#"from itertools import chain
+        r"from itertools import chain
 def combine(a: list, b: list) -> list:
-    return list(chain(a, b))"#,
+    return list(chain(a, b))",
     );
     assert!(!code.is_empty());
 }
@@ -4160,8 +4160,8 @@ def combine(a: list, b: list) -> list:
 #[test]
 fn test_stmt_float_division() {
     let code = transpile(
-        r#"def divide(a: int, b: int) -> float:
-    return a / b"#,
+        r"def divide(a: int, b: int) -> float:
+    return a / b",
     );
     assert!(!code.is_empty());
 }
@@ -4169,9 +4169,9 @@ fn test_stmt_float_division() {
 #[test]
 fn test_stmt_float_operations() {
     let code = transpile(
-        r#"import math
+        r"import math
 def calculate(x: float) -> float:
-    return math.sqrt(x) + math.sin(x)"#,
+    return math.sqrt(x) + math.sin(x)",
     );
     assert!(!code.is_empty());
 }
@@ -4179,9 +4179,9 @@ def calculate(x: float) -> float:
 #[test]
 fn test_stmt_numpy_array() {
     let ok = transpile_ok(
-        r#"import numpy as np
+        r"import numpy as np
 def create_array() -> np.ndarray:
-    return np.array([1, 2, 3])"#,
+    return np.array([1, 2, 3])",
     );
     let _ = ok; // Test just verifies no panic
 }
@@ -4190,11 +4190,11 @@ def create_array() -> np.ndarray:
 #[test]
 fn test_stmt_pure_arithmetic() {
     let code = transpile(
-        r#"def pure_math(x: int, y: int) -> int:
+        r"def pure_math(x: int, y: int) -> int:
     a = x + y
     b = a * 2
     c = b - x
-    return c"#,
+    return c",
     );
     assert!(!code.is_empty());
 }
@@ -4214,8 +4214,8 @@ fn test_stmt_side_effect_call() {
 #[test]
 fn test_stmt_nested_index() {
     let code = transpile(
-        r#"def get_nested(matrix: list, i: int, j: int) -> int:
-    return matrix[i][j]"#,
+        r"def get_nested(matrix: list, i: int, j: int) -> int:
+    return matrix[i][j]",
     );
     assert!(!code.is_empty());
 }
@@ -4223,8 +4223,8 @@ fn test_stmt_nested_index() {
 #[test]
 fn test_stmt_slice_full() {
     let code = transpile(
-        r#"def copy_list(items: list) -> list:
-    return items[:]"#,
+        r"def copy_list(items: list) -> list:
+    return items[:]",
     );
     assert!(!code.is_empty());
 }
@@ -4232,8 +4232,8 @@ fn test_stmt_slice_full() {
 #[test]
 fn test_stmt_slice_step() {
     let code = transpile(
-        r#"def every_other(items: list) -> list:
-    return items[::2]"#,
+        r"def every_other(items: list) -> list:
+    return items[::2]",
     );
     assert!(!code.is_empty());
 }
@@ -4241,8 +4241,8 @@ fn test_stmt_slice_step() {
 #[test]
 fn test_stmt_negative_index() {
     let code = transpile(
-        r#"def get_last(items: list) -> int:
-    return items[-1]"#,
+        r"def get_last(items: list) -> int:
+    return items[-1]",
     );
     assert!(!code.is_empty());
 }
@@ -4251,10 +4251,10 @@ fn test_stmt_negative_index() {
 #[test]
 fn test_stmt_bool_truthiness_list() {
     let code = transpile(
-        r#"def check_empty(items: list) -> bool:
+        r"def check_empty(items: list) -> bool:
     if items:
         return True
-    return False"#,
+    return False",
     );
     assert!(!code.is_empty());
 }
@@ -4262,10 +4262,10 @@ fn test_stmt_bool_truthiness_list() {
 #[test]
 fn test_stmt_bool_truthiness_string() {
     let code = transpile(
-        r#"def check_non_empty(s: str) -> bool:
+        r"def check_non_empty(s: str) -> bool:
     if s:
         return True
-    return False"#,
+    return False",
     );
     assert!(!code.is_empty());
 }
@@ -4273,10 +4273,10 @@ fn test_stmt_bool_truthiness_string() {
 #[test]
 fn test_stmt_bool_truthiness_int() {
     let code = transpile(
-        r#"def check_nonzero(n: int) -> bool:
+        r"def check_nonzero(n: int) -> bool:
     if n:
         return True
-    return False"#,
+    return False",
     );
     assert!(!code.is_empty());
 }
@@ -4285,9 +4285,9 @@ fn test_stmt_bool_truthiness_int() {
 #[test]
 fn test_stmt_lambda_assign() {
     let code = transpile(
-        r#"def create_adder(n: int):
+        r"def create_adder(n: int):
     add_n = lambda x: x + n
-    return add_n"#,
+    return add_n",
     );
     assert!(!code.is_empty());
 }
@@ -4295,8 +4295,8 @@ fn test_stmt_lambda_assign() {
 #[test]
 fn test_stmt_lambda_as_arg() {
     let code = transpile(
-        r#"def sorted_by_key(items: list) -> list:
-    return sorted(items, key=lambda x: x[0])"#,
+        r"def sorted_by_key(items: list) -> list:
+    return sorted(items, key=lambda x: x[0])",
     );
     assert!(!code.is_empty());
 }
@@ -4305,8 +4305,8 @@ fn test_stmt_lambda_as_arg() {
 #[test]
 fn test_stmt_generator_sum() {
     let code = transpile(
-        r#"def sum_squares(n: int) -> int:
-    return sum(x * x for x in range(n))"#,
+        r"def sum_squares(n: int) -> int:
+    return sum(x * x for x in range(n))",
     );
     assert!(!code.is_empty());
 }
@@ -4314,8 +4314,8 @@ fn test_stmt_generator_sum() {
 #[test]
 fn test_stmt_generator_any() {
     let code = transpile(
-        r#"def has_positive(items: list) -> bool:
-    return any(x > 0 for x in items)"#,
+        r"def has_positive(items: list) -> bool:
+    return any(x > 0 for x in items)",
     );
     assert!(!code.is_empty());
 }
@@ -4323,8 +4323,8 @@ fn test_stmt_generator_any() {
 #[test]
 fn test_stmt_generator_all() {
     let code = transpile(
-        r#"def all_positive(items: list) -> bool:
-    return all(x > 0 for x in items)"#,
+        r"def all_positive(items: list) -> bool:
+    return all(x > 0 for x in items)",
     );
     assert!(!code.is_empty());
 }
@@ -4333,12 +4333,12 @@ fn test_stmt_generator_all() {
 #[test]
 fn test_stmt_nested_loops_break() {
     let code = transpile(
-        r#"def find_in_matrix(m: list, target: int) -> tuple:
+        r"def find_in_matrix(m: list, target: int) -> tuple:
     for i, row in enumerate(m):
         for j, val in enumerate(row):
             if val == target:
                 return (i, j)
-    return (-1, -1)"#,
+    return (-1, -1)",
     );
     assert!(!code.is_empty());
 }
@@ -4346,14 +4346,14 @@ fn test_stmt_nested_loops_break() {
 #[test]
 fn test_stmt_while_with_else() {
     let code = transpile(
-        r#"def find_value(items: list, target: int) -> int:
+        r"def find_value(items: list, target: int) -> int:
     i = 0
     while i < len(items):
         if items[i] == target:
             return i
         i += 1
     else:
-        return -1"#,
+        return -1",
     );
     assert!(!code.is_empty());
 }
@@ -4361,12 +4361,12 @@ fn test_stmt_while_with_else() {
 #[test]
 fn test_stmt_for_with_else() {
     let code = transpile(
-        r#"def search(items: list, target: int) -> bool:
+        r"def search(items: list, target: int) -> bool:
     for item in items:
         if item == target:
             return True
     else:
-        return False"#,
+        return False",
     );
     assert!(!code.is_empty());
 }
@@ -4375,9 +4375,9 @@ fn test_stmt_for_with_else() {
 #[test]
 fn test_stmt_aug_mul() {
     let code = transpile(
-        r#"def double_in_place(x: int) -> int:
+        r"def double_in_place(x: int) -> int:
     x *= 2
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4385,9 +4385,9 @@ fn test_stmt_aug_mul() {
 #[test]
 fn test_stmt_aug_div() {
     let code = transpile(
-        r#"def halve_in_place(x: float) -> float:
+        r"def halve_in_place(x: float) -> float:
     x /= 2
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4395,9 +4395,9 @@ fn test_stmt_aug_div() {
 #[test]
 fn test_stmt_aug_floordiv() {
     let code = transpile(
-        r#"def floor_divide(x: int) -> int:
+        r"def floor_divide(x: int) -> int:
     x //= 2
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4405,9 +4405,9 @@ fn test_stmt_aug_floordiv() {
 #[test]
 fn test_stmt_aug_mod() {
     let code = transpile(
-        r#"def mod_in_place(x: int) -> int:
+        r"def mod_in_place(x: int) -> int:
     x %= 10
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4415,9 +4415,9 @@ fn test_stmt_aug_mod() {
 #[test]
 fn test_stmt_aug_pow() {
     let code = transpile(
-        r#"def square_in_place(x: int) -> int:
+        r"def square_in_place(x: int) -> int:
     x **= 2
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4425,11 +4425,11 @@ fn test_stmt_aug_pow() {
 #[test]
 fn test_stmt_aug_bitwise() {
     let code = transpile(
-        r#"def mask(x: int, m: int) -> int:
+        r"def mask(x: int, m: int) -> int:
     x &= m
     x |= 1
     x ^= 0xFF
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4437,10 +4437,10 @@ fn test_stmt_aug_bitwise() {
 #[test]
 fn test_stmt_aug_shift() {
     let code = transpile(
-        r#"def shift_ops(x: int) -> int:
+        r"def shift_ops(x: int) -> int:
     x <<= 2
     x >>= 1
-    return x"#,
+    return x",
     );
     assert!(!code.is_empty());
 }
@@ -4449,8 +4449,8 @@ fn test_stmt_aug_shift() {
 #[test]
 fn test_stmt_infer_return_type_int() {
     let code = transpile(
-        r#"def get_int():
-    return 42"#,
+        r"def get_int():
+    return 42",
     );
     assert!(!code.is_empty());
 }
@@ -4467,8 +4467,8 @@ fn test_stmt_infer_return_type_str() {
 #[test]
 fn test_stmt_infer_return_type_list() {
     let code = transpile(
-        r#"def get_list():
-    return [1, 2, 3]"#,
+        r"def get_list():
+    return [1, 2, 3]",
     );
     assert!(!code.is_empty());
 }
@@ -4495,13 +4495,13 @@ fn test_stmt_infer_return_type_tuple() {
 #[test]
 fn test_stmt_conditional_file_stdout() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def get_output(use_file: bool, path: str):
     if use_file:
         f = open(path, 'w')
     else:
         f = sys.stdout
-    return f"#,
+    return f",
     );
     assert!(!code.is_empty());
 }
@@ -4510,9 +4510,9 @@ def get_output(use_file: bool, path: str):
 #[test]
 fn test_stmt_range_to_usize() {
     let code = transpile(
-        r#"def range_loop(n: int):
+        r"def range_loop(n: int):
     for i in range(n):
-        print(i)"#,
+        print(i)",
     );
     assert!(!code.is_empty());
 }
@@ -4520,9 +4520,9 @@ fn test_stmt_range_to_usize() {
 #[test]
 fn test_stmt_len_to_usize() {
     let code = transpile(
-        r#"def loop_len(items: list):
+        r"def loop_len(items: list):
     for i in range(len(items)):
-        print(items[i])"#,
+        print(items[i])",
     );
     assert!(!code.is_empty());
 }
@@ -4535,11 +4535,11 @@ fn test_stmt_len_to_usize() {
 #[test]
 fn test_return_optional_some_value() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def get_value(x: int) -> Optional[int]:
     if x > 0:
         return x
-    return None"#,
+    return None",
     );
     assert!(code.contains("Some") || code.contains("None") || code.contains("fn"));
 }
@@ -4547,9 +4547,9 @@ def get_value(x: int) -> Optional[int]:
 #[test]
 fn test_return_optional_none() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def get_value(x: int) -> Optional[str]:
-    return None"#,
+    return None",
     );
     assert!(code.contains("None") || code.contains("Option") || code.contains("fn"));
 }
@@ -4557,8 +4557,8 @@ def get_value(x: int) -> Optional[str]:
 #[test]
 fn test_return_void_function() {
     let code = transpile(
-        r#"def do_nothing() -> None:
-    return"#,
+        r"def do_nothing() -> None:
+    return",
     );
     assert!(code.contains("fn") || code.contains("()"));
 }
@@ -4566,11 +4566,11 @@ fn test_return_void_function() {
 #[test]
 fn test_return_early_in_function() {
     let code = transpile(
-        r#"def early_return(x: int) -> int:
+        r"def early_return(x: int) -> int:
     if x < 0:
         return -1
     y = x * 2
-    return y"#,
+    return y",
     );
     assert!(code.contains("return") || code.contains("fn"));
 }
@@ -4578,9 +4578,9 @@ fn test_return_early_in_function() {
 #[test]
 fn test_return_ternary_with_none() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def ternary_none(cond: bool, val: int) -> Optional[int]:
-    return val if cond else None"#,
+    return val if cond else None",
     );
     assert!(code.contains("if") || code.contains("fn"));
 }
@@ -4588,9 +4588,9 @@ def ternary_none(cond: bool, val: int) -> Optional[int]:
 #[test]
 fn test_return_json_value_type() {
     let code = transpile(
-        r#"from typing import Any
+        r"from typing import Any
 def get_any(x: int) -> Any:
-    return x"#,
+    return x",
     );
     assert!(code.contains("serde_json") || code.contains("json") || code.contains("fn"));
 }
@@ -4627,10 +4627,10 @@ fn test_return_from_main_nonzero() {
 #[test]
 fn test_return_already_option_variable() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def get_optional(d: dict, key: str) -> Optional[str]:
     result = d.get(key)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("get") || code.contains("Option"));
 }
@@ -4663,9 +4663,9 @@ fn test_cov_raise_type_error() {
 #[test]
 fn test_cov_raise_key_error() {
     let code = transpile(
-        r#"def get_item(d: dict, key: str):
+        r"def get_item(d: dict, key: str):
     if key not in d:
-        raise KeyError(key)"#,
+        raise KeyError(key)",
     );
     assert!(code.contains("KeyError") || code.contains("panic") || code.contains("fn"));
 }
@@ -4738,8 +4738,8 @@ fn test_cov_raise_attribute_error() {
 #[test]
 fn test_cov_raise_stop_iteration() {
     let code = transpile(
-        r#"def next_item():
-    raise StopIteration()"#,
+        r"def next_item():
+    raise StopIteration()",
     );
     assert!(code.contains("StopIteration") || code.contains("panic") || code.contains("fn"));
 }
@@ -4747,11 +4747,11 @@ fn test_cov_raise_stop_iteration() {
 #[test]
 fn test_cov_raise_bare() {
     let code = transpile(
-        r#"def reraise():
+        r"def reraise():
     try:
         x = 1
     except:
-        raise"#,
+        raise",
     );
     assert!(code.contains("fn") || code.contains("Err") || code.contains("panic"));
 }
@@ -4774,9 +4774,9 @@ fn test_while_true_becomes_loop() {
 #[test]
 fn test_while_with_list_truthiness() {
     let code = transpile(
-        r#"def process(items: list):
+        r"def process(items: list):
     while items:
-        items.pop()"#,
+        items.pop()",
     );
     assert!(code.contains("is_empty") || code.contains("while") || code.contains("fn"));
 }
@@ -4784,9 +4784,9 @@ fn test_while_with_list_truthiness() {
 #[test]
 fn test_while_with_string_truthiness() {
     let code = transpile(
-        r#"def process(text: str):
+        r"def process(text: str):
     while text:
-        text = text[1:]"#,
+        text = text[1:]",
     );
     assert!(code.contains("is_empty") || code.contains("while") || code.contains("fn"));
 }
@@ -4794,10 +4794,10 @@ fn test_while_with_string_truthiness() {
 #[test]
 fn test_while_with_optional_truthiness() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def process(opt: Optional[int]):
     while opt:
-        opt = None"#,
+        opt = None",
     );
     assert!(code.contains("is_some") || code.contains("while") || code.contains("fn"));
 }
@@ -4805,9 +4805,9 @@ def process(opt: Optional[int]):
 #[test]
 fn test_while_with_numeric_truthiness() {
     let code = transpile(
-        r#"def countdown(n: int):
+        r"def countdown(n: int):
     while n:
-        n -= 1"#,
+        n -= 1",
     );
     assert!(code.contains("!= 0") || code.contains("while") || code.contains("fn"));
 }
@@ -4815,9 +4815,9 @@ fn test_while_with_numeric_truthiness() {
 #[test]
 fn test_while_not_list_empty() {
     let code = transpile(
-        r#"def process(items: list):
+        r"def process(items: list):
     while not items:
-        items.append(1)"#,
+        items.append(1)",
     );
     assert!(code.contains("is_empty") || code.contains("while") || code.contains("fn"));
 }
@@ -4830,10 +4830,10 @@ fn test_while_not_list_empty() {
 #[test]
 fn test_cov_with_open_file() {
     let code = transpile(
-        r#"def read_file(path: str):
+        r"def read_file(path: str):
     with open(path, 'r') as f:
         content = f.read()
-    return content"#,
+    return content",
     );
     assert!(code.contains("open") || code.contains("File") || code.contains("fn"));
 }
@@ -4851,7 +4851,7 @@ fn test_with_no_target() {
 #[test]
 fn test_with_custom_context_manager() {
     let code = transpile(
-        r#"class MyContext:
+        r"class MyContext:
     def __enter__(self):
         return self
     def __exit__(self, *args):
@@ -4859,7 +4859,7 @@ fn test_with_custom_context_manager() {
 
 def use_ctx():
     with MyContext() as ctx:
-        print(ctx)"#,
+        print(ctx)",
     );
     assert!(code.contains("__enter__") || code.contains("fn") || code.contains("struct"));
 }
@@ -4872,10 +4872,10 @@ def use_ctx():
 #[test]
 fn test_walrus_in_if_condition() {
     let code = transpile(
-        r#"def check_length(text: str):
+        r"def check_length(text: str):
     if (n := len(text)) > 5:
         return n
-    return 0"#,
+    return 0",
     );
     assert!(code.contains("let n") || code.contains("if") || code.contains("fn"));
 }
@@ -4893,10 +4893,10 @@ fn test_walrus_in_while_condition() {
 #[test]
 fn test_walrus_nested_in_binary_expr() {
     let code = transpile(
-        r#"def check(x: int, y: int):
+        r"def check(x: int, y: int):
     if (a := x) > 0 and (b := y) > 0:
         return a + b
-    return 0"#,
+    return 0",
     );
     assert!(code.contains("let a") || code.contains("let b") || code.contains("fn"));
 }
@@ -4909,12 +4909,12 @@ fn test_walrus_nested_in_binary_expr() {
 #[test]
 fn test_if_else_variable_hoisting() {
     let code = transpile(
-        r#"def choose(cond: bool) -> int:
+        r"def choose(cond: bool) -> int:
     if cond:
         value = 1
     else:
         value = 2
-    return value"#,
+    return value",
     );
     assert!(code.contains("let mut value") || code.contains("if") || code.contains("fn"));
 }
@@ -4935,13 +4935,13 @@ fn test_if_else_hoisting_with_type() {
 #[test]
 fn test_nested_if_no_hoisting_from_loop() {
     let code = transpile(
-        r#"def process(items: list, cond: bool):
+        r"def process(items: list, cond: bool):
     if cond:
         value = get_optional()
     else:
         for item in items:
             value = get_required(item)
-    return value"#,
+    return value",
     );
     assert!(code.contains("fn") || code.contains("if") || code.contains("for"));
 }
@@ -4949,12 +4949,12 @@ fn test_nested_if_no_hoisting_from_loop() {
 #[test]
 fn test_tuple_unpacking_hoisting() {
     let code = transpile(
-        r#"def process(cond: bool):
+        r"def process(cond: bool):
     if cond:
         a, b = 1, 2
     else:
         a, b = 3, 4
-    return a + b"#,
+    return a + b",
     );
     assert!(code.contains("let") || code.contains("if") || code.contains("fn"));
 }
@@ -4997,10 +4997,10 @@ def process(opt: Optional[int]):
 #[test]
 fn test_truthiness_vecdeque() {
     let code = transpile(
-        r#"from collections import deque
+        r"from collections import deque
 def process(queue):
     while queue:
-        queue.popleft()"#,
+        queue.popleft()",
     );
     assert!(code.contains("is_empty") || code.contains("while") || code.contains("fn"));
 }
@@ -5008,9 +5008,9 @@ def process(queue):
 #[test]
 fn test_truthiness_custom_collection() {
     let code = transpile(
-        r#"def process(heap):
+        r"def process(heap):
     while heap:
-        heap.pop()"#,
+        heap.pop()",
     );
     assert!(code.contains("is_empty") || code.contains("while") || code.contains("fn"));
 }
@@ -5029,14 +5029,14 @@ fn test_truthiness_dict_index() {
 #[test]
 fn test_truthiness_self_attribute() {
     let code = transpile(
-        r#"class Container:
+        r"class Container:
     def __init__(self):
         self.items = []
 
     def is_empty(self):
         if self.items:
             return False
-        return True"#,
+        return True",
     );
     assert!(code.contains("is_empty") || code.contains("fn") || code.contains("struct"));
 }
@@ -5044,11 +5044,11 @@ fn test_truthiness_self_attribute() {
 #[test]
 fn test_truthiness_method_call_groups() {
     let code = transpile(
-        r#"import re
+        r"import re
 def has_groups(match):
     if match.groups():
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("is_empty") || code.contains("fn") || code.contains("if"));
 }
@@ -5086,10 +5086,10 @@ def check_args():
 #[test]
 fn test_truthiness_negated_list() {
     let code = transpile(
-        r#"def check_empty(items: list):
+        r"def check_empty(items: list):
     if not items:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("is_empty") || code.contains("fn") || code.contains("if"));
 }
@@ -5097,11 +5097,11 @@ fn test_truthiness_negated_list() {
 #[test]
 fn test_truthiness_negated_optional() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def check_none(opt: Optional[str]):
     if not opt:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("is_none") || code.contains("fn") || code.contains("if"));
 }
@@ -5109,10 +5109,10 @@ def check_none(opt: Optional[str]):
 #[test]
 fn test_truthiness_float_zero() {
     let code = transpile(
-        r#"def is_nonzero(x: float):
+        r"def is_nonzero(x: float):
     if x:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("!= 0.0") || code.contains("fn") || code.contains("if"));
 }
@@ -5125,14 +5125,14 @@ fn test_truthiness_float_zero() {
 #[test]
 fn test_cov_try_except_finally() {
     let code = transpile(
-        r#"def safe_op():
+        r"def safe_op():
     try:
         x = risky()
     except ValueError:
         x = 0
     finally:
         cleanup()
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn") || code.contains("match") || code.contains("Ok"));
 }
@@ -5140,14 +5140,14 @@ fn test_cov_try_except_finally() {
 #[test]
 fn test_cov_try_except_else() {
     let code = transpile(
-        r#"def safe_op():
+        r"def safe_op():
     try:
         x = risky()
     except ValueError:
         x = 0
     else:
         x = x + 1
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn") || code.contains("match") || code.contains("Ok"));
 }
@@ -5155,14 +5155,14 @@ fn test_cov_try_except_else() {
 #[test]
 fn test_try_multiple_handlers() {
     let code = transpile(
-        r#"def handle_errors():
+        r"def handle_errors():
     try:
         result = parse()
     except ValueError as e:
         return str(e)
     except KeyError as e:
         return str(e)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("match") || code.contains("ValueError"));
 }
@@ -5317,8 +5317,8 @@ def main():
 #[test]
 fn test_assign_nested_dict() {
     let code = transpile(
-        r#"def set_nested(d: dict, key1: str, key2: str, value):
-    d[key1][key2] = value"#,
+        r"def set_nested(d: dict, key1: str, key2: str, value):
+    d[key1][key2] = value",
     );
     assert!(code.contains("insert") || code.contains("[") || code.contains("fn"));
 }
@@ -5326,11 +5326,11 @@ fn test_assign_nested_dict() {
 #[test]
 fn test_assign_attribute() {
     let code = transpile(
-        r#"class Point:
+        r"class Point:
     def __init__(self):
         self.x = 0
     def set_x(self, value):
-        self.x = value"#,
+        self.x = value",
     );
     assert!(code.contains("self.x") || code.contains("fn") || code.contains("struct"));
 }
@@ -5338,8 +5338,8 @@ fn test_assign_attribute() {
 #[test]
 fn test_augmented_assign_list() {
     let code = transpile(
-        r#"def extend_list(items: list, new_items: list):
-    items += new_items"#,
+        r"def extend_list(items: list, new_items: list):
+    items += new_items",
     );
     assert!(code.contains("extend") || code.contains("+=") || code.contains("fn"));
 }
@@ -5347,8 +5347,8 @@ fn test_augmented_assign_list() {
 #[test]
 fn test_augmented_assign_dict() {
     let code = transpile(
-        r#"def update_dict(d: dict, other: dict):
-    d |= other"#,
+        r"def update_dict(d: dict, other: dict):
+    d |= other",
     );
     assert!(code.contains("extend") || code.contains("fn") || code.contains("update"));
 }
@@ -5361,9 +5361,9 @@ fn test_augmented_assign_dict() {
 #[test]
 fn test_pure_expression_needs_let_underscore() {
     let code = transpile(
-        r#"def test():
+        r"def test():
     1 + 2
-    x = 3"#,
+    x = 3",
     );
     assert!(code.contains("let _") || code.contains("fn"));
 }
@@ -5371,10 +5371,10 @@ fn test_pure_expression_needs_let_underscore() {
 #[test]
 fn test_bare_variable_statement() {
     let code = transpile(
-        r#"def test():
+        r"def test():
     x = 1
     x
-    return x"#,
+    return x",
     );
     assert!(code.contains("let _") || code.contains("fn"));
 }
@@ -5387,10 +5387,10 @@ fn test_bare_variable_statement() {
 #[test]
 fn test_isinstance_becomes_true() {
     let code = transpile(
-        r#"def check_type(x: int):
+        r"def check_type(x: int):
     if isinstance(x, int):
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("true") || code.contains("if") || code.contains("fn"));
 }
@@ -5461,9 +5461,9 @@ fn test_cov_nested_dict_access() {
 #[test]
 fn test_loop_var_used_in_await() {
     let code = transpile(
-        r#"async def process(items: list):
+        r"async def process(items: list):
     for item in items:
-        await process_async(item)"#,
+        await process_async(item)",
     );
     assert!(code.contains("for") || code.contains("await") || code.contains("fn"));
 }
@@ -5471,9 +5471,9 @@ fn test_loop_var_used_in_await() {
 #[test]
 fn test_loop_var_used_in_yield() {
     let code = transpile(
-        r#"def gen(n: int):
+        r"def gen(n: int):
     for i in range(n):
-        yield i"#,
+        yield i",
     );
     assert!(code.contains("for") || code.contains("yield") || code.contains("Iterator"));
 }
@@ -5481,11 +5481,11 @@ fn test_loop_var_used_in_yield() {
 #[test]
 fn test_loop_var_used_as_dict_key() {
     let code = transpile(
-        r#"def build_dict(keys: list, values: list):
+        r"def build_dict(keys: list, values: list):
     result = {}
     for k in keys:
         result[k] = 1
-    return result"#,
+    return result",
     );
     assert!(code.contains("for") || code.contains("insert") || code.contains("fn"));
 }
@@ -5493,10 +5493,10 @@ fn test_loop_var_used_as_dict_key() {
 #[test]
 fn test_loop_var_reassigned() {
     let code = transpile(
-        r#"def double_values(items: list):
+        r"def double_values(items: list):
     for i in items:
         i = i * 2
-        print(i)"#,
+        print(i)",
     );
     assert!(code.contains("mut") || code.contains("for") || code.contains("fn"));
 }
@@ -5509,8 +5509,8 @@ fn test_loop_var_reassigned() {
 #[test]
 fn test_var_used_in_generator_expr() {
     let code = transpile(
-        r#"def sum_squares(n: int):
-    return sum(x*x for x in range(n))"#,
+        r"def sum_squares(n: int):
+    return sum(x*x for x in range(n))",
     );
     assert!(code.contains("map") || code.contains("iter") || code.contains("fn"));
 }
@@ -5518,8 +5518,8 @@ fn test_var_used_in_generator_expr() {
 #[test]
 fn test_var_used_in_list_comp_with_condition() {
     let code = transpile(
-        r#"def filter_positive(items: list):
-    return [x for x in items if x > 0]"#,
+        r"def filter_positive(items: list):
+    return [x for x in items if x > 0]",
     );
     assert!(code.contains("filter") || code.contains("collect") || code.contains("fn"));
 }
@@ -5527,8 +5527,8 @@ fn test_var_used_in_list_comp_with_condition() {
 #[test]
 fn test_var_used_in_dict_comp() {
     let code = transpile(
-        r#"def invert_dict(d: dict):
-    return {v: k for k, v in d.items()}"#,
+        r"def invert_dict(d: dict):
+    return {v: k for k, v in d.items()}",
     );
     assert!(code.contains("collect") || code.contains("HashMap") || code.contains("fn"));
 }
@@ -5552,8 +5552,8 @@ def get_output(use_file: bool) -> any:
 #[test]
 fn test_return_with_usize_conversion() {
     let code = transpile(
-        r#"def get_length(items: list) -> int:
-    return len(items)"#,
+        r"def get_length(items: list) -> int:
+    return len(items)",
     );
     assert!(code.contains("as i32") || code.contains("i64") || code.contains("fn"));
 }
@@ -5561,8 +5561,8 @@ fn test_return_with_usize_conversion() {
 #[test]
 fn test_return_string_from_var() {
     let code = transpile(
-        r#"def get_name(name: str) -> str:
-    return name"#,
+        r"def get_name(name: str) -> str:
+    return name",
     );
     assert!(code.contains("to_string") || code.contains("String") || code.contains("fn"));
 }
@@ -5574,8 +5574,8 @@ fn test_return_string_from_var() {
 #[test]
 fn test_empty_function_body() {
     let code = transpile(
-        r#"def empty():
-    pass"#,
+        r"def empty():
+    pass",
     );
     assert!(code.contains("fn empty") || code.contains("()"));
 }
@@ -5583,9 +5583,9 @@ fn test_empty_function_body() {
 #[test]
 fn test_function_with_only_docstring() {
     let code = transpile(
-        r#"def documented():
+        r"def documented():
     '''This function does nothing'''
-    pass"#,
+    pass",
     );
     assert!(code.contains("fn documented") || code.contains("()"));
 }
@@ -5593,13 +5593,13 @@ fn test_function_with_only_docstring() {
 #[test]
 fn test_deeply_nested_if() {
     let code = transpile(
-        r#"def nested(a, b, c, d):
+        r"def nested(a, b, c, d):
     if a:
         if b:
             if c:
                 if d:
                     return 1
-    return 0"#,
+    return 0",
     );
     assert!(code.contains("if") || code.contains("fn"));
 }
@@ -5630,11 +5630,11 @@ fn test_chained_elif() {
 fn test_break_with_label() {
     // Python doesn't have labeled breaks, but we test the codegen path
     let code = transpile(
-        r#"def outer_loop():
+        r"def outer_loop():
     for i in range(10):
         for j in range(10):
             if i + j > 15:
-                break"#,
+                break",
     );
     assert!(code.contains("break") || code.contains("for") || code.contains("fn"));
 }
@@ -5642,11 +5642,11 @@ fn test_break_with_label() {
 #[test]
 fn test_continue_in_nested_loop() {
     let code = transpile(
-        r#"def skip_evens():
+        r"def skip_evens():
     for i in range(10):
         if i % 2 == 0:
             continue
-        print(i)"#,
+        print(i)",
     );
     assert!(code.contains("continue") || code.contains("for") || code.contains("fn"));
 }
@@ -5658,8 +5658,8 @@ fn test_continue_in_nested_loop() {
 #[test]
 fn test_cov_assert_simple() {
     let code = transpile(
-        r#"def validate(x: int):
-    assert x > 0"#,
+        r"def validate(x: int):
+    assert x > 0",
     );
     assert!(code.contains("assert!") || code.contains("fn"));
 }
@@ -5680,10 +5680,10 @@ fn test_cov_assert_with_message() {
 #[test]
 fn test_cov_global_statement() {
     let code = transpile(
-        r#"counter = 0
+        r"counter = 0
 def increment():
     global counter
-    counter += 1"#,
+    counter += 1",
     );
     assert!(code.contains("fn increment") || code.contains("counter"));
 }
@@ -5713,10 +5713,10 @@ def use_check(x: int):
 #[test]
 fn test_numpy_array_call() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def create_arr():
     arr = np.array([1, 2, 3])
-    return arr"#,
+    return arr",
     );
     assert!(code.contains("fn") || code.contains("vec!"));
 }
@@ -5724,10 +5724,10 @@ def create_arr():
 #[test]
 fn test_numpy_zeros_call() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def create_zeros():
     arr = np.zeros(10)
-    return arr"#,
+    return arr",
     );
     assert!(code.contains("fn") || code.contains("zeros") || code.contains("vec!"));
 }
@@ -5735,10 +5735,10 @@ def create_zeros():
 #[test]
 fn test_numpy_ones_call() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def create_ones():
     arr = np.ones(10)
-    return arr"#,
+    return arr",
     );
     assert!(code.contains("fn") || code.contains("ones") || code.contains("vec!"));
 }
@@ -5746,11 +5746,11 @@ def create_ones():
 #[test]
 fn test_numpy_binary_propagation() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def add_arrays():
     a = np.array([1, 2])
     b = np.array([3, 4])
-    return a + b"#,
+    return a + b",
     );
     assert!(code.contains("fn") || code.contains("+"));
 }
@@ -5758,9 +5758,9 @@ def add_arrays():
 #[test]
 fn test_numpy_method_call() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def clip_arr(arr):
-    return arr.clip(0, 1)"#,
+    return arr.clip(0, 1)",
     );
     assert!(code.contains("fn") || code.contains("clip") || code.contains("clamp"));
 }
@@ -5768,9 +5768,9 @@ def clip_arr(arr):
 #[test]
 fn test_numpy_abs_sqrt() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def math_ops(x):
-    return np.abs(np.sqrt(x))"#,
+    return np.abs(np.sqrt(x))",
     );
     assert!(code.contains("fn") || code.contains("abs") || code.contains("sqrt"));
 }
@@ -5778,9 +5778,9 @@ def math_ops(x):
 #[test]
 fn test_numpy_trigonometric() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def trig(x):
-    return np.sin(x) + np.cos(x)"#,
+    return np.sin(x) + np.cos(x)",
     );
     assert!(code.contains("fn") || code.contains("sin") || code.contains("cos"));
 }
@@ -5788,9 +5788,9 @@ def trig(x):
 #[test]
 fn test_numpy_exp_log() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def exp_log(x):
-    return np.exp(np.log(x))"#,
+    return np.exp(np.log(x))",
     );
     assert!(code.contains("fn") || code.contains("exp") || code.contains("ln"));
 }
@@ -5798,9 +5798,9 @@ def exp_log(x):
 #[test]
 fn test_numpy_ternary_expression() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def conditional_arr(cond: bool):
-    return np.zeros(10) if cond else np.ones(10)"#,
+    return np.zeros(10) if cond else np.ones(10)",
     );
     assert!(code.contains("fn") || code.contains("if"));
 }
@@ -5808,10 +5808,10 @@ def conditional_arr(cond: bool):
 #[test]
 fn test_numpy_variable_tracking() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def use_arr():
     arr = np.array([1, 2, 3])
-    return arr * 2"#,
+    return arr * 2",
     );
     assert!(code.contains("fn") || code.contains("*"));
 }
@@ -5823,8 +5823,8 @@ def use_arr():
 #[test]
 fn test_len_to_int_conversion() {
     let code = transpile(
-        r#"def get_len(items: list) -> int:
-    return len(items)"#,
+        r"def get_len(items: list) -> int:
+    return len(items)",
     );
     // len() returns usize, may need cast to i32
     assert!(code.contains("len()") || code.contains("fn") || code.contains("i64"));
@@ -5833,8 +5833,8 @@ fn test_len_to_int_conversion() {
 #[test]
 fn test_count_to_int_conversion() {
     let code = transpile(
-        r#"def count_items(items: list, x: int) -> int:
-    return items.count(x)"#,
+        r"def count_items(items: list, x: int) -> int:
+    return items.count(x)",
     );
     assert!(code.contains("fn") || code.contains("count"));
 }
@@ -5857,13 +5857,13 @@ fn test_string_return_from_validator() {
 #[test]
 fn test_while_true_to_loop() {
     let code = transpile(
-        r#"def infinite():
+        r"def infinite():
     count = 0
     while True:
         count += 1
         if count > 10:
             break
-    return count"#,
+    return count",
     );
     // while True should be converted to loop
     assert!(code.contains("loop") || code.contains("while") || code.contains("break"));
@@ -5872,11 +5872,11 @@ fn test_while_true_to_loop() {
 #[test]
 fn test_while_condition_truthiness() {
     let code = transpile(
-        r#"def drain_queue():
+        r"def drain_queue():
     queue = [1, 2, 3]
     while queue:
         queue.pop()
-    return len(queue)"#,
+    return len(queue)",
     );
     assert!(
         code.contains("while")
@@ -5889,10 +5889,10 @@ fn test_while_condition_truthiness() {
 #[test]
 fn test_while_with_counter() {
     let code = transpile(
-        r#"def countdown(n: int):
+        r"def countdown(n: int):
     while n > 0:
         n -= 1
-    return n"#,
+    return n",
     );
     assert!(code.contains("while") || code.contains(">") || code.contains("0"));
 }
@@ -5900,13 +5900,13 @@ fn test_while_with_counter() {
 #[test]
 fn test_while_nested_return() {
     let code = transpile(
-        r#"def find_value(items: list, target: int) -> int:
+        r"def find_value(items: list, target: int) -> int:
     i = 0
     while i < len(items):
         if items[i] == target:
             return i
         i += 1
-    return -1"#,
+    return -1",
     );
     assert!(code.contains("while") || code.contains("return") || code.contains("fn"));
 }
@@ -5918,11 +5918,11 @@ fn test_while_nested_return() {
 #[test]
 fn test_return_optional_some() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def maybe_get(items: list, idx: int) -> Optional[int]:
     if idx < len(items):
         return items[idx]
-    return None"#,
+    return None",
     );
     assert!(code.contains("Some") || code.contains("None") || code.contains("Option"));
 }
@@ -5930,9 +5930,9 @@ def maybe_get(items: list, idx: int) -> Optional[int]:
 #[test]
 fn test_sg_return_optional_none() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def always_none() -> Optional[str]:
-    return None"#,
+    return None",
     );
     assert!(code.contains("None") || code.contains("Option") || code.contains("fn"));
 }
@@ -5950,9 +5950,9 @@ def get_any() -> Any:
 #[test]
 fn test_sg_return_void_function() {
     let code = transpile(
-        r#"def void_func() -> None:
+        r"def void_func() -> None:
     x = 1
-    return None"#,
+    return None",
     );
     // void returns should become () or empty return
     assert!(code.contains("fn") || code.contains("()") || code.contains("void_func"));
@@ -5961,9 +5961,9 @@ fn test_sg_return_void_function() {
 #[test]
 fn test_return_if_expr_with_none() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def conditional_return(x: int) -> Optional[int]:
-    return x if x > 0 else None"#,
+    return x if x > 0 else None",
     );
     // Pattern: `return x if cond else None` should handle None arm specially
     assert!(code.contains("fn") || code.contains("Some") || code.contains("None"));
@@ -5972,9 +5972,9 @@ def conditional_return(x: int) -> Optional[int]:
 #[test]
 fn test_return_already_optional_get() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def get_from_dict(d: dict, key: str) -> Optional[str]:
-    return d.get(key)"#,
+    return d.get(key)",
     );
     // dict.get already returns Option, shouldn't double-wrap
     assert!(code.contains("fn") || code.contains("get") || code.contains("Option"));
@@ -5983,8 +5983,8 @@ def get_from_dict(d: dict, key: str) -> Optional[str]:
 #[test]
 fn test_return_dict_subscript_to_string() {
     let code = transpile(
-        r#"def get_value(d: dict, key: str) -> str:
-    return d[key]"#,
+        r"def get_value(d: dict, key: str) -> str:
+    return d[key]",
     );
     // Dict subscript returns Value, but return type is String - needs conversion
     assert!(code.contains("fn") || code.contains("String"));
@@ -6032,9 +6032,9 @@ fn test_main_return_nonzero() {
 #[test]
 fn test_main_return_expression() {
     let code = transpile(
-        r#"def main() -> int:
+        r"def main() -> int:
     x = 1 + 2
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn main") || code.contains("let"));
 }
@@ -6055,8 +6055,8 @@ fn test_main_void() {
 #[test]
 fn test_generator_expr_iteration() {
     let code = transpile(
-        r#"def sum_squares(items: list) -> int:
-    return sum(x * x for x in items)"#,
+        r"def sum_squares(items: list) -> int:
+    return sum(x * x for x in items)",
     );
     assert!(code.contains("fn") || code.contains("iter") || code.contains("map"));
 }
@@ -6064,8 +6064,8 @@ fn test_generator_expr_iteration() {
 #[test]
 fn test_method_chain_iterator() {
     let code = transpile(
-        r#"def filter_map(items: list) -> list:
-    return list(x * 2 for x in items if x > 0)"#,
+        r"def filter_map(items: list) -> list:
+    return list(x * 2 for x in items if x > 0)",
     );
     assert!(code.contains("fn") || code.contains("filter") || code.contains("map"));
 }
@@ -6073,8 +6073,8 @@ fn test_method_chain_iterator() {
 #[test]
 fn test_reversed_iterator() {
     let code = transpile(
-        r#"def reverse_iter(items: list) -> list:
-    return list(reversed(items))"#,
+        r"def reverse_iter(items: list) -> list:
+    return list(reversed(items))",
     );
     assert!(code.contains("fn") || code.contains("rev") || code.contains("reversed"));
 }
@@ -6082,9 +6082,9 @@ fn test_reversed_iterator() {
 #[test]
 fn test_enumerate_iterator() {
     let code = transpile(
-        r#"def indexed(items: list):
+        r"def indexed(items: list):
     for i, x in enumerate(items):
-        print(i, x)"#,
+        print(i, x)",
     );
     assert!(code.contains("fn") || code.contains("enumerate"));
 }
@@ -6092,9 +6092,9 @@ fn test_enumerate_iterator() {
 #[test]
 fn test_zip_iterator() {
     let code = transpile(
-        r#"def paired(a: list, b: list):
+        r"def paired(a: list, b: list):
     for x, y in zip(a, b):
-        print(x, y)"#,
+        print(x, y)",
     );
     assert!(code.contains("fn") || code.contains("zip"));
 }
@@ -6141,11 +6141,11 @@ fn test_raise_runtime_error() {
 fn test_raise_bare() {
     // Re-raise without argument
     let code = transpile(
-        r#"def reraise():
+        r"def reraise():
     try:
         x = 1
     except:
-        raise"#,
+        raise",
     );
     assert!(code.contains("fn"));
 }
@@ -6167,10 +6167,10 @@ fn test_ext_raise_with_format() {
 #[test]
 fn test_ext_method_call_expression() {
     let code = transpile(
-        r#"def modify_list():
+        r"def modify_list():
     items = [1, 2, 3]
     items.append(4)
-    return items"#,
+    return items",
     );
     assert!(code.contains("fn") || code.contains("push") || code.contains("append"));
 }
@@ -6188,10 +6188,10 @@ fn test_ext_function_call_expression() {
 #[test]
 fn test_ext_chained_method_call() {
     let code = transpile(
-        r#"def chain():
+        r"def chain():
     items = [1, 2, 3]
     items.extend([4, 5]).sort()
-    return items"#,
+    return items",
     );
     assert!(code.contains("fn") || code.contains("extend") || code.contains("sort"));
 }
@@ -6214,9 +6214,9 @@ fn test_ext_assign_nested_dict() {
 #[test]
 fn test_ext_assign_tuple_unpack() {
     let code = transpile(
-        r#"def unpack():
+        r"def unpack():
     a, b = 1, 2
-    return a + b"#,
+    return a + b",
     );
     assert!(code.contains("fn") || code.contains("let") || code.contains("("));
 }
@@ -6224,10 +6224,10 @@ fn test_ext_assign_tuple_unpack() {
 #[test]
 fn test_ext_assign_walrus() {
     let code = transpile(
-        r#"def walrus_test():
+        r"def walrus_test():
     if (n := len([1, 2, 3])) > 0:
         return n
-    return 0"#,
+    return 0",
     );
     assert!(code.contains("fn") || code.contains("let") || code.contains("if"));
 }
@@ -6235,14 +6235,14 @@ fn test_ext_assign_walrus() {
 #[test]
 fn test_ext_assign_augmented_all_ops() {
     let code = transpile(
-        r#"def augmented_ops():
+        r"def augmented_ops():
     x = 10
     x += 5
     x -= 3
     x *= 2
     x //= 3
     x %= 4
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn") || code.contains("+=") || code.contains("-="));
 }
@@ -6270,8 +6270,8 @@ fn test_ext_assign_with_type_annotation() {
 #[test]
 fn test_ext_float_literal_inference() {
     let code = transpile(
-        r#"def float_test() -> float:
-    return 3.14"#,
+        r"def float_test() -> float:
+    return 3.14",
     );
     assert!(code.contains("fn") || code.contains("f64") || code.contains("3.14"));
 }
@@ -6279,8 +6279,8 @@ fn test_ext_float_literal_inference() {
 #[test]
 fn test_ext_float_binary_propagation() {
     let code = transpile(
-        r#"def float_mul(x: float, y: float) -> float:
-    return x * y"#,
+        r"def float_mul(x: float, y: float) -> float:
+    return x * y",
     );
     assert!(code.contains("fn") || code.contains("f64") || code.contains("*"));
 }
@@ -6288,9 +6288,9 @@ fn test_ext_float_binary_propagation() {
 #[test]
 fn test_ext_float_callable_return() {
     let code = transpile(
-        r#"from typing import Callable
+        r"from typing import Callable
 def apply_float(f: Callable[[float], float], x: float) -> float:
-    return f(x)"#,
+    return f(x)",
     );
     assert!(code.contains("fn") || code.contains("f64") || code.contains("Fn"));
 }
@@ -6298,8 +6298,8 @@ def apply_float(f: Callable[[float], float], x: float) -> float:
 #[test]
 fn test_ext_float_ternary() {
     let code = transpile(
-        r#"def float_ternary(cond: bool) -> float:
-    return 1.0 if cond else 2.0"#,
+        r"def float_ternary(cond: bool) -> float:
+    return 1.0 if cond else 2.0",
     );
     assert!(code.contains("fn") || code.contains("f64") || code.contains("if"));
 }
@@ -6331,9 +6331,9 @@ fn test_ext_batch_with_multiple() {
 #[test]
 fn test_ext_with_as_expression() {
     let code = transpile(
-        r#"def use_context():
+        r"def use_context():
     with lock:
-        x = 1"#,
+        x = 1",
     );
     assert!(code.contains("fn"));
 }
@@ -6345,8 +6345,8 @@ fn test_ext_with_as_expression() {
 #[test]
 fn test_ext_pass_in_function() {
     let code = transpile(
-        r#"def noop():
-    pass"#,
+        r"def noop():
+    pass",
     );
     assert!(code.contains("fn noop"));
 }
@@ -6354,8 +6354,8 @@ fn test_ext_pass_in_function() {
 #[test]
 fn test_ext_pass_in_class() {
     let code = transpile(
-        r#"class Empty:
-    pass"#,
+        r"class Empty:
+    pass",
     );
     assert!(code.contains("struct Empty") || code.contains("Empty"));
 }
@@ -6363,8 +6363,8 @@ fn test_ext_pass_in_class() {
 #[test]
 fn test_ext_ellipsis_stub() {
     let code = transpile(
-        r#"def stub() -> int:
-    ..."#,
+        r"def stub() -> int:
+    ...",
     );
     assert!(code.contains("fn stub") || code.contains("todo!") || code.contains("unimplemented!"));
 }
@@ -6376,8 +6376,8 @@ fn test_ext_ellipsis_stub() {
 #[test]
 fn test_ext_batch_assert_simple() {
     let code = transpile(
-        r#"def check(x: int):
-    assert x > 0"#,
+        r"def check(x: int):
+    assert x > 0",
     );
     assert!(code.contains("assert!") || code.contains(">") || code.contains("0"));
 }
@@ -6394,8 +6394,8 @@ fn test_ext_batch_assert_with_message() {
 #[test]
 fn test_ext_assert_comparison() {
     let code = transpile(
-        r#"def check_eq(a: int, b: int):
-    assert a == b"#,
+        r"def check_eq(a: int, b: int):
+    assert a == b",
     );
     assert!(code.contains("assert!") || code.contains("==") || code.contains("fn"));
 }
@@ -6407,11 +6407,11 @@ fn test_ext_assert_comparison() {
 #[test]
 fn test_ext_break_labeled() {
     let code = transpile(
-        r#"def search():
+        r"def search():
     for i in range(10):
         for j in range(10):
             if i * j > 25:
-                break"#,
+                break",
     );
     assert!(code.contains("break") || code.contains("for"));
 }
@@ -6419,11 +6419,11 @@ fn test_ext_break_labeled() {
 #[test]
 fn test_ext_continue_simple() {
     let code = transpile(
-        r#"def skip_odds():
+        r"def skip_odds():
     for i in range(10):
         if i % 2 == 1:
             continue
-        print(i)"#,
+        print(i)",
     );
     assert!(code.contains("continue") || code.contains("for"));
 }
@@ -6462,13 +6462,13 @@ fn test_ext_batch_try_finally() {
 #[test]
 fn test_ext_try_else() {
     let code = transpile(
-        r#"def try_else():
+        r"def try_else():
     try:
         x = 1
     except:
         x = 0
     else:
-        x = 2"#,
+        x = 2",
     );
     assert!(code.contains("fn"));
 }
@@ -6480,8 +6480,8 @@ fn test_ext_try_else() {
 #[test]
 fn test_ext_delete_dict_key() {
     let code = transpile(
-        r#"def remove_key(d: dict, key: str):
-    del d[key]"#,
+        r"def remove_key(d: dict, key: str):
+    del d[key]",
     );
     assert!(code.contains("fn") || code.contains("remove"));
 }
@@ -6489,8 +6489,8 @@ fn test_ext_delete_dict_key() {
 #[test]
 fn test_ext_delete_list_item() {
     let code = transpile(
-        r#"def remove_item(items: list, idx: int):
-    del items[idx]"#,
+        r"def remove_item(items: list, idx: int):
+    del items[idx]",
     );
     assert!(code.contains("fn") || code.contains("remove"));
 }
@@ -6540,10 +6540,10 @@ fn test_ext2_raise_attribute_error_skip() {
 #[test]
 fn test_ext2_raise_stop_iteration() {
     let code = transpile(
-        r#"def next_item(items: list):
+        r"def next_item(items: list):
     if not items:
         raise StopIteration()
-    return items.pop(0)"#,
+    return items.pop(0)",
     );
     assert!(code.contains("fn") || code.contains("StopIteration") || code.contains("panic"));
 }
@@ -6588,10 +6588,10 @@ fn test_ext2_raise_file_not_found() {
 #[test]
 fn test_ext2_truthiness_string() {
     let code = transpile(
-        r#"def check_name(name: str) -> bool:
+        r"def check_name(name: str) -> bool:
     if name:
         return True
-    return False"#,
+    return False",
     );
     // String truthiness: !name.is_empty()
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("bool"));
@@ -6600,10 +6600,10 @@ fn test_ext2_truthiness_string() {
 #[test]
 fn test_ext2_truthiness_list() {
     let code = transpile(
-        r#"def has_items(items: list) -> bool:
+        r"def has_items(items: list) -> bool:
     if items:
         return True
-    return False"#,
+    return False",
     );
     // List truthiness: !items.is_empty()
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("bool"));
@@ -6612,10 +6612,10 @@ fn test_ext2_truthiness_list() {
 #[test]
 fn test_ext2_truthiness_dict() {
     let code = transpile(
-        r#"def has_data(data: dict) -> bool:
+        r"def has_data(data: dict) -> bool:
     if data:
         return True
-    return False"#,
+    return False",
     );
     // Dict truthiness: !data.is_empty()
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("bool"));
@@ -6624,11 +6624,11 @@ fn test_ext2_truthiness_dict() {
 #[test]
 fn test_ext2_truthiness_optional() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def has_value(value: Optional[int]) -> bool:
     if value:
         return True
-    return False"#,
+    return False",
     );
     // Optional truthiness: value.is_some()
     assert!(code.contains("fn") || code.contains("is_some") || code.contains("bool"));
@@ -6637,10 +6637,10 @@ def has_value(value: Optional[int]) -> bool:
 #[test]
 fn test_ext2_truthiness_int() {
     let code = transpile(
-        r#"def is_nonzero(n: int) -> bool:
+        r"def is_nonzero(n: int) -> bool:
     if n:
         return True
-    return False"#,
+    return False",
     );
     // Int truthiness: n != 0
     assert!(code.contains("fn") || code.contains("!= 0") || code.contains("bool"));
@@ -6649,10 +6649,10 @@ fn test_ext2_truthiness_int() {
 #[test]
 fn test_ext2_truthiness_float() {
     let code = transpile(
-        r#"def is_nonzero_float(x: float) -> bool:
+        r"def is_nonzero_float(x: float) -> bool:
     if x:
         return True
-    return False"#,
+    return False",
     );
     // Float truthiness: x != 0.0
     assert!(code.contains("fn") || code.contains("!= 0") || code.contains("bool"));
@@ -6661,10 +6661,10 @@ fn test_ext2_truthiness_float() {
 #[test]
 fn test_ext2_negated_truthiness_string() {
     let code = transpile(
-        r#"def is_empty_name(name: str) -> bool:
+        r"def is_empty_name(name: str) -> bool:
     if not name:
         return True
-    return False"#,
+    return False",
     );
     // Negated string truthiness: name.is_empty()
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("bool"));
@@ -6673,11 +6673,11 @@ fn test_ext2_negated_truthiness_string() {
 #[test]
 fn test_ext2_negated_truthiness_optional() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def is_none_value(value: Optional[int]) -> bool:
     if not value:
         return True
-    return False"#,
+    return False",
     );
     // Negated optional truthiness: value.is_none()
     assert!(code.contains("fn") || code.contains("is_none") || code.contains("bool"));
@@ -6686,10 +6686,10 @@ def is_none_value(value: Optional[int]) -> bool:
 #[test]
 fn test_ext2_truthiness_queue_heuristic() {
     let code = transpile(
-        r#"def process_queue(queue):
+        r"def process_queue(queue):
     while queue:
         item = queue.pop()
-        print(item)"#,
+        print(item)",
     );
     // Heuristic for 'queue' variable: !queue.is_empty()
     assert!(code.contains("fn") || code.contains("while") || code.contains("pop"));
@@ -6698,14 +6698,14 @@ fn test_ext2_truthiness_queue_heuristic() {
 #[test]
 fn test_ext2_truthiness_self_field() {
     let code = transpile(
-        r#"class Container:
+        r"class Container:
     def __init__(self):
         self.items = []
     
     def has_items(self) -> bool:
         if self.items:
             return True
-        return False"#,
+        return False",
     );
     assert!(code.contains("fn has_items") || code.contains("is_empty") || code.contains("struct"));
 }
@@ -6729,9 +6729,9 @@ def create_temp():
 #[test]
 fn test_ext2_with_no_target() {
     let code = transpile(
-        r#"def use_lock():
+        r"def use_lock():
     with lock:
-        x = 1"#,
+        x = 1",
     );
     // Context manager without `as target`
     assert!(code.contains("fn use_lock") || code.contains("let"));
@@ -6774,9 +6774,9 @@ fn test_ext2_dict_get_with_default() {
 #[test]
 fn test_ext2_dict_get_without_default() {
     let code = transpile(
-        r#"from typing import Optional
+        r"from typing import Optional
 def maybe_get(data: dict, key: str) -> Optional[str]:
-    return data.get(key)"#,
+    return data.get(key)",
     );
     assert!(code.contains("fn") || code.contains("Option") || code.contains("get"));
 }
@@ -6818,12 +6818,12 @@ fn test_ext2_method_returning_vec() {
 #[test]
 fn test_ext2_for_with_else() {
     let code = transpile(
-        r#"def find_even(items: list) -> int:
+        r"def find_even(items: list) -> int:
     for x in items:
         if x % 2 == 0:
             return x
     else:
-        return -1"#,
+        return -1",
     );
     assert!(code.contains("fn") || code.contains("for") || code.contains("-1"));
 }
@@ -6831,9 +6831,9 @@ fn test_ext2_for_with_else() {
 #[test]
 fn test_ext2_for_zip_enumerate() {
     let code = transpile(
-        r#"def indexed_pairs(a: list, b: list):
+        r"def indexed_pairs(a: list, b: list):
     for i, (x, y) in enumerate(zip(a, b)):
-        print(i, x, y)"#,
+        print(i, x, y)",
     );
     assert!(code.contains("fn") || code.contains("zip") || code.contains("enumerate"));
 }
@@ -6841,9 +6841,9 @@ fn test_ext2_for_zip_enumerate() {
 #[test]
 fn test_ext2_for_items() {
     let code = transpile(
-        r#"def iterate_dict(d: dict):
+        r"def iterate_dict(d: dict):
     for k, v in d.items():
-        print(k, v)"#,
+        print(k, v)",
     );
     assert!(code.contains("fn") || code.contains("iter") || code.contains("for"));
 }
@@ -6855,9 +6855,9 @@ fn test_ext2_for_items() {
 #[test]
 fn test_ext2_return_json_bool() {
     let code = transpile(
-        r#"from typing import Any
+        r"from typing import Any
 def get_bool() -> Any:
-    return True"#,
+    return True",
     );
     assert!(code.contains("fn") || code.contains("json") || code.contains("true"));
 }
@@ -6875,9 +6875,9 @@ def get_dict() -> Any:
 #[test]
 fn test_ext2_return_json_list() {
     let code = transpile(
-        r#"from typing import Any
+        r"from typing import Any
 def get_list() -> Any:
-    return [1, 2, 3]"#,
+    return [1, 2, 3]",
     );
     assert!(code.contains("fn") || code.contains("json") || code.contains("vec"));
 }
@@ -6932,11 +6932,11 @@ if args.verbose:
 #[test]
 fn test_ext2_yield_simple() {
     let code = transpile(
-        r#"def count_up(n: int):
+        r"def count_up(n: int):
     i = 0
     while i < n:
         yield i
-        i += 1"#,
+        i += 1",
     );
     assert!(code.contains("fn") || code.contains("Iterator") || code.contains("yield"));
 }
@@ -6944,9 +6944,9 @@ fn test_ext2_yield_simple() {
 #[test]
 fn test_ext2_yield_from() {
     let code = transpile(
-        r#"def flatten(items: list):
+        r"def flatten(items: list):
     for item in items:
-        yield from item"#,
+        yield from item",
     );
     assert!(code.contains("fn") || code.contains("Iterator") || code.contains("flatten"));
 }
@@ -6958,8 +6958,8 @@ fn test_ext2_yield_from() {
 #[test]
 fn test_ext2_implicit_return() {
     let code = transpile(
-        r#"def add(a: int, b: int) -> int:
-    a + b"#,
+        r"def add(a: int, b: int) -> int:
+    a + b",
     );
     // Final expression should be implicit return
     assert!(code.contains("fn add") || code.contains("+"));
@@ -6968,10 +6968,10 @@ fn test_ext2_implicit_return() {
 #[test]
 fn test_ext2_explicit_return_early() {
     let code = transpile(
-        r#"def check(x: int) -> int:
+        r"def check(x: int) -> int:
     if x < 0:
         return 0
-    return x"#,
+    return x",
     );
     // Early return should have `return`, final may omit
     assert!(code.contains("fn check") || code.contains("return") || code.contains("if"));
@@ -6984,11 +6984,11 @@ fn test_ext2_explicit_return_early() {
 #[test]
 fn test_ext2_numpy_assign_tracking() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def process():
     arr = np.zeros(10)
     arr = arr * 2
-    return arr"#,
+    return arr",
     );
     assert!(code.contains("fn") || code.contains("*") || code.contains("2"));
 }
@@ -6996,10 +6996,10 @@ def process():
 #[test]
 fn test_ext2_numpy_ternary_assign() {
     let code = transpile(
-        r#"import numpy as np
+        r"import numpy as np
 def get_arr(use_zeros: bool):
     arr = np.zeros(10) if use_zeros else np.ones(10)
-    return arr"#,
+    return arr",
     );
     assert!(code.contains("fn") || code.contains("if") || code.contains("else"));
 }
@@ -7011,12 +7011,12 @@ def get_arr(use_zeros: bool):
 #[test]
 fn test_ext2_nested_loops_break() {
     let code = transpile(
-        r#"def find_pair(matrix: list):
+        r"def find_pair(matrix: list):
     for i in range(len(matrix)):
         for j in range(len(matrix[i])):
             if matrix[i][j] == 0:
                 return (i, j)
-    return (-1, -1)"#,
+    return (-1, -1)",
     );
     assert!(code.contains("fn") || code.contains("for") || code.contains("return"));
 }
@@ -7024,11 +7024,11 @@ fn test_ext2_nested_loops_break() {
 #[test]
 fn test_ext2_try_except_return() {
     let code = transpile(
-        r#"def safe_parse(s: str) -> int:
+        r"def safe_parse(s: str) -> int:
     try:
         return int(s)
     except ValueError:
-        return 0"#,
+        return 0",
     );
     assert!(code.contains("fn") || code.contains("parse") || code.contains("unwrap_or"));
 }
@@ -7051,10 +7051,10 @@ fn test_special_exception_index_error() {
 #[test]
 fn test_special_exception_key_error() {
     let code = transpile(
-        r#"def get_val(d: dict, key: str) -> str:
+        r"def get_val(d: dict, key: str) -> str:
     if key not in d:
         raise KeyError(key)
-    return d[key]"#,
+    return d[key]",
     );
     assert!(code.contains("fn") || code.contains("KeyError"));
 }
@@ -7062,9 +7062,9 @@ fn test_special_exception_key_error() {
 #[test]
 fn test_special_io_operations() {
     let code = transpile(
-        r#"def read_all(path: str) -> str:
+        r"def read_all(path: str) -> str:
     with open(path, 'r') as f:
-        return f.read()"#,
+        return f.read()",
     );
     assert!(code.contains("fn") || code.contains("File") || code.contains("read"));
 }
@@ -7072,9 +7072,9 @@ fn test_special_io_operations() {
 #[test]
 fn test_special_io_write() {
     let code = transpile(
-        r#"def write_all(path: str, content: str):
+        r"def write_all(path: str, content: str):
     with open(path, 'w') as f:
-        f.write(content)"#,
+        f.write(content)",
     );
     assert!(code.contains("fn") || code.contains("File") || code.contains("write"));
 }
@@ -7082,9 +7082,9 @@ fn test_special_io_write() {
 #[test]
 fn test_special_stdin_read() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def read_input() -> str:
-    return sys.stdin.read()"#,
+    return sys.stdin.read()",
     );
     assert!(code.contains("fn") || code.contains("stdin") || code.contains("read"));
 }
@@ -7092,9 +7092,9 @@ def read_input() -> str:
 #[test]
 fn test_special_stdout_write() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def write_output(text: str):
-    sys.stdout.write(text)"#,
+    sys.stdout.write(text)",
     );
     assert!(code.contains("fn") || code.contains("stdout") || code.contains("write"));
 }
@@ -7102,9 +7102,9 @@ def write_output(text: str):
 #[test]
 fn test_special_stderr_write() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def log_error(msg: str):
-    sys.stderr.write(msg)"#,
+    sys.stderr.write(msg)",
     );
     assert!(code.contains("fn") || code.contains("stderr") || code.contains("eprintln"));
 }
@@ -7112,9 +7112,9 @@ def log_error(msg: str):
 #[test]
 fn test_special_os_path_join() {
     let code = transpile(
-        r#"import os
+        r"import os
 def join_paths(a: str, b: str) -> str:
-    return os.path.join(a, b)"#,
+    return os.path.join(a, b)",
     );
     assert!(code.contains("fn") || code.contains("PathBuf") || code.contains("join"));
 }
@@ -7122,9 +7122,9 @@ def join_paths(a: str, b: str) -> str:
 #[test]
 fn test_special_os_path_exists() {
     let code = transpile(
-        r#"import os
+        r"import os
 def file_exists(path: str) -> bool:
-    return os.path.exists(path)"#,
+    return os.path.exists(path)",
     );
     assert!(code.contains("fn") || code.contains("exists") || code.contains("Path"));
 }
@@ -7142,9 +7142,9 @@ def get_env(name: str) -> str:
 #[test]
 fn test_special_os_mkdir() {
     let code = transpile(
-        r#"import os
+        r"import os
 def make_dir(path: str):
-    os.makedirs(path, exist_ok=True)"#,
+    os.makedirs(path, exist_ok=True)",
     );
     assert!(code.contains("fn") || code.contains("create_dir") || code.contains("mkdir"));
 }
@@ -7152,9 +7152,9 @@ def make_dir(path: str):
 #[test]
 fn test_special_collections_counter() {
     let code = transpile(
-        r#"from collections import Counter
+        r"from collections import Counter
 def count_items(items: list):
-    return Counter(items)"#,
+    return Counter(items)",
     );
     assert!(code.contains("fn") || code.contains("HashMap") || code.contains("counter"));
 }
@@ -7162,10 +7162,10 @@ def count_items(items: list):
 #[test]
 fn test_special_collections_defaultdict() {
     let code = transpile(
-        r#"from collections import defaultdict
+        r"from collections import defaultdict
 def group_items():
     d = defaultdict(list)
-    return d"#,
+    return d",
     );
     assert!(code.contains("fn") || code.contains("HashMap") || code.contains("default"));
 }
@@ -7173,9 +7173,9 @@ def group_items():
 #[test]
 fn test_special_json_loads() {
     let code = transpile(
-        r#"import json
+        r"import json
 def parse_json(text: str) -> dict:
-    return json.loads(text)"#,
+    return json.loads(text)",
     );
     assert!(code.contains("fn") || code.contains("serde_json") || code.contains("from_str"));
 }
@@ -7183,9 +7183,9 @@ def parse_json(text: str) -> dict:
 #[test]
 fn test_special_json_dumps() {
     let code = transpile(
-        r#"import json
+        r"import json
 def to_json(data: dict) -> str:
-    return json.dumps(data)"#,
+    return json.dumps(data)",
     );
     assert!(code.contains("fn") || code.contains("serde_json") || code.contains("to_string"));
 }
@@ -7236,9 +7236,9 @@ def replace_all(text: str) -> str:
 #[test]
 fn test_special_datetime_now() {
     let code = transpile(
-        r#"from datetime import datetime
+        r"from datetime import datetime
 def get_now():
-    return datetime.now()"#,
+    return datetime.now()",
     );
     assert!(code.contains("fn") || code.contains("chrono") || code.contains("now"));
 }
@@ -7256,12 +7256,12 @@ def parse_date(text: str):
 #[test]
 fn test_special_class_self_assignment() {
     let code = transpile(
-        r#"class Counter:
+        r"class Counter:
     def __init__(self):
         self.value = 0
     def increment(self):
         self.value += 1
-        return self.value"#,
+        return self.value",
     );
     assert!(code.contains("fn increment") || code.contains("self.value") || code.contains("+="));
 }
@@ -7284,7 +7284,7 @@ fn test_special_class_method_chain() {
 #[test]
 fn test_special_iterator_pattern() {
     let code = transpile(
-        r#"class Range:
+        r"class Range:
     def __init__(self, limit: int):
         self.limit = limit
         self.current = 0
@@ -7295,7 +7295,7 @@ fn test_special_iterator_pattern() {
             raise StopIteration()
         result = self.current
         self.current += 1
-        return result"#,
+        return result",
     );
     assert!(code.contains("fn") || code.contains("Iterator") || code.contains("next"));
 }
@@ -7303,12 +7303,12 @@ fn test_special_iterator_pattern() {
 #[test]
 fn test_special_context_manager_pattern() {
     let code = transpile(
-        r#"class Timer:
+        r"class Timer:
     def __enter__(self):
         self.start = 0
         return self
     def __exit__(self, *args):
-        pass"#,
+        pass",
     );
     assert!(code.contains("fn") || code.contains("__enter__") || code.contains("struct"));
 }
@@ -7316,7 +7316,7 @@ fn test_special_context_manager_pattern() {
 #[test]
 fn test_special_property_getter_setter() {
     let code = transpile(
-        r#"class Temperature:
+        r"class Temperature:
     def __init__(self):
         self._celsius = 0.0
     @property
@@ -7324,7 +7324,7 @@ fn test_special_property_getter_setter() {
         return self._celsius * 9/5 + 32
     @fahrenheit.setter
     def fahrenheit(self, value: float):
-        self._celsius = (value - 32) * 5/9"#,
+        self._celsius = (value - 32) * 5/9",
     );
     assert!(code.contains("fn fahrenheit") || code.contains("struct") || code.contains("impl"));
 }
@@ -7332,13 +7332,13 @@ fn test_special_property_getter_setter() {
 #[test]
 fn test_special_dataclass_inheritance() {
     let code = transpile(
-        r#"from dataclasses import dataclass
+        r"from dataclasses import dataclass
 @dataclass
 class Base:
     x: int
 @dataclass
 class Child(Base):
-    y: int"#,
+    y: int",
     );
     assert!(code.contains("struct Base") || code.contains("struct Child") || code.contains("x"));
 }
@@ -7346,11 +7346,11 @@ class Child(Base):
 #[test]
 fn test_special_enum_pattern() {
     let code = transpile(
-        r#"from enum import Enum
+        r"from enum import Enum
 class Color(Enum):
     RED = 1
     GREEN = 2
-    BLUE = 3"#,
+    BLUE = 3",
     );
     assert!(code.contains("enum Color") || code.contains("RED") || code.contains("GREEN"));
 }
@@ -7373,11 +7373,11 @@ fn test_special_match_statement() {
 #[test]
 fn test_special_walrus_loop() {
     let code = transpile(
-        r#"def process_lines():
+        r"def process_lines():
     lines = []
     while (line := input()):
         lines.append(line)
-    return lines"#,
+    return lines",
     );
     assert!(code.contains("fn process_lines") || code.contains("while") || code.contains("let"));
 }
@@ -7385,8 +7385,8 @@ fn test_special_walrus_loop() {
 #[test]
 fn test_special_complex_comprehension() {
     let code = transpile(
-        r#"def matrix_flatten(matrix: list) -> list:
-    return [x * 2 for row in matrix for x in row if x > 0]"#,
+        r"def matrix_flatten(matrix: list) -> list:
+    return [x * 2 for row in matrix for x in row if x > 0]",
     );
     assert!(code.contains("fn matrix_flatten") || code.contains("filter") || code.contains("map"));
 }
@@ -7394,10 +7394,10 @@ fn test_special_complex_comprehension() {
 #[test]
 fn test_special_nested_function() {
     let code = transpile(
-        r#"def outer(x: int):
+        r"def outer(x: int):
     def inner(y: int) -> int:
         return x + y
-    return inner(10)"#,
+    return inner(10)",
     );
     assert!(code.contains("fn outer") || code.contains("let inner") || code.contains("+"));
 }
@@ -7405,13 +7405,13 @@ fn test_special_nested_function() {
 #[test]
 fn test_special_closure_capture() {
     let code = transpile(
-        r#"def make_counter():
+        r"def make_counter():
     count = 0
     def increment() -> int:
         nonlocal count
         count += 1
         return count
-    return increment"#,
+    return increment",
     );
     assert!(code.contains("fn make_counter") || code.contains("move") || code.contains("Fn"));
 }
@@ -7419,8 +7419,8 @@ fn test_special_closure_capture() {
 #[test]
 fn test_special_multiple_return() {
     let code = transpile(
-        r#"def divmod_result(a: int, b: int) -> tuple:
-    return a // b, a % b"#,
+        r"def divmod_result(a: int, b: int) -> tuple:
+    return a // b, a % b",
     );
     assert!(code.contains("fn divmod_result") || code.contains("(") || code.contains(","));
 }
@@ -7428,9 +7428,9 @@ fn test_special_multiple_return() {
 #[test]
 fn test_special_star_unpacking() {
     let code = transpile(
-        r#"def split_list(items: list):
+        r"def split_list(items: list):
     first, *middle, last = items
-    return first, last"#,
+    return first, last",
     );
     assert!(code.contains("fn split_list") || code.contains("let") || code.contains("first"));
 }
@@ -7438,8 +7438,8 @@ fn test_special_star_unpacking() {
 #[test]
 fn test_special_default_dict_value() {
     let code = transpile(
-        r#"def get_or_default(d: dict, key: str) -> int:
-    return d.get(key, 0)"#,
+        r"def get_or_default(d: dict, key: str) -> int:
+    return d.get(key, 0)",
     );
     assert!(
         code.contains("fn get_or_default") || code.contains("unwrap_or") || code.contains("get")
@@ -7449,8 +7449,8 @@ fn test_special_default_dict_value() {
 #[test]
 fn test_special_chain_comparison() {
     let code = transpile(
-        r#"def in_range(x: int) -> bool:
-    return 0 <= x < 100"#,
+        r"def in_range(x: int) -> bool:
+    return 0 <= x < 100",
     );
     assert!(code.contains("fn in_range") || code.contains("<=") || code.contains("&&"));
 }
@@ -7467,11 +7467,11 @@ fn test_special_assert_with_msg() {
 #[test]
 fn test_special_global_modify() {
     let code = transpile(
-        r#"counter = 0
+        r"counter = 0
 def increment():
     global counter
     counter += 1
-    return counter"#,
+    return counter",
     );
     assert!(code.contains("fn increment") || code.contains("counter") || code.contains("+="));
 }
@@ -7479,10 +7479,10 @@ def increment():
 #[test]
 fn test_special_class_variable() {
     let code = transpile(
-        r#"class Counter:
+        r"class Counter:
     count = 0
     def increment(self):
-        Counter.count += 1"#,
+        Counter.count += 1",
     );
     assert!(code.contains("struct Counter") || code.contains("impl") || code.contains("count"));
 }
@@ -7490,10 +7490,10 @@ fn test_special_class_variable() {
 #[test]
 fn test_special_super_call() {
     let code = transpile(
-        r#"class Child:
+        r"class Child:
     def __init__(self):
         super().__init__()
-        self.value = 1"#,
+        self.value = 1",
     );
     assert!(code.contains("struct Child") || code.contains("impl") || code.contains("super"));
 }
@@ -7523,8 +7523,8 @@ fn test_special_hasattr_check() {
 #[test]
 fn test_special_callable_check() {
     let code = transpile(
-        r#"def is_callable(obj) -> bool:
-    return callable(obj)"#,
+        r"def is_callable(obj) -> bool:
+    return callable(obj)",
     );
     assert!(code.contains("fn is_callable") || code.contains("Fn") || code.contains("fn"));
 }
@@ -7562,11 +7562,11 @@ fn test_tc_try_except_with_binding() {
 #[test]
 fn test_tc_try_zerodiv_handler() {
     let code = transpile(
-        r#"def safe_div(a: int, b: int) -> int:
+        r"def safe_div(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
-        return 0"#,
+        return 0",
     );
     assert!(code.contains("fn") || code.contains("0") || code.contains("div"));
 }
@@ -7574,13 +7574,13 @@ fn test_tc_try_zerodiv_handler() {
 #[test]
 fn test_tc_try_multiple_handlers() {
     let code = transpile(
-        r#"def parse(s: str) -> int:
+        r"def parse(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
     except TypeError:
-        return -2"#,
+        return -2",
     );
     assert!(code.contains("fn") || code.contains("-1") || code.contains("parse"));
 }
@@ -7603,14 +7603,14 @@ fn test_tc_nested_try_except() {
 #[test]
 fn test_tc_try_with_hoisted_vars() {
     let code = transpile(
-        r#"def hoisted() -> int:
+        r"def hoisted() -> int:
     try:
         x = 10
         y = 20
     except Exception:
         x = 0
         y = 0
-    return x + y"#,
+    return x + y",
     );
     assert!(code.contains("fn") || code.contains("x") || code.contains("y"));
 }
@@ -7618,13 +7618,13 @@ fn test_tc_try_with_hoisted_vars() {
 #[test]
 fn test_tc_while_with_break() {
     let code = transpile(
-        r#"def find_first(items: list[int], target: int) -> int:
+        r"def find_first(items: list[int], target: int) -> int:
     i = 0
     while i < len(items):
         if items[i] == target:
             break
         i += 1
-    return i"#,
+    return i",
     );
     assert!(code.contains("fn") || code.contains("break") || code.contains("while"));
 }
@@ -7632,7 +7632,7 @@ fn test_tc_while_with_break() {
 #[test]
 fn test_tc_while_with_continue() {
     let code = transpile(
-        r#"def skip_negatives(items: list[int]) -> int:
+        r"def skip_negatives(items: list[int]) -> int:
     i = 0
     total = 0
     while i < len(items):
@@ -7640,7 +7640,7 @@ fn test_tc_while_with_continue() {
         if items[i-1] < 0:
             continue
         total += items[i-1]
-    return total"#,
+    return total",
     );
     assert!(code.contains("fn") || code.contains("continue") || code.contains("while"));
 }
@@ -7648,14 +7648,14 @@ fn test_tc_while_with_continue() {
 #[test]
 fn test_tc_while_else() {
     let code = transpile(
-        r#"def search(items: list[int], target: int) -> bool:
+        r"def search(items: list[int], target: int) -> bool:
     i = 0
     while i < len(items):
         if items[i] == target:
             return True
         i += 1
     else:
-        return False"#,
+        return False",
     );
     assert!(code.contains("fn") || code.contains("true") || code.contains("false"));
 }
@@ -7663,12 +7663,12 @@ fn test_tc_while_else() {
 #[test]
 fn test_tc_for_with_else() {
     let code = transpile(
-        r#"def find_prime(n: int) -> bool:
+        r"def find_prime(n: int) -> bool:
     for i in range(2, n):
         if n % i == 0:
             return False
     else:
-        return True"#,
+        return True",
     );
     assert!(code.contains("fn") || code.contains("true") || code.contains("for"));
 }
@@ -7688,11 +7688,11 @@ fn test_tc_for_enumerate() {
 #[test]
 fn test_tc_for_zip() {
     let code = transpile(
-        r#"def pairs(a: list[int], b: list[str]) -> list[tuple[int, str]]:
+        r"def pairs(a: list[int], b: list[str]) -> list[tuple[int, str]]:
     result = []
     for x, y in zip(a, b):
         result.append((x, y))
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("zip") || code.contains("Vec"));
 }
@@ -7751,14 +7751,14 @@ fn test_tc_raise_custom() {
 #[test]
 fn test_tc_augmented_assign_all() {
     let code = transpile(
-        r#"def aug_ops() -> int:
+        r"def aug_ops() -> int:
     x = 10
     x += 1
     x -= 2
     x *= 3
     x //= 4
     x %= 5
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn") || code.contains("+=") || code.contains("x"));
 }
@@ -7766,9 +7766,9 @@ fn test_tc_augmented_assign_all() {
 #[test]
 fn test_tc_assign_tuple_unpack() {
     let code = transpile(
-        r#"def swap(a: int, b: int) -> tuple[int, int]:
+        r"def swap(a: int, b: int) -> tuple[int, int]:
     a, b = b, a
-    return (a, b)"#,
+    return (a, b)",
     );
     assert!(code.contains("fn") || code.contains("a") || code.contains("b"));
 }
@@ -7776,9 +7776,9 @@ fn test_tc_assign_tuple_unpack() {
 #[test]
 fn test_tc_assign_multiple_targets() {
     let code = transpile(
-        r#"def multi() -> int:
+        r"def multi() -> int:
     a = b = c = 0
-    return a + b + c"#,
+    return a + b + c",
     );
     assert!(code.contains("fn") || code.contains("let") || code.contains("0"));
 }
@@ -7786,8 +7786,8 @@ fn test_tc_assign_multiple_targets() {
 #[test]
 fn test_tc_pass_in_class() {
     let code = transpile(
-        r#"class Empty:
-    pass"#,
+        r"class Empty:
+    pass",
     );
     assert!(code.contains("struct Empty") || code.contains("impl") || code.contains("Empty"));
 }
@@ -7795,8 +7795,8 @@ fn test_tc_pass_in_class() {
 #[test]
 fn test_tc_pass_in_function() {
     let code = transpile(
-        r#"def noop() -> None:
-    pass"#,
+        r"def noop() -> None:
+    pass",
     );
     assert!(code.contains("fn noop") || code.contains("()") || code.contains("None"));
 }
@@ -7813,8 +7813,8 @@ fn test_tc_assert_message() {
 #[test]
 fn test_tc_return_none() {
     let code = transpile(
-        r#"def returns_none() -> None:
-    return None"#,
+        r"def returns_none() -> None:
+    return None",
     );
     assert!(code.contains("fn") || code.contains("()") || code.contains("None"));
 }
@@ -7843,8 +7843,8 @@ fn test_tc_expr_stmt_call() {
 #[test]
 fn test_tc2_assign_index() {
     let code = transpile(
-        r#"def set_item(items: list[int], i: int, val: int) -> None:
-    items[i] = val"#,
+        r"def set_item(items: list[int], i: int, val: int) -> None:
+    items[i] = val",
     );
     assert!(code.contains("fn") || code.contains("items") || code.contains("val"));
 }
@@ -7852,8 +7852,8 @@ fn test_tc2_assign_index() {
 #[test]
 fn test_tc2_assign_dict_key() {
     let code = transpile(
-        r#"def set_key(d: dict[str, int], key: str, val: int) -> None:
-    d[key] = val"#,
+        r"def set_key(d: dict[str, int], key: str, val: int) -> None:
+    d[key] = val",
     );
     assert!(code.contains("fn") || code.contains("insert") || code.contains("key"));
 }
@@ -7861,11 +7861,11 @@ fn test_tc2_assign_dict_key() {
 #[test]
 fn test_tc2_assign_attribute() {
     let code = transpile(
-        r#"class Point:
+        r"class Point:
     x: int
     y: int
     def set_x(self, val: int) -> None:
-        self.x = val"#,
+        self.x = val",
     );
     assert!(code.contains("struct Point") || code.contains("self") || code.contains("x"));
 }
@@ -7873,8 +7873,8 @@ fn test_tc2_assign_attribute() {
 #[test]
 fn test_tc2_assign_slice() {
     let code = transpile(
-        r#"def set_range(items: list[int], vals: list[int]) -> None:
-    items[1:3] = vals"#,
+        r"def set_range(items: list[int], vals: list[int]) -> None:
+    items[1:3] = vals",
     );
     assert!(code.contains("fn") || code.contains("items") || code.contains("splice"));
 }
@@ -7882,11 +7882,11 @@ fn test_tc2_assign_slice() {
 #[test]
 fn test_tc2_for_range_step() {
     let code = transpile(
-        r#"def every_other(n: int) -> list[int]:
+        r"def every_other(n: int) -> list[int]:
     result = []
     for i in range(0, n, 2):
         result.append(i)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("step") || code.contains("2"));
 }
@@ -7894,11 +7894,11 @@ fn test_tc2_for_range_step() {
 #[test]
 fn test_tc2_for_reversed() {
     let code = transpile(
-        r#"def rev(items: list[int]) -> list[int]:
+        r"def rev(items: list[int]) -> list[int]:
     result = []
     for x in reversed(items):
         result.append(x)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("rev") || code.contains("Vec"));
 }
@@ -7906,11 +7906,11 @@ fn test_tc2_for_reversed() {
 #[test]
 fn test_tc2_for_sorted() {
     let code = transpile(
-        r#"def sort_items(items: list[int]) -> list[int]:
+        r"def sort_items(items: list[int]) -> list[int]:
     result = []
     for x in sorted(items):
         result.append(x)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("sort") || code.contains("Vec"));
 }
@@ -7918,11 +7918,11 @@ fn test_tc2_for_sorted() {
 #[test]
 fn test_tc2_for_dict_items() {
     let code = transpile(
-        r#"def dict_pairs(d: dict[str, int]) -> list[tuple[str, int]]:
+        r"def dict_pairs(d: dict[str, int]) -> list[tuple[str, int]]:
     result = []
     for k, v in d.items():
         result.append((k, v))
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("items") || code.contains("iter"));
 }
@@ -7930,11 +7930,11 @@ fn test_tc2_for_dict_items() {
 #[test]
 fn test_tc2_for_dict_keys() {
     let code = transpile(
-        r#"def dict_keys_list(d: dict[str, int]) -> list[str]:
+        r"def dict_keys_list(d: dict[str, int]) -> list[str]:
     result = []
     for k in d.keys():
         result.append(k)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("keys") || code.contains("Vec"));
 }
@@ -7942,11 +7942,11 @@ fn test_tc2_for_dict_keys() {
 #[test]
 fn test_tc2_for_dict_values() {
     let code = transpile(
-        r#"def dict_vals(d: dict[str, int]) -> list[int]:
+        r"def dict_vals(d: dict[str, int]) -> list[int]:
     result = []
     for v in d.values():
         result.append(v)
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("values") || code.contains("Vec"));
 }
@@ -7954,8 +7954,8 @@ fn test_tc2_for_dict_values() {
 #[test]
 fn test_tc2_list_comp_filter() {
     let code = transpile(
-        r#"def filter_pos(items: list[int]) -> list[int]:
-    return [x for x in items if x > 0]"#,
+        r"def filter_pos(items: list[int]) -> list[int]:
+    return [x for x in items if x > 0]",
     );
     assert!(code.contains("fn") || code.contains("filter") || code.contains("Vec"));
 }
@@ -7963,8 +7963,8 @@ fn test_tc2_list_comp_filter() {
 #[test]
 fn test_tc2_dict_comp() {
     let code = transpile(
-        r#"def square_dict(n: int) -> dict[int, int]:
-    return {i: i*i for i in range(n)}"#,
+        r"def square_dict(n: int) -> dict[int, int]:
+    return {i: i*i for i in range(n)}",
     );
     assert!(code.contains("fn") || code.contains("collect") || code.contains("HashMap"));
 }
@@ -7972,8 +7972,8 @@ fn test_tc2_dict_comp() {
 #[test]
 fn test_tc2_set_comp() {
     let code = transpile(
-        r#"def unique_squares(items: list[int]) -> set[int]:
-    return {x*x for x in items}"#,
+        r"def unique_squares(items: list[int]) -> set[int]:
+    return {x*x for x in items}",
     );
     assert!(code.contains("fn") || code.contains("HashSet") || code.contains("collect"));
 }
@@ -7981,8 +7981,8 @@ fn test_tc2_set_comp() {
 #[test]
 fn test_tc2_gen_expr() {
     let code = transpile(
-        r#"def sum_squares(n: int) -> int:
-    return sum(x*x for x in range(n))"#,
+        r"def sum_squares(n: int) -> int:
+    return sum(x*x for x in range(n))",
     );
     assert!(code.contains("fn") || code.contains("sum") || code.contains("map"));
 }
@@ -7990,12 +7990,12 @@ fn test_tc2_gen_expr() {
 #[test]
 fn test_tc2_nested_loops() {
     let code = transpile(
-        r#"def matrix_sum(m: list[list[int]]) -> int:
+        r"def matrix_sum(m: list[list[int]]) -> int:
     total = 0
     for row in m:
         for val in row:
             total += val
-    return total"#,
+    return total",
     );
     assert!(code.contains("fn") || code.contains("for") || code.contains("total"));
 }
@@ -8003,12 +8003,12 @@ fn test_tc2_nested_loops() {
 #[test]
 fn test_tc2_labeled_break() {
     let code = transpile(
-        r#"def find_2d(m: list[list[int]], target: int) -> tuple[int, int]:
+        r"def find_2d(m: list[list[int]], target: int) -> tuple[int, int]:
     for i, row in enumerate(m):
         for j, val in enumerate(row):
             if val == target:
                 return (i, j)
-    return (-1, -1)"#,
+    return (-1, -1)",
     );
     assert!(code.contains("fn") || code.contains("enumerate") || code.contains("for"));
 }
@@ -8016,11 +8016,11 @@ fn test_tc2_labeled_break() {
 #[test]
 fn test_tc2_try_return_negative() {
     let code = transpile(
-        r#"def safe_int(s: str) -> int:
+        r"def safe_int(s: str) -> int:
     try:
         return int(s)
     except ValueError:
-        return -1"#,
+        return -1",
     );
     assert!(code.contains("fn") || code.contains("parse") || code.contains("-1"));
 }
@@ -8028,11 +8028,11 @@ fn test_tc2_try_return_negative() {
 #[test]
 fn test_tc2_try_return_float_negative() {
     let code = transpile(
-        r#"def safe_float(s: str) -> float:
+        r"def safe_float(s: str) -> float:
     try:
         return float(s)
     except ValueError:
-        return -1.0"#,
+        return -1.0",
     );
     assert!(code.contains("fn") || code.contains("parse") || code.contains("-1"));
 }
@@ -8040,12 +8040,12 @@ fn test_tc2_try_return_float_negative() {
 #[test]
 fn test_tc2_context_manager_var() {
     let code = transpile(
-        r#"def read_lines(path: str) -> list[str]:
+        r"def read_lines(path: str) -> list[str]:
     result = []
     with open(path) as f:
         for line in f:
             result.append(line.strip())
-    return result"#,
+    return result",
     );
     assert!(code.contains("fn") || code.contains("File") || code.contains("lines"));
 }
@@ -8053,10 +8053,10 @@ fn test_tc2_context_manager_var() {
 #[test]
 fn test_tc2_if_walrus() {
     let code = transpile(
-        r#"def check_len(s: str) -> bool:
+        r"def check_len(s: str) -> bool:
     if (n := len(s)) > 10:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("fn") || code.contains("len") || code.contains("n"));
 }
@@ -8064,13 +8064,13 @@ fn test_tc2_if_walrus() {
 #[test]
 fn test_tc2_while_walrus() {
     let code = transpile(
-        r#"def read_chunks(data: str) -> list[str]:
+        r"def read_chunks(data: str) -> list[str]:
     chunks = []
     i = 0
     while (chunk := data[i:i+10]):
         chunks.append(chunk)
         i += 10
-    return chunks"#,
+    return chunks",
     );
     assert!(code.contains("fn") || code.contains("while") || code.contains("chunk"));
 }
@@ -8080,8 +8080,8 @@ fn test_tc2_while_walrus() {
 #[test]
 fn test_tc3_return_list() {
     let code = transpile(
-        r#"def make_list() -> list[int]:
-    return [1, 2, 3]"#,
+        r"def make_list() -> list[int]:
+    return [1, 2, 3]",
     );
     assert!(code.contains("fn") || code.contains("vec!") || code.contains("Vec"));
 }
@@ -8098,8 +8098,8 @@ fn test_tc3_return_dict() {
 #[test]
 fn test_tc3_return_set() {
     let code = transpile(
-        r#"def make_set() -> set[int]:
-    return {1, 2, 3}"#,
+        r"def make_set() -> set[int]:
+    return {1, 2, 3}",
     );
     assert!(code.contains("fn") || code.contains("HashSet") || code.contains("insert"));
 }
@@ -8125,8 +8125,8 @@ fn test_tc3_method_chain() {
 #[test]
 fn test_tc3_lambda_in_map() {
     let code = transpile(
-        r#"def double_all(items: list[int]) -> list[int]:
-    return list(map(lambda x: x * 2, items))"#,
+        r"def double_all(items: list[int]) -> list[int]:
+    return list(map(lambda x: x * 2, items))",
     );
     assert!(code.contains("fn") || code.contains("map") || code.contains("*"));
 }
@@ -8134,8 +8134,8 @@ fn test_tc3_lambda_in_map() {
 #[test]
 fn test_tc3_lambda_in_filter() {
     let code = transpile(
-        r#"def positives(items: list[int]) -> list[int]:
-    return list(filter(lambda x: x > 0, items))"#,
+        r"def positives(items: list[int]) -> list[int]:
+    return list(filter(lambda x: x > 0, items))",
     );
     assert!(code.contains("fn") || code.contains("filter") || code.contains("0"));
 }
@@ -8143,8 +8143,8 @@ fn test_tc3_lambda_in_filter() {
 #[test]
 fn test_tc3_lambda_in_sorted() {
     let code = transpile(
-        r#"def sort_by_len(items: list[str]) -> list[str]:
-    return sorted(items, key=lambda x: len(x))"#,
+        r"def sort_by_len(items: list[str]) -> list[str]:
+    return sorted(items, key=lambda x: len(x))",
     );
     assert!(code.contains("fn") || code.contains("sort") || code.contains("len"));
 }
@@ -8197,8 +8197,8 @@ fn test_tc3_string_format() {
 #[test]
 fn test_tc3_bool_ops_complex() {
     let code = transpile(
-        r#"def complex_bool(a: bool, b: bool, c: bool) -> bool:
-    return (a and b) or (not c and a)"#,
+        r"def complex_bool(a: bool, b: bool, c: bool) -> bool:
+    return (a and b) or (not c and a)",
     );
     assert!(code.contains("fn") || code.contains("&&") || code.contains("||"));
 }
@@ -8206,8 +8206,8 @@ fn test_tc3_bool_ops_complex() {
 #[test]
 fn test_tc3_comparison_chain() {
     let code = transpile(
-        r#"def in_range(x: int) -> bool:
-    return 0 <= x < 100"#,
+        r"def in_range(x: int) -> bool:
+    return 0 <= x < 100",
     );
     assert!(code.contains("fn") || code.contains("0") || code.contains("100"));
 }
@@ -8215,8 +8215,8 @@ fn test_tc3_comparison_chain() {
 #[test]
 fn test_tc3_is_none_check() {
     let code = transpile(
-        r#"def is_null(x: int | None) -> bool:
-    return x is None"#,
+        r"def is_null(x: int | None) -> bool:
+    return x is None",
     );
     assert!(code.contains("fn") || code.contains("None") || code.contains("is_none"));
 }
@@ -8224,8 +8224,8 @@ fn test_tc3_is_none_check() {
 #[test]
 fn test_tc3_is_not_none_check() {
     let code = transpile(
-        r#"def is_not_null(x: int | None) -> bool:
-    return x is not None"#,
+        r"def is_not_null(x: int | None) -> bool:
+    return x is not None",
     );
     assert!(code.contains("fn") || code.contains("None") || code.contains("is_some"));
 }
@@ -8233,8 +8233,8 @@ fn test_tc3_is_not_none_check() {
 #[test]
 fn test_tc3_in_list_check() {
     let code = transpile(
-        r#"def contains(items: list[int], x: int) -> bool:
-    return x in items"#,
+        r"def contains(items: list[int], x: int) -> bool:
+    return x in items",
     );
     assert!(code.contains("fn") || code.contains("contains") || code.contains("items"));
 }
@@ -8242,8 +8242,8 @@ fn test_tc3_in_list_check() {
 #[test]
 fn test_tc3_not_in_check() {
     let code = transpile(
-        r#"def not_contains(items: list[int], x: int) -> bool:
-    return x not in items"#,
+        r"def not_contains(items: list[int], x: int) -> bool:
+    return x not in items",
     );
     assert!(code.contains("fn") || code.contains("contains") || code.contains("!"));
 }
@@ -8253,11 +8253,11 @@ fn test_tc3_not_in_check() {
 #[test]
 fn test_tc4_global_var() {
     let code = transpile(
-        r#"counter = 0
+        r"counter = 0
 def increment() -> int:
     global counter
     counter += 1
-    return counter"#,
+    return counter",
     );
     assert!(code.contains("fn") || code.contains("counter") || code.contains("static"));
 }
@@ -8265,13 +8265,13 @@ def increment() -> int:
 #[test]
 fn test_tc4_nonlocal_var() {
     let code = transpile(
-        r#"def outer() -> int:
+        r"def outer() -> int:
     count = 0
     def inner() -> None:
         nonlocal count
         count += 1
     inner()
-    return count"#,
+    return count",
     );
     assert!(code.contains("fn") || code.contains("count") || code.contains("outer"));
 }
@@ -8279,8 +8279,8 @@ fn test_tc4_nonlocal_var() {
 #[test]
 fn test_tc4_delete_stmt() {
     let code = transpile(
-        r#"def remove_key(d: dict[str, int], key: str) -> None:
-    del d[key]"#,
+        r"def remove_key(d: dict[str, int], key: str) -> None:
+    del d[key]",
     );
     assert!(code.contains("fn") || code.contains("remove") || code.contains("key"));
 }
@@ -8288,9 +8288,9 @@ fn test_tc4_delete_stmt() {
 #[test]
 fn test_tc4_starred_assign() {
     let code = transpile(
-        r#"def head_tail(items: list[int]) -> tuple[int, list[int]]:
+        r"def head_tail(items: list[int]) -> tuple[int, list[int]]:
     head, *tail = items
-    return (head, tail)"#,
+    return (head, tail)",
     );
     assert!(code.contains("fn") || code.contains("head") || code.contains("tail"));
 }
@@ -8330,8 +8330,8 @@ fn test_tc4_match_tuple() {
 #[test]
 fn test_tc4_async_def() {
     let code = transpile(
-        r#"async def fetch(url: str) -> str:
-    return url"#,
+        r"async def fetch(url: str) -> str:
+    return url",
     );
     assert!(code.contains("async fn") || code.contains("fn fetch") || code.contains("url"));
 }
@@ -8339,9 +8339,9 @@ fn test_tc4_async_def() {
 #[test]
 fn test_tc4_await_expr() {
     let code = transpile(
-        r#"async def get_data(url: str) -> str:
+        r"async def get_data(url: str) -> str:
     result = await fetch(url)
-    return result"#,
+    return result",
     );
     assert!(code.contains("async") || code.contains("fn") || code.contains("await"));
 }
@@ -8349,9 +8349,9 @@ fn test_tc4_await_expr() {
 #[test]
 fn test_tc4_yield_expr() {
     let code = transpile(
-        r#"def generate(n: int):
+        r"def generate(n: int):
     for i in range(n):
-        yield i"#,
+        yield i",
     );
     assert!(code.contains("fn") || code.contains("Iterator") || code.contains("yield"));
 }
@@ -8359,9 +8359,9 @@ fn test_tc4_yield_expr() {
 #[test]
 fn test_tc4_yield_from() {
     let code = transpile(
-        r#"def chain(a: list[int], b: list[int]):
+        r"def chain(a: list[int], b: list[int]):
     yield from a
-    yield from b"#,
+    yield from b",
     );
     assert!(code.contains("fn") || code.contains("Iterator") || code.contains("chain"));
 }
@@ -8369,7 +8369,7 @@ fn test_tc4_yield_from() {
 #[test]
 fn test_tc4_class_property() {
     let code = transpile(
-        r#"class Circle:
+        r"class Circle:
     def __init__(self, radius: float):
         self._radius = radius
 
@@ -8379,7 +8379,7 @@ fn test_tc4_class_property() {
 
     @radius.setter
     def radius(self, value: float) -> None:
-        self._radius = value"#,
+        self._radius = value",
     );
     assert!(code.contains("struct Circle") || code.contains("impl") || code.contains("radius"));
 }
@@ -8387,10 +8387,10 @@ fn test_tc4_class_property() {
 #[test]
 fn test_tc4_static_method() {
     let code = transpile(
-        r#"class Math:
+        r"class Math:
     @staticmethod
     def add(a: int, b: int) -> int:
-        return a + b"#,
+        return a + b",
     );
     assert!(code.contains("struct Math") || code.contains("impl") || code.contains("add"));
 }
@@ -8424,12 +8424,12 @@ fn test_tc4_slots_class() {
 #[test]
 fn test_tc4_dataclass_order() {
     let code = transpile(
-        r#"from dataclasses import dataclass
+        r"from dataclasses import dataclass
 
 @dataclass(order=True)
 class Point:
     x: int
-    y: int"#,
+    y: int",
     );
     assert!(code.contains("struct Point") || code.contains("Ord") || code.contains("derive"));
 }
@@ -8449,10 +8449,10 @@ Point = namedtuple("Point", ["x", "y"])"#,
 #[test]
 fn test_tc5_truthiness_string() {
     let code = transpile(
-        r#"def check_string(s: str) -> bool:
+        r"def check_string(s: str) -> bool:
     if s:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("!"));
 }
@@ -8460,10 +8460,10 @@ fn test_tc5_truthiness_string() {
 #[test]
 fn test_tc5_truthiness_list() {
     let code = transpile(
-        r#"def check_list(items: list[int]) -> bool:
+        r"def check_list(items: list[int]) -> bool:
     if items:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("!"));
 }
@@ -8471,10 +8471,10 @@ fn test_tc5_truthiness_list() {
 #[test]
 fn test_tc5_truthiness_dict() {
     let code = transpile(
-        r#"def check_dict(d: dict[str, int]) -> bool:
+        r"def check_dict(d: dict[str, int]) -> bool:
     if d:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("fn") || code.contains("is_empty") || code.contains("!"));
 }
@@ -8482,10 +8482,10 @@ fn test_tc5_truthiness_dict() {
 #[test]
 fn test_tc5_truthiness_int() {
     let code = transpile(
-        r#"def check_int(n: int) -> bool:
+        r"def check_int(n: int) -> bool:
     if n:
         return True
-    return False"#,
+    return False",
     );
     assert!(code.contains("fn") || code.contains("!= 0") || code.contains("0"));
 }
@@ -8493,10 +8493,10 @@ fn test_tc5_truthiness_int() {
 #[test]
 fn test_tc5_option_unwrap_or() {
     let code = transpile(
-        r#"def get_or_default(x: int | None) -> int:
+        r"def get_or_default(x: int | None) -> int:
     if x is None:
         return 0
-    return x"#,
+    return x",
     );
     assert!(code.contains("fn") || code.contains("unwrap_or") || code.contains("0"));
 }
@@ -8504,10 +8504,10 @@ fn test_tc5_option_unwrap_or() {
 #[test]
 fn test_tc5_option_map() {
     let code = transpile(
-        r#"def double_maybe(x: int | None) -> int | None:
+        r"def double_maybe(x: int | None) -> int | None:
     if x is not None:
         return x * 2
-    return None"#,
+    return None",
     );
     assert!(code.contains("fn") || code.contains("map") || code.contains("Option"));
 }
@@ -8515,8 +8515,8 @@ fn test_tc5_option_map() {
 #[test]
 fn test_tc5_dict_get_default() {
     let code = transpile(
-        r#"def get_val(d: dict[str, int], key: str) -> int:
-    return d.get(key, 0)"#,
+        r"def get_val(d: dict[str, int], key: str) -> int:
+    return d.get(key, 0)",
     );
     assert!(code.contains("fn") || code.contains("unwrap_or") || code.contains("get"));
 }
@@ -8524,8 +8524,8 @@ fn test_tc5_dict_get_default() {
 #[test]
 fn test_tc5_dict_setdefault() {
     let code = transpile(
-        r#"def ensure_key(d: dict[str, list[int]], key: str) -> list[int]:
-    return d.setdefault(key, [])"#,
+        r"def ensure_key(d: dict[str, list[int]], key: str) -> list[int]:
+    return d.setdefault(key, [])",
     );
     assert!(code.contains("fn") || code.contains("entry") || code.contains("or_insert"));
 }
@@ -8533,8 +8533,8 @@ fn test_tc5_dict_setdefault() {
 #[test]
 fn test_tc5_list_pop() {
     let code = transpile(
-        r#"def pop_last(items: list[int]) -> int:
-    return items.pop()"#,
+        r"def pop_last(items: list[int]) -> int:
+    return items.pop()",
     );
     assert!(code.contains("fn") || code.contains("pop") || code.contains("unwrap"));
 }
@@ -8542,8 +8542,8 @@ fn test_tc5_list_pop() {
 #[test]
 fn test_tc5_list_pop_index() {
     let code = transpile(
-        r#"def pop_first(items: list[int]) -> int:
-    return items.pop(0)"#,
+        r"def pop_first(items: list[int]) -> int:
+    return items.pop(0)",
     );
     assert!(code.contains("fn") || code.contains("remove") || code.contains("0"));
 }
@@ -8573,9 +8573,9 @@ fn test_tc6_file_append() {
 #[test]
 fn test_tc6_file_readlines() {
     let code = transpile(
-        r#"def read_all_lines(path: str) -> list[str]:
+        r"def read_all_lines(path: str) -> list[str]:
     with open(path) as f:
-        return f.readlines()"#,
+        return f.readlines()",
     );
     assert!(code.contains("fn") || code.contains("File") || code.contains("lines"));
 }
@@ -8583,9 +8583,9 @@ fn test_tc6_file_readlines() {
 #[test]
 fn test_tc6_stdin_read() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def read_stdin() -> str:
-    return sys.stdin.read()"#,
+    return sys.stdin.read()",
     );
     assert!(code.contains("fn") || code.contains("stdin") || code.contains("read"));
 }
@@ -8593,9 +8593,9 @@ def read_stdin() -> str:
 #[test]
 fn test_tc6_stdout_write() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def write_stdout(s: str) -> None:
-    sys.stdout.write(s)"#,
+    sys.stdout.write(s)",
     );
     assert!(code.contains("fn") || code.contains("stdout") || code.contains("write"));
 }
@@ -8603,9 +8603,9 @@ def write_stdout(s: str) -> None:
 #[test]
 fn test_tc6_stderr_write() {
     let code = transpile(
-        r#"import sys
+        r"import sys
 def write_stderr(s: str) -> None:
-    sys.stderr.write(s)"#,
+    sys.stderr.write(s)",
     );
     assert!(code.contains("fn") || code.contains("stderr") || code.contains("write"));
 }
@@ -8642,8 +8642,8 @@ fn test_tc7_string_encode() {
 #[test]
 fn test_tc7_complex_number() {
     let code = transpile(
-        r#"def add_complex() -> complex:
-    return (1 + 2j) + (3 + 4j)"#,
+        r"def add_complex() -> complex:
+    return (1 + 2j) + (3 + 4j)",
     );
     assert!(code.contains("fn") || code.contains("Complex") || code.contains("1"));
 }
@@ -8651,8 +8651,8 @@ fn test_tc7_complex_number() {
 #[test]
 fn test_tc7_slice_step() {
     let code = transpile(
-        r#"def every_other(items: list[int]) -> list[int]:
-    return items[::2]"#,
+        r"def every_other(items: list[int]) -> list[int]:
+    return items[::2]",
     );
     assert!(code.contains("fn") || code.contains("step") || code.contains("Vec"));
 }
@@ -8660,8 +8660,8 @@ fn test_tc7_slice_step() {
 #[test]
 fn test_tc7_slice_reverse() {
     let code = transpile(
-        r#"def reverse_list(items: list[int]) -> list[int]:
-    return items[::-1]"#,
+        r"def reverse_list(items: list[int]) -> list[int]:
+    return items[::-1]",
     );
     assert!(code.contains("fn") || code.contains("rev") || code.contains("Vec"));
 }
@@ -8669,8 +8669,8 @@ fn test_tc7_slice_reverse() {
 #[test]
 fn test_tc7_negative_index() {
     let code = transpile(
-        r#"def get_last(items: list[int]) -> int:
-    return items[-1]"#,
+        r"def get_last(items: list[int]) -> int:
+    return items[-1]",
     );
     assert!(code.contains("fn") || code.contains("len") || code.contains("-1"));
 }
@@ -8678,8 +8678,8 @@ fn test_tc7_negative_index() {
 #[test]
 fn test_tc7_string_multiply() {
     let code = transpile(
-        r#"def repeat_string(s: str, n: int) -> str:
-    return s * n"#,
+        r"def repeat_string(s: str, n: int) -> str:
+    return s * n",
     );
     assert!(code.contains("fn") || code.contains("repeat") || code.contains("*"));
 }
@@ -8687,8 +8687,8 @@ fn test_tc7_string_multiply() {
 #[test]
 fn test_tc7_list_multiply() {
     let code = transpile(
-        r#"def repeat_list(items: list[int], n: int) -> list[int]:
-    return items * n"#,
+        r"def repeat_list(items: list[int], n: int) -> list[int]:
+    return items * n",
     );
     assert!(code.contains("fn") || code.contains("repeat") || code.contains("*"));
 }
@@ -8696,8 +8696,8 @@ fn test_tc7_list_multiply() {
 #[test]
 fn test_tc7_list_extend() {
     let code = transpile(
-        r#"def extend_list(a: list[int], b: list[int]) -> None:
-    a.extend(b)"#,
+        r"def extend_list(a: list[int], b: list[int]) -> None:
+    a.extend(b)",
     );
     assert!(code.contains("fn") || code.contains("extend") || code.contains("a"));
 }
@@ -8705,8 +8705,8 @@ fn test_tc7_list_extend() {
 #[test]
 fn test_tc7_list_insert() {
     let code = transpile(
-        r#"def insert_at(items: list[int], idx: int, val: int) -> None:
-    items.insert(idx, val)"#,
+        r"def insert_at(items: list[int], idx: int, val: int) -> None:
+    items.insert(idx, val)",
     );
     assert!(code.contains("fn") || code.contains("insert") || code.contains("idx"));
 }
@@ -8714,8 +8714,8 @@ fn test_tc7_list_insert() {
 #[test]
 fn test_tc7_list_remove() {
     let code = transpile(
-        r#"def remove_val(items: list[int], val: int) -> None:
-    items.remove(val)"#,
+        r"def remove_val(items: list[int], val: int) -> None:
+    items.remove(val)",
     );
     assert!(code.contains("fn") || code.contains("remove") || code.contains("val"));
 }
@@ -8723,8 +8723,8 @@ fn test_tc7_list_remove() {
 #[test]
 fn test_tc7_list_index() {
     let code = transpile(
-        r#"def find_index(items: list[int], val: int) -> int:
-    return items.index(val)"#,
+        r"def find_index(items: list[int], val: int) -> int:
+    return items.index(val)",
     );
     assert!(code.contains("fn") || code.contains("position") || code.contains("val"));
 }
@@ -8732,8 +8732,8 @@ fn test_tc7_list_index() {
 #[test]
 fn test_tc7_list_count() {
     let code = transpile(
-        r#"def count_val(items: list[int], val: int) -> int:
-    return items.count(val)"#,
+        r"def count_val(items: list[int], val: int) -> int:
+    return items.count(val)",
     );
     assert!(code.contains("fn") || code.contains("count") || code.contains("val"));
 }
@@ -8741,8 +8741,8 @@ fn test_tc7_list_count() {
 #[test]
 fn test_tc7_list_sort() {
     let code = transpile(
-        r#"def sort_inplace(items: list[int]) -> None:
-    items.sort()"#,
+        r"def sort_inplace(items: list[int]) -> None:
+    items.sort()",
     );
     assert!(code.contains("fn") || code.contains("sort") || code.contains("items"));
 }
@@ -8750,8 +8750,8 @@ fn test_tc7_list_sort() {
 #[test]
 fn test_tc7_list_reverse() {
     let code = transpile(
-        r#"def reverse_inplace(items: list[int]) -> None:
-    items.reverse()"#,
+        r"def reverse_inplace(items: list[int]) -> None:
+    items.reverse()",
     );
     assert!(code.contains("fn") || code.contains("reverse") || code.contains("items"));
 }
@@ -8759,8 +8759,8 @@ fn test_tc7_list_reverse() {
 #[test]
 fn test_tc7_list_copy() {
     let code = transpile(
-        r#"def copy_list(items: list[int]) -> list[int]:
-    return items.copy()"#,
+        r"def copy_list(items: list[int]) -> list[int]:
+    return items.copy()",
     );
     assert!(code.contains("fn") || code.contains("clone") || code.contains("copy"));
 }
@@ -8768,8 +8768,8 @@ fn test_tc7_list_copy() {
 #[test]
 fn test_tc7_list_clear() {
     let code = transpile(
-        r#"def clear_list(items: list[int]) -> None:
-    items.clear()"#,
+        r"def clear_list(items: list[int]) -> None:
+    items.clear()",
     );
     assert!(code.contains("fn") || code.contains("clear") || code.contains("items"));
 }
@@ -8779,8 +8779,8 @@ fn test_tc7_list_clear() {
 #[test]
 fn test_tc8_dict_update() {
     let code = transpile(
-        r#"def merge_dicts(a: dict[str, int], b: dict[str, int]) -> None:
-    a.update(b)"#,
+        r"def merge_dicts(a: dict[str, int], b: dict[str, int]) -> None:
+    a.update(b)",
     );
     assert!(code.contains("fn") || code.contains("extend") || code.contains("update"));
 }
@@ -8788,8 +8788,8 @@ fn test_tc8_dict_update() {
 #[test]
 fn test_tc8_dict_pop() {
     let code = transpile(
-        r#"def pop_key(d: dict[str, int], key: str) -> int:
-    return d.pop(key)"#,
+        r"def pop_key(d: dict[str, int], key: str) -> int:
+    return d.pop(key)",
     );
     assert!(code.contains("fn") || code.contains("remove") || code.contains("key"));
 }
@@ -8797,8 +8797,8 @@ fn test_tc8_dict_pop() {
 #[test]
 fn test_tc8_dict_popitem() {
     let code = transpile(
-        r#"def pop_item(d: dict[str, int]) -> tuple[str, int]:
-    return d.popitem()"#,
+        r"def pop_item(d: dict[str, int]) -> tuple[str, int]:
+    return d.popitem()",
     );
     assert!(code.contains("fn") || code.contains("pop") || code.contains("tuple"));
 }
@@ -8806,8 +8806,8 @@ fn test_tc8_dict_popitem() {
 #[test]
 fn test_tc8_dict_copy() {
     let code = transpile(
-        r#"def copy_dict(d: dict[str, int]) -> dict[str, int]:
-    return d.copy()"#,
+        r"def copy_dict(d: dict[str, int]) -> dict[str, int]:
+    return d.copy()",
     );
     assert!(code.contains("fn") || code.contains("clone") || code.contains("copy"));
 }
@@ -8815,8 +8815,8 @@ fn test_tc8_dict_copy() {
 #[test]
 fn test_tc8_dict_clear() {
     let code = transpile(
-        r#"def clear_dict(d: dict[str, int]) -> None:
-    d.clear()"#,
+        r"def clear_dict(d: dict[str, int]) -> None:
+    d.clear()",
     );
     assert!(code.contains("fn") || code.contains("clear") || code.contains("d"));
 }
@@ -8824,8 +8824,8 @@ fn test_tc8_dict_clear() {
 #[test]
 fn test_tc8_dict_fromkeys() {
     let code = transpile(
-        r#"def init_dict(keys: list[str]) -> dict[str, int]:
-    return dict.fromkeys(keys, 0)"#,
+        r"def init_dict(keys: list[str]) -> dict[str, int]:
+    return dict.fromkeys(keys, 0)",
     );
     assert!(code.contains("fn") || code.contains("HashMap") || code.contains("0"));
 }
@@ -8835,8 +8835,8 @@ fn test_tc8_dict_fromkeys() {
 #[test]
 fn test_tc9_set_add() {
     let code = transpile(
-        r#"def add_to_set(s: set[int], val: int) -> None:
-    s.add(val)"#,
+        r"def add_to_set(s: set[int], val: int) -> None:
+    s.add(val)",
     );
     assert!(code.contains("fn") || code.contains("insert") || code.contains("val"));
 }
@@ -8844,8 +8844,8 @@ fn test_tc9_set_add() {
 #[test]
 fn test_tc9_set_remove() {
     let code = transpile(
-        r#"def remove_from_set(s: set[int], val: int) -> None:
-    s.remove(val)"#,
+        r"def remove_from_set(s: set[int], val: int) -> None:
+    s.remove(val)",
     );
     assert!(code.contains("fn") || code.contains("remove") || code.contains("val"));
 }
@@ -8853,8 +8853,8 @@ fn test_tc9_set_remove() {
 #[test]
 fn test_tc9_set_discard() {
     let code = transpile(
-        r#"def discard_from_set(s: set[int], val: int) -> None:
-    s.discard(val)"#,
+        r"def discard_from_set(s: set[int], val: int) -> None:
+    s.discard(val)",
     );
     assert!(code.contains("fn") || code.contains("remove") || code.contains("val"));
 }
@@ -8862,8 +8862,8 @@ fn test_tc9_set_discard() {
 #[test]
 fn test_tc9_set_pop() {
     let code = transpile(
-        r#"def pop_from_set(s: set[int]) -> int:
-    return s.pop()"#,
+        r"def pop_from_set(s: set[int]) -> int:
+    return s.pop()",
     );
     assert!(code.contains("fn") || code.contains("take") || code.contains("pop"));
 }
@@ -8871,8 +8871,8 @@ fn test_tc9_set_pop() {
 #[test]
 fn test_tc9_set_union() {
     let code = transpile(
-        r#"def union_sets(a: set[int], b: set[int]) -> set[int]:
-    return a.union(b)"#,
+        r"def union_sets(a: set[int], b: set[int]) -> set[int]:
+    return a.union(b)",
     );
     assert!(code.contains("fn") || code.contains("union") || code.contains("HashSet"));
 }
@@ -8880,8 +8880,8 @@ fn test_tc9_set_union() {
 #[test]
 fn test_tc9_set_intersection() {
     let code = transpile(
-        r#"def intersect_sets(a: set[int], b: set[int]) -> set[int]:
-    return a.intersection(b)"#,
+        r"def intersect_sets(a: set[int], b: set[int]) -> set[int]:
+    return a.intersection(b)",
     );
     assert!(code.contains("fn") || code.contains("intersection") || code.contains("HashSet"));
 }
@@ -8889,8 +8889,8 @@ fn test_tc9_set_intersection() {
 #[test]
 fn test_tc9_set_difference() {
     let code = transpile(
-        r#"def diff_sets(a: set[int], b: set[int]) -> set[int]:
-    return a.difference(b)"#,
+        r"def diff_sets(a: set[int], b: set[int]) -> set[int]:
+    return a.difference(b)",
     );
     assert!(code.contains("fn") || code.contains("difference") || code.contains("HashSet"));
 }
@@ -8898,8 +8898,8 @@ fn test_tc9_set_difference() {
 #[test]
 fn test_tc9_set_symmetric_difference() {
     let code = transpile(
-        r#"def sym_diff_sets(a: set[int], b: set[int]) -> set[int]:
-    return a.symmetric_difference(b)"#,
+        r"def sym_diff_sets(a: set[int], b: set[int]) -> set[int]:
+    return a.symmetric_difference(b)",
     );
     assert!(code.contains("fn") || code.contains("symmetric") || code.contains("HashSet"));
 }
@@ -8907,8 +8907,8 @@ fn test_tc9_set_symmetric_difference() {
 #[test]
 fn test_tc9_set_issubset() {
     let code = transpile(
-        r#"def is_subset(a: set[int], b: set[int]) -> bool:
-    return a.issubset(b)"#,
+        r"def is_subset(a: set[int], b: set[int]) -> bool:
+    return a.issubset(b)",
     );
     assert!(code.contains("fn") || code.contains("is_subset") || code.contains("bool"));
 }
@@ -8916,8 +8916,8 @@ fn test_tc9_set_issubset() {
 #[test]
 fn test_tc9_set_issuperset() {
     let code = transpile(
-        r#"def is_superset(a: set[int], b: set[int]) -> bool:
-    return a.issuperset(b)"#,
+        r"def is_superset(a: set[int], b: set[int]) -> bool:
+    return a.issuperset(b)",
     );
     assert!(code.contains("fn") || code.contains("is_superset") || code.contains("bool"));
 }
@@ -8925,8 +8925,8 @@ fn test_tc9_set_issuperset() {
 #[test]
 fn test_tc9_set_isdisjoint() {
     let code = transpile(
-        r#"def is_disjoint(a: set[int], b: set[int]) -> bool:
-    return a.isdisjoint(b)"#,
+        r"def is_disjoint(a: set[int], b: set[int]) -> bool:
+    return a.isdisjoint(b)",
     );
     assert!(code.contains("fn") || code.contains("is_disjoint") || code.contains("bool"));
 }

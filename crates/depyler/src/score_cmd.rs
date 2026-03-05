@@ -59,7 +59,7 @@ fn score_file(
 
     // Phase A2 & A3: Type check and build (if we have Rust code)
     let (type_check_ok, build_ok, errors) = if let Some(ref code) = rust_code {
-        // Write to temp Cargo project
+        // Write to scratch Cargo project
         let temp_dir = tempfile::tempdir()?;
         let src_dir = temp_dir.path().join("src");
         std::fs::create_dir_all(&src_dir)?;

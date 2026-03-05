@@ -1004,7 +1004,7 @@ mod tests {
             .with_source_line("    x = 10");
         let display = format!("{}", error);
         assert!(display.contains("x = 10"));
-        assert!(display.contains("|"));
+        assert!(display.contains('|'));
     }
 
     #[test]
@@ -1013,7 +1013,7 @@ mod tests {
         error.source_line = Some("x = 10".to_string());
         error.line = Some(5);
         let display = format!("{}", error);
-        assert!(!display.contains("|"));
+        assert!(!display.contains('|'));
     }
 
     #[test]
@@ -1149,7 +1149,7 @@ mod tests {
             .with_location("test.py", 1, 1)
             .with_source_line("x");
         let display = format!("{}", error);
-        assert!(display.contains("^"));
+        assert!(display.contains('^'));
     }
 
     #[test]
@@ -1158,7 +1158,7 @@ mod tests {
             .with_location("test.py", 1, 100)
             .with_source_line("short line");
         let display = format!("{}", error);
-        assert!(display.contains("^"));
+        assert!(display.contains('^'));
     }
 
     #[test]
@@ -1354,7 +1354,7 @@ mod tests {
             .with_location("test.py", 1, 0)
             .with_source_line("test");
         let display = format!("{}", error);
-        assert!(display.contains("^"));
+        assert!(display.contains('^'));
     }
 
     #[test]

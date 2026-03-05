@@ -642,11 +642,11 @@ impl Default for CodeGenContext<'static> {
 #[cfg(test)]
 pub mod test_helpers {
     use super::*;
-    use once_cell::sync::Lazy;
+    
 
     /// Static TypeMapper for test contexts
-    static TEST_TYPE_MAPPER: Lazy<crate::type_mapper::TypeMapper> =
-        Lazy::new(crate::type_mapper::TypeMapper::new);
+    static TEST_TYPE_MAPPER: std::sync::LazyLock<crate::type_mapper::TypeMapper> =
+        std::sync::LazyLock::new(crate::type_mapper::TypeMapper::new);
 
     /// Create a test CodeGenContext with default values
     ///

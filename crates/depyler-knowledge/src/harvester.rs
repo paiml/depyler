@@ -464,8 +464,7 @@ mod tests {
         let path_str = harvester.target_dir().to_string_lossy().to_string();
         assert!(
             path_str.contains("depyler-harvest"),
-            "Expected path to contain 'depyler-harvest', got: {}",
-            path_str
+            "Expected path to contain 'depyler-harvest', got: {path_str}"
         );
         harvester.cleanup().unwrap();
     }

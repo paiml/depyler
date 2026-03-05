@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn test_s9b7_type_fact_debug() {
         let fact = TypeFact::function("m", "f", "sig", "ret");
-        let debug = format!("{:?}", fact);
+        let debug = format!("{fact:?}");
         assert!(debug.contains("TypeFact"));
         assert!(debug.contains("Function"));
     }

@@ -969,9 +969,9 @@ mod tests {
             category: SuggestionCategory::Iterator,
             severity: Severity::Info,
             title: "Info level".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         });
@@ -980,9 +980,9 @@ mod tests {
             category: SuggestionCategory::ErrorHandling,
             severity: Severity::Critical,
             title: "Critical level".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         });
@@ -991,9 +991,9 @@ mod tests {
             category: SuggestionCategory::Performance,
             severity: Severity::Warning,
             title: "Warning level".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         });
@@ -1343,8 +1343,8 @@ mod tests {
             severity: Severity::Important,
             title: "Performance hint".to_string(),
             description: "Consider caching".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: Some(SourceLocation { function: "my_func".to_string(), line: 42 }),
         };
@@ -1380,9 +1380,9 @@ mod tests {
             category: SuggestionCategory::Ownership,
             severity: Severity::Critical,
             title: "Clone test".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         };
@@ -1581,14 +1581,14 @@ mod tests {
             category: SuggestionCategory::Iterator,
             severity: Severity::Warning,
             title: "Test Title".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         };
         let formatted = analyzer.format_suggestion_title(&suggestion, 1);
-        assert!(formatted.contains("Test Title") || formatted.contains("1"));
+        assert!(formatted.contains("Test Title") || formatted.contains('1'));
     }
 
     #[test]
@@ -1597,10 +1597,10 @@ mod tests {
         let suggestion = MigrationSuggestion {
             category: SuggestionCategory::Performance,
             severity: Severity::Important,
-            title: "".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            title: String::new(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: Some(SourceLocation { function: "my_func".to_string(), line: 100 }),
         };
@@ -1614,8 +1614,8 @@ mod tests {
         let suggestion = MigrationSuggestion {
             category: SuggestionCategory::Iterator,
             severity: Severity::Info,
-            title: "".to_string(),
-            description: "".to_string(),
+            title: String::new(),
+            description: String::new(),
             python_example: "for i in range(len(x)):".to_string(),
             rust_suggestion: "for item in x.iter()".to_string(),
             notes: vec![],
@@ -1631,10 +1631,10 @@ mod tests {
         let suggestion = MigrationSuggestion {
             category: SuggestionCategory::Ownership,
             severity: Severity::Critical,
-            title: "".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            title: String::new(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec!["Note 1".to_string(), "Note 2".to_string()],
             location: None,
         };
@@ -1650,9 +1650,9 @@ mod tests {
                 category: SuggestionCategory::Iterator,
                 severity: Severity::Warning,
                 title: "Suggestion 1".to_string(),
-                description: "".to_string(),
-                python_example: "".to_string(),
-                rust_suggestion: "".to_string(),
+                description: String::new(),
+                python_example: String::new(),
+                rust_suggestion: String::new(),
                 notes: vec![],
                 location: None,
             },
@@ -1660,15 +1660,15 @@ mod tests {
                 category: SuggestionCategory::Performance,
                 severity: Severity::Critical,
                 title: "Suggestion 2".to_string(),
-                description: "".to_string(),
-                python_example: "".to_string(),
-                rust_suggestion: "".to_string(),
+                description: String::new(),
+                python_example: String::new(),
+                rust_suggestion: String::new(),
                 notes: vec![],
                 location: None,
             },
         ];
         let summary = analyzer.format_summary(&suggestions);
-        assert!(summary.contains("2") || summary.contains("suggestion"));
+        assert!(summary.contains('2') || summary.contains("suggestion"));
     }
 
     #[test]
@@ -1845,9 +1845,9 @@ mod tests {
             category: SuggestionCategory::TypeSystem,
             severity: Severity::Info,
             title: "Debug test".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         };
@@ -1871,9 +1871,9 @@ mod tests {
             category: SuggestionCategory::Iterator,
             severity: Severity::Warning,
             title: "Test".to_string(),
-            description: "".to_string(),
-            python_example: "".to_string(),
-            rust_suggestion: "".to_string(),
+            description: String::new(),
+            python_example: String::new(),
+            rust_suggestion: String::new(),
             notes: vec![],
             location: None,
         });

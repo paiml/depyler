@@ -286,7 +286,7 @@ pub fn vectorize_corpus(
 fn check_rust_compilation(rust_code: &str) -> Vec<(String, String, usize)> {
     use std::process::Command;
 
-    // Write to temp file in temp directory
+    // Write to scratch file in scratch directory
     let temp_dir = match tempfile::tempdir() {
         Ok(d) => d,
         Err(_) => return vec![],
@@ -298,7 +298,7 @@ fn check_rust_compilation(rust_code: &str) -> Vec<(String, String, usize)> {
         return vec![];
     }
 
-    // Run rustc --error-format=json (output to temp dir, not /dev/null)
+    // Run rustc --error-format=json (output to scratch dir, not /dev/null)
     let output = Command::new("rustc")
         .args(["--error-format=json", "--crate-type=lib", "--emit=metadata"])
         .arg("-o")

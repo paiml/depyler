@@ -832,8 +832,8 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
     let temp_dir = std::env::temp_dir();
     let pid = std::process::id();
     let temp_file = temp_dir.join(format!("utol_check_{pid}.rs"));
-    // DEPYLER-1119: Use proper temp file for output, not /dev/null
-    // Using /dev/null causes rustc to try creating temp dirs in /dev/ which fails
+    // DEPYLER-1119: Use proper scratch file for output, not /dev/null
+    // Using /dev/null causes rustc to try creating dirs in /dev/ which fails
     let temp_output = temp_dir.join(format!("utol_out_{pid}"));
 
     // Write Rust code
@@ -856,7 +856,7 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
         .output()
         .map_err(|e| e.to_string())?;
 
-    // Clean up both temp files
+    // Remove both scratch files
     let _ = std::fs::remove_file(&temp_file);
     let _ = std::fs::remove_file(&temp_output);
 

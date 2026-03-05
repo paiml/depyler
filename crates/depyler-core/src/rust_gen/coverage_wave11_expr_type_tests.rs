@@ -771,7 +771,7 @@ mod tests {
     fn test_w11et_lambda_basic_sort() {
         let result =
             transpile("def sort_items(items: list) -> list:\n    items.sort()\n    return items");
-        assert!(result.contains("sort") || result.len() > 0, "expected sort in: {result}");
+        assert!(result.contains("sort") || !result.is_empty(), "expected sort in: {result}");
     }
 
     #[test]
@@ -966,7 +966,7 @@ mod tests {
         let result =
             transpile("def count():\n    for i in range(10):\n        x = i\n    return x");
         assert!(
-            result.contains("0..10") || result.contains("range") || result.len() > 0,
+            result.contains("0..10") || result.contains("range") || !result.is_empty(),
             "expected range in: {result}"
         );
     }

@@ -525,7 +525,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         body: &HirExpr,
         orelse: &HirExpr,
     ) -> Result<syn::Expr> {
-        // DEPYLER-0377: Optimize `x if x else default` pattern
+        // DEPYLER-0377: Simplify `x if x else default` pattern
         // Python: `args.include if args.include else []` (check if list is non-empty)
         // Rust: Just `args.include` (clap initializes Vec to empty, so redundant check)
         // This pattern is common with argparse + Vec/Option fields
@@ -1010,7 +1010,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // Clean up: remove the temporary target variable
+            // Remove the transient target variable after use
             if element_type.is_some() {
                 self.ctx.var_types.remove(&target_var_name);
             }

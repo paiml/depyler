@@ -275,10 +275,10 @@ mod tests {
     #[test]
     fn test_subscript_simple_event_access() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['Records']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["Records"]));
     }
@@ -286,10 +286,10 @@ def handler(event, context):
     #[test]
     fn test_subscript_nested_event_access() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['Records']['s3']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["Records", "s3"]));
     }
@@ -297,10 +297,10 @@ def handler(event, context):
     #[test]
     fn test_subscript_deeply_nested_access() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['Records']['s3']['bucket']['name']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["Records", "s3", "bucket", "name"]));
     }
@@ -308,10 +308,10 @@ def handler(event, context):
     #[test]
     fn test_subscript_numeric_index_skipped() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['Records'][0]['s3']
-"#,
+",
         );
         // Numeric indices should be skipped
         assert!(patterns.iter().any(|p| p.access_chain == vec!["Records", "s3"]));
@@ -320,11 +320,11 @@ def handler(event, context):
     #[test]
     fn test_subscript_non_event_ignored() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     data = {'foo': 'bar'}
     x = data['foo']
-"#,
+",
         );
         // Non-event subscripts should not produce patterns
         assert!(patterns.is_empty());
@@ -333,10 +333,10 @@ def handler(event, context):
     #[test]
     fn test_subscript_mixed_with_attribute() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['Records'][0].data
-"#,
+",
         );
         // Should capture mixed patterns
         assert!(!patterns.is_empty());
@@ -349,10 +349,10 @@ def handler(event, context):
     #[test]
     fn test_attribute_simple_access() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event.body
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
         assert!(patterns.iter().any(|p| p.pattern_type == PatternType::Attribute));
@@ -361,10 +361,10 @@ def handler(event, context):
     #[test]
     fn test_attribute_nested_access() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event.body.data
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body", "data"]));
     }
@@ -372,11 +372,11 @@ def handler(event, context):
     #[test]
     fn test_attribute_non_event_ignored() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     obj = SomeClass()
     x = obj.attribute
-"#,
+",
         );
         assert!(patterns.is_empty());
     }
@@ -388,10 +388,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_assign() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['body']
-"#,
+",
         );
         assert!(!patterns.is_empty());
     }
@@ -399,10 +399,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_annotated_assign() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x: str = event['body']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
     }
@@ -410,10 +410,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_annotated_assign_no_value() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x: str
-"#,
+",
         );
         // No event access, should be empty
         assert!(patterns.is_empty());
@@ -422,10 +422,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_return() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     return event['data']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -433,10 +433,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_return_none() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     return
-"#,
+",
         );
         assert!(patterns.is_empty());
     }
@@ -444,11 +444,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_if_test() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     if event['status']:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["status"]));
     }
@@ -456,11 +456,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_if_body() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     if True:
         x = event['body']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
     }
@@ -468,13 +468,13 @@ def handler(event, context):
     #[test]
     fn test_extract_from_if_else() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     if True:
         pass
     else:
         x = event['data']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -482,11 +482,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_for_iter() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     for record in event['Records']:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["Records"]));
     }
@@ -494,11 +494,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_for_body() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     for i in range(10):
         x = event['body']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
     }
@@ -506,11 +506,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_while_test() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     while event['status']:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["status"]));
     }
@@ -518,12 +518,12 @@ def handler(event, context):
     #[test]
     fn test_extract_from_while_body() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     while True:
         x = event['data']
         break
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -531,11 +531,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_with_context() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     with event['resource'] as r:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["resource"]));
     }
@@ -543,11 +543,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_with_body() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     with open('file') as f:
         x = event['data']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -555,10 +555,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_expr_stmt() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     event['action']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["action"]));
     }
@@ -570,10 +570,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_call_func() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     event['handler']()
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["handler"]));
     }
@@ -581,10 +581,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_call_args() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     process(event['data'])
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -592,10 +592,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_call_kwargs() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     process(data=event['body'])
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["body"]));
     }
@@ -603,10 +603,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_binop() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['a'] + event['b']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["a"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["b"]));
@@ -615,11 +615,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_compare() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     if event['a'] == event['b']:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["a"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["b"]));
@@ -628,11 +628,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_boolop() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     if event['a'] and event['b']:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["a"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["b"]));
@@ -641,11 +641,11 @@ def handler(event, context):
     #[test]
     fn test_extract_from_unaryop() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     if not event['flag']:
         pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["flag"]));
     }
@@ -653,10 +653,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_ifexp() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['a'] if event['cond'] else event['b']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["a"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["cond"]));
@@ -666,10 +666,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_dict_values() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     return {'result': event['data']}
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -677,10 +677,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_list_elements() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     return [event['a'], event['b']]
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["a"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["b"]));
@@ -689,10 +689,10 @@ def handler(event, context):
     #[test]
     fn test_extract_from_tuple_elements() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     return (event['a'], event['b'])
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["a"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["b"]));
@@ -705,7 +705,7 @@ def handler(event, context):
     #[test]
     fn test_multiple_functions_in_module() {
         let patterns = get_patterns(
-            r#"
+            r"
 def helper():
     pass
 
@@ -715,7 +715,7 @@ def handler(event, context):
 
 def another_helper():
     pass
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }
@@ -723,10 +723,10 @@ def another_helper():
     #[test]
     fn test_empty_function() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     pass
-"#,
+",
         );
         assert!(patterns.is_empty());
     }
@@ -734,10 +734,10 @@ def handler(event, context):
     #[test]
     fn test_no_function_def() {
         let patterns = get_patterns(
-            r#"
+            r"
 x = 1
 y = 2
-"#,
+",
         );
         assert!(patterns.is_empty());
     }
@@ -745,12 +745,12 @@ y = 2
     #[test]
     fn test_nested_function() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     def inner():
         return event['inner_data']
     return event['outer_data']
-"#,
+",
         );
         // Only outer patterns are extracted
         assert!(patterns.iter().any(|p| p.access_chain == vec!["outer_data"]));
@@ -759,12 +759,12 @@ def handler(event, context):
     #[test]
     fn test_complex_s3_pattern() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = event['Records'][0]['s3']['object']['key']
     return {'bucket': bucket, 'key': key}
-"#,
+",
         );
         assert!(patterns.len() >= 2);
         assert!(patterns.iter().any(|p| p.access_chain.contains(&"bucket".to_string())));
@@ -774,13 +774,13 @@ def handler(event, context):
     #[test]
     fn test_api_gateway_pattern() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     method = event['requestContext']['http']['method']
     path = event['requestContext']['http']['path']
     body = event['body']
     return {'method': method, 'path': path}
-"#,
+",
         );
         assert!(patterns.len() >= 3);
         assert!(patterns.iter().any(|p| p.access_chain.contains(&"requestContext".to_string())));
@@ -790,13 +790,13 @@ def handler(event, context):
     #[test]
     fn test_eventbridge_pattern() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     detail_type = event['detail-type']
     detail = event['detail']
     source = event['source']
     return None
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["detail-type"]));
         assert!(patterns.iter().any(|p| p.access_chain == vec!["detail"]));
@@ -806,10 +806,10 @@ def handler(event, context):
     #[test]
     fn test_pattern_type_is_mixed_for_subscript() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event['data']
-"#,
+",
         );
         assert!(patterns.iter().all(|p| p.pattern_type == PatternType::Mixed));
     }
@@ -817,10 +817,10 @@ def handler(event, context):
     #[test]
     fn test_pattern_type_is_attribute_for_dot_access() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = event.data
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.pattern_type == PatternType::Attribute));
     }
@@ -828,10 +828,10 @@ def handler(event, context):
     #[test]
     fn test_multiple_targets_in_assign() {
         let patterns = get_patterns(
-            r#"
+            r"
 def handler(event, context):
     x = y = event['data']
-"#,
+",
         );
         assert!(patterns.iter().any(|p| p.access_chain == vec!["data"]));
     }

@@ -131,7 +131,7 @@ impl<'a> CompilationVerifier<'a> {
             .output()
             .with_context(|| format!("Failed to run rustc on {}", rs_file.display()))?;
 
-        // Clean up temp dir
+        // Remove scratch dir
         let _ = std::fs::remove_dir_all(&temp_dir);
 
         let duration = start.elapsed();

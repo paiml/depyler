@@ -208,7 +208,7 @@ def repro_function():
     /// Poka-yoke: This is the critical check that ensures TDD Red.
     pub fn verify_fails(&self, repro: &mut ReproCase) -> anyhow::Result<bool> {
         // In real implementation:
-        // 1. Write repro.source to a temp file
+        // 1. Write repro.source to a scratch file
         // 2. Run depyler transpile
         // 3. Run rustc --crate-type lib
         // 4. Check for expected error code

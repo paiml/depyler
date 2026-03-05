@@ -125,7 +125,7 @@ mod tests {
         let args = vec![
             HirExpr::Var("concat".to_string()),
             HirExpr::Var("strings".to_string()),
-            HirExpr::Literal(Literal::String("".to_string())),
+            HirExpr::Literal(Literal::String(String::new())),
         ];
         let result = convert_functools_method("reduce", &args, &mut ctx);
         assert!(result.is_ok());

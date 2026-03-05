@@ -4231,7 +4231,7 @@ mod tests {
     #[test]
     fn test_literal_to_type_string() {
         assert_eq!(literal_to_type(&Literal::String("hello".to_string())), Type::String);
-        assert_eq!(literal_to_type(&Literal::String("".to_string())), Type::String);
+        assert_eq!(literal_to_type(&Literal::String(String::new())), Type::String);
     }
 
     #[test]

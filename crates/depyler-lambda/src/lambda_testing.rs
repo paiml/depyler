@@ -920,7 +920,7 @@ mod tests {
             should_succeed: true,
             description: String::new(),
         };
-        let debug = format!("{:?}", event);
+        let debug = format!("{event:?}");
         assert!(debug.contains("TestEvent"));
         assert!(debug.contains("debug_test"));
     }
@@ -963,7 +963,7 @@ mod tests {
     #[test]
     fn test_test_context_debug() {
         let ctx = TestContext::default();
-        let debug = format!("{:?}", ctx);
+        let debug = format!("{ctx:?}");
         assert!(debug.contains("TestContext"));
         assert!(debug.contains("test-function"));
     }
@@ -994,7 +994,7 @@ mod tests {
     #[test]
     fn test_performance_benchmarks_debug() {
         let bench = PerformanceBenchmarks::default();
-        let debug = format!("{:?}", bench);
+        let debug = format!("{bench:?}");
         assert!(debug.contains("PerformanceBenchmarks"));
     }
 
@@ -1054,7 +1054,7 @@ mod tests {
             error_message: None,
             response: None,
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("TestResult"));
     }
 
@@ -1098,7 +1098,7 @@ mod tests {
             throughput_rps: 0.0,
             binary_size_kb: 0,
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("BenchmarkResult"));
     }
 
@@ -1129,7 +1129,7 @@ mod tests {
     #[test]
     fn test_harness_debug() {
         let harness = LambdaTestHarness::new();
-        let debug = format!("{:?}", harness);
+        let debug = format!("{harness:?}");
         assert!(debug.contains("LambdaTestHarness"));
     }
 

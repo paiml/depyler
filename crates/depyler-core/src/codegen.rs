@@ -326,7 +326,7 @@ fn handle_assign_target(
                             let index_expr = expr_to_rust_tokens(index)?;
                             let tuple_idx = syn::Index::from(idx);
 
-                            // Vec assignment: base[index as usize] = temp.N
+                            // Vec assignment: base[index as usize] = tup.N
                             assignments.push(quote! {
                                 #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
                             });

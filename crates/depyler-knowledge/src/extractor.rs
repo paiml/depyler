@@ -385,9 +385,9 @@ mod tests {
 
     #[test]
     fn test_extract_simple_function() {
-        let source = r#"
+        let source = r"
 def get(url: str) -> Response: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "requests", "test.pyi").unwrap();
 
@@ -400,9 +400,9 @@ def get(url: str) -> Response: ...
 
     #[test]
     fn test_extract_function_with_optional() {
-        let source = r#"
+        let source = r"
 def get(url: str, params: dict | None = ...) -> Response: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "requests", "test.pyi").unwrap();
 
@@ -412,12 +412,12 @@ def get(url: str, params: dict | None = ...) -> Response: ...
 
     #[test]
     fn test_extract_class_with_methods() {
-        let source = r#"
+        let source = r"
 class Response:
     status_code: int
     def json(self) -> dict: ...
     def text(self) -> str: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "requests.models", "test.pyi").unwrap();
 
@@ -434,10 +434,10 @@ class Response:
 
     #[test]
     fn test_excludes_private_by_default() {
-        let source = r#"
+        let source = r"
 def _private(): ...
 def public(): ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -447,10 +447,10 @@ def public(): ...
 
     #[test]
     fn test_includes_private_when_enabled() {
-        let source = r#"
+        let source = r"
 def _private(): ...
 def public(): ...
-"#;
+";
         let extractor = Extractor::new().with_private();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -459,9 +459,9 @@ def public(): ...
 
     #[test]
     fn test_extract_kwargs() {
-        let source = r#"
+        let source = r"
 def get(url: str, **kwargs) -> Response: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "requests", "test.pyi").unwrap();
 
@@ -480,9 +480,9 @@ def get(url: str, **kwargs) -> Response: ...
 
     #[test]
     fn test_extract_async_function() {
-        let source = r#"
+        let source = r"
 async def fetch(url: str) -> bytes: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "aiohttp", "test.pyi").unwrap();
 
@@ -495,9 +495,9 @@ async def fetch(url: str) -> bytes: ...
 
     #[test]
     fn test_extract_function_no_return_type() {
-        let source = r#"
+        let source = r"
 def setup(): ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -507,10 +507,10 @@ def setup(): ...
 
     #[test]
     fn test_extract_annotated_assign() {
-        let source = r#"
+        let source = r"
 VERSION: str
 DEBUG: bool
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "config", "test.pyi").unwrap();
 
@@ -524,10 +524,10 @@ DEBUG: bool
 
     #[test]
     fn test_extract_private_annotated_assign_excluded() {
-        let source = r#"
+        let source = r"
 _internal: int
 public: str
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -537,9 +537,9 @@ public: str
 
     #[test]
     fn test_extract_generic_type() {
-        let source = r#"
+        let source = r"
 def values() -> List[int]: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -549,9 +549,9 @@ def values() -> List[int]: ...
 
     #[test]
     fn test_extract_nested_generic_type() {
-        let source = r#"
+        let source = r"
 def nested() -> Dict[str, List[int]]: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -561,9 +561,9 @@ def nested() -> Dict[str, List[int]]: ...
 
     #[test]
     fn test_extract_union_type_pipe() {
-        let source = r#"
+        let source = r"
 def maybe(x: int) -> str | None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -573,9 +573,9 @@ def maybe(x: int) -> str | None: ...
 
     #[test]
     fn test_extract_varargs() {
-        let source = r#"
+        let source = r"
 def concat(*args: str) -> str: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -585,11 +585,11 @@ def concat(*args: str) -> str: ...
 
     #[test]
     fn test_extract_class_attribute() {
-        let source = r#"
+        let source = r"
 class Config:
     timeout: int
     name: str
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "app", "test.pyi").unwrap();
 
@@ -603,11 +603,11 @@ class Config:
 
     #[test]
     fn test_extract_class_private_method_excluded() {
-        let source = r#"
+        let source = r"
 class MyClass:
     def _private(self) -> None: ...
     def public(self) -> int: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -619,11 +619,11 @@ class MyClass:
 
     #[test]
     fn test_extract_class_private_method_included() {
-        let source = r#"
+        let source = r"
 class MyClass:
     def _private(self) -> None: ...
     def public(self) -> int: ...
-"#;
+";
         let extractor = Extractor::new().with_private();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -633,10 +633,10 @@ class MyClass:
 
     #[test]
     fn test_extract_async_method() {
-        let source = r#"
+        let source = r"
 class Client:
     async def fetch(self, url: str) -> bytes: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "http", "test.pyi").unwrap();
 
@@ -665,11 +665,11 @@ class Client:
 
     #[test]
     fn test_extract_multiple_functions() {
-        let source = r#"
+        let source = r"
 def add(a: int, b: int) -> int: ...
 def sub(a: int, b: int) -> int: ...
 def mul(a: int, b: int) -> int: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "math_ops", "test.pyi").unwrap();
 
@@ -682,9 +682,9 @@ def mul(a: int, b: int) -> int: ...
 
     #[test]
     fn test_extract_function_with_default_no_type() {
-        let source = r#"
+        let source = r"
 def func(x, y = ...): ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -694,9 +694,9 @@ def func(x, y = ...): ...
 
     #[test]
     fn test_extract_dotted_return_type() {
-        let source = r#"
+        let source = r"
 def connect() -> http.client.HTTPConnection: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -710,21 +710,21 @@ def connect() -> http.client.HTTPConnection: ...
 
     #[test]
     fn test_s9b7_extract_posonly_args() {
-        let source = r#"
+        let source = r"
 def func(a: int, b: int, /, c: int) -> int: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
         // Should contain the / separator
-        assert!(facts[0].signature.contains("/"));
+        assert!(facts[0].signature.contains('/'));
     }
 
     #[test]
     fn test_s9b7_extract_kwonly_args() {
-        let source = r#"
+        let source = r"
 def func(*, key: str) -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -733,9 +733,9 @@ def func(*, key: str) -> None: ...
 
     #[test]
     fn test_s9b7_extract_constant_type_in_annotation() {
-        let source = r#"
+        let source = r"
 def func() -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts[0].return_type, "None");
@@ -743,9 +743,9 @@ def func() -> None: ...
 
     #[test]
     fn test_s9b7_extract_list_type_annotation() {
-        let source = r#"
+        let source = r"
 def func() -> [int, str]: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -754,11 +754,11 @@ def func() -> [int, str]: ...
 
     #[test]
     fn test_s9b7_extract_class_private_attribute_excluded() {
-        let source = r#"
+        let source = r"
 class MyClass:
     _private: int
     public: str
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         // class + public attribute only
@@ -768,11 +768,11 @@ class MyClass:
 
     #[test]
     fn test_s9b7_extract_class_private_attribute_included() {
-        let source = r#"
+        let source = r"
 class MyClass:
     _private: int
     public: str
-"#;
+";
         let extractor = Extractor::new().with_private();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         // class + both attributes
@@ -781,10 +781,10 @@ class MyClass:
 
     #[test]
     fn test_s9b7_extract_async_method_in_class() {
-        let source = r#"
+        let source = r"
 class Service:
     async def process(self, data: bytes) -> str: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "svc", "test.pyi").unwrap();
         assert_eq!(facts.len(), 2); // class + method
@@ -795,9 +795,9 @@ class Service:
 
     #[test]
     fn test_s9b7_extract_function_with_typed_default() {
-        let source = r#"
+        let source = r"
 def func(x: int = ..., y: str = ...) -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -815,13 +815,13 @@ def func(x: int = ..., y: str = ...) -> None: ...
 
     #[test]
     fn test_s9b7_extract_multiple_classes() {
-        let source = r#"
+        let source = r"
 class A:
     def method_a(self) -> int: ...
 
 class B:
     def method_b(self) -> str: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         // 2 classes + 2 methods
@@ -830,10 +830,10 @@ class B:
 
     #[test]
     fn test_extract_private_class_excluded() {
-        let source = r#"
+        let source = r"
 class _Internal: ...
 class Public: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
 
@@ -849,9 +849,9 @@ class Public: ...
     #[test]
     fn test_s11_expr_to_string_constant_int_in_annotation() {
         // Python allows integer literals in type annotations (e.g., Literal[42])
-        let source = r#"
+        let source = r"
 x: 42
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -861,9 +861,9 @@ x: 42
     #[test]
     fn test_s11_expr_to_string_constant_float_in_annotation() {
         // Use a value that won't be parsed as int (e.g. 3.5)
-        let source = r#"
+        let source = r"
 x: 3.5
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -872,9 +872,9 @@ x: 3.5
 
     #[test]
     fn test_s11_expr_to_string_constant_bool_true() {
-        let source = r#"
+        let source = r"
 x: True
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -883,9 +883,9 @@ x: True
 
     #[test]
     fn test_s11_expr_to_string_constant_bool_false() {
-        let source = r#"
+        let source = r"
 x: False
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -894,9 +894,9 @@ x: False
 
     #[test]
     fn test_s11_expr_to_string_constant_ellipsis() {
-        let source = r#"
+        let source = r"
 x: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -914,9 +914,9 @@ x: ...
 
     #[test]
     fn test_s11_expr_to_string_constant_none() {
-        let source = r#"
+        let source = r"
 x: None
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -926,9 +926,9 @@ x: None
     #[test]
     fn test_s11_expr_to_string_non_bitor_binop() {
         // Using + operator in annotation should produce "Unknown"
-        let source = r#"
+        let source = r"
 x: int + str
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -937,9 +937,9 @@ x: int + str
 
     #[test]
     fn test_s11_extract_tuple_return_type() {
-        let source = r#"
+        let source = r"
 def func() -> (int, str, float): ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -948,9 +948,9 @@ def func() -> (int, str, float): ...
 
     #[test]
     fn test_s11_extract_deeply_nested_subscript() {
-        let source = r#"
+        let source = r"
 def func() -> Dict[str, List[Optional[int]]]: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -959,9 +959,9 @@ def func() -> Dict[str, List[Optional[int]]]: ...
 
     #[test]
     fn test_s11_extract_attribute_type_nested() {
-        let source = r#"
+        let source = r"
 x: collections.abc.Mapping
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -970,9 +970,9 @@ x: collections.abc.Mapping
 
     #[test]
     fn test_s11_extract_union_pipe_chained() {
-        let source = r#"
+        let source = r"
 def func() -> int | str | None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -982,26 +982,26 @@ def func() -> int | str | None: ...
 
     #[test]
     fn test_s11_extract_posonly_with_kwonly_combined() {
-        let source = r#"
+        let source = r"
 def func(a: int, b: int, /, c: int, *, d: str) -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
         let sig = &facts[0].signature;
         assert!(sig.contains("a: int"));
-        assert!(sig.contains("/"));
+        assert!(sig.contains('/'));
         assert!(sig.contains("c: int"));
         assert!(sig.contains("d: str"));
     }
 
     #[test]
     fn test_s11_extract_class_with_async_private_method_included() {
-        let source = r#"
+        let source = r"
 class Service:
     async def _internal(self) -> None: ...
     async def public(self) -> str: ...
-"#;
+";
         let extractor = Extractor::new().with_private();
         let facts = extractor.extract_source(source, "svc", "test.pyi").unwrap();
         // class + 2 methods (both included with private flag)
@@ -1012,10 +1012,10 @@ class Service:
 
     #[test]
     fn test_s11_extract_annotated_assign_private_excluded() {
-        let source = r#"
+        let source = r"
 _PRIVATE_CONST: int
 PUBLIC_CONST: str
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "config", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1024,10 +1024,10 @@ PUBLIC_CONST: str
 
     #[test]
     fn test_s11_extract_annotated_assign_private_included() {
-        let source = r#"
+        let source = r"
 _PRIVATE_CONST: int
 PUBLIC_CONST: str
-"#;
+";
         let extractor = Extractor::new().with_private();
         let facts = extractor.extract_source(source, "config", "test.pyi").unwrap();
         assert_eq!(facts.len(), 2);
@@ -1035,9 +1035,9 @@ PUBLIC_CONST: str
 
     #[test]
     fn test_s11_extract_function_only_varargs() {
-        let source = r#"
+        let source = r"
 def func(*args: int, **kwargs: str) -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1048,9 +1048,9 @@ def func(*args: int, **kwargs: str) -> None: ...
 
     #[test]
     fn test_s11_extract_function_untyped_vararg() {
-        let source = r#"
+        let source = r"
 def func(*args) -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1059,9 +1059,9 @@ def func(*args) -> None: ...
 
     #[test]
     fn test_s11_extract_function_untyped_kwarg() {
-        let source = r#"
+        let source = r"
 def func(**kw) -> None: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1071,13 +1071,13 @@ def func(**kw) -> None: ...
     #[test]
     fn test_s11_extract_class_with_mixed_statement_types() {
         // Class with methods, async methods, attributes, and ignored statements
-        let source = r#"
+        let source = r"
 class MyClass:
     name: str
     async def fetch(self) -> bytes: ...
     def process(self) -> int: ...
     x = 42
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         // class + name attr + fetch method + process method = 4
@@ -1088,11 +1088,11 @@ class MyClass:
     #[test]
     fn test_s11_extract_source_with_ignored_statement_types() {
         // Import statements and other non-function/class/annassign stmts are ignored
-        let source = r#"
+        let source = r"
 import os
 from typing import List
 def real_func() -> int: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1109,9 +1109,9 @@ def real_func() -> int: ...
 
     #[test]
     fn test_s11_extract_list_type_with_nested_elements() {
-        let source = r#"
+        let source = r"
 def func() -> [List[int], Dict[str, str]]: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1126,9 +1126,9 @@ def func() -> [List[int], Dict[str, str]]: ...
     #[test]
     fn test_s12_extract_function_no_params() {
         // Function with zero parameters
-        let source = r#"
+        let source = r"
 def no_args() -> int: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1142,9 +1142,9 @@ def no_args() -> int: ...
     #[test]
     fn test_s12_extract_function_no_return_type() {
         // Function without return annotation - type_to_string returns "None" for missing returns
-        let source = r#"
+        let source = r"
 def no_return(x: int): ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1154,10 +1154,10 @@ def no_return(x: int): ...
     #[test]
     fn test_s12_extract_method_self_excluded_from_sig() {
         // Method with self parameter - self should be excluded from signature
-        let source = r#"
+        let source = r"
 class Foo:
     def bar(self, x: int) -> str: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         let method = facts.iter().find(|f| f.kind == TypeFactKind::Method).unwrap();
@@ -1167,10 +1167,10 @@ class Foo:
 
     #[test]
     fn test_s12_extract_class_attribute_fqn() {
-        let source = r#"
+        let source = r"
 class Config:
     debug: bool
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         let attr = facts.iter().find(|f| f.kind == TypeFactKind::Attribute).unwrap();
@@ -1181,9 +1181,9 @@ class Config:
     #[test]
     fn test_s12_extract_module_attribute() {
         // Top-level annotated assign is a module attribute
-        let source = r#"
+        let source = r"
 VERSION: str
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1193,9 +1193,9 @@ VERSION: str
 
     #[test]
     fn test_s12_extract_generic_subscript() {
-        let source = r#"
+        let source = r"
 def func() -> Callable[[int, str], bool]: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
@@ -1205,10 +1205,10 @@ def func() -> Callable[[int, str], bool]: ...
     #[test]
     fn test_s12_extractor_default_no_private() {
         let extractor = Extractor::new();
-        let source = r#"
+        let source = r"
 def _private() -> None: ...
 def public() -> None: ...
-"#;
+";
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert_eq!(facts.len(), 1);
         assert_eq!(facts[0].symbol, "public");
@@ -1216,7 +1216,7 @@ def public() -> None: ...
 
     #[test]
     fn test_s12_extract_multiple_classes_and_functions() {
-        let source = r#"
+        let source = r"
 class A:
     def m(self) -> int: ...
 
@@ -1225,7 +1225,7 @@ class B:
     def n(self) -> str: ...
 
 def standalone(a: int, b: int) -> int: ...
-"#;
+";
         let extractor = Extractor::new();
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         // A(class) + A.m(method) + B(class) + B.x(attr) + B.n(method) + standalone(func) = 6
@@ -1259,10 +1259,10 @@ def standalone(a: int, b: int) -> int: ...
         let stub_path = dir.path().join("mymodule.pyi");
         std::fs::write(
             &stub_path,
-            r#"class MyClass:
+            r"class MyClass:
     def method(self, x: int) -> str: ...
     name: str
-"#,
+",
         )
         .unwrap();
 
@@ -1307,11 +1307,11 @@ def standalone(a: int, b: int) -> int: ...
     #[test]
     fn test_s12_extract_source_nested_class() {
         let extractor = Extractor::new();
-        let source = r#"class Outer:
+        let source = r"class Outer:
     class Inner:
         def inner_method(self) -> int: ...
     def outer_method(self) -> str: ...
-"#;
+";
         let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
         assert!(facts.len() >= 2);
     }
@@ -1319,11 +1319,11 @@ def standalone(a: int, b: int) -> int: ...
     #[test]
     fn test_s12_extract_source_complex_signatures() {
         let extractor = Extractor::new();
-        let source = r#"
+        let source = r"
 def foo(a: int, b: str, c: float = 0.0) -> bool: ...
 def bar(items: list, key: str) -> dict: ...
 def baz(*args, **kwargs) -> None: ...
-"#;
+";
         let facts = extractor.extract_source(source, "sigs", "sigs.pyi").unwrap();
         assert_eq!(facts.len(), 3);
     }

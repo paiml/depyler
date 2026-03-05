@@ -679,7 +679,7 @@ mod tests {
     #[test]
     fn test_optimization_profile_debug() {
         let profile = OptimizationProfile::default();
-        let debug = format!("{:?}", profile);
+        let debug = format!("{profile:?}");
         assert!(debug.contains("OptimizationProfile"));
     }
 
@@ -718,7 +718,7 @@ mod tests {
     #[test]
     fn test_lambda_generation_context_debug() {
         let context = create_test_context();
-        let debug = format!("{:?}", context);
+        let debug = format!("{context:?}");
         assert!(debug.contains("LambdaGenerationContext"));
     }
 
@@ -783,7 +783,7 @@ mod tests {
     #[test]
     fn test_lambda_code_generator_debug() {
         let generator = LambdaCodeGenerator::new();
-        let debug = format!("{:?}", generator);
+        let debug = format!("{generator:?}");
         assert!(debug.contains("LambdaCodeGenerator"));
     }
 
@@ -1137,7 +1137,7 @@ mod tests {
             cdk_construct: None,
             readme: String::new(),
         };
-        let debug = format!("{:?}", project);
+        let debug = format!("{project:?}");
         assert!(debug.contains("LambdaProject"));
     }
 

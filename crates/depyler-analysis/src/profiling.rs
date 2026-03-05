@@ -821,7 +821,7 @@ mod tests {
             category: PredictionCategory::StringOptimization,
             confidence: 0.5,
             speedup_factor: 1.0,
-            explanation: "".to_string(),
+            explanation: String::new(),
             functions: vec![],
         };
         let debug = format!("{:?}", pred);
@@ -895,8 +895,8 @@ mod tests {
     fn test_profiling_annotation_debug() {
         let annotation = ProfilingAnnotation {
             kind: AnnotationKind::HotPathMarker,
-            target: "".to_string(),
-            value: "".to_string(),
+            target: String::new(),
+            value: String::new(),
         };
         let debug = format!("{:?}", annotation);
         assert!(debug.contains("ProfilingAnnotation"));
@@ -1308,7 +1308,7 @@ mod tests {
         let annotation = ProfilingAnnotation {
             kind: AnnotationKind::HotPathMarker,
             target: "hot_func".to_string(),
-            value: "".to_string(),
+            value: String::new(),
         };
 
         let formatted = report.format_annotation(&annotation);

@@ -372,7 +372,7 @@ pub(crate) fn analyze_mutable_vars(
 
     // DEPYLER-0312: Pre-populate declared with function parameters
     // This allows the reassignment detection logic below to catch parameter mutations
-    // Example: def gcd(a, b): a = temp  # Now detected as reassignment → mut a
+    // Example: def gcd(a, b): a = val  # Now detected as reassignment → mut a
     for param in params {
         declared.insert(param.name.clone());
     }

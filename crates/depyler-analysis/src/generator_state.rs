@@ -339,7 +339,7 @@ mod tests {
         let var = StateVariable { name: "x".to_string(), ty: Type::Bool };
         let debug_str = format!("{:?}", var);
         assert!(debug_str.contains("StateVariable"));
-        assert!(debug_str.contains("x"));
+        assert!(debug_str.contains('x'));
     }
 
     // ============================================
