@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b69_quicksort() {
-    let code = r#"
+    let code = r"
 def quicksort(items: list) -> list:
     if len(items) <= 1:
         return items
@@ -27,14 +27,14 @@ def quicksort(items: list) -> list:
     left = [x for x in items[1:] if x <= pivot]
     right = [x for x in items[1:] if x > pivot]
     return quicksort(left) + [pivot] + quicksort(right)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn quicksort"), "Got: {}", result);
+    assert!(result.contains("fn quicksort"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b69_merge_sort() {
-    let code = r#"
+    let code = r"
 def merge_sort(items: list) -> list:
     if len(items) <= 1:
         return items
@@ -57,15 +57,15 @@ def merge(left: list, right: list) -> list:
     result.extend(left[i:])
     result.extend(right[j:])
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn merge_sort"), "Got: {}", result);
-    assert!(result.contains("fn merge"), "Got: {}", result);
+    assert!(result.contains("fn merge_sort"), "Got: {result}");
+    assert!(result.contains("fn merge"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b69_dijkstra() {
-    let code = r#"
+    let code = r"
 def shortest_path(graph: dict, start: str, end: str) -> int:
     dist = {start: 0}
     visited = set()
@@ -88,14 +88,14 @@ def shortest_path(graph: dict, start: str, end: str) -> int:
                     dist[neighbor] = new_dist
                     queue.append(neighbor)
     return -1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn shortest_path"), "Got: {}", result);
+    assert!(result.contains("fn shortest_path"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b69_topological_sort() {
-    let code = r#"
+    let code = r"
 def topo_sort(graph: dict) -> list:
     in_degree = {}
     for node in graph:
@@ -119,14 +119,14 @@ def topo_sort(graph: dict) -> list:
                 if in_degree[neighbor] == 0:
                     queue.append(neighbor)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn topo_sort"), "Got: {}", result);
+    assert!(result.contains("fn topo_sort"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b69_knapsack() {
-    let code = r#"
+    let code = r"
 def knapsack(weights: list, values: list, capacity: int) -> int:
     n = len(weights)
     dp = []
@@ -141,9 +141,9 @@ def knapsack(weights: list, values: list, capacity: int) -> int:
                 if val > dp[i][w]:
                     dp[i][w] = val
     return dp[n][capacity]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn knapsack"), "Got: {}", result);
+    assert!(result.contains("fn knapsack"), "Got: {result}");
 }
 
 #[test]
@@ -177,12 +177,12 @@ def lcs(s1: str, s2: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn lcs"), "Got: {}", result);
+    assert!(result.contains("fn lcs"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b69_trie_operations() {
-    let code = r##"
+    let code = r"
 class TrieNode:
     def __init__(self):
         self.children = {}
@@ -208,15 +208,15 @@ def count_prefix(root: TrieNode, prefix: str) -> int:
             return 0
         node = node.children[char]
     return node.count
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("fn build_trie"), "Got: {}", result);
-    assert!(result.contains("fn count_prefix"), "Got: {}", result);
+    assert!(result.contains("fn build_trie"), "Got: {result}");
+    assert!(result.contains("fn count_prefix"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b69_matrix_multiply() {
-    let code = r#"
+    let code = r"
 def mat_mul(a: list, b: list) -> list:
     rows_a = len(a)
     cols_a = len(a[0])
@@ -231,7 +231,7 @@ def mat_mul(a: list, b: list) -> list:
             row.append(total)
         result.append(row)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn mat_mul"), "Got: {}", result);
+    assert!(result.contains("fn mat_mul"), "Got: {result}");
 }

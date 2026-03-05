@@ -221,10 +221,10 @@ mod tests {
 
     #[test]
     fn test_extract_simple_assert_eq() {
-        let source = r#"
+        let source = r"
 def test_square():
     assert square(4) == 16
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -237,12 +237,12 @@ def test_square():
 
     #[test]
     fn test_extract_multiple_assertions() {
-        let source = r#"
+        let source = r"
 def test_square():
     assert square(4) == 16
     assert square(-3) == 9
     assert square(0) == 0
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -255,11 +255,11 @@ def test_square():
 
     #[test]
     fn test_extract_multiple_args() {
-        let source = r#"
+        let source = r"
 def test_add():
     assert add(1, 2) == 3
     assert add(-1, 1) == 0
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -285,10 +285,10 @@ def test_greet():
 
     #[test]
     fn test_extract_list_expected() {
-        let source = r#"
+        let source = r"
 def test_range_list():
     assert range_list(3) == [0, 1, 2]
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -313,11 +313,11 @@ def test_make_dict():
 
     #[test]
     fn test_extract_boolean_expected() {
-        let source = r#"
+        let source = r"
 def test_is_even():
     assert is_even(4) == True
     assert is_even(3) == False
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -329,12 +329,12 @@ def test_is_even():
 
     #[test]
     fn test_skip_pytest_raises() {
-        let source = r#"
+        let source = r"
 def test_error():
     with pytest.raises(ValueError):
         divide(1, 0)
     assert divide(10, 2) == 5
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -346,11 +346,11 @@ def test_error():
 
     #[test]
     fn test_skip_pytest_approx() {
-        let source = r#"
+        let source = r"
 def test_float():
     assert divide(10, 3) == pytest.approx(3.333, rel=0.01)
     assert multiply(2, 3) == 6
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -362,11 +362,11 @@ def test_float():
 
     #[test]
     fn test_skip_complex_and_or() {
-        let source = r#"
+        let source = r"
 def test_complex():
     assert foo(1) == 1 and bar(2) == 2
     assert simple(3) == 3
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -378,11 +378,11 @@ def test_complex():
 
     #[test]
     fn test_skip_isinstance() {
-        let source = r#"
+        let source = r"
 def test_types():
     assert isinstance(foo(), int)
     assert bar() == 42
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -393,11 +393,11 @@ def test_types():
 
     #[test]
     fn test_skip_in_operator() {
-        let source = r#"
+        let source = r"
 def test_membership():
     assert 1 in get_list()
     assert get_first() == 1
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -408,11 +408,11 @@ def test_membership():
 
     #[test]
     fn test_method_call() {
-        let source = r#"
+        let source = r"
 def test_method():
     obj = MyClass()
     assert obj.compute(5) == 25
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -424,13 +424,13 @@ def test_method():
 
     #[test]
     fn test_line_numbers() {
-        let source = r#"
+        let source = r"
 def test_foo():
     x = 1
     assert foo(1) == 1
     y = 2
     assert foo(2) == 4
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -442,10 +442,10 @@ def test_foo():
 
     #[test]
     fn test_extract_to_result() {
-        let source = r#"
+        let source = r"
 def test_square():
     assert square(4) == 16
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let result = extractor.extract_to_result(source, "test_math.py").unwrap();
@@ -464,11 +464,11 @@ def test_square():
 
     #[test]
     fn test_no_assertions() {
-        let source = r#"
+        let source = r"
 def test_foo():
     x = compute()
     print(x)
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -477,11 +477,11 @@ def test_foo():
 
     #[test]
     fn test_non_function_call_lhs() {
-        let source = r#"
+        let source = r"
 def test_foo():
     assert x == 1
     assert foo() == 2
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -493,10 +493,10 @@ def test_foo():
 
     #[test]
     fn test_trailing_comment() {
-        let source = r#"
+        let source = r"
 def test_foo():
     assert foo(1) == 1  # This tests the basic case
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -507,10 +507,10 @@ def test_foo():
 
     #[test]
     fn test_none_expected() {
-        let source = r#"
+        let source = r"
 def test_returns_none():
     assert returns_none() == None
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -521,10 +521,10 @@ def test_returns_none():
 
     #[test]
     fn test_tuple_expected() {
-        let source = r#"
+        let source = r"
 def test_tuple():
     assert get_tuple() == (1, 2, 3)
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -535,10 +535,10 @@ def test_tuple():
 
     #[test]
     fn test_float_expected() {
-        let source = r#"
+        let source = r"
 def test_float():
     assert divide(10, 4) == 2.5
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();
@@ -549,10 +549,10 @@ def test_float():
 
     #[test]
     fn test_negative_number_expected() {
-        let source = r#"
+        let source = r"
 def test_negative():
     assert negate(5) == -5
-"#;
+";
 
         let extractor = PytestExtractor::new();
         let assertions = extractor.extract(source).unwrap();

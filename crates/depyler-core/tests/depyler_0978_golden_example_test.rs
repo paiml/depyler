@@ -6,20 +6,20 @@
 //! FINDINGS (2025-12-14):
 //! The golden example FAILS to compile, revealing 4 codegen bugs:
 //!
-//! 1. E0308: Missing Some() wrapper for Option<T> returns
-//!    - Function: dictionary_operations
+//! 1. E0308: Missing `Some()` wrapper for Option<T> returns
+//!    - Function: `dictionary_operations`
 //!    - Returns String, but signature says Option<String>
-//!    - Fix: Wrap early return in Some()
+//!    - Fix: Wrap early return in `Some()`
 //!
 //! 2. E0308: Unnecessary borrow in callable parameters
-//!    - Function: function_composition
-//!    - Passes &item to transform, but item is already owned after .cloned()
+//!    - Function: `function_composition`
+//!    - Passes &item to transform, but item is already owned after .`cloned()`
 //!    - Fix: Pass item directly, not &item
 //!
-//! 3. E0308: Missing unwrap() for Option handling
-//!    - Function: optional_handling
+//! 3. E0308: Missing `unwrap()` for Option handling
+//!    - Function: `optional_handling`
 //!    - Returns &Option<i64> instead of i64
-//!    - Fix: Use maybe_value.unwrap() or *maybe_value.as_ref().unwrap()
+//!    - Fix: Use `maybe_value.unwrap()` or *`maybe_value.as_ref().unwrap()`
 //!
 //! 4. E0596: Missing mut for borrowed mutable reference
 //!    - Function: main
@@ -68,9 +68,9 @@ fn test_golden_annotated_example_transpiles() {
     );
 }
 
-/// Test that golden example has no Type::Unknown fallbacks
+/// Test that golden example has no `Type::Unknown` fallbacks
 ///
-/// This test validates that explicit type annotations prevent serde_json::Value fallbacks.
+/// This test validates that explicit type annotations prevent `serde_json::Value` fallbacks.
 #[test]
 #[ignore = "DEPYLER-0978: Enable after codegen fixes"]
 fn test_golden_example_no_unknown_types() {
@@ -83,8 +83,7 @@ fn test_golden_example_no_unknown_types() {
     let value_count = rust_code.matches("serde_json::Value").count();
     assert!(
         value_count < 5,
-        "Too many serde_json::Value fallbacks ({}) - type annotations not propagating",
-        value_count
+        "Too many serde_json::Value fallbacks ({value_count}) - type annotations not propagating"
     );
 }
 
@@ -106,8 +105,7 @@ def get_value(d: dict) -> str | None:
     // This test documents the expected behavior
     assert!(
         rust_code.contains("Option<String>") || rust_code.contains("Option<&str>"),
-        "Return type should be Option: {}",
-        rust_code
+        "Return type should be Option: {rust_code}"
     );
 }
 
@@ -115,7 +113,7 @@ def get_value(d: dict) -> str | None:
 #[test]
 fn test_callable_parameter_borrowing_bug() {
     // Minimal reproduction of the function_composition bug
-    let source = r#"
+    let source = r"
 from typing import Callable, List
 
 def apply_func(f: Callable[[str], str], items: List[str]) -> List[str]:
@@ -123,7 +121,7 @@ def apply_func(f: Callable[[str], str], items: List[str]) -> List[str]:
     for item in items:
         result.append(f(item))
     return result
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
@@ -133,7 +131,6 @@ def apply_func(f: Callable[[str], str], items: List[str]) -> List[str]:
     // This is a heuristic check - the actual fix needs codegen changes
     assert!(
         rust_code.contains("transform") || rust_code.contains("f("),
-        "Should have function call: {}",
-        rust_code
+        "Should have function call: {rust_code}"
     );
 }

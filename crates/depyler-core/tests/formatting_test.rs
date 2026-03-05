@@ -56,10 +56,10 @@ class DataProcessor:
 
         eprintln!("\n=== RUSTFMT FORMATTING FAILURES ===");
         eprintln!("Generated Rust code has formatting issues:\n");
-        eprintln!("{}", stdout);
-        eprintln!("{}", stderr);
+        eprintln!("{stdout}");
+        eprintln!("{stderr}");
         eprintln!("\n=== GENERATED CODE ===");
-        eprintln!("{}", rust_code);
+        eprintln!("{rust_code}");
         eprintln!("\n=== END ===\n");
 
         panic!(

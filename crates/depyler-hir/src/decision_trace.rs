@@ -1179,7 +1179,8 @@ mod tests {
         ];
 
         // Each category should have a unique display string
-        let displays: Vec<String> = categories.iter().map(std::string::ToString::to_string).collect();
+        let displays: Vec<String> =
+            categories.iter().map(std::string::ToString::to_string).collect();
         let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
         assert_eq!(
             unique_count,
@@ -1600,7 +1601,8 @@ mod tests {
         ];
 
         // Each variant should have unique display string
-        let displays: Vec<String> = decisions.iter().map(std::string::ToString::to_string).collect();
+        let displays: Vec<String> =
+            decisions.iter().map(std::string::ToString::to_string).collect();
         let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
         assert_eq!(unique_count, decisions.len(), "All decisions should have unique display names");
     }

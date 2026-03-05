@@ -382,6 +382,87 @@ fn format_markdown(report: &CorpusScoreReport) -> String {
     output
 }
 
+/// Handle the score command
+pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
+    let mode = parse_mode(&args.mode);
+    let format = parse_format(&args.format);
+
+    let config = ScoringConfig {
+        enable_semantic_check: args.semantic,
+        oracle_feedback: args.oracle_feedback,
+        ..Default::default()
+    };
+
+    let calculator = ScoreCalculator::with_config(config);
+
+    // Find all Python files
+    let python_files: Vec<PathBuf> = walkdir::WalkDir::new(&args.input_dir)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "py"))
+        .filter(|e| !e.path().to_string_lossy().contains("__pycache__"))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    if python_files.is_empty() {
+        println!("⚠️  No Python files found in {}", args.input_dir.display());
+        return Ok(());
+    }
+
+    println!("🔍 Scoring {} Python files (mode: {:?})...\n", python_files.len(), mode);
+
+    // Score each file
+    let mut results = vec![];
+    for (i, path) in python_files.iter().enumerate() {
+        if i % 10 == 0 {
+            eprint!(
+                "\r[{}/{}] Scoring... {:.0}%",
+                i,
+                python_files.len(),
+                (i as f32 / python_files.len() as f32) * 100.0
+            );
+        }
+
+        match score_file(path, mode, &calculator, args.semantic) {
+            Ok(result) => results.push(result),
+            Err(e) => {
+                eprintln!("\n⚠️  Error scoring {}: {}", path.display(), e);
+            }
+        }
+    }
+    eprintln!("\r[{}/{}] Scoring... 100%", python_files.len(), python_files.len());
+    println!();
+
+    // Aggregate results
+    let report = calculator.aggregate(&results);
+
+    // Format output
+    let output_text = match format {
+        OutputFormat::Json => format_json(&report)?,
+        OutputFormat::Markdown => format_markdown(&report),
+        _ => format_human(&report),
+    };
+
+    // Write output
+    if let Some(output_path) = args.output {
+        std::fs::write(&output_path, &output_text)?;
+        println!("📝 Report written to {}", output_path.display());
+    } else {
+        println!("{output_text}");
+    }
+
+    // Check threshold
+    if report.aggregate_score < f32::from(args.min_score) {
+        anyhow::bail!(
+            "Score {:.1} below minimum threshold {}",
+            report.aggregate_score,
+            args.min_score
+        );
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -736,7 +817,7 @@ mod tests {
 
     #[test]
     fn test_s11_generate_cargo_toml_all_deps() {
-        let code = r#"
+        let code = r"
 use once_cell::sync::Lazy;
 use clap::Parser;
 use serde::Serialize;
@@ -747,7 +828,7 @@ use itertools::Itertools;
 use csv::Reader;
 use tempfile::TempDir;
 use rand::Rng;
-"#;
+";
         let toml = generate_cargo_toml_for_code(code);
         assert!(toml.contains("once_cell"));
         assert!(toml.contains("clap"));
@@ -952,7 +1033,7 @@ use rand::Rng;
 
         let config = ScoringConfig::default();
         let calculator = ScoreCalculator::with_config(config);
-        let result = score_file(&py_file.to_path_buf(), ScoringMode::Quick, &calculator, false);
+        let result = score_file(&py_file.clone(), ScoringMode::Quick, &calculator, false);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.score.total > 0);
@@ -966,7 +1047,7 @@ use rand::Rng;
 
         let config = ScoringConfig::default();
         let calculator = ScoreCalculator::with_config(config);
-        let result = score_file(&py_file.to_path_buf(), ScoringMode::Quick, &calculator, false);
+        let result = score_file(&py_file.clone(), ScoringMode::Quick, &calculator, false);
         assert!(result.is_ok());
         let result = result.unwrap();
         // Parse should fail, so compilation score should be low
@@ -1112,7 +1193,7 @@ use rand::Rng;
 
     #[test]
     fn test_parse_cargo_errors_multiline_output() {
-        let output = r#"
+        let output = r"
    Compiling score_test v0.1.0 (/tmp/test)
 error[E0308]: mismatched types
  --> src/lib.rs:3:10
@@ -1133,7 +1214,7 @@ warning: unused import: `std::io`
   |     ^^^^^^^
 
 error: aborting due to 2 previous errors
-"#;
+";
         let errors = parse_cargo_errors(output);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0].code, "E0308");
@@ -1168,85 +1249,4 @@ error: aborting due to 2 previous errors
         assert!(md.contains("| A. Compilation |"));
         assert!(md.contains("**Gateway passed**: 0/0"));
     }
-}
-
-/// Handle the score command
-pub fn handle_score_command(args: ScoreArgs) -> Result<()> {
-    let mode = parse_mode(&args.mode);
-    let format = parse_format(&args.format);
-
-    let config = ScoringConfig {
-        enable_semantic_check: args.semantic,
-        oracle_feedback: args.oracle_feedback,
-        ..Default::default()
-    };
-
-    let calculator = ScoreCalculator::with_config(config);
-
-    // Find all Python files
-    let python_files: Vec<PathBuf> = walkdir::WalkDir::new(&args.input_dir)
-        .into_iter()
-        .filter_map(std::result::Result::ok)
-        .filter(|e| e.path().extension().is_some_and(|ext| ext == "py"))
-        .filter(|e| !e.path().to_string_lossy().contains("__pycache__"))
-        .map(|e| e.path().to_path_buf())
-        .collect();
-
-    if python_files.is_empty() {
-        println!("⚠️  No Python files found in {}", args.input_dir.display());
-        return Ok(());
-    }
-
-    println!("🔍 Scoring {} Python files (mode: {:?})...\n", python_files.len(), mode);
-
-    // Score each file
-    let mut results = vec![];
-    for (i, path) in python_files.iter().enumerate() {
-        if i % 10 == 0 {
-            eprint!(
-                "\r[{}/{}] Scoring... {:.0}%",
-                i,
-                python_files.len(),
-                (i as f32 / python_files.len() as f32) * 100.0
-            );
-        }
-
-        match score_file(path, mode, &calculator, args.semantic) {
-            Ok(result) => results.push(result),
-            Err(e) => {
-                eprintln!("\n⚠️  Error scoring {}: {}", path.display(), e);
-            }
-        }
-    }
-    eprintln!("\r[{}/{}] Scoring... 100%", python_files.len(), python_files.len());
-    println!();
-
-    // Aggregate results
-    let report = calculator.aggregate(&results);
-
-    // Format output
-    let output_text = match format {
-        OutputFormat::Json => format_json(&report)?,
-        OutputFormat::Markdown => format_markdown(&report),
-        _ => format_human(&report),
-    };
-
-    // Write output
-    if let Some(output_path) = args.output {
-        std::fs::write(&output_path, &output_text)?;
-        println!("📝 Report written to {}", output_path.display());
-    } else {
-        println!("{output_text}");
-    }
-
-    // Check threshold
-    if report.aggregate_score < f32::from(args.min_score) {
-        anyhow::bail!(
-            "Score {:.1} below minimum threshold {}",
-            report.aggregate_score,
-            args.min_score
-        );
-    }
-
-    Ok(())
 }

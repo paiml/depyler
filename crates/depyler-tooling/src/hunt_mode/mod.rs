@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn test_hunt_config_debug() {
         let config = HuntConfig::default();
-        let debug_str = format!("{:?}", config);
+        let debug_str = format!("{config:?}");
         assert!(debug_str.contains("HuntConfig"));
         assert!(debug_str.contains("max_cycles"));
         assert!(debug_str.contains("quality_threshold"));
@@ -250,7 +250,7 @@ mod tests {
         let status = engine.andon_status();
         // Just verify we can call the method and get a status
         // (the actual status value depends on initial state)
-        let _ = format!("{:?}", status); // Ensure Debug works
+        let _ = format!("{status:?}"); // Ensure Debug works
     }
 
     #[test]
@@ -328,7 +328,7 @@ mod tests {
         let status: &AndonStatus = engine.andon_status();
 
         // Verify it's the right type and can be formatted
-        let _debug = format!("{:?}", status);
+        let _debug = format!("{status:?}");
     }
 
     #[test]
@@ -342,7 +342,7 @@ mod tests {
             lessons_database: PathBuf::from("test.db"),
         };
 
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("max_cycles"));
         assert!(debug.contains("50"));
         assert!(debug.contains("quality_threshold"));
@@ -350,7 +350,7 @@ mod tests {
         assert!(debug.contains("target_rate"));
         assert!(debug.contains("0.9"));
         assert!(debug.contains("plateau_threshold"));
-        assert!(debug.contains("3"));
+        assert!(debug.contains('3'));
         assert!(debug.contains("enable_five_whys"));
         assert!(debug.contains("false"));
         assert!(debug.contains("lessons_database"));

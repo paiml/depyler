@@ -1,14 +1,14 @@
-//! Extended coverage tests for type_mapper.rs
+//! Extended coverage tests for `type_mapper.rs`
 //!
-//! Target: type_mapper.rs gaps (153 uncovered lines)
+//! Target: `type_mapper.rs` gaps (153 uncovered lines)
 //! Coverage focus: DEPYLER-0264, primitive types, helper functions, edge cases
 //!
 //! Test Strategy:
-//! - DEPYLER-0264: Unknown type → serde_json::Value
+//! - DEPYLER-0264: Unknown type → `serde_json::Value`
 //! - Primitive type mappings (Int, Float, Bool, None)
 //! - String strategy variations
 //! - Int width preferences (i32, i64, isize)
-//! - Helper functions (needs_reference, can_copy, map_return_type)
+//! - Helper functions (`needs_reference`, `can_copy`, `map_return_type`)
 //! - Custom types without parameters (Dict, List, Set)
 //! - Edge cases and error paths
 
@@ -16,14 +16,14 @@ use depyler_core::DepylerPipeline;
 
 /// Unit Test: DEPYLER-0264 - Unknown type mapping
 ///
-/// Verifies: Unknown → serde_json::Value (line 124)
+/// Verifies: Unknown → `serde_json::Value` (line 124)
 #[test]
 fn test_depyler_0264_unknown_type_mapping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_any(data) -> int:
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // Unknown types should map to serde_json::Value
@@ -32,14 +32,14 @@ def process_any(data) -> int:
 
 /// Unit Test: Int type with default width (i32)
 ///
-/// Verifies: PythonType::Int → i32 default (lines 125-129)
+/// Verifies: `PythonType::Int` → i32 default (lines 125-129)
 #[test]
 fn test_int_type_default_i32() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def add_numbers(a: int, b: int) -> int:
     return a + b
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn add_numbers"));
@@ -48,14 +48,14 @@ def add_numbers(a: int, b: int) -> int:
 
 /// Unit Test: Float type mapping
 ///
-/// Verifies: PythonType::Float → f64 (line 130)
+/// Verifies: `PythonType::Float` → f64 (line 130)
 #[test]
 fn test_float_type_mapping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def calculate(x: float, y: float) -> float:
     return x * y
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn calculate"));
@@ -64,14 +64,14 @@ def calculate(x: float, y: float) -> float:
 
 /// Unit Test: Bool type mapping
 ///
-/// Verifies: PythonType::Bool → bool (line 136)
+/// Verifies: `PythonType::Bool` → bool (line 136)
 #[test]
 fn test_bool_type_mapping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def check_flag(enabled: bool) -> bool:
     return not enabled
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn check_flag"));
@@ -80,20 +80,20 @@ def check_flag(enabled: bool) -> bool:
 
 /// Unit Test: None type mapping to Unit
 ///
-/// Verifies: PythonType::None → () (line 137)
+/// Verifies: `PythonType::None` → () (line 137)
 #[test]
 fn test_none_type_unit_mapping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def do_nothing():
     pass
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn do_nothing"));
 }
 
-/// Unit Test: String type mapping (AlwaysOwned)
+/// Unit Test: String type mapping (`AlwaysOwned`)
 ///
 /// Verifies: String strategy handling (lines 131-135)
 #[test]
@@ -115,13 +115,13 @@ def greet(name: str) -> str:
 #[test]
 fn test_list_with_inner_type() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def sum_list(numbers: list[int]) -> int:
     total = 0
     for n in numbers:
         total = total + n
     return total
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn sum_list"));
@@ -130,14 +130,14 @@ def sum_list(numbers: list[int]) -> int:
 
 /// Unit Test: Dict type with key-value types
 ///
-/// Verifies: Dict<K, V> → HashMap<K, V> (lines 139-141)
+/// Verifies: Dict<K, V> → `HashMap`<K, V> (lines 139-141)
 #[test]
 fn test_dict_with_key_value_types() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def lookup(mapping: dict[str, int], key: str) -> int:
     return mapping.get(key, 0)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn lookup"));
@@ -164,14 +164,14 @@ def get_pair() -> tuple[int, str]:
 #[test]
 fn test_optional_type_mapping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def maybe_int(flag: bool) -> Optional[int]:
     if flag:
         return 42
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn maybe_int"));
@@ -184,10 +184,10 @@ def maybe_int(flag: bool) -> Optional[int]:
 #[test]
 fn test_function_type_unsupported() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def accepts_callback(x: int) -> int:
     return x * 2
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn accepts_callback"));
@@ -199,14 +199,14 @@ def accepts_callback(x: int) -> int:
 #[test]
 fn test_custom_type_single_letter_type_param() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import TypeVar
 
 T = TypeVar('T')
 
 def identity(value: T) -> T:
     return value
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn identity"));
@@ -214,16 +214,16 @@ def identity(value: T) -> T:
 
 /// Unit Test: Custom type - Dict without parameters
 ///
-/// Verifies: "Dict" → HashMap<String, serde_json::Value> (lines 158-161)
+/// Verifies: "Dict" → `HashMap`<String, `serde_json::Value`> (lines 158-161)
 #[test]
 fn test_custom_type_dict_no_params() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Dict
 
 def process_dict() -> Dict:
     return {}
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_dict"));
@@ -231,16 +231,16 @@ def process_dict() -> Dict:
 
 /// Unit Test: Custom type - List without parameters
 ///
-/// Verifies: "List" → Vec<serde_json::Value> (lines 162-164)
+/// Verifies: "List" → Vec<`serde_json::Value`> (lines 162-164)
 #[test]
 fn test_custom_type_list_no_params() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import List
 
 def process_list() -> List:
     return []
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_list"));
@@ -248,16 +248,16 @@ def process_list() -> List:
 
 /// Unit Test: Custom type - Set without parameters
 ///
-/// Verifies: "Set" → HashSet<String> (line 165)
+/// Verifies: "Set" → `HashSet`<String> (line 165)
 #[test]
 fn test_custom_type_set_no_params() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Set
 
 def get_unique() -> Set:
     return set()
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn get_unique"));
@@ -269,29 +269,29 @@ def get_unique() -> Set:
 #[test]
 fn test_custom_type_arbitrary_name() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_custom() -> int:
     return 42
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_custom"));
 }
 
-/// Unit Test: TypeVar mapping
+/// Unit Test: `TypeVar` mapping
 ///
-/// Verifies: TypeVar → type parameter (line 170)
+/// Verifies: `TypeVar` → type parameter (line 170)
 #[test]
 fn test_typevar_mapping() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import TypeVar
 
 T = TypeVar('T')
 
 def wrap(value: T) -> T:
     return value
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn wrap"));
@@ -303,10 +303,10 @@ def wrap(value: T) -> T:
 #[test]
 fn test_generic_type_other() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_generic(value: int) -> int:
     return value * 2
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_generic"));
@@ -318,10 +318,10 @@ def process_generic(value: int) -> int:
 #[test]
 fn test_nested_list_types() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def process_matrix(matrix: list[list[int]]) -> int:
     return len(matrix)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn process_matrix"));
@@ -333,10 +333,10 @@ def process_matrix(matrix: list[list[int]]) -> int:
 #[test]
 fn test_nested_dict_types() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def nested_lookup(data: dict[str, dict[str, int]]) -> int:
     return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn nested_lookup"));
@@ -363,12 +363,12 @@ def get_record() -> tuple[str, int, float, bool]:
 #[test]
 fn test_union_multiple_types() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Union
 
 def multi_type(value: Union[int, str, float]) -> str:
     return str(value)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn multi_type"));
@@ -380,14 +380,14 @@ def multi_type(value: Union[int, str, float]) -> str:
 #[test]
 fn test_optional_complex_type() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def maybe_dict(flag: bool) -> Optional[dict[str, int]]:
     if flag:
         return {}
     return None
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn maybe_dict"));
@@ -399,12 +399,12 @@ def maybe_dict(flag: bool) -> Optional[dict[str, int]]:
 #[test]
 fn test_list_of_optionals() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 from typing import Optional
 
 def nullable_items(items: list[Optional[int]]) -> int:
     return len(items)
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn nullable_items"));
@@ -416,10 +416,10 @@ def nullable_items(items: list[Optional[int]]) -> int:
 #[test]
 fn test_dict_tuple_values() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def tuple_dict(data: dict[str, tuple[int, int]]) -> int:
     return 0
-"#;
+";
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     assert!(rust_code.contains("fn tuple_dict"));
@@ -436,11 +436,10 @@ fn test_property_primitive_types() {
 
     for (type_name, value) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}_type(x: {}) -> {}:
-    return {}
-"#,
-            type_name, type_name, type_name, value
+            r"
+def test_{type_name}_type(x: {type_name}) -> {type_name}:
+    return {value}
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -463,11 +462,10 @@ fn test_property_container_types() {
 
     for (name, type_name, value) in test_cases {
         let python_code = format!(
-            r#"
-def test_{}_type() -> {}:
-    return {}
-"#,
-            name, type_name, value
+            r"
+def test_{name}_type() -> {type_name}:
+    return {value}
+"
         );
         let result = pipeline.transpile(&python_code);
 
@@ -507,27 +505,27 @@ fn test_mutation_type_mapping() {
     let pipeline = DepylerPipeline::new();
 
     // Test Case 1: Int must map correctly
-    let int_code = r#"
+    let int_code = r"
 def test1(x: int) -> int:
     return x
-"#;
+";
     let rust1 = pipeline.transpile(int_code).unwrap();
     assert!(rust1.contains("fn test1"));
 
     // Test Case 2: Dict must map correctly
-    let dict_code = r#"
+    let dict_code = r"
 def test2(d: dict[str, int]) -> int:
     return 0
-"#;
+";
     let rust2 = pipeline.transpile(dict_code).unwrap();
     assert!(rust2.contains("fn test2"));
 
     // Test Case 3: Optional must map correctly
-    let opt_code = r#"
+    let opt_code = r"
 from typing import Optional
 def test3(x: Optional[int]) -> int:
     return 0
-"#;
+";
     let rust3 = pipeline.transpile(opt_code).unwrap();
     assert!(rust3.contains("fn test3"));
 }

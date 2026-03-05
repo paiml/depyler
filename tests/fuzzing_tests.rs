@@ -201,7 +201,7 @@ impl FuzzingEngine {
                     Some("LargeInputError".to_string())
                 } else if input.chars().any(|c| c as u32 > 127) {
                     Some("UnicodeError".to_string())
-                } else if input.contains("def") && !input.contains(":") {
+                } else if input.contains("def") && !input.contains(':') {
                     Some("SyntaxError".to_string())
                 } else {
                     Some("UnknownError".to_string())
@@ -301,7 +301,7 @@ impl FuzzingEngine {
         ];
 
         let pattern = &security_patterns[rand::random::<usize>() % security_patterns.len()];
-        let mut result = format!("def security_test(): {}", pattern);
+        let mut result = format!("def security_test(): {pattern}");
 
         // Pad to target size
         while result.len() < target_size {
@@ -388,7 +388,7 @@ impl FuzzingEngine {
         // Create deep if-else nesting
         for i in 0..max_nesting {
             let indent = "    ".repeat(i + 1);
-            code.push_str(&format!("{}if x{} > 0:\n", indent, i));
+            code.push_str(&format!("{indent}if x{i} > 0:\n"));
 
             // Stop if we're approaching target size
             if code.len() > target_size * 3 / 4 {
@@ -398,7 +398,7 @@ impl FuzzingEngine {
 
         // Add return at current level
         let final_indent = "    ".repeat(std::cmp::min(max_nesting, 5) + 1);
-        code.push_str(&format!("{}return True\n", final_indent));
+        code.push_str(&format!("{final_indent}return True\n"));
 
         // Ensure we don't exceed target size with safe truncation
         if code.len() > target_size {
@@ -539,7 +539,7 @@ mod tests {
         ];
 
         for (input, strategy, description) in test_cases {
-            println!("\nTesting: {}", description);
+            println!("\nTesting: {description}");
 
             let result = engine.fuzz_test(input, strategy);
 
@@ -557,7 +557,7 @@ mod tests {
             );
 
             // Should not crash on valid inputs
-            if input.starts_with("def ") && input.contains(":") && input.contains("return") {
+            if input.starts_with("def ") && input.contains(':') && input.contains("return") {
                 assert!(!result.crash_detected, "Valid Python should not crash");
             }
         }
@@ -579,7 +579,7 @@ mod tests {
         println!("Campaign Results:");
         println!("  Total tests: {}", results.total_tests);
         println!("  Total time: {:?}", results.total_time);
-        println!("  Campaign overhead: {:?}", campaign_duration);
+        println!("  Campaign overhead: {campaign_duration:?}");
         println!("  Success rate: {:.1}%", results.success_rate() * 100.0);
         println!("  Crashes: {}", results.crash_count());
         println!("  Timeouts: {}", results.timeout_count());
@@ -598,7 +598,7 @@ mod tests {
         let error_dist = results.error_distribution();
         println!("Error distribution:");
         for (error_type, count) in &error_dist {
-            println!("  {}: {} occurrences", error_type, count);
+            println!("  {error_type}: {count} occurrences");
         }
 
         // Should have some variety in error types
@@ -610,8 +610,7 @@ mod tests {
         let avg_time = results.average_execution_time();
         assert!(
             avg_time < Duration::from_millis(1000),
-            "Average execution time should be reasonable: {:?}",
-            avg_time
+            "Average execution time should be reasonable: {avg_time:?}"
         );
     }
 
@@ -639,7 +638,7 @@ mod tests {
         ];
 
         for (input, description) in extreme_inputs {
-            println!("\nTesting extreme case: {}", description);
+            println!("\nTesting extreme case: {description}");
 
             let result = engine.fuzz_test(input, FuzzingStrategy::SecurityFocused);
 
@@ -650,15 +649,13 @@ mod tests {
             // Critical: should never crash
             assert!(
                 !result.crash_detected,
-                "Extreme input '{}' should not crash the transpiler",
-                description
+                "Extreme input '{description}' should not crash the transpiler"
             );
 
             // Should complete within timeout
             assert!(
                 result.execution_time < Duration::from_millis(3000),
-                "Extreme input '{}' should not hang",
-                description
+                "Extreme input '{description}' should not hang"
             );
         }
     }
@@ -724,14 +721,12 @@ mod tests {
             // Performance should scale reasonably
             assert!(
                 result.execution_time < Duration::from_millis(200),
-                "Size {} should execute quickly",
-                size
+                "Size {size} should execute quickly"
             );
 
             assert!(
                 total_time < Duration::from_millis(300),
-                "Size {} total time should be reasonable",
-                size
+                "Size {size} total time should be reasonable"
             );
         }
 
@@ -750,7 +745,7 @@ mod tests {
             start.elapsed()
         };
 
-        println!("Cache test: first {:?}, second {:?}", time1, time2);
+        println!("Cache test: first {time1:?}, second {time2:?}");
 
         // Second execution should be faster due to caching
         assert!(time2 <= time1 * 2, "Caching should not significantly slow down execution");

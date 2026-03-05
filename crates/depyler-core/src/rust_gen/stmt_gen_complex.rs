@@ -2149,7 +2149,7 @@ pub(crate) fn captures_outer_scope(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use std::collections::HashSet;
 
     // === extract_fields_from_expr tests ===

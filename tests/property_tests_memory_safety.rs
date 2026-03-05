@@ -13,18 +13,18 @@ fn prop_no_use_after_free(var_name: String, operations: Vec<u8>) -> TestResult {
     }
 
     // Create a sequence of operations that might cause use-after-free in unsafe languages
-    let mut python_code = format!("def test_func() -> int:\n    {} = [1, 2, 3]\n", var_name);
+    let mut python_code = format!("def test_func() -> int:\n    {var_name} = [1, 2, 3]\n");
 
     for &op in &operations {
         match op % 4 {
-            0 => python_code.push_str(&format!("    {}.append(42)\n", var_name)),
-            1 => python_code.push_str(&format!("    {} = {}.copy()\n", var_name, var_name)),
-            2 => python_code.push_str(&format!("    len({})\n", var_name)),
-            _ => python_code.push_str(&format!("    {} = []\n", var_name)),
+            0 => python_code.push_str(&format!("    {var_name}.append(42)\n")),
+            1 => python_code.push_str(&format!("    {var_name} = {var_name}.copy()\n")),
+            2 => python_code.push_str(&format!("    len({var_name})\n")),
+            _ => python_code.push_str(&format!("    {var_name} = []\n")),
         }
     }
 
-    python_code.push_str(&format!("    return len({})", var_name));
+    python_code.push_str(&format!("    return len({var_name})"));
 
     let pipeline = DepylerPipeline::new();
 
@@ -89,12 +89,12 @@ fn prop_reference_counting_safety(share_count: u8) -> TestResult {
 
     // Create multiple references to the same data
     for i in 0..share_count {
-        python_code.push_str(&format!("    ref{} = original\n", i));
+        python_code.push_str(&format!("    ref{i} = original\n"));
     }
 
     // Use all references
     for i in 0..share_count {
-        python_code.push_str(&format!("    len(ref{})\n", i));
+        python_code.push_str(&format!("    len(ref{i})\n"));
     }
 
     python_code.push_str("    return len(original)");
@@ -118,21 +118,21 @@ fn prop_reference_counting_safety(share_count: u8) -> TestResult {
 #[quickcheck_macros::quickcheck(tests = 20, max_tests = 40)]
 fn prop_iterator_safety(modify_during_iteration: bool) -> TestResult {
     let python_code = if modify_during_iteration {
-        r#"def test_func() -> int:
+        r"def test_func() -> int:
     lst = [1, 2, 3, 4, 5]
     count = 0
     for item in lst:
         if item > 2:
             lst.append(item * 2)
         count += 1
-    return count"#
+    return count"
     } else {
-        r#"def test_func() -> int:
+        r"def test_func() -> int:
     lst = [1, 2, 3, 4, 5]
     count = 0
     for item in lst:
         count += item
-    return count"#
+    return count"
     };
 
     let pipeline = DepylerPipeline::new();
@@ -167,7 +167,7 @@ fn prop_no_memory_leaks(allocation_count: u8) -> TestResult {
     // Use the data and return
     python_code.push_str("    total = 0\n");
     for i in 0..allocation_count {
-        python_code.push_str(&format!("    total += len(data{})\n", i));
+        python_code.push_str(&format!("    total += len(data{i})\n"));
     }
     python_code.push_str("    return total");
 
@@ -195,13 +195,12 @@ fn prop_bounds_checking(index: usize, list_size: u8) -> TestResult {
     }
 
     let python_code = format!(
-        r#"def test_func() -> int:
-    lst = list(range({}))
+        r"def test_func() -> int:
+    lst = list(range({list_size}))
     try:
-        return lst[{}]
+        return lst[{index}]
     except IndexError:
-        return -1"#,
-        list_size, index
+        return -1"
     );
 
     let pipeline = DepylerPipeline::new();
@@ -230,13 +229,13 @@ fn prop_concurrent_safety(operations: Vec<u8>) -> TestResult {
     }
 
     // Simple test for thread-safe operations
-    let python_code = r#"def test_func() -> int:
+    let python_code = r"def test_func() -> int:
     shared_data = [1, 2, 3]
     # In a real concurrent scenario, multiple threads would access this
     result = 0
     for i in range(3):
         result += len(shared_data)
-    return result"#;
+    return result";
 
     let pipeline = DepylerPipeline::new();
 

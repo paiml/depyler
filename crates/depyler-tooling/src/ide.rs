@@ -333,7 +333,7 @@ mod tests {
             detail: None,
             documentation: None,
         };
-        let debug = format!("{:?}", symbol);
+        let debug = format!("{symbol:?}");
         assert!(debug.contains("debug_test"));
         assert!(debug.contains("Variable"));
     }
@@ -355,7 +355,7 @@ mod tests {
     #[test]
     fn test_symbol_kind_method() {
         let kind = SymbolKind::Method;
-        let debug = format!("{:?}", kind);
+        let debug = format!("{kind:?}");
         assert!(debug.contains("Method"));
     }
 
@@ -443,7 +443,7 @@ mod tests {
             code: None,
             source: "test".to_string(),
         };
-        let debug = format!("{:?}", diag);
+        let debug = format!("{diag:?}");
         assert!(debug.contains("Information"));
         assert!(debug.contains("Info"));
     }
@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn test_completion_kind_module() {
         let kind = CompletionKind::Module;
-        let debug = format!("{:?}", kind);
+        let debug = format!("{kind:?}");
         assert!(debug.contains("Module"));
     }
 

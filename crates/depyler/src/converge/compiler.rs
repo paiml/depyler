@@ -667,7 +667,7 @@ mod tests {
             source_context: String::new(),
             context_keywords: Vec::new(),
         };
-        let debug = format!("{:?}", error);
+        let debug = format!("{error:?}");
         assert!(debug.contains("E0599"));
         assert!(debug.contains("test.rs"));
     }
@@ -739,7 +739,7 @@ mod tests {
 
         for (line, expected_code) in test_cases {
             let error = parse_error_line(line, file);
-            assert!(error.is_some(), "Should parse: {}", line);
+            assert!(error.is_some(), "Should parse: {line}");
             assert_eq!(error.unwrap().code, expected_code);
         }
     }
@@ -1063,12 +1063,12 @@ mod tests {
     #[test]
     fn test_parse_rustc_errors_with_source_context() {
         let file = Path::new("test.rs");
-        let stderr = r#"error[E0308]: mismatched types
+        let stderr = r"error[E0308]: mismatched types
   --> test.rs:10:5
    |
 10 |     let x: Vec<i32> = vec![];
    |     ^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<i32>`, found `Vec<&str>`
-"#;
+";
         let errors = parse_rustc_errors(stderr, file);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "E0308");
@@ -1080,12 +1080,12 @@ mod tests {
     #[test]
     fn test_parse_rustc_errors_extracts_line_number() {
         let file = Path::new("test.rs");
-        let stderr = r#"error[E0599]: no method named `foo` found
+        let stderr = r"error[E0599]: no method named `foo` found
   --> test.rs:42:13
    |
 42 |     items.foo()
    |          ^^^ method not found
-"#;
+";
         let errors = parse_rustc_errors(stderr, file);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].line, 42);

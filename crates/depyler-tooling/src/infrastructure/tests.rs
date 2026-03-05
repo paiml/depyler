@@ -103,7 +103,7 @@ mod fault_localizer_tests {
         // failed_ratio = 3/4 = 0.75
         // passed_ratio = 1/2 = 0.5
         // suspiciousness = 0.75 / (0.75 + 0.5) = 0.6
-        assert!((susp - 0.6).abs() < 0.01, "Expected ~0.6, got {}", susp);
+        assert!((susp - 0.6).abs() < 0.01, "Expected ~0.6, got {susp}");
     }
 
     #[test]
@@ -194,9 +194,9 @@ mod pattern_store_tests {
             let embedding: Vec<f32> =
                 (0..384).map(|j| ((i * 17 + j) % 100) as f32 / 100.0).collect();
             store.add_pattern(TranspilationPattern {
-                id: format!("pattern-{}", i),
-                python_pattern: format!("pattern_{}", i),
-                rust_output: format!("output_{}", i),
+                id: format!("pattern-{i}"),
+                python_pattern: format!("pattern_{i}"),
+                rust_output: format!("output_{i}"),
                 error_prevented: "E0308".into(),
                 confidence: 0.8,
                 usage_count: 1,
@@ -212,7 +212,7 @@ mod pattern_store_tests {
 
         // Recall@10: pattern-50 should be in top 10 results
         let ids: Vec<_> = results.iter().map(|p| p.id.as_str()).collect();
-        assert!(ids.contains(&"pattern-50"), "Expected pattern-50 in results: {:?}", ids);
+        assert!(ids.contains(&"pattern-50"), "Expected pattern-50 in results: {ids:?}");
     }
 
     #[test]
@@ -272,9 +272,9 @@ mod pattern_store_tests {
             let embedding: Vec<f32> =
                 (0..384).map(|j| ((i * 13 + j) % 1000) as f32 / 1000.0).collect();
             store.add_pattern(TranspilationPattern {
-                id: format!("pattern-{}", i),
-                python_pattern: format!("p{}", i),
-                rust_output: format!("o{}", i),
+                id: format!("pattern-{i}"),
+                python_pattern: format!("p{i}"),
+                rust_output: format!("o{i}"),
                 error_prevented: "E0308".into(),
                 confidence: 0.8,
                 usage_count: 1,
@@ -366,7 +366,7 @@ mod curriculum_tests {
         // Same difficulty, but one has cluster membership
         scheduler.add_example(FailingExample {
             path: "no_cluster.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError { code: "E0308".into(), message: String::new() }],
             difficulty: DifficultyLevel::Medium,
             cluster_id: None,
             dependencies: vec![],
@@ -374,7 +374,7 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "with_cluster.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError { code: "E0308".into(), message: String::new() }],
             difficulty: DifficultyLevel::Medium,
             cluster_id: Some(5), // NumPy cluster
             dependencies: vec![],
@@ -391,7 +391,7 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "no_deps.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError { code: "E0308".into(), message: String::new() }],
             difficulty: DifficultyLevel::Easy,
             cluster_id: None,
             dependencies: vec![],
@@ -399,7 +399,7 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "with_deps.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError { code: "E0308".into(), message: String::new() }],
             difficulty: DifficultyLevel::Easy,
             cluster_id: None,
             dependencies: vec!["pattern-a".into(), "pattern-b".into()],
@@ -444,8 +444,8 @@ mod curriculum_tests {
 
         for i in 0..1000 {
             scheduler.add_example(FailingExample {
-                path: format!("example_{}.py", i),
-                errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+                path: format!("example_{i}.py"),
+                errors: vec![CompilationError { code: "E0308".into(), message: String::new() }],
                 difficulty: if i % 4 == 0 {
                     DifficultyLevel::Easy
                 } else if i % 4 == 1 {
@@ -471,7 +471,7 @@ mod curriculum_tests {
         }
 
         // Easy examples should dominate early processing
-        assert!(easy_count > 50, "Expected >50 easy examples in first 100, got {}", easy_count);
+        assert!(easy_count > 50, "Expected >50 easy examples in first 100, got {easy_count}");
     }
 }
 
@@ -548,8 +548,8 @@ mod distiller_tests {
 
         // Should be valid Rust syntax (basic check)
         assert!(rule_code.contains("->"), "Missing return type arrow");
-        assert!(rule_code.contains("{"), "Missing opening brace");
-        assert!(rule_code.contains("}"), "Missing closing brace");
+        assert!(rule_code.contains('{'), "Missing opening brace");
+        assert!(rule_code.contains('}'), "Missing closing brace");
     }
 
     #[test]

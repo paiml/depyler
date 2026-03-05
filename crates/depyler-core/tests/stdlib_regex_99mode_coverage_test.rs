@@ -1,6 +1,6 @@
-//! Coverage tests for rust_gen/stdlib_method_gen/regex_mod.rs
+//! Coverage tests for `rust_gen/stdlib_method_gen/regex_mod.rs`
 //!
-//! DEPYLER-99MODE-001: Targets regex_mod.rs (624 lines)
+//! DEPYLER-99MODE-001: Targets `regex_mod.rs` (624 lines)
 //! Covers: re.match, re.search, re.findall, re.sub, re.split,
 //! re.compile, pattern matching.
 

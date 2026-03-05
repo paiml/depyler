@@ -107,10 +107,10 @@ impl MutationTester {
             (true, true) => {
                 // Both worked - need to compare outputs
                 if let (Ok(orig), Ok(mut_code)) = (original_result, mutated_result) {
-                    if orig != mut_code {
-                        MutationResult::Killed
-                    } else {
+                    if orig == mut_code {
                         MutationResult::Equivalent
+                    } else {
+                        MutationResult::Killed
                     }
                 } else {
                     MutationResult::Survived
@@ -333,13 +333,13 @@ mod tests {
 
         let mut tester = MutationTester::new();
 
-        let test_code = r#"
+        let test_code = r"
 def arithmetic_test(a: int, b: int) -> int:
     if a > b:
         return a + b
     else:
         return a - b
-"#;
+";
 
         let mutations = tester.generate_mutations(test_code);
 
@@ -358,8 +358,8 @@ def arithmetic_test(a: int, b: int) -> int:
             .filter(|m| matches!(m.operator, MutationOperator::RelationalOperatorReplacement))
             .count();
 
-        println!("Arithmetic mutations: {}", arithmetic_mutations);
-        println!("Relational mutations: {}", relational_mutations);
+        println!("Arithmetic mutations: {arithmetic_mutations}");
+        println!("Relational mutations: {relational_mutations}");
 
         assert!(arithmetic_mutations > 0, "Should generate arithmetic mutations");
         assert!(relational_mutations > 0, "Should generate relational mutations");
@@ -395,8 +395,8 @@ def arithmetic_test(a: int, b: int) -> int:
 
         let mutated_code = tester.apply_mutation(original_code, &mutation);
 
-        println!("Original: {}", original_code);
-        println!("Mutated:  {}", mutated_code);
+        println!("Original: {original_code}");
+        println!("Mutated:  {mutated_code}");
 
         assert!(mutated_code.contains("x - 1"), "Should replace + with -");
         assert!(!mutated_code.contains("x + 1"), "Should not contain original operator");
@@ -420,7 +420,7 @@ def arithmetic_test(a: int, b: int) -> int:
         ];
 
         for (code, description) in test_cases {
-            println!("\nTesting: {}", description);
+            println!("\nTesting: {description}");
 
             let mutations = vec![
                 Mutation {
@@ -476,7 +476,7 @@ def arithmetic_test(a: int, b: int) -> int:
         println!("  Survived mutations: {}", results.survived_mutations);
         println!("  Equivalent mutations: {}", results.equivalent_mutations);
         println!("  Mutation score: {:.2}%", results.mutation_score * 100.0);
-        println!("  Testing duration: {:?}", duration);
+        println!("  Testing duration: {duration:?}");
 
         // Validate results
         assert!(results.total_mutations > 0, "Should generate mutations");
@@ -501,7 +501,7 @@ def arithmetic_test(a: int, b: int) -> int:
         let mut tester = MutationTester::new();
 
         // Code that exercises all mutation operators
-        let comprehensive_code = r#"
+        let comprehensive_code = r"
 def comprehensive_test(x: int, y: int, flag: bool) -> int:
     if x > y and flag:
         result = x + y * 2
@@ -510,7 +510,7 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
         return x - y // 2
     else:
         return 0
-"#;
+";
 
         let mutations = tester.generate_mutations(comprehensive_code);
 
@@ -527,7 +527,7 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
 
         println!("Operator coverage:");
         for (operator, count) in &operator_counts {
-            println!("  {}: {} mutations", operator, count);
+            println!("  {operator}: {count} mutations");
         }
 
         // Should have multiple operator types
@@ -553,7 +553,7 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
             "Sample mutation kill rate: {}/{} ({:.1}%)",
             killed_count,
             sample_size,
-            killed_count as f64 / sample_size as f64 * 100.0
+            f64::from(killed_count) / sample_size as f64 * 100.0
         );
     }
 
@@ -627,8 +627,8 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
         ];
 
         for (code, description) in edge_cases {
-            println!("\nTesting edge case: {}", description);
-            println!("Code: {}", code);
+            println!("\nTesting edge case: {description}");
+            println!("Code: {code}");
 
             let mutations = tester.generate_mutations(code);
             println!("Generated {} mutations", mutations.len());

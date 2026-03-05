@@ -443,16 +443,16 @@ mod tests {
             patch_location: None,
         };
         let success = RepairResult::Success(fix.clone());
-        let debug_str = format!("{:?}", success);
+        let debug_str = format!("{success:?}");
         assert!(debug_str.contains("Success"));
 
         let no_fix = RepairResult::NoFixFound;
-        let debug_str = format!("{:?}", no_fix);
+        let debug_str = format!("{no_fix:?}");
         assert!(debug_str.contains("NoFixFound"));
 
         let needs_review =
             RepairResult::NeedsHumanReview { fix, confidence: 0.5, reason: "low conf".to_string() };
-        let debug_str = format!("{:?}", needs_review);
+        let debug_str = format!("{needs_review:?}");
         assert!(debug_str.contains("NeedsHumanReview"));
     }
 
@@ -487,7 +487,7 @@ mod tests {
                 change_description: "Add variable".to_string(),
             }),
         };
-        let debug_str = format!("{:?}", fix);
+        let debug_str = format!("{fix:?}");
         assert!(debug_str.contains("debug_fix"));
         assert!(debug_str.contains("DEPYLER-003"));
         assert!(debug_str.contains("DebugMutator"));
@@ -517,7 +517,7 @@ mod tests {
             line: 250,
             change_description: "Fix type coercion".to_string(),
         };
-        let debug_str = format!("{:?}", loc);
+        let debug_str = format!("{loc:?}");
         assert!(debug_str.contains("expr_gen.rs"));
         assert!(debug_str.contains("250"));
         assert!(debug_str.contains("Fix type coercion"));
@@ -559,7 +559,7 @@ mod tests {
         #[derive(Debug)]
         struct CustomMutator;
         impl Mutator for CustomMutator {
-            fn name(&self) -> &str {
+            fn name(&self) -> &'static str {
                 "CustomMutator"
             }
             fn can_handle(&self, _repro: &ReproCase) -> bool {
@@ -726,7 +726,7 @@ mod tests {
     #[test]
     fn test_engine_debug() {
         let engine = JidokaRepairEngine::new(0.85);
-        let debug_str = format!("{:?}", engine);
+        let debug_str = format!("{engine:?}");
         assert!(debug_str.contains("JidokaRepairEngine"));
         assert!(debug_str.contains("mutators"));
     }

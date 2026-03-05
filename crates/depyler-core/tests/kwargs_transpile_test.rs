@@ -9,7 +9,7 @@
 //! empty function calls: `greet()` instead of `greet("Alice", "Hello")`.
 //!
 //! ## Solution
-//! Updated `convert_call()` and `convert_method_call()` in expr_gen.rs to:
+//! Updated `convert_call()` and `convert_method_call()` in `expr_gen.rs` to:
 //! - Extract kwargs from HIR and convert to Rust expressions
 //! - Merge kwargs as additional positional arguments
 //! - Handle string literal conversion for user-defined classes
@@ -138,7 +138,7 @@ def test():
 
 #[test]
 fn test_kwargs_nested_function_calls() {
-    let python = r#"
+    let python = r"
 def inner(x: int, y: int) -> int:
     return x + y
 
@@ -147,7 +147,7 @@ def outer(inner_result: int, scale: float = 1.0, offset: int = 0) -> int:
 
 def test() -> int:
     return outer(inner(x=10, y=20), scale=2.0, offset=inner(x=5, y=5))
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -165,13 +165,13 @@ def test() -> int:
 
 #[test]
 fn test_kwargs_only_positional_args() {
-    let python = r#"
+    let python = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def test() -> int:
     return add(5, 3)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -181,8 +181,8 @@ def test() -> int:
 
     // Should call add with both positional arguments
     assert!(rust_code.contains("add("), "Missing add call");
-    assert!(rust_code.contains("5"), "Missing first argument");
-    assert!(rust_code.contains("3"), "Missing second argument");
+    assert!(rust_code.contains('5'), "Missing first argument");
+    assert!(rust_code.contains('3'), "Missing second argument");
 }
 
 #[test]
@@ -261,13 +261,13 @@ def test() -> str:
 
 #[test]
 fn test_kwargs_empty_function_call_no_args() {
-    let python = r#"
+    let python = r"
 def no_params() -> int:
     return 42
 
 def test() -> int:
     return no_params()
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);

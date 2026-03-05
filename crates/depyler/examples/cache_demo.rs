@@ -11,7 +11,7 @@
 //! # What This Example Shows
 //!
 //! 1. Creating cache configuration
-//! 2. Opening a SQLite cache with CAS backend
+//! 2. Opening a `SQLite` cache with CAS backend
 //! 3. Creating hermetic cache keys
 //! 4. Storing and retrieving cache entries
 //! 5. Viewing cache statistics
@@ -21,7 +21,7 @@
 //!
 //! This cache design is based on:
 //! - Build Systems à la Carte (Mokhov et al., ICFP 2018)
-//! - WiscKey (Lu et al., FAST 2016) - Key-value separation
+//! - `WiscKey` (Lu et al., FAST 2016) - Key-value separation
 //! - Nix (Dolstra et al., ICSE 2004) - Input addressing
 
 use depyler::converge::{
@@ -56,12 +56,12 @@ fn main() -> anyhow::Result<()> {
 
     // Create a cache key for some Python source
     println!("3. Creating hermetic cache key...");
-    let python_source = r#"
+    let python_source = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
-"#;
+";
 
     // Use the compute method which creates a hermetic key from source + transpiler state
     let cache_key = TranspilationCacheKey::compute(python_source, &config);
@@ -71,14 +71,14 @@ def fibonacci(n: int) -> int:
 
     // Store a cache entry
     println!("4. Storing transpilation result in cache...");
-    let rust_code = r#"
+    let rust_code = r"
 pub fn fibonacci(n: i64) -> i64 {
     if n <= 1 {
         return n;
     }
     fibonacci(n - 1) + fibonacci(n - 2)
 }
-"#;
+";
 
     let cargo_toml = r#"
 [package]

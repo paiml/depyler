@@ -108,7 +108,7 @@ impl AutomatedTestGenerator {
         }
 
         // Store generated tests
-        self.generated_tests.insert(format!("{:?}", category), tests.clone());
+        self.generated_tests.insert(format!("{category:?}"), tests.clone());
         tests
     }
 
@@ -143,7 +143,7 @@ impl AutomatedTestGenerator {
         for category in categories {
             let tests = self.generate_tests_for_category(category.clone(), tests_per_category);
             total_generated += tests.len();
-            all_tests.insert(format!("{:?}", category), tests);
+            all_tests.insert(format!("{category:?}"), tests);
         }
 
         TestSuite {
@@ -296,15 +296,14 @@ impl AutomatedTestGenerator {
             TestCategory::Integration => {
                 let complexity = (index % 3) + 2;
                 let code = format!(
-                    "def integration_test_{}(data: list) -> dict: return {{'count': len(data), 'sum': sum(data)}}",
-                    index
+                    "def integration_test_{index}(data: list) -> dict: return {{'count': len(data), 'sum': sum(data)}}"
                 );
                 (code, ExpectedOutcome::Success, complexity)
             }
         };
 
         GeneratedTest {
-            id: format!("{:?}_{}_{}_{}", category, index, complexity, timestamp),
+            id: format!("{category:?}_{index}_{complexity}_{timestamp}"),
             category: category.clone(),
             python_code: code,
             expected_outcome: expected,
@@ -704,7 +703,7 @@ impl fmt::Display for QualityReport {
         if !self.recommendations.is_empty() {
             writeln!(f, "\nRecommendations:")?;
             for rec in &self.recommendations {
-                writeln!(f, "  • {}", rec)?;
+                writeln!(f, "  • {rec}")?;
             }
         }
 
@@ -829,7 +828,7 @@ mod tests {
         let alert_types: std::collections::HashSet<_> =
             alerts.iter().map(|a| &a.alert_type).collect();
 
-        println!("Alert types: {:?}", alert_types);
+        println!("Alert types: {alert_types:?}");
         assert!(alert_types.contains(&AlertType::CoverageDropped));
         assert!(alert_types.contains(&AlertType::ErrorRateIncreased));
 
@@ -864,11 +863,11 @@ mod tests {
         assert!(!report.recommendations.is_empty());
 
         // Test report display
-        let report_str = format!("{}", report);
+        let report_str = format!("{report}");
         assert!(report_str.contains("Quality Assurance Report"));
         assert!(report_str.contains("Test Coverage"));
 
-        println!("\n{}", report);
+        println!("\n{report}");
     }
 
     /// Test quality assurance automation integration
@@ -932,8 +931,8 @@ mod tests {
         let report = dashboard.generate_quality_report();
 
         println!("\nIntegrated Quality Report:");
-        println!("  Generated Tests: {}", total_tests);
-        println!("  Successful Tests: {}", successful_tests);
+        println!("  Generated Tests: {total_tests}");
+        println!("  Successful Tests: {successful_tests}");
         println!("  Test Success Rate: {:.1}%", coverage * 100.0);
         println!("  Error Rate: {:.1}%", error_rate * 100.0);
         println!("  Overall Quality: {:?}", report.status);
@@ -950,7 +949,7 @@ mod tests {
             assert!(latest.overall_score <= 1.0);
         }
 
-        println!("\nFull Quality Report:\n{}", report);
+        println!("\nFull Quality Report:\n{report}");
     }
 
     /// Test comprehensive quality assurance pipeline
@@ -1035,7 +1034,7 @@ mod tests {
         let recent_alerts = dashboard.get_active_alerts();
         println!("Active alerts: {}", recent_alerts.len());
 
-        println!("\nFinal Pipeline Report:\n{}", final_report);
+        println!("\nFinal Pipeline Report:\n{final_report}");
 
         // Validate that the QA pipeline shows continuous improvement
         if let Some(latest) = &final_report.latest_snapshot {

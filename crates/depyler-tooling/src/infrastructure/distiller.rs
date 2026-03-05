@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn test_graduation_criteria_debug() {
         let criteria = GraduationCriteria::default();
-        let debug = format!("{:?}", criteria);
+        let debug = format!("{criteria:?}");
         assert!(debug.contains("GraduationCriteria"));
         assert!(debug.contains("min_confidence"));
     }
@@ -313,7 +313,7 @@ mod tests {
 
         for i in 1..=3 {
             let mut pattern = create_test_pattern(0.96 + (i as f32 * 0.01), 60 + i * 10, 0.995);
-            pattern.id = format!("pattern-{}", i);
+            pattern.id = format!("pattern-{i}");
             store.add_pattern(pattern);
         }
 

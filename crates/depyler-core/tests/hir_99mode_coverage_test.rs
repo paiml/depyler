@@ -21,37 +21,37 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_hir_simple_function() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     return 42
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_function_with_params() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int) -> int:
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_function_with_defaults() {
-    let code = r#"
+    let code = r"
 def f(x: int, y: int = 0) -> int:
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_function_no_return() {
-    let code = r#"
+    let code = r"
 def f(x: int):
     y = x + 1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -61,18 +61,18 @@ def f(x: int):
 
 #[test]
 fn test_hir_simple_class() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
         self.y = y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_class_with_methods() {
-    let code = r#"
+    let code = r"
 class Calculator:
     def __init__(self):
         self.result = 0
@@ -83,13 +83,13 @@ class Calculator:
 
     def reset(self):
         self.result = 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_class_multiple_fields() {
-    let code = r#"
+    let code = r"
 class Person:
     def __init__(self, name: str, age: int):
         self.name = name
@@ -101,7 +101,7 @@ class Person:
 
     def get_age(self) -> int:
         return self.age
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -111,68 +111,68 @@ class Person:
 
 #[test]
 fn test_hir_binary_expr() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> int:
     return a + b * 2 - a % b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_unary_expr() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return -x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_comparison_expr() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> bool:
     return a > b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_bool_expr() {
-    let code = r#"
+    let code = r"
 def f(a: bool, b: bool) -> bool:
     return a and b or not a
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_call_expr() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return len(items) + sum(items)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_index_expr() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return items[0] + items[-1]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_attribute_expr() {
-    let code = r#"
+    let code = r"
 class Obj:
     def __init__(self):
         self.x = 0
 
     def get(self) -> int:
         return self.x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -182,56 +182,56 @@ class Obj:
 
 #[test]
 fn test_hir_assign_stmt() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 1
     y = 2
     return x + y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_if_stmt() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     if x > 0:
         return x
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_for_stmt() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_while_stmt() {
-    let code = r#"
+    let code = r"
 def f(n: int) -> int:
     i = 0
     while i < n:
         i += 1
     return i
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_return_stmt() {
-    let code = r#"
+    let code = r"
 def f(x: int) -> int:
     return x * 2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -241,19 +241,19 @@ def f(x: int) -> int:
 
 #[test]
 fn test_hir_multiple_functions() {
-    let code = r#"
+    let code = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def subtract(a: int, b: int) -> int:
     return a - b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_function_and_class() {
-    let code = r#"
+    let code = r"
 def helper(x: int) -> int:
     return x * 2
 
@@ -263,7 +263,7 @@ class Worker:
 
     def process(self) -> int:
         return helper(self.value)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -273,24 +273,24 @@ class Worker:
 
 #[test]
 fn test_hir_import() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(data: str) -> dict:
     return json.loads(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_hir_from_import() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def f() -> dict:
     d = defaultdict(int)
     return dict(d)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -300,7 +300,7 @@ def f() -> dict:
 
 #[test]
 fn test_hir_comprehensive() {
-    let code = r#"
+    let code = r"
 import math
 
 def is_perfect_square(n: int) -> bool:
@@ -319,6 +319,6 @@ class NumberAnalyzer:
             if is_perfect_square(n):
                 count += 1
         return count
-"#;
+";
     assert!(transpile_ok(code));
 }

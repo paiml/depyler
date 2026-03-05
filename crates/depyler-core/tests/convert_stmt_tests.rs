@@ -1,8 +1,8 @@
-//! Comprehensive tests for convert_stmt function (via apply_rules)
+//! Comprehensive tests for `convert_stmt` function (via `apply_rules`)
 //! Following EXTREME TDD: Tests written BEFORE refactoring
 //!
-//! Note: convert_stmt is private, so we test through apply_rules
-//! which calls convert_body which calls convert_stmt
+//! Note: `convert_stmt` is private, so we test through `apply_rules`
+//! which calls `convert_body` which calls `convert_stmt`
 
 use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::*;

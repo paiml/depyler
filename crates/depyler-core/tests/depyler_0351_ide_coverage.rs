@@ -7,7 +7,7 @@
 //!
 //! This test suite validates IDE integration functionality:
 //! - Symbol indexing (functions, classes, methods, fields)
-//! - Symbol lookup (symbol_at_position, find_references)
+//! - Symbol lookup (`symbol_at_position`, `find_references`)
 //! - Code completion suggestions
 //! - Diagnostic reporting (errors, warnings)
 //! - Hover information generation
@@ -948,7 +948,7 @@ mod property_tests {
                         TextSize::from(((i * 10) + 5) as u32),
                     ),
                     severity: DiagnosticSeverity::Warning,
-                    message: format!("diagnostic {}", i),
+                    message: format!("diagnostic {i}"),
                     code: None,
                     source: "test".to_string(),
                 });
@@ -980,7 +980,7 @@ mod property_tests {
             let mut functions = Vec::new();
             for i in 0..func_count {
                 functions.push(HirFunction {
-                    name: format!("func{}", i),
+                    name: format!("func{i}"),
                     params: smallvec![],
                     ret_type: Type::None,
                     body: vec![],

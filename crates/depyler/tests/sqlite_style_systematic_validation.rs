@@ -1,7 +1,7 @@
 //! SQLite-Style Systematic Validation Tests - Phase 1
 //!
 //! This module implements the first phase of comprehensive testing inspired by
-//! SQLite's legendary test coverage. The goal is to systematically test EVERY
+//! `SQLite`'s legendary test coverage. The goal is to systematically test EVERY
 //! Python language construct supported by Depyler.
 //!
 //! Philosophy:
@@ -12,7 +12,7 @@
 //!
 //! References:
 //! - docs/specifications/testing-sqlite-style.md
-//! - SQLite testing: https://www.sqlite.org/testing.html
+//! - `SQLite` testing: <https://www.sqlite.org/testing.html>
 //! - Toyota Way: Build quality in, not bolt on
 
 use depyler_core::DepylerPipeline;
@@ -26,7 +26,7 @@ fn transpile_and_verify(
     let rust_code = pipeline.transpile(python)?;
 
     // Write to temp file and verify with rustc
-    let temp_file = format!("/tmp/depyler_test_{}.rs", test_name);
+    let temp_file = format!("/tmp/depyler_test_{test_name}.rs");
     std::fs::write(&temp_file, &rust_code)?;
 
     // Check compilation (using --crate-type lib for quick validation)
@@ -53,14 +53,14 @@ fn transpile_and_verify(
 #[test]
 #[ignore = "DEPYLER-1124: PyOps type inference issue - py_add chain cannot infer type"]
 fn test_01_literals_integers() {
-    let python = r#"
+    let python = r"
 def test() -> int:
     decimal = 42
     hexadecimal = 0x2A
     octal = 0o52
     binary = 0b101010
     return decimal + hexadecimal + octal + binary
-"#;
+";
 
     let rust = transpile_and_verify(python, "literals_integers").unwrap();
     assert!(rust.contains("fn test()"));
@@ -69,13 +69,13 @@ def test() -> int:
 
 #[test]
 fn test_02_literals_floats() {
-    let python = r#"
+    let python = r"
 def test() -> float:
     normal = 3.14
     scientific = 1.5e10
     negative = -2.5e-3
     return normal + scientific + negative
-"#;
+";
 
     let rust = transpile_and_verify(python, "literals_floats").unwrap();
     assert!(rust.contains("fn test()"));
@@ -99,12 +99,12 @@ def test() -> str:
 
 #[test]
 fn test_04_literals_booleans() {
-    let python = r#"
+    let python = r"
 def test() -> bool:
     t = True
     f = False
     return t and not f
-"#;
+";
 
     let rust = transpile_and_verify(python, "literals_booleans").unwrap();
     assert!(rust.contains("fn test()"));
@@ -114,11 +114,11 @@ def test() -> bool:
 #[test]
 #[ignore = "Transpiler bug: None literal generates untyped Option - needs DEPYLER ticket"]
 fn test_05_literals_none() {
-    let python = r#"
+    let python = r"
 def test() -> None:
     x = None
     return x
-"#;
+";
 
     let rust = transpile_and_verify(python, "literals_none").unwrap();
     assert!(rust.contains("fn test()"));
@@ -131,55 +131,55 @@ def test() -> None:
 #[test]
 #[ignore = "DEPYLER-1124: PyOps type inference issue - py_add/py_sub/py_mul chain cannot infer type"]
 fn test_06_binop_arithmetic() {
-    let python = r#"
+    let python = r"
 def test(a: int, b: int) -> int:
     return a + b * 2 - b / 2
-"#;
+";
 
     let rust = transpile_and_verify(python, "binop_arithmetic").unwrap();
     assert!(rust.contains("fn test"));
-    assert!(rust.contains("+") && rust.contains("*") && rust.contains("-"));
+    assert!(rust.contains('+') && rust.contains('*') && rust.contains('-'));
 }
 
 #[test]
 fn test_07_binop_comparison() {
-    let python = r#"
+    let python = r"
 def test(a: int, b: int) -> bool:
     return a < b and a <= b and a == b and a != b and a > b and a >= b
-"#;
+";
 
     let rust = transpile_and_verify(python, "binop_comparison").unwrap();
-    assert!(rust.contains("<") || rust.contains("<="));
+    assert!(rust.contains('<') || rust.contains("<="));
 }
 
 #[test]
 fn test_08_binop_logical() {
-    let python = r#"
+    let python = r"
 def test(a: bool, b: bool) -> bool:
     return a and b or not a
-"#;
+";
 
     let rust = transpile_and_verify(python, "binop_logical").unwrap();
-    assert!(rust.contains("&&") || rust.contains("||") || rust.contains("!"));
+    assert!(rust.contains("&&") || rust.contains("||") || rust.contains('!'));
 }
 
 #[test]
 fn test_09_binop_bitwise() {
-    let python = r#"
+    let python = r"
 def test(a: int, b: int) -> int:
     return a & b | a ^ b
-"#;
+";
 
     let rust = transpile_and_verify(python, "binop_bitwise").unwrap();
-    assert!(rust.contains("&") || rust.contains("|") || rust.contains("^"));
+    assert!(rust.contains('&') || rust.contains('|') || rust.contains('^'));
 }
 
 #[test]
 fn test_10_binop_power() {
-    let python = r#"
+    let python = r"
 def test(a: int) -> int:
     return a ** 2
-"#;
+";
 
     let rust = transpile_and_verify(python, "binop_power").unwrap();
     assert!(rust.contains("fn test"));
@@ -191,13 +191,13 @@ def test(a: int) -> int:
 
 #[test]
 fn test_11_control_if_simple() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> int:
     if x > 0:
         return 1
     else:
         return -1
-"#;
+";
 
     let rust = transpile_and_verify(python, "control_if_simple").unwrap();
     assert!(rust.contains("if") && rust.contains("else"));
@@ -205,7 +205,7 @@ def test(x: int) -> int:
 
 #[test]
 fn test_12_control_if_elif() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> int:
     if x > 0:
         return 1
@@ -213,7 +213,7 @@ def test(x: int) -> int:
         return -1
     else:
         return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "control_if_elif").unwrap();
     assert!(rust.contains("if") && rust.contains("else"));
@@ -221,13 +221,13 @@ def test(x: int) -> int:
 
 #[test]
 fn test_13_control_while() {
-    let python = r#"
+    let python = r"
 def test(n: int) -> int:
     x = 0
     while x < n:
         x = x + 1
     return x
-"#;
+";
 
     let rust = transpile_and_verify(python, "control_while").unwrap();
     assert!(rust.contains("while"));
@@ -235,13 +235,13 @@ def test(n: int) -> int:
 
 #[test]
 fn test_14_control_for_range() {
-    let python = r#"
+    let python = r"
 def test(n: int) -> int:
     total = 0
     for i in range(n):
         total = total + i
     return total
-"#;
+";
 
     let rust = transpile_and_verify(python, "control_for_range").unwrap();
     assert!(rust.contains("for"));
@@ -249,7 +249,7 @@ def test(n: int) -> int:
 
 #[test]
 fn test_15_control_break_continue() {
-    let python = r#"
+    let python = r"
 def test(n: int) -> int:
     x = 0
     while x < n:
@@ -259,7 +259,7 @@ def test(n: int) -> int:
         if x == 10:
             break
     return x
-"#;
+";
 
     let rust = transpile_and_verify(python, "control_break_continue").unwrap();
     assert!(rust.contains("break") || rust.contains("continue"));
@@ -271,10 +271,10 @@ def test(n: int) -> int:
 
 #[test]
 fn test_16_function_simple() {
-    let python = r#"
+    let python = r"
 def add(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
     let rust = transpile_and_verify(python, "function_simple").unwrap();
     assert!(rust.contains("fn add"));
@@ -282,12 +282,12 @@ def add(a: int, b: int) -> int:
 
 #[test]
 fn test_17_function_multiple_returns() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> int:
     if x > 0:
         return 1
     return -1
-"#;
+";
 
     let rust = transpile_and_verify(python, "function_multiple_returns").unwrap();
     assert!(rust.contains("return"));
@@ -295,10 +295,10 @@ def test(x: int) -> int:
 
 #[test]
 fn test_18_function_no_return() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> None:
     y = x + 1
-"#;
+";
 
     let rust = transpile_and_verify(python, "function_no_return").unwrap();
     assert!(rust.contains("fn test"));
@@ -306,12 +306,12 @@ def test(x: int) -> None:
 
 #[test]
 fn test_19_function_recursion() {
-    let python = r#"
+    let python = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#;
+";
 
     let rust = transpile_and_verify(python, "function_recursion").unwrap();
     assert!(rust.contains("fn factorial"));
@@ -320,13 +320,13 @@ def factorial(n: int) -> int:
 
 #[test]
 fn test_20_function_call() {
-    let python = r#"
+    let python = r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def test() -> int:
     return add(1, 2)
-"#;
+";
 
     let rust = transpile_and_verify(python, "function_call").unwrap();
     assert!(rust.contains("add("));
@@ -339,12 +339,12 @@ def test() -> int:
 #[test]
 #[ignore = "Transpiler bug: Empty list generates untyped Vec - needs DEPYLER ticket"]
 fn test_21_list_creation() {
-    let python = r#"
+    let python = r"
 def test() -> list[int]:
     empty = []
     numbers = [1, 2, 3, 4, 5]
     return numbers
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_creation").unwrap();
     assert!(rust.contains("Vec") || rust.contains("vec!"));
@@ -352,12 +352,12 @@ def test() -> list[int]:
 
 #[test]
 fn test_22_list_indexing() {
-    let python = r#"
+    let python = r"
 def test(items: list[int]) -> int:
     first = items[0]
     last = items[-1]
     return first + last
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_indexing").unwrap();
     assert!(rust.contains("[0]") || rust.contains(".get("));
@@ -365,13 +365,13 @@ def test(items: list[int]) -> int:
 
 #[test]
 fn test_23_list_methods() {
-    let python = r#"
+    let python = r"
 def test() -> list[int]:
     items = [1, 2, 3]
     items.append(4)
     items.extend([5, 6])
     return items
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_methods").unwrap();
     assert!(rust.contains("push") || rust.contains("append"));
@@ -379,13 +379,13 @@ def test() -> list[int]:
 
 #[test]
 fn test_24_list_iteration() {
-    let python = r#"
+    let python = r"
 def test(items: list[int]) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_iteration").unwrap();
     assert!(rust.contains("for"));
@@ -394,11 +394,11 @@ def test(items: list[int]) -> int:
 
 #[test]
 fn test_25_list_comprehension() {
-    let python = r#"
+    let python = r"
 def test() -> list[int]:
     squares = [x * x for x in range(10)]
     return squares
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_comprehension").unwrap();
     assert!(rust.contains("map") || rust.contains("collect"));
@@ -450,13 +450,13 @@ def test() -> dict[str, int]:
 
 #[test]
 fn test_29_dict_iteration() {
-    let python = r#"
+    let python = r"
 def test(data: dict[str, int]) -> int:
     total = 0
     for key in data.keys():
         total = total + data[key]
     return total
-"#;
+";
 
     let rust = transpile_and_verify(python, "dict_iteration").unwrap();
     assert!(rust.contains("for"));
@@ -465,11 +465,11 @@ def test(data: dict[str, int]) -> int:
 
 #[test]
 fn test_30_dict_comprehension() {
-    let python = r#"
+    let python = r"
 def test() -> dict[int, int]:
     squares = {x: x * x for x in range(5)}
     return squares
-"#;
+";
 
     let rust = transpile_and_verify(python, "dict_comprehension").unwrap();
     assert!(rust.contains("collect") || rust.contains("HashMap"));
@@ -481,11 +481,11 @@ def test() -> dict[int, int]:
 
 #[test]
 fn test_31_set_creation() {
-    let python = r#"
+    let python = r"
 def test() -> set[int]:
     numbers = {1, 2, 3, 4, 5}
     return numbers
-"#;
+";
 
     let rust = transpile_and_verify(python, "set_creation").unwrap();
     assert!(rust.contains("HashSet") || rust.contains("BTreeSet"));
@@ -493,11 +493,11 @@ def test() -> set[int]:
 
 #[test]
 fn test_32_set_operations() {
-    let python = r#"
+    let python = r"
 def test(a: set[int], b: set[int]) -> set[int]:
     union = a.union(b)
     return union
-"#;
+";
 
     let rust = transpile_and_verify(python, "set_operations").unwrap();
     assert!(rust.contains("union"));
@@ -505,13 +505,13 @@ def test(a: set[int], b: set[int]) -> set[int]:
 
 #[test]
 fn test_33_set_methods() {
-    let python = r#"
+    let python = r"
 def test() -> set[int]:
     items = {1, 2, 3}
     items.add(4)
     items.discard(1)
     return items
-"#;
+";
 
     let rust = transpile_and_verify(python, "set_methods").unwrap();
     assert!(rust.contains("insert") || rust.contains("add"));
@@ -520,12 +520,12 @@ def test() -> set[int]:
 #[test]
 fn test_depyler_0224_set_remove_with_variable() {
     // DEPYLER-0224: set.remove() should use HashSet::remove(), not list position logic
-    let python = r#"
+    let python = r"
 def test(value: int) -> set[int]:
     numbers = {1, 2, 3, 4, 5}
     numbers.remove(value)
     return numbers
-"#;
+";
 
     let rust = transpile_and_verify(python, "set_remove_variable").unwrap();
 
@@ -537,10 +537,10 @@ def test(value: int) -> set[int]:
 
 #[test]
 fn test_34_set_membership() {
-    let python = r#"
+    let python = r"
 def test(items: set[int], value: int) -> bool:
     return value in items
-"#;
+";
 
     let rust = transpile_and_verify(python, "set_membership").unwrap();
     assert!(rust.contains("contains"));
@@ -548,11 +548,11 @@ def test(items: set[int], value: int) -> bool:
 
 #[test]
 fn test_35_set_comprehension() {
-    let python = r#"
+    let python = r"
 def test() -> set[int]:
     evens = {x for x in range(10) if x % 2 == 0}
     return evens
-"#;
+";
 
     let rust = transpile_and_verify(python, "set_comprehension").unwrap();
     assert!(rust.contains("collect") || rust.contains("HashSet"));
@@ -564,12 +564,12 @@ def test() -> set[int]:
 
 #[test]
 fn test_36_string_methods() {
-    let python = r#"
+    let python = r"
 def test(s: str) -> str:
     upper = s.upper()
     lower = s.lower()
     return upper + lower
-"#;
+";
 
     let rust = transpile_and_verify(python, "string_methods").unwrap();
     assert!(rust.contains("to_uppercase") || rust.contains("to_lowercase"));
@@ -601,10 +601,10 @@ def test(name: str, age: int) -> str:
 
 #[test]
 fn test_39_string_search() {
-    let python = r#"
+    let python = r"
 def test(text: str, pattern: str) -> bool:
     return text.startswith(pattern)
-"#;
+";
 
     let rust = transpile_and_verify(python, "string_search").unwrap();
     assert!(rust.contains("starts_with"));
@@ -612,11 +612,11 @@ def test(text: str, pattern: str) -> bool:
 
 #[test]
 fn test_40_string_strip() {
-    let python = r#"
+    let python = r"
 def test(s: str) -> str:
     trimmed = s.strip()
     return trimmed
-"#;
+";
 
     let rust = transpile_and_verify(python, "string_strip").unwrap();
     assert!(rust.contains("trim"));
@@ -628,13 +628,13 @@ def test(s: str) -> str:
 
 #[test]
 fn test_41_class_definition() {
-    let python = r#"
+    let python = r"
 class Point:
     pass
 
 def test() -> Point:
     return Point()
-"#;
+";
 
     let rust = transpile_and_verify(python, "class_definition").unwrap();
     assert!(rust.contains("struct Point") || rust.contains("impl Point"));
@@ -642,7 +642,7 @@ def test() -> Point:
 
 #[test]
 fn test_42_class_with_init() {
-    let python = r#"
+    let python = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -650,7 +650,7 @@ class Point:
 
 def test() -> Point:
     return Point(1, 2)
-"#;
+";
 
     let rust = transpile_and_verify(python, "class_with_init").unwrap();
     assert!(rust.contains("struct Point"));
@@ -659,7 +659,7 @@ def test() -> Point:
 
 #[test]
 fn test_43_class_attributes() {
-    let python = r#"
+    let python = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -668,7 +668,7 @@ class Point:
 def test() -> int:
     p = Point(3, 4)
     return p.x + p.y
-"#;
+";
 
     let rust = transpile_and_verify(python, "class_attributes").unwrap();
     assert!(rust.contains("struct Point"));
@@ -676,7 +676,7 @@ def test() -> int:
 
 #[test]
 fn test_44_class_simple_method() {
-    let python = r#"
+    let python = r"
 class Counter:
     def __init__(self, value: int):
         self.value = value
@@ -688,7 +688,7 @@ class Counter:
 def test() -> int:
     c = Counter(0)
     return c.increment()
-"#;
+";
 
     let rust = transpile_and_verify(python, "class_simple_method").unwrap();
     assert!(rust.contains("fn increment"));
@@ -696,7 +696,7 @@ def test() -> int:
 
 #[test]
 fn test_45_class_multiple_instances() {
-    let python = r#"
+    let python = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -706,7 +706,7 @@ def test() -> int:
     p1 = Point(1, 2)
     p2 = Point(3, 4)
     return p1.x + p2.y
-"#;
+";
 
     let rust = transpile_and_verify(python, "class_multiple_instances").unwrap();
     assert!(rust.contains("struct Point"));
@@ -718,7 +718,7 @@ def test() -> int:
 
 #[test]
 fn test_46_instance_method() {
-    let python = r#"
+    let python = r"
 class Calculator:
     def __init__(self, value: int):
         self.value = value
@@ -729,7 +729,7 @@ class Calculator:
 def test() -> int:
     calc = Calculator(10)
     return calc.add(5)
-"#;
+";
 
     let rust = transpile_and_verify(python, "instance_method").unwrap();
     assert!(rust.contains("fn add"));
@@ -737,7 +737,7 @@ def test() -> int:
 
 #[test]
 fn test_47_method_with_self_mutation() {
-    let python = r#"
+    let python = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -748,7 +748,7 @@ class Counter:
 def test() -> None:
     c = Counter()
     c.increment()
-"#;
+";
 
     let rust = transpile_and_verify(python, "method_with_self_mutation").unwrap();
     assert!(rust.contains("&mut self") || rust.contains("fn increment"));
@@ -776,7 +776,7 @@ def test() -> int:
 
 #[test]
 fn test_49_multiple_methods() {
-    let python = r#"
+    let python = r"
 class Rectangle:
     def __init__(self, width: int, height: int):
         self.width = width
@@ -791,7 +791,7 @@ class Rectangle:
 def test() -> int:
     r = Rectangle(5, 3)
     return r.area() + r.perimeter()
-"#;
+";
 
     let rust = transpile_and_verify(python, "multiple_methods").unwrap();
     assert!(rust.contains("fn area"));
@@ -800,7 +800,7 @@ def test() -> int:
 
 #[test]
 fn test_50_method_chaining() {
-    let python = r#"
+    let python = r"
 class Builder:
     def __init__(self, value: int):
         self.value = value
@@ -817,7 +817,7 @@ def test() -> int:
     b = Builder(5)
     b.add(3)
     return b.multiply(2)
-"#;
+";
 
     let rust = transpile_and_verify(python, "method_chaining").unwrap();
     assert!(rust.contains("fn add"));
@@ -830,7 +830,7 @@ def test() -> int:
 
 #[test]
 fn test_51_read_property() {
-    let python = r#"
+    let python = r"
 class Circle:
     def __init__(self, radius: int):
         self.radius = radius
@@ -838,7 +838,7 @@ class Circle:
 def test() -> int:
     c = Circle(5)
     return c.radius
-"#;
+";
 
     let rust = transpile_and_verify(python, "read_property").unwrap();
     assert!(rust.contains("radius"));
@@ -846,7 +846,7 @@ def test() -> int:
 
 #[test]
 fn test_52_write_property() {
-    let python = r#"
+    let python = r"
 class Container:
     def __init__(self, size: int):
         self.size = size
@@ -855,7 +855,7 @@ def test() -> int:
     b = Container(10)
     b.size = 20
     return b.size
-"#;
+";
 
     let rust = transpile_and_verify(python, "write_property").unwrap();
     assert!(rust.contains("size"));
@@ -863,7 +863,7 @@ def test() -> int:
 
 #[test]
 fn test_53_multiple_properties() {
-    let python = r#"
+    let python = r"
 class Point3D:
     def __init__(self, x: int, y: int, z: int):
         self.x = x
@@ -873,7 +873,7 @@ class Point3D:
 def test() -> int:
     p = Point3D(1, 2, 3)
     return p.x + p.y + p.z
-"#;
+";
 
     let rust = transpile_and_verify(python, "multiple_properties").unwrap();
     assert!(rust.contains("struct"));
@@ -881,7 +881,7 @@ def test() -> int:
 
 #[test]
 fn test_54_property_in_method() {
-    let python = r#"
+    let python = r"
 class Square:
     def __init__(self, side: int):
         self.side = side
@@ -892,7 +892,7 @@ class Square:
 def test() -> int:
     s = Square(4)
     return s.area()
-"#;
+";
 
     let rust = transpile_and_verify(python, "property_in_method").unwrap();
     assert!(rust.contains("fn area"));
@@ -900,7 +900,7 @@ def test() -> int:
 
 #[test]
 fn test_55_computed_property() {
-    let python = r#"
+    let python = r"
 class Temperature:
     def __init__(self, celsius: int):
         self.celsius = celsius
@@ -911,7 +911,7 @@ class Temperature:
 def test() -> int:
     t = Temperature(0)
     return t.fahrenheit()
-"#;
+";
 
     let rust = transpile_and_verify(python, "computed_property").unwrap();
     assert!(rust.contains("fn fahrenheit"));
@@ -924,28 +924,28 @@ def test() -> int:
 #[test]
 #[ignore] // DEPYLER-0257: Result-based exception handling not yet implemented for value-returning functions
 fn test_56_try_except_basic() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> int:
     try:
         return 10 // x
     except:
         return -1
-"#;
+";
 
     let rust = transpile_and_verify(python, "try_except_basic").unwrap();
-    assert!(rust.contains("Result") || rust.contains("match") || rust.contains("?"));
+    assert!(rust.contains("Result") || rust.contains("match") || rust.contains('?'));
 }
 
 #[test]
 #[ignore] // DEPYLER-0257: Result-based exception handling not yet implemented for value-returning functions
 fn test_57_try_except_with_type() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> int:
     try:
         return 10 // x
     except ZeroDivisionError:
         return -1
-"#;
+";
 
     let rust = transpile_and_verify(python, "try_except_with_type").unwrap();
     assert!(rust.contains("Result") || rust.contains("Err"));
@@ -954,7 +954,7 @@ def test(x: int) -> int:
 #[test]
 #[ignore] // DEPYLER-0257: Result-based exception handling not yet implemented for value-returning functions
 fn test_58_try_except_finally() {
-    let python = r#"
+    let python = r"
 def test(x: int) -> int:
     result = 0
     try:
@@ -964,7 +964,7 @@ def test(x: int) -> int:
     finally:
         result = result + 1
     return result
-"#;
+";
 
     let rust = transpile_and_verify(python, "try_except_finally").unwrap();
     assert!(rust.contains("Result") || rust.contains("match"));
@@ -973,7 +973,7 @@ def test(x: int) -> int:
 #[test]
 #[ignore] // DEPYLER-0257: Result-based exception handling not yet implemented for value-returning functions
 fn test_59_multiple_except() {
-    let python = r#"
+    let python = r"
 def test(x: int, y: int) -> int:
     try:
         return x // y
@@ -981,7 +981,7 @@ def test(x: int, y: int) -> int:
         return -1
     except ValueError:
         return -2
-"#;
+";
 
     let rust = transpile_and_verify(python, "multiple_except").unwrap();
     assert!(rust.contains("Result") || rust.contains("match"));
@@ -1007,13 +1007,13 @@ def test(x: int) -> int:
 
 #[test]
 fn test_61_async_function() {
-    let python = r#"
+    let python = r"
 async def fetch_data() -> int:
     return 42
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "async_function").unwrap();
     assert!(rust.contains("async") || rust.contains("fn fetch_data"));
@@ -1022,7 +1022,7 @@ def test() -> int:
 #[test]
 #[ignore = "DEPYLER-1124: Async/await transpilation not yet fully implemented"]
 fn test_62_await_expression() {
-    let python = r#"
+    let python = r"
 async def fetch() -> int:
     return 42
 
@@ -1032,7 +1032,7 @@ async def process() -> int:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "await_expression").unwrap();
     assert!(rust.contains("await") || rust.contains(".await"));
@@ -1040,13 +1040,13 @@ def test() -> int:
 
 #[test]
 fn test_63_async_with_params() {
-    let python = r#"
+    let python = r"
 async def add(a: int, b: int) -> int:
     return a + b
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "async_with_params").unwrap();
     assert!(rust.contains("async") || rust.contains("fn add"));
@@ -1054,7 +1054,7 @@ def test() -> int:
 
 #[test]
 fn test_64_async_method() {
-    let python = r#"
+    let python = r"
 class DataFetcher:
     def __init__(self):
         pass
@@ -1064,7 +1064,7 @@ class DataFetcher:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "async_method").unwrap();
     assert!(rust.contains("async") || rust.contains("fn fetch"));
@@ -1073,7 +1073,7 @@ def test() -> int:
 #[test]
 #[ignore = "DEPYLER-1124: Async/await transpilation not yet fully implemented"]
 fn test_65_multiple_awaits() {
-    let python = r#"
+    let python = r"
 async def fetch1() -> int:
     return 10
 
@@ -1087,7 +1087,7 @@ async def combine() -> int:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "multiple_awaits").unwrap();
     assert!(rust.contains("await") || rust.contains(".await"));
@@ -1101,7 +1101,7 @@ def test() -> int:
 #[test]
 #[ignore = "generator support incomplete"]
 fn test_66_simple_generator() {
-    let python = r#"
+    let python = r"
 def count_up(n: int):
     i = 0
     while i < n:
@@ -1110,7 +1110,7 @@ def count_up(n: int):
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "simple_generator").unwrap();
     assert!(rust.contains("yield") || rust.contains("impl Iterator"));
@@ -1119,7 +1119,7 @@ def test() -> int:
 #[test]
 #[ignore] // Generators with return generate incorrect code - tracked for future enhancement
 fn test_67_generator_with_return() {
-    let python = r#"
+    let python = r"
 def fibonacci(n: int):
     a = 0
     b = 1
@@ -1133,7 +1133,7 @@ def fibonacci(n: int):
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "generator_with_return").unwrap();
     assert!(rust.contains("yield") || rust.contains("Iterator"));
@@ -1142,11 +1142,11 @@ def test() -> int:
 #[test]
 #[ignore] // Generator expressions generate incorrect code - tracked for future enhancement
 fn test_68_generator_expression() {
-    let python = r#"
+    let python = r"
 def test() -> int:
     squares = (x * x for x in range(10))
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "generator_expression").unwrap();
     assert!(rust.contains("map") || rust.contains("iter"));
@@ -1155,7 +1155,7 @@ def test() -> int:
 #[test]
 #[ignore] // Yield from generates incorrect code - tracked for future enhancement
 fn test_69_yield_from() {
-    let python = r#"
+    let python = r"
 def inner():
     yield 1
     yield 2
@@ -1166,7 +1166,7 @@ def outer():
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "yield_from").unwrap();
     assert!(rust.contains("yield") || rust.contains("Iterator"));
@@ -1175,7 +1175,7 @@ def test() -> int:
 #[test]
 #[ignore] // Generator methods generate incorrect code - tracked for future enhancement
 fn test_70_generator_method() {
-    let python = r#"
+    let python = r"
 class Counter:
     def __init__(self, max: int):
         self.max = max
@@ -1188,7 +1188,7 @@ class Counter:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "generator_method").unwrap();
     assert!(rust.contains("yield") || rust.contains("Iterator"));
@@ -1245,7 +1245,7 @@ def test() -> str:
 #[test]
 #[ignore] // Multiple decorators generate incorrect code - tracked for future enhancement
 fn test_73_multiple_decorators() {
-    let python = r#"
+    let python = r"
 def decorator1(func):
     def wrapper():
         return func()
@@ -1263,7 +1263,7 @@ def my_function() -> int:
 
 def test() -> int:
     return my_function()
-"#;
+";
 
     let rust = transpile_and_verify(python, "multiple_decorators").unwrap();
     assert!(rust.contains("fn my_function"));
@@ -1272,7 +1272,7 @@ def test() -> int:
 #[test]
 #[ignore] // Class decorators generate incorrect code - tracked for future enhancement
 fn test_74_class_decorator() {
-    let python = r#"
+    let python = r"
 def class_decorator(cls):
     return cls
 
@@ -1283,7 +1283,7 @@ class MyClass:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "class_decorator").unwrap();
     assert!(rust.contains("struct MyClass") || rust.contains("impl MyClass"));
@@ -1291,7 +1291,7 @@ def test() -> int:
 
 #[test]
 fn test_75_property_decorator() {
-    let python = r#"
+    let python = r"
 class Circle:
     def __init__(self, radius: int):
         self.radius = radius
@@ -1302,7 +1302,7 @@ class Circle:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "property_decorator").unwrap();
     assert!(rust.contains("fn area") || rust.contains("struct Circle"));
@@ -1314,7 +1314,7 @@ def test() -> int:
 
 #[test]
 fn test_76_with_statement() {
-    let python = r#"
+    let python = r"
 class FileManager:
     def __enter__(self):
         return self
@@ -1325,7 +1325,7 @@ class FileManager:
 def test() -> int:
     with FileManager():
         return 42
-"#;
+";
 
     let rust = transpile_and_verify(python, "with_statement").unwrap();
     assert!(rust.contains("FileManager") || rust.contains("Drop"));
@@ -1333,7 +1333,7 @@ def test() -> int:
 
 #[test]
 fn test_77_with_as() {
-    let python = r#"
+    let python = r"
 class Resource:
     def __enter__(self):
         return self
@@ -1347,7 +1347,7 @@ class Resource:
 def test() -> int:
     with Resource() as r:
         return r.get_value()
-"#;
+";
 
     let rust = transpile_and_verify(python, "with_as").unwrap();
     assert!(rust.contains("Resource"));
@@ -1355,7 +1355,7 @@ def test() -> int:
 
 #[test]
 fn test_78_nested_with() {
-    let python = r#"
+    let python = r"
 class Resource1:
     def __enter__(self):
         return self
@@ -1374,7 +1374,7 @@ def test() -> int:
     with Resource1():
         with Resource2():
             return 42
-"#;
+";
 
     let rust = transpile_and_verify(python, "nested_with").unwrap();
     assert!(rust.contains("Resource1") && rust.contains("Resource2"));
@@ -1382,7 +1382,7 @@ def test() -> int:
 
 #[test]
 fn test_79_with_exception() {
-    let python = r#"
+    let python = r"
 class ErrorHandler:
     def __enter__(self):
         return self
@@ -1396,7 +1396,7 @@ def test() -> int:
             return 42
     except:
         return -1
-"#;
+";
 
     let rust = transpile_and_verify(python, "with_exception").unwrap();
     assert!(rust.contains("ErrorHandler"));
@@ -1405,7 +1405,7 @@ def test() -> int:
 #[test]
 #[ignore] // Multiple context managers generate incorrect code - tracked for future enhancement
 fn test_80_multiple_context_managers() {
-    let python = r#"
+    let python = r"
 class File1:
     def __enter__(self):
         return self
@@ -1423,7 +1423,7 @@ class File2:
 def test() -> int:
     with File1(), File2():
         return 42
-"#;
+";
 
     let rust = transpile_and_verify(python, "multiple_context_managers").unwrap();
     assert!(rust.contains("File1") && rust.contains("File2"));
@@ -1435,10 +1435,10 @@ def test() -> int:
 
 #[test]
 fn test_81_basic_type_annotations() {
-    let python = r#"
+    let python = r"
 def greet(name: str, age: int) -> str:
     return name
-"#;
+";
 
     let rust = transpile_and_verify(python, "basic_type_annotations").unwrap();
     assert!(rust.contains("fn greet"));
@@ -1447,13 +1447,13 @@ def greet(name: str, age: int) -> str:
 
 #[test]
 fn test_82_list_type_annotation() {
-    let python = r#"
+    let python = r"
 def sum_list(numbers: list[int]) -> int:
     total = 0
     for n in numbers:
         total = total + n
     return total
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_type_annotation").unwrap();
     assert!(rust.contains("Vec") || rust.contains("&["));
@@ -1461,10 +1461,10 @@ def sum_list(numbers: list[int]) -> int:
 
 #[test]
 fn test_83_dict_type_annotation() {
-    let python = r#"
+    let python = r"
 def lookup(data: dict[str, int], key: str) -> int:
     return data.get(key, 0)
-"#;
+";
 
     let rust = transpile_and_verify(python, "dict_type_annotation").unwrap();
     assert!(rust.contains("HashMap") || rust.contains("BTreeMap"));
@@ -1473,12 +1473,12 @@ def lookup(data: dict[str, int], key: str) -> int:
 #[test]
 #[ignore] // Optional type annotation generates incomplete code - tracked for future enhancement
 fn test_84_optional_type_annotation() {
-    let python = r#"
+    let python = r"
 def maybe_value(x: int | None) -> int:
     if x is None:
         return 0
     return x
-"#;
+";
 
     let rust = transpile_and_verify(python, "optional_type_annotation").unwrap();
     assert!(rust.contains("Option"));
@@ -1487,10 +1487,10 @@ def maybe_value(x: int | None) -> int:
 #[test]
 #[ignore] // Generic type annotations generate incomplete code - tracked for future enhancement
 fn test_85_generic_type_annotation() {
-    let python = r#"
+    let python = r"
 def first_element(items: list[int | str]) -> int | str:
     return items[0]
-"#;
+";
 
     let rust = transpile_and_verify(python, "generic_type_annotation").unwrap();
     assert!(rust.contains("Vec") || rust.contains("enum"));
@@ -1502,13 +1502,13 @@ def first_element(items: list[int | str]) -> int | str:
 
 #[test]
 fn test_86_for_loop_iterator() {
-    let python = r#"
+    let python = r"
 def process(items: list[int]) -> int:
     count = 0
     for item in items:
         count = count + 1
     return count
-"#;
+";
 
     let rust = transpile_and_verify(python, "for_loop_iterator").unwrap();
     assert!(rust.contains("for"));
@@ -1517,13 +1517,13 @@ def process(items: list[int]) -> int:
 
 #[test]
 fn test_87_range_iterator() {
-    let python = r#"
+    let python = r"
 def sum_range(n: int) -> int:
     total = 0
     for i in range(n):
         total = total + i
     return total
-"#;
+";
 
     let rust = transpile_and_verify(python, "range_iterator").unwrap();
     assert!(rust.contains("range") || rust.contains("0.."));
@@ -1531,13 +1531,13 @@ def sum_range(n: int) -> int:
 
 #[test]
 fn test_88_enumerate_iterator() {
-    let python = r#"
+    let python = r"
 def find_index(items: list[int], target: int) -> int:
     for i, value in enumerate(items):
         if value == target:
             return i
     return -1
-"#;
+";
 
     let rust = transpile_and_verify(python, "enumerate_iterator").unwrap();
     assert!(rust.contains("enumerate") || rust.contains("iter().enumerate()"));
@@ -1546,13 +1546,13 @@ def find_index(items: list[int], target: int) -> int:
 #[test]
 #[ignore = "DEPYLER-1124: Zip iterator tuple unpacking type inference issue"]
 fn test_89_zip_iterator() {
-    let python = r#"
+    let python = r"
 def pair_sum(a: list[int], b: list[int]) -> list[int]:
     result = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#;
+";
 
     let rust = transpile_and_verify(python, "zip_iterator").unwrap();
     assert!(rust.contains("zip") || rust.contains("iter().zip("));
@@ -1561,7 +1561,7 @@ def pair_sum(a: list[int], b: list[int]) -> list[int]:
 #[test]
 #[ignore] // Iterator protocol (__iter__, __next__) generates incomplete code - tracked for future enhancement
 fn test_90_custom_iterator() {
-    let python = r#"
+    let python = r"
 class Counter:
     def __init__(self, max: int):
         self.max = max
@@ -1579,7 +1579,7 @@ class Counter:
 
 def test() -> int:
     return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "custom_iterator").unwrap();
     assert!(rust.contains("impl Iterator"));
@@ -1628,14 +1628,14 @@ def process(x: int) -> str:
 #[test]
 #[ignore] // Match with pattern unpacking generates incomplete code - tracked for future enhancement
 fn test_93_match_pattern_unpacking() {
-    let python = r#"
+    let python = r"
 def first_and_rest(items: list[int]) -> int:
     match items:
         case [first, *rest]:
             return first
         case []:
             return 0
-"#;
+";
 
     let rust = transpile_and_verify(python, "match_pattern_unpacking").unwrap();
     assert!(rust.contains("match") || rust.contains("slice"));
@@ -1644,17 +1644,17 @@ def first_and_rest(items: list[int]) -> int:
 #[test]
 #[ignore] // Match with or patterns generates incomplete code - tracked for future enhancement
 fn test_94_match_or_patterns() {
-    let python = r#"
+    let python = r"
 def is_boundary(x: int) -> bool:
     match x:
         case 0 | 100:
             return True
         case _:
             return False
-"#;
+";
 
     let rust = transpile_and_verify(python, "match_or_patterns").unwrap();
-    assert!(rust.contains("match") || rust.contains("|"));
+    assert!(rust.contains("match") || rust.contains('|'));
 }
 
 #[test]
@@ -1680,23 +1680,23 @@ def extract_value(data: dict[str, int]) -> int:
 #[test]
 #[ignore = "DEPYLER-1124: Lambda expression type inference issue"]
 fn test_96_lambda_functions() {
-    let python = r#"
+    let python = r"
 def test() -> int:
     add = lambda x, y: x + y
     return add(1, 2)
-"#;
+";
 
     let rust = transpile_and_verify(python, "lambda_functions").unwrap();
-    assert!(rust.contains("|") || rust.contains("fn"));
+    assert!(rust.contains('|') || rust.contains("fn"));
 }
 
 #[test]
 fn test_97_map_with_lambda() {
-    let python = r#"
+    let python = r"
 def test(numbers: list[int]) -> list[int]:
     doubled = list(map(lambda x: x * 2, numbers))
     return doubled
-"#;
+";
 
     let rust = transpile_and_verify(python, "map_with_lambda").unwrap();
     assert!(rust.contains("map") || rust.contains("iter()"));
@@ -1704,11 +1704,11 @@ def test(numbers: list[int]) -> list[int]:
 
 #[test]
 fn test_98_filter_with_lambda() {
-    let python = r#"
+    let python = r"
 def test(numbers: list[int]) -> list[int]:
     evens = list(filter(lambda x: x % 2 == 0, numbers))
     return evens
-"#;
+";
 
     let rust = transpile_and_verify(python, "filter_with_lambda").unwrap();
     assert!(rust.contains("filter") || rust.contains("iter()"));
@@ -1717,7 +1717,7 @@ def test(numbers: list[int]) -> list[int]:
 #[test]
 #[ignore] // Closures with capture generate incomplete code - tracked for future enhancement
 fn test_99_closure_with_capture() {
-    let python = r#"
+    let python = r"
 def make_adder(x: int):
     def adder(y: int) -> int:
         return x + y
@@ -1726,7 +1726,7 @@ def make_adder(x: int):
 def test() -> int:
     add5 = make_adder(5)
     return add5(3)
-"#;
+";
 
     let rust = transpile_and_verify(python, "closure_with_capture").unwrap();
     assert!(rust.contains("fn make_adder"));
@@ -1735,7 +1735,7 @@ def test() -> int:
 #[test]
 #[ignore] // Nested functions generate incomplete code - tracked for future enhancement
 fn test_100_nested_functions() {
-    let python = r#"
+    let python = r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         return y * 2
@@ -1743,7 +1743,7 @@ def outer(x: int) -> int:
 
 def test() -> int:
     return outer(5)
-"#;
+";
 
     let rust = transpile_and_verify(python, "nested_functions").unwrap();
     assert!(rust.contains("fn outer"));
@@ -1756,10 +1756,10 @@ def test() -> int:
 
 #[test]
 fn test_101_builtin_len() {
-    let python = r#"
+    let python = r"
 def test_len(items: list[int]) -> int:
     return len(items)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_len").unwrap();
     assert!(rust.contains("fn test_len"));
@@ -1768,10 +1768,10 @@ def test_len(items: list[int]) -> int:
 
 #[test]
 fn test_102_builtin_max() {
-    let python = r#"
+    let python = r"
 def test_max(items: list[int]) -> int:
     return max(items)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_max").unwrap();
     assert!(rust.contains("fn test_max"));
@@ -1780,10 +1780,10 @@ def test_max(items: list[int]) -> int:
 
 #[test]
 fn test_103_builtin_min() {
-    let python = r#"
+    let python = r"
 def test_min(items: list[int]) -> int:
     return min(items)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_min").unwrap();
     assert!(rust.contains("fn test_min"));
@@ -1792,10 +1792,10 @@ def test_min(items: list[int]) -> int:
 
 #[test]
 fn test_104_list_index() {
-    let python = r#"
+    let python = r"
 def test_index(items: list[int], value: int) -> int:
     return items.index(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_index").unwrap();
     assert!(rust.contains("fn test_index"));
@@ -1804,10 +1804,10 @@ def test_index(items: list[int], value: int) -> int:
 
 #[test]
 fn test_105_list_count() {
-    let python = r#"
+    let python = r"
 def test_count(items: list[int], value: int) -> int:
     return items.count(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_count").unwrap();
     assert!(rust.contains("fn test_count"));
@@ -1816,10 +1816,10 @@ def test_count(items: list[int], value: int) -> int:
 
 #[test]
 fn test_106_str_find() {
-    let python = r#"
+    let python = r"
 def test_find(text: str, substring: str) -> int:
     return text.find(substring)
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_find").unwrap();
     assert!(rust.contains("fn test_find"));
@@ -1828,10 +1828,10 @@ def test_find(text: str, substring: str) -> int:
 
 #[test]
 fn test_107_str_replace() {
-    let python = r#"
+    let python = r"
 def test_replace(text: str, old: str, new: str) -> str:
     return text.replace(old, new)
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_replace").unwrap();
     assert!(rust.contains("fn test_replace"));
@@ -1840,10 +1840,10 @@ def test_replace(text: str, old: str, new: str) -> str:
 
 #[test]
 fn test_108_str_startswith() {
-    let python = r#"
+    let python = r"
 def test_startswith(text: str, prefix: str) -> bool:
     return text.startswith(prefix)
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_startswith").unwrap();
     assert!(rust.contains("fn test_startswith"));
@@ -1852,10 +1852,10 @@ def test_startswith(text: str, prefix: str) -> bool:
 
 #[test]
 fn test_109_str_endswith() {
-    let python = r#"
+    let python = r"
 def test_endswith(text: str, suffix: str) -> bool:
     return text.endswith(suffix)
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_endswith").unwrap();
     assert!(rust.contains("fn test_endswith"));
@@ -1864,10 +1864,10 @@ def test_endswith(text: str, suffix: str) -> bool:
 
 #[test]
 fn test_110_str_lower() {
-    let python = r#"
+    let python = r"
 def test_lower(text: str) -> str:
     return text.lower()
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_lower").unwrap();
     assert!(rust.contains("fn test_lower"));
@@ -1876,10 +1876,10 @@ def test_lower(text: str) -> str:
 
 #[test]
 fn test_111_str_upper() {
-    let python = r#"
+    let python = r"
 def test_upper(text: str) -> str:
     return text.upper()
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_upper").unwrap();
     assert!(rust.contains("fn test_upper"));
@@ -1888,10 +1888,10 @@ def test_upper(text: str) -> str:
 
 #[test]
 fn test_112_str_strip() {
-    let python = r#"
+    let python = r"
 def test_strip(text: str) -> str:
     return text.strip()
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_strip").unwrap();
     assert!(rust.contains("fn test_strip"));
@@ -1900,10 +1900,10 @@ def test_strip(text: str) -> str:
 
 #[test]
 fn test_113_str_split() {
-    let python = r#"
+    let python = r"
 def test_split(text: str, sep: str) -> list[str]:
     return text.split(sep)
-"#;
+";
 
     let rust = transpile_and_verify(python, "str_split").unwrap();
     assert!(rust.contains("fn test_split"));
@@ -1912,10 +1912,10 @@ def test_split(text: str, sep: str) -> list[str]:
 
 #[test]
 fn test_114_builtin_sorted() {
-    let python = r#"
+    let python = r"
 def test_sorted(items: list[int]) -> list[int]:
     return sorted(items)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_sorted").unwrap();
     assert!(rust.contains("fn test_sorted"));
@@ -1924,10 +1924,10 @@ def test_sorted(items: list[int]) -> list[int]:
 
 #[test]
 fn test_115_builtin_sum() {
-    let python = r#"
+    let python = r"
 def test_sum(numbers: list[int]) -> int:
     return sum(numbers)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_sum").unwrap();
     assert!(rust.contains("fn test_sum"));
@@ -1936,10 +1936,10 @@ def test_sum(numbers: list[int]) -> int:
 
 #[test]
 fn test_116_builtin_abs() {
-    let python = r#"
+    let python = r"
 def test_abs(value: int) -> int:
     return abs(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_abs").unwrap();
     assert!(rust.contains("fn test_abs"));
@@ -1948,10 +1948,10 @@ def test_abs(value: int) -> int:
 
 #[test]
 fn test_117_builtin_any() {
-    let python = r#"
+    let python = r"
 def test_any(items: list[bool]) -> bool:
     return any(items)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_any").unwrap();
     assert!(rust.contains("fn test_any"));
@@ -1960,10 +1960,10 @@ def test_any(items: list[bool]) -> bool:
 
 #[test]
 fn test_118_builtin_all() {
-    let python = r#"
+    let python = r"
 def test_all(items: list[bool]) -> bool:
     return all(items)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_all").unwrap();
     assert!(rust.contains("fn test_all"));
@@ -1972,10 +1972,10 @@ def test_all(items: list[bool]) -> bool:
 
 #[test]
 fn test_119_builtin_round() {
-    let python = r#"
+    let python = r"
 def test_round(value: float) -> int:
     return round(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_round").unwrap();
     assert!(rust.contains("fn test_round"));
@@ -1984,10 +1984,10 @@ def test_round(value: float) -> int:
 
 #[test]
 fn test_120_builtin_pow() {
-    let python = r#"
+    let python = r"
 def test_pow(base: int, exp: int) -> int:
     return pow(base, exp)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_pow").unwrap();
     assert!(rust.contains("fn test_pow"));
@@ -1996,10 +1996,10 @@ def test_pow(base: int, exp: int) -> int:
 
 #[test]
 fn test_121_builtin_chr() {
-    let python = r#"
+    let python = r"
 def test_chr(code: int) -> str:
     return chr(code)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_chr").unwrap();
     assert!(rust.contains("fn test_chr"));
@@ -2008,10 +2008,10 @@ def test_chr(code: int) -> str:
 
 #[test]
 fn test_122_builtin_ord() {
-    let python = r#"
+    let python = r"
 def test_ord(char: str) -> int:
     return ord(char)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_ord").unwrap();
     assert!(rust.contains("fn test_ord"));
@@ -2020,10 +2020,10 @@ def test_ord(char: str) -> int:
 
 #[test]
 fn test_123_builtin_bool() {
-    let python = r#"
+    let python = r"
 def test_bool(value: int) -> bool:
     return bool(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_bool").unwrap();
     assert!(rust.contains("fn test_bool"));
@@ -2032,10 +2032,10 @@ def test_bool(value: int) -> bool:
 
 #[test]
 fn test_124_builtin_str() {
-    let python = r#"
+    let python = r"
 def test_str(value: int) -> str:
     return str(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_str").unwrap();
     assert!(rust.contains("fn test_str"));
@@ -2045,10 +2045,10 @@ def test_str(value: int) -> str:
 #[test]
 #[ignore = "int(float) not implemented - generates invalid parse() call"]
 fn test_125_builtin_int() {
-    let python = r#"
+    let python = r"
 def test_int(value: float) -> int:
     return int(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_int").unwrap();
     assert!(rust.contains("fn test_int"));
@@ -2057,10 +2057,10 @@ def test_int(value: float) -> int:
 
 #[test]
 fn test_126_builtin_float() {
-    let python = r#"
+    let python = r"
 def test_float(value: int) -> float:
     return float(value)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_float").unwrap();
     assert!(rust.contains("fn test_float"));
@@ -2069,10 +2069,10 @@ def test_float(value: int) -> float:
 
 #[test]
 fn test_127_builtin_len_string() {
-    let python = r#"
+    let python = r"
 def test_len_string(text: str) -> int:
     return len(text)
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_len_string").unwrap();
     assert!(rust.contains("fn test_len_string"));
@@ -2081,10 +2081,10 @@ def test_len_string(text: str) -> int:
 
 #[test]
 fn test_128_builtin_reversed() {
-    let python = r#"
+    let python = r"
 def test_reversed(items: list[int]) -> list[int]:
     return list(reversed(items))
-"#;
+";
 
     let rust = transpile_and_verify(python, "builtin_reversed").unwrap();
     assert!(rust.contains("fn test_reversed"));
@@ -2098,10 +2098,10 @@ def test_reversed(items: list[int]) -> list[int]:
 #[test]
 #[ignore = "slow: requires rustc compilation"]
 fn test_129_math_operators_compound() {
-    let python = r#"
+    let python = r"
 def test_math(a: int, b: int, c: int) -> int:
     return a + b * c - (a // b)
-"#;
+";
 
     let rust = transpile_and_verify(python, "math_operators_compound").unwrap();
     assert!(rust.contains("fn test_math"));
@@ -2109,10 +2109,10 @@ def test_math(a: int, b: int, c: int) -> int:
 
 #[test]
 fn test_130_comparison_chains() {
-    let python = r#"
+    let python = r"
 def test_compare(x: int, y: int, z: int) -> bool:
     return x < y and y < z
-"#;
+";
 
     let rust = transpile_and_verify(python, "comparison_chains").unwrap();
     assert!(rust.contains("fn test_compare"));
@@ -2120,10 +2120,10 @@ def test_compare(x: int, y: int, z: int) -> bool:
 
 #[test]
 fn test_131_negative_indexing() {
-    let python = r#"
+    let python = r"
 def test_negative_index(items: list[int]) -> int:
     return items[-1] + items[-2]
-"#;
+";
 
     let rust = transpile_and_verify(python, "negative_indexing").unwrap();
     assert!(rust.contains("fn test_negative_index"));
@@ -2131,10 +2131,10 @@ def test_negative_index(items: list[int]) -> int:
 
 #[test]
 fn test_132_list_slicing() {
-    let python = r#"
+    let python = r"
 def test_slice(items: list[int]) -> list[int]:
     return items[1:3]
-"#;
+";
 
     let rust = transpile_and_verify(python, "list_slicing").unwrap();
     assert!(rust.contains("fn test_slice"));
@@ -2142,22 +2142,22 @@ def test_slice(items: list[int]) -> list[int]:
 
 #[test]
 fn test_133_modulo_operator() {
-    let python = r#"
+    let python = r"
 def test_modulo(a: int, b: int) -> int:
     return a % b
-"#;
+";
 
     let rust = transpile_and_verify(python, "modulo_operator").unwrap();
     assert!(rust.contains("fn test_modulo"));
-    assert!(rust.contains("%"));
+    assert!(rust.contains('%'));
 }
 
 #[test]
 fn test_134_bitshift_operators() {
-    let python = r#"
+    let python = r"
 def test_bitshift(value: int) -> int:
     return (value << 2) >> 1
-"#;
+";
 
     let rust = transpile_and_verify(python, "bitshift_operators").unwrap();
     assert!(rust.contains("fn test_bitshift"));
@@ -2166,24 +2166,24 @@ def test_bitshift(value: int) -> int:
 
 #[test]
 fn test_135_unary_negation() {
-    let python = r#"
+    let python = r"
 def test_unary(x: int) -> int:
     return -x + -10
-"#;
+";
 
     let rust = transpile_and_verify(python, "unary_negation").unwrap();
     assert!(rust.contains("fn test_unary"));
-    assert!(rust.contains("-"));
+    assert!(rust.contains('-'));
 }
 
 #[test]
 fn test_136_augmented_assignment() {
-    let python = r#"
+    let python = r"
 def test_aug(x: int) -> int:
     x += 5
     x *= 2
     return x
-"#;
+";
 
     let rust = transpile_and_verify(python, "augmented_assignment").unwrap();
     assert!(rust.contains("fn test_aug"));
@@ -2191,12 +2191,12 @@ def test_aug(x: int) -> int:
 
 #[test]
 fn test_137_boolean_literals() {
-    let python = r#"
+    let python = r"
 def test_bool_literals() -> bool:
     t = True
     f = False
     return t or f
-"#;
+";
 
     let rust = transpile_and_verify(python, "boolean_literals").unwrap();
     assert!(rust.contains("fn test_bool_literals"));
@@ -2216,10 +2216,10 @@ def test_concat(a: str, b: str) -> str:
 
 #[test]
 fn test_139_parenthesized_expressions() {
-    let python = r#"
+    let python = r"
 def test_parens(a: int, b: int) -> int:
     return (a + b) * (a - b)
-"#;
+";
 
     let rust = transpile_and_verify(python, "parenthesized_expressions").unwrap();
     assert!(rust.contains("fn test_parens"));

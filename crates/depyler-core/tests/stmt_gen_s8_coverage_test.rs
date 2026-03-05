@@ -1,4 +1,4 @@
-//! Session 8 coverage tests for stmt_gen.rs and stmt_gen_complex.rs
+//! Session 8 coverage tests for `stmt_gen.rs` and `stmt_gen_complex.rs`
 //! Targets: subcommand patterns, complex control flow, exception handling
 
 use depyler_core::ast_bridge::AstBridge;
@@ -20,13 +20,13 @@ fn transpile(python_code: &str) -> String {
 #[test]
 fn test_try_except_value_error() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return -1
-"#,
+",
     );
     assert!(
         code.contains("parse") || code.contains("Err"),
@@ -37,7 +37,7 @@ def f(s: str) -> int:
 #[test]
 fn test_try_except_multiple_handlers() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     try:
         return int(s)
@@ -45,7 +45,7 @@ def f(s: str) -> int:
         return -1
     except TypeError:
         return -2
-"#,
+",
     );
     // Transpiler may merge exception handlers or generate match arms
     assert!(
@@ -93,13 +93,13 @@ def f() -> str:
 #[test]
 fn test_try_except_bare() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     try:
         return 42
     except:
         return -1
-"#,
+",
     );
     assert!(code.contains("42") && code.contains("-1"), "Should handle bare except: {code}");
 }
@@ -130,7 +130,7 @@ def classify(x: int) -> str:
 #[test]
 fn test_while_with_break_continue() {
     let code = transpile(
-        r#"
+        r"
 def f(n: int) -> int:
     total = 0
     i = 0
@@ -142,7 +142,7 @@ def f(n: int) -> int:
             break
         total += i
     return total
-"#,
+",
     );
     assert!(
         code.contains("break") && code.contains("continue"),
@@ -153,11 +153,11 @@ def f(n: int) -> int:
 #[test]
 fn test_for_enumerate() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> None:
     for i, item in enumerate(items):
         print(i, item)
-"#,
+",
     );
     assert!(
         code.contains("enumerate") || code.contains("iter()"),
@@ -168,13 +168,13 @@ def f(items: list) -> None:
 #[test]
 fn test_for_zip() {
     let code = transpile(
-        r#"
+        r"
 def f(a: list, b: list) -> list:
     result = []
     for x, y in zip(a, b):
         result.append(x + y)
     return result
-"#,
+",
     );
     assert!(code.contains("zip") || code.contains("iter()"), "Should generate zip: {code}");
 }
@@ -182,13 +182,13 @@ def f(a: list, b: list) -> list:
 #[test]
 fn test_for_reversed() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     result = []
     for item in reversed(items):
         result.append(item)
     return result
-"#,
+",
     );
     assert!(
         code.contains("rev()") || code.contains("reversed"),
@@ -199,13 +199,13 @@ def f(items: list) -> list:
 #[test]
 fn test_for_sorted() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     result = []
     for item in sorted(items):
         result.append(item)
     return result
-"#,
+",
     );
     assert!(
         code.contains("sort") || code.contains("sorted"),
@@ -218,11 +218,11 @@ def f(items: list) -> list:
 #[test]
 fn test_assert_simple() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     assert x > 0
     return x
-"#,
+",
     );
     assert!(
         code.contains("assert") || code.contains("debug_assert"),
@@ -250,11 +250,11 @@ def f(x: int) -> int:
 #[test]
 fn test_augmented_add() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     x += 10
     return x
-"#,
+",
     );
     assert!(code.contains("+=") || code.contains("+ 10"), "Should generate +=: {code}");
 }
@@ -262,14 +262,14 @@ def f(x: int) -> int:
 #[test]
 fn test_augmented_mul() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     x *= 2
     return x
-"#,
+",
     );
     assert!(
-        code.contains("*=") || code.contains("* 2") || code.contains("2"),
+        code.contains("*=") || code.contains("* 2") || code.contains('2'),
         "Should generate multiplication: {code}"
     );
 }
@@ -277,11 +277,11 @@ def f(x: int) -> int:
 #[test]
 fn test_augmented_list_extend() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     items += [1, 2, 3]
     return items
-"#,
+",
     );
     assert!(code.contains("extend") || code.contains("+="), "Should generate list extend: {code}");
 }
@@ -323,13 +323,13 @@ def f(path: str, data: str) -> None:
 #[test]
 fn test_global_variable() {
     let code = transpile(
-        r#"
+        r"
 counter = 0
 def increment() -> int:
     global counter
     counter += 1
     return counter
-"#,
+",
     );
     assert!(
         code.contains("counter") || code.contains("static") || code.contains("COUNTER"),
@@ -342,13 +342,13 @@ def increment() -> int:
 #[test]
 fn test_tuple_return() {
     let code = transpile(
-        r#"
+        r"
 def divmod_custom(a: int, b: int) -> tuple:
     return a // b, a % b
-"#,
+",
     );
     assert!(
-        code.contains("(") && (code.contains("/") || code.contains("%")),
+        code.contains('(') && (code.contains('/') || code.contains('%')),
         "Should generate tuple return: {code}"
     );
 }
@@ -356,14 +356,14 @@ def divmod_custom(a: int, b: int) -> tuple:
 #[test]
 fn test_tuple_unpack_assignment() {
     let code = transpile(
-        r#"
+        r"
 def f() -> int:
     a, b, c = 1, 2, 3
     return a + b + c
-"#,
+",
     );
     assert!(
-        code.contains("let") && code.contains("1") && code.contains("2"),
+        code.contains("let") && code.contains('1') && code.contains('2'),
         "Should unpack tuple: {code}"
     );
 }
@@ -373,10 +373,10 @@ def f() -> int:
 #[test]
 fn test_nested_list_comprehension() {
     let code = transpile(
-        r#"
+        r"
 def flatten(matrix: list) -> list:
     return [x for row in matrix for x in row]
-"#,
+",
     );
     assert!(
         code.contains("iter") || code.contains("flat_map") || code.contains("flatten"),
@@ -387,14 +387,14 @@ def flatten(matrix: list) -> list:
 #[test]
 fn test_walrus_operator() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     result = []
     for item in items:
         if (n := len(item)) > 3:
             result.append(n)
     return result
-"#,
+",
     );
     assert!(
         code.contains("len") || code.contains("let n"),
@@ -419,13 +419,13 @@ def f(x: int) -> str:
 #[test]
 fn test_chained_comparison() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> bool:
     return 0 < x < 100
-"#,
+",
     );
     assert!(
-        code.contains("&&") || code.contains("0") && code.contains("100"),
+        code.contains("&&") || code.contains('0') && code.contains("100"),
         "Should generate chained comparison: {code}"
     );
 }
@@ -435,7 +435,7 @@ def f(x: int) -> bool:
 #[test]
 fn test_class_with_methods() {
     let code = transpile(
-        r#"
+        r"
 class Stack:
     def __init__(self) -> None:
         self.items: list = []
@@ -448,7 +448,7 @@ class Stack:
 
     def is_empty(self) -> bool:
         return len(self.items) == 0
-"#,
+",
     );
     assert!(
         code.contains("struct Stack") || code.contains("impl Stack"),
@@ -461,7 +461,7 @@ class Stack:
 #[test]
 fn test_class_with_property_like() {
     let code = transpile(
-        r#"
+        r"
 class Rectangle:
     def __init__(self, width: float, height: float) -> None:
         self.width = width
@@ -472,7 +472,7 @@ class Rectangle:
 
     def perimeter(self) -> float:
         return 2 * (self.width + self.height)
-"#,
+",
     );
     assert!(code.contains("width") && code.contains("height"), "Should have fields: {code}");
     assert!(code.contains("area") && code.contains("perimeter"), "Should have methods: {code}");
@@ -521,10 +521,10 @@ def f(x: float) -> str:
 #[test]
 fn test_list_slice() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     return items[1:3]
-"#,
+",
     );
     assert!(
         code.contains("[1..3]") || code.contains("1..") || code.contains("slice"),
@@ -535,10 +535,10 @@ def f(items: list) -> list:
 #[test]
 fn test_list_slice_step() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list) -> list:
     return items[::2]
-"#,
+",
     );
     assert!(
         code.contains("step") || code.contains("skip") || code.contains("iter"),
@@ -549,13 +549,13 @@ def f(items: list) -> list:
 #[test]
 fn test_string_slice() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s[:5]
-"#,
+",
     );
     assert!(
-        code.contains("5") || code.contains("..5") || code.contains("chars"),
+        code.contains('5') || code.contains("..5") || code.contains("chars"),
         "Should generate string slice: {code}"
     );
 }

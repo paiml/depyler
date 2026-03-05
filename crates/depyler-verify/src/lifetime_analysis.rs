@@ -846,7 +846,7 @@ mod tests {
     #[test]
     fn test_lifetime_debug() {
         let l = Lifetime { name: "'x".to_string(), scope_depth: 1 };
-        let debug = format!("{:?}", l);
+        let debug = format!("{l:?}");
         assert!(debug.contains("Lifetime"));
         assert!(debug.contains("'x"));
     }
@@ -870,7 +870,7 @@ mod tests {
             must_outlive: vec![],
             valid_scopes: vec![],
         };
-        let debug = format!("{:?}", c);
+        let debug = format!("{c:?}");
         assert!(debug.contains("LifetimeConstraint"));
     }
 
@@ -886,7 +886,7 @@ mod tests {
     #[test]
     fn test_borrow_set_debug() {
         let bs = BorrowSet { borrowed: HashMap::new(), scope_depth: 0 };
-        let debug = format!("{:?}", bs);
+        let debug = format!("{bs:?}");
         assert!(debug.contains("BorrowSet"));
     }
 
@@ -900,7 +900,7 @@ mod tests {
     #[test]
     fn test_borrow_kind_debug() {
         let k = BorrowKind::Shared;
-        let debug = format!("{:?}", k);
+        let debug = format!("{k:?}");
         assert!(debug.contains("Shared"));
     }
 
@@ -925,7 +925,7 @@ mod tests {
             location: "line 5".to_string(),
             suggestion: "use owned value".to_string(),
         };
-        let debug = format!("{:?}", v);
+        let debug = format!("{v:?}");
         assert!(debug.contains("LifetimeViolation"));
     }
 
@@ -939,7 +939,7 @@ mod tests {
     #[test]
     fn test_violation_kind_debug() {
         let k = ViolationKind::LifetimeTooshort;
-        let debug = format!("{:?}", k);
+        let debug = format!("{k:?}");
         assert!(debug.contains("LifetimeTooshort"));
     }
 
@@ -953,7 +953,7 @@ mod tests {
             ViolationKind::EscapingReference,
         ];
         for kind in kinds {
-            let debug = format!("{:?}", kind);
+            let debug = format!("{kind:?}");
             assert!(!debug.is_empty());
         }
     }

@@ -84,8 +84,7 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
@@ -96,11 +95,11 @@ path = "src/lib.rs"
 /// Good Rust: `let x: Option<()> = None;` - Compiles correctly
 #[test]
 fn test_none_assignment_has_type_annotation() {
-    let python = r#"
+    let python = r"
 def test():
     x = None
     return x
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
@@ -108,8 +107,7 @@ def test():
     // Either `let x: Option<()>` or `let x : Option < () >` (with spaces from quote!)
     assert!(
         rust.contains("Option<()>") || rust.contains("Option < () >"),
-        "None assignment should have type annotation Option<()>. Generated:\n{}",
-        rust
+        "None assignment should have type annotation Option<()>. Generated:\n{rust}"
     );
 
     // Should compile without type inference errors
@@ -139,10 +137,10 @@ def test():
 /// Test that returning None from a function works
 #[test]
 fn test_return_none_compiles() {
-    let python = r#"
+    let python = r"
 def test():
     return None
-"#;
+";
 
     let rust = transpile(python).expect("Transpilation should succeed");
 

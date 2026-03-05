@@ -198,7 +198,7 @@ fn test_compile_command_empty_profile() {
     std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
     // Empty profile should default to release
-    let result = compile_command(py_file, None, "".to_string());
+    let result = compile_command(py_file, None, String::new());
     // May fail during actual compilation, but should not panic
     let _ = result;
 }

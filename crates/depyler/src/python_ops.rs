@@ -1348,28 +1348,28 @@ mod tests {
     fn test_string_impl_isalpha() {
         assert!(String::from("abc").isalpha());
         assert!(!String::from("abc1").isalpha());
-        assert!(!String::from("").isalpha());
+        assert!(!String::new().isalpha());
     }
 
     #[test]
     fn test_string_impl_isdigit() {
         assert!(String::from("123").isdigit());
         assert!(!String::from("12a").isdigit());
-        assert!(!String::from("").isdigit());
+        assert!(!String::new().isdigit());
     }
 
     #[test]
     fn test_string_impl_isalnum() {
         assert!(String::from("abc123").isalnum());
         assert!(!String::from("abc 123").isalnum());
-        assert!(!String::from("").isalnum());
+        assert!(!String::new().isalnum());
     }
 
     #[test]
     fn test_string_impl_isspace() {
         assert!(String::from("   ").isspace());
         assert!(!String::from(" a ").isspace());
-        assert!(!String::from("").isspace());
+        assert!(!String::new().isspace());
     }
 
     #[test]
@@ -1389,7 +1389,7 @@ mod tests {
     #[test]
     fn test_string_impl_capitalize() {
         assert_eq!(String::from("hello world").capitalize(), "Hello world");
-        assert_eq!(String::from("").capitalize(), "");
+        assert_eq!(String::new().capitalize(), "");
     }
 
     #[test]
@@ -1474,10 +1474,10 @@ mod tests {
 
     #[test]
     fn test_str_empty_string_checks() {
-        assert!(!String::from("").isalpha());
-        assert!(!String::from("").isdigit());
-        assert!(!String::from("").isalnum());
-        assert!(!String::from("").isspace());
+        assert!(!String::new().isalpha());
+        assert!(!String::new().isdigit());
+        assert!(!String::new().isalnum());
+        assert!(!String::new().isspace());
     }
 
     #[test]

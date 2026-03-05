@@ -1069,7 +1069,7 @@ mod tests {
             severity: Severity::Error,
             source_line: Some("eval('x')".to_string()),
         };
-        let debug = format!("{:?}", v);
+        let debug = format!("{v:?}");
         assert!(debug.contains("DP003"));
         assert!(debug.contains("test message"));
     }

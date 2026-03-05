@@ -10,7 +10,7 @@ fn test_interactive_mode_exists() {
 
 #[test]
 fn test_annotation_suggestions() {
-    let _python_source = r#"
+    let _python_source = r"
 def compute_sum(numbers: List[int]) -> int:
     total = 0
     for num in numbers:
@@ -31,7 +31,7 @@ def binary_search(arr: List[int], target: int) -> int:
             right = mid - 1
     
     return -1
-"#;
+";
 
     // Since InteractiveSession is not public, we can't test it directly
     // This would normally be a private method, so we'll test indirectly

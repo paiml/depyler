@@ -251,7 +251,7 @@ mod tests {
         ErrorCluster {
             id: id.to_string(),
             error_code: code.to_string(),
-            description: format!("Test error {}", code),
+            description: format!("Test error {code}"),
             frequency: freq,
             severity: 5,
             examples: vec!["example".to_string()],
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn test_error_cluster_debug() {
         let cluster = create_test_cluster("1", "E0308", 10);
-        let debug_str = format!("{:?}", cluster);
+        let debug_str = format!("{cluster:?}");
         assert!(debug_str.contains("ErrorCluster"));
         assert!(debug_str.contains("E0308"));
     }
@@ -362,7 +362,7 @@ mod tests {
         let cluster = create_test_cluster("1", "E0308", 10);
         let pattern = planner.cluster_to_pattern(&cluster);
 
-        let debug_str = format!("{:?}", pattern);
+        let debug_str = format!("{pattern:?}");
         assert!(debug_str.contains("FailurePattern"));
         assert!(debug_str.contains("E0308"));
     }
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_pattern_category_debug() {
         let cat = PatternCategory::TypeInference;
-        let debug_str = format!("{:?}", cat);
+        let debug_str = format!("{cat:?}");
         assert!(debug_str.contains("TypeInference"));
     }
 
@@ -422,7 +422,7 @@ mod tests {
         let pattern = planner.cluster_to_pattern(&cluster);
         let prioritized = PrioritizedPattern { pattern, priority: 5.0 };
 
-        let debug_str = format!("{:?}", prioritized);
+        let debug_str = format!("{prioritized:?}");
         assert!(debug_str.contains("PrioritizedPattern"));
         assert!(debug_str.contains("priority"));
     }
@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn test_hunt_planner_debug() {
         let planner = HuntPlanner::new();
-        let debug_str = format!("{:?}", planner);
+        let debug_str = format!("{planner:?}");
         assert!(debug_str.contains("HuntPlanner"));
     }
 

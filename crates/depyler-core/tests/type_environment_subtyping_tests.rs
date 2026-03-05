@@ -1,4 +1,4 @@
-//! DEPYLER-0499: TypeEnvironment with Subtyping Constraints
+//! DEPYLER-0499: `TypeEnvironment` with Subtyping Constraints
 //!
 //! RED Phase: Failing tests for subtyping-aware type system
 //!

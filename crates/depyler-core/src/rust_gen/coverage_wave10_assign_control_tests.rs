@@ -532,7 +532,9 @@ mod tests {
     fn test_w10ac_control_try_except_multiple() {
         let code = "try:\n    pass\nexcept (TypeError, ValueError):\n    pass";
         let result = transpile(code);
-        assert!(result.contains("TypeError") || result.contains("ValueError") || !result.is_empty());
+        assert!(
+            result.contains("TypeError") || result.contains("ValueError") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1139,7 +1141,9 @@ mod tests {
     fn test_w10ac_class_all_method_types() {
         let code = "class C:\n    def instance(self):\n        pass\n    @classmethod\n    def cls(cls):\n        pass\n    @staticmethod\n    def static():\n        pass";
         let result = transpile(code);
-        assert!(result.contains("instance") || result.contains("classmethod") || !result.is_empty());
+        assert!(
+            result.contains("instance") || result.contains("classmethod") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1258,7 +1262,9 @@ mod tests {
     fn test_w10ac_except_multiple_types() {
         let code = "try:\n    pass\nexcept (TypeError, ValueError):\n    pass";
         let result = transpile(code);
-        assert!(result.contains("TypeError") || result.contains("ValueError") || !result.is_empty());
+        assert!(
+            result.contains("TypeError") || result.contains("ValueError") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1344,7 +1350,9 @@ mod tests {
     fn test_w10ac_except_multiple_except_clauses() {
         let code = "try:\n    pass\nexcept ValueError:\n    pass\nexcept TypeError:\n    pass\nexcept KeyError:\n    pass";
         let result = transpile(code);
-        assert!(result.contains("ValueError") || result.contains("TypeError") || !result.is_empty());
+        assert!(
+            result.contains("ValueError") || result.contains("TypeError") || !result.is_empty()
+        );
     }
 
     #[test]

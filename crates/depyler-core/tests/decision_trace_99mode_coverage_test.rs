@@ -1,6 +1,6 @@
-//! Coverage tests for decision_trace.rs
+//! Coverage tests for `decision_trace.rs`
 //!
-//! DEPYLER-99MODE-001: Targets decision_trace.rs (2,850 lines)
+//! DEPYLER-99MODE-001: Targets `decision_trace.rs` (2,850 lines)
 //! Covers: type mapping decisions, borrow strategy decisions,
 //! lifetime inference, method dispatch, import resolution,
 //! error handling decisions, ownership decisions.
@@ -22,21 +22,21 @@ fn transpile(code: &str) -> String {
 
 #[test]
 fn test_trace_type_int() {
-    let code = r#"
+    let code = r"
 def f() -> int:
     x = 5
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_type_float() {
-    let code = r#"
+    let code = r"
 def f() -> float:
     x = 3.14
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -52,20 +52,20 @@ def f() -> str:
 
 #[test]
 fn test_trace_type_bool() {
-    let code = r#"
+    let code = r"
 def f() -> bool:
     x = True
     return x
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_type_list_int() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     return [1, 2, 3]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -80,13 +80,13 @@ def f() -> dict:
 
 #[test]
 fn test_trace_type_optional() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 def f(x: Optional[int]) -> int:
     if x is not None:
         return x
     return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -105,31 +105,31 @@ def f() -> tuple:
 
 #[test]
 fn test_trace_borrow_immutable() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     return len(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_borrow_mutable() {
-    let code = r#"
+    let code = r"
 def f(items: list):
     items.append(1)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_borrow_readonly_iteration() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     total = 0
     for item in items:
         total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -139,19 +139,19 @@ def f(items: list) -> int:
 
 #[test]
 fn test_trace_lifetime_return_ref() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> int:
     return items[0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_lifetime_string_slice() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s[1:3]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -161,30 +161,30 @@ def f(s: str) -> str:
 
 #[test]
 fn test_trace_method_str_upper() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> str:
     return s.upper()
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_method_list_append() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     items = [1, 2]
     items.append(3)
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_method_dict_get() {
-    let code = r#"
+    let code = r"
 def f(d: dict, key: str) -> int:
     return d.get(key, 0)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -199,11 +199,11 @@ def f(text: str) -> list:
 
 #[test]
 fn test_trace_method_list_sort() {
-    let code = r#"
+    let code = r"
 def f(items: list) -> list:
     items.sort()
     return items
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -213,29 +213,29 @@ def f(items: list) -> list:
 
 #[test]
 fn test_trace_import_json() {
-    let code = r#"
+    let code = r"
 import json
 
 def f(s: str) -> dict:
     return json.loads(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_import_math() {
-    let code = r#"
+    let code = r"
 import math
 
 def f(x: float) -> float:
     return math.sqrt(x)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_import_typing() {
-    let code = r#"
+    let code = r"
 from typing import List, Dict, Optional
 
 def f(items: List[int]) -> Dict[str, int]:
@@ -243,13 +243,13 @@ def f(items: List[int]) -> Dict[str, int]:
     for item in items:
         result[str(item)] = item
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_import_collections() {
-    let code = r#"
+    let code = r"
 from collections import defaultdict
 
 def f(items: list) -> dict:
@@ -257,7 +257,7 @@ def f(items: list) -> dict:
     for item in items:
         counts[item] += 1
     return dict(counts)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -267,19 +267,19 @@ def f(items: list) -> dict:
 
 #[test]
 fn test_trace_error_try_except() {
-    let code = r#"
+    let code = r"
 def f(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_error_multiple_handlers() {
-    let code = r#"
+    let code = r"
 def f(d: dict, key: str) -> int:
     try:
         val = d[key]
@@ -288,18 +288,18 @@ def f(d: dict, key: str) -> int:
         return -1
     except ValueError:
         return -2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_error_division() {
-    let code = r#"
+    let code = r"
 def f(a: int, b: int) -> float:
     if b == 0:
         return 0.0
     return a / b
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -309,25 +309,25 @@ def f(a: int, b: int) -> float:
 
 #[test]
 fn test_trace_ownership_transfer() {
-    let code = r#"
+    let code = r"
 def consume(items: list) -> int:
     return len(items)
 
 def f() -> int:
     data = [1, 2, 3]
     return consume(data)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_ownership_clone() {
-    let code = r#"
+    let code = r"
 def f() -> list:
     x = [1, 2, 3]
     y = x.copy()
     return y
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -337,7 +337,7 @@ def f() -> list:
 
 #[test]
 fn test_trace_combined_type_method() {
-    let code = r#"
+    let code = r"
 def process(text: str) -> list:
     words = text.strip().lower().split()
     result = []
@@ -345,13 +345,13 @@ def process(text: str) -> list:
         if len(word) > 3:
             result.append(word)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_combined_dict_processing() {
-    let code = r#"
+    let code = r"
 def count_chars(text: str) -> dict:
     counts = {}
     for ch in text:
@@ -360,13 +360,13 @@ def count_chars(text: str) -> dict:
         else:
             counts[ch] = 1
     return counts
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_combined_error_import() {
-    let code = r#"
+    let code = r"
 import json
 
 def parse(s: str) -> dict:
@@ -374,13 +374,13 @@ def parse(s: str) -> dict:
         return json.loads(s)
     except:
         return {}
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_combined_full_pipeline() {
-    let code = r#"
+    let code = r"
 from typing import List, Dict
 
 def word_frequency(texts: List[str]) -> Dict[str, int]:
@@ -392,13 +392,13 @@ def word_frequency(texts: List[str]) -> Dict[str, int]:
             else:
                 counts[word] = 1
     return counts
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_trace_combined_class_method() {
-    let code = r#"
+    let code = r"
 class Counter:
     def __init__(self):
         self.count = 0
@@ -408,6 +408,6 @@ class Counter:
 
     def get_count(self) -> int:
         return self.count
-"#;
+";
     assert!(transpile_ok(code));
 }

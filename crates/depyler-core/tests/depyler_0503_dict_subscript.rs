@@ -1,10 +1,10 @@
 //! DEPYLER-0503: Constant in type annotation error
 //!
-//! RED → GREEN Phase: TypeExtractor called on non-type-annotation expressions
+//! RED → GREEN Phase: `TypeExtractor` called on non-type-annotation expressions
 //!
 //! Root Cause (Five-Whys):
 //! 1. Why? "Unsupported type annotation: Constant(Int(0))"
-//! 2. Why? TypeExtractor::extract_type() called on Constant expression
+//! 2. Why? `TypeExtractor::extract_type()` called on Constant expression
 //! 3. Why? Dict subscript or similar being treated as type annotation
 //! 4. Why? Somewhere confusing dict[0] with Generic[T]
 //! 5. ROOT: TBD - need to find exact call site
@@ -41,10 +41,10 @@ nested = {
 
 #[test]
 fn test_list_subscript_with_int() {
-    let python = r#"
+    let python = r"
 items = [1, 2, 3]
 first = items[0]
-"#;
+";
     let _hir = parse_and_generate(python);
     // Should transpile without "unsupported type annotation" error
 }

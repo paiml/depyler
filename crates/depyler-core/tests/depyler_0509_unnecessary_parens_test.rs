@@ -23,26 +23,24 @@ fn transpile_to_rust(python_code: &str) -> String {
 #[allow(non_snake_case)]
 fn test_DEPYLER_0509_integer_literal_casts_no_double_parens() {
     // DEPYLER-0509: Integer literals should not have double parentheses when cast
-    let python = r#"
+    let python = r"
 def add(x: int, y: int) -> int:
     return x + y
 
 def main():
     result = add(2, 3)
-"#;
+";
 
     let rust_code = transpile_to_rust(python);
 
     // Should NOT have double parentheses like ((2) as i64)
     assert!(
         !rust_code.contains("((2)"),
-        "DEPYLER-0509: Integer literal 2 should not have double parentheses. Generated: {}",
-        rust_code
+        "DEPYLER-0509: Integer literal 2 should not have double parentheses. Generated: {rust_code}"
     );
     assert!(
         !rust_code.contains("((3)"),
-        "DEPYLER-0509: Integer literal 3 should not have double parentheses. Generated: {}",
-        rust_code
+        "DEPYLER-0509: Integer literal 3 should not have double parentheses. Generated: {rust_code}"
     );
 
     // Should have proper cast syntax: either 2_i64, 2 as i64, or (2 as i64)
@@ -62,14 +60,14 @@ def main():
 #[allow(non_snake_case)]
 fn test_DEPYLER_0509_no_double_parens_in_generated_code() {
     // DEPYLER-0509: Generated code should not have double parentheses
-    let python = r#"
+    let python = r"
 def calc(x: int, y: int, z: int) -> int:
     return (x + y) * z
 
 def test() -> int:
     result = calc(2, 3, 4)
     return result
-"#;
+";
 
     let rust_code = transpile_to_rust(python);
 
@@ -80,8 +78,7 @@ def test() -> int:
 
     assert!(
         !has_double_parens,
-        "DEPYLER-0509: Should not have double parentheses. Generated code:\n{}",
-        rust_code
+        "DEPYLER-0509: Should not have double parentheses. Generated code:\n{rust_code}"
     );
 
     // The code should have proper cast syntax: either "2 as i64" or "(2 as i64)"
@@ -92,7 +89,6 @@ def test() -> int:
 
     assert!(
         has_proper_cast,
-        "DEPYLER-0509: Should have proper cast syntax (N as i64). Generated code:\n{}",
-        rust_code
+        "DEPYLER-0509: Should have proper cast syntax (N as i64). Generated code:\n{rust_code}"
     );
 }

@@ -1163,7 +1163,7 @@ mod tests {
             passing_examples: 5,
             top_cluster: None,
         };
-        let debug = format!("{:?}", report);
+        let debug = format!("{report:?}");
         assert!(debug.contains("iteration"));
         assert!(debug.contains("compilation_rate"));
     }
@@ -1191,7 +1191,7 @@ mod tests {
             fix_confidence: 0.85,
             root_cause_description: "type mismatch".to_string(),
         };
-        let debug = format!("{:?}", summary);
+        let debug = format!("{summary:?}");
         assert!(debug.contains("E0308"));
         assert!(debug.contains("examples_blocked"));
     }

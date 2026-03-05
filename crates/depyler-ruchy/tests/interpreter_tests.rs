@@ -1,4 +1,4 @@
-//! Comprehensive tests for RuchyInterpreter module
+//! Comprehensive tests for `RuchyInterpreter` module
 //!
 //! Coverage target: interpreter.rs from 62.84% to 95%+
 
@@ -86,14 +86,11 @@ mod context_management {
         let mut interpreter = RuchyInterpreter::new();
 
         for i in 0..100 {
-            interpreter.set_context(format!("key_{}", i), format!("value_{}", i));
+            interpreter.set_context(format!("key_{i}"), format!("value_{i}"));
         }
 
         for i in 0..100 {
-            assert_eq!(
-                interpreter.get_context(&format!("key_{}", i)),
-                Some(&format!("value_{}", i))
-            );
+            assert_eq!(interpreter.get_context(&format!("key_{i}")), Some(&format!("value_{i}")));
         }
     }
 
@@ -164,7 +161,7 @@ mod benchmark_results {
             throughput_ops_per_sec: 200,
         };
 
-        let display = format!("{}", results);
+        let display = format!("{results}");
         assert!(display.contains("Iterations: 100"));
         assert!(display.contains("Total time: 500ms"));
         assert!(display.contains("Avg time: 5.00ms"));
@@ -180,7 +177,7 @@ mod benchmark_results {
             throughput_ops_per_sec: 200,
         };
 
-        let debug = format!("{:?}", results);
+        let debug = format!("{results:?}");
         assert!(debug.contains("BenchmarkResults"));
         assert!(debug.contains("iterations: 50"));
     }
@@ -210,7 +207,7 @@ mod benchmark_results {
             throughput_ops_per_sec: 0,
         };
 
-        let display = format!("{}", results);
+        let display = format!("{results}");
         assert!(display.contains("Iterations: 0"));
         assert!(display.contains("Total time: 0ms"));
     }
@@ -224,7 +221,7 @@ mod benchmark_results {
             throughput_ops_per_sec: 100_000,
         };
 
-        let display = format!("{}", results);
+        let display = format!("{results}");
         assert!(display.contains("1000000"));
         assert!(display.contains("100000"));
     }
@@ -238,7 +235,7 @@ mod benchmark_results {
             throughput_ops_per_sec: 810,
         };
 
-        let display = format!("{}", results);
+        let display = format!("{results}");
         assert!(display.contains("1.23")); // Format uses 2 decimal places
     }
 }
@@ -270,7 +267,7 @@ mod ruchy_config {
     #[test]
     fn test_config_debug() {
         let config = RuchyConfig::default();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("RuchyConfig"));
     }
 }
@@ -382,7 +379,7 @@ mod property_tests {
                 throughput_ops_per_sec: throughput,
             };
 
-            let display = format!("{}", results);
+            let display = format!("{results}");
             prop_assert!(display.contains(&iterations.to_string()));
         }
     }

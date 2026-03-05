@@ -1,6 +1,6 @@
 //! Integration tests for v3.17.0 Phase 3 - Test Coverage Improvements
 //!
-//! These tests target code generation paths in rust_gen.rs, direct_rules.rs,
+//! These tests target code generation paths in `rust_gen.rs`, `direct_rules.rs`,
 //! and other low-coverage modules by transpiling complete Python programs.
 
 use depyler_core::DepylerPipeline;
@@ -17,10 +17,10 @@ fn transpile_python(python_code: &str) -> Result<String, String> {
 
 #[test]
 fn test_string_upper_method() {
-    let python = r#"
+    let python = r"
 def make_loud(text: str) -> str:
     return text.upper()
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -32,10 +32,10 @@ def make_loud(text: str) -> str:
 
 #[test]
 fn test_string_lower_method() {
-    let python = r#"
+    let python = r"
 def make_quiet(text: str) -> str:
     return text.lower()
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -46,10 +46,10 @@ def make_quiet(text: str) -> str:
 
 #[test]
 fn test_string_strip_method() {
-    let python = r#"
+    let python = r"
 def clean_text(text: str) -> str:
     return text.strip()
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -78,30 +78,30 @@ def replace_spaces(text: str) -> str:
 
 #[test]
 fn test_true_division_with_floats() {
-    let python = r#"
+    let python = r"
 def divide_floats(a: float, b: float) -> float:
     return a / b
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate float division
     assert!(rust_code.contains("f64"), "Expected f64 type: {rust_code}");
-    assert!(rust_code.contains("/"), "Expected division operator: {rust_code}");
+    assert!(rust_code.contains('/'), "Expected division operator: {rust_code}");
     assert!(rust_code.contains("fn divide_floats"), "Expected function definition: {rust_code}");
 }
 
 #[test]
 fn test_floor_division_with_ints() {
-    let python = r#"
+    let python = r"
 def floor_divide(a: int, b: int) -> int:
     return a // b
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate floor division logic
-    assert!(rust_code.contains("/"), "Expected division: {rust_code}");
+    assert!(rust_code.contains('/'), "Expected division: {rust_code}");
     assert!(rust_code.contains("fn floor_divide"), "Expected function definition: {rust_code}");
 }
 
@@ -111,10 +111,10 @@ def floor_divide(a: int, b: int) -> int:
 
 #[test]
 fn test_int_to_float_conversion() {
-    let python = r#"
+    let python = r"
 def convert_number(n: int) -> float:
     return float(n)
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -125,10 +125,10 @@ def convert_number(n: int) -> float:
 
 #[test]
 fn test_float_to_int_conversion() {
-    let python = r#"
+    let python = r"
 def truncate_number(n: float) -> int:
     return int(n)
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -147,11 +147,11 @@ def truncate_number(n: float) -> int:
 
 #[test]
 fn test_list_append() {
-    let python = r#"
+    let python = r"
 def add_item(items: list[int], item: int) -> list[int]:
     items.append(item)
     return items
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -165,10 +165,10 @@ def add_item(items: list[int], item: int) -> list[int]:
 
 #[test]
 fn test_list_length() {
-    let python = r#"
+    let python = r"
 def count_items(items: list[int]) -> int:
     return len(items)
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -215,13 +215,13 @@ def classify(n: int) -> str:
 
 #[test]
 fn test_for_loop_range() {
-    let python = r#"
+    let python = r"
 def sum_range(n: int) -> int:
     total: int = 0
     for i in range(n):
         total = total + i
     return total
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -235,12 +235,12 @@ def sum_range(n: int) -> int:
 
 #[test]
 fn test_while_loop() {
-    let python = r#"
+    let python = r"
 def countdown(n: int) -> int:
     while n > 0:
         n = n - 1
     return n
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -255,16 +255,16 @@ def countdown(n: int) -> int:
 
 #[test]
 fn test_comparison_operators() {
-    let python = r#"
+    let python = r"
 def compare_numbers(a: int, b: int) -> bool:
     return a < b and a <= b and a == b and a != b and a > b and a >= b
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate all comparison operators
     assert!(
-        rust_code.contains("<") && rust_code.contains("<="),
+        rust_code.contains('<') && rust_code.contains("<="),
         "Expected less-than operators: {rust_code}"
     );
     assert!(
@@ -272,7 +272,7 @@ def compare_numbers(a: int, b: int) -> bool:
         "Expected equality operators: {rust_code}"
     );
     assert!(
-        rust_code.contains(">") && rust_code.contains(">="),
+        rust_code.contains('>') && rust_code.contains(">="),
         "Expected greater-than operators: {rust_code}"
     );
 }
@@ -283,10 +283,10 @@ def compare_numbers(a: int, b: int) -> bool:
 
 #[test]
 fn test_boolean_and_or() {
-    let python = r#"
+    let python = r"
 def check_condition(a: bool, b: bool, c: bool) -> bool:
     return (a and b) or c
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
@@ -300,14 +300,14 @@ def check_condition(a: bool, b: bool, c: bool) -> bool:
 
 #[test]
 fn test_boolean_not() {
-    let python = r#"
+    let python = r"
 def negate(value: bool) -> bool:
     return not value
-"#;
+";
 
     let rust_code = transpile_python(python).expect("Transpilation should succeed");
 
     // Should generate ! operator
-    assert!(rust_code.contains("!"), "Expected not operator: {rust_code}");
+    assert!(rust_code.contains('!'), "Expected not operator: {rust_code}");
     assert!(rust_code.contains("fn negate"), "Expected function definition: {rust_code}");
 }

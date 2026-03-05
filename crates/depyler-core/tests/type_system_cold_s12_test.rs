@@ -25,19 +25,19 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b64_list_of_str() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def upper_all(items: List[str]) -> List[str]:
     return [s.upper() for s in items]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn upper_all"), "Got: {}", result);
+    assert!(result.contains("fn upper_all"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_dict_str_int() {
-    let code = r#"
+    let code = r"
 from typing import Dict
 
 def sum_values(d: Dict[str, int]) -> int:
@@ -45,14 +45,14 @@ def sum_values(d: Dict[str, int]) -> int:
     for v in d.values():
         total += v
     return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sum_values"), "Got: {}", result);
+    assert!(result.contains("fn sum_values"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_optional_str() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def first_word(text: str) -> Optional[str]:
@@ -60,40 +60,40 @@ def first_word(text: str) -> Optional[str]:
     if words:
         return words[0]
     return None
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn first_word"), "Got: {}", result);
+    assert!(result.contains("fn first_word"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_tuple_annotation() {
-    let code = r#"
+    let code = r"
 from typing import Tuple
 
 def min_max(items: list) -> Tuple[int, int]:
     return (min(items), max(items))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn min_max"), "Got: {}", result);
+    assert!(result.contains("fn min_max"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_set_annotation() {
-    let code = r#"
+    let code = r"
 from typing import Set
 
 def unique_chars(text: str) -> Set[str]:
     return set(text)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn unique_chars"), "Got: {}", result);
+    assert!(result.contains("fn unique_chars"), "Got: {result}");
 }
 
 // ===== Nested generic types =====
 
 #[test]
 fn test_s12_b64_list_of_list() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def flatten(matrix: List[List[int]]) -> List[int]:
@@ -102,14 +102,14 @@ def flatten(matrix: List[List[int]]) -> List[int]:
         for item in row:
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn flatten"), "Got: {}", result);
+    assert!(result.contains("fn flatten"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_dict_of_lists() {
-    let code = r#"
+    let code = r"
 from typing import Dict, List
 
 def group_lengths(words: List[str]) -> Dict[int, List[str]]:
@@ -120,33 +120,33 @@ def group_lengths(words: List[str]) -> Dict[int, List[str]]:
             groups[n] = []
         groups[n].append(word)
     return groups
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn group_lengths"), "Got: {}", result);
+    assert!(result.contains("fn group_lengths"), "Got: {result}");
 }
 
 // ===== Type inference from expressions =====
 
 #[test]
 fn test_s12_b64_infer_from_arithmetic() {
-    let code = r#"
+    let code = r"
 def compute(a: int, b: int, c: float) -> float:
     result = a * b + c
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn compute"), "Got: {}", result);
+    assert!(result.contains("fn compute"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_infer_from_comparison() {
-    let code = r#"
+    let code = r"
 def check(x: int, y: int) -> bool:
     result = x > y
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn check"), "Got: {}", result);
+    assert!(result.contains("fn check"), "Got: {result}");
 }
 
 #[test]
@@ -157,25 +157,25 @@ def combine(a: str, b: str) -> str:
     return result
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn combine"), "Got: {}", result);
+    assert!(result.contains("fn combine"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_infer_from_list_op() {
-    let code = r#"
+    let code = r"
 def doubled(items: list) -> list:
     result = items + items
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn doubled"), "Got: {}", result);
+    assert!(result.contains("fn doubled"), "Got: {result}");
 }
 
 // ===== Complex type patterns in classes =====
 
 #[test]
 fn test_s12_b64_class_typed_fields() {
-    let code = r#"
+    let code = r"
 from typing import List, Dict
 
 class Database:
@@ -191,55 +191,55 @@ class Database:
 
     def query(self, table: str) -> List[Dict[str, str]]:
         return self.tables.get(table, [])
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Database"), "Got: {}", result);
+    assert!(result.contains("Database"), "Got: {result}");
 }
 
 // ===== Callable type patterns =====
 
 #[test]
 fn test_s12_b64_higher_order_func() {
-    let code = r#"
+    let code = r"
 def apply_twice(func, x: int) -> int:
     return func(func(x))
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn apply_twice"), "Got: {}", result);
+    assert!(result.contains("fn apply_twice"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_map_func() {
-    let code = r#"
+    let code = r"
 def transform(items: list, func) -> list:
     result = []
     for item in items:
         result.append(func(item))
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn transform"), "Got: {}", result);
+    assert!(result.contains("fn transform"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_predicate_func() {
-    let code = r#"
+    let code = r"
 def filter_by(items: list, predicate) -> list:
     result = []
     for item in items:
         if predicate(item):
             result.append(item)
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn filter_by"), "Got: {}", result);
+    assert!(result.contains("fn filter_by"), "Got: {result}");
 }
 
 // ===== Mixed numeric types =====
 
 #[test]
 fn test_s12_b64_int_float_mix() {
-    let code = r#"
+    let code = r"
 def weighted_average(values: list, weights: list) -> float:
     total = 0.0
     weight_sum = 0.0
@@ -249,21 +249,21 @@ def weighted_average(values: list, weights: list) -> float:
     if weight_sum == 0.0:
         return 0.0
     return total / weight_sum
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn weighted_average"), "Got: {}", result);
+    assert!(result.contains("fn weighted_average"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b64_bool_to_int() {
-    let code = r#"
+    let code = r"
 def count_true(items: list) -> int:
     count = 0
     for item in items:
         if item:
             count += 1
     return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn count_true"), "Got: {}", result);
+    assert!(result.contains("fn count_true"), "Got: {result}");
 }

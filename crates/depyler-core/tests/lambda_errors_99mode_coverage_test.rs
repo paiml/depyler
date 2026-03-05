@@ -1,6 +1,6 @@
-//! Coverage tests for lambda_errors.rs
+//! Coverage tests for `lambda_errors.rs`
 //!
-//! DEPYLER-99MODE-001: Targets lambda_errors.rs (1,617 lines)
+//! DEPYLER-99MODE-001: Targets `lambda_errors.rs` (1,617 lines)
 //! Covers: exception handling patterns, error type mapping,
 //! nested exception handling, multiple handler types,
 //! error context propagation.
@@ -31,10 +31,10 @@ def handler(event: dict) -> str:
 
 #[test]
 fn test_lambda_err_valueerror() {
-    let code = r#"
+    let code = r"
 def parse_int(s: str) -> int:
     return int(s)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -50,10 +50,10 @@ def handler(event: dict) -> int:
 
 #[test]
 fn test_lambda_err_indexerror() {
-    let code = r#"
+    let code = r"
 def handler(items: list) -> int:
     return items[0]
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -63,13 +63,13 @@ def handler(items: list) -> int:
 
 #[test]
 fn test_lambda_err_try_valueerror() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -87,13 +87,13 @@ def handler(d: dict, key: str) -> str:
 
 #[test]
 fn test_lambda_err_try_indexerror() {
-    let code = r#"
+    let code = r"
 def handler(items: list, idx: int) -> int:
     try:
         return items[idx]
     except IndexError:
         return -1
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -115,7 +115,7 @@ def handler(obj: dict) -> str:
 
 #[test]
 fn test_lambda_err_multiple_handlers() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> int:
     try:
         return int(s)
@@ -123,13 +123,13 @@ def handler(s: str) -> int:
         return -1
     except TypeError:
         return -2
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_lambda_err_three_handlers() {
-    let code = r#"
+    let code = r"
 def handler(data: dict, key: str) -> int:
     try:
         val = data[key]
@@ -140,7 +140,7 @@ def handler(data: dict, key: str) -> int:
         return -2
     except TypeError:
         return -3
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -150,7 +150,7 @@ def handler(data: dict, key: str) -> int:
 
 #[test]
 fn test_lambda_err_try_finally() {
-    let code = r#"
+    let code = r"
 def handler(items: list) -> int:
     result = 0
     try:
@@ -160,13 +160,13 @@ def handler(items: list) -> int:
     finally:
         pass
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_lambda_err_try_else() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> int:
     try:
         val = int(s)
@@ -175,7 +175,7 @@ def handler(s: str) -> int:
     else:
         val = val * 2
     return val
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -204,7 +204,7 @@ def handler(data: dict) -> str:
 
 #[test]
 fn test_lambda_err_try_in_loop() {
-    let code = r#"
+    let code = r"
 def handler(items: list) -> list:
     result = []
     for item in items:
@@ -213,7 +213,7 @@ def handler(items: list) -> list:
         except ValueError:
             result.append(0)
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -223,25 +223,25 @@ def handler(items: list) -> list:
 
 #[test]
 fn test_lambda_err_bare_except() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> int:
     try:
         return int(s)
     except:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_lambda_err_exception_base() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> int:
     try:
         return int(s)
     except Exception:
         return 0
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -251,26 +251,26 @@ def handler(s: str) -> int:
 
 #[test]
 fn test_lambda_err_named_exception() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> str:
     try:
         val = int(s)
         return str(val)
     except ValueError as e:
         return str(e)
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_lambda_err_reraise() {
-    let code = r#"
+    let code = r"
 def handler(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         raise
-"#;
+";
     assert!(transpile_ok(code));
 }
 
@@ -280,7 +280,7 @@ def handler(s: str) -> int:
 
 #[test]
 fn test_lambda_err_full_pipeline() {
-    let code = r#"
+    let code = r"
 def process(data: dict) -> dict:
     result = {}
     try:
@@ -292,19 +292,19 @@ def process(data: dict) -> dict:
     except KeyError:
         pass
     return result
-"#;
+";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_lambda_err_conditional_handling() {
-    let code = r#"
+    let code = r"
 def handler(items: list) -> int:
     total = 0
     for item in items:
         if isinstance(item, int):
             total += item
     return total
-"#;
+";
     assert!(transpile_ok(code));
 }

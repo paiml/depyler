@@ -1311,7 +1311,6 @@ impl RustCodeGen for HirFunction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     // === is_file_creating_return_expr tests ===
 

@@ -36,8 +36,7 @@ mod property_test_benchmarks {
             // Threshold set to 3s to avoid flaky failures under system load
             assert!(
                 duration < Duration::from_secs(3),
-                "Transpilation should complete within 3 seconds, took {:?}",
-                duration
+                "Transpilation should complete within 3 seconds, took {duration:?}"
             );
         }
     }
@@ -51,23 +50,23 @@ mod property_test_benchmarks {
             // Simple function
             "def simple() -> int: return 42",
             // Function with control flow
-            r#"
+            r"
 def with_control_flow(x: int) -> int:
     if x > 0:
         return x * 2
     else:
         return 0
-"#,
+",
             // Function with loop
-            r#"
+            r"
 def with_loop(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#,
+",
             // Multiple functions
-            r#"
+            r"
 def func1(x: int) -> int:
     return x + 1
 
@@ -76,7 +75,7 @@ def func2(y: int) -> int:
 
 def func3(z: int) -> int:
     return func2(z) - 1
-"#,
+",
         ];
 
         println!("=== HIR Parsing Performance Benchmarks ===");
@@ -96,8 +95,7 @@ def func3(z: int) -> int:
             // HIR parsing should be very fast
             assert!(
                 duration < Duration::from_millis(100),
-                "HIR parsing should complete within 100ms, took {:?}",
-                duration
+                "HIR parsing should complete within 100ms, took {duration:?}"
             );
         }
     }
@@ -127,13 +125,12 @@ def func3(z: int) -> int:
         } as fn(i32, i32) -> TestResult);
         let generator_duration = start.elapsed();
 
-        println!("Property Generator: {:?}", generator_duration);
+        println!("Property Generator: {generator_duration:?}");
 
         // Property tests should complete within reasonable time
         assert!(
             generator_duration < Duration::from_secs(30),
-            "Property generators should complete within 30 seconds, took {:?}",
-            generator_duration
+            "Property generators should complete within 30 seconds, took {generator_duration:?}"
         );
     }
 
@@ -149,17 +146,17 @@ def func3(z: int) -> int:
             ("Simple", "def f(x: int) -> int: return x"),
             (
                 "Medium",
-                r#"
+                r"
 def medium_complexity(x: int, y: int) -> int:
     if x > y:
         return x + y
     else:
         return x * y
-"#,
+",
             ),
             (
                 "Complex",
-                r#"
+                r"
 def complex_function(n: int) -> int:
     total = 0
     for i in range(n):
@@ -168,7 +165,7 @@ def complex_function(n: int) -> int:
         else:
             total -= i // 2
     return total
-"#,
+",
             ),
         ];
 
@@ -224,8 +221,8 @@ def complex_function(n: int) -> int:
         }
         let parallel_duration = start.elapsed();
 
-        println!("Sequential: {:?}", sequential_duration);
-        println!("Parallel: {:?}", parallel_duration);
+        println!("Sequential: {sequential_duration:?}");
+        println!("Parallel: {parallel_duration:?}");
 
         // Parallel should be at least as fast (or close due to overhead)
         println!(
@@ -263,10 +260,7 @@ def complex_function(n: int) -> int:
 
             assert!(
                 duration <= max_duration,
-                "{} took {:?}, exceeded maximum {:?}",
-                name,
-                duration,
-                max_duration
+                "{name} took {duration:?}, exceeded maximum {max_duration:?}"
             );
         }
     }
@@ -283,8 +277,8 @@ def complex_function(n: int) -> int:
         let param_counts = vec![1, 2, 5, 10];
 
         for param_count in param_counts {
-            let params: Vec<String> = (0..param_count).map(|i| format!("x{}: int", i)).collect();
-            let args: Vec<String> = (0..param_count).map(|i| format!("x{}", i)).collect();
+            let params: Vec<String> = (0..param_count).map(|i| format!("x{i}: int")).collect();
+            let args: Vec<String> = (0..param_count).map(|i| format!("x{i}")).collect();
 
             let test_code = format!(
                 "def test_func({}) -> int: return {}",
@@ -306,9 +300,7 @@ def complex_function(n: int) -> int:
             // Should scale linearly or better
             assert!(
                 duration < Duration::from_millis(200),
-                "Scalability test with {} params should complete quickly, took {:?}",
-                param_count,
-                duration
+                "Scalability test with {param_count} params should complete quickly, took {duration:?}"
             );
         }
     }

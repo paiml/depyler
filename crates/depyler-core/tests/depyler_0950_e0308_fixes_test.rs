@@ -4,14 +4,14 @@
 
 use depyler_core::DepylerPipeline;
 
-/// Test max(generator) produces .unwrap_or_default()
+/// Test max(generator) produces .`unwrap_or_default()`
 #[test]
 fn test_depyler_0950_max_generator_unwrapped() {
-    let python = r#"
+    let python = r"
 def max_value(nums: list[int]) -> int:
     result = max(n * 2 for n in nums)
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
@@ -19,41 +19,39 @@ def max_value(nums: list[int]) -> int:
     // Code may be multi-line formatted, so check that both .max() and .unwrap_or_default() present
     assert!(
         code.contains(".max()") && code.contains(".unwrap_or_default()"),
-        "max(generator) must produce .max() followed by .unwrap_or_default(): {}",
-        code
+        "max(generator) must produce .max() followed by .unwrap_or_default(): {code}"
     );
 }
 
-/// Test min(generator) produces .unwrap_or_default()
+/// Test min(generator) produces .`unwrap_or_default()`
 #[test]
 fn test_depyler_0950_min_generator_unwrapped() {
-    let python = r#"
+    let python = r"
 def min_value(nums: list[int]) -> int:
     result = min(n * 2 for n in nums)
     return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
 
     assert!(
         code.contains(".min()") && code.contains(".unwrap_or_default()"),
-        "min(generator) must produce .min() followed by .unwrap_or_default(): {}",
-        code
+        "min(generator) must produce .min() followed by .unwrap_or_default(): {code}"
     );
 }
 
 /// Test json.loads produces proper type annotation and borrow
 #[test]
 fn test_depyler_0950_json_loads_with_borrow() {
-    let python = r#"
+    let python = r"
 import json
 
 class Test:
     def parse(self, data: str):
         result = json.loads(data)
         return result
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
@@ -61,12 +59,11 @@ class Test:
     // Must have type annotation and borrow
     assert!(
         code.contains("serde_json::from_str::<serde_json::Value>(&"),
-        "json.loads must produce serde_json::from_str::<Value>(&...): {}",
-        code
+        "json.loads must produce serde_json::from_str::<Value>(&...): {code}"
     );
 }
 
-/// Test subprocess.run with concrete cwd doesn't use if-let Some()
+/// Test subprocess.run with concrete cwd doesn't use if-let `Some()`
 #[test]
 fn test_depyler_0950_subprocess_cwd_no_option_wrap() {
     let python = r#"
@@ -84,8 +81,7 @@ def run():
     // NOT wrapped in if let Some(dir) = ...
     assert!(
         code.contains("cmd.current_dir"),
-        "subprocess.run with cwd should use current_dir: {}",
-        code
+        "subprocess.run with cwd should use current_dir: {code}"
     );
 
     // Should NOT have if-let Some wrapping a concrete cwd value
@@ -93,8 +89,7 @@ def run():
     let has_bad_pattern = code.contains("if let Some(dir) = \".\"");
     assert!(
         !has_bad_pattern,
-        "subprocess.run with concrete cwd should NOT use if-let Some: {}",
-        code
+        "subprocess.run with concrete cwd should NOT use if-let Some: {code}"
     );
 }
 
@@ -115,8 +110,7 @@ def cmd_duration(days: int):
     // Integer truthy check should be explicit comparison
     assert!(
         code.contains("days != 0") || code.contains("days > 0") || code.contains("!= 0"),
-        "Truthy check on int should generate explicit comparison: {}",
-        code
+        "Truthy check on int should generate explicit comparison: {code}"
     );
 }
 
@@ -124,10 +118,10 @@ def cmd_duration(days: int):
 /// E0277: cannot divide f64 by integer
 #[test]
 fn test_depyler_0950_f64_int_division() {
-    let python = r#"
+    let python = r"
 def divide(a: float, b: int) -> float:
     return a / b
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
@@ -135,8 +129,7 @@ def divide(a: float, b: int) -> float:
     // Division should cast int to f64
     assert!(
         code.contains("as f64") || code.contains("a / (b as f64)") || code.contains("/ b as f64"),
-        "f64/int division should cast int to f64: {}",
-        code
+        "f64/int division should cast int to f64: {code}"
     );
 }
 
@@ -144,10 +137,10 @@ def divide(a: float, b: int) -> float:
 /// E0277: cannot multiply f64 by integer (from colorsys example: r * 255)
 #[test]
 fn test_depyler_0950_f64_int_literal_multiply() {
-    let python = r#"
+    let python = r"
 def to_rgb(r: float, g: float, b: float) -> tuple[int, int, int]:
     return (int(r * 255), int(g * 255), int(b * 255))
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
@@ -156,8 +149,7 @@ def to_rgb(r: float, g: float, b: float) -> tuple[int, int, int]:
     // Expected: r * 255.0, r * 255f64, or r * (255 as f64)
     assert!(
         code.contains("255.0") || code.contains("255f64") || code.contains("255 as f64"),
-        "f64*int should cast literal to f64: {}",
-        code
+        "f64*int should cast literal to f64: {code}"
     );
 }
 
@@ -165,10 +157,10 @@ def to_rgb(r: float, g: float, b: float) -> tuple[int, int, int]:
 /// E0277: cannot add/sub/mul/div f64 by integer variable
 #[test]
 fn test_depyler_0950_f64_int_var_arithmetic() {
-    let python = r#"
+    let python = r"
 def scale(x: float, factor: int) -> float:
     return x * factor
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
@@ -177,12 +169,11 @@ def scale(x: float, factor: int) -> float:
     // Transpiler correctly widens int param to f64 at boundary
     assert!(
         code.contains("factor: f64") || code.contains("factor as f64"),
-        "f64*int_var should either widen param or cast: {}",
-        code
+        "f64*int_var should either widen param or cast: {code}"
     );
 }
 
-/// Test colorsys.hsv_to_rgb return values are typed as f64 for multiplication
+/// Test `colorsys.hsv_to_rgb` return values are typed as f64 for multiplication
 /// E0277: cannot multiply f64 by integer when type inference marks as int
 #[test]
 fn test_depyler_0950_colorsys_return_float_coercion() {
@@ -201,18 +192,17 @@ def cmd_hsv2rgb(h: float, s: float, v: float):
     // When multiplied by int literal 255, it must be coerced to 255f64 or 255.0
     assert!(
         code.contains("255f64") || code.contains("255.0") || code.contains("255 as f64"),
-        "colorsys return values multiplied by int literal should coerce to f64: {}",
-        code
+        "colorsys return values multiplied by int literal should coerce to f64: {code}"
     );
 }
 
-/// Test String attribute truthy check generates !.is_empty()
+/// Test String attribute truthy check generates !.`is_empty()`
 /// E0308: if person.email { ... } where email is String
 // TODO: Improve string attribute truthy check in class methods
 #[test]
 #[ignore = "needs improved string truthy check in class methods"]
 fn test_depyler_0950_string_attribute_truthy() {
-    let python = r#"
+    let python = r"
 class Person:
     def __init__(self, email: str):
         self.email = email
@@ -221,7 +211,7 @@ class Person:
         if self.email:
             return True
         return False
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).unwrap();
@@ -229,7 +219,6 @@ class Person:
     // String truthy check should generate !.is_empty()
     assert!(
         code.contains(".is_empty()"),
-        "String attribute truthy check should generate .is_empty(): {}",
-        code
+        "String attribute truthy check should generate .is_empty(): {code}"
     );
 }

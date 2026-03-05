@@ -595,18 +595,18 @@ mod tests {
 
         // Benchmark simple function
         let simple_duration = bench.benchmark_function("def simple(): return 42", "simple");
-        println!("Simple function duration: {} μs", simple_duration);
+        println!("Simple function duration: {simple_duration} μs");
         assert!(simple_duration < 100_000); // Less than 100ms
 
         // Benchmark complex function
-        let complex_fn = r#"
+        let complex_fn = r"
 def fibonacci(n: int) -> int:
     if n <= 1:
         return n
     return fibonacci(n-1) + fibonacci(n-2)
-"#;
+";
         let complex_duration = bench.benchmark_function(complex_fn, "fibonacci");
-        println!("Complex function duration: {} μs", complex_duration);
+        println!("Complex function duration: {complex_duration} μs");
         assert!(complex_duration < 500_000); // Less than 500ms
 
         // Test statistical benchmarking
@@ -629,7 +629,7 @@ def fibonacci(n: int) -> int:
 
         // Performance consistency check
         let variance_ratio = stats.max_duration as f64 / stats.min_duration as f64;
-        println!("Performance variance ratio: {:.2}x", variance_ratio);
+        println!("Performance variance ratio: {variance_ratio:.2}x");
         assert!(variance_ratio < 50.0); // Allow reasonable variance
 
         // Check benchmark storage
@@ -765,7 +765,7 @@ def process_data(data: list) -> dict:
 
         // Benchmark the function
         let duration = benchmark.benchmark_function(test_function, "factorial_test");
-        println!("Benchmark duration: {} μs", duration);
+        println!("Benchmark duration: {duration} μs");
 
         // Add to workflow
         workflow.add_step("Recursive Function", test_function);
@@ -811,12 +811,12 @@ def process_data(data: list) -> dict:
         for (code, name) in test_cases {
             let duration = benchmark.benchmark_function(code, name);
             durations.push((name, duration));
-            println!("{}: {} μs", name, duration);
+            println!("{name}: {duration} μs");
         }
 
         // Verify all tests complete quickly
         for (name, duration) in &durations {
-            assert!(duration < &100_000, "{} took too long: {} μs", name, duration);
+            assert!(duration < &100_000, "{name} took too long: {duration} μs");
         }
 
         // Check that complexity generally correlates with time (allowing variance)
@@ -841,13 +841,12 @@ def process_data(data: list) -> dict:
         );
 
         let consistency_ratio = stats.max_duration as f64 / stats.min_duration as f64;
-        println!("Consistency ratio: {:.2}x (max/min)", consistency_ratio);
+        println!("Consistency ratio: {consistency_ratio:.2}x (max/min)");
 
         // Should be reasonably consistent
         assert!(
             consistency_ratio < 20.0,
-            "Performance too inconsistent: {:.2}x variance",
-            consistency_ratio
+            "Performance too inconsistent: {consistency_ratio:.2}x variance"
         );
     }
 }

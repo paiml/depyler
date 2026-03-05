@@ -515,7 +515,7 @@ def side_effect():
 
     #[test]
     fn test_single_quote_docstring() {
-        let source = r#"
+        let source = r"
 def foo():
     '''Single quote docstring.
 
@@ -523,7 +523,7 @@ def foo():
     'bar'
     '''
     return 'bar'
-"#;
+";
 
         let extractor = DoctestExtractor::new();
         let doctests = extractor.extract(source).unwrap();
@@ -729,7 +729,7 @@ def divide(a: float, b: float) -> float:
             line: 10,
         };
 
-        let debug = format!("{:?}", dt);
+        let debug = format!("{dt:?}");
         assert!(debug.contains("Doctest"));
         assert!(debug.contains("test_func"));
         assert!(debug.contains("42"));
@@ -795,7 +795,7 @@ def divide(a: float, b: float) -> float:
             doctests: vec![],
         };
 
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("DoctestResult"));
         assert!(debug.contains("test.py"));
         assert!(debug.contains("test_module"));
@@ -829,7 +829,7 @@ def divide(a: float, b: float) -> float:
             examples: vec![],
         };
 
-        let debug = format!("{:?}", fd);
+        let debug = format!("{fd:?}");
         assert!(debug.contains("FunctionDoctests"));
         assert!(debug.contains("my_func"));
     }
@@ -871,7 +871,7 @@ def divide(a: float, b: float) -> float:
     #[test]
     fn test_doctest_extractor_debug() {
         let extractor = DoctestExtractor::new();
-        let debug = format!("{:?}", extractor);
+        let debug = format!("{extractor:?}");
         assert!(debug.contains("DoctestExtractor"));
         assert!(debug.contains("include_module_doctests"));
         assert!(debug.contains("include_class_methods"));

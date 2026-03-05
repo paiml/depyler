@@ -71,14 +71,11 @@ fn test_annotation_parser_error_cases() {
 
     for invalid_annotation in invalid_annotations {
         let result = parser.parse_annotations(invalid_annotation);
-        match result {
-            Err(AnnotationError::UnknownKey(_)) | Err(AnnotationError::InvalidValue { .. }) => {
-                // Expected error types
-                // Expected - we successfully generated an error
-            }
-            _ => {
-                // Might succeed with default fallback - that's also valid
-            }
+        if let Err(AnnotationError::UnknownKey(_) | AnnotationError::InvalidValue { .. }) = result {
+            // Expected error types
+            // Expected - we successfully generated an error
+        } else {
+            // Might succeed with default fallback - that's also valid
         }
     }
 }
@@ -100,15 +97,12 @@ fn test_annotation_parser_malformed_syntax() {
     for malformed in malformed_cases {
         let result = parser.parse_annotations(malformed);
         // Should either error or return defaults gracefully
-        match result {
-            Ok(annotations) => {
-                // Default annotations should be returned
-                assert_eq!(annotations, TranspilationAnnotations::default());
-            }
-            Err(_) => {
-                // Error is also acceptable for malformed syntax
-                // Expected - we successfully generated an error
-            }
+        if let Ok(annotations) = result {
+            // Default annotations should be returned
+            assert_eq!(annotations, TranspilationAnnotations::default());
+        } else {
+            // Error is also acceptable for malformed syntax
+            // Expected - we successfully generated an error
         }
     }
 }

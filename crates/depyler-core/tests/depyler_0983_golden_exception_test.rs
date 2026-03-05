@@ -24,7 +24,7 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 fn unique_temp_path() -> String {
     let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    format!("/tmp/depyler_0983_{}_{}.rs", pid, id)
+    format!("/tmp/depyler_0983_{pid}_{id}.rs")
 }
 
 /// Helper function to transpile Python code
@@ -98,8 +98,7 @@ fn test_golden_exception_example_compiles() {
         Ok(()) => (),
         Err(e) => {
             panic!(
-                "Golden exception example should compile.\nErrors:\n{}\n\nGenerated:\n{}",
-                e, rust_code
+                "Golden exception example should compile.\nErrors:\n{e}\n\nGenerated:\n{rust_code}"
             );
         }
     }
@@ -108,21 +107,20 @@ fn test_golden_exception_example_compiles() {
 /// Test simple try/except with fallback
 #[test]
 fn test_simple_try_except_fallback() {
-    let source = r#"
+    let source = r"
 def parse_int_safe(s: str) -> int:
     try:
         return int(s)
     except ValueError:
         return 0
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
     // Should have parse function and error handling
     assert!(
         rust_code.contains("parse") || rust_code.contains("Parse"),
-        "Should use parse for string to int: {}",
-        rust_code
+        "Should use parse for string to int: {rust_code}"
     );
 }
 
@@ -143,8 +141,7 @@ def get_with_bound_exception(d: dict[str, int], key: str) -> str:
     // Should have some form of error binding
     assert!(
         rust_code.contains("Err(") || rust_code.contains("err") || rust_code.contains("Error"),
-        "Should have error handling with binding: {}",
-        rust_code
+        "Should have error handling with binding: {rust_code}"
     );
 }
 
@@ -153,7 +150,7 @@ def get_with_bound_exception(d: dict[str, int], key: str) -> str:
 #[test]
 #[ignore = "slow: requires rustc compilation"]
 fn test_multiple_exception_handlers() {
-    let source = r#"
+    let source = r"
 def multiple_handlers(s: str, d: dict[str, int]) -> int:
     try:
         num: int = int(s)
@@ -162,22 +159,21 @@ def multiple_handlers(s: str, d: dict[str, int]) -> int:
         return -1
     except KeyError:
         return -2
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
     // Should handle multiple error cases
     assert!(
         rust_code.contains("-1") && rust_code.contains("-2"),
-        "Should have both fallback values: {}",
-        rust_code
+        "Should have both fallback values: {rust_code}"
     );
 }
 
 /// Test nested try/except blocks
 #[test]
 fn test_nested_try_except() {
-    let source = r#"
+    let source = r"
 def nested_handler(x: int) -> int:
     outer: int = 0
     inner: int = 0
@@ -190,7 +186,7 @@ def nested_handler(x: int) -> int:
             return outer
     except Exception:
         return 0
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
@@ -198,8 +194,7 @@ def nested_handler(x: int) -> int:
     // The key is that both outer and inner variables are declared
     assert!(
         rust_code.contains("outer") && rust_code.contains("inner"),
-        "Should hoist both outer and inner variables: {}",
-        rust_code
+        "Should hoist both outer and inner variables: {rust_code}"
     );
 }
 
@@ -208,13 +203,13 @@ def nested_handler(x: int) -> int:
 #[test]
 #[ignore = "slow: requires rustc compilation"]
 fn test_try_except_return_type_consistency() {
-    let source = r#"
+    let source = r"
 def divide_safe(a: int, b: int) -> int:
     try:
         return a // b
     except ZeroDivisionError:
         return 0
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
@@ -222,22 +217,20 @@ def divide_safe(a: int, b: int) -> int:
     // The important thing is that it has consistent return handling
     assert!(
         rust_code.contains("Result<i64") || rust_code.contains("-> i64"),
-        "Return type should be i64 or Result<i64>: {}",
-        rust_code
+        "Return type should be i64 or Result<i64>: {rust_code}"
     );
 
     // Both branches should return the same type
     assert!(
         rust_code.contains("return Ok(0)") || rust_code.contains("return 0"),
-        "Except branch should return 0: {}",
-        rust_code
+        "Except branch should return 0: {rust_code}"
     );
 }
 
 /// Test early return within try block
 #[test]
 fn test_early_return_in_try() {
-    let source = r#"
+    let source = r"
 def early_return_in_try(x: int) -> int:
     try:
         if x < 0:
@@ -246,22 +239,21 @@ def early_return_in_try(x: int) -> int:
         return result
     except Exception:
         return 0
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
     // Should handle early return correctly
     assert!(
         rust_code.contains("return") || rust_code.contains("Ok("),
-        "Should have early return handling: {}",
-        rust_code
+        "Should have early return handling: {rust_code}"
     );
 }
 
 /// Test exception with computation chain
 #[test]
 fn test_exception_computation_chain() {
-    let source = r#"
+    let source = r"
 def exception_with_computation(a: int, b: int, c: int) -> int:
     try:
         step1: int = a // b
@@ -269,14 +261,13 @@ def exception_with_computation(a: int, b: int, c: int) -> int:
         return step2
     except ZeroDivisionError:
         return -1
-"#;
+";
 
     let rust_code = transpile_python(source).expect("Failed to transpile");
 
     // Should have step1 and step2 variables
     assert!(
         rust_code.contains("step1") && rust_code.contains("step2"),
-        "Should have intermediate variables: {}",
-        rust_code
+        "Should have intermediate variables: {rust_code}"
     );
 }

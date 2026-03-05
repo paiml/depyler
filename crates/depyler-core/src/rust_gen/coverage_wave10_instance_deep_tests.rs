@@ -1287,7 +1287,9 @@ s2 = s.removeprefix("Hello")
 "#;
         let result = transpile(py);
         assert!(
-            result.contains("removeprefix") || result.contains("strip_prefix") || !result.is_empty()
+            result.contains("removeprefix")
+                || result.contains("strip_prefix")
+                || !result.is_empty()
         );
     }
 
@@ -1299,7 +1301,9 @@ s2 = s.removesuffix("World")
 "#;
         let result = transpile(py);
         assert!(
-            result.contains("removesuffix") || result.contains("strip_suffix") || !result.is_empty()
+            result.contains("removesuffix")
+                || result.contains("strip_suffix")
+                || !result.is_empty()
         );
     }
 
@@ -1362,7 +1366,9 @@ s = "hello"
 x = s.isalpha()
 "#;
         let result = transpile(py);
-        assert!(result.contains("isalpha") || result.contains("is_alphabetic") || !result.is_empty());
+        assert!(
+            result.contains("isalpha") || result.contains("is_alphabetic") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1382,7 +1388,9 @@ s = "   "
 x = s.isspace()
 "#;
         let result = transpile(py);
-        assert!(result.contains("isspace") || result.contains("is_whitespace") || !result.is_empty());
+        assert!(
+            result.contains("isspace") || result.contains("is_whitespace") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1392,7 +1400,9 @@ s = "HELLO"
 x = s.isupper()
 "#;
         let result = transpile(py);
-        assert!(result.contains("isupper") || result.contains("is_uppercase") || !result.is_empty());
+        assert!(
+            result.contains("isupper") || result.contains("is_uppercase") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1402,7 +1412,9 @@ s = "hello"
 x = s.islower()
 "#;
         let result = transpile(py);
-        assert!(result.contains("islower") || result.contains("is_lowercase") || !result.is_empty());
+        assert!(
+            result.contains("islower") || result.contains("is_lowercase") || !result.is_empty()
+        );
     }
 
     #[test]

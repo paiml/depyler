@@ -40,7 +40,7 @@ fn prop_function_name_preservation(func_name: String, params: Vec<String>) -> Te
     let param_list =
         if params.is_empty() { String::new() } else { params.join(": int, ") + ": int" };
 
-    let python_source = format!("def {}({}) -> int:\n    return 42", func_name, param_list);
+    let python_source = format!("def {func_name}({param_list}) -> int:\n    return 42");
 
     let pipeline = DepylerPipeline::new();
 
@@ -95,8 +95,7 @@ fn prop_type_annotation_preservation(return_type: String) -> TestResult {
 #[quickcheck_macros::quickcheck(tests = 5, max_tests = 10)]
 fn prop_control_flow_preservation(condition: i32, then_val: i32, else_val: i32) -> TestResult {
     let python_source = format!(
-        "def test_func(x: int) -> int:\n    if x > {}:\n        return {}\n    else:\n        return {}",
-        condition, then_val, else_val
+        "def test_func(x: int) -> int:\n    if x > {condition}:\n        return {then_val}\n    else:\n        return {else_val}"
     );
 
     let pipeline = DepylerPipeline::new();
@@ -131,7 +130,7 @@ fn prop_variable_assignment_preservation(var_name: String, value: i32) -> TestRe
     }
 
     let python_source =
-        format!("def test_func() -> int:\n    {} = {}\n    return {}", var_name, value, var_name);
+        format!("def test_func() -> int:\n    {var_name} = {value}\n    return {var_name}");
 
     let pipeline = DepylerPipeline::new();
 

@@ -52,15 +52,13 @@ def calculate_hash(file_path, algorithm):
     // MUST have hasher variable declaration
     assert!(
         rust_code.contains("let") && rust_code.contains("hasher"),
-        "Generated Rust code MUST contain 'let hasher' declaration.\nGenerated code:\n{}",
-        rust_code
+        "Generated Rust code MUST contain 'let hasher' declaration.\nGenerated code:\n{rust_code}"
     );
 
     // MUST have if/else expression for the ternary
     assert!(
         rust_code.contains("if algorithm ==") && rust_code.contains("else"),
-        "Generated Rust code MUST contain if/else expression for ternary.\nGenerated code:\n{}",
-        rust_code
+        "Generated Rust code MUST contain if/else expression for ternary.\nGenerated code:\n{rust_code}"
     );
 
     // MUST NOT have undefined variable usage
@@ -104,8 +102,7 @@ def select_value(flag):
     // Simple ternary should work (regression check)
     assert!(
         rust_code.contains("let") && rust_code.contains("result"),
-        "Simple ternary assignment should generate 'let result'.\nGenerated code:\n{}",
-        rust_code
+        "Simple ternary assignment should generate 'let result'.\nGenerated code:\n{rust_code}"
     );
 }
 
@@ -126,7 +123,6 @@ def get_hasher(algorithm):
     // Ternary with function calls should generate let binding
     assert!(
         rust_code.contains("let") && rust_code.contains("hasher"),
-        "Ternary with function calls MUST generate 'let hasher'.\nGenerated code:\n{}",
-        rust_code
+        "Ternary with function calls MUST generate 'let hasher'.\nGenerated code:\n{rust_code}"
     );
 }

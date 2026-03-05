@@ -1274,7 +1274,7 @@ mod tests {
     #[test]
     fn test_property_debug() {
         let prop = TestProperty::Idempotent;
-        let debug_str = format!("{:?}", prop);
+        let debug_str = format!("{prop:?}");
         assert_eq!(debug_str, "Idempotent");
     }
 }

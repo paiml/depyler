@@ -76,8 +76,8 @@ if __name__ == "__main__":
     let dir_count = result.matches("ref directory").count();
     let pat_count = result.matches("ref pattern").count();
 
-    assert!(dir_count <= 1, "Expected at most 1 'ref directory' binding, found {}", dir_count);
-    assert!(pat_count <= 1, "Expected at most 1 'ref pattern' binding, found {}", pat_count);
+    assert!(dir_count <= 1, "Expected at most 1 'ref directory' binding, found {dir_count}");
+    assert!(pat_count <= 1, "Expected at most 1 'ref pattern' binding, found {pat_count}");
 }
 
 /// Test pathlib-style multiple subcommands don't have duplicate bindings
@@ -125,9 +125,9 @@ if __name__ == "__main__":
 
     // With 2 subcommands, path appears in 1, directory+pattern in 1
     // So max occurrences should be 1 each
-    assert!(path_count <= 1, "Expected at most 1 'ref path', found {}", path_count);
-    assert!(dir_count <= 1, "Expected at most 1 'ref directory', found {}", dir_count);
-    assert!(pat_count <= 1, "Expected at most 1 'ref pattern', found {}", pat_count);
+    assert!(path_count <= 1, "Expected at most 1 'ref path', found {path_count}");
+    assert!(dir_count <= 1, "Expected at most 1 'ref directory', found {dir_count}");
+    assert!(pat_count <= 1, "Expected at most 1 'ref pattern', found {pat_count}");
 }
 
 /// Test that generated code compiles without E0416

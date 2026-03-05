@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn test_source_location_debug() {
         let loc = make_location(50);
-        let debug_str = format!("{:?}", loc);
+        let debug_str = format!("{loc:?}");
         assert!(debug_str.contains("SourceLocation"));
         assert!(debug_str.contains("50"));
     }
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn test_transpiler_decision_debug() {
         let decision = make_decision(99, 200);
-        let debug_str = format!("{:?}", decision);
+        let debug_str = format!("{decision:?}");
         assert!(debug_str.contains("TranspilerDecision"));
         assert!(debug_str.contains("99"));
     }

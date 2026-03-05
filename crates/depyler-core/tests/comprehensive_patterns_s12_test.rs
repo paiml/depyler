@@ -21,7 +21,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b43_contact_manager() {
-    let code = r##"
+    let code = r"
 class Contact:
     def __init__(self, name: str, email: str, phone: str):
         self.name = name
@@ -56,14 +56,14 @@ class ContactBook:
 
     def all_names(self) -> list:
         return sorted(self.contacts.keys())
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("ContactBook"), "Got: {}", result);
+    assert!(result.contains("ContactBook"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_text_analyzer() {
-    let code = r##"
+    let code = r#"
 def analyze_text(text: str) -> dict:
     words = text.lower().split()
     unique = set(words)
@@ -90,14 +90,14 @@ def analyze_text(text: str) -> dict:
         "most_common": most_common,
         "avg_words_per_sentence": avg_words
     }
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn analyze_text"), "Got: {}", result);
+    assert!(result.contains("fn analyze_text"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_state_machine() {
-    let code = r##"
+    let code = r#"
 class StateMachine:
     def __init__(self):
         self.state = "idle"
@@ -125,14 +125,14 @@ class StateMachine:
     def reset(self):
         self.state = "idle"
         self.history = []
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("StateMachine"), "Got: {}", result);
+    assert!(result.contains("StateMachine"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_sparse_matrix() {
-    let code = r#"
+    let code = r"
 class SparseMatrix:
     def __init__(self, rows: int, cols: int):
         self.rows = rows
@@ -157,14 +157,14 @@ class SparseMatrix:
             if key[0] == r:
                 total += val
         return total
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("SparseMatrix"), "Got: {}", result);
+    assert!(result.contains("SparseMatrix"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_expression_parser() {
-    let code = r##"
+    let code = r#"
 def evaluate_rpn(tokens: list) -> float:
     stack = []
     for token in tokens:
@@ -189,14 +189,14 @@ def evaluate_rpn(tokens: list) -> float:
         else:
             stack.append(float(token))
     return stack[0]
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn evaluate_rpn"), "Got: {}", result);
+    assert!(result.contains("fn evaluate_rpn"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_interval_scheduler() {
-    let code = r#"
+    let code = r"
 def max_non_overlapping(intervals: list) -> int:
     if not intervals:
         return 0
@@ -208,14 +208,14 @@ def max_non_overlapping(intervals: list) -> int:
             count += 1
             end = intervals[i][1]
     return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn max_non_overlapping"), "Got: {}", result);
+    assert!(result.contains("fn max_non_overlapping"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_trie_pattern() {
-    let code = r##"
+    let code = r"
 class TrieNode:
     def __init__(self):
         self.children = {}
@@ -248,14 +248,14 @@ class Trie:
                 return False
             node = node.children[char]
         return True
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("Trie"), "Got: {}", result);
+    assert!(result.contains("Trie"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_json_builder() {
-    let code = r##"
+    let code = r#"
 def to_json_string(obj) -> str:
     if isinstance(obj, dict):
         parts = []
@@ -274,14 +274,14 @@ def to_json_string(obj) -> str:
     elif isinstance(obj, int) or isinstance(obj, float):
         return str(obj)
     return "null"
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn to_json_string"), "Got: {}", result);
+    assert!(result.contains("fn to_json_string"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_simple_regex_match() {
-    let code = r##"
+    let code = r#"
 def simple_match(pattern: str, text: str) -> bool:
     if not pattern:
         return not text
@@ -294,14 +294,14 @@ def simple_match(pattern: str, text: str) -> bool:
     if text and (pattern[0] == "." or pattern[0] == text[0]):
         return simple_match(pattern[1:], text[1:])
     return False
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn simple_match"), "Got: {}", result);
+    assert!(result.contains("fn simple_match"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_cache_class() {
-    let code = r##"
+    let code = r#"
 class Cache:
     def __init__(self, capacity: int):
         self.capacity = capacity
@@ -335,14 +335,14 @@ class Cache:
 
     def size(self) -> int:
         return len(self.data)
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Cache"), "Got: {}", result);
+    assert!(result.contains("Cache"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_path_finder() {
-    let code = r##"
+    let code = r"
 def find_path(graph: dict, start: str, end: str) -> list:
     if start == end:
         return [start]
@@ -361,14 +361,14 @@ def find_path(graph: dict, start: str, end: str) -> list:
                     return new_path
                 queue.append(new_path)
     return []
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("fn find_path"), "Got: {}", result);
+    assert!(result.contains("fn find_path"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b43_scheduler() {
-    let code = r#"
+    let code = r"
 class Task:
     def __init__(self, name: str, duration: int, priority: int):
         self.name = name
@@ -404,7 +404,7 @@ class Scheduler:
             if not task.completed:
                 count += 1
         return count
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Scheduler"), "Got: {}", result);
+    assert!(result.contains("Scheduler"), "Got: {result}");
 }

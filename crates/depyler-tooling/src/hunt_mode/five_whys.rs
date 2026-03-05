@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_why_step_debug() {
         let step = WhyStep::new(2, "Test step");
-        let debug_str = format!("{:?}", step);
+        let debug_str = format!("{step:?}");
         assert!(debug_str.contains("WhyStep"));
         assert!(debug_str.contains("depth"));
         assert!(debug_str.contains("Test step"));
@@ -469,7 +469,7 @@ mod tests {
     #[test]
     fn test_root_cause_chain_debug() {
         let chain = RootCauseChain::new();
-        let debug_str = format!("{:?}", chain);
+        let debug_str = format!("{chain:?}");
         assert!(debug_str.contains("RootCauseChain"));
     }
 
@@ -507,7 +507,7 @@ mod tests {
     #[test]
     fn test_five_whys_analyzer_debug() {
         let analyzer = FiveWhysAnalyzer::new();
-        let debug_str = format!("{:?}", analyzer);
+        let debug_str = format!("{analyzer:?}");
         assert!(debug_str.contains("FiveWhysAnalyzer"));
     }
 

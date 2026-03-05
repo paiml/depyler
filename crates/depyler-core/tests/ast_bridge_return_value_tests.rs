@@ -29,12 +29,12 @@ use rustpython_parser::{parse, Mode};
 #[test]
 fn test_method_with_implementation_not_default() {
     // Test: Method with actual implementation should return false
-    let python = r#"
+    let python = r"
 class Service:
     def process(self):
         x = 1
         return x
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -50,11 +50,11 @@ class Service:
 #[test]
 fn test_method_with_only_pass_is_default() {
     // Test: Method with only pass should be default implementation
-    let python = r#"
+    let python = r"
 class Interface:
     def method(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -72,11 +72,11 @@ class Interface:
 #[test]
 fn test_is_type_name_recognizes_builtin_types() {
     // Test: Built-in type names should return true
-    let python = r#"
+    let python = r"
 UserId = int
 Name = str
 Count = float
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -94,9 +94,9 @@ Count = float
 #[test]
 fn test_is_type_name_rejects_non_types() {
     // Test: Non-type names should return false
-    let python = r#"
+    let python = r"
 result = calculate(42)
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -115,12 +115,12 @@ result = calculate(42)
 #[test]
 fn test_infer_fields_from_init_parameters() {
     // Test: Should infer fields from __init__ parameters
-    let python = r#"
+    let python = r"
 class User:
     def __init__(self, name: str, age: int):
         self.name = name
         self.age = age
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -140,10 +140,10 @@ class User:
 #[test]
 fn test_infer_fields_empty_when_no_init() {
     // Test: Should return empty when no __init__
-    let python = r#"
+    let python = r"
 class Empty:
     x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -187,11 +187,11 @@ class Service:
 #[test]
 fn test_extract_class_docstring_when_absent() {
     // Test: Should return None when no docstring
-    let python = r#"
+    let python = r"
 class NoDoc:
     def method(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -216,11 +216,11 @@ class NoDoc:
 #[test]
 fn test_convert_async_method_returns_method() {
     // Test: Should convert async methods to HirMethod
-    let python = r#"
+    let python = r"
 class Service:
     async def fetch(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -242,11 +242,11 @@ class Service:
 #[test]
 fn test_infer_type_from_expr_integer() {
     // Test: Should infer int type from integer literal
-    let python = r#"
+    let python = r"
 class Config:
     def __init__(self):
         self.count = 42
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -281,11 +281,11 @@ class Config:
 #[test]
 fn test_try_convert_protocol_succeeds() {
     // Test: Should convert Protocol classes
-    let python = r#"
+    let python = r"
 class Protocol:
     def method(self):
         x = 1
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -299,10 +299,10 @@ class Protocol:
 #[test]
 fn test_try_convert_type_alias_succeeds() {
     // Test: Should convert type aliases
-    let python = r#"
+    let python = r"
 UserId = int
 Name = str
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -316,11 +316,11 @@ Name = str
 #[test]
 fn test_try_convert_class_succeeds() {
     // Test: Should convert class definitions
-    let python = r#"
+    let python = r"
 class User:
     name: str
     age: int
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
@@ -335,11 +335,11 @@ class User:
 #[test]
 fn test_convert_method_succeeds() {
     // Test: Should convert methods
-    let python = r#"
+    let python = r"
 class Service:
     def process(self, data):
         x = data
-"#;
+";
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");

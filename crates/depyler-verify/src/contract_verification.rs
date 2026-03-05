@@ -1034,7 +1034,7 @@ mod tests {
             value: Value::Int(0),
         }));
         let not_assertion = checker.predicate_to_assertion(&pred_not);
-        assert!(not_assertion.contains("!"));
+        assert!(not_assertion.contains('!'));
     }
 
     #[test]
@@ -1112,7 +1112,7 @@ mod tests {
 
         let in_bounds = Predicate::InBounds { array: "arr".to_string(), index: "i".to_string() };
         let assertion = checker.predicate_to_assertion(&in_bounds);
-        assert!(assertion.contains("arr") && assertion.contains("i"));
+        assert!(assertion.contains("arr") && assertion.contains('i'));
     }
 
     #[test]
@@ -1580,17 +1580,17 @@ mod tests {
             old_value: Value::Int(0),
             new_value: Value::Int(1),
         };
-        let debug = format!("{:?}", effect);
+        let debug = format!("{effect:?}");
         assert!(debug.contains("StateChange"));
 
         let array_mod =
             SideEffect::ArrayModification { array: "arr".to_string(), index: "0".to_string() };
-        let debug2 = format!("{:?}", array_mod);
+        let debug2 = format!("{array_mod:?}");
         assert!(debug2.contains("ArrayModification"));
 
         let ext_call =
             SideEffect::ExternalCall { func: "print".to_string(), args: vec!["hello".to_string()] };
-        let debug3 = format!("{:?}", ext_call);
+        let debug3 = format!("{ext_call:?}");
         assert!(debug3.contains("ExternalCall"));
     }
 
@@ -1660,7 +1660,7 @@ mod tests {
             new_value: Value::Int(1),
         };
         let cloned = effect.clone();
-        assert!(format!("{:?}", cloned).contains("StateChange"));
+        assert!(format!("{cloned:?}").contains("StateChange"));
     }
 
     #[test]

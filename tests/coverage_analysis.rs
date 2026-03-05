@@ -8,10 +8,10 @@ mod coverage_analysis_tests {
     #[test]
     fn test_basic_transpilation_coverage() {
         let pipeline = DepylerPipeline::new();
-        let simple_function = r#"
+        let simple_function = r"
 def add_numbers(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
         let result = pipeline.transpile(simple_function);
         assert!(result.is_ok(), "Basic transpilation should work");
@@ -21,13 +21,13 @@ def add_numbers(a: int, b: int) -> int:
     #[test]
     fn test_hir_parsing_coverage() {
         let pipeline = DepylerPipeline::new();
-        let function_with_control_flow = r#"
+        let function_with_control_flow = r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     else:
         return n * factorial(n - 1)
-"#;
+";
 
         let hir_result = pipeline.parse_to_hir(function_with_control_flow);
         assert!(hir_result.is_ok(), "HIR parsing should work for valid Python");
@@ -61,46 +61,45 @@ def factorial(n: int) -> int:
 
         let constructs = [
             // Basic function
-            r#"
+            r"
 def simple() -> int:
     return 42
-"#,
+",
             // Function with parameters
-            r#"
+            r"
 def with_params(x: int, y: str) -> str:
     return y + str(x)
-"#,
+",
             // Function with if statement
-            r#"
+            r"
 def with_if(x: int) -> int:
     if x > 0:
         return x
     return 0
-"#,
+",
             // Function with loop
-            r#"
+            r"
 def with_loop(n: int) -> int:
     total = 0
     for i in range(n):
         total += i
     return total
-"#,
+",
             // Function with variables
-            r#"
+            r"
 def with_variables() -> int:
     x = 10
     y = 20
     z = x + y
     return z
-"#,
+",
         ];
 
         for (i, construct) in constructs.iter().enumerate() {
             let result = pipeline.transpile(construct);
             assert!(
                 result.is_ok() || result.is_err(),
-                "Construct {} should be handled (pass or fail gracefully)",
-                i
+                "Construct {i} should be handled (pass or fail gracefully)"
             );
         }
     }
@@ -121,8 +120,7 @@ def with_variables() -> int:
             let result = pipeline.transpile(type_example);
             assert!(
                 result.is_ok() || result.is_err(),
-                "Type annotation {} should be handled",
-                type_example
+                "Type annotation {type_example} should be handled"
             );
         }
     }
@@ -149,31 +147,30 @@ def with_variables() -> int:
 
         let memory_patterns = vec![
             // String concatenation
-            r#"
+            r"
 def concat_strings(a: str, b: str) -> str:
     return a + b
-"#,
+",
             // List operations
-            r#"
+            r"
 def list_ops() -> int:
     items = [1, 2, 3]
     return len(items)
-"#,
+",
             // Variable reassignment
-            r#"
+            r"
 def reassignment() -> int:
     x = 10
     x = 20
     return x
-"#,
+",
         ];
 
         for pattern in memory_patterns {
             let result = pipeline.transpile(pattern);
             assert!(
                 result.is_ok() || result.is_err(),
-                "Memory pattern should be handled: {}",
-                pattern
+                "Memory pattern should be handled: {pattern}"
             );
         }
     }
@@ -193,25 +190,25 @@ def documented_func() -> int:
         assert!(result.is_ok() || result.is_err());
 
         // Function with multiple returns
-        let multiple_returns = r#"
+        let multiple_returns = r"
 def multiple_returns(x: int) -> int:
     if x > 0:
         return x
     if x < 0:
         return -x
     return 0
-"#;
+";
         let result2 = pipeline.transpile(multiple_returns);
         assert!(result2.is_ok() || result2.is_err());
 
         // Nested function calls
-        let nested_calls = r#"
+        let nested_calls = r"
 def outer(x: int) -> int:
     return inner(x + 1)
 
 def inner(y: int) -> int:
     return y * 2
-"#;
+";
         let result3 = pipeline.transpile(nested_calls);
         assert!(result3.is_ok() || result3.is_err());
     }

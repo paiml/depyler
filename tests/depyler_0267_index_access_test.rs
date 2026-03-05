@@ -37,7 +37,7 @@ def get_string(items: list[str], index: int) -> str:
 
     // Debugging: Print generated code
     eprintln!("=== DEPYLER-0267: Generated Rust Code (string index) ===");
-    eprintln!("{}", rust_code);
+    eprintln!("{rust_code}");
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0267_string_index.rs";
@@ -59,7 +59,7 @@ def get_string(items: list[str], index: int) -> str:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0267: rustc stderr (string index) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         // ASSERT: Must NOT have "String: Copy" error
         assert!(
@@ -72,21 +72,17 @@ def get_string(items: list[str], index: int) -> str:
              \\n\\
              See docs/bugs/DEPYLER-0267.md for details.\\n\\
              \\n\\
-             Generated Rust code:\\n{}\\n\\
+             Generated Rust code:\\n{rust_code}\\n\\
              \\n\\
-             rustc error:\\n{}",
-            rust_code,
-            stderr
+             rustc error:\\n{stderr}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0267: String index should compile\\n\\
-         Generated code:\\n{}\\n\\
-         Errors:\\n{}",
-        rust_code,
-        stderr
+         Generated code:\\n{rust_code}\\n\\
+         Errors:\\n{stderr}"
     );
 }
 
@@ -127,24 +123,20 @@ def get_row(matrix: list[list[int]], row: int) -> list[int]:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0267: rustc stderr (vec index) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         assert!(
             !stderr.contains("Vec<i32>: Copy"),
             "DEPYLER-0267: Vec doesn't implement Copy!\\n\\
-             Error: {}\\n\\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\\n\\
+             Code: {rust_code}"
         );
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0267: Vec index should compile\\n\\
-         Code: {}\\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\\nErrors: {stderr}"
     );
 }
 
@@ -185,15 +177,13 @@ def get_int(nums: list[int], index: int) -> int:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0267: rustc stderr (copy type) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
     }
 
     assert!(
         output.status.success(),
         "DEPYLER-0267: Copy type (int) should still work\\n\\
-         Code: {}\\nErrors: {}",
-        rust_code,
-        stderr
+         Code: {rust_code}\\nErrors: {stderr}"
     );
 }
 
@@ -235,16 +225,14 @@ def get_last_string(items: list[str]) -> str:
 
     if !output.status.success() {
         eprintln!("\n=== DEPYLER-0267: rustc stderr (negative string) ===");
-        eprintln!("{}", stderr);
+        eprintln!("{stderr}");
 
         // DEPYLER-0267: Must NOT have String: Copy error
         assert!(
             !stderr.contains("String: Copy"),
             "DEPYLER-0267: Should use .cloned() not .copied()!\\n\\
-             Error: {}\\n\\
-             Code: {}",
-            stderr,
-            rust_code
+             Error: {stderr}\\n\\
+             Code: {rust_code}"
         );
     }
 

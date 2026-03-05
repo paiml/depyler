@@ -1,6 +1,6 @@
 //! Session 12 Batch 92: Direct rules convert deep cold paths 8
 //!
-//! Targets direct_rules_convert.rs which has the worst coverage (57.62% line).
+//! Targets `direct_rules_convert.rs` which has the worst coverage (57.62% line).
 //! Focuses on: complex assignment targets, starred expressions,
 //! augmented assignment on subscripts, and attribute assignment patterns.
 
@@ -22,7 +22,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b92_self_attr_assign() {
-    let code = r#"
+    let code = r"
 class Point:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -35,14 +35,14 @@ class Point:
     def reset(self):
         self.x = 0.0
         self.y = 0.0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Point"), "Got: {}", result);
+    assert!(result.contains("Point"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_self_list_attr() {
-    let code = r#"
+    let code = r"
 class TaskList:
     def __init__(self):
         self.tasks = []
@@ -54,9 +54,9 @@ class TaskList:
     def complete(self, idx: int):
         task = self.tasks.pop(idx)
         self.done.append(task)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("TaskList"), "Got: {}", result);
+    assert!(result.contains("TaskList"), "Got: {result}");
 }
 
 #[test]
@@ -73,21 +73,21 @@ class Config:
         return self.settings.get(key, "")
 "#;
     let result = transpile(code);
-    assert!(result.contains("Config"), "Got: {}", result);
+    assert!(result.contains("Config"), "Got: {result}");
 }
 
 // ===== Complex assignment patterns =====
 
 #[test]
 fn test_s12_b92_swap_values() {
-    let code = r#"
+    let code = r"
 def sort_pair(a: int, b: int) -> tuple:
     if a > b:
         a, b = b, a
     return (a, b)
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn sort_pair"), "Got: {}", result);
+    assert!(result.contains("fn sort_pair"), "Got: {result}");
 }
 
 #[test]
@@ -100,36 +100,36 @@ def parse_name(full_name: str) -> tuple:
     return (first, last)
 "#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_name"), "Got: {}", result);
+    assert!(result.contains("fn parse_name"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_augmented_on_subscript() {
-    let code = r#"
+    let code = r"
 def accumulate(counts: dict, items: list):
     for item in items:
         if item not in counts:
             counts[item] = 0
         counts[item] += 1
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn accumulate"), "Got: {}", result);
+    assert!(result.contains("fn accumulate"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_augmented_on_list_index() {
-    let code = r#"
+    let code = r"
 def scale_vector(vec: list, factor: float):
     for i in range(len(vec)):
         vec[i] *= factor
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn scale_vector"), "Got: {}", result);
+    assert!(result.contains("fn scale_vector"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_nested_dict_assign() {
-    let code = r##"
+    let code = r"
 def build_tree(pairs: list) -> dict:
     tree = {}
     for parent, child in pairs:
@@ -137,92 +137,92 @@ def build_tree(pairs: list) -> dict:
             tree[parent] = []
         tree[parent].append(child)
     return tree
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("fn build_tree"), "Got: {}", result);
+    assert!(result.contains("fn build_tree"), "Got: {result}");
 }
 
 // ===== Delete statement patterns =====
 
 #[test]
 fn test_s12_b92_del_from_dict() {
-    let code = r#"
+    let code = r"
 def remove_keys(d: dict, keys: list) -> dict:
     for key in keys:
         if key in d:
             del d[key]
     return d
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn remove_keys"), "Got: {}", result);
+    assert!(result.contains("fn remove_keys"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_del_from_list() {
-    let code = r#"
+    let code = r"
 def remove_first(items: list, target: int) -> list:
     for i in range(len(items)):
         if items[i] == target:
             del items[i]
             break
     return items
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn remove_first"), "Got: {}", result);
+    assert!(result.contains("fn remove_first"), "Got: {result}");
 }
 
 // ===== Complex expression in assignment =====
 
 #[test]
 fn test_s12_b92_conditional_assign() {
-    let code = r#"
+    let code = r"
 def pick(a: int, b: int, use_first: bool) -> int:
     result = a if use_first else b
     return result
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn pick"), "Got: {}", result);
+    assert!(result.contains("fn pick"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_comprehension_assign() {
-    let code = r#"
+    let code = r"
 def process(items: list) -> list:
     evens = [x for x in items if x % 2 == 0]
     doubles = [x * 2 for x in evens]
     return doubles
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn process"), "Got: {}", result);
+    assert!(result.contains("fn process"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_dict_comp_assign() {
-    let code = r#"
+    let code = r"
 def index_items(items: list) -> dict:
     lookup = {item: i for i, item in enumerate(items)}
     return lookup
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn index_items"), "Got: {}", result);
+    assert!(result.contains("fn index_items"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_set_comp_assign() {
-    let code = r#"
+    let code = r"
 def unique_lengths(words: list) -> set:
     lengths = {len(w) for w in words}
     return lengths
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn unique_lengths"), "Got: {}", result);
+    assert!(result.contains("fn unique_lengths"), "Got: {result}");
 }
 
 // ===== Complex class assignment patterns =====
 
 #[test]
 fn test_s12_b92_class_with_init_logic() {
-    let code = r#"
+    let code = r"
 class Matrix:
     def __init__(self, rows: int, cols: int):
         self.rows = rows
@@ -242,14 +242,14 @@ class Matrix:
         for i in range(self.rows):
             for j in range(self.cols):
                 self.data[i][j] = val
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("Matrix"), "Got: {}", result);
+    assert!(result.contains("Matrix"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_multiple_attr_types() {
-    let code = r##"
+    let code = r"
 class UserProfile:
     def __init__(self, name: str, age: int):
         self.name = name
@@ -267,53 +267,53 @@ class UserProfile:
 
     def deactivate(self):
         self.active = False
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("UserProfile"), "Got: {}", result);
+    assert!(result.contains("UserProfile"), "Got: {result}");
 }
 
 // ===== Augmented assignment operators =====
 
 #[test]
 fn test_s12_b92_aug_floor_div() {
-    let code = r#"
+    let code = r"
 def halve(n: int) -> int:
     n //= 2
     return n
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn halve"), "Got: {}", result);
+    assert!(result.contains("fn halve"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_aug_modulo() {
-    let code = r#"
+    let code = r"
 def wrap(n: int, limit: int) -> int:
     n %= limit
     return n
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn wrap"), "Got: {}", result);
+    assert!(result.contains("fn wrap"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_aug_power() {
-    let code = r#"
+    let code = r"
 def square_in_place(x: float) -> float:
     x **= 2
     return x
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn square_in_place"), "Got: {}", result);
+    assert!(result.contains("fn square_in_place"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b92_aug_bitwise() {
-    let code = r#"
+    let code = r"
 def set_flag(flags: int, bit: int) -> int:
     flags |= (1 << bit)
     return flags
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn set_flag"), "Got: {}", result);
+    assert!(result.contains("fn set_flag"), "Got: {result}");
 }

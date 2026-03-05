@@ -734,7 +734,7 @@ mod tests {
         let trace = format_codegen_trace(2048, 5);
         assert_eq!(trace.len(), 3);
         assert!(trace[0].1.contains("2048"));
-        assert!(trace[1].1.contains("5"));
+        assert!(trace[1].1.contains('5'));
         assert_eq!(trace[2].1, "complete");
     }
 
@@ -745,7 +745,7 @@ mod tests {
         let trace = format_oracle_trace(&oracle_config, None);
         assert_eq!(trace.len(), 3);
         assert!(trace[0].1.contains("75%"));
-        assert!(trace[1].1.contains("3"));
+        assert!(trace[1].1.contains('3'));
         assert_eq!(trace[2].1, "disabled");
     }
 

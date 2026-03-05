@@ -1,6 +1,6 @@
-//! DEPYLER-1203: Dict DepylerValue Boundary Enforcement Tests
+//! DEPYLER-1203: Dict `DepylerValue` Boundary Enforcement Tests
 //!
-//! Tests for E0308 type mismatch errors when Dict values need DepylerValue wrapping.
+//! Tests for E0308 type mismatch errors when Dict values need `DepylerValue` wrapping.
 //! Follows DEPYLER-1201 pattern for Vec<DepylerValue>.
 //!
 //! When target type is `HashMap<String, DepylerValue>` (from Dict[str, Any]):
@@ -16,19 +16,19 @@ use std::process::Command;
 fn check_compiles(rust_code: &str) -> Result<(), String> {
     let temp_dir = std::env::temp_dir();
     let temp_file = temp_dir.join("depyler_1203_test.rs");
-    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write error: {}", e))?;
+    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write error: {e}"))?;
 
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "--edition", "2021", "-o", "/dev/null"])
         .arg(&temp_file)
         .output()
-        .map_err(|e| format!("Compile error: {}", e))?;
+        .map_err(|e| format!("Compile error: {e}"))?;
 
     if output.status.success() {
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("Compilation failed:\n{}", stderr))
+        Err(format!("Compilation failed:\n{stderr}"))
     }
 }
 
@@ -54,26 +54,24 @@ def build_config() -> dict:
     );
 
     let rust_code = result.unwrap();
-    eprintln!("Generated code:\n{}", rust_code);
+    eprintln!("Generated code:\n{rust_code}");
 
     // Check for DepylerValue wrapping in subscript assignments
     match check_compiles(&rust_code) {
         Ok(()) => (),
         Err(e) => {
-            if e.contains("E0308") || e.contains("mismatched types") {
-                panic!(
-                    "DEPYLER-1203: Dict subscript boundary issue - \
-                     values not wrapped in DepylerValue.\n\
-                     Error: {}\n\nGenerated code:\n{}",
-                    e, rust_code
-                );
-            }
-            eprintln!("Note: Other compilation issues: {}", e);
+            assert!(
+                !(e.contains("E0308") || e.contains("mismatched types")),
+                "DEPYLER-1203: Dict subscript boundary issue - \
+                 values not wrapped in DepylerValue.\n\
+                 Error: {e}\n\nGenerated code:\n{rust_code}"
+            );
+            eprintln!("Note: Other compilation issues: {e}");
         }
     }
 }
 
-/// Test 2: Dict.update() with another dict
+/// Test 2: `Dict.update()` with another dict
 /// d.update({"key": value}) where d: Dict[str, Any]
 #[test]
 fn test_depyler_1203_dict_update_boundary() {
@@ -90,25 +88,23 @@ def merge_configs(base: dict, extra: dict) -> dict:
     assert!(result.is_ok(), "Dict.update() should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    eprintln!("Generated code:\n{}", rust_code);
+    eprintln!("Generated code:\n{rust_code}");
 
     match check_compiles(&rust_code) {
         Ok(()) => (),
         Err(e) => {
-            if e.contains("E0308") || e.contains("mismatched types") {
-                panic!(
-                    "DEPYLER-1203: Dict.update() boundary issue - \
-                     values not wrapped in DepylerValue.\n\
-                     Error: {}\n\nGenerated code:\n{}",
-                    e, rust_code
-                );
-            }
-            eprintln!("Note: Other compilation issues: {}", e);
+            assert!(
+                !(e.contains("E0308") || e.contains("mismatched types")),
+                "DEPYLER-1203: Dict.update() boundary issue - \
+                 values not wrapped in DepylerValue.\n\
+                 Error: {e}\n\nGenerated code:\n{rust_code}"
+            );
+            eprintln!("Note: Other compilation issues: {e}");
         }
     }
 }
 
-/// Test 3: Dict literal with DepylerValue target type
+/// Test 3: Dict literal with `DepylerValue` target type
 #[test]
 fn test_depyler_1203_dict_literal_boundary() {
     let python = r#"
@@ -121,19 +117,17 @@ def create_record(name: str, age: int) -> dict:
     assert!(result.is_ok(), "Dict literal with mixed values should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    eprintln!("Generated code:\n{}", rust_code);
+    eprintln!("Generated code:\n{rust_code}");
 
     match check_compiles(&rust_code) {
         Ok(()) => (),
         Err(e) => {
-            if e.contains("E0308") || e.contains("mismatched types") {
-                panic!(
-                    "DEPYLER-1203: Dict literal boundary issue.\n\
-                     Error: {}\n\nGenerated code:\n{}",
-                    e, rust_code
-                );
-            }
-            eprintln!("Note: Other compilation issues: {}", e);
+            assert!(
+                !(e.contains("E0308") || e.contains("mismatched types")),
+                "DEPYLER-1203: Dict literal boundary issue.\n\
+                 Error: {e}\n\nGenerated code:\n{rust_code}"
+            );
+            eprintln!("Note: Other compilation issues: {e}");
         }
     }
 }
@@ -154,19 +148,17 @@ def build_nested() -> dict:
     assert!(result.is_ok(), "Nested dict assignment should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    eprintln!("Generated code:\n{}", rust_code);
+    eprintln!("Generated code:\n{rust_code}");
 
     match check_compiles(&rust_code) {
         Ok(()) => (),
         Err(e) => {
-            if e.contains("E0308") || e.contains("mismatched types") {
-                panic!(
-                    "DEPYLER-1203: Nested dict boundary issue.\n\
-                     Error: {}\n\nGenerated code:\n{}",
-                    e, rust_code
-                );
-            }
-            eprintln!("Note: Other compilation issues: {}", e);
+            assert!(
+                !(e.contains("E0308") || e.contains("mismatched types")),
+                "DEPYLER-1203: Nested dict boundary issue.\n\
+                 Error: {e}\n\nGenerated code:\n{rust_code}"
+            );
+            eprintln!("Note: Other compilation issues: {e}");
         }
     }
 }
@@ -174,27 +166,26 @@ def build_nested() -> dict:
 /// Test 5: Dict with int literal values requiring wrap
 #[test]
 fn test_depyler_1203_dict_int_value_boundary() {
-    let python = r#"
+    let python = r"
 def count_items(items: list) -> dict:
     counts = {}
     for item in items:
         counts[item] = 1
     return counts
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
     assert!(result.is_ok(), "Dict with int values should transpile: {:?}", result.err());
 
     let rust_code = result.unwrap();
-    eprintln!("Generated code:\n{}", rust_code);
+    eprintln!("Generated code:\n{rust_code}");
 
     // Should have DepylerValue wrapping for int literal
     if rust_code.contains("DepylerValue") {
         assert!(
             rust_code.contains("DepylerValue::Int") || rust_code.contains("DepylerValue::from"),
-            "Int values should use DepylerValue::Int or DepylerValue::from.\n\nGenerated code:\n{}",
-            rust_code
+            "Int values should use DepylerValue::Int or DepylerValue::from.\n\nGenerated code:\n{rust_code}"
         );
     }
 }

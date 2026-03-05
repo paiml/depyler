@@ -1,7 +1,7 @@
-//! Coverage tests for func_gen_inference.rs (return type inference, nested functions)
+//! Coverage tests for `func_gen_inference.rs` (return type inference, nested functions)
 //!
 //! DEPYLER-99MODE-S8: Session 8 Batch 5 - targeting zero-test file
-//! func_gen_inference.rs has 1,315 lines of code with 0 inline tests.
+//! `func_gen_inference.rs` has 1,315 lines of code with 0 inline tests.
 //! These transpile-based tests exercise return type inference and function codegen paths.
 
 use depyler_core::ast_bridge::AstBridge;
@@ -23,12 +23,12 @@ fn transpile(python_code: &str) -> String {
 #[test]
 fn test_nested_function_returned_explicit() {
     let code = transpile(
-        r#"
+        r"
 def make_adder(x: int):
     def adder(y: int) -> int:
         return x + y
     return adder
-"#,
+",
     );
     assert!(code.contains("fn make_adder"), "code: {code}");
 }
@@ -49,12 +49,12 @@ def make_greeter(prefix: str):
 #[test]
 fn test_nested_function_no_params() {
     let code = transpile(
-        r#"
+        r"
 def make_const():
     def f() -> int:
         return 42
     return f
-"#,
+",
     );
     assert!(code.contains("fn make_const"), "code: {code}");
 }
@@ -98,10 +98,10 @@ def get_output(path: str):
 #[test]
 fn test_file_open_return() {
     let code = transpile(
-        r#"
+        r"
 def open_file(path: str):
     return open(path)
-"#,
+",
     );
     assert!(code.contains("fn open_file"), "code: {code}");
 }
@@ -111,10 +111,10 @@ def open_file(path: str):
 #[test]
 fn test_return_type_inferred_int() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int):
     return x + 1
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -122,10 +122,10 @@ def f(x: int):
 #[test]
 fn test_return_type_inferred_string() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str):
     return s.upper()
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -133,10 +133,10 @@ def f(s: str):
 #[test]
 fn test_return_type_inferred_bool() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int):
     return x > 0
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -144,13 +144,13 @@ def f(x: int):
 #[test]
 fn test_return_type_inferred_list() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list[int]):
     result: list[int] = []
     for x in items:
         result.append(x * 2)
     return result
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -158,10 +158,10 @@ def f(items: list[int]):
 #[test]
 fn test_return_type_none_is_unit() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> None:
     print(x)
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -169,10 +169,10 @@ def f(x: int) -> None:
 #[test]
 fn test_return_type_tuple_inferred() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int, y: int) -> tuple:
     return (x, y)
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -210,13 +210,13 @@ def f(s: str) -> int:
 #[test]
 fn test_index_error_type() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list[int]) -> int:
     try:
         return items[0]
     except IndexError:
         return -1
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -226,7 +226,7 @@ def f(items: list[int]) -> int:
 #[test]
 fn test_preload_in_nested_if() {
     let code = transpile(
-        r#"
+        r"
 def f(x: int) -> int:
     if x > 10:
         if x > 20:
@@ -236,7 +236,7 @@ def f(x: int) -> int:
     else:
         result: int = x
     return result
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -244,14 +244,14 @@ def f(x: int) -> int:
 #[test]
 fn test_preload_in_while_loop() {
     let code = transpile(
-        r#"
+        r"
 def f(n: int) -> int:
     total: int = 0
     while n > 0:
         total = total + n
         n = n - 1
     return total
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -259,13 +259,13 @@ def f(n: int) -> int:
 #[test]
 fn test_preload_in_for_loop() {
     let code = transpile(
-        r#"
+        r"
 def f(items: list[int]) -> int:
     total: int = 0
     for item in items:
         total = total + item
     return total
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -273,7 +273,7 @@ def f(items: list[int]) -> int:
 #[test]
 fn test_preload_in_try_except() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> int:
     result: int = 0
     try:
@@ -281,7 +281,7 @@ def f(s: str) -> int:
     except:
         result = -1
     return result
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -289,12 +289,12 @@ def f(s: str) -> int:
 #[test]
 fn test_preload_in_with_block() {
     let code = transpile(
-        r#"
+        r"
 def f(path: str) -> str:
     with open(path) as fh:
         data: str = fh.read()
     return data
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -302,13 +302,13 @@ def f(path: str) -> str:
 #[test]
 fn test_preload_in_nested_function() {
     let code = transpile(
-        r#"
+        r"
 def outer(x: int) -> int:
     def inner(y: int) -> int:
         result: int = y * 2
         return result
     return inner(x)
-"#,
+",
     );
     assert!(code.contains("fn outer"), "code: {code}");
 }
@@ -318,12 +318,12 @@ def outer(x: int) -> int:
 #[test]
 fn test_unknown_param_inferred_from_comparison() {
     let code = transpile(
-        r#"
+        r"
 def f(x):
     if x > 0:
         return x
     return 0
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -331,10 +331,10 @@ def f(x):
 #[test]
 fn test_unknown_param_inferred_from_string_ops() {
     let code = transpile(
-        r#"
+        r"
 def f(s):
     return s.strip()
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -342,13 +342,13 @@ def f(s):
 #[test]
 fn test_optional_unknown_param() {
     let code = transpile(
-        r#"
+        r"
 from typing import Optional
 def f(x: Optional[int] = None) -> int:
     if x is not None:
         return x
     return 0
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -359,10 +359,10 @@ def f(x: Optional[int] = None) -> int:
 fn test_keyword_fn_name_loop() {
     // "loop" is a Rust keyword but valid Python identifier
     let code = transpile(
-        r#"
+        r"
 def loop(x: int) -> bool:
     return x > 0
-"#,
+",
     );
     assert!(code.contains("fn"), "code: {code}");
 }
@@ -389,10 +389,10 @@ def classify(x: int) -> str:
 #[test]
 fn test_owned_string_from_concat() {
     let code = transpile(
-        r#"
+        r"
 def f(a: str, b: str) -> str:
     return a + b
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
 }
@@ -411,10 +411,10 @@ def f(name: str) -> str:
 #[test]
 fn test_owned_string_from_upper() {
     let code = transpile(
-        r#"
+        r"
 def f(s: str) -> str:
     return s.upper()
-"#,
+",
     );
     assert!(code.contains("fn f"), "code: {code}");
     assert!(code.contains("String") || code.contains("str"), "should return string type: {code}");
@@ -440,7 +440,7 @@ def f(a: int, b: int) -> int:
 #[test]
 fn test_simple_class_method() {
     let code = transpile(
-        r#"
+        r"
 class Counter:
     def __init__(self, start: int):
         self.count = start
@@ -448,7 +448,7 @@ class Counter:
     def increment(self) -> int:
         self.count = self.count + 1
         return self.count
-"#,
+",
     );
     assert!(code.contains("Counter") || code.contains("fn"), "code: {code}");
 }
@@ -458,10 +458,10 @@ class Counter:
 #[test]
 fn test_borrowed_param_return() {
     let code = transpile(
-        r#"
+        r"
 def first_char(s: str) -> str:
     return s[0]
-"#,
+",
     );
     assert!(code.contains("fn first_char"), "code: {code}");
 }
@@ -471,14 +471,14 @@ def first_char(s: str) -> str:
 #[test]
 fn test_function_with_all_annotations() {
     let code = transpile(
-        r#"
+        r"
 def process(items: list[int], threshold: int = 10) -> list[int]:
     result: list[int] = []
     for item in items:
         if item > threshold:
             result.append(item)
     return result
-"#,
+",
     );
     assert!(code.contains("fn process"), "code: {code}");
 }
@@ -488,13 +488,13 @@ def process(items: list[int], threshold: int = 10) -> list[int]:
 #[test]
 fn test_generator_function() {
     let code = transpile(
-        r#"
+        r"
 def count_up(n: int):
     i = 0
     while i < n:
         yield i
         i = i + 1
-"#,
+",
     );
     assert!(code.contains("fn count_up"), "code: {code}");
 }
@@ -504,13 +504,13 @@ def count_up(n: int):
 #[test]
 fn test_function_calling_another() {
     let code = transpile(
-        r#"
+        r"
 def add(a: int, b: int) -> int:
     return a + b
 
 def triple_add(x: int) -> int:
     return add(add(x, x), x)
-"#,
+",
     );
     assert!(code.contains("fn add"), "code: {code}");
     assert!(code.contains("fn triple_add"), "code: {code}");
@@ -519,12 +519,12 @@ def triple_add(x: int) -> int:
 #[test]
 fn test_recursive_function() {
     let code = transpile(
-        r#"
+        r"
 def factorial(n: int) -> int:
     if n <= 1:
         return 1
     return n * factorial(n - 1)
-"#,
+",
     );
     assert!(code.contains("fn factorial"), "code: {code}");
 }
@@ -534,10 +534,10 @@ def factorial(n: int) -> int:
 #[test]
 fn test_empty_function() {
     let code = transpile(
-        r#"
+        r"
 def noop():
     pass
-"#,
+",
     );
     assert!(code.contains("fn noop"), "code: {code}");
 }
@@ -557,12 +557,12 @@ def f(x: int) -> int:
 #[test]
 fn test_function_returns_dict() {
     let code = transpile(
-        r#"
+        r"
 def make_dict(key: str, value: int) -> dict[str, int]:
     result: dict[str, int] = {}
     result[key] = value
     return result
-"#,
+",
     );
     assert!(code.contains("fn make_dict"), "code: {code}");
 }
@@ -570,13 +570,13 @@ def make_dict(key: str, value: int) -> dict[str, int]:
 #[test]
 fn test_function_with_list_param() {
     let code = transpile(
-        r#"
+        r"
 def sum_list(items: list[int]) -> int:
     total = 0
     for item in items:
         total = total + item
     return total
-"#,
+",
     );
     assert!(code.contains("fn sum_list"), "code: {code}");
 }
@@ -584,10 +584,10 @@ def sum_list(items: list[int]) -> int:
 #[test]
 fn test_function_with_bool_logic() {
     let code = transpile(
-        r#"
+        r"
 def is_valid(x: int, y: int) -> bool:
     return x > 0 and y > 0
-"#,
+",
     );
     assert!(code.contains("fn is_valid"), "code: {code}");
 }

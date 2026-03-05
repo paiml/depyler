@@ -1,6 +1,9 @@
 //! Example demonstrating migration suggestions from Python to Rust idioms
 
-use depyler_core::hir::*;
+use depyler_core::hir::{
+    AssignTarget, BinOp, FunctionProperties, HirExpr, HirFunction, HirParam, HirProgram, HirStmt,
+    Literal, Type,
+};
 use depyler_core::migration_suggestions::{MigrationAnalyzer, MigrationConfig};
 use smallvec::smallvec;
 
@@ -24,7 +27,7 @@ fn main() {
 
     // Format and display suggestions
     let output = analyzer.format_suggestions(&suggestions);
-    println!("{}", output);
+    println!("{output}");
 }
 
 fn create_sample_program() -> HirProgram {

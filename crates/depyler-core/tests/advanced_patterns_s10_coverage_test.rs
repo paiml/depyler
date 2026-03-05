@@ -21,32 +21,32 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s10_lambda_basic() {
-    let code = r#"
+    let code = r"
 def apply(x: int) -> int:
     f = lambda n: n * 2
     return f(x)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn apply"));
 }
 
 #[test]
 fn test_s10_lambda_with_capture() {
-    let code = r#"
+    let code = r"
 def make_multiplier(factor: int) -> int:
     multiply = lambda x: x * factor
     return multiply(5)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn make_multiplier"));
 }
 
 #[test]
 fn test_s10_lambda_in_map() {
-    let code = r#"
+    let code = r"
 def double_list(items: list) -> list:
     return list(map(lambda x: x * 2, items))
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn double_list"));
     assert!(result.contains("map"));
@@ -54,10 +54,10 @@ def double_list(items: list) -> list:
 
 #[test]
 fn test_s10_lambda_in_filter() {
-    let code = r#"
+    let code = r"
 def evens_only(items: list) -> list:
     return list(filter(lambda x: x % 2 == 0, items))
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn evens_only"));
     assert!(result.contains("filter"));
@@ -65,11 +65,11 @@ def evens_only(items: list) -> list:
 
 #[test]
 fn test_s10_lambda_multi_arg() {
-    let code = r#"
+    let code = r"
 def sort_pairs(pairs: list) -> list:
     pairs.sort(key=lambda p: p[0])
     return pairs
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn sort_pairs"));
     assert!(result.contains("sort"));
@@ -77,10 +77,10 @@ def sort_pairs(pairs: list) -> list:
 
 #[test]
 fn test_s10_lambda_in_sorted() {
-    let code = r#"
+    let code = r"
 def sort_by_len(words: list) -> list:
     return sorted(words, key=lambda w: len(w))
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn sort_by_len"));
     assert!(result.contains("sort"));
@@ -169,12 +169,12 @@ def nested_format(a: int, b: int) -> str:
 
 #[test]
 fn test_s10_type_list_int() {
-    let code = r#"
+    let code = r"
 from typing import List
 
 def sum_ints(nums: List[int]) -> int:
     return sum(nums)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn sum_ints"));
     assert!(result.contains("Vec") || result.contains("i32"));
@@ -182,7 +182,7 @@ def sum_ints(nums: List[int]) -> int:
 
 #[test]
 fn test_s10_type_dict_str_int() {
-    let code = r#"
+    let code = r"
 from typing import Dict
 
 def count_words(text: str) -> Dict[str, int]:
@@ -190,7 +190,7 @@ def count_words(text: str) -> Dict[str, int]:
     for word in text.split():
         result[word] = result.get(word, 0) + 1
     return result
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn count_words"));
     assert!(result.contains("HashMap"));
@@ -198,24 +198,24 @@ def count_words(text: str) -> Dict[str, int]:
 
 #[test]
 fn test_s10_type_tuple() {
-    let code = r#"
+    let code = r"
 from typing import Tuple
 
 def swap(a: int, b: int) -> Tuple[int, int]:
     return (b, a)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn swap"));
 }
 
 #[test]
 fn test_s10_type_set() {
-    let code = r#"
+    let code = r"
 from typing import Set
 
 def unique(items: list) -> Set[int]:
     return set(items)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn unique"));
     assert!(result.contains("HashSet") || result.contains("set"));
@@ -223,14 +223,14 @@ def unique(items: list) -> Set[int]:
 
 #[test]
 fn test_s10_type_optional_param() {
-    let code = r#"
+    let code = r"
 from typing import Optional
 
 def get_default(val: Optional[int], default: int) -> int:
     if val is not None:
         return val
     return default
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn get_default"));
     assert!(result.contains("Option") || result.contains("None"));
@@ -240,10 +240,10 @@ def get_default(val: Optional[int], default: int) -> int:
 
 #[test]
 fn test_s10_ternary_basic() {
-    let code = r#"
+    let code = r"
 def abs_val(x: int) -> int:
     return x if x >= 0 else -x
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn abs_val"));
     assert!(result.contains("if") || result.contains("else"));
@@ -274,20 +274,20 @@ def categorize(items: list) -> list:
 
 #[test]
 fn test_s10_generator_sum() {
-    let code = r#"
+    let code = r"
 def sum_squares(n: int) -> int:
     return sum(x * x for x in range(n))
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn sum_squares"));
 }
 
 #[test]
 fn test_s10_generator_any() {
-    let code = r#"
+    let code = r"
 def has_negative(items: list) -> bool:
     return any(x < 0 for x in items)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn has_negative"));
     assert!(result.contains("any"));
@@ -295,10 +295,10 @@ def has_negative(items: list) -> bool:
 
 #[test]
 fn test_s10_generator_all() {
-    let code = r#"
+    let code = r"
 def all_even(items: list) -> bool:
     return all(x % 2 == 0 for x in items)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn all_even"));
     assert!(result.contains("all"));
@@ -328,27 +328,27 @@ def grade(score: int) -> str:
 
 #[test]
 fn test_s10_nested_loops() {
-    let code = r#"
+    let code = r"
 def matrix_sum(matrix: list) -> int:
     total = 0
     for row in matrix:
         for val in row:
             total = total + val
     return total
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn matrix_sum"));
 }
 
 #[test]
 fn test_s10_early_return_in_loop() {
-    let code = r#"
+    let code = r"
 def find_first(items: list, target: int) -> int:
     for i in range(len(items)):
         if items[i] == target:
             return i
     return -1
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn find_first"));
 }
@@ -357,10 +357,10 @@ def find_first(items: list, target: int) -> int:
 
 #[test]
 fn test_s10_int_float_mix() {
-    let code = r#"
+    let code = r"
 def average(total: int, count: int) -> float:
     return total / count
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn average"));
     assert!(result.contains("f64") || result.contains("as f64"));
@@ -368,10 +368,10 @@ def average(total: int, count: int) -> float:
 
 #[test]
 fn test_s10_float_operations() {
-    let code = r#"
+    let code = r"
 def distance(x1: float, y1: float, x2: float, y2: float) -> float:
     return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn distance"));
     assert!(result.contains("sqrt") || result.contains("powf"));
@@ -404,10 +404,10 @@ def nested_access(data: dict) -> str:
 
 #[test]
 fn test_s10_list_of_tuples() {
-    let code = r#"
+    let code = r"
 def pairs(n: int) -> list:
     return [(i, i * i) for i in range(n)]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn pairs"));
 }
@@ -416,7 +416,7 @@ def pairs(n: int) -> list:
 
 #[test]
 fn test_s10_multiple_constants() {
-    let code = r#"
+    let code = r"
 MIN_VAL = 0
 MAX_VAL = 100
 
@@ -426,7 +426,7 @@ def clamp(x: int) -> int:
     if x > MAX_VAL:
         return MAX_VAL
     return x
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("MIN_VAL"));
     assert!(result.contains("MAX_VAL"));
@@ -467,22 +467,22 @@ def not_implemented():
 
 #[test]
 fn test_s10_tuple_unpack() {
-    let code = r#"
+    let code = r"
 def unpack(pair: tuple) -> int:
     a, b = pair
     return a + b
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn unpack"));
 }
 
 #[test]
 fn test_s10_swap_variables() {
-    let code = r#"
+    let code = r"
 def do_swap(a: int, b: int) -> tuple:
     a, b = b, a
     return (a, b)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn do_swap"));
 }
@@ -505,10 +505,10 @@ def count_lines(text: str) -> int:
 
 #[test]
 fn test_s10_set_comprehension() {
-    let code = r#"
+    let code = r"
 def unique_lengths(words: list) -> set:
     return {len(w) for w in words}
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn unique_lengths"));
     assert!(result.contains("HashSet") || result.contains("collect"));
@@ -518,10 +518,10 @@ def unique_lengths(words: list) -> set:
 
 #[test]
 fn test_s10_dict_comprehension_with_filter() {
-    let code = r#"
+    let code = r"
 def positive_map(items: list) -> dict:
     return {i: v for i, v in enumerate(items) if v > 0}
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn positive_map"));
 }
@@ -530,10 +530,10 @@ def positive_map(items: list) -> dict:
 
 #[test]
 fn test_s10_chained_comparison() {
-    let code = r#"
+    let code = r"
 def in_range(x: int, lo: int, hi: int) -> bool:
     return lo <= x <= hi
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn in_range"));
 }
@@ -542,20 +542,20 @@ def in_range(x: int, lo: int, hi: int) -> bool:
 
 #[test]
 fn test_s10_string_slice() {
-    let code = r#"
+    let code = r"
 def first_n(s: str, n: int) -> str:
     return s[:n]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn first_n"));
 }
 
 #[test]
 fn test_s10_string_slice_from() {
-    let code = r#"
+    let code = r"
 def skip_n(s: str, n: int) -> str:
     return s[n:]
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn skip_n"));
 }
@@ -564,24 +564,24 @@ def skip_n(s: str, n: int) -> str:
 
 #[test]
 fn test_s10_recursive_fibonacci() {
-    let code = r#"
+    let code = r"
 def fib(n: int) -> int:
     if n <= 1:
         return n
     return fib(n - 1) + fib(n - 2)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn fib"));
 }
 
 #[test]
 fn test_s10_recursive_gcd() {
-    let code = r#"
+    let code = r"
 def gcd(a: int, b: int) -> int:
     if b == 0:
         return a
     return gcd(b, a % b)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn gcd"));
 }
@@ -590,10 +590,10 @@ def gcd(a: int, b: int) -> int:
 
 #[test]
 fn test_s10_complex_boolean() {
-    let code = r#"
+    let code = r"
 def check(a: bool, b: bool, c: bool) -> bool:
     return (a and b) or (not c)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn check"));
 }
@@ -602,10 +602,10 @@ def check(a: bool, b: bool, c: bool) -> bool:
 
 #[test]
 fn test_s10_power_int() {
-    let code = r#"
+    let code = r"
 def cube(x: int) -> int:
     return x ** 3
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn cube"));
     assert!(result.contains("pow") || result.contains("powi"));
@@ -615,20 +615,20 @@ def cube(x: int) -> int:
 
 #[test]
 fn test_s10_return_list() {
-    let code = r#"
+    let code = r"
 def range_list(start: int, end: int) -> list:
     return list(range(start, end))
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn range_list"));
 }
 
 #[test]
 fn test_s10_return_dict() {
-    let code = r#"
+    let code = r"
 def make_dict(key: str, value: int) -> dict:
     return {key: value}
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn make_dict"));
     assert!(result.contains("HashMap"));
@@ -636,10 +636,10 @@ def make_dict(key: str, value: int) -> dict:
 
 #[test]
 fn test_s10_return_set() {
-    let code = r#"
+    let code = r"
 def make_set(items: list) -> set:
     return set(items)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn make_set"));
     assert!(result.contains("HashSet") || result.contains("collect"));
@@ -649,10 +649,10 @@ def make_set(items: list) -> set:
 
 #[test]
 fn test_s10_method_chain_complex() {
-    let code = r#"
+    let code = r"
 def process(text: str) -> list:
     return text.strip().lower().split()
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn process"));
     assert!(result.contains("trim") || result.contains("strip"));
@@ -664,10 +664,10 @@ def process(text: str) -> list:
 
 #[test]
 fn test_s10_empty_list() {
-    let code = r#"
+    let code = r"
 def empty() -> list:
     return []
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn empty"));
     assert!(result.contains("vec!") || result.contains("Vec"));
@@ -675,10 +675,10 @@ def empty() -> list:
 
 #[test]
 fn test_s10_empty_dict() {
-    let code = r#"
+    let code = r"
 def empty_dict() -> dict:
     return {}
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn empty_dict"));
     assert!(result.contains("HashMap"));
@@ -686,10 +686,10 @@ def empty_dict() -> dict:
 
 #[test]
 fn test_s10_empty_set() {
-    let code = r#"
+    let code = r"
 def empty_set() -> set:
     return set()
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn empty_set"));
     assert!(result.contains("HashSet"));
@@ -699,26 +699,26 @@ def empty_set() -> set:
 
 #[test]
 fn test_s10_nested_comprehension_in_try() {
-    let code = r#"
+    let code = r"
 def safe_squares(items: list) -> list:
     try:
         return [x * x for x in items]
     except TypeError:
         return []
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn safe_squares"));
 }
 
 #[test]
 fn test_s10_multiple_assignments() {
-    let code = r#"
+    let code = r"
 def compute(x: int) -> int:
     a = x + 1
     b = a * 2
     c = b - 3
     return c
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn compute"));
 }
@@ -738,10 +738,10 @@ def log(msg: str, level: int):
 
 #[test]
 fn test_s10_print_multiple_args() {
-    let code = r#"
+    let code = r"
 def show(a: int, b: int):
     print(a, b)
-"#;
+";
     let result = transpile(code);
     assert!(result.contains("fn show"));
     assert!(result.contains("println!") || result.contains("print"));

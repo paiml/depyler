@@ -330,7 +330,7 @@ mod tests {
             "E0308".to_string(),
             "pattern_1".to_string(),
         );
-        let debug_str = format!("{:?}", repro);
+        let debug_str = format!("{repro:?}");
         assert!(debug_str.contains("ReproCase"));
         assert!(debug_str.contains("E0308"));
         assert!(debug_str.contains("pattern_1"));
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_minimal_reproducer_debug() {
         let reproducer = MinimalReproducer::new();
-        let debug_str = format!("{:?}", reproducer);
+        let debug_str = format!("{reproducer:?}");
         assert!(debug_str.contains("MinimalReproducer"));
     }
 

@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn test_debug() {
         let config = ChaosConfig::gentle();
-        let debug = format!("{:?}", config);
+        let debug = format!("{config:?}");
         assert!(debug.contains("ChaosConfig"));
         assert!(debug.contains("memory_limit"));
     }
@@ -334,9 +334,9 @@ mod tests {
     #[test]
     fn test_chaos_error_debug() {
         let err = ChaosError::SignalInjectionFailed { signal: 9, reason: "SIGKILL".to_string() };
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("SignalInjectionFailed"));
-        assert!(debug.contains("9"));
+        assert!(debug.contains('9'));
     }
 
     #[test]

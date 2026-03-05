@@ -321,7 +321,7 @@ fn test_rust_import_struct() {
     assert!(!import.is_external);
 
     // Test Debug trait
-    let debug_str = format!("{:?}", import);
+    let debug_str = format!("{import:?}");
     assert!(debug_str.contains("RustImport"));
     assert!(debug_str.contains("cmdline_args"));
 }
@@ -620,7 +620,7 @@ fn test_constructor_pattern_debug() {
         ConstructorPattern::Method("open".to_string()),
     ];
     for p in patterns {
-        let debug_str = format!("{:?}", p);
+        let debug_str = format!("{p:?}");
         assert!(!debug_str.is_empty());
     }
 }
@@ -689,7 +689,7 @@ fn test_module_mapping_debug() {
         item_map: HashMap::new(),
         constructor_patterns: HashMap::new(),
     };
-    let debug_str = format!("{:?}", mapping);
+    let debug_str = format!("{mapping:?}");
     assert!(debug_str.contains("ModuleMapping"));
 }
 
@@ -777,6 +777,6 @@ fn test_all_mapped_modules_have_valid_data() {
 
     for module in modules {
         let mapping = mapper.get_mapping(module);
-        assert!(mapping.is_some(), "Module {} should have mapping", module);
+        assert!(mapping.is_some(), "Module {module} should have mapping");
     }
 }

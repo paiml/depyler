@@ -215,38 +215,38 @@ fn test_lambda_event_type_inference_patterns() -> Result<()> {
     let patterns = vec![
         (
             "API Gateway",
-            r#"
+            r"
 def handler(event, context):
     method = event['requestContext']['http']['method']
     path = event['requestContext']['http']['path']
     return {'statusCode': 200}
-"#,
+",
         ),
         (
             "SQS",
-            r#"
+            r"
 def handler(event, context):
     for record in event['Records']:
         message_id = record['messageId']
         body = record['body']
-"#,
+",
         ),
         (
             "DynamoDB",
-            r#"
+            r"
 def handler(event, context):
     for record in event['Records']:
         if 'dynamodb' in record:
             keys = record['dynamodb']['Keys']
-"#,
+",
         ),
         (
             "EventBridge",
-            r#"
+            r"
 def handler(event, context):
     detail_type = event['detail-type']
     detail = event['detail']
-"#,
+",
         ),
     ];
 

@@ -19,7 +19,7 @@ use depyler_core::DepylerPipeline;
 
 #[test]
 fn test_two_simple_independent_classes() {
-    let python = r#"
+    let python = r"
 class Point:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -30,7 +30,7 @@ class Color:
         self.r = r
         self.g = g
         self.b = b
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -39,19 +39,19 @@ class Color:
     let rust_code = result.unwrap();
 
     // Should have both structs
-    assert!(rust_code.contains("struct Point"), "Should have Point struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Point"), "Should have Point struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Color"), "Should have Color struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Color"), "Should have Color struct.\nGot:\n{rust_code}");
 
     // Should have both impl blocks
-    assert!(rust_code.contains("impl Point"), "Should have Point impl.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("impl Point"), "Should have Point impl.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("impl Color"), "Should have Color impl.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("impl Color"), "Should have Color impl.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_class_using_another_as_field_type() {
-    let python = r#"
+    let python = r"
 class Address:
     def __init__(self, street: str, city: str):
         self.street = street
@@ -61,7 +61,7 @@ class Person:
     def __init__(self, name: str, address: Address):
         self.name = name
         self.address = address
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -69,17 +69,13 @@ class Person:
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Address"),
-        "Should have Address struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Address"), "Should have Address struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Person"), "Should have Person struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Person"), "Should have Person struct.\nGot:\n{rust_code}");
 
     // Person should reference Address type
     let has_address_field = rust_code.contains("address") || rust_code.contains("Address");
-    assert!(has_address_field, "Person should have address field.\nGot:\n{}", rust_code);
+    assert!(has_address_field, "Person should have address field.\nGot:\n{rust_code}");
 }
 
 #[test]
@@ -107,28 +103,23 @@ class Car:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Engine"), "Should have Engine struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Engine"), "Should have Engine struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Car"), "Should have Car struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Car"), "Should have Car struct.\nGot:\n{rust_code}");
 
     // Should have start method in Engine
-    assert!(
-        rust_code.contains("fn start"),
-        "Engine should have start method.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("fn start"), "Engine should have start method.\nGot:\n{rust_code}");
 
     // Should have start_car method in Car
     assert!(
         rust_code.contains("fn start_car"),
-        "Car should have start_car method.\nGot:\n{}",
-        rust_code
+        "Car should have start_car method.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_method_returning_another_class() {
-    let python = r#"
+    let python = r"
 class Position:
     def __init__(self, x: int, y: int):
         self.x = x
@@ -140,7 +131,7 @@ class Robot:
 
     def get_position(self) -> Position:
         return Position(0, 0)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -150,22 +141,20 @@ class Robot:
 
     assert!(
         rust_code.contains("struct Position"),
-        "Should have Position struct.\nGot:\n{}",
-        rust_code
+        "Should have Position struct.\nGot:\n{rust_code}"
     );
 
-    assert!(rust_code.contains("struct Robot"), "Should have Robot struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Robot"), "Should have Robot struct.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("fn get_position"),
-        "Robot should have get_position method.\nGot:\n{}",
-        rust_code
+        "Robot should have get_position method.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_method_accepting_another_class() {
-    let python = r#"
+    let python = r"
 class Message:
     def __init__(self, text: str):
         self.text = text
@@ -176,7 +165,7 @@ class Logger:
 
     def log(self, message: Message) -> str:
         return self.prefix + message.text
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -184,20 +173,16 @@ class Logger:
 
     let rust_code = result.unwrap();
 
-    assert!(
-        rust_code.contains("struct Message"),
-        "Should have Message struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Message"), "Should have Message struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Logger"), "Should have Logger struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Logger"), "Should have Logger struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("fn log"), "Logger should have log method.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("fn log"), "Logger should have log method.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_three_classes_interacting() {
-    let python = r#"
+    let python = r"
 class Author:
     def __init__(self, name: str):
         self.name = name
@@ -213,7 +198,7 @@ class Library:
 
     def add_book(self, book: Book) -> str:
         return book.title
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -222,20 +207,16 @@ class Library:
     let rust_code = result.unwrap();
 
     // Should have all three structs
-    assert!(rust_code.contains("struct Author"), "Should have Author struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Author"), "Should have Author struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Book"), "Should have Book struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Book"), "Should have Book struct.\nGot:\n{rust_code}");
 
-    assert!(
-        rust_code.contains("struct Library"),
-        "Should have Library struct.\nGot:\n{}",
-        rust_code
-    );
+    assert!(rust_code.contains("struct Library"), "Should have Library struct.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_classes_with_shared_constants() {
-    let python = r#"
+    let python = r"
 class Config:
     MAX_SIZE: int = 1000
 
@@ -244,7 +225,7 @@ class Buffer:
 
     def __init__(self):
         self.data = []
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -252,19 +233,19 @@ class Buffer:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Config"), "Should have Config struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Config"), "Should have Config struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Buffer"), "Should have Buffer struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Buffer"), "Should have Buffer struct.\nGot:\n{rust_code}");
 
     // Both should have their constants
     let has_max_size = rust_code.contains("MAX_SIZE") || rust_code.contains("max_size");
     let has_size = rust_code.contains("SIZE") || rust_code.contains("size");
-    assert!(has_max_size && has_size, "Should have both constants.\nGot:\n{}", rust_code);
+    assert!(has_max_size && has_size, "Should have both constants.\nGot:\n{rust_code}");
 }
 
 #[test]
 fn test_factory_pattern() {
-    let python = r#"
+    let python = r"
 class Widget:
     def __init__(self, id: int):
         self.id = id
@@ -276,7 +257,7 @@ class WidgetFactory:
     def create_widget(self) -> Widget:
         self.counter = self.counter + 1
         return Widget(self.counter)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -284,24 +265,22 @@ class WidgetFactory:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Widget"), "Should have Widget struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Widget"), "Should have Widget struct.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("struct WidgetFactory"),
-        "Should have WidgetFactory struct.\nGot:\n{}",
-        rust_code
+        "Should have WidgetFactory struct.\nGot:\n{rust_code}"
     );
 
     assert!(
         rust_code.contains("fn create_widget"),
-        "WidgetFactory should have create_widget method.\nGot:\n{}",
-        rust_code
+        "WidgetFactory should have create_widget method.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_integration_functions_with_multiple_classes() {
-    let python = r#"
+    let python = r"
 class Vector:
     def __init__(self, x: float, y: float):
         self.x = x
@@ -314,7 +293,7 @@ class Point:
 
 def add_vector_to_point(point: Point, vector: Vector) -> Point:
     return Point(point.x + vector.x, point.y + vector.y)
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -322,20 +301,19 @@ def add_vector_to_point(point: Point, vector: Vector) -> Point:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Vector"), "Should have Vector struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Vector"), "Should have Vector struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Point"), "Should have Point struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Point"), "Should have Point struct.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("fn add_vector_to_point"),
-        "Should have add_vector_to_point function.\nGot:\n{}",
-        rust_code
+        "Should have add_vector_to_point function.\nGot:\n{rust_code}"
     );
 }
 
 #[test]
 fn test_nested_class_instantiation() {
-    let python = r#"
+    let python = r"
 class Inner:
     def __init__(self, value: int):
         self.value = value
@@ -347,7 +325,7 @@ class Outer:
 
     def get_inner_value(self) -> int:
         return self.inner.value
-"#;
+";
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
@@ -355,13 +333,12 @@ class Outer:
 
     let rust_code = result.unwrap();
 
-    assert!(rust_code.contains("struct Inner"), "Should have Inner struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Inner"), "Should have Inner struct.\nGot:\n{rust_code}");
 
-    assert!(rust_code.contains("struct Outer"), "Should have Outer struct.\nGot:\n{}", rust_code);
+    assert!(rust_code.contains("struct Outer"), "Should have Outer struct.\nGot:\n{rust_code}");
 
     assert!(
         rust_code.contains("fn get_inner_value"),
-        "Outer should have get_inner_value method.\nGot:\n{}",
-        rust_code
+        "Outer should have get_inner_value method.\nGot:\n{rust_code}"
     );
 }

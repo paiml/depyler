@@ -531,7 +531,7 @@ edition = "2021"
         let src_dir = project_dir.join("src");
         fs::create_dir_all(&src_dir).unwrap();
 
-        fs::write(src_dir.join("main.rs"), r#"fn main() { }"#).unwrap();
+        fs::write(src_dir.join("main.rs"), r"fn main() { }").unwrap();
 
         let cargo_toml = r#"
 [package]
@@ -578,13 +578,13 @@ edition = "2021"
     #[test]
     fn test_extract_e0308_constraints_basic() {
         let source = Path::new("test.py");
-        let stderr = r#"
+        let stderr = r"
 error[E0308]: mismatched types
   --> src/main.rs:10:5
    |
 10 |     x
    |     ^ expected `String`, found `i64`
-"#;
+";
         let store = extract_e0308_constraints(stderr, source);
         assert!(store.stats.constraints_extracted > 0, "Should extract E0308 constraint");
     }
@@ -592,7 +592,7 @@ error[E0308]: mismatched types
     #[test]
     fn test_extract_e0308_constraints_multiple() {
         let source = Path::new("test.py");
-        let stderr = r#"
+        let stderr = r"
 error[E0308]: mismatched types
    --> src/main.rs:10:5
     |
@@ -604,7 +604,7 @@ error[E0308]: mismatched types
     |
 20  |     y
     |     ^ expected `f64`, found `bool`
-"#;
+";
         let store = extract_e0308_constraints(stderr, source);
         assert!(
             store.stats.constraints_extracted >= 2,
@@ -615,13 +615,13 @@ error[E0308]: mismatched types
     #[test]
     fn test_extract_e0308_constraints_no_e0308() {
         let source = Path::new("test.py");
-        let stderr = r#"
+        let stderr = r"
 error[E0425]: cannot find value `foo` in this scope
   --> src/main.rs:5:5
    |
 5  |     foo
    |     ^^^ not found in this scope
-"#;
+";
         let store = extract_e0308_constraints(stderr, source);
         assert_eq!(store.stats.constraints_extracted, 0, "Should not extract non-E0308 errors");
     }
@@ -634,7 +634,7 @@ error[E0425]: cannot find value `foo` in this scope
         fs::create_dir_all(&src_dir).unwrap();
 
         // Valid Rust code
-        fs::write(src_dir.join("main.rs"), r#"fn main() {}"#).unwrap();
+        fs::write(src_dir.join("main.rs"), r"fn main() {}").unwrap();
 
         let cargo_toml = r#"
 [package]

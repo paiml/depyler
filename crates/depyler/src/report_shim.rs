@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_bisection_state_advance() {
-        let files: Vec<String> = (0..8).map(|i| format!("file{}.py", i)).collect();
+        let files: Vec<String> = (0..8).map(|i| format!("file{i}.py")).collect();
         let mut state = BisectionState::new(files);
 
         // First half has failure
@@ -533,7 +533,7 @@ mod tests {
 
     #[test]
     fn test_bisection_progress() {
-        let files: Vec<String> = (0..16).map(|i| format!("file{}.py", i)).collect();
+        let files: Vec<String> = (0..16).map(|i| format!("file{i}.py")).collect();
         let mut state = BisectionState::new(files);
 
         assert_eq!(state.progress_percent(), 0.0);
@@ -576,9 +576,9 @@ mod tests {
         let results: Vec<_> = (0..100)
             .map(|i| {
                 if i < 70 {
-                    CompileResult::success(format!("file{}.py", i))
+                    CompileResult::success(format!("file{i}.py"))
                 } else {
-                    CompileResult::failure(format!("file{}.py", i), "E0308", "error")
+                    CompileResult::failure(format!("file{i}.py"), "E0308", "error")
                 }
             })
             .collect();
@@ -626,7 +626,7 @@ mod tests {
     #[test]
     fn test_compile_result_debug() {
         let result = CompileResult::success("test.py");
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("test.py"));
     }
 
@@ -729,8 +729,8 @@ mod tests {
 
     #[test]
     fn test_extract_error_multiple_errors() {
-        let stderr = r#"error[E0308]: mismatched types
-error[E0277]: trait bound not satisfied"#;
+        let stderr = r"error[E0308]: mismatched types
+error[E0277]: trait bound not satisfied";
         let (code, _) = extract_error(stderr);
         assert!(code.contains("E0308"));
     }
@@ -794,7 +794,7 @@ error[E0277]: trait bound not satisfied"#;
 
     #[test]
     fn test_bisection_state_advance_no_failure() {
-        let files: Vec<String> = (0..8).map(|i| format!("file{}.py", i)).collect();
+        let files: Vec<String> = (0..8).map(|i| format!("file{i}.py")).collect();
         let mut state = BisectionState::new(files);
         state.advance(false); // No failure in first half
         assert_eq!(state.low, 4);
@@ -803,7 +803,7 @@ error[E0277]: trait bound not satisfied"#;
 
     #[test]
     fn test_bisection_state_current_test_set() {
-        let files: Vec<String> = (0..4).map(|i| format!("f{}.py", i)).collect();
+        let files: Vec<String> = (0..4).map(|i| format!("f{i}.py")).collect();
         let state = BisectionState::new(files);
         let test_set = state.current_test_set();
         assert_eq!(test_set.len(), 2);
@@ -811,7 +811,7 @@ error[E0277]: trait bound not satisfied"#;
 
     #[test]
     fn test_bisection_state_max_iterations() {
-        let files: Vec<String> = (0..16).map(|i| format!("f{}.py", i)).collect();
+        let files: Vec<String> = (0..16).map(|i| format!("f{i}.py")).collect();
         let state = BisectionState::new(files);
         assert!(state.max_iterations > 4);
     }
@@ -853,7 +853,7 @@ error[E0277]: trait bound not satisfied"#;
     #[test]
     fn test_report_summary_top_errors_limit() {
         let results: Vec<_> = (0..10)
-            .map(|i| CompileResult::failure(format!("f{}.py", i), format!("E{:04}", i), "err"))
+            .map(|i| CompileResult::failure(format!("f{i}.py"), format!("E{i:04}"), "err"))
             .collect();
         let summary = ReportSummary::from_results(&results, 0.80);
         assert!(summary.top_errors.len() <= 5);
@@ -862,7 +862,7 @@ error[E0277]: trait bound not satisfied"#;
     #[test]
     fn test_report_summary_files_to_fix_achieved() {
         let results: Vec<_> =
-            (0..100).map(|i| CompileResult::success(format!("f{}.py", i))).collect();
+            (0..100).map(|i| CompileResult::success(format!("f{i}.py"))).collect();
         let summary = ReportSummary::from_results(&results, 0.80);
         assert_eq!(summary.files_to_fix(), 0);
     }
@@ -971,7 +971,7 @@ error[E0277]: trait bound not satisfied"#;
     #[test]
     fn test_semantic_tag_debug() {
         let tag = SemanticTag::Dict;
-        let debug = format!("{:?}", tag);
+        let debug = format!("{tag:?}");
         assert!(debug.contains("Dict"));
     }
 

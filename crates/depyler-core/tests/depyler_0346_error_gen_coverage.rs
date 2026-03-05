@@ -1,17 +1,17 @@
-//! DEPYLER-0346: error_gen.rs Coverage Tests
+//! DEPYLER-0346: `error_gen.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: error_gen.rs 0% → 100% coverage
+//! Target: `error_gen.rs` 0% → 100% coverage
 //! TDG Score: ~1.0 (A+) - Simple code (complexity: 2, 110 lines, 1 function)
 //!
 //! This test suite validates error type generation through integration testing:
-//! - ZeroDivisionError generation
-//! - IndexError generation
-//! - ValueError generation
+//! - `ZeroDivisionError` generation
+//! - `IndexError` generation
+//! - `ValueError` generation
 //! - Combined error type scenarios
 //!
-//! Strategy: Integration tests via DepylerPipeline that trigger error type flags
+//! Strategy: Integration tests via `DepylerPipeline` that trigger error type flags
 
 #![allow(non_snake_case)]
 
@@ -32,7 +32,7 @@ def divide(a: int, b: int) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with ZeroDivisionError:\n{}", rust_code);
+    println!("Generated code with ZeroDivisionError:\n{rust_code}");
 
     // Should generate ZeroDivisionError struct definition
     assert!(
@@ -44,13 +44,13 @@ def divide(a: int, b: int) -> int:
 #[test]
 fn test_depyler_0346_implicit_zero_division() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def compute(x: int) -> int:
     return 100 // x
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with implicit division:\n{}", rust_code);
+    println!("Generated code with implicit division:\n{rust_code}");
 
     // Division operations may generate error handling
     // (exact behavior depends on transpiler's safety analysis)
@@ -75,7 +75,7 @@ def get_item(items: list, index: int) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with IndexError:\n{}", rust_code);
+    println!("Generated code with IndexError:\n{rust_code}");
 
     // Should generate IndexError struct definition
     assert!(
@@ -93,7 +93,7 @@ def access_list(data: list) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with explicit IndexError:\n{}", rust_code);
+    println!("Generated code with explicit IndexError:\n{rust_code}");
 
     // Explicit IndexError raise should generate the error type
     assert!(
@@ -117,7 +117,7 @@ def validate(x: int) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with ValueError:\n{}", rust_code);
+    println!("Generated code with ValueError:\n{rust_code}");
 
     // Should generate ValueError struct definition
     assert!(
@@ -137,7 +137,7 @@ def check_range(n: int) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with range ValueError:\n{}", rust_code);
+    println!("Generated code with range ValueError:\n{rust_code}");
 
     // Explicit ValueError raise should generate the error type
     assert!(
@@ -165,7 +165,7 @@ def complex_operation(a: int, b: int, items: list) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code with multiple error types:\n{}", rust_code);
+    println!("Generated code with multiple error types:\n{rust_code}");
 
     // Should handle multiple error types in same function
     let has_error_handling = rust_code.contains("Error")
@@ -183,13 +183,13 @@ def complex_operation(a: int, b: int, items: list) -> int:
 #[test]
 fn test_depyler_0346_no_error_types_needed() {
     let pipeline = DepylerPipeline::new();
-    let python_code = r#"
+    let python_code = r"
 def simple_add(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated code without error types:\n{}", rust_code);
+    println!("Generated code without error types:\n{rust_code}");
 
     // Simple function should not generate error type definitions
     // (though it will still compile successfully)
@@ -212,7 +212,7 @@ def fails() -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated error type definition:\n{}", rust_code);
+    println!("Generated error type definition:\n{rust_code}");
 
     // Error types should implement standard Error trait
     // (exact format depends on transpiler implementation)
@@ -233,7 +233,7 @@ def validate_positive(n: int) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated error with message:\n{}", rust_code);
+    println!("Generated error with message:\n{rust_code}");
 
     // Error should preserve the message
     assert!(
@@ -257,10 +257,10 @@ mod property_tests {
             a in 1i32..100,
         ) {
             let pipeline = DepylerPipeline::new();
-            let python_code = format!(r#"
+            let python_code = format!(r"
 def divide_by_zero() -> int:
-    return {} // 0
-"#, a);
+    return {a} // 0
+");
 
             // Should always transpile (even if it would panic at runtime)
             let result = pipeline.transpile(&python_code);
@@ -274,10 +274,10 @@ def divide_by_zero() -> int:
             let pipeline = DepylerPipeline::new();
             let python_code = format!(r#"
 def check_threshold(x: int) -> int:
-    if x > {}:
+    if x > {threshold}:
         raise ValueError("exceeds threshold")
     return x
-"#, threshold);
+"#);
 
             let rust_code = pipeline.transpile(&python_code).unwrap();
             // Message content should be preserved
@@ -294,10 +294,10 @@ def check_threshold(x: int) -> int:
             let pipeline = DepylerPipeline::new();
             let python_code = format!(r#"
 def access_at_index(items: list) -> int:
-    if len(items) <= {}:
+    if len(items) <= {index}:
         raise IndexError("index too large")
-    return items[{}]
-"#, index, index);
+    return items[{index}]
+"#);
 
             let result = pipeline.transpile(&python_code);
             prop_assert!(
@@ -325,7 +325,7 @@ def nested(x: int, y: int) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated nested error handling:\n{}", rust_code);
+    println!("Generated nested error handling:\n{rust_code}");
 
     // Should handle nested error conditions
     assert!(
@@ -348,7 +348,7 @@ def process_items(items: list) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated error in loop:\n{}", rust_code);
+    println!("Generated error in loop:\n{rust_code}");
 
     // Should handle errors inside loops
     assert!(
@@ -370,7 +370,7 @@ def conditional_error(x: int, strict: bool) -> int:
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated conditional error:\n{}", rust_code);
+    println!("Generated conditional error:\n{rust_code}");
 
     // Should handle conditional error raising
     assert!(

@@ -910,10 +910,10 @@ mod tests {
     fn test_analyze_results_samples_limited() {
         let results: Vec<AnalysisResult> = (0..10)
             .map(|i| AnalysisResult {
-                name: format!("file{}", i),
+                name: format!("file{i}"),
                 success: false,
                 error_code: Some("E0425".into()),
-                error_message: Some(format!("error {}", i)),
+                error_message: Some(format!("error {i}")),
             })
             .collect();
         let (_, _, taxonomy) = analyze_results(&results);
@@ -991,11 +991,10 @@ mod tests {
         ];
         for code in codes {
             let desc = error_description(code);
-            assert!(!desc.is_empty(), "Description for {} should not be empty", code);
+            assert!(!desc.is_empty(), "Description for {code} should not be empty");
             assert!(
                 !desc.contains("explain"),
-                "Known code {} should have specific description",
-                code
+                "Known code {code} should have specific description"
             );
         }
     }
@@ -1027,7 +1026,7 @@ mod tests {
         let codes = ["E0425", "E0308", "E0277", "E0599", "E0433", "TRANSPILE", "DEPYLER"];
         for code in codes {
             let rec = fix_recommendation(code);
-            assert!(!rec.is_empty(), "Recommendation for {} should not be empty", code);
+            assert!(!rec.is_empty(), "Recommendation for {code} should not be empty");
         }
     }
 
@@ -1272,7 +1271,7 @@ mod tests {
             error_code: None,
             error_message: None,
         };
-        let debug = format!("{:?}", result);
+        let debug = format!("{result:?}");
         assert!(debug.contains("test"));
     }
 

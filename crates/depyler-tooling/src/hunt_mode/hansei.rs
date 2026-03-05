@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn test_lesson_debug() {
         let lesson = Lesson::new("type_system", "observation", "action");
-        let debug_str = format!("{:?}", lesson);
+        let debug_str = format!("{lesson:?}");
         assert!(debug_str.contains("Lesson"));
         assert!(debug_str.contains("type_system"));
         assert!(debug_str.contains("observation"));
@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn test_cycle_outcome_debug() {
         let outcome = create_test_outcome(true);
-        let debug_str = format!("{:?}", outcome);
+        let debug_str = format!("{outcome:?}");
         assert!(debug_str.contains("CycleOutcome"));
         assert!(debug_str.contains("pattern"));
     }
@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn test_hansei_reflector_debug() {
         let reflector = HanseiReflector::new();
-        let debug_str = format!("{:?}", reflector);
+        let debug_str = format!("{reflector:?}");
         assert!(debug_str.contains("HanseiReflector"));
     }
 

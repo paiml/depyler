@@ -3,9 +3,9 @@
 //! Bug: `d = {"k": "v"}` generates `map.insert("k".to_string(), "v");`
 //! Expected: `map.insert("k".to_string(), "v".to_string());`
 //!
-//! Root cause: String literal values are only converted to .to_string() when
+//! Root cause: String literal values are only converted to .`to_string()` when
 //! there's an explicit type annotation requiring String. Without annotation,
-//! values stay as &str, causing HashMap<String, &str> vs HashMap<String, String>.
+//! values stay as &str, causing `HashMap`<String, &str> vs `HashMap`<String, String>.
 
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::HirModule;
@@ -85,16 +85,15 @@ path = "src/lib.rs"
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         panic!(
-            "Rust compilation failed for {}:\n{}\n\nGenerated code:\n{}",
-            test_name, stderr, rust_code
+            "Rust compilation failed for {test_name}:\n{stderr}\n\nGenerated code:\n{rust_code}"
         );
     }
 }
 
 /// DEPYLER-0953: Dict with string values should use String, not &str
 /// Python: `d = {"key": "value"}` (no type hint)
-/// Bad Rust: HashMap<String, &str> - type mismatch when returned
-/// Good Rust: HashMap<String, String> - consistent types
+/// Bad Rust: `HashMap`<String, &str> - type mismatch when returned
+/// Good Rust: `HashMap`<String, String> - consistent types
 #[test]
 fn test_dict_string_values_are_owned() {
     let python = r#"
@@ -108,17 +107,14 @@ def test():
     // Should convert string values to owned Strings
     assert!(
         rust.contains(".to_string()"),
-        "Dict string values should be converted to String. Generated:\n{}",
-        rust
+        "Dict string values should be converted to String. Generated:\n{rust}"
     );
 
     // Count how many .to_string() calls - should be at least 2 (key AND value)
     let to_string_count = rust.matches(".to_string()").count();
     assert!(
         to_string_count >= 2,
-        "Both key AND value should use .to_string(). Found {} calls. Generated:\n{}",
-        to_string_count,
-        rust
+        "Both key AND value should use .to_string(). Found {to_string_count} calls. Generated:\n{rust}"
     );
 
     // Should compile without type errors

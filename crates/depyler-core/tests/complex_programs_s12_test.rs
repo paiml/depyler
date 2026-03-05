@@ -19,7 +19,7 @@ fn transpile(python_code: &str) -> String {
 
 #[test]
 fn test_s12_b60_mini_database() {
-    let code = r##"
+    let code = r"
 class Table:
     def __init__(self, name: str, columns: list):
         self.name = name
@@ -50,14 +50,14 @@ class Table:
         original = len(self.rows)
         self.rows = [r for r in self.rows if column not in r or r[column] != value]
         return original - len(self.rows)
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("Table"), "Got: {}", result);
+    assert!(result.contains("Table"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_calculator() {
-    let code = r##"
+    let code = r#"
 class Calculator:
     def __init__(self):
         self.result = 0.0
@@ -91,14 +91,14 @@ class Calculator:
 
     def get_history(self) -> list:
         return self.history
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("Calculator"), "Got: {}", result);
+    assert!(result.contains("Calculator"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_tokenizer() {
-    let code = r##"
+    let code = r#"
 def tokenize(text: str) -> list:
     tokens = []
     current = ""
@@ -123,14 +123,14 @@ def tokenize(text: str) -> list:
     if current:
         tokens.append(current)
     return tokens
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn tokenize"), "Got: {}", result);
+    assert!(result.contains("fn tokenize"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_inventory_system() {
-    let code = r##"
+    let code = r"
 class Product:
     def __init__(self, name: str, price: float, quantity: int):
         self.name = name
@@ -167,14 +167,14 @@ class Inventory:
             if product.quantity < threshold:
                 result.append(name)
         return result
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("Inventory"), "Got: {}", result);
+    assert!(result.contains("Inventory"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_event_system() {
-    let code = r##"
+    let code = r"
 class EventBus:
     def __init__(self):
         self.listeners = {}
@@ -195,14 +195,14 @@ class EventBus:
 
     def has_listeners(self, event: str) -> bool:
         return event in self.listeners and len(self.listeners[event]) > 0
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("EventBus"), "Got: {}", result);
+    assert!(result.contains("EventBus"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_csv_processor() {
-    let code = r##"
+    let code = r#"
 def parse_csv(text: str) -> list:
     rows = []
     for line in text.strip().split("\n"):
@@ -228,15 +228,15 @@ def filter_csv(records: list, column: str, value: str) -> list:
 
 def sort_csv(records: list, column: str) -> list:
     return sorted(records, key=lambda r: r.get(column, ""))
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn parse_csv"), "Got: {}", result);
-    assert!(result.contains("fn csv_to_dicts"), "Got: {}", result);
+    assert!(result.contains("fn parse_csv"), "Got: {result}");
+    assert!(result.contains("fn csv_to_dicts"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_graph_algorithms() {
-    let code = r##"
+    let code = r"
 def dfs(graph: dict, start: str) -> list:
     visited = set()
     result = []
@@ -285,15 +285,15 @@ def has_cycle(graph: dict) -> bool:
                     if neighbor != parent:
                         stack.append((neighbor, current))
     return False
-"##;
+";
     let result = transpile(code);
-    assert!(result.contains("fn dfs"), "Got: {}", result);
-    assert!(result.contains("fn bfs"), "Got: {}", result);
+    assert!(result.contains("fn dfs"), "Got: {result}");
+    assert!(result.contains("fn bfs"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_string_processor() {
-    let code = r##"
+    let code = r#"
 def camel_to_snake(name: str) -> str:
     result = ""
     for i, c in enumerate(name):
@@ -330,17 +330,17 @@ def wrap_text(text: str, width: int) -> str:
     if current_line:
         lines.append(current_line)
     return "\n".join(lines)
-"##;
+"#;
     let result = transpile(code);
-    assert!(result.contains("fn camel_to_snake"), "Got: {}", result);
-    assert!(result.contains("fn snake_to_camel"), "Got: {}", result);
-    assert!(result.contains("fn truncate"), "Got: {}", result);
-    assert!(result.contains("fn wrap_text"), "Got: {}", result);
+    assert!(result.contains("fn camel_to_snake"), "Got: {result}");
+    assert!(result.contains("fn snake_to_camel"), "Got: {result}");
+    assert!(result.contains("fn truncate"), "Got: {result}");
+    assert!(result.contains("fn wrap_text"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_priority_queue() {
-    let code = r#"
+    let code = r"
 class PriorityQueue:
     def __init__(self):
         self.items = []
@@ -364,14 +364,14 @@ class PriorityQueue:
 
     def is_empty(self) -> bool:
         return len(self.items) == 0
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("PriorityQueue"), "Got: {}", result);
+    assert!(result.contains("PriorityQueue"), "Got: {result}");
 }
 
 #[test]
 fn test_s12_b60_dp_algorithms() {
-    let code = r#"
+    let code = r"
 def longest_increasing(items: list) -> int:
     if not items:
         return 0
@@ -415,9 +415,9 @@ def edit_distance(s1: str, s2: str) -> int:
             else:
                 dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
     return dp[m][n]
-"#;
+";
     let result = transpile(code);
-    assert!(result.contains("fn longest_increasing"), "Got: {}", result);
-    assert!(result.contains("fn coin_change"), "Got: {}", result);
-    assert!(result.contains("fn edit_distance"), "Got: {}", result);
+    assert!(result.contains("fn longest_increasing"), "Got: {result}");
+    assert!(result.contains("fn coin_change"), "Got: {result}");
+    assert!(result.contains("fn edit_distance"), "Got: {result}");
 }

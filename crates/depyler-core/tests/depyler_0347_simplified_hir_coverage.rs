@@ -1,21 +1,21 @@
-//! DEPYLER-0347: simplified_hir.rs Coverage Tests
+//! DEPYLER-0347: `simplified_hir.rs` Coverage Tests
 //!
 //! **EXTREME TDD Protocol - Coverage Boost**
 //!
-//! Target: simplified_hir.rs 0% → 100% coverage
+//! Target: `simplified_hir.rs` 0% → 100% coverage
 //! TDG Score: ~0.5 (A+) - Pure data structures (complexity: 0, 134 lines)
 //!
 //! This test suite validates the simplified HIR data structures:
-//! - Hir struct and HirMetadata
-//! - HirExpr enum (16 variants)
-//! - HirStatement enum (2 variants)
-//! - HirParam struct
-//! - HirLiteral enum (5 variants)
-//! - HirBinaryOp enum (15 variants)
-//! - HirUnaryOp enum (3 variants)
-//! - HirType enum (8 variants)
+//! - Hir struct and `HirMetadata`
+//! - `HirExpr` enum (16 variants)
+//! - `HirStatement` enum (2 variants)
+//! - `HirParam` struct
+//! - `HirLiteral` enum (5 variants)
+//! - `HirBinaryOp` enum (15 variants)
+//! - `HirUnaryOp` enum (3 variants)
+//! - `HirType` enum (8 variants)
 //!
-//! Strategy: Test construction and derived traits (Debug, Clone, PartialEq, Serialize, Deserialize)
+//! Strategy: Test construction and derived traits (Debug, Clone, `PartialEq`, Serialize, Deserialize)
 
 #![allow(non_snake_case)]
 
@@ -396,7 +396,7 @@ fn test_depyler_0347_binary_op_arithmetic() {
 
     // Test all arithmetic operators
     for op in ops {
-        let _debug = format!("{:?}", op);
+        let _debug = format!("{op:?}");
     }
 }
 
@@ -471,7 +471,7 @@ fn test_depyler_0347_type_primitives() {
 
     for typ in types {
         let _cloned = typ.clone();
-        let _debug = format!("{:?}", typ);
+        let _debug = format!("{typ:?}");
     }
 }
 
@@ -564,7 +564,7 @@ fn test_depyler_0347_complex_nested_expr() {
     };
 
     let _cloned = expr.clone();
-    let _debug = format!("{:?}", expr);
+    let _debug = format!("{expr:?}");
 }
 
 #[test]

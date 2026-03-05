@@ -1,7 +1,7 @@
 //! CLI binary for corpus extraction
 //!
 //! Replaces bash script with type-safe Rust implementation.
-//! Uses the corpus_extract module (TDD-developed).
+//! Uses the `corpus_extract` module (TDD-developed).
 
 use clap::Parser;
 use depyler_oracle::corpus_extract::{TrainingCorpus, TrainingError};
@@ -59,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     // Load existing corpus (for deduplication)
     let mut corpus = TrainingCorpus::load(&args.corpus)?;
     let before_count = corpus.len();
-    println!("📊 Existing corpus: {} unique errors", before_count);
+    println!("📊 Existing corpus: {before_count} unique errors");
 
     // Find Python files
     let py_files: Vec<PathBuf> = find_python_files(&args.input_dir, args.max_files)?;
@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
 
     for (i, py_file) in py_files.iter().enumerate() {
         let name = py_file.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        let rs_file = args.output_dir.join(format!("{}.rs", name));
+        let rs_file = args.output_dir.join(format!("{name}.rs"));
 
         // Try to transpile
         let transpile_result = Command::new(&args.depyler)
@@ -154,7 +154,7 @@ fn main() -> anyhow::Result<()> {
     println!("   Compile fail: {}", stats.compile_fail);
     println!();
     println!("🎯 Errors harvested: {} new unique", stats.errors_harvested);
-    println!("   Corpus before: {}", before_count);
+    println!("   Corpus before: {before_count}");
     println!("   Corpus after: {}", corpus.len());
     println!();
 
@@ -174,8 +174,10 @@ fn find_python_files(dir: &PathBuf, max: usize) -> anyhow::Result<Vec<PathBuf>> 
     let mut files = Vec::new();
 
     if dir.is_dir() {
-        for entry in walkdir::WalkDir::new(dir).max_depth(5).into_iter().filter_map(|e| e.ok()) {
-            if entry.path().extension().map(|e| e == "py").unwrap_or(false) {
+        for entry in
+            walkdir::WalkDir::new(dir).max_depth(5).into_iter().filter_map(std::result::Result::ok)
+        {
+            if entry.path().extension().is_some_and(|e| e == "py") {
                 files.push(entry.path().to_path_buf());
                 if files.len() >= max {
                     break;

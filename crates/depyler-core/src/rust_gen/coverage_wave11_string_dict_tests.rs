@@ -86,7 +86,9 @@ def f():
         let code = "def f(s: str) -> bool:\n    return s.istitle()";
         let result = transpile(code);
         assert!(
-            result.contains("is_uppercase") || result.contains("prev_is_cased") || !result.is_empty()
+            result.contains("is_uppercase")
+                || result.contains("prev_is_cased")
+                || !result.is_empty()
         );
     }
 
@@ -239,7 +241,9 @@ def check(title: str) -> bool:
 ";
         let result = transpile(code);
         assert!(
-            result.contains("is_uppercase") || result.contains("prev_is_cased") || !result.is_empty()
+            result.contains("is_uppercase")
+                || result.contains("prev_is_cased")
+                || !result.is_empty()
         );
     }
 
@@ -506,7 +510,9 @@ def f() -> str:
 "#;
         let result = transpile(code);
         assert!(
-            result.contains("is_uppercase") || result.contains("to_lowercase") || !result.is_empty()
+            result.contains("is_uppercase")
+                || result.contains("to_lowercase")
+                || !result.is_empty()
         );
     }
 
@@ -590,7 +596,9 @@ def f(s: str) -> str:
     return s.strip().title()
 ";
         let result = transpile(code);
-        assert!(result.contains("trim") || result.contains("split_whitespace") || !result.is_empty());
+        assert!(
+            result.contains("trim") || result.contains("split_whitespace") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -1877,7 +1885,9 @@ def f():
     return False
 "#;
         let result = transpile(code);
-        assert!(result.contains("contains_key") || result.contains("contains") || !result.is_empty());
+        assert!(
+            result.contains("contains_key") || result.contains("contains") || !result.is_empty()
+        );
     }
 
     #[test]
@@ -2268,6 +2278,8 @@ def f(words: list) -> dict:
     return {w: w.upper() for w in words}
 ";
         let result = transpile(code);
-        assert!(result.contains("to_uppercase") || result.contains("HashMap") || !result.is_empty());
+        assert!(
+            result.contains("to_uppercase") || result.contains("HashMap") || !result.is_empty()
+        );
     }
 }

@@ -836,7 +836,7 @@ mod tests {
         fs::write(&py_file, "def foo(): pass\n").unwrap();
 
         // Empty profile - should use None internally
-        let result = compile_command(py_file, None, "".to_string());
+        let result = compile_command(py_file, None, String::new());
         // May fail during actual compilation, but should not panic
         let _ = result;
     }

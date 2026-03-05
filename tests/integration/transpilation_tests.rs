@@ -101,11 +101,7 @@ impl TranspilationTestHarness {
     fn compare_outputs(&self, actual: &str, expected: &str) -> Result<(), String> {
         // Normalize whitespace for comparison
         let normalize = |s: &str| {
-            s.lines()
-                .map(|line| line.trim())
-                .filter(|line| !line.is_empty())
-                .collect::<Vec<_>>()
-                .join("\n")
+            s.lines().map(str::trim).filter(|line| !line.is_empty()).collect::<Vec<_>>().join("\n")
         };
 
         let actual_normalized = normalize(actual);
@@ -152,10 +148,10 @@ mod tests {
     fn test_simple_function_transpilation() {
         let harness = TranspilationTestHarness::new();
 
-        let python_code = r#"
+        let python_code = r"
 def add_numbers(a: int, b: int) -> int:
     return a + b
-"#;
+";
 
         // Don't check exact output since we now generate tests
         harness
@@ -176,7 +172,7 @@ def add_numbers(a: int, b: int) -> int:
     fn test_list_operations() {
         let harness = TranspilationTestHarness::new();
 
-        let python_code = r#"
+        let python_code = r"
 from typing import List
 
 def sum_list(numbers: List[int]) -> int:
@@ -184,7 +180,7 @@ def sum_list(numbers: List[int]) -> int:
     for n in numbers:
         total += n
     return total
-"#;
+";
 
         harness
             .test_transpilation(python_code, "")

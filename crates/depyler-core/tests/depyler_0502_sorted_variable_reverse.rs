@@ -1,15 +1,15 @@
-//! DEPYLER-0502: Support sorted() with variable reverse parameter
+//! DEPYLER-0502: Support `sorted()` with variable reverse parameter
 //!
-//! RED → GREEN Phase: Tests for dynamic reverse parameter in sorted()
+//! RED → GREEN Phase: Tests for dynamic reverse parameter in `sorted()`
 //!
 //! Root Cause (Five-Whys):
 //! 1. Why fails? sorted(..., reverse=reverse) uses variable, not constant
-//! 2. Why? converters.rs only handles ast::Expr::Constant
-//! 3. Why? HIR SortByKey has reverse: bool (compile-time only)
+//! 2. Why? converters.rs only handles `ast::Expr::Constant`
+//! 3. Why? HIR `SortByKey` has reverse: bool (compile-time only)
 //! 4. Why? DEPYLER-0307 implemented simple case first
 //! 5. ROOT: HIR architecture doesn't support runtime boolean expressions
 //!
-//! Solution: Change HIR SortByKey from reverse: bool to reverse_expr: Option<Box<HirExpr>>
+//! Solution: Change HIR `SortByKey` from reverse: bool to `reverse_expr`: Option<Box<HirExpr>>
 
 #![allow(non_snake_case)]
 
@@ -32,10 +32,10 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
 
 #[test]
 fn test_sorted_with_variable_reverse() {
-    let python = r#"
+    let python = r"
 def sort_data(items, reverse):
     return sorted(items, reverse=reverse)
-"#;
+";
     let hir = parse_and_generate(python);
 
     assert_eq!(hir.functions.len(), 1, "Should have 1 function");
@@ -62,10 +62,10 @@ def sort_by_field(data, field, reverse=False):
 
 #[test]
 fn test_sorted_with_expression_reverse() {
-    let python = r#"
+    let python = r"
 def sort_desc(items, should_reverse):
     return sorted(items, reverse=not should_reverse)
-"#;
+";
     let hir = parse_and_generate(python);
 
     assert_eq!(hir.functions.len(), 1);
