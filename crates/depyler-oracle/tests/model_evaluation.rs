@@ -219,7 +219,7 @@ fn test_prediction_latency() {
 ///
 /// Acceptance criteria: >80% accuracy on held-out test set.
 #[test]
-#[ignore] // SLOW: Random forest training takes >60s
+#[ignore = "SLOW: Random forest training takes >60s"]
 fn test_random_forest_accuracy() {
     let pairs = get_training_pairs();
     let n = pairs.len();
@@ -347,7 +347,7 @@ fn test_random_forest_accuracy() {
 ///
 /// Uses `CombinedFeatureExtractor` for high-dimensional features.
 #[test]
-#[ignore] // SLOW: TF-IDF feature extraction + RF takes >120s
+#[ignore = "SLOW: TF-IDF feature extraction + RF takes >120s"]
 fn test_random_forest_tfidf_accuracy() {
     let pairs = get_training_pairs();
     let n = pairs.len();

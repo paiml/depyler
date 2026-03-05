@@ -182,7 +182,7 @@ def test() -> str:
 // DEPYLER-1179: Temporarily ignored - environ membership codegen needs refinement
 // Will be fixed in stabilization sprint after Usage-Based Inference (DEPYLER-1173)
 #[test]
-#[ignore]
+#[ignore = "not yet implemented"]
 fn test_depyler_0380_bug3_environ_membership_check() {
     let python = r#"
 import os
@@ -381,7 +381,7 @@ def test() -> str:
     // DEPYLER-1179: Temporarily ignored - environ membership codegen needs refinement
     // Will be fixed in stabilization sprint after Usage-Based Inference (DEPYLER-1173)
     #[test]
-    #[ignore]
+    #[ignore = "not yet implemented"]
     fn prop_environ_membership_always_uses_is_ok() {
         fn prop(var_name: String) -> TestResult {
             // Filter invalid variable names

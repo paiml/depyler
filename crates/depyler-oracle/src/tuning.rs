@@ -306,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow - run manually
+    #[ignore = "Slow - run manually"]
     fn test_full_grid_search() {
         let results = grid_search();
         println!("\nTop 5 configurations:");

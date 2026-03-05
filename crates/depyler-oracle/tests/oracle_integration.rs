@@ -279,7 +279,7 @@ fn test_evaluation_metrics_integration() {
 // ============================================================================
 
 #[test]
-#[ignore] // Enable with --ignored for full integration test
+#[ignore = "Enable with --ignored for full integration test"]
 fn test_full_pipeline_integration() {
     let stdlib_funcs = sample_stdlib_functions();
 

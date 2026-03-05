@@ -452,10 +452,9 @@ mod tests {
             Some(&Type::Float)
         );
         // __init__ NOT tracked
-        assert!(ctx
+        assert!(!ctx
             .class_method_return_types
-            .get(&("Point".to_string(), "__init__".to_string()))
-            .is_none());
+            .contains_key(&("Point".to_string(), "__init__".to_string())));
     }
 
     #[test]

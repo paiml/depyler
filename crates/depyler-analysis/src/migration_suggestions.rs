@@ -1192,7 +1192,7 @@ mod tests {
     // Note: none-as-error detection is not yet implemented.
     // This test is kept as documentation of expected behavior.
     #[test]
-    #[ignore]
+    #[ignore = "not yet implemented"]
     fn test_none_as_error_detection() {
         let body = vec![
             HirStmt::If {

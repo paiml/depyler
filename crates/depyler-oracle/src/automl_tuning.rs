@@ -394,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // SLOW: AutoML optimization takes >100s
+    #[ignore = "SLOW: AutoML optimization takes >100s"]
     fn test_automl_quick() {
         // Use fewer trials for coverage runs (DEPYLER_FAST_TESTS=1)
         let fast_mode = std::env::var("DEPYLER_FAST_TESTS").is_ok();
@@ -413,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow - run manually
+    #[ignore = "Slow - run manually"]
     fn test_automl_full() {
         let result = automl_full();
         assert!(result.accuracy > 0.0);
@@ -428,7 +428,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Very slow - run manually for best results
+    #[ignore = "Very slow - run manually for best results"]
     fn test_automl_extended() {
         let result = automl_extended();
         assert!(result.accuracy > 0.0);

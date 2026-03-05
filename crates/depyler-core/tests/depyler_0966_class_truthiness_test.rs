@@ -50,7 +50,7 @@ class MinHeap:
 }
 
 #[test]
-#[ignore] // TODO: DEPYLER-0967 - Positive truthiness needs statement-level transformation
+#[ignore = "TODO: DEPYLER-0967 - Positive truthiness needs statement-level transformation"]
 fn test_class_list_field_truthiness_positive() {
     // Python: Check if list field is non-empty (truthy)
     // NOTE: This test is ignored because positive truthiness (`if self.items:`)

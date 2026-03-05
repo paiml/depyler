@@ -1625,7 +1625,7 @@ mod tests {
             type_annotation: Some(Type::Unknown),
         }];
         preload_hir_type_annotations(&body, &mut ctx);
-        assert!(ctx.var_types.get("x").is_none());
+        assert!(!ctx.var_types.contains_key("x"));
     }
 
     #[test]
@@ -1637,7 +1637,7 @@ mod tests {
             type_annotation: None,
         }];
         preload_hir_type_annotations(&body, &mut ctx);
-        assert!(ctx.var_types.get("x").is_none());
+        assert!(!ctx.var_types.contains_key("x"));
     }
 
     #[test]
@@ -1802,7 +1802,7 @@ mod tests {
         }];
         preload_hir_type_annotations(&body, &mut ctx);
         // Tuple targets don't match Symbol pattern
-        assert!(ctx.var_types.get("a").is_none());
+        assert!(!ctx.var_types.contains_key("a"));
     }
 
     // === Transpile-based integration tests ===

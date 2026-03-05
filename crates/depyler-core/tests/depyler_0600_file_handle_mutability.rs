@@ -70,7 +70,7 @@ def main():
 
 /// Test: Multiple file handles to mutating functions
 #[test]
-#[ignore] // Complex pattern - separate issue with for loop over file
+#[ignore = "Complex pattern - separate issue with for loop over file"]
 fn test_multiple_file_handles() {
     let python = r#"
 def copy_line(src, dst, line: str):

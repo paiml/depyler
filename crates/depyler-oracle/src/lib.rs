@@ -1400,7 +1400,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // SLOW: Full model training takes >120s
+    #[ignore = "SLOW: Full model training takes >120s"]
     #[cfg(feature = "training")]
     fn test_load_or_train() {
         // Skip full training in fast test mode (coverage runs)
