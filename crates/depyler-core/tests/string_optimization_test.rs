@@ -194,83 +194,84 @@ def format_number(n: int) -> str:
 // ============================================================================
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod property_tests {
     use super::*;
     use proptest::prelude::*;
 
     proptest! {
-                    #![proptest_config(ProptestConfig::with_cases(10))]
+        #![proptest_config(ProptestConfig::with_cases(10))]
 
-                    #[test]
-                    fn prop_string_literals_always_transpile(_s in "\\PC{0,50}") {
-                        // Property: Any valid string literal should transpile without error
-                        // Using simple alphanumeric strings to avoid parsing complexity
-                        let pipeline = DepylerPipeline::new();
-                        let python_code = r#"
+        #[test]
+        fn prop_string_literals_always_transpile(_s in "\\PC{0,50}") {
+            // Property: Any valid string literal should transpile without error
+            // Using simple alphanumeric strings to avoid parsing complexity
+            let pipeline = DepylerPipeline::new();
+            let python_code = r#"
 def test_func():
     x = "test_string"
     return x
 "#;
 
-                        let result = pipeline.transpile(python_code);
-                        prop_assert!(result.is_ok(), "String literal transpilation failed: {:?}", result.err());
-                    }
+            let result = pipeline.transpile(python_code);
+            prop_assert!(result.is_ok(), "String literal transpilation failed: {:?}", result.err());
+        }
 
-                    #[test]
-                    fn prop_string_concatenation_compiles(_a in "\\PC{1,20}", _b in "\\PC{1,20}") {
-                        // Property: String concatenation should always produce valid Rust
-                        let pipeline = DepylerPipeline::new();
-                        let python_code = r"
+        #[test]
+        fn prop_string_concatenation_compiles(_a in "\\PC{1,20}", _b in "\\PC{1,20}") {
+            // Property: String concatenation should always produce valid Rust
+            let pipeline = DepylerPipeline::new();
+            let python_code = r"
 def concat(x: str, y: str) -> str:
     return x + y
 ";
 
-                        let result = pipeline.transpile(python_code);
-                        prop_assert!(result.is_ok(), "String concatenation transpilation failed");
+            let result = pipeline.transpile(python_code);
+            prop_assert!(result.is_ok(), "String concatenation transpilation failed");
 
-                        let rust_code = result.unwrap();
-                        prop_assert!(rust_code.contains('+') || rust_code.contains("format!"),
-                            "Should contain concatenation operator or format macro");
-                    }
+            let rust_code = result.unwrap();
+            prop_assert!(rust_code.contains('+') || rust_code.contains("format!"),
+                "Should contain concatenation operator or format macro");
+        }
 
-                    #[test]
-                    fn prop_string_parameters_use_references(param_name in "[a-z]{1,10}") {
-                        // Property: String parameters should prefer &str over String
-                        // Filter out Python AND Rust keywords to avoid parsing errors
-                        let rust_keywords = ["as", "break", "const", "continue", "crate", "do", "else",
-                                             "enum", "extern", "false", "fn", "for", "if", "impl", "in",
-                                             "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
-                                             "return", "self", "Self", "static", "struct", "super", "trait",
-                                             "true", "type", "unsafe", "use", "where", "while", "async",
-                                             "await", "dyn", "abstract", "become", "box", "final", "macro",
-                                             "override", "priv", "typeof", "unsized", "virtual", "yield",
-                                             "try"];
+        #[test]
+        fn prop_string_parameters_use_references(param_name in "[a-z]{1,10}") {
+            // Property: String parameters should prefer &str over String
+            // Filter out Python AND Rust keywords to avoid parsing errors
+            let rust_keywords = ["as", "break", "const", "continue", "crate", "do", "else",
+                                 "enum", "extern", "false", "fn", "for", "if", "impl", "in",
+                                 "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
+                                 "return", "self", "Self", "static", "struct", "super", "trait",
+                                 "true", "type", "unsafe", "use", "where", "while", "async",
+                                 "await", "dyn", "abstract", "become", "box", "final", "macro",
+                                 "override", "priv", "typeof", "unsized", "virtual", "yield",
+                                 "try"];
 
-                        // Python keywords that would cause parse errors
-                        let python_keywords = ["and", "as", "assert", "async", "await", "break", "class",
-                                              "continue", "def", "del", "elif", "else", "except", "finally",
-                                              "for", "from", "global", "if", "import", "in", "is", "lambda",
-                                              "nonlocal", "not", "or", "pass", "raise", "return", "try",
-                                              "while", "with", "yield"];
+            // Python keywords that would cause parse errors
+            let python_keywords = ["and", "as", "assert", "async", "await", "break", "class",
+                                  "continue", "def", "del", "elif", "else", "except", "finally",
+                                  "for", "from", "global", "if", "import", "in", "is", "lambda",
+                                  "nonlocal", "not", "or", "pass", "raise", "return", "try",
+                                  "while", "with", "yield"];
 
-                        prop_assume!(!rust_keywords.contains(&param_name.as_str()));
-                        prop_assume!(!python_keywords.contains(&param_name.as_str()));
+            prop_assume!(!rust_keywords.contains(&param_name.as_str()));
+            prop_assume!(!python_keywords.contains(&param_name.as_str()));
 
-                        let pipeline = DepylerPipeline::new();
-                        let python_code = format!(r"
+            let pipeline = DepylerPipeline::new();
+            let python_code = format!(r"
 def check_{param_name}({param_name}: str) -> int:
     return len({param_name})
 ");
 
-                        let result = pipeline.transpile(&python_code);
-                        prop_assert!(result.is_ok(), "String parameter transpilation failed");
+            let result = pipeline.transpile(&python_code);
+            prop_assert!(result.is_ok(), "String parameter transpilation failed");
 
-                        let rust_code = result.unwrap();
-                        // Should use &str or similar borrowed type
-                        prop_assert!(rust_code.contains('&'),
-                            "String parameters should use borrowing");
-                    }
-                }
+            let rust_code = result.unwrap();
+            // Should use &str or similar borrowed type
+            prop_assert!(rust_code.contains('&'),
+                "String parameters should use borrowing");
+        }
+    }
 }
 
 // ============================================================================
